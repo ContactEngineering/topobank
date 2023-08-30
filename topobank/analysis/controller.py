@@ -10,7 +10,7 @@ from ..manager.utils import subjects_from_dict, subjects_to_dict, dict_from_base
 from ..taskapp.tasks import perform_analysis
 
 from .models import Analysis, AnalysisFunction
-from .registry import ImplementationMissingAnalysisFunctionException
+from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
 from .serializers import AnalysisResultSerializer
 from .utils import find_children
 
@@ -304,6 +304,15 @@ class AnalysisController:
         if self._function is None and function_required:
             raise ValueError('Please restrict this analysis controller to a specific function.')
 
+        # Construct a cache of content types that the current user is allowed to access for the current function
+        self._user_is_allowed_to_use_function_implementation = None
+        if self._function is not None:
+            impls = AnalysisRegistry().get_implementations(self._function.name)
+            # This is a shortcut - we have information on combinations of analysis functions and content types,
+            # but I would like to remove the content type specificity
+            self._user_is_allowed_to_use_function_implementation = any(
+                [impl.is_available_for_user(user) for impl in impls.values()])
+
         self._function_kwargs = function_kwargs
 
         # Calculate subjects for the analyses, filtered for those which have an implementation
@@ -492,8 +501,18 @@ class AnalysisController:
         analyses = Analysis.objects.filter(query) \
             .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
 
+        # Check permissions
+        is_allowed_to_view_surfaces = self._user.has_obj_perms('view_surface', analyses)
+        if self._user_is_allowed_to_use_function_implementation is None:
+            # This is expensive (but can be made better), we loop and query for each analysis
+            is_allowed_to_use_implementation = [analysis.get_implementation().is_available_for_user(self._user)
+                                                for analysis in analyses]
+        else:
+            is_allowed_to_use_implementation = [self._user_is_allowed_to_use_function_implementation] * len(analyses)
+
         # filter by current visibility for user
-        return [analysis for analysis in analyses if analysis.is_visible_for_user(self._user)]
+        return [analysis for (analysis, perm1, perm2)
+                in zip(analyses, is_allowed_to_view_surfaces, is_allowed_to_use_implementation) if perm1 and perm2]
 
     def _get_subjects_without_analysis_results(self):
         """Find analyses that are missing (i.e. have not yet run)"""

@@ -247,10 +247,13 @@ class Analysis(models.Model):
         """Returns sequence of surface instances related to the subject of this analysis."""
         return self.subject.related_surfaces()
 
+    def get_implementation(self):
+        return self.function.get_implementation(self.subject_type)
+
     def is_visible_for_user(self, user):
         """Returns True if given user should be able to see this analysis."""
         is_allowed_to_view_surfaces = all(user.has_perm("view_surface", s) for s in self.related_surfaces())
-        is_allowed_to_use_implementation = self.function.get_implementation(self.subject_type).is_available_for_user(user)
+        is_allowed_to_use_implementation = self.get_implementation().is_available_for_user(user)
         return is_allowed_to_use_implementation and is_allowed_to_view_surfaces
 
     def get_default_users(self):
@@ -262,8 +265,7 @@ class Analysis(models.Model):
         # Find all users having access to all related surfaces
         users_allowed_by_surfaces = self.subject.get_users_with_perms()
         # Filter those users for those having access to the function implementation
-        users_allowed = [u for u in users_allowed_by_surfaces
-                         if self.function.get_implementation(self.subject_type).is_available_for_user(u)]
+        users_allowed = [u for u in users_allowed_by_surfaces if self.get_implementation().is_available_for_user(u)]
         return User.objects.filter(id__in=[u.id for u in users_allowed]).order_by('name')
 
     @property

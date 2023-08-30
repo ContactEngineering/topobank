@@ -6,6 +6,7 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.db.utils import ProgrammingError
 
+from guardian.core import ObjectPermissionChecker
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, get_anonymous_user
 
@@ -37,6 +38,12 @@ class User(GuardianUserMixin, AbstractUser):
     def get_media_path(self):
         """Return relative path of directory for files of this user."""
         return os.path.join('topographies', 'user_{}'.format(self.id))
+
+    def has_obj_perms(self, perm, objs):
+        """Return permission for list of objects"""
+        checker = ObjectPermissionChecker(self)
+        checker.prefetch_perms(objs)
+        return [checker.has_perm(perm, obj) for obj in objs]
 
     def _orcid_info(self):  # TODO use local cache
         try:
