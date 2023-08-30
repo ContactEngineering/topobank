@@ -492,8 +492,6 @@ class AnalysisController:
         analyses = Analysis.objects.filter(query) \
             .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
 
-        print(analyses, [analysis for analysis in analyses if analysis.is_visible_for_user(self._user)])
-
         # filter by current visibility for user
         return [analysis for analysis in analyses if analysis.is_visible_for_user(self._user)]
 
