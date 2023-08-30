@@ -116,7 +116,7 @@ class Analysis(models.Model):
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
-    # Keyword agruments passed to the Python analysis function
+    # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
 
     # This is the Celery task id
