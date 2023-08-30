@@ -10,7 +10,7 @@ from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect, reverse
 from django.conf import settings
 
-from rest_framework import generics, mixins, viewsets, status
+from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 
@@ -24,7 +24,7 @@ from ..manager.models import Topography, Surface, SurfaceCollection
 from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_base64
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController, renew_analysis
-from .models import Analysis, AnalysisFunction, AnalysisCollection
+from .models import Analysis, AnalysisFunction
 from .registry import AnalysisRegistry
 from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer
 from .utils import filter_and_order_analyses, palette_for_topographies
