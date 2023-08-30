@@ -46,7 +46,6 @@ export default {
     inject: ['csrfToken'],
     data() {
         return {
-            _anyTaskIsRunning: true,  // We assume some task is running and get notified if this is not the case
             _nbFailed: 0,
             _nbRunningOrPending: 0,
             _nbSuccess: 0,

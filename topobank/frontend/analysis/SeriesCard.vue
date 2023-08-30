@@ -67,7 +67,7 @@ export default {
     },
     computed: {
         analysisIds() {
-            return this._analyses.map(a => a.id).join();
+            return this._analyses.join();
         }
     },
     methods: {

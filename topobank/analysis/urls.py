@@ -7,7 +7,7 @@ from . import functions
 from . import views
 
 router = DefaultRouter()
-router.register(r'status', views.AnalysisResultView, basename='status')
+router.register(r'api/status', views.AnalysisResultView, basename='status')
 
 urlpatterns = router.urls
 

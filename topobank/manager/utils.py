@@ -1,4 +1,5 @@
 import base64
+import functools
 import json
 import logging
 import markdown2
@@ -6,7 +7,6 @@ import tempfile
 import traceback
 
 from django.shortcuts import reverse
-from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from django.conf import settings
 from django.db.models import Q, Value, Count
 from django.db.models.functions import Replace
@@ -15,6 +15,9 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector, SearchQuery
+
+from guardian.core import ObjectPermissionChecker
+from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
@@ -646,7 +649,7 @@ def subjects_to_dict(subjects):
     }
 
 
-def subjects_from_dict(subjects_dict, function=None):
+def subjects_from_dict(subjects_dict, user=None, function=None):
     """
     Return subject instances from ids given as a dictionary.
 
@@ -655,22 +658,26 @@ def subjects_from_dict(subjects_dict, function=None):
 
     Parameters
     ----------
-    subjects_dict: dict
+    subjects_dict : dict
         A dictionary with
             key : str
                 Mangled content type string
             values : list
                 Integers with object ids for given content type (key)
-
-    function: AnalysisFunction, optional
+    user : topobank.users.models.User, optional
+        User object. Function performs a permissions check if present.
+        (Default: None)
+    function : AnalysisFunction, optional
         If given an analysis function, the subjects returned will
         be filtered so only subjects are included which have
-        an implementation for the given function.
+        an implementation for the given function. (Default: None)
 
     Returns
     -------
     List of subject instances (e.g. Topography or Surface)
     """
+
+    # Build list with potential subjects
     subjects = []
     for subject_app_label_and_model, subject_ids in subjects_dict.items():
         ct = demangle_content_type(subject_app_label_and_model)
@@ -686,6 +693,23 @@ def subjects_from_dict(subjects_dict, function=None):
             # skip these subjects
             continue
         subjects += [s for s in ct.get_all_objects_for_this_type().filter(query)]
+
+    if subjects == []:
+        # Skip permissions check
+        return []
+
+    # Check permissions is user is specified
+    if user is not None:
+        # Build list of related surfaces
+        related_surfaces = [s.related_surfaces() for s in subjects]
+        unique_surfaces = set([s for s in functools.reduce(lambda x, y: x + y, related_surfaces, [])])
+        checker = ObjectPermissionChecker(user)
+        checker.prefetch_perms(unique_surfaces)
+        permissions = [all([checker.has_perm('view_surface', s) for s in r]) for r in related_surfaces]
+
+        # Filter only those subjects that have view permissions
+        subjects = [s for s, p in zip(subjects, permissions) if p]
+
     return subjects
 
 
@@ -801,7 +825,7 @@ def selection_to_subjects_dict(request):
         # for all surface collections with same number of surfaces, then filtering
         # for the exact surfaces
         # (see https://stackoverflow.com/questions/16324362/django-queryset-get-exact-manytomany-lookup)
-        surf_collections = SurfaceCollection.objects.annotate(surface_count=Count('surfaces'))\
+        surf_collections = SurfaceCollection.objects.annotate(surface_count=Count('surfaces')) \
             .filter(surface_count=len(effective_surfaces))
         for s in effective_surfaces:
             surf_collections = surf_collections.filter(surfaces__pk=s.pk)
@@ -810,7 +834,8 @@ def selection_to_subjects_dict(request):
             _log.info(f"Found existing surface collection for surfaces {[s.id for s in effective_surfaces]}.")
             coll = surf_collections.first()
             if surf_collections.count() > 1:
-                _log.warning(f"More than on surface collection instance for surfaces {[s.id for s in effective_surfaces]} found.")
+                _log.warning(
+                    f"More than on surface collection instance for surfaces {[s.id for s in effective_surfaces]} found.")
         else:
             coll = SurfaceCollection.objects.create(name=surface_collection_name([s.name for s in effective_surfaces]))
             coll.surfaces.set(effective_surfaces)

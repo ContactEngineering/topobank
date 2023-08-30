@@ -1,4 +1,3 @@
-import inspect
 import logging
 
 from django.contrib.contenttypes.models import ContentType
@@ -265,8 +264,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
 class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
-    def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None, with_children=True,
-                 function_required=True):
+    def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None, with_children=True):
         """
         Construct a controller object that filters for specific user, subjects,
         functions, and function arguments. If a parameter is None, then it
@@ -285,12 +283,12 @@ class AnalysisController:
         with_children : bool, optional
             Also return analyses of children, i.e. of topographies that belong
             to a surface. (Default: True)
-        function_required : bool, optional
-            If true, the controller raises an error if the request does not
-            contain information on the specific function to filter for.
-            (Default: True)
         """
         self._user = user
+
+        if subjects is None:
+            raise ValueError('Please restrict this analysis controller to specific subjects.')
+
         if function is None:
             if function_id is None:
                 self._function = None
@@ -301,23 +299,27 @@ class AnalysisController:
         else:
             raise ValueError('Please provide either `function` or `function_id`, not both.')
 
-        if self._function is None and function_required:
+        if self._function is None:
             raise ValueError('Please restrict this analysis controller to a specific function.')
 
-        # Construct a cache of content types that the current user is allowed to access for the current function
-        self._user_is_allowed_to_use_function_implementation = None
-        if self._function is not None:
-            impls = AnalysisRegistry().get_implementations(self._function.name)
-            # This is a shortcut - we have information on combinations of analysis functions and content types,
-            # but I would like to remove the content type specificity
-            self._user_is_allowed_to_use_function_implementation = any(
-                [impl.is_available_for_user(user) for impl in impls.values()])
+        # Prefetch function permissions
+        impls = AnalysisRegistry().get_implementations(self._function.name)
+        # This is a shortcut - we have information on combinations of analysis functions and content types,
+        # but I would like to remove the content type specificity
+        self._function_permission = any(
+            [impl.is_available_for_user(user) for impl in impls.values()])
+
+        if not self._function_permission:
+            raise ValueError('User does not have access to this analysis function.')
 
         self._function_kwargs = function_kwargs
 
         # Calculate subjects for the analyses, filtered for those which have an implementation
-        self._subjects = None if subjects is None else subjects_from_dict(subjects)
+        self._subjects = subjects_from_dict(subjects, user=self._user)
+        print(subjects, self._subjects)
 
+        # Surface permissions are checked in `subjects_from_dict`. Since children (topographies) inherit the permission
+        # from their parents, we do not need to do an additional permissions check.
         if with_children:
             self._subjects = find_children(self._subjects)
 
@@ -327,7 +329,7 @@ class AnalysisController:
         self._reset_cache()
 
     @staticmethod
-    def from_request(request, with_children=True, function_required=True, **kwargs):
+    def from_request(request, with_children=True, **kwargs):
         """
         Construct an `AnalysisControlLer` object from a request object.
 
@@ -338,10 +340,6 @@ class AnalysisController:
         with_children : bool, optional
             Also return analyses of children, i.e. of topographies that belong
             to a surface. (Default: True)
-        function_required : bool, optional
-            If true, the controller raises an error if the request does not
-            contain information on the specific function to filter for.
-            (Default: True)
 
         Returns
         -------
@@ -371,7 +369,7 @@ class AnalysisController:
             function_kwargs = dict_from_base64(function_kwargs)
 
         return AnalysisController(user, subjects=subjects, function_id=function_id, function_kwargs=function_kwargs,
-                                  with_children=with_children, function_required=function_required)
+                                  with_children=with_children)
 
     def _reset_cache(self):
         self._dois = None
@@ -474,45 +472,27 @@ class AnalysisController:
         or if these analyses are marked as successful.
         """
         # Return no results if subjects is empty list
-        if self._subjects is not None and len(self._subjects) == 0:
+        if len(self._subjects) == 0:
             return []
 
-        # Query for user
-        query = Q(users=self._user)
+        # Query for user, function and subjects
+        query = Q(users=self._user) & Q(function=self._function)
 
-        # Add function to query
-        if self._function is not None:
-            query = Q(function=self._function) & query
+        # Query for subjects
+        subjects_query = None
+        for subject in self._subjects:
+            ct = ContentType.objects.get_for_model(subject)
+            q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
+            subjects_query = q if subjects_query is None else subjects_query | q
+        query = subjects_query & query
 
         # Add kwargs (if specified)
         if self._function_kwargs is not None:
             query = Q(kwargs=self._function_kwargs) & query
 
-        # Query for subjects
-        if self._subjects is not None and len(self._subjects) > 0:
-            subjects_query = None
-            for subject in self._subjects:
-                ct = ContentType.objects.get_for_model(subject)
-                q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
-                subjects_query = q if subjects_query is None else subjects_query | q
-            query = subjects_query & query
-
-        # Find analyses
-        analyses = Analysis.objects.filter(query) \
+        # Find and return analyses
+        return Analysis.objects.filter(query) \
             .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
-
-        # Check permissions
-        is_allowed_to_view_surfaces = self._user.has_obj_perms('view_surface', analyses)
-        if self._user_is_allowed_to_use_function_implementation is None:
-            # This is expensive (but can be made better), we loop and query for each analysis
-            is_allowed_to_use_implementation = [analysis.get_implementation().is_available_for_user(self._user)
-                                                for analysis in analyses]
-        else:
-            is_allowed_to_use_implementation = [self._user_is_allowed_to_use_function_implementation] * len(analyses)
-
-        # filter by current visibility for user
-        return [analysis for (analysis, perm1, perm2)
-                in zip(analyses, is_allowed_to_view_surfaces, is_allowed_to_use_implementation) if perm1 and perm2]
 
     def _get_subjects_without_analysis_results(self):
         """Find analyses that are missing (i.e. have not yet run)"""
@@ -611,7 +591,23 @@ class AnalysisController:
         return [AnalysisResultSerializer(analysis, context=context).data for analysis in
                 self.get(task_states=task_states, has_result_file=has_result_file)]
 
-    def get_context(self, task_states=None, has_result_file=None, request=None):
+    def get_analysis_ids(self, task_states=None, has_result_file=None):
+        """
+        Return list of serialized analyses filtered by arguments (if present).
+
+        Parameters
+        ----------
+        task_states : list of str, optional
+            List of task states to filter for, e.g. ['su', 'fa'] to filter for
+            success and failure. (Default: None)
+        has_result_file : boolean, optional
+            If true, only return analyses that have a results file. If false,
+            return analyses without a results file. Don't filter for results
+            file if unset. (Default: None)
+        """
+        return [analysis.id for analysis in self.get(task_states=task_states, has_result_file=has_result_file)]
+
+    def get_context(self, task_states=None, has_result_file=None):
         """
         Construct a standardized context dictionary.
 
@@ -624,12 +620,9 @@ class AnalysisController:
             If true, only return analyses that have a results file. If false,
             return analyses without a results file. Don't filter for results
             file if unset. (Default: None)
-        request : Request, optional
-            request object (for HyperlinkedRelatedField). (Default: None)
         """
         return {
-            'analyses': self.to_representation(task_states=task_states, has_result_file=has_result_file,
-                                               request=request),
+            'analyses': self.get_analysis_ids(task_states=task_states, has_result_file=has_result_file),
             'dois': self.dois,
             'functionName': self.function.name,
             'functionId': self.function.id,

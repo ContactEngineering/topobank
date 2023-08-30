@@ -94,7 +94,7 @@ def generic_card_view(request):
     #
     # get standard context dictionary
     #
-    context = controller.get_context(request=request)
+    context = controller.get_context()
 
     #
     # Update context
@@ -145,7 +145,7 @@ def series_card_view(request, **kwargs):
     # but the only measurement's analysis has no success. In this case there is also
     # no successful analysis to display because the surface has only one measurement.
 
-    context = controller.get_context(request=request)
+    context = controller.get_context()
 
     plot_configuration = {
         'title': controller.function.name
@@ -182,12 +182,11 @@ def series_card_view(request, **kwargs):
     has_at_least_one_surfacecollection_subject = False
     for a in analyses_success_list:
         s = a.subject
-        subject_ct = s.get_content_type()
         subject_name = s.label.replace("'", "&apos;")
-        if subject_ct == surface_ct:
+        if isinstance(s, Surface):
             subject_name = f"Average of »{subject_name}«"
             has_at_least_one_surface_subject = True
-        if subject_ct == surfacecollection_ct:
+        elif isinstance(s, SurfaceCollection):
             has_at_least_one_surfacecollection_subject = True
         subject_names.append(subject_name)
 
