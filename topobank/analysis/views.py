@@ -94,7 +94,7 @@ def generic_card_view(request):
     #
     # get standard context dictionary
     #
-    context = controller.get_context()
+    context = controller.get_context(request=request)
 
     #
     # Update context
@@ -145,7 +145,7 @@ def series_card_view(request, **kwargs):
     # but the only measurement's analysis has no success. In this case there is also
     # no successful analysis to display because the surface has only one measurement.
 
-    context = controller.get_context()
+    context = controller.get_context(request=request)
 
     plot_configuration = {
         'title': controller.function.name

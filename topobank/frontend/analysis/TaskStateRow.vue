@@ -6,7 +6,7 @@ export default {
         'setTaskState'
     ],
     props: {
-        analysis: Number,
+        analysis: Object,
         pollingInterval: {
             type: Number,
             default: 2000  // milliseconds
@@ -15,7 +15,7 @@ export default {
     inject: ['csrfToken'],
     data() {
         return {
-            _analysis: null,
+            _analysis: this.analysis,
             _error: null,
         }
     },
@@ -56,7 +56,8 @@ export default {
             }
         },
         checkState() {
-            let statusUrl = `/analysis/api/status/${this.analysis}/`;
+            const analysisId = this._analysis.id === undefined ? this._analysis : this._analysis.id;
+            const statusUrl = `/analysis/api/status/${analysisId}/`;
             fetch(statusUrl, {
                 method: 'GET',
                 headers: {

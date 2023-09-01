@@ -607,7 +607,7 @@ class AnalysisController:
         """
         return [analysis.id for analysis in self.get(task_states=task_states, has_result_file=has_result_file)]
 
-    def get_context(self, task_states=None, has_result_file=None):
+    def get_context(self, task_states=None, has_result_file=None, request=None):
         """
         Construct a standardized context dictionary.
 
@@ -620,9 +620,12 @@ class AnalysisController:
             If true, only return analyses that have a results file. If false,
             return analyses without a results file. Don't filter for results
             file if unset. (Default: None)
+        request : Request, optional
+            request object (for HyperlinkedRelatedField). (Default: None)
         """
         return {
-            'analyses': self.get_analysis_ids(task_states=task_states, has_result_file=has_result_file),
+            'analyses': self.to_representation(task_states=task_states, has_result_file=has_result_file,
+                                               request=request),
             'dois': self.dois,
             'functionName': self.function.name,
             'functionId': self.function.id,
