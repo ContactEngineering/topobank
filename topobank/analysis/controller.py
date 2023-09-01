@@ -490,7 +490,7 @@ class AnalysisController:
             query = Q(kwargs=self._function_kwargs) & query
 
         # Find and return analyses
-        return Analysis.objects.filter(query).prefetch_related('configuration', 'function', 'subject_type') \
+        return Analysis.objects.filter(query).select_related('configuration', 'function', 'subject_type') \
             .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
 
     def _get_subjects_without_analysis_results(self):
