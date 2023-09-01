@@ -59,8 +59,8 @@ from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyW
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
     PlotTopographyException, PublicationException, _upload_path_for_datafile
-from .permissions import ObjectPermissions, ParentObjectPermissions
-from .serializers import SearchSerializer, SurfaceSerializer, TopographySerializer, TagSerializer
+from .permissions import ObjectPermissions, ObjectPermissionsFilter, ParentObjectPermissions
+from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
@@ -1807,7 +1807,7 @@ class SurfaceListView(generics.ListAPIView):
     """
     List all surfaces with topographies underneath.
     """
-    serializer_class = SearchSerializer
+    serializer_class = SurfaceSerializer
     pagination_class = SurfaceSearchPaginator
 
     def get_queryset(self):

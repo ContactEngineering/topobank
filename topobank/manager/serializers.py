@@ -105,52 +105,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         return obj.label
 
 
-class SurfaceSerializer(serializers.ModelSerializer):
-    class Meta:
-        model = Surface
-        fields = ['id', 'name', 'creator', 'description', 'category', 'tags', 'urls']
-
-    urls = serializers.SerializerMethodField()
-
-    def get_urls(self, obj):
-
-        user = self.context['request'].user
-        perms = get_perms(user, obj)  # TODO are permissions needed here?
-
-        urls = {
-            'select': reverse('manager:surface-select', kwargs=dict(pk=obj.pk)),
-            'unselect': reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
-        }
-        if 'view_surface' in perms:
-            urls['detail'] = reverse('manager:surface-detail', kwargs=dict(pk=obj.pk))
-            if obj.num_topographies() > 0:
-                urls.update({
-                    'analyze': f"{reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
-                })
-            urls['download'] = reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
-
-        if 'change_surface' in perms:
-            urls.update({
-                'add_topography': reverse('manager:topography-create', kwargs=dict(surface_id=obj.id)),
-                'update': reverse('manager:surface-update', kwargs=dict(pk=obj.pk)),
-            })
-        if 'delete_surface' in perms:
-            urls.update({
-                'delete': reverse('manager:surface-delete', kwargs=dict(pk=obj.pk)),
-            })
-        if 'share_surface' in perms:
-            urls.update({
-                'share': reverse('manager:surface-share', kwargs=dict(pk=obj.pk)),
-            })
-        if 'publish_surface' in perms:
-            urls.update({
-                'publish': reverse('manager:surface-publish', kwargs=dict(pk=obj.pk)),
-            })
-
-        return urls
-
-
-class SearchSerializer(serializers.HyperlinkedModelSerializer):
+class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
         fields = ['id', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',

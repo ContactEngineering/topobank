@@ -6,7 +6,7 @@ export default {
         'setTaskState'
     ],
     props: {
-        analysis: Object,
+        analysis: Number,
         pollingInterval: {
             type: Number,
             default: 2000  // milliseconds
@@ -15,7 +15,7 @@ export default {
     inject: ['csrfToken'],
     data() {
         return {
-            _analysis: this.analysis,
+            _analysis: null,
             _error: null,
         }
     },
@@ -25,7 +25,7 @@ export default {
     methods: {
         scheduleStateCheck() {
             // Tasks are still pending or running if this state check is scheduled
-            if (this._analysis !== null || this._analysis.id === undefined) {
+            if (this._analysis !== null) {
                 if (this._analysis.task_state == 'pe' || this._analysis.task_state == 'st') {
                     setTimeout(this.checkState, this.pollingInterval);
                 } else if (this._analysis.task_state == 'fa') {
@@ -51,14 +51,12 @@ export default {
                 }
             }
             else {
-                // Check immediate as _analysis is null or a number (which then is the id)
+                // Check immediate as _analysis is null
                 this.checkState();
             }
         },
         checkState() {
-            // Status URL is also in this.analysis.api.statusUrl
-            const analysisId = this.analysis.id === undefined ? this.analysis : this.analysis.id;
-            const statusUrl = `/analysis/api/status/${analysisId}/`;
+            let statusUrl = `/analysis/api/status/${this.analysis}/`;
             fetch(statusUrl, {
                 method: 'GET',
                 headers: {
