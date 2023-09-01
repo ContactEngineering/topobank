@@ -22,7 +22,6 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
         depth = 1
 
     duration = serializers.SerializerMethodField()
-    kwargs = serializers.SerializerMethodField()
     subject = GenericRelatedField({
         Surface: SurfaceSerializer(),
         Topography: TopographySerializer()
@@ -34,9 +33,6 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
 
     def get_duration(self, obj):
         return obj.duration
-
-    def get_kwargs(self, obj):
-        return obj.kwargs
 
     def get_task_state(self, obj):
         """

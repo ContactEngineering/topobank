@@ -10,7 +10,7 @@ from .utils import get_search_term, filtered_topographies, subjects_to_base64, m
 _log = logging.getLogger(__name__)
 
 
-class TopographySerializer(serializers.HyperlinkedModelSerializer):
+class TopographySerializer(serializers.ModelSerializer):
     class Meta:
         model = Topography
         fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
@@ -105,7 +105,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         return obj.label
 
 
-class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
+class SurfaceSerializer(serializers.ModelSerializer):
     class Meta:
         model = Surface
         fields = ['id', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',

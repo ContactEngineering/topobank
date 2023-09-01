@@ -38,7 +38,7 @@ LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
-    queryset = Analysis.objects.all()
+    queryset = Analysis.objects.select_related('configuration', 'function', 'subject_type').prefetch_related('users')
     serializer_class = AnalysisResultSerializer
 
     def update(self, request, *args, **kwargs):
