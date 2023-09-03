@@ -2,7 +2,6 @@ import itertools
 import logging
 from collections import OrderedDict
 
-from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from django.views.generic import DetailView, TemplateView
 from django.core.files.storage import default_storage
@@ -171,10 +170,6 @@ def series_card_view(request, **kwargs):
     #
     # Extract subject names for display
     #
-    surface_ct = ContentType.objects.get_for_model(Surface)
-    surfacecollection_ct = ContentType.objects.get_for_model(SurfaceCollection)
-    topography_ct = ContentType.objects.get_for_model(Topography)
-
     subject_names = []  # will be shown under category with key "subject_name" (see plot.js)
     has_at_least_one_surface_subject = False
     has_at_least_one_surfacecollection_subject = False
@@ -242,11 +237,11 @@ def series_card_view(request, **kwargs):
         series_names.update([s['name'] if 'name' in s else f'{i}'
                              for i, s in enumerate(analysis.result_metadata['series'])])
 
-        if isinstance(analysis.subject, Surface):
+        if analysis.subject.surface is not None:
             nb_surfaces += 1
-        elif isinstance(analysis.subject, Topography):
+        elif analysis.subject.topography is not None:
             nb_topographies += 1
-        elif isinstance(analysis.subject, SurfaceCollection):
+        elif analysis.subject.collection is not None:
             nb_surfacecollections += 1
         else:
             nb_others += 1
@@ -281,20 +276,19 @@ def series_card_view(request, **kwargs):
         #
         # Define some helper variables
         #
-        subject = analysis.subject
-
-        is_surface_analysis = isinstance(subject, Surface)
-        is_topography_analysis = isinstance(subject, Topography)
-        # is_surfacecollection_analysis = isinstance(subject, SurfaceCollection)
+        is_surface_analysis = analysis.subject.surface is not None
+        is_topography_analysis = analysis.subject.topography is not None
+        is_surfacecollection_analysis = analysis.subject.collection is not None
 
         #
         # Change display name depending on whether there is a parent analysis or not
         #
         parent_analysis = None
-        if is_topography_analysis and analysis.subject.surface.num_topographies() > 1:
+        if is_topography_analysis and analysis.subject.topography.surface.num_topographies() > 1:
             for a in analyses_success_list:
-                if a.subject_type == surface_ct and a.subject_id == analysis.subject.surface.id and \
-                    a.function == analysis.function:
+                if a.subject.surface is not None and \
+                    a.subject.surface.id == analysis.subject.topography.surface.id and \
+                    a.function.id == analysis.function.id:
                     parent_analysis = a
 
         subject_display_name = subject_names[analysis_idx]
@@ -305,13 +299,13 @@ def series_card_view(request, **kwargs):
         if is_surface_analysis:
             # Surface results are plotted in black/grey
             surface_index += 1
-            subject_colors[subject] = \
+            subject_colors[analysis.subject.id] = \
                 surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
         elif is_topography_analysis:
             topography_index += 1
-            subject_colors[subject] = topography_color_palette[topography_index]
+            subject_colors[analysis.subject.id] = topography_color_palette[topography_index]
         else:
-            subject_colors[subject] = 'black'  # Find better colors later, if needed
+            subject_colors[analysis.subject.id] = 'black'  # Find better colors later, if needed
 
         #
         # Handle unexpected task states for robustness, shouldn't be needed in general
@@ -385,7 +379,7 @@ def series_card_view(request, **kwargs):
             #
             show_symbols = s['nbDataPoints'] <= MAX_NUM_POINTS_FOR_SYMBOLS if 'nbDataPoints' in s else True
 
-            curr_color = subject_colors[subject]
+            curr_color = subject_colors[analysis.subject.id]
             curr_dash = series_dashes[series_name]
 
             # hover_name = "{} for '{}'".format(series_name, topography_name)
