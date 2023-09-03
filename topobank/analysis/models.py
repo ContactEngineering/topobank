@@ -119,7 +119,7 @@ class AnalysisSubject(models.Model):
             raise RuntimeError('Database corruption: All subjects appear to be None/null.')
 
     def save(self, *args, **kwargs):
-        if sum([self.collection.null, self.surface.null, self.topography.null]) != 1:
+        if sum([self.collection is not None, self.surface is not None, self.topography is not None]) != 1:
             raise ValidationError('Only of of collection, surface or topgoraphy can be defined.')
         super().save(*args, **kwargs)
 

@@ -17,6 +17,7 @@ export default {
         return {
             _analysis: this.analysis,
             _error: null,
+            _function: null,
             _subject: null
         }
     },
@@ -27,6 +28,38 @@ export default {
         scheduleStateCheck() {
             // Tasks are still pending or running if this state check is scheduled
             if (this._analysis !== null) {
+                if (this._function === null) {
+                    fetch(this._analysis.function, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(result => {
+                            this._function = result;
+                        });
+                }
+
+                if (this._subject === null) {
+                    const subject = this._analysis.subject;
+                    const subjectUrl = subject.topography !== null ?
+                        subject.topography : subject.surface !== null ?
+                            subject.surface : subject.collection;
+                    fetch(subjectUrl, {
+                        method: 'GET',
+                        headers: {
+                            'Accept': 'application/json',
+                            'X-CSRFToken': this.csrfToken
+                        }
+                    })
+                        .then(response => response.json())
+                        .then(result => {
+                            this._subject = result;
+                        });
+                }
+
                 if (this._analysis.task_state == 'pe' || this._analysis.task_state == 'st') {
                     setTimeout(this.checkState, this.pollingInterval);
                 } else if (this._analysis.task_state == 'fa') {
@@ -50,16 +83,13 @@ export default {
                         this._error = this._analysis.error;
                     }
                 }
-            }
-            else {
+            } else {
                 // Check immediate as _analysis is null
                 this.checkState();
             }
         },
         checkState() {
-            const analysisId = this._analysis.id === undefined ? this._analysis : this._analysis.id;
-            const statusUrl = `/analysis/api/status/${analysisId}/`;
-            fetch(statusUrl, {
+            fetch(this._analysis.url, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -80,7 +110,7 @@ export default {
         renew() {
             this._analysis.task_state = 'pe';
             this.$emit('setTaskState', 'pe');
-            fetch(this._analysis.api.statusUrl, {
+            fetch(this._analysis.url, {
                 method: 'PUT',
                 headers: {
                     'Accept': 'application/json',
@@ -93,6 +123,11 @@ export default {
                     this._analysis = data;
                     this.scheduleStateCheck();
                 })
+        }
+    },
+    computed: {
+        analysisId() {
+            return this._analysis === null ? -1 : this._analysis.url.split('/').slice(-2, -1)[0];
         }
     }
 };
@@ -120,14 +155,11 @@ export default {
             <p>Fetching analysis status, please wait...</p>
         </td>
         <td v-if="_analysis !== null">
-            <p v-if="_subject === null">
-                Computation of analysis <i>{{ _analysis.function.name }}</i>.
+            <p v-if="_function === null || _subject === null">
+                Analysis result with id <i>{{ analysisId }}</i>
             </p>
-            <p v-if="_subject !== null">
-                Computation of analysis <i>{{ _analysis.function.name }}</i> on {{ _subject.type }}
-                <a :href="_subject.url">
-                    {{ _subject.name }}
-                </a>.
+            <p v-if="_function !== null && _subject !== null">
+                <i>{{ _function.name }}</i> of {{ _subject.name }}
             </p>
             <p>
                 Parameters: {{ _analysis.kwargs }}

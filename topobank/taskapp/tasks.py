@@ -155,7 +155,7 @@ def perform_analysis(self, analysis_id):
     #
     try:
         kwargs = analysis.kwargs
-        subject = analysis.subject
+        subject = analysis.subject.get()
         _log.debug(f"Evaluating analysis function '{analysis.function.name}' on subject '{subject}' with "
                    f"kwargs {kwargs} and storage prefix '{analysis.storage_prefix}'...")
         # also request citation information

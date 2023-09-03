@@ -89,7 +89,7 @@ def renew_analysis(analysis, use_default_kwargs=False):
     users = analysis.users.all()
     func = analysis.function
 
-    subject_type = ContentType.objects.get_for_model(analysis.subject)
+    subject_type = ContentType.objects.get_for_model(analysis.subject.get())
 
     if use_default_kwargs:
         pyfunc_kwargs = func.get_default_kwargs(subject_type=subject_type)
@@ -99,10 +99,10 @@ def renew_analysis(analysis, use_default_kwargs=False):
     pyfunc_kwargs = _sanitize_kwargs(func.get_signature(subject_type), **pyfunc_kwargs)
 
     _log.info(f"Renewing analysis {analysis.id} for {len(users)} users, function {func.name}, "
-              f"subject type {subject_type}, subject id {analysis.subject.id} .. "
+              f"subject type {subject_type}, subject id {analysis.subject.id}, "
               f"kwargs: {pyfunc_kwargs}")
     analysis.delete()
-    return submit_analysis(users, func, subject=analysis.subject,
+    return submit_analysis(users, func, subject=analysis.subject.get(),
                            pyfunc_kwargs=pyfunc_kwargs)
 
 
@@ -269,9 +269,8 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
 class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
-    queryset = Analysis.objects \
-        .select_related('configuration', 'function', 'subject__topography', 'subject__surface', 'subject__collection') \
-        .prefetch_related('configuration__versions')
+    queryset = Analysis.objects.all() \
+        .select_related('function', 'subject__topography', 'subject__surface', 'subject__collection')
 
     def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None, with_children=True):
         """

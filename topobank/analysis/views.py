@@ -187,8 +187,8 @@ def series_card_view(request, **kwargs):
     # Use first analysis to determine some properties for the whole plot
     #
     first_analysis_result = analyses_success_list[0].result
-    xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
-    yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
+    xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else 'm'
+    yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else 'm'
 
     ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
 
@@ -234,8 +234,8 @@ def series_card_view(request, **kwargs):
         if analysis.task_state != analysis.SUCCESS:
             continue  # should not happen if only called with successful analyses
 
-        series_names.update([s['name'] if 'name' in s else f'{i}'
-                             for i, s in enumerate(analysis.result_metadata['series'])])
+        series_metadata = analysis.result_metadata.get('series', [])
+        series_names.update([s['name'] if 'name' in s else f'{i}' for i, s in enumerate(series_metadata)])
 
         if analysis.subject.surface is not None:
             nb_surfaces += 1
@@ -318,7 +318,7 @@ def series_card_view(request, **kwargs):
         # Find out scale for data
         #
         result_metadata = analysis.result_metadata
-        series_metadata = result_metadata['series']
+        series_metadata = result_metadata.get('series', [])
 
         messages = []
 
@@ -326,7 +326,7 @@ def series_card_view(request, **kwargs):
             analysis_xscale = 1
         else:
             try:
-                analysis_xscale = ureg.convert(1, result_metadata['xunit'], xunit)
+                analysis_xscale = ureg.convert(1, result_metadata.get('xunit', 'm'), xunit)
             except (UndefinedUnitError, DimensionalityError) as exc:
                 err_msg = f"Cannot convert x units when displaying results for analysis with id {analysis.id}. " \
                           f"Cause: {exc}"
@@ -340,7 +340,7 @@ def series_card_view(request, **kwargs):
             analysis_yscale = 1
         else:
             try:
-                analysis_yscale = ureg.convert(1, result_metadata['yunit'], yunit)
+                analysis_yscale = ureg.convert(1, result_metadata.get('yunit', 'm'), yunit)
             except (UndefinedUnitError, DimensionalityError) as exc:
                 err_msg = f"Cannot convert y units when displaying results for analysis with id {analysis.id}. " \
                           f"Cause: {exc}"
@@ -392,7 +392,7 @@ def series_card_view(request, **kwargs):
             #
             has_parent = (parent_analysis is not None) and \
                          any(s['name'] == series_name if 'name' in s else f'{i}' == series_name
-                             for i, s in enumerate(parent_analysis.result_metadata['series']))
+                             for i, s in enumerate(parent_analysis.result_metadata.get('series', [])))
 
             #
             # Context information for this data source, will be interpreted by client JS code
