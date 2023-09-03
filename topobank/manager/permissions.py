@@ -1,7 +1,11 @@
 from django.http import Http404
 
+from django.contrib.contenttypes.models import ContentType
+
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.permissions import DjangoObjectPermissions, SAFE_METHODS
+
+from guardian.utils import get_user_obj_perms_model
 
 from .models import Surface
 
@@ -123,7 +127,6 @@ class ParentObjectPermissionsFilter(BaseFilterBackend):
 
         # Now we should extract list of pk values for which we would filter
         # queryset
-        from guardian.utils import get_anonymous_user, get_group_obj_perms_model, get_identity, get_user_obj_perms_model
 
         # User model stores the per-object permissions
         ctype = ContentType.objects.get_for_model(self.parent_model)
