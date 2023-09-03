@@ -24,6 +24,9 @@ class User(GuardianUserMixin, AbstractUser):
     # around the globe.
     name = models.CharField(_("Name of User"), max_length=255)
 
+    # Load anonymous user once and cache to avoid further database hits
+    anonymous_user = None
+
     def __str__(self):
         try:
             orcid_id = self.orcid_id
@@ -31,6 +34,11 @@ class User(GuardianUserMixin, AbstractUser):
             orcid_id = None
 
         return "{} ({})".format(self.name, orcid_id if orcid_id else "no ORCID ID")
+
+    def _get_anonymous_user(self):
+        if self.anonymous_user is None:
+            self.anonymous_user = get_anonymous_user()
+        return self.anonymous_user
 
     def get_absolute_url(self):
         return reverse("users:detail", kwargs={"username": self.username})
@@ -108,7 +116,7 @@ class User(GuardianUserMixin, AbstractUser):
         try:
             # we might get an exception if the migrations
             # haven't been performed yet
-            return self.id == get_anonymous_user().id
+            return self.id == self._get_anonymous_user().id
         except ProgrammingError:
             return super().is_anonymous
 
@@ -127,7 +135,7 @@ class User(GuardianUserMixin, AbstractUser):
         try:
             # we might get an exception if the migrations
             # haven't been performed yet
-            return self.id != get_anonymous_user().id
+            return self.id != self._get_anonymous_user().id
         except ProgrammingError:
             return super().is_anonymous
 
