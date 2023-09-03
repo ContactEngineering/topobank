@@ -5,14 +5,15 @@ Models related to analyses.
 import json
 
 from django.db import models
-from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
 import celery.result
 import celery.states
 
+from ..manager.models import Surface, SurfaceCollection, Topography
 from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
 
@@ -71,8 +72,56 @@ class Configuration(models.Model):
     versions = models.ManyToManyField(Version)
 
     def __str__(self):
-        versions = [ str(v) for v in self.versions.all()]
+        versions = [str(v) for v in self.versions.all()]
         return f"Valid since: {self.valid_since}, versions: {versions}"
+
+
+class AnalysisSubject(models.Model):
+    """Analysis subject, which can be either a SurfaceCollection, Surface or a Topography"""
+
+    collection = models.ForeignKey(SurfaceCollection, null=True, blank=True, on_delete=models.CASCADE)
+    surface = models.ForeignKey(Surface, null=True, blank=True, on_delete=models.CASCADE)
+    topography = models.ForeignKey(Topography, null=True, blank=True, on_delete=models.CASCADE)
+
+    @classmethod
+    def create(cls, subject):
+        topography = surface = collection = None
+        if isinstance(subject, Topography):
+            topography = subject
+        elif isinstance(subject, Surface):
+            surface = subject
+        elif isinstance(subject, SurfaceCollection):
+            collection = subject
+        else:
+            raise ValueError('`subject` argument must be of type `Topography`, `Surface` or `SurfaceCollection`.')
+        return cls.objects.create(topography=topography, surface=surface, collection=collection)
+
+    @staticmethod
+    def Q(subject):
+        topography = surface = collection = None
+        if isinstance(subject, Topography):
+            return models.Q(subject__topography_id=subject.id)
+        elif isinstance(subject, Surface):
+            return models.Q(subject__surface_id=subject.id)
+        elif isinstance(subject, SurfaceCollection):
+            return models.Q(subject__collection_id=subject.id)
+        else:
+            raise ValueError('`subject` argument must be of type `Topography`, `Surface` or `SurfaceCollection`.')
+
+    def get(self):
+        if self.topography is not None:
+            return self.topography
+        elif self.surface is not None:
+            return self.surface
+        elif self.collection is not None:
+            return self.collection
+        else:
+            raise RuntimeError('Database corruption: All subjects appear to be None/null.')
+
+    def save(self, *args, **kwargs):
+        if sum([self.collection.null, self.surface.null, self.topography.null]) != 1:
+            raise ValidationError('Only of of collection, surface or topgoraphy can be defined.')
+        super().save(*args, **kwargs)
 
 
 class Analysis(models.Model):
@@ -109,9 +158,7 @@ class Analysis(models.Model):
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
     # Definition of the subject
-    subject_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
-    subject_id = models.PositiveIntegerField(null=True)
-    subject = GenericForeignKey('subject_type', 'subject_id')
+    subject = models.OneToOneField(AnalysisSubject, null=True, on_delete=models.PROTECT)
 
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
@@ -200,7 +247,7 @@ class Analysis(models.Model):
             return None
         r = celery.result.AsyncResult(self.task_id)
         if isinstance(r.info, Exception):
-            return(str(r.info))
+            return (str(r.info))
         else:
             # No error occurred
             return None
@@ -440,4 +487,3 @@ class AnalysisCollection(models.Model):
     # We have a manytomany field, because an analysis could be part of multiple collections.
     # This happens e.g. if the user presses "recalculate" several times and
     # one analysis becomes part in each of these requests.
-

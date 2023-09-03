@@ -181,7 +181,7 @@ def series_card_view(request, **kwargs):
     has_at_least_one_surface_subject = False
     has_at_least_one_surfacecollection_subject = False
     for a in analyses_success_list:
-        s = a.subject
+        s = a.subject.get()
         subject_name = s.label.replace("'", "&apos;")
         if isinstance(s, Surface):
             subject_name = f"Average of »{subject_name}«"

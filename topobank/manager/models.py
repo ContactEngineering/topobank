@@ -30,7 +30,6 @@ import tempfile
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 
-from ..analysis.models import Analysis
 from ..plots import configure_plot
 from ..publication.models import Publication, DOICreationException
 from ..users.models import User
@@ -40,14 +39,11 @@ from .utils import get_topography_reader, make_dzi, dzi_exists, MAX_LENGTH_SURFA
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
-
 _log = logging.getLogger(__name__)
-
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 SQUEEZED_DATAFILE_FORMAT = 'nc'
-
 
 # Detect whether we are running within a Celery worker. This solution was suggested here:
 # https://stackoverflow.com/questions/39003282/how-can-i-detect-whether-im-running-in-a-celery-worker
@@ -77,6 +73,7 @@ class AlreadyPublishedException(PublicationException):
 
 class NewPublicationTooFastException(PublicationException):
     """A new publication has been issued to fast after the former one."""
+
     def __init__(self, latest_publication, wait_seconds):
         self._latest_pub = latest_publication
         self._wait_seconds = wait_seconds
@@ -99,6 +96,7 @@ class PlotTopographyException(Exception):
 
 class ThumbnailGenerationException(Exception):
     """Failure while generating thumbnails for a topography."""
+
     def __init__(self, topo, message):
         self._topo = topo
         self._message = message
@@ -195,9 +193,6 @@ class Surface(models.Model, SubjectMixin):
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
     tags = tm.TagField(to=TagModel)
-    analyses = GenericRelation(Analysis, related_query_name='surface',
-                               content_type_field='subject_type',
-                               object_id_field='subject_id')
 
     objects = models.Manager()
     published = PublishedSurfaceManager()
@@ -299,13 +294,15 @@ class Surface(models.Model, SubjectMixin):
         #
         # Request all standard analyses to be available for that user
         #
-        _log.info(f"After sharing surface {self.id} with user {with_user.id}, requesting all standard analyses...")
-        from ..analysis.models import AnalysisFunction
-        from ..analysis.controller import request_analysis
-        analysis_funcs = AnalysisFunction.objects.all()
-        for topo in self.topography_set.all():
-            for af in analysis_funcs:
-                request_analysis(with_user, af, topo)  # standard arguments
+        # FIXME! This will run when the user tries to look at it, it would still be nice to precompute
+        # It is commented to avoid a circular import that occured after switching away from generic related fields
+        #_log.info(f"After sharing surface {self.id} with user {with_user.id}, requesting all standard analyses...")
+        #from ..analysis.models import AnalysisFunction
+        #from ..analysis.controller import request_analysis
+        #analysis_funcs = AnalysisFunction.objects.all()
+        #for topo in self.topography_set.all():
+        #    for af in analysis_funcs:
+        #        request_analysis(with_user, af, topo)  # standard arguments
 
     def unshare(self, with_user):
         """Remove share on this surface for given user.
@@ -496,25 +493,26 @@ class Surface(models.Model, SubjectMixin):
         """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
 
-    def renew_analyses(self, include_topographies=True):
-        """Renew analyses related to this surface.
-
-        This includes analyses
-        - with any of its topographies as subject  (if also_topographies=True)
-        - with this surfaces as subject
-        This is done in that order.
-        """
-        from ..analysis.controller import renew_analyses_for_subject
-
-        if include_topographies:
-            _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
-            for topo in self.topography_set.all():
-                topo.renew_analyses()
-        _log.info(f"Regenerating analyses directly related to surface {self.pk}..")
-        renew_analyses_for_subject(self)
+#    def renew_analyses(self, include_topographies=True):
+#        """Renew analyses related to this surface.
+#
+#        This includes analyses
+#        - with any of its topographies as subject  (if also_topographies=True)
+#        - with this surfaces as subject
+#        This is done in that order.
+#        """
+#        from ..analysis.controller import renew_analyses_for_subject
+#
+#        if include_topographies:
+#            _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
+#            for topo in self.topography_set.all():
+#                topo.renew_analyses()
+#        _log.info(f"Regenerating analyses directly related to surface {self.pk}..")
+#        renew_analyses_for_subject(self)
 
     def related_surfaces(self):
         return [self]
+
 
 def _upload_path_for_datafile(instance, filename):
     return f'{instance.storage_prefix}/raw/{filename}'
@@ -533,10 +531,6 @@ class SurfaceCollection(models.Model, SubjectMixin):
     name = models.CharField(max_length=MAX_LENGTH_SURFACE_COLLECTION_NAME)
     surfaces = models.ManyToManyField(Surface)
     # We have a manytomany field, because a surface could be part of multiple collections.
-
-    analyses = GenericRelation(Analysis, related_query_name='surfacecollection',
-                               content_type_field='subject_type',
-                               object_id_field='subject_id')
 
     @property
     def label(self):
@@ -625,9 +619,6 @@ class Topography(models.Model, SubjectMixin):
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
     tags = tm.TagField(to=TagModel)
-    analyses = GenericRelation(Analysis, related_query_name='topography',
-                               content_type_field='subject_type',
-                               object_id_field='subject_id')
 
     #
     # Fields related to raw data
@@ -919,11 +910,6 @@ class Topography(models.Model, SubjectMixin):
             _log.info(f"Using topography from cache for id {self.id}.")
 
         return topo
-
-    def renew_analyses(self):
-        """Submit all analysis for this topography."""
-        from ..analysis.controller import renew_analyses_for_subject
-        renew_analyses_for_subject(self)
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""

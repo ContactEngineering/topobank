@@ -8,7 +8,7 @@ from ..manager.utils import subjects_from_dict, subjects_to_dict, dict_from_base
 
 from ..taskapp.tasks import perform_analysis
 
-from .models import Analysis, AnalysisFunction
+from .models import Analysis, AnalysisFunction, AnalysisSubject
 from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
 from .serializers import AnalysisResultSerializer
 from .utils import find_children
@@ -109,16 +109,24 @@ def renew_analysis(analysis, use_default_kwargs=False):
 def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
     """Create an analysis entry and submit a task to the task queue.
 
-    :param users: sequence of User instances; users which should see the analysis
-    :param subject: instance which will be subject of the analysis (first argument of analysis function)
-    :param analysis_func: AnalysisFunc instance
-    :param pyfunc_kwargs: kwargs for function which should be saved to database
-    :returns: Analysis object
+    Parameters
+    ----------
+    users : sequence of User instances
+        Users which should see the analysis.
+    subject : Topography or Surface or SurfaceCollection
+        Instance which will be subject of the analysis (first argument of
+        analysis function).
+    analysis_func : AnalysisFunction
+        The actual analysis function to be executed.
+    pyfunc_kwargs : dict, optional
+        Keyword arguments for the function which should be saved to database.
+        If None is given, the default arguments for the given analysis
+        function are used. The default arguments are the ones used in the
+        function implementation (python function). (Default: None)
 
-    If None is given for 'pyfunc_kwargs', the default arguments for the given analysis function are used.
-    The default arguments are the ones used in the function implementation (python function).
-
-    Typical instances as subjects are topographies or surfaces.
+    Returns
+    -------
+    Analysis object
     """
     subject_type = ContentType.objects.get_for_model(subject)
 
@@ -130,7 +138,7 @@ def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
         pyfunc_kwargs = analysis_func.get_default_kwargs(subject_type=subject_type)
 
     analysis = Analysis.objects.create(
-        subject=subject,
+        subject=AnalysisSubject.create(subject),
         function=analysis_func,
         task_state=Analysis.PENDING,
         kwargs=pyfunc_kwargs)
@@ -143,8 +151,7 @@ def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
     #
     Analysis.objects.filter(
         ~Q(id=analysis.id)
-        & Q(subject_type=subject_type)
-        & Q(subject_id=subject.id)
+        & AnalysisSubject.Q(subject)
         & Q(function=analysis_func)
         & Q(kwargs=pyfunc_kwargs)
         & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])).delete()
@@ -217,8 +224,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     # Search for analyses with same topography, function and (pickled) function args
     #
     analysis = Analysis.objects.filter( \
-        Q(subject_type=subject_type)
-        & Q(subject_id=subject.id)
+        AnalysisSubject.Q(subject)
         & Q(function=analysis_func)
         & Q(kwargs=pyfunc_kwargs)).order_by('start_time').last()  # will be None if not found
     # what if pickle protocol changes? -> No match, old must be sorted out later
@@ -250,8 +256,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     #
     other_analyses_with_same_user = Analysis.objects.filter(
         ~Q(id=analysis.id)
-        & Q(subject_type=subject_type)
-        & Q(subject_id=subject.id)
+        & AnalysisSubject.Q(subject)
         & Q(function=analysis_func)
         & Q(users__in=[user]))
     for a in other_analyses_with_same_user:
@@ -263,6 +268,10 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
 
 class AnalysisController:
     """Retrieve and toggle status of analyses"""
+
+    queryset = Analysis.objects \
+        .select_related('configuration', 'function', 'subject__topography', 'subject__surface', 'subject__collection') \
+        .prefetch_related('configuration__versions')
 
     def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None, with_children=True):
         """
@@ -420,7 +429,7 @@ class AnalysisController:
         # in order to trigger only for subjects which have an implementation
         return None if self._subjects is None else subjects_to_base64(self._subjects)
 
-    def get(self, task_states=None, has_result_file=None, subject_type=None, subject_id=None):
+    def get(self, task_states=None, has_result_file=None):
         """
         Return list of analyses filtered by arguments (if present).
 
@@ -433,10 +442,6 @@ class AnalysisController:
             If true, only return analyses that have a results file. If false,
             return analyses without a results file. Don't filter for results
             file if unset. (Default: None)
-        subject_type : int, optional
-            Filter for a specific subject type. (Default: None)
-        subject_id : int, optional
-            Filter for a specific subject id. (Default: None)
         """
         if task_states is None:
             if has_result_file is None:
@@ -449,10 +454,6 @@ class AnalysisController:
             else:
                 analyses = [analysis for analysis in self._analyses if analysis.task_state in task_states and
                             analysis.has_result_file == has_result_file]
-        if subject_type is not None:
-            analyses = [analysis for analysis in analyses if analysis.subject_type == subject_type]
-        if subject_id is not None:
-            analyses = [analysis for analysis in analyses if analysis.subject_id == subject_id]
         return analyses
 
     def __len__(self):
@@ -480,8 +481,7 @@ class AnalysisController:
         # Query for subjects
         subjects_query = None
         for subject in self._subjects:
-            ct = ContentType.objects.get_for_model(subject)
-            q = Q(subject_type_id=ct.id) & Q(subject_id=subject.id)
+            q = AnalysisSubject.Q(subject)
             subjects_query = q if subjects_query is None else subjects_query | q
         query = subjects_query & query
 
@@ -490,8 +490,10 @@ class AnalysisController:
             query = Q(kwargs=self._function_kwargs) & query
 
         # Find and return analyses
-        return Analysis.objects.filter(query).select_related('configuration', 'function', 'subject_type') \
-            .order_by('subject_type_id', 'subject_id', '-start_time').distinct("subject_type_id", 'subject_id')
+        return self.queryset \
+            .filter(query) \
+            .order_by('subject__topography_id', 'subject__surface_id', 'subject__collection_id', '-start_time') \
+            .distinct('subject__topography_id', 'subject__surface_id', 'subject__collection_id')
 
     def _get_subjects_without_analysis_results(self):
         """Find analyses that are missing (i.e. have not yet run)"""

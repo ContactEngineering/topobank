@@ -8,24 +8,31 @@ from generic_relations.relations import GenericRelatedField
 
 from ..manager.models import Surface, Topography
 from ..manager.serializers import SurfaceSerializer, TopographySerializer
-from .models import Analysis, AnalysisFunction
+from .models import Analysis, AnalysisFunction, AnalysisSubject
 from .registry import AnalysisRegistry
 
 _log = logging.getLogger(__name__)
 
+
+class AnalysisSubjectSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = AnalysisSubject
+        fields = ['topography', 'surface', 'collection']
+        depth = 1
+
+    topography = TopographySerializer()
+    surface = SurfaceSerializer()
 
 class AnalysisResultSerializer(serializers.ModelSerializer):
     class Meta:
         model = Analysis
         fields = ['id', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time', 'start_time',
                   'end_time', 'dois', 'configuration', 'duration', 'api', 'error']
-        depth = 1
+        depth = 2
+
+    subject = AnalysisSubjectSerializer()
 
     duration = serializers.SerializerMethodField()
-    subject = GenericRelatedField({
-        Surface: SurfaceSerializer(),
-        Topography: TopographySerializer()
-    })
     task_state = serializers.SerializerMethodField()
     task_progress = serializers.SerializerMethodField()
     api = serializers.SerializerMethodField()

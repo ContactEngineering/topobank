@@ -75,12 +75,6 @@ def filter_and_order_analyses(analyses):
     Ordered list of analyses. Analyses for measurements
     are listed directly after corresponding surface.
     """
-    from ..manager.models import Surface, SurfaceCollection, Topography
-
-    surface_ct = ContentType.objects.get_for_model(Surface)
-    surfacecollection_ct = ContentType.objects.get_for_model(SurfaceCollection)
-    topography_ct = ContentType.objects.get_for_model(Topography)
-
     sorted_analyses = []
 
     #
@@ -88,9 +82,9 @@ def filter_and_order_analyses(analyses):
     # such that for each surface the analyses are ordered by subject id
     #
     analysis_groups = OrderedDict()  # always the same order of surfaces for same list of subjects
-    for topography_analysis in sorted([analysis for analysis in analyses if analysis.subject_type == topography_ct],
-                                      key=lambda analysis: analysis.subject_id):
-        surface = topography_analysis.subject.surface
+    for topography_analysis in sorted([a for a in analyses if a.subject.topography is not None],
+                                      key=lambda a: a.subject.topography_id):
+        surface = topography_analysis.subject.topography.surface
         if not surface in analysis_groups:
             analysis_groups[surface] = []
         analysis_groups[surface].append(topography_analysis)
@@ -98,9 +92,9 @@ def filter_and_order_analyses(analyses):
     #
     # Process groups and collect analyses which are implicitly sorted
     #
-    analyses_of_surfaces = sorted([a for a in analyses if a.subject_type == surface_ct],
-                                  key=lambda a: a.subject_id)
-    surfaces_of_surface_analyses = [a.subject for a in analyses_of_surfaces]
+    analyses_of_surfaces = sorted([a for a in analyses if a.subject.surface is not None],
+                                  key=lambda a: a.subject.surface_id)
+    surfaces_of_surface_analyses = [a.subject.surface for a in analyses_of_surfaces]
     for surface, topography_analyses in analysis_groups.items():
         try:
             # Is there an analysis for the corresponding surface?
@@ -128,8 +122,8 @@ def filter_and_order_analyses(analyses):
     #
     # Finally add analyses for surface collections, if any
     #
-    for collection_analysis in sorted([a for a in analyses if a.subject_type == surfacecollection_ct],
-                                      key=lambda a: a.subject_id):
+    for collection_analysis in sorted([a for a in analyses if a.subject.collection is not None],
+                                      key=lambda a: a.subject.collection_id):
         sorted_analyses.append(collection_analysis)
 
     return sorted_analyses
