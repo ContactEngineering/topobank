@@ -7,7 +7,9 @@ from . import functions
 from . import views
 
 router = DefaultRouter()
-router.register(r'api/status', views.AnalysisResultView, basename='status')
+router.register(r'api/configuration', views.ConfigurationView, basename='configuration')
+router.register(r'api/function', views.AnalysisFunctionView, basename='function')
+router.register(r'api/result', views.AnalysisResultView, basename='result')
 
 urlpatterns = router.urls
 
@@ -30,13 +32,6 @@ urlpatterns += [
     # API routes
     #
     # GET
-    # Return function implementations
-    path(
-        'api/registry/',
-        view=views.registry_view,
-        name='registry'
-    ),
-    # GET
     # * Triggers analyses if not yet running
     # * Return state of analyses
     # * Return plot configuration for finished analyses
@@ -50,7 +45,7 @@ urlpatterns += [
     # Data routes (returned data type is unspecified)
     #
     # GET
-    # * Returns a redirect to the actualy data file in the storage (S3) system
+    # * Returns a redirect to the actual data file in the storage (S3) system
     # The files that can be returned depend on the analysis. This route simply
     # redirects to the storage. It is up to the visualization application to
     # request the correct files.

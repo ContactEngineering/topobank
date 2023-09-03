@@ -7,12 +7,13 @@ from django.http import Http404
 from django.views.generic import DetailView, TemplateView
 from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import redirect, reverse
+from django.shortcuts import redirect
 from django.conf import settings
 
 from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.reverse import reverse
 
 import bokeh.palettes as palettes
 
@@ -24,9 +25,9 @@ from ..manager.models import Topography, Surface, SurfaceCollection
 from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_base64
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController, renew_analysis
-from .models import Analysis, AnalysisFunction
+from .models import Analysis, AnalysisFunction, Configuration
 from .registry import AnalysisRegistry
-from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer
+from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer, ConfigurationSerializer
 from .utils import filter_and_order_analyses, palette_for_topographies
 
 _log = logging.getLogger(__name__)
@@ -36,9 +37,19 @@ MAX_NUM_POINTS_FOR_SYMBOLS = 50
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
+class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+    queryset = Configuration.objects.prefetch_related('versions')
+    serializer_class = ConfigurationSerializer
+
+
+class AnalysisFunctionView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
+    queryset = AnalysisFunction.objects.all()
+    serializer_class = AnalysisFunctionSerializer
+
+
 class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
-    queryset = Analysis.objects.select_related('configuration', 'function', 'subject_type').prefetch_related('users')
+    queryset = Analysis.objects.select_related('configuration', 'function', 'subject').prefetch_related('users')
     serializer_class = AnalysisResultSerializer
 
     def update(self, request, *args, **kwargs):
@@ -50,19 +61,6 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
-
-
-@api_view(['GET'])
-def registry_view(request):
-    """Access to analysis function registry"""
-    _models = [SurfaceCollection, Surface, Topography]
-
-    # Find out which analysis function are actually available to the user
-    r = []
-    for analysis_function in AnalysisFunction.objects.all().order_by('name'):
-        if analysis_function.is_available_for_user(request.user):
-            r += [AnalysisFunctionSerializer(analysis_function).data]
-    return Response(r)
 
 
 @api_view(['POST'])
@@ -363,7 +361,7 @@ def series_card_view(request, **kwargs):
             #
             # Collect data for visibility of the corresponding series
             #
-            series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'))
+            series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'), request=request)
             # series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
 
             series_name = s['name'] if 'name' in s else f'{series_idx}'
@@ -593,7 +591,7 @@ class AnalysisResultDetailView(DetailView):
             {
                 'title': f"Analyze",
                 'icon': "chart-area",
-                'href': f"{reverse('analysis:results-list')}?subjects={self.request.GET.get('subjects')}",
+                'href': f"{reverse('analysis:results-list', request=request)}?subjects={self.request.GET.get('subjects')}",
                 'active': False,
                 'login_required': False,
                 'tooltip': "Results for selected analysis functions"

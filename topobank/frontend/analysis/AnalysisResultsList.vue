@@ -12,7 +12,7 @@ export default {
     props: {
         apiRegistryUrl: {
             type: String,
-            default: '/analysis/api/registry/'
+            default: '/analysis/api/function/'
         },
         subjects: String
     },

@@ -26,7 +26,7 @@ export default {
             })
                 .then(response => response.json())
                 .then(data => {
-                    this.elem.label = data.label;
+                    this.elem.label = data.name;
                 });
         }
     },

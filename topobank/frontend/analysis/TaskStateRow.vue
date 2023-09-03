@@ -17,6 +17,7 @@ export default {
         return {
             _analysis: this.analysis,
             _error: null,
+            _subject: null
         }
     },
     mounted() {
@@ -119,10 +120,13 @@ export default {
             <p>Fetching analysis status, please wait...</p>
         </td>
         <td v-if="_analysis !== null">
-            <p>
-                Computation of analysis <i>{{ _analysis.function.name }}</i> on {{ _analysis.subject.type }}
-                <a :href="_analysis.subject.urls.detail">
-                    {{ _analysis.subject.name }}
+            <p v-if="_subject === null">
+                Computation of analysis <i>{{ _analysis.function.name }}</i>.
+            </p>
+            <p v-if="_subject !== null">
+                Computation of analysis <i>{{ _analysis.function.name }}</i> on {{ _subject.type }}
+                <a :href="_subject.url">
+                    {{ _subject.name }}
                 </a>.
             </p>
             <p>

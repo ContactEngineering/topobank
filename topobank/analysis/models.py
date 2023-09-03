@@ -292,10 +292,10 @@ class Analysis(models.Model):
 
     def related_surfaces(self):
         """Returns sequence of surface instances related to the subject of this analysis."""
-        return self.subject.related_surfaces()
+        return self.subject.get().related_surfaces()
 
     def get_implementation(self):
-        return self.function.get_implementation(self.subject_type)
+        return self.function.get_implementation(ContentType.objects.get_for_model(self.subject.get()))
 
     def is_visible_for_user(self, user):
         """Returns True if given user should be able to see this analysis."""
