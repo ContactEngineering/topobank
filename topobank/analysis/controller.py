@@ -498,7 +498,7 @@ class AnalysisController:
     def _get_subjects_without_analysis_results(self):
         """Find analyses that are missing (i.e. have not yet run)"""
         # collect list of subjects for which an analysis instance is missing
-        subjects_with_analysis_results = [analysis.subject for analysis in self._analyses]
+        subjects_with_analysis_results = [analysis.subject.get() for analysis in self._analyses]
         if self._subjects is None:
             # If the no subjects are specified, then there are no subjects without analysis result by definition.
             # This controller is then simply returning the analyses that have run.
@@ -506,7 +506,6 @@ class AnalysisController:
         else:
             subjects_without_analysis_results = [subject for subject in self._subjects
                                                  if subject not in subjects_with_analysis_results]
-
         return subjects_without_analysis_results
 
     def _get_unique_kwargs(self):
