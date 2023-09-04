@@ -155,14 +155,22 @@ export default {
             <p>Fetching analysis status, please wait...</p>
         </td>
         <td v-if="_analysis !== null">
-            <p v-if="_function === null || _subject === null">
-                Analysis result with id <i>{{ analysisId }}</i>
+            <p v-if="_function === null">
+                <div class="spinner"></div>
+                Retrieving function information...
             </p>
-            <p v-if="_function !== null && _subject !== null">
-                <i>{{ _function.name }}</i> of {{ _subject.name }}
+            <p v-if="_function !== null">
+                Function name: <i>{{ _function.name }}</i>
+            </p>
+            <p v-if="_subject === null">
+                <div class="spinner"></div>
+                Retrieving function information...
+            </p>
+            <p v-if="_subject !== null">
+                Subject name: <i>{{ _subject.name }}</i>
             </p>
             <p>
-                Parameters: {{ _analysis.kwargs }}
+                Parameters: <i>{{ _analysis.kwargs }}</i>
             </p>
             <p v-if="_analysis.task_state == 'su'">
                 This task was created on {{ new Date(_analysis.creation_time) }},
