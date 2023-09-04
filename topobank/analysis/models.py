@@ -158,7 +158,7 @@ class Analysis(models.Model):
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
     # Definition of the subject
-    subject = models.OneToOneField(AnalysisSubject, null=True, on_delete=models.PROTECT)
+    subject = models.OneToOneField(AnalysisSubject, null=True, on_delete=models.CASCADE)
 
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)

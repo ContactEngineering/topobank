@@ -65,7 +65,7 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='analysis',
             name='subj',
-            field=models.OneToOneField(null=True, on_delete=django.db.models.deletion.PROTECT,
+            field=models.OneToOneField(null=True, on_delete=django.db.models.deletion.CASCADE,
                                        to='analysis.analysissubject'),
         ),
         migrations.RunPython(
