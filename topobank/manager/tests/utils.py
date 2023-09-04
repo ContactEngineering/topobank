@@ -15,7 +15,6 @@ from ...users.tests.factories import UserFactory
 from ..models import Topography, Surface, SurfaceCollection, TagModel
 from ..views import SurfaceListView
 
-
 FIXTURE_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
     '../fixtures'
@@ -54,7 +53,6 @@ class SurfaceCollectionFactory(factory.django.DjangoModelFactory):
             # A list of surfaces were passed in, use them for the manytomany field
             for surface in extracted:
                 self.surfaces.add(surface)
-
 
 
 class Topography1DFactory(factory.django.DjangoModelFactory):
