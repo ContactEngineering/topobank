@@ -63,7 +63,7 @@ class AnalysisResultSerializer(serializers.HyperlinkedModelSerializer):
     configuration = serializers.HyperlinkedRelatedField(view_name='analysis:configuration-detail', read_only=True)
     function = serializers.HyperlinkedRelatedField(view_name='analysis:function-detail', read_only=True)
 
-    subject = AnalysisSubjectSerializer()
+    subject = AnalysisSubjectSerializer(source='subject_dispatch')
 
     duration = serializers.SerializerMethodField()
     task_state = serializers.SerializerMethodField()

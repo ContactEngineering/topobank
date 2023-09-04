@@ -89,7 +89,7 @@ def renew_analysis(analysis, use_default_kwargs=False):
     users = analysis.users.all()
     func = analysis.function
 
-    subject_type = ContentType.objects.get_for_model(analysis.subject.get())
+    subject_type = ContentType.objects.get_for_model(analysis.subject)
 
     if use_default_kwargs:
         pyfunc_kwargs = func.get_default_kwargs(subject_type=subject_type)
@@ -102,7 +102,7 @@ def renew_analysis(analysis, use_default_kwargs=False):
               f"subject type {subject_type}, subject id {analysis.subject.id}, "
               f"kwargs: {pyfunc_kwargs}")
     analysis.delete()
-    return submit_analysis(users, func, subject=analysis.subject.get(),
+    return submit_analysis(users, func, subject=analysis.subject,
                            pyfunc_kwargs=pyfunc_kwargs)
 
 
@@ -270,7 +270,8 @@ class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
     queryset = Analysis.objects.all() \
-        .select_related('function', 'subject__topography', 'subject__surface', 'subject__collection')
+        .select_related('function', 'subject_dispatch__topography', 'subject_dispatch__surface',
+                        'subject_dispatch__collection')
 
     def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None, with_children=True):
         """
@@ -491,13 +492,15 @@ class AnalysisController:
         # Find and return analyses
         return self.queryset \
             .filter(query) \
-            .order_by('subject__topography_id', 'subject__surface_id', 'subject__collection_id', '-start_time') \
-            .distinct('subject__topography_id', 'subject__surface_id', 'subject__collection_id')
+            .order_by('subject_dispatch__topography_id', 'subject_dispatch__surface_id',
+                      'subject_dispatch__collection_id', '-start_time') \
+            .distinct('subject_dispatch__topography_id', 'subject_dispatch__surface_id',
+                      'subject_dispatch__collection_id')
 
     def _get_subjects_without_analysis_results(self):
         """Find analyses that are missing (i.e. have not yet run)"""
         # collect list of subjects for which an analysis instance is missing
-        subjects_with_analysis_results = [analysis.subject.get() for analysis in self._analyses]
+        subjects_with_analysis_results = [analysis.subject for analysis in self._analyses]
         if self._subjects is None:
             # If the no subjects are specified, then there are no subjects without analysis result by definition.
             # This controller is then simply returning the analyses that have run.

@@ -82,9 +82,9 @@ def filter_and_order_analyses(analyses):
     # such that for each surface the analyses are ordered by subject id
     #
     analysis_groups = OrderedDict()  # always the same order of surfaces for same list of subjects
-    for topography_analysis in sorted([a for a in analyses if a.subject.topography is not None],
-                                      key=lambda a: a.subject.topography_id):
-        surface = topography_analysis.subject.topography.surface
+    for topography_analysis in sorted([a for a in analyses if a.subject_dispatch.topography is not None],
+                                      key=lambda a: a.subject_dispatch.topography_id):
+        surface = topography_analysis.subject_dispatch.topography.surface
         if not surface in analysis_groups:
             analysis_groups[surface] = []
         analysis_groups[surface].append(topography_analysis)
@@ -92,9 +92,9 @@ def filter_and_order_analyses(analyses):
     #
     # Process groups and collect analyses which are implicitly sorted
     #
-    analyses_of_surfaces = sorted([a for a in analyses if a.subject.surface is not None],
-                                  key=lambda a: a.subject.surface_id)
-    surfaces_of_surface_analyses = [a.subject.surface for a in analyses_of_surfaces]
+    analyses_of_surfaces = sorted([a for a in analyses if a.subject_dispatch.surface is not None],
+                                  key=lambda a: a.subject_dispatch.surface_id)
+    surfaces_of_surface_analyses = [a.subject_dispatch.surface for a in analyses_of_surfaces]
     for surface, topography_analyses in analysis_groups.items():
         try:
             # Is there an analysis for the corresponding surface?
@@ -122,8 +122,8 @@ def filter_and_order_analyses(analyses):
     #
     # Finally add analyses for surface collections, if any
     #
-    for collection_analysis in sorted([a for a in analyses if a.subject.collection is not None],
-                                      key=lambda a: a.subject.collection_id):
+    for collection_analysis in sorted([a for a in analyses if a.subject_dispatch.collection is not None],
+                                      key=lambda a: a.subject_dispatch.collection_id):
         sorted_analyses.append(collection_analysis)
 
     return sorted_analyses

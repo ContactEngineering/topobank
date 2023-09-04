@@ -100,11 +100,11 @@ class AnalysisSubject(models.Model):
     def Q(subject):
         topography = surface = collection = None
         if isinstance(subject, Topography):
-            return models.Q(subject__topography_id=subject.id)
+            return models.Q(subject_dispatch__topography_id=subject.id)
         elif isinstance(subject, Surface):
-            return models.Q(subject__surface_id=subject.id)
+            return models.Q(subject_dispatch__surface_id=subject.id)
         elif isinstance(subject, SurfaceCollection):
-            return models.Q(subject__collection_id=subject.id)
+            return models.Q(subject_dispatch__collection_id=subject.id)
         else:
             raise ValueError('`subject` argument must be of type `Topography`, `Surface` or `SurfaceCollection`.')
 
@@ -158,7 +158,7 @@ class Analysis(models.Model):
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
     # Definition of the subject
-    subject = models.OneToOneField(AnalysisSubject, null=True, on_delete=models.CASCADE)
+    subject_dispatch = models.OneToOneField(AnalysisSubject, null=True, on_delete=models.CASCADE)
 
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
@@ -205,6 +205,11 @@ class Analysis(models.Model):
         if self._result is not None:
             store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
             self._result = None
+
+    @property
+    def subject(self):
+        """Return the subject of the analysis, which can be a Topography, a Surface or a SurfaceCollection"""
+        return self.subject_dispatch.get()
 
     @property
     def duration(self):
@@ -292,10 +297,10 @@ class Analysis(models.Model):
 
     def related_surfaces(self):
         """Returns sequence of surface instances related to the subject of this analysis."""
-        return self.subject.get().related_surfaces()
+        return self.subject.related_surfaces()
 
     def get_implementation(self):
-        return self.function.get_implementation(ContentType.objects.get_for_model(self.subject.get()))
+        return self.function.get_implementation(ContentType.objects.get_for_model(self.subject))
 
     def is_visible_for_user(self, user):
         """Returns True if given user should be able to see this analysis."""

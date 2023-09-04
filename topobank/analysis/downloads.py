@@ -121,7 +121,7 @@ def analyses_meta_data_dataframe(analyses, request):
     properties = []
     values = []
     for i, analysis in enumerate(analyses):
-        subject = analysis.subject.get()
+        subject = analysis.subject
         surfaces = analysis.related_surfaces()
         pubs = [surface.publication for surface in surfaces if surface.is_published]
 
@@ -213,7 +213,7 @@ def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
     str
     """
 
-    subject = analysis.subject.get()
+    subject = analysis.subject
     subject_type_str = subject._meta.model_name()
     headline = f"{subject_type_str}: {subject.name}"
 
@@ -422,7 +422,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
     index_entries = []  # tuples with (subject name, subject type, function name, data series, hyperlink to sheet)
 
     for analysis_idx, analysis in enumerate(analyses):
-        subject = analysis.subject.get()
+        subject = analysis.subject
         result = analysis.result
         xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
         column1 = '{} ({})'.format(result['xlabel'], xunit)
@@ -619,7 +619,7 @@ def download_plot_analyses_to_csv(request, analyses):
     for analysis_idx, analysis in enumerate(analyses):
         # Get results and compute unit conversion factors
         result = analysis.result
-        subject = analysis.subject.get()
+        subject = analysis.subject
         xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
 
         # FIXME! Check that columns are actually identical

@@ -22,20 +22,20 @@ def forward_func(apps, schema_editor):
         else:
             raise ValueError(f'Cannot handle content type {ct.name}')
         # Create new AnalysisSubject for this analysis
-        analysis.subj = AnalysisSubject.objects.create(surface_id=surface, collection_id=collection,
-                                                       topography_id=topography)
+        analysis.subject_dispatch = AnalysisSubject.objects.create(surface_id=surface, collection_id=collection,
+                                                                   topography_id=topography)
         analysis.save()
 
 
 def reverse_func(apps, schema_editor):
     Analysis = apps.get_model('analysis', 'analysis')
     for analysis in Analysis.objects.all():
-        if analysis.subj.topography is not None:
-            analysis.subject = analysis.subj.topography
-        elif analysis.subj.surface is not None:
-            analysis.subject = analysis.subj.surface
-        elif analysis.subj.collection is not None:
-            analysis.subject = analysis.subj.collection
+        if analysis.subject_dispatch.topography is not None:
+            analysis.subject = analysis.subject_dispatch.topography
+        elif analysis.subject_dispatch.surface is not None:
+            analysis.subject = analysis.subject_dispatch.surface
+        elif analysis.subject_dispatch.collection is not None:
+            analysis.subject = analysis.subject_dispatch.collection
         else:
             # Some database inconsistency occured.
             # We just drop this analysis.
@@ -64,7 +64,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='analysis',
-            name='subj',
+            name='subject_dispatch',
             field=models.OneToOneField(null=True, on_delete=django.db.models.deletion.CASCADE,
                                        to='analysis.analysissubject'),
         ),
@@ -79,10 +79,5 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name='analysis',
             name='subject_type',
-        ),
-        migrations.RenameField(
-            model_name='analysis',
-            old_name='subj',
-            new_name='subject',
         ),
     ]

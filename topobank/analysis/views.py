@@ -174,7 +174,7 @@ def series_card_view(request, **kwargs):
     has_at_least_one_surface_subject = False
     has_at_least_one_surfacecollection_subject = False
     for a in analyses_success_list:
-        s = a.subject.get()
+        s = a.subject
         subject_name = s.label.replace("'", "&apos;")
         if isinstance(s, Surface):
             subject_name = f"Average of »{subject_name}«"
@@ -237,11 +237,11 @@ def series_card_view(request, **kwargs):
         series_metadata = analysis.result_metadata.get('series', [])
         series_names.update([s['name'] if 'name' in s else f'{i}' for i, s in enumerate(series_metadata)])
 
-        if analysis.subject.surface is not None:
+        if analysis.subject_dispatch.surface is not None:
             nb_surfaces += 1
-        elif analysis.subject.topography is not None:
+        elif analysis.subject_dispatch.topography is not None:
             nb_topographies += 1
-        elif analysis.subject.collection is not None:
+        elif analysis.subject_dispatch.collection is not None:
             nb_surfacecollections += 1
         else:
             nb_others += 1
@@ -276,18 +276,18 @@ def series_card_view(request, **kwargs):
         #
         # Define some helper variables
         #
-        is_surface_analysis = analysis.subject.surface is not None
-        is_topography_analysis = analysis.subject.topography is not None
-        is_surfacecollection_analysis = analysis.subject.collection is not None
+        is_surface_analysis = analysis.subject_dispatch.surface is not None
+        is_topography_analysis = analysis.subject_dispatch.topography is not None
+        is_surfacecollection_analysis = analysis.subject_dispatch.collection is not None
 
         #
         # Change display name depending on whether there is a parent analysis or not
         #
         parent_analysis = None
-        if is_topography_analysis and analysis.subject.topography.surface.num_topographies() > 1:
+        if is_topography_analysis and analysis.subject_dispatch.topography.surface.num_topographies() > 1:
             for a in analyses_success_list:
-                if a.subject.surface is not None and \
-                    a.subject.surface.id == analysis.subject.topography.surface.id and \
+                if a.subject_dispatch.surface is not None and \
+                    a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
                     a.function.id == analysis.function.id:
                     parent_analysis = a
 
@@ -299,13 +299,13 @@ def series_card_view(request, **kwargs):
         if is_surface_analysis:
             # Surface results are plotted in black/grey
             surface_index += 1
-            subject_colors[analysis.subject.id] = \
+            subject_colors[analysis.subject_dispatch.id] = \
                 surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
         elif is_topography_analysis:
             topography_index += 1
-            subject_colors[analysis.subject.id] = topography_color_palette[topography_index]
+            subject_colors[analysis.subject_dispatch.id] = topography_color_palette[topography_index]
         else:
-            subject_colors[analysis.subject.id] = 'black'  # Find better colors later, if needed
+            subject_colors[analysis.subject_dispatch.id] = 'black'  # Find better colors later, if needed
 
         #
         # Handle unexpected task states for robustness, shouldn't be needed in general
@@ -379,7 +379,7 @@ def series_card_view(request, **kwargs):
             #
             show_symbols = s['nbDataPoints'] <= MAX_NUM_POINTS_FOR_SYMBOLS if 'nbDataPoints' in s else True
 
-            curr_color = subject_colors[analysis.subject.id]
+            curr_color = subject_colors[analysis.subject_dispatch.id]
             curr_dash = series_dashes[series_name]
 
             # hover_name = "{} for '{}'".format(series_name, topography_name)
@@ -585,7 +585,7 @@ class AnalysisResultDetailView(DetailView):
             {
                 'title': f"Analyze",
                 'icon': "chart-area",
-                'href': f"{reverse('analysis:results-list', request=request)}?subjects={self.request.GET.get('subjects')}",
+                'href': f"{reverse('analysis:results-list')}?subjects={self.request.GET.get('subjects')}",
                 'active': False,
                 'login_required': False,
                 'tooltip': "Results for selected analysis functions"

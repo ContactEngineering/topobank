@@ -5,7 +5,7 @@ from .models import Analysis, AnalysisFunction, AnalysisSubject
 
 @admin.register(Analysis)
 class AnalysisAdmin(admin.ModelAdmin):
-    list_display = ('id', 'task_state', 'task_id', 'function', 'subject', 'start_time')
+    list_display = ('id', 'task_state', 'task_id', 'function', 'subject_dispatch', 'start_time')
     list_filter = ('task_state', 'function')
     ordering = ['-start_time']
 
