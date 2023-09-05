@@ -31,10 +31,10 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
                      'creator': f'http://testserver/users/api/user/{user.id}/',
                      'description': '',
                      'name': 'Surface 1',
-                     'url': 'http://testserver/manager/api/surface/1/',
+                     'url': f'http://testserver/manager/api/surface/{surface1.id}/',
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
-                                         'creator': 'http://testserver/users/api/user/2/',
+                                         'creator': f'http://testserver/users/api/user/{user.id}/',
                                          'datafile_format': None,
                                          'description': 'description1',
                                          'detrend_mode': 'height',
@@ -54,18 +54,18 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
                                          'size_editable': True,
                                          'size_x': 10.0,
                                          'size_y': 10.0,
-                                         'surface': 'http://testserver/manager/api/surface/1/',
+                                         'surface': f'http://testserver/manager/api/surface/{surface1.id}/',
                                          'unit': 'µm',
                                          'unit_editable': False,
-                                         'url': 'http://testserver/manager/api/topography/1/'}]}
+                                         'url': f'http://testserver/manager/api/topography/{topo1.id}/'}]}
     surface2_dict = {'category': None,
                      'creator': f'http://testserver/users/api/user/{user.id}/',
                      'description': '',
                      'name': 'Surface 2',
-                     'url': 'http://testserver/manager/api/surface/2/',
+                     'url': f'http://testserver/manager/api/surface/{surface2.id}/',
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
-                                         'creator': 'http://testserver/users/api/user/2/',
+                                         'creator': f'http://testserver/users/api/user/{user.id}/',
                                          'datafile_format': None,
                                          'description': 'description2',
                                          'detrend_mode': 'height',
@@ -85,10 +85,10 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
                                          'size_editable': False,
                                          'size_x': 112.80791,
                                          'size_y': 27.73965,
-                                         'surface': 'http://testserver/manager/api/surface/2/',
+                                         'surface': f'http://testserver/manager/api/surface/{surface2.id}/',
                                          'unit': 'µm',
                                          'unit_editable': False,
-                                         'url': 'http://testserver/manager/api/topography/2/'}]}
+                                         'url': f'http://testserver/manager/api/topography/{topo2.id}/'}]}
 
     if is_authenticated:
         api_client.force_authenticate(user)
