@@ -31,7 +31,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
-    topography_set = TopographySerializer(many=True)
+    topography_set = TopographySerializer(many=True, read_only=True)
 
 
 class TopographySearchSerializer(serializers.ModelSerializer):
@@ -40,6 +40,13 @@ class TopographySearchSerializer(serializers.ModelSerializer):
         fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
                   'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
                   'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
+
+    creator = serializers.HyperlinkedRelatedField(
+        read_only=True,
+        view_name='users:detail',
+        lookup_field='username',
+        default=serializers.CurrentUserDefault()
+    )
 
     title = serializers.CharField(source='name', read_only=True)  # set this through name
 
@@ -129,6 +136,13 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
                   'children', 'sharing_status', 'urls', 'selected', 'key', 'title', 'folder', 'version',
                   'publication_doi', 'publication_date', 'publication_authors', 'publication_license',
                   'topography_count', 'label']
+
+    creator = serializers.HyperlinkedRelatedField(
+        read_only=True,
+        view_name='users:detail',
+        lookup_field='username',
+        default=serializers.CurrentUserDefault()
+    )
 
     title = serializers.CharField(source='name')
     children = serializers.SerializerMethodField()

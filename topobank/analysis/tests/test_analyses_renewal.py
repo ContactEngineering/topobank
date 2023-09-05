@@ -9,8 +9,9 @@ from django.shortcuts import reverse
 from topobank.manager.tests.utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
 from topobank.manager.models import Topography
 
-from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, \
-    TopographyAnalysisFactory, Topography2DFactory
+from topobank.analysis.models import Analysis
+from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, TopographyAnalysisFactory, \
+    Topography2DFactory
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
@@ -230,8 +231,8 @@ def test_analysis_removal_on_topography_deletion(client, test_analysis_function,
     SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
     SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
 
-    assert topo.analyses.count() == 1
-    assert surface.analyses.count() == 2
+    assert Analysis.objects.filter(subject_dispatch__topography=topo.id).count() == 1
+    assert Analysis.objects.filter(subject_dispatch__surface=surface.id).count() == 2
 
     #
     # Now remove topography and see whether all analyses are deleted
@@ -243,9 +244,9 @@ def test_analysis_removal_on_topography_deletion(client, test_analysis_function,
     assert response.status_code == 302
 
     # No more topography analyses left
-    assert topo.analyses.count() == 0
+    assert Analysis.objects.filter(subject_dispatch__topography=topo.id).count() == 0
     # No more surface analyses left
-    assert surface.analyses.count() == 0
+    assert Analysis.objects.filter(subject_dispatch__surface=surface.id).count() == 0
 
 
 @pytest.mark.django_db
