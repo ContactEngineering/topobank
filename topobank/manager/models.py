@@ -12,7 +12,6 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
-from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
@@ -291,19 +290,6 @@ class Surface(models.Model, SubjectMixin):
         if allow_change:
             assign_perm('change_surface', with_user, self)
 
-        #
-        # Request all standard analyses to be available for that user
-        #
-        # FIXME! This will run when the user tries to look at it, it would still be nice to precompute
-        # It is commented to avoid a circular import that occured after switching away from generic related fields
-        #_log.info(f"After sharing surface {self.id} with user {with_user.id}, requesting all standard analyses...")
-        #from ..analysis.models import AnalysisFunction
-        #from ..analysis.controller import request_analysis
-        #analysis_funcs = AnalysisFunction.objects.all()
-        #for topo in self.topography_set.all():
-        #    for af in analysis_funcs:
-        #        request_analysis(with_user, af, topo)  # standard arguments
-
     def unshare(self, with_user):
         """Remove share on this surface for given user.
 
@@ -493,22 +479,22 @@ class Surface(models.Model, SubjectMixin):
         """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
 
-#    def renew_analyses(self, include_topographies=True):
-#        """Renew analyses related to this surface.
-#
-#        This includes analyses
-#        - with any of its topographies as subject  (if also_topographies=True)
-#        - with this surfaces as subject
-#        This is done in that order.
-#        """
-#        from ..analysis.controller import renew_analyses_for_subject
-#
-#        if include_topographies:
-#            _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
-#            for topo in self.topography_set.all():
-#                topo.renew_analyses()
-#        _log.info(f"Regenerating analyses directly related to surface {self.pk}..")
-#        renew_analyses_for_subject(self)
+    #    def renew_analyses(self, include_topographies=True):
+    #        """Renew analyses related to this surface.
+    #
+    #        This includes analyses
+    #        - with any of its topographies as subject  (if also_topographies=True)
+    #        - with this surfaces as subject
+    #        This is done in that order.
+    #        """
+    #        from ..analysis.controller import renew_analyses_for_subject
+    #
+    #        if include_topographies:
+    #            _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
+    #            for topo in self.topography_set.all():
+    #                topo.renew_analyses()
+    #        _log.info(f"Regenerating analyses directly related to surface {self.pk}..")
+    #        renew_analyses_for_subject(self)
 
     def related_surfaces(self):
         return [self]
@@ -530,6 +516,7 @@ class SurfaceCollection(models.Model, SubjectMixin):
     """A collection of surfaces."""
     name = models.CharField(max_length=MAX_LENGTH_SURFACE_COLLECTION_NAME)
     surfaces = models.ManyToManyField(Surface)
+
     # We have a manytomany field, because a surface could be part of multiple collections.
 
     @property
@@ -913,6 +900,7 @@ class Topography(models.Model, SubjectMixin):
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
+        # FIXME!! This code should be moved to a separate serializer class
         result = {'name': self.name,
                   'datafile': {
                       'original': self.datafile.name,

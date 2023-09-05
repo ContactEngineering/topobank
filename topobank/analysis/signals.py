@@ -1,24 +1,21 @@
-from django.db.models.signals import pre_delete
-from django.dispatch import receiver
-
-# from topobank.organizations.signals import OrganizationFilteredSignal
-
 import logging
 
-from ..manager.utils import recursive_delete
-from .models import Analysis
+from django.db.models.signals import post_save
+from django.dispatch import receiver
+
+from ..manager.models import Topography, Surface
+from .controller import renew_analyses_for_subject
 
 _log = logging.getLogger(__name__)
 
 
-@receiver(pre_delete, sender=Analysis)
-def remove_storage_files(sender, instance, **kwargs):
-    recursive_delete(instance.storage_prefix)
-
-# register_analysis_function_implementation = OrganizationFilteredSignal()
-
-# analysis_function_names = OrganizationFilteredSignal()
+@receiver(post_save, sender=Topography)
+def renew_dataset_analyses(sender, instance, **kwargs):
+    renew_analyses_for_subject(sender)
 
 
+@receiver(post_save, sender=Surface)
+def renew_container_analyses(sender, instance, **kwargs):
+    renew_analyses_for_subject(sender)
 
-
+# FIXME!!! Do we need a trigger when saving collections?

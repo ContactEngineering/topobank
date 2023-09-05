@@ -14,6 +14,7 @@ import celery.result
 import celery.states
 
 from ..manager.models import Surface, SurfaceCollection, Topography
+from ..manager.utils import recursive_delete
 from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
 
@@ -195,6 +196,10 @@ class Analysis(models.Model):
 
     def __str__(self):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
+
+    def delete(self, *args, **kwargs):
+        recursive_delete(self.storage_prefix)
+        super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         if not self.id:
