@@ -198,7 +198,15 @@ class Analysis(models.Model):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
 
     def delete(self, *args, **kwargs):
+        # Cancel possibly running task
+        if self.task_id is not None:
+            r = celery.result.AsyncResult(self.task_id)
+            r.revoke()
+
+        # Remove files from storage
         recursive_delete(self.storage_prefix)
+
+        # Delete dabase entry
         super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
