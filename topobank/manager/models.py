@@ -330,7 +330,6 @@ class Surface(models.Model, SubjectMixin):
             # we pass the surface here because there is a constraint that (surface_id + topography name)
             # must be unique, i.e. a surface should never have two topographies of the same name,
             # so we can't set the new surface as the second step
-        copy.renew_analyses()
 
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
         return copy

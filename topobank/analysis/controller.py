@@ -34,7 +34,7 @@ def _sanitize_kwargs(sig, **kwargs):
 
 
 # This used only in the `trigger_analyses` management command
-def renew_analyses_for_subject(subject):
+def renew_analyses_for_subject(subject, recursive=True):
     """Renew all analyses for the given subject.
 
     At first all existing analyses for the given subject
@@ -52,7 +52,7 @@ def renew_analyses_for_subject(subject):
     # collect users which are allowed to use these analyses by default
     users_for_subject = subject.get_users_with_perms()
 
-    def submit_all(subj=subject):
+    def submit_all(subj):
         """Trigger analyses for this subject for all available analyses functions."""
         _log.info(f"Deleting all analyses for {subj.get_content_type().name} {subj.id}...")
         subj.analyses.all().delete()
@@ -70,8 +70,12 @@ def renew_analyses_for_subject(subject):
 
     transaction.on_commit(lambda: submit_all(subject))
 
+    if recursive and hasattr(subject, 'topography_set'):
+        for topo in subject.topography_set.all():
+            transaction.on_commit(lambda: submit_all(topo))
 
-def renew_analysis(analysis, use_default_kwargs=False):
+
+def renew_existing_analysis(analysis, use_default_kwargs=False):
     """Delete existing analysis and recreate and submit with same arguments and users.
 
     Parameters
@@ -138,7 +142,7 @@ def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
         pyfunc_kwargs = analysis_func.get_default_kwargs(subject_type=subject_type)
 
     analysis = Analysis.objects.create(
-        subject=AnalysisSubject.create(subject),
+        subject_dispatch=AnalysisSubject.create(subject),
         function=analysis_func,
         task_state=Analysis.PENDING,
         kwargs=pyfunc_kwargs)

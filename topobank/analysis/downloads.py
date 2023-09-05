@@ -214,7 +214,7 @@ def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
     """
 
     subject = analysis.subject
-    subject_type_str = subject._meta.model_name()
+    subject_type_str = subject._meta.model_name
     headline = f"{subject_type_str}: {subject.name}"
 
     s = f'{headline}\n' + '=' * len(headline) + '\n'

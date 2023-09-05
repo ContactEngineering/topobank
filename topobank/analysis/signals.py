@@ -11,11 +11,11 @@ _log = logging.getLogger(__name__)
 
 @receiver(post_save, sender=Topography)
 def renew_dataset_analyses(sender, instance, **kwargs):
-    renew_analyses_for_subject(sender)
+    renew_analyses_for_subject(instance)
 
 
 @receiver(post_save, sender=Surface)
 def renew_container_analyses(sender, instance, **kwargs):
-    renew_analyses_for_subject(sender)
+    renew_analyses_for_subject(instance)
 
 # FIXME!!! Do we need a trigger when saving collections?

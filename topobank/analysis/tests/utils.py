@@ -59,27 +59,6 @@ class AnalysisSubjectFactory(factory.django.DjangoModelFactory):
         model = AnalysisSubject
 
 
-class Topography2DSubjectFactory(AnalysisSubjectFactory):
-    class Meta:
-        model = AnalysisSubject
-
-    topography = factory.SubFactory(Topography2DFactory)
-
-
-class SurfaceSubjectFactory(AnalysisSubjectFactory):
-    class Meta:
-        model = AnalysisSubject
-
-    surface = factory.SubFactory(SurfaceFactory)
-
-
-class SurfaceCollectionSubjectFactory(AnalysisSubjectFactory):
-    class Meta:
-        model = AnalysisSubject
-
-    collection = factory.SubFactory(SurfaceCollectionFactory)
-
-
 class AnalysisFactory(factory.django.DjangoModelFactory):
     """Abstract factory class for generating Analysis.
 
@@ -91,11 +70,17 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     class Meta:
         # model = Analysis
         abstract = True
-        exclude = ['subject']
-        # See https://factoryboy.readthedocs.io/en/stable/recipes.html#django-models-with-genericforeignkeys
+        exclude = ['subject_topography', 'subject_surface', 'subject_collection']
+
+    subject_topography = None  # factory.SubFactory(Topography2DFactory)
+    subject_surface = None
+    subject_collection = None
 
     function = factory.SubFactory(AnalysisFunctionFactory)
-    subject_dispatch = factory.SubFactory(Topography2DSubjectFactory)  # Does this work with a generic subject?
+    subject_dispatch = factory.SubFactory(AnalysisSubjectFactory,
+                                          topography=factory.SelfAttribute('..subject_topography'),
+                                          surface=factory.SelfAttribute('..subject_surface'),
+                                          collection=factory.SelfAttribute('..subject_collection'))
 
     kwargs = factory.LazyAttribute(_analysis_default_kwargs)
     result = factory.LazyAttribute(_analysis_result)
@@ -119,29 +104,32 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
 
 class TopographyAnalysisFactory(AnalysisFactory):
     """Create an analysis for a topography."""
-    subject_dispatch = factory.SubFactory(Topography2DSubjectFactory)
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Analysis
+
+    subject_topography = factory.SubFactory(Topography2DFactory)
 
 
 class SurfaceAnalysisFactory(AnalysisFactory):
     """Create an analysis for a surface."""
-    subject_dispatch = factory.SubFactory(SurfaceSubjectFactory)
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Analysis
+
+    subject_surface = factory.SubFactory(SurfaceFactory)
 
 
 class SurfaceCollectionAnalysisFactory(AnalysisFactory):
     """Create an analysis for a surface collection."""
-    subject_dispatch = factory.SubFactory(SurfaceCollectionSubjectFactory)
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Analysis
+
+    subject_collection = factory.SubFactory(SurfaceCollectionFactory)
 
 
 @dataclass(frozen=True)

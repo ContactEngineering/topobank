@@ -59,7 +59,7 @@ def test_analysis_times(api_client, two_topos, test_analysis_function, handle_us
     api_client.force_login(user)
 
     analysis = TopographyAnalysisFactory.create(
-        subject=topo,
+        subject_topography=topo,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         start_time=datetime.datetime(2018, 1, 1, 12),
@@ -100,7 +100,7 @@ def test_show_only_last_analysis(api_client, two_topos, test_analysis_function, 
     # Topography 1
     #
     analysis = TopographyAnalysisFactory.create(
-        subject=topo1,
+        subject_topography=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={},
@@ -113,7 +113,7 @@ def test_show_only_last_analysis(api_client, two_topos, test_analysis_function, 
 
     # save a second only, which has a later start time
     analysis = TopographyAnalysisFactory.create(
-        subject=topo1,
+        subject_topography=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={},
@@ -128,7 +128,7 @@ def test_show_only_last_analysis(api_client, two_topos, test_analysis_function, 
     # Topography 2
     #
     analysis = TopographyAnalysisFactory.create(
-        subject=topo2,
+        subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={},
@@ -141,7 +141,7 @@ def test_show_only_last_analysis(api_client, two_topos, test_analysis_function, 
 
     # save a second only, which has a later start time
     analysis = TopographyAnalysisFactory.create(
-        subject=topo2,
+        subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={},
@@ -184,17 +184,17 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     #
     kwargs_1a = dict(a=1, b=2)
     kwargs_1b = dict(a=1, b=3)  # differing from kwargs_1a!
-    ana1a = TopographyAnalysisFactory(subject=topo1a, function=func, kwargs=kwargs_1a)
-    ana1b = TopographyAnalysisFactory(subject=topo1b, function=func, kwargs=kwargs_1b)
-    ana2a = TopographyAnalysisFactory(subject=topo2a, function=func)  # default arguments
+    ana1a = TopographyAnalysisFactory(subject_topography=topo1a, function=func, kwargs=kwargs_1a)
+    ana1b = TopographyAnalysisFactory(subject_topography=topo1b, function=func, kwargs=kwargs_1b)
+    ana2a = TopographyAnalysisFactory(subject_topography=topo2a, function=func)  # default arguments
 
     #
     # Generate analyses for surfaces with differing arguments
     #
     kwargs_1 = dict(a=2, b=2)
     kwargs_2 = dict(a=2, b=3)  # differing from kwargs_1a!
-    ana1 = SurfaceAnalysisFactory(subject=surf1, function=func, kwargs=kwargs_1)
-    ana2 = SurfaceAnalysisFactory(subject=surf2, function=func, kwargs=kwargs_2)
+    ana1 = SurfaceAnalysisFactory(subject_surface=surf1, function=func, kwargs=kwargs_1)
+    ana2 = SurfaceAnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_2)
 
     api_client.force_login(user)
 
@@ -234,7 +234,7 @@ def test_show_multiple_analyses_for_two_functions(client, two_topos):
         for topo in [topo1, topo2]:
             counter += 1
             analysis = TopographyAnalysisFactory.create(
-                subject=topo,
+                subject_topography=topo,
                 function=af,
                 task_state=Analysis.SUCCESS,
                 kwargs={'bins': 10},
@@ -315,7 +315,7 @@ def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocke
             ])
 
         analysis = TopographyAnalysisFactory.create(
-            subject=topos[k],
+            subject_topography=topos[k],
             function=test_analysis_function,
             kwargs={},
             configuration=config)
@@ -621,8 +621,8 @@ def two_analyses_two_publications(test_analysis_function):
     pub_topo1 = pub1.surface.topography_set.first()
     pub_topo2 = pub2.surface.topography_set.first()
 
-    analysis1 = TopographyAnalysisFactory(subject=pub_topo1, function=test_analysis_function)
-    analysis2 = TopographyAnalysisFactory(subject=pub_topo2, function=test_analysis_function)
+    analysis1 = TopographyAnalysisFactory(subject_topography=pub_topo1, function=test_analysis_function)
+    analysis2 = TopographyAnalysisFactory(subject_topography=pub_topo2, function=test_analysis_function)
 
     return analysis1, analysis2, pub1, pub2
 
@@ -699,11 +699,11 @@ def test_view_shared_analysis_results(api_client, handle_usage_statistics):
     topo2a = Topography1DFactory(surface=surface2, name='topo2a')
 
     # analyses, differentiate by start time
-    analysis1a_1 = TopographyAnalysisFactory(subject=topo1a, function=func1,
+    analysis1a_1 = TopographyAnalysisFactory(subject_topography=topo1a, function=func1,
                                              start_time=datetime.datetime(2019, 1, 1, 12))
-    analysis1b_1 = TopographyAnalysisFactory(subject=topo1b, function=func1,
+    analysis1b_1 = TopographyAnalysisFactory(subject_topography=topo1b, function=func1,
                                              start_time=datetime.datetime(2019, 1, 1, 13))
-    analysis2a_1 = TopographyAnalysisFactory(subject=topo2a, function=func1,
+    analysis2a_1 = TopographyAnalysisFactory(subject_topography=topo2a, function=func1,
                                              start_time=datetime.datetime(2019, 1, 1, 14))
 
     # Function should have three analyses, all successful (the default when using the factory)

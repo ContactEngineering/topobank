@@ -23,7 +23,7 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
 
     topo1 = Topography2DFactory(surface=surface)
 
-    analysis = TopographyAnalysisFactory(subject=topo1, function=func1, users=[user])
+    analysis = TopographyAnalysisFactory(subject_topography=topo1, function=func1, users=[user])
 
     #
     # login and request plot card view
@@ -46,7 +46,8 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
             "seriesNameIndex": 0,
             "xScaleFactor": 1,
             "yScaleFactor": 1,
-            "url": reverse('analysis:data', kwargs=dict(pk=analysis.id, location="series-0.json")),
+            "url": 'http://testserver' + reverse('analysis:data',
+                                                 kwargs=dict(pk=analysis.id, location="series-0.json")),
             "color": "#1f77b4", "dash": "solid", "width": 1, "alpha": 1.0,
             "showSymbols": True,
             "visible": True,
@@ -63,7 +64,8 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
             "seriesNameIndex": 1,
             "xScaleFactor": 1,
             "yScaleFactor": 1,
-            "url": reverse('analysis:data', kwargs=dict(pk=analysis.id, location="series-1.json")),
+            "url": 'http://testserver' + reverse('analysis:data',
+                                                 kwargs=dict(pk=analysis.id, location="series-1.json")),
             "color": "#1f77b4", "dash": "dashed", "width": 1, "alpha": 1.0,
             "showSymbols": True,
             "visible": True,

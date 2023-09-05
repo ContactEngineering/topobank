@@ -113,9 +113,9 @@ def stats_instances(db, test_analysis_function):
     topo_1Ba = Topography1DFactory(surface=surf_1B)
     topo_2Aa = Topography1DFactory(surface=surf_2A)
 
-    TopographyAnalysisFactory(subject=topo_1Aa, function=test_analysis_function)
-    TopographyAnalysisFactory(subject=topo_1Ab, function=test_analysis_function)
-    TopographyAnalysisFactory(subject=topo_2Aa, function=test_analysis_function)
+    TopographyAnalysisFactory(subject_topography=topo_1Aa, function=test_analysis_function)
+    TopographyAnalysisFactory(subject_topography=topo_1Ab, function=test_analysis_function)
+    TopographyAnalysisFactory(subject_topography=topo_2Aa, function=test_analysis_function)
 
     return user_1, user_2, surf_1A
 

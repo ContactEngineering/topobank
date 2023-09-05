@@ -25,7 +25,7 @@ def test_instances(test_analysis_function):
         Topography1DFactory(surface=surfaces[0])
     ]
 
-    TopographyAnalysisFactory(function=test_analysis_function, subject=topographies[0])
+    TopographyAnalysisFactory(function=test_analysis_function, subject_topography=topographies[0])
 
     return users, surfaces, topographies
 

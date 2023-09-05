@@ -5,36 +5,37 @@ import pytest
 
 from pathlib import Path
 from django.shortcuts import reverse
-from django.contrib.contenttypes.models import ContentType
 
-from .utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
-from ..models import Topography
+from topobank.manager.tests.utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
+from topobank.manager.models import Topography
+
 from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, \
     TopographyAnalysisFactory, Topography2DFactory
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
 @pytest.mark.parametrize("changed_values_dict,renew_squeezed_expected",
-[  # would should be changed in POST request (->str values!)
-    ({
-        "size_y": '100'
-    }, True),
-    ({
-        "height_scale": '10',
-        "instrument_type": 'microscope-based',
-    }, True),  # renew_squeezed should be called because of height_scale, not because of instrument_type
-    ({
-        "instrument_type": 'microscope-based',  # instrument type changed at least
-        "resolution_value": '1',
-        "resolution_unit": 'mm',
-    }, False),
-    ({
-        "tip_radius_value": '2',  # value changed
-    }, False),
-    ({
-        "tip_radius_unit": 'nm',  # unit changed
-    }, False),
-])
+                         [  # would should be changed in POST request (->str values!)
+                             ({
+                                  "size_y": '100'
+                              }, True),
+                             ({
+                                  "height_scale": '10',
+                                  "instrument_type": 'microscope-based',
+                              }, True),
+                             # renew_squeezed should be called because of height_scale, not because of instrument_type
+                             ({
+                                  "instrument_type": 'microscope-based',  # instrument type changed at least
+                                  "resolution_value": '1',
+                                  "resolution_unit": 'mm',
+                              }, False),
+                             ({
+                                  "tip_radius_value": '2',  # value changed
+                              }, False),
+                             ({
+                                  "tip_radius_unit": 'nm',  # unit changed
+                              }, False),
+                         ])
 @pytest.mark.django_db
 def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_callbacks, handle_usage_statistics,
                                       changed_values_dict, renew_squeezed_expected):
@@ -44,7 +45,7 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
     renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
     renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
 
-    from ..models import Topography
+    from topobank.manager.models import Topography
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -162,8 +163,8 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
 ])
 @pytest.mark.django_db
 def test_form_changed_when_input_changes(changed_values_dict):
-    from ..models import Topography
-    from ..forms import TopographyForm
+    from topobank.manager.models import Topography
+    from topobank.manager.forms import TopographyForm
     import datetime
 
     user = UserFactory()
@@ -225,9 +226,9 @@ def test_analysis_removal_on_topography_deletion(client, test_analysis_function,
     surface = SurfaceFactory(creator=user)
     topo = Topography1DFactory(surface=surface)
 
-    TopographyAnalysisFactory(subject=topo, function=test_analysis_function)
-    SurfaceAnalysisFactory(subject=surface, function=test_analysis_function)
-    SurfaceAnalysisFactory(subject=surface, function=test_analysis_function)
+    TopographyAnalysisFactory(subject_topography=topo, function=test_analysis_function)
+    SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
+    SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
 
     assert topo.analyses.count() == 1
     assert surface.analyses.count() == 2

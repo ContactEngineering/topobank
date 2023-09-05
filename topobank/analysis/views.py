@@ -23,7 +23,7 @@ from trackstats.models import Metric
 from ..manager.models import Topography, Surface, SurfaceCollection
 from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_base64
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from .controller import AnalysisController, renew_analysis
+from .controller import AnalysisController, renew_existing_analysis
 from .models import Analysis, AnalysisFunction, Configuration
 from .registry import AnalysisRegistry
 from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer, ConfigurationSerializer
@@ -55,7 +55,7 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         """Renew existing analysis."""
         analysis = self.get_object()
         if analysis.is_visible_for_user(request.user):
-            new_analysis = renew_analysis(analysis)
+            new_analysis = renew_existing_analysis(analysis)
             serializer = self.get_serializer(new_analysis)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:

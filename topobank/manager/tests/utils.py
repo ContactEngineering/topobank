@@ -183,7 +183,7 @@ def export_reponse_as_html(response, fname='/tmp/response.html'):  # pragma: no 
     f.close()
 
 
-def ordereddicts_to_dicts(input_ordered_dict, sorted_by='id'):
+def ordereddicts_to_dicts(input_ordered_dict, sorted_by='url'):
     """Convert an ordered dict to a list of dicts, also sorted."""
     result = json.loads(json.dumps(input_ordered_dict))
     if sorted_by is not None:
