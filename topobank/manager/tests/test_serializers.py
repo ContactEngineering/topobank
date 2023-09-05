@@ -27,7 +27,7 @@ def test_surface_serializer(rf):
 
     surfser = SurfaceSerializer(context=context)
 
-    result = ordereddicts_to_dicts([surfser.to_representation(surface1)])
+    result = ordereddicts_to_dicts([surfser.to_representation(surface1)], sorted_by='url')
 
     #
     # prepare some abbreviations
