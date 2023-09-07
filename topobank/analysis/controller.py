@@ -54,8 +54,6 @@ def renew_analyses_for_subject(subject, recursive=True):
 
     def submit_all(subj):
         """Trigger analyses for this subject for all available analyses functions."""
-        _log.info(f"Deleting all analyses for {subj.get_content_type().name} {subj.id}...")
-        subj.analyses.all().delete()
         _log.info(f"Triggering analyses for {subj.get_content_type().name} {subj.id} and all analysis functions...")
         for af in analysis_funcs:
             subject_type = subj.get_content_type()
@@ -68,11 +66,16 @@ def renew_analyses_for_subject(subject, recursive=True):
                     _log.error(f"Cannot submit analysis for function '{af.name}' and subject '{subj}' "
                                f"({subj.get_content_type().name} {subj.id}). Reason: {str(err)}")
 
-    transaction.on_commit(lambda: submit_all(subject))
+    def delete_and_submit(subj):
+        _log.info(f"Deleting all analyses for {subj.get_content_type().name} {subj.id}...")
+        Analysis.objects.filter(AnalysisSubject.Q(subj)).delete()
+        transaction.on_commit(lambda: submit_all(subj))
+
+    delete_and_submit(subject)
 
     if recursive and hasattr(subject, 'topography_set'):
         for topo in subject.topography_set.all():
-            transaction.on_commit(lambda: submit_all(topo))
+            delete_and_submit(topo)
 
 
 def renew_existing_analysis(analysis, use_default_kwargs=False):

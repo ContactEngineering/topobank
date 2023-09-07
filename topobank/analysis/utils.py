@@ -3,9 +3,8 @@ import math
 from collections import OrderedDict
 
 from bokeh import palettes as palettes
-from django.contrib.contenttypes.models import ContentType
 
-from ..manager.models import Surface
+from ..manager.models import Topography, Surface
 
 
 _log = logging.getLogger(__name__)

@@ -243,10 +243,12 @@ def test_analysis_removal_on_topography_deletion(client, test_analysis_function,
 
     assert response.status_code == 302
 
+    assert surface.topography_set.count() == 0
+
     # No more topography analyses left
-    assert Analysis.objects.filter(subject_dispatch__topography=topo.id).count() == 0
-    # No more surface analyses left
-    assert Analysis.objects.filter(subject_dispatch__surface=surface.id).count() == 0
+    assert Analysis.objects.filter(subject_dispatch__topography=topo).count() == 0
+    # No more surface analyses left, because the surface no longer has topographies
+    assert Analysis.objects.filter(subject_dispatch__surface=surface).count() == 0
 
 
 @pytest.mark.django_db
