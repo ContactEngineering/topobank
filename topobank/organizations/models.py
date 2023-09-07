@@ -69,3 +69,11 @@ class Organization(models.Model):
 
         super().save(*args, **kwargs)
 
+    def delete(self, *args, **kwargs):
+        super().delete(*args, **kwargs)
+
+        # On deletion of an organization, the corresponding group should also be deleted.
+        # Only exception: The group named "all" should not be deleted.
+        if self.group.name != DEFAULT_GROUP_NAME:
+            _log.info(f"Deleting group '{self.group.name}' because of deletion of organization '{self.name}'.")
+            self.group.delete()

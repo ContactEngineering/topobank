@@ -14,12 +14,12 @@ import os
 
 DEFAULT_GROUP_NAME = 'all'
 
+
 class ORCIDException(Exception):
     pass
 
 
 class User(GuardianUserMixin, AbstractUser):
-
     # First Name and Last Name do not cover name patterns
     # around the globe.
     name = models.CharField(_("Name of User"), max_length=255)

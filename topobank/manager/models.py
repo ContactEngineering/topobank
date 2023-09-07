@@ -34,7 +34,7 @@ from ..publication.models import Publication, DOICreationException
 from ..users.models import User
 from ..users.utils import get_default_group
 
-from .utils import get_topography_reader, make_dzi, dzi_exists, MAX_LENGTH_SURFACE_COLLECTION_NAME
+from .utils import dzi_exists, get_topography_reader, make_dzi, recursive_delete, MAX_LENGTH_SURFACE_COLLECTION_NAME
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -673,6 +673,9 @@ class Topography(models.Model, SubjectMixin):
     # Methods
     #
     def save(self, *args, **kwargs):
+        if self.creator is None:
+            self.creator = self.surface.creator
+
         # `save` is overriden here because `storage_prefix` does not exists before the model instance has been written
         # to the database (and the `id` becomes available).
         if self.id is None:
@@ -691,6 +694,55 @@ class Topography(models.Model, SubjectMixin):
             kwargs.update(dict(update_fields=['datafile', 'squeezed_datafile', 'thumbnail'],
                                force_insert=False, force_update=True))  # The next save must be an update
         super().save(*args, **kwargs)
+        cache.delete(self.cache_key())
+
+    def delete(self, *args, **kwargs):
+        self._remove_files()
+        super().delete(*args, **kwargs)
+
+    def _remove_files(self):
+        """Remove files associated with a topography instance before removal of the topography."""
+
+        # ideally, we would reuse datafiles if possible, e.g. for
+        # the example topographies. Currently I'm not sure how
+        # to do it, because the file storage API always ensures to
+        # have unique filenames for every new stored file.
+
+        def delete_datafile(datafile_attr_name):
+            """Delete datafile attached to the given attribute name."""
+            try:
+                datafile = getattr(self, datafile_attr_name)
+                _log.info(f'Deleting {datafile.name}...')
+                datafile.delete()
+            except Exception as exc:
+                _log.warning(f"Topography id {self.id}, attribute '{datafile_attr_name}': Cannot delete data file "
+                             f"{self.name}', reason: {str(exc)}")
+
+        datafile_path = self.datafile.name
+        squeezed_datafile_path = self.squeezed_datafile.name
+        thumbnail_path = self.thumbnail.name
+
+        delete_datafile('datafile')
+        if self.has_squeezed_datafile:
+            delete_datafile('squeezed_datafile')
+        if self.has_thumbnail:
+            delete_datafile('thumbnail')
+
+        # Delete everything else after idiot check: Make sure files are actually stored under the storage prefix.
+        # Otherwise we abort deletion.
+        if datafile_path is not None and not datafile_path.startswith(self.storage_prefix):
+            _log.warning(f'Datafile is stored at location {datafile_path}, but storage prefix is '
+                         f'{self.storage_prefix}. I will not attempt to delete everything at this prefix.')
+            return
+        if squeezed_datafile_path is not None and not squeezed_datafile_path.startswith(self.storage_prefix):
+            _log.warning(f'Squeezed datafile is stored at location {squeezed_datafile_path}, but storage prefix is '
+                         f'{self.storage_prefix}. I will not attempt to delete everything at this prefix.')
+            return
+        if thumbnail_path is not None and not thumbnail_path.startswith(self.storage_prefix):
+            _log.warning(f'Thumbnail is stored at location {thumbnail_path}, but storage prefix is '
+                         f'{self.storage_prefix}. I will not attempt to delete everything at this prefix.')
+            return
+        recursive_delete(self.storage_prefix)
 
     def __str__(self):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
