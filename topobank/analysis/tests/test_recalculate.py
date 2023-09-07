@@ -45,8 +45,8 @@ def test_renew_analyses_api(client, test_analysis_function):
     #
     # New Analysis objects should be there and marked for the user
     #
-    analysis1b = Analysis.objects.get(function=func, topography=topo1)
-    analysis2b = Analysis.objects.get(function=func, topography=topo2)
+    analysis1b = Analysis.objects.get(function=func, subject_dispatch__topography=topo1)
+    analysis2b = Analysis.objects.get(function=func, subject_dispatch__topography=topo2)
 
     assert user in analysis1b.users.all()
     assert user in analysis2b.users.all()
