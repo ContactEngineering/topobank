@@ -128,7 +128,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 @pytest.mark.django_db
 def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
-    assert len(AnalysisController(user, function=test_analysis_function)) == 0
+    assert Analysis.objects.filter(users=user, function=test_analysis_function).count() == 0
 
 
 def test_mangle_sheet_name():
