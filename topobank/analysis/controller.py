@@ -328,7 +328,10 @@ class AnalysisController:
         self._function_kwargs = function_kwargs
 
         # Calculate subjects for the analyses, filtered for those which have an implementation
-        self._subjects = subjects_from_dict(subjects, user=self._user)
+        if isinstance(subjects, dict):
+            self._subjects = subjects_from_dict(subjects, user=self._user)
+        else:
+            self._subjects = subjects
 
         # Surface permissions are checked in `subjects_from_dict`. Since children (topographies) inherit the permission
         # from their parents, we do not need to do an additional permissions check.

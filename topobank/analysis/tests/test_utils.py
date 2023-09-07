@@ -106,14 +106,14 @@ def test_latest_analyses(two_topos, test_analysis_function):
     analysis.users.add(user)
 
     tt = ContentType.objects.get_for_model(Topography)
-    analyses = AnalysisController(user, subjects=subjects_to_dict([topo1, topo2]), function=test_analysis_function)
+    analyses = AnalysisController(user, subjects=[topo1, topo2], function=test_analysis_function)
 
     assert len(analyses) == 2  # one analysis per function and topography
 
     # both topographies should be in there
 
-    at1, = analyses.get(subject_type=tt, subject_id=topo1.id)
-    at2, = analyses.get(subject_type=tt, subject_id=topo2.id)
+    at1, = AnalysisController(user, subjects=[topo1], function=test_analysis_function).get()
+    at2, = AnalysisController(user, subjects=[topo2], function=test_analysis_function).get()
 
     from django.conf import settings
 
