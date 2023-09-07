@@ -113,11 +113,11 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
                                data=initial_data_for_post, follow=True)
-    assert_no_form_errors(response)
-    assert response.status_code == 200
+        assert_no_form_errors(response)
+        assert response.status_code == 200
 
-    assert len(callbacks) == 0
-    # Nothing changed, so no callbacks
+        assert len(callbacks) == 0
+        # Nothing changed, so no callbacks
 
     assert not renew_squeezed_method_mock.called
     assert not renew_topo_analyses_mock.called
