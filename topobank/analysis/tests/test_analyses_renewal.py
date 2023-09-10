@@ -9,7 +9,7 @@ from django.shortcuts import reverse
 from topobank.manager.tests.utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
 from topobank.manager.models import Topography
 
-from topobank.analysis.models import Analysis
+from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, TopographyAnalysisFactory, \
     Topography2DFactory
 from topobank.utils import assert_in_content, assert_no_form_errors
@@ -143,7 +143,7 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
 
     renew_squeezed_method_mock.assert_called_once()
     renew_topo_analyses_mock.assert_called()
-    assert renew_topo_analyses_mock.call_count == 11  # There are 11 analysis functions
+    assert renew_topo_analyses_mock.call_count == AnalysisFunction.objects.count()  # Called once each
     renew_topo_images_mock.assert_called_once()
 
 
@@ -333,4 +333,4 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics,
     renew_topo_images_mock.assert_called()
     assert renew_topo_images_mock.call_count == 2
     renew_topo_analyses_mock.assert_called()
-    assert renew_topo_analyses_mock.call_count == 22 # There are 11 analyses, called twice
+    assert renew_topo_analyses_mock.call_count == 2 * AnalysisFunction.objects.count()  # Each function is called twice
