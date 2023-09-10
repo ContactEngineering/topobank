@@ -525,7 +525,7 @@ def test_notification_when_editing_shared_stuff(client, handle_usage_statistics)
 
     note = Notification.objects.get(recipient=user1, verb='change',
                                     description__contains=topography.name)
-    assert "recalculate" in note.description
+    assert "Changed fields:" in note.description
     client.logout()
 
     #
