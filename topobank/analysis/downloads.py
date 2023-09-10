@@ -80,7 +80,7 @@ def download_analyses(request, ids, file_format):
         # (this is useful for averages - the only surface analyses so far -
         # and may be controlled by other means later, if needed)
         #
-        if analysis.subject_is_surface and analysis.subject.num_topographies() <= 1:
+        if analysis.is_surface_related and analysis.subject.num_topographies() <= 1:
             continue
 
         analyses.append(analysis)

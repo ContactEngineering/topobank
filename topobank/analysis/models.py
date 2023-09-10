@@ -334,21 +334,18 @@ class Analysis(models.Model):
         return User.objects.filter(id__in=[u.id for u in users_allowed]).order_by('name')
 
     @property
-    def subject_is_topography(self):
-        """Returns True, if the analysis subject is a topography, else False.
-        """
+    def is_topography_related(self):
+        """Returns True, if the analysis subject is a topography, else False."""
         return self.subject_dispatch.topography is not None
 
     @property
-    def subject_is_surface(self):
-        """Returns True, if the analysis subject is a surface, else False.
-        """
+    def is_surface_related(self):
+        """Returns True, if the analysis subject is a surface, else False."""
         return self.subject_dispatch.surface is not None
 
     @property
-    def subject_is_collection(self):
-        """Returns True, if the analysis subject is a surface collection, else False.
-        """
+    def is_collection_related(self):
+        """Returns True, if the analysis subject is a surface collection, else False."""
         return self.subject_dispatch.collection is not None
 
 
