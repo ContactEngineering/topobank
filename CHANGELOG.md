@@ -8,6 +8,10 @@
   to the models (#1017)
 - MAINT: Performance optimization, e.g. prefetching of datasets (#967)
 
+## 1.2.5 (2023-08-30)
+
+- MAINT: Updated SurfaceTopography to 1.10.1
+
 ## 1.2.4 (2023-08-29)
 
 - MAINT: Updated SurfaceTopography to 1.10.0
