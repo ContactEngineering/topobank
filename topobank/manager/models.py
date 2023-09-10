@@ -2,7 +2,15 @@
 Basic models for the web app for handling topography data.
 """
 
+import io
+import logging
+import math
+import matplotlib.pyplot, matplotlib.cm
+import numpy as np
+import os.path
+import PIL
 import sys
+import tempfile
 
 from django.db import models
 from django.shortcuts import reverse
@@ -17,26 +25,17 @@ from django.contrib.contenttypes.models import ContentType
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
 import tagulous.models as tm
 
-import PIL
-import io
-import logging
-import math
-import matplotlib.pyplot, matplotlib.cm
-import numpy as np
-import os.path
-import tempfile
-
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
+
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
+
+from .utils import dzi_exists, get_topography_reader, make_dzi, recursive_delete, MAX_LENGTH_SURFACE_COLLECTION_NAME
 
 from ..plots import configure_plot
 from ..publication.models import Publication, DOICreationException
 from ..users.models import User
 from ..users.utils import get_default_group
-
-from .utils import dzi_exists, get_topography_reader, make_dzi, recursive_delete, MAX_LENGTH_SURFACE_COLLECTION_NAME
-
-from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 _log = logging.getLogger(__name__)
 
@@ -145,6 +144,11 @@ class SubjectMixin:
     def get_content_type(cls):
         """Returns ContentType for own class."""
         return ContentType.objects.get_for_model(cls)
+
+    @classmethod
+    def get_subject_type(cls):
+        """Returns a human readable name for this subject type."""
+        return cls._meta.model_name
 
     def is_shared(self, with_user, allow_change=False):
         """Returns True, if this subject is shared with a given user.
@@ -478,23 +482,6 @@ class Surface(models.Model, SubjectMixin):
         """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
 
-    #    def renew_analyses(self, include_topographies=True):
-    #        """Renew analyses related to this surface.
-    #
-    #        This includes analyses
-    #        - with any of its topographies as subject  (if also_topographies=True)
-    #        - with this surfaces as subject
-    #        This is done in that order.
-    #        """
-    #        from ..analysis.controller import renew_analyses_for_subject
-    #
-    #        if include_topographies:
-    #            _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
-    #            for topo in self.topography_set.all():
-    #                topo.renew_analyses()
-    #        _log.info(f"Regenerating analyses directly related to surface {self.pk}..")
-    #        renew_analyses_for_subject(self)
-
     def related_surfaces(self):
         return [self]
 
@@ -670,22 +657,41 @@ class Topography(models.Model, SubjectMixin):
         upload_to=_upload_path_for_thumbnail)
 
     #
+    # _refresh_dependent_data indicates whether caches (thumbnail, DZI) and analyses need to be refreshed after a call
+    # to save()
+    #
+    _refresh_dependent_data = False
+
+    # Changes in these fields trigger a refresh
+    _significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale', 'fill_undefined_data_mode',
+                           'detrend_mode', 'datafile', 'data_source', 'instrument_type', 'instrument_parameters'}
+
+    #
     # Methods
     #
     def save(self, *args, **kwargs):
         if self.creator is None:
             self.creator = self.surface.creator
 
-        # `save` is overriden here because `storage_prefix` does not exists before the model instance has been written
-        # to the database (and the `id` becomes available).
-        if self.id is None:
+        # Reset to no refresh
+        self._refresh_dependent_data = False
+
+        # Strategies to detect changes in significant fields:
+        # https://stackoverflow.com/questions/1355150/when-saving-how-can-you-check-if-a-field-has-changed
+        try:
+            # Do not check for None in self.id as this breaks should we switch to UUIDs
+            old_obj = Topography.objects.get(pk=self.pk)
+        except self.DoesNotExist:
+            # Object is new, this means `storage_prefix` does not exists since the model instance has yet been written
+            # to the database. (The `id` only becomes available then.)
             datafile = self.datafile
             squeezed_datafile = self.squeezed_datafile
             thumbnail = self.thumbnail
-            # Since we do not have an id yet, we cannot store the file
+            # Since we do not have an id yet, we cannot store the file since we don't know where to put it
             self.datafile = None
             self.squeezed_datafile = None
             self.thumbnail = None
+            # Save to get an id
             super().save(*args, **kwargs)
             # Now we have an id, so we can now save the files
             self.datafile = datafile
@@ -693,8 +699,20 @@ class Topography(models.Model, SubjectMixin):
             self.thumbnail = thumbnail
             kwargs.update(dict(update_fields=['datafile', 'squeezed_datafile', 'thumbnail'],
                                force_insert=False, force_update=True))  # The next save must be an update
+            # We need to refresh, because this is the creation of this dataset
+            self._refresh_dependent_data = True
+        else:
+            # Check which fields actually changed
+            changed_fields = [getattr(self, name) != getattr(old_obj, name)
+                              for name in self._significant_fields]
+
+            # We need to refresh if any of the significant fields changed during this save
+            self._refresh_dependent_data = any(changed_fields)
         super().save(*args, **kwargs)
         cache.delete(self.cache_key())
+
+        # Reset to no refresh
+        self._refresh_dependent_data = False
 
     def delete(self, *args, **kwargs):
         self._remove_files()
@@ -884,9 +902,7 @@ class Topography(models.Model, SubjectMixin):
                         renew_squeezed_datafile.delay(self.id)
                         # this is now done in background, we load the original files instead for minimal delay
                     else:
-                        #
                         # Okay, we can use the squeezed datafile, it's already there.
-                        #
                         toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
                         topo = toporeader.topography(info=info)
                         # In the squeezed format, these things are already applied/included:

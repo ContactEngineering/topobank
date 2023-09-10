@@ -35,5 +35,5 @@ def test_sheets(client, handle_usage_statistics):
 
     df = pd.read_excel("usage_statistics.xlsx", sheet_name="summary", engine='openpyxl')
     assert df.columns[0] == 'month'
-    assert df.iloc[0, 1:].tolist() == [0, 1, 0, 0, 1, 1, 2, 0]
+    assert df.iloc[0, 1:].tolist() == [0, 0, 0, 0, 1, 1, 2, 0]
     # excluding month here, because it varies and freezegun does not work

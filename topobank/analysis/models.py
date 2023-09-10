@@ -334,25 +334,22 @@ class Analysis(models.Model):
         return User.objects.filter(id__in=[u.id for u in users_allowed]).order_by('name')
 
     @property
-    def is_topography_related(self):
+    def subject_is_topography(self):
         """Returns True, if the analysis subject is a topography, else False.
         """
-        topography_ct = ContentType.objects.get_by_natural_key('manager', 'topography')
-        return topography_ct == self.subject_type
+        return self.subject_dispatch.topography is not None
 
     @property
-    def is_surface_related(self):
+    def subject_is_surface(self):
         """Returns True, if the analysis subject is a surface, else False.
         """
-        surface_ct = ContentType.objects.get_by_natural_key('manager', 'surface')
-        return surface_ct == self.subject_type
+        return self.subject_dispatch.surface is not None
 
     @property
-    def is_surfacecollection_related(self):
+    def subject_is_collection(self):
         """Returns True, if the analysis subject is a surface collection, else False.
         """
-        surface_ct = ContentType.objects.get_by_natural_key('manager', 'surfacecollection')
-        return surface_ct == self.subject_type
+        return self.subject_dispatch.collection is not None
 
 
 class AnalysisFunction(models.Model):

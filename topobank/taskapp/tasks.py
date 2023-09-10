@@ -402,29 +402,3 @@ def renew_topography_dzi(topography_id):
     except Topography.DoesNotExist:
         _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew DZI.")
     _log.debug(f"Done - renewed DZI for topography id {topography_id}.")
-
-
-@app.task
-def renew_analyses_related_to_topography(topography_id, include_surface=True):
-    """Renew analyses related to given topography.
-
-        Parameters
-        ----------
-        topography_id: int
-            ID of topography for which analyses should be regenerated.
-        include_surface: bool
-            If True, also analyses for the topography's surface are
-            regenerated.
-
-        Returns
-        -------
-        None
-    """
-    _log.debug(f"Renewing all analyses which are related to topography id {topography_id}..")
-    try:
-        topography = Topography.objects.get(id=topography_id)
-        topography.renew_analyses()
-        if include_surface:
-            topography.surface.renew_analyses(include_topographies=False)
-    except Topography.DoesNotExist:
-        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew analyses.")

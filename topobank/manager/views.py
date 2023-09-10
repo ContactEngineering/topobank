@@ -44,16 +44,12 @@ from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
 
-from celery import chain
-
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..users.models import User
 from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
-from ..taskapp.tasks import renew_squeezed_datafile, renew_bandwidth_cache, \
-    renew_topography_images, renew_analyses_related_to_topography
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
@@ -447,17 +443,6 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         instance.save()
 
         #
-        # Note that we do not need to read the file, since it has
-        # already been opened by the form.
-        # Trigger some calculations in background.
-        #
-        _log.info("Creating squeezed datafile, images and analyses...")
-        transaction.on_commit(chain(renew_squeezed_datafile.si(instance.id),
-                                    renew_bandwidth_cache.si(instance.id),
-                                    renew_topography_images.si(instance.id),
-                                    renew_analyses_related_to_topography.si(instance.id)).delay)
-
-        #
         # Notify other others with access to the topography
         #
         topo = Topography.objects.get(id=instance.id)
@@ -555,29 +540,6 @@ class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
             _log.info("Instrument parameters changed:")
             _log.info("  before: %s", form.initial['instrument_parameters'])
             _log.info("  after:  %s", form.cleaned_data['instrument_parameters'])
-
-        if len(significant_fields_with_changes) > 0:
-            _log.info(f"During edit of topography id={topo.id} some significant fields changed: " +
-                      f"{significant_fields_with_changes}.")
-
-            # Images and analyses can only be computed after the squeezed file has been renewed
-
-            # determine whether only instrument fields have been changed,
-            # then we don't need to recalculate the squeezed file
-            renew_squeezed_needed = significant_fields_with_changes.difference(instrument_fields) != set()
-            renewal_chain_elems = []
-            if renew_squeezed_needed:
-                _log.info("Preparing renewal of squeezed file...")
-                renewal_chain_elems.append(renew_squeezed_datafile.si(topo.id))
-            _log.info("Renewing bandwidth cache, images and analyses...")
-            renewal_chain_elems.extend([renew_bandwidth_cache.si(topo.id),
-                                        renew_topography_images.si(topo.id),
-                                        renew_analyses_related_to_topography.si(topo.id)])
-
-            transaction.on_commit(chain(*renewal_chain_elems).delay)
-            notification_msg += f"\nBecause significant fields have changed, all related analyses are recalculated now."
-        else:
-            _log.info("Changes not significant for renewal of thumbnails or analysis results.")
 
         #
         # notify other users
