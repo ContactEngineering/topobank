@@ -1,42 +1,80 @@
 import logging
 
-from django.shortcuts import reverse
-
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 
-from generic_relations.relations import GenericRelatedField
-
-from ..manager.models import Surface, Topography
-from ..manager.serializers import SurfaceSerializer, TopographySerializer
-from .models import Analysis, AnalysisFunction
+from .models import Analysis, AnalysisFunction, AnalysisSubject, Configuration
 from .registry import AnalysisRegistry
 
 _log = logging.getLogger(__name__)
 
 
-class AnalysisResultSerializer(serializers.ModelSerializer):
+class ConfigurationSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Configuration
+        fields = ['valid_since', 'versions']
+
+    versions = serializers.SerializerMethodField()
+
+    def get_versions(self, obj):
+        versions = {}
+        for version in obj.versions.all():
+            versions[str(version.dependency)] = version.number_as_string()
+        return versions
+
+
+class AnalysisFunctionSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = AnalysisFunction
+        fields = ['id', 'url', 'name', 'visualization_app_name', 'visualization_type']
+
+    url = serializers.HyperlinkedIdentityField(view_name='analysis:function-detail', read_only=True)
+
+    visualization_app_name = serializers.SerializerMethodField()
+    visualization_type = serializers.SerializerMethodField()
+
+    def get_visualization_app_name(self, obj):
+        app_name, type = AnalysisRegistry().get_visualization_type_for_function_name(obj.name)
+        return app_name
+
+    def get_visualization_type(self, obj):
+        app_name, type = AnalysisRegistry().get_visualization_type_for_function_name(obj.name)
+        return type
+
+
+class AnalysisSubjectSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = AnalysisSubject
+        fields = ['topography', 'surface', 'collection']
+
+    topography = serializers.HyperlinkedRelatedField(view_name='manager:topography-api-detail', read_only=True)
+    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail', read_only=True)
+
+
+class AnalysisResultSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Analysis
-        fields = ['id', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time', 'start_time',
-                  'end_time', 'dois', 'configuration', 'duration', 'api', 'error']
-        depth = 1
+        fields = ['url', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time', 'start_time',
+                  'end_time', 'dois', 'configuration', 'duration', 'data_prefix', 'error']
+
+    url = serializers.HyperlinkedIdentityField(view_name='analysis:result-detail', read_only=True)
+    data_prefix = serializers.SerializerMethodField()
+
+    configuration = serializers.HyperlinkedRelatedField(view_name='analysis:configuration-detail', read_only=True)
+    function = serializers.HyperlinkedRelatedField(view_name='analysis:function-detail', read_only=True)
+
+    subject = AnalysisSubjectSerializer(source='subject_dispatch')
 
     duration = serializers.SerializerMethodField()
-    kwargs = serializers.SerializerMethodField()
-    subject = GenericRelatedField({
-        Surface: SurfaceSerializer(),
-        Topography: TopographySerializer()
-    })
     task_state = serializers.SerializerMethodField()
     task_progress = serializers.SerializerMethodField()
-    api = serializers.SerializerMethodField()
     error = serializers.SerializerMethodField()
+
+    def get_data_prefix(self, obj):
+        return reverse('analysis:data', args=(obj.id, ''), request=self.context['request'])
 
     def get_duration(self, obj):
         return obj.duration
-
-    def get_kwargs(self, obj):
-        return obj.kwargs
 
     def get_task_state(self, obj):
         """
@@ -82,28 +120,5 @@ class AnalysisResultSerializer(serializers.ModelSerializer):
         else:
             return 0.0
 
-    def get_api(self, obj):
-        return {
-            'dataUrl': reverse('analysis:data', kwargs=dict(pk=obj.id, location='')),
-            'statusUrl': reverse('analysis:status-detail', kwargs=dict(pk=obj.id))
-        }
-
     def get_error(self, obj):
         return obj.get_error()
-
-
-class AnalysisFunctionSerializer(serializers.ModelSerializer):
-    visualization_app_name = serializers.SerializerMethodField()
-    visualization_type = serializers.SerializerMethodField()
-
-    def get_visualization_app_name(self, obj):
-        app_name, type = AnalysisRegistry().get_visualization_type_for_function_name(obj.name)
-        return app_name
-
-    def get_visualization_type(self, obj):
-        app_name, type = AnalysisRegistry().get_visualization_type_for_function_name(obj.name)
-        return type
-
-    class Meta:
-        model = AnalysisFunction
-        fields = ['id', 'name', 'visualization_app_name', 'visualization_type']

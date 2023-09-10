@@ -2,7 +2,15 @@
 Basic models for the web app for handling topography data.
 """
 
+import io
+import logging
+import math
+import matplotlib.pyplot, matplotlib.cm
+import numpy as np
+import os.path
+import PIL
 import sys
+import tempfile
 
 from django.db import models
 from django.shortcuts import reverse
@@ -12,42 +20,28 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
-from django.contrib.contenttypes.fields import GenericRelation
 from django.contrib.contenttypes.models import ContentType
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
 import tagulous.models as tm
 
-import PIL
-import io
-import logging
-import math
-import matplotlib.pyplot, matplotlib.cm
-import numpy as np
-import os.path
-import tempfile
-
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 
-from ..analysis.models import Analysis
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
+
+from .utils import dzi_exists, get_topography_reader, make_dzi, recursive_delete, MAX_LENGTH_SURFACE_COLLECTION_NAME
+
 from ..plots import configure_plot
 from ..publication.models import Publication, DOICreationException
 from ..users.models import User
 from ..users.utils import get_default_group
 
-from .utils import get_topography_reader, make_dzi, dzi_exists, MAX_LENGTH_SURFACE_COLLECTION_NAME
-
-from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
-
-
 _log = logging.getLogger(__name__)
-
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 SQUEEZED_DATAFILE_FORMAT = 'nc'
-
 
 # Detect whether we are running within a Celery worker. This solution was suggested here:
 # https://stackoverflow.com/questions/39003282/how-can-i-detect-whether-im-running-in-a-celery-worker
@@ -77,6 +71,7 @@ class AlreadyPublishedException(PublicationException):
 
 class NewPublicationTooFastException(PublicationException):
     """A new publication has been issued to fast after the former one."""
+
     def __init__(self, latest_publication, wait_seconds):
         self._latest_pub = latest_publication
         self._wait_seconds = wait_seconds
@@ -99,6 +94,7 @@ class PlotTopographyException(Exception):
 
 class ThumbnailGenerationException(Exception):
     """Failure while generating thumbnails for a topography."""
+
     def __init__(self, topo, message):
         self._topo = topo
         self._message = message
@@ -149,6 +145,11 @@ class SubjectMixin:
         """Returns ContentType for own class."""
         return ContentType.objects.get_for_model(cls)
 
+    @classmethod
+    def get_subject_type(cls):
+        """Returns a human readable name for this subject type."""
+        return cls._meta.model_name
+
     def is_shared(self, with_user, allow_change=False):
         """Returns True, if this subject is shared with a given user.
 
@@ -195,9 +196,6 @@ class Surface(models.Model, SubjectMixin):
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
     tags = tm.TagField(to=TagModel)
-    analyses = GenericRelation(Analysis, related_query_name='surface',
-                               content_type_field='subject_type',
-                               object_id_field='subject_id')
 
     objects = models.Manager()
     published = PublishedSurfaceManager()
@@ -296,17 +294,6 @@ class Surface(models.Model, SubjectMixin):
         if allow_change:
             assign_perm('change_surface', with_user, self)
 
-        #
-        # Request all standard analyses to be available for that user
-        #
-        _log.info(f"After sharing surface {self.id} with user {with_user.id}, requesting all standard analyses...")
-        from ..analysis.models import AnalysisFunction
-        from ..analysis.controller import request_analysis
-        analysis_funcs = AnalysisFunction.objects.all()
-        for topo in self.topography_set.all():
-            for af in analysis_funcs:
-                request_analysis(with_user, af, topo)  # standard arguments
-
     def unshare(self, with_user):
         """Remove share on this surface for given user.
 
@@ -347,7 +334,6 @@ class Surface(models.Model, SubjectMixin):
             # we pass the surface here because there is a constraint that (surface_id + topography name)
             # must be unique, i.e. a surface should never have two topographies of the same name,
             # so we can't set the new surface as the second step
-        copy.renew_analyses()
 
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
         return copy
@@ -496,25 +482,9 @@ class Surface(models.Model, SubjectMixin):
         """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
 
-    def renew_analyses(self, include_topographies=True):
-        """Renew analyses related to this surface.
-
-        This includes analyses
-        - with any of its topographies as subject  (if also_topographies=True)
-        - with this surfaces as subject
-        This is done in that order.
-        """
-        from ..analysis.controller import renew_analyses_for_subject
-
-        if include_topographies:
-            _log.info(f"Regenerating analyses of topographies of surface {self.pk}..")
-            for topo in self.topography_set.all():
-                topo.renew_analyses()
-        _log.info(f"Regenerating analyses directly related to surface {self.pk}..")
-        renew_analyses_for_subject(self)
-
     def related_surfaces(self):
         return [self]
+
 
 def _upload_path_for_datafile(instance, filename):
     return f'{instance.storage_prefix}/raw/{filename}'
@@ -532,11 +502,8 @@ class SurfaceCollection(models.Model, SubjectMixin):
     """A collection of surfaces."""
     name = models.CharField(max_length=MAX_LENGTH_SURFACE_COLLECTION_NAME)
     surfaces = models.ManyToManyField(Surface)
-    # We have a manytomany field, because a surface could be part of multiple collections.
 
-    analyses = GenericRelation(Analysis, related_query_name='surfacecollection',
-                               content_type_field='subject_type',
-                               object_id_field='subject_id')
+    # We have a manytomany field, because a surface could be part of multiple collections.
 
     @property
     def label(self):
@@ -625,9 +592,6 @@ class Topography(models.Model, SubjectMixin):
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
     tags = tm.TagField(to=TagModel)
-    analyses = GenericRelation(Analysis, related_query_name='topography',
-                               content_type_field='subject_type',
-                               object_id_field='subject_id')
 
     #
     # Fields related to raw data
@@ -693,19 +657,41 @@ class Topography(models.Model, SubjectMixin):
         upload_to=_upload_path_for_thumbnail)
 
     #
+    # _refresh_dependent_data indicates whether caches (thumbnail, DZI) and analyses need to be refreshed after a call
+    # to save()
+    #
+    _refresh_dependent_data = False
+
+    # Changes in these fields trigger a refresh
+    _significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale', 'fill_undefined_data_mode',
+                           'detrend_mode', 'datafile', 'data_source', 'instrument_type', 'instrument_parameters'}
+
+    #
     # Methods
     #
     def save(self, *args, **kwargs):
-        # `save` is overriden here because `storage_prefix` does not exists before the model instance has been written
-        # to the database (and the `id` becomes available).
-        if self.id is None:
+        if self.creator is None:
+            self.creator = self.surface.creator
+
+        # Reset to no refresh
+        self._refresh_dependent_data = False
+
+        # Strategies to detect changes in significant fields:
+        # https://stackoverflow.com/questions/1355150/when-saving-how-can-you-check-if-a-field-has-changed
+        try:
+            # Do not check for None in self.id as this breaks should we switch to UUIDs
+            old_obj = Topography.objects.get(pk=self.pk)
+        except self.DoesNotExist:
+            # Object is new, this means `storage_prefix` does not exists since the model instance has yet been written
+            # to the database. (The `id` only becomes available then.)
             datafile = self.datafile
             squeezed_datafile = self.squeezed_datafile
             thumbnail = self.thumbnail
-            # Since we do not have an id yet, we cannot store the file
+            # Since we do not have an id yet, we cannot store the file since we don't know where to put it
             self.datafile = None
             self.squeezed_datafile = None
             self.thumbnail = None
+            # Save to get an id
             super().save(*args, **kwargs)
             # Now we have an id, so we can now save the files
             self.datafile = datafile
@@ -713,7 +699,68 @@ class Topography(models.Model, SubjectMixin):
             self.thumbnail = thumbnail
             kwargs.update(dict(update_fields=['datafile', 'squeezed_datafile', 'thumbnail'],
                                force_insert=False, force_update=True))  # The next save must be an update
+            # We need to refresh, because this is the creation of this dataset
+            self._refresh_dependent_data = True
+        else:
+            # Check which fields actually changed
+            changed_fields = [getattr(self, name) != getattr(old_obj, name)
+                              for name in self._significant_fields]
+
+            # We need to refresh if any of the significant fields changed during this save
+            self._refresh_dependent_data = any(changed_fields)
         super().save(*args, **kwargs)
+        cache.delete(self.cache_key())
+
+        # Reset to no refresh
+        self._refresh_dependent_data = False
+
+    def delete(self, *args, **kwargs):
+        self._remove_files()
+        super().delete(*args, **kwargs)
+
+    def _remove_files(self):
+        """Remove files associated with a topography instance before removal of the topography."""
+
+        # ideally, we would reuse datafiles if possible, e.g. for
+        # the example topographies. Currently I'm not sure how
+        # to do it, because the file storage API always ensures to
+        # have unique filenames for every new stored file.
+
+        def delete_datafile(datafile_attr_name):
+            """Delete datafile attached to the given attribute name."""
+            try:
+                datafile = getattr(self, datafile_attr_name)
+                _log.info(f'Deleting {datafile.name}...')
+                datafile.delete()
+            except Exception as exc:
+                _log.warning(f"Topography id {self.id}, attribute '{datafile_attr_name}': Cannot delete data file "
+                             f"{self.name}', reason: {str(exc)}")
+
+        datafile_path = self.datafile.name
+        squeezed_datafile_path = self.squeezed_datafile.name
+        thumbnail_path = self.thumbnail.name
+
+        delete_datafile('datafile')
+        if self.has_squeezed_datafile:
+            delete_datafile('squeezed_datafile')
+        if self.has_thumbnail:
+            delete_datafile('thumbnail')
+
+        # Delete everything else after idiot check: Make sure files are actually stored under the storage prefix.
+        # Otherwise we abort deletion.
+        if datafile_path is not None and not datafile_path.startswith(self.storage_prefix):
+            _log.warning(f'Datafile is stored at location {datafile_path}, but storage prefix is '
+                         f'{self.storage_prefix}. I will not attempt to delete everything at this prefix.')
+            return
+        if squeezed_datafile_path is not None and not squeezed_datafile_path.startswith(self.storage_prefix):
+            _log.warning(f'Squeezed datafile is stored at location {squeezed_datafile_path}, but storage prefix is '
+                         f'{self.storage_prefix}. I will not attempt to delete everything at this prefix.')
+            return
+        if thumbnail_path is not None and not thumbnail_path.startswith(self.storage_prefix):
+            _log.warning(f'Thumbnail is stored at location {thumbnail_path}, but storage prefix is '
+                         f'{self.storage_prefix}. I will not attempt to delete everything at this prefix.')
+            return
+        recursive_delete(self.storage_prefix)
 
     def __str__(self):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
@@ -855,9 +902,7 @@ class Topography(models.Model, SubjectMixin):
                         renew_squeezed_datafile.delay(self.id)
                         # this is now done in background, we load the original files instead for minimal delay
                     else:
-                        #
                         # Okay, we can use the squeezed datafile, it's already there.
-                        #
                         toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
                         topo = toporeader.topography(info=info)
                         # In the squeezed format, these things are already applied/included:
@@ -920,13 +965,9 @@ class Topography(models.Model, SubjectMixin):
 
         return topo
 
-    def renew_analyses(self):
-        """Submit all analysis for this topography."""
-        from ..analysis.controller import renew_analyses_for_subject
-        renew_analyses_for_subject(self)
-
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
+        # FIXME!! This code should be moved to a separate serializer class
         result = {'name': self.name,
                   'datafile': {
                       'original': self.datafile.name,

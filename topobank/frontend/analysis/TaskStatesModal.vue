@@ -40,7 +40,7 @@ export default {
     },
     methods: {
         getInitialTaskStates(analyses) {
-            return analyses.map(a => a.task_state);
+            return analyses.map(a => a.task_state === undefined ? 'pe' : a.task_state);
         },
         setTaskState(analysisIndex, taskState) {
             this._taskStates[analysisIndex] = taskState;

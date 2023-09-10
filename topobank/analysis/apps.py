@@ -6,4 +6,4 @@ class AnalysisAppConfig(AppConfig):
 
     def ready(self):
         # make sure the signals are registered now
-        import topobank.analysis.signals
+        from . import signals

@@ -27,105 +27,68 @@ def test_surface_serializer(rf):
 
     surfser = SurfaceSerializer(context=context)
 
-    result = ordereddicts_to_dicts([surfser.to_representation(surface1)])
+    result = ordereddicts_to_dicts([surfser.to_representation(surface1)], sorted_by='url')
 
     #
     # prepare some abbreviations
     #
-    user_url = request.build_absolute_uri(user.get_absolute_url())
-    surface1_prefix = f"/manager/surface/{surface1.pk}/"
-    surface1_html_prefix = f"/manager/html/surface/{surface1.pk}/"
-    surface1_select_prefix = f"/manager/api/selection/surface/{surface1.pk}/"
-    topo1a_html_prefix = f"/manager/html/topography/{topo1a.pk}/"
-    topo1a_select_prefix = f"/manager/api/selection/topography/{topo1a.pk}/"
-    topo1b_html_prefix = f"/manager/html/topography/{topo1b.pk}/"
-    topo1b_select_prefix = f"/manager/api/selection/topography/{topo1b.pk}/"
-
-    topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
-    topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
-    surface1_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([surface1])}"
-
+    user_url = request.build_absolute_uri(f'/users/api/user/{user.id}/')
     assert result[0] == {
-
-        'category': None,
-        'category_name': None,
-        'children': [
-            {'creator': user_url,
-             'creator_name': user.name,
-             'description': '',
-             'folder': False,
-             'key': f'topography-{topo1a.pk}',
-             'surface_key': f'surface-{surface1.pk}',
-             'name': topo1a.name,
-             'label': topo1a.name,
-             'id': topo1a.id,
-             'publication_authors': None,
-             'publication_date': None,
-             'selected': True,
-             'sharing_status': 'own',
-             'tags': [],
-             'title': topo1a.name,
-             'type': 'topography',
-             'version': None,
-             'urls': {'delete': topo1a_html_prefix + 'delete/',
-                      'detail': topo1a_html_prefix,
-                      'select': topo1a_select_prefix + 'select/',
-                      'analyze': topo1a_analyze,
-                      'unselect': topo1a_select_prefix + 'unselect/',
-                      'update': topo1a_html_prefix + 'update/'}},
-            {'creator': user_url,
-             'creator_name': user.name,
-             'description': '',
-             'folder': False,
-             'key': f'topography-{topo1b.pk}',
-             'surface_key': f'surface-{surface1.pk}',
-             'name': topo1b.name,
-             'label': topo1b.name,
-             'id': topo1b.id,
-             'publication_authors': None,
-             'publication_date': None,
-             'selected': False,
-             'sharing_status': 'own',
-             'tags': [],
-             'title': topo1b.name,
-             'type': 'topography',
-             'version': None,
-             'urls': {'delete': topo1b_html_prefix + 'delete/',
-                      'detail': topo1b_html_prefix,
-                      'select': topo1b_select_prefix + 'select/',
-                      'analyze': topo1b_analyze,
-                      'unselect': topo1b_select_prefix + 'unselect/',
-                      'update': topo1b_html_prefix + 'update/'}},
-
-        ],
         'creator': user_url,
-        'creator_name': user.name,
+        'category': None,
         'description': '',
-        'folder': True,
-        'key': f'surface-{surface1.pk}',
         'name': surface1.name,
-        'label': surface1.name,
-        'id': surface1.id,
-        'publication_authors': None,
-        'publication_date': None,
-        'publication_license': None,
-        'publication_doi': None,
-        'selected': False,
-        'sharing_status': 'own',
-        'tags': ['bike', 'train/tgv'],
-        'title': surface1.name,
-        'topography_count': 2,
-        'type': 'surface',
-        'version': None,
-        'urls': {'add_topography': surface1_html_prefix + 'new-topography/',
-                 'delete': surface1_html_prefix + 'delete/',
-                 'detail': surface1_html_prefix,
-                 'download': surface1_prefix + 'download/',
-                 'select': surface1_select_prefix + 'select/',
-                 'share': surface1_html_prefix + 'share/',
-                 'publish': surface1_html_prefix + 'publish/',
-                 'analyze': surface1_analyze,
-                 'unselect': surface1_select_prefix + 'unselect/',
-                 'update': surface1_html_prefix + 'update/'}
-
+        'url': f'http://testserver/manager/api/surface/{surface1.id}/',
+        'topography_set': [{'bandwidth_lower': None,
+                            'bandwidth_upper': None,
+                            'creator': user_url,
+                            'datafile_format': None,
+                            'description': '',
+                            'detrend_mode': 'center',
+                            'fill_undefined_data_mode': 'do-not-fill',
+                            'has_undefined_data': None,
+                            'height_scale': 1.0,
+                            'height_scale_editable': True,
+                            'instrument_name': '',
+                            'instrument_parameters': {},
+                            'instrument_type': 'undefined',
+                            'is_periodic': False,
+                            'measurement_date': str(topo1a.measurement_date),
+                            'name': topo1a.name,
+                            'resolution_x': None,
+                            'resolution_y': None,
+                            'short_reliability_cutoff': None,
+                            'size_editable': False,
+                            'size_x': 512.0,
+                            'size_y': None,
+                            'surface': f'http://testserver/manager/api/surface/{surface1.id}/',
+                            'unit': 'nm',
+                            'unit_editable': False,
+                            'url': f'http://testserver/manager/api/topography/{topo1a.id}/'},
+                           {'bandwidth_lower': None,
+                            'bandwidth_upper': None,
+                            'creator': user_url,
+                            'datafile_format': None,
+                            'description': '',
+                            'detrend_mode': 'center',
+                            'fill_undefined_data_mode': 'do-not-fill',
+                            'has_undefined_data': None,
+                            'height_scale': 1.0,
+                            'height_scale_editable': True,
+                            'instrument_name': '',
+                            'instrument_parameters': {},
+                            'instrument_type': 'undefined',
+                            'is_periodic': False,
+                            'measurement_date': str(topo1b.measurement_date),
+                            'name': topo1b.name,
+                            'resolution_x': None,
+                            'resolution_y': None,
+                            'short_reliability_cutoff': None,
+                            'size_editable': False,
+                            'size_x': 512.0,
+                            'size_y': None,
+                            'surface': f'http://testserver/manager/api/surface/{surface1.id}/',
+                            'unit': 'nm',
+                            'unit_editable': False,
+                            'url': f'http://testserver/manager/api/topography/{topo1b.id}/'}]
     }

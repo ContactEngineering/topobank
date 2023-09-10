@@ -5,14 +5,16 @@ Models related to analyses.
 import json
 
 from django.db import models
-from django.contrib.contenttypes.fields import GenericForeignKey
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
 import celery.result
 import celery.states
 
+from ..manager.models import Surface, SurfaceCollection, Topography
+from ..manager.utils import recursive_delete
 from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
 
@@ -71,8 +73,56 @@ class Configuration(models.Model):
     versions = models.ManyToManyField(Version)
 
     def __str__(self):
-        versions = [ str(v) for v in self.versions.all()]
+        versions = [str(v) for v in self.versions.all()]
         return f"Valid since: {self.valid_since}, versions: {versions}"
+
+
+class AnalysisSubject(models.Model):
+    """Analysis subject, which can be either a SurfaceCollection, Surface or a Topography"""
+
+    collection = models.ForeignKey(SurfaceCollection, null=True, blank=True, on_delete=models.CASCADE)
+    surface = models.ForeignKey(Surface, null=True, blank=True, on_delete=models.CASCADE)
+    topography = models.ForeignKey(Topography, null=True, blank=True, on_delete=models.CASCADE)
+
+    @classmethod
+    def create(cls, subject):
+        topography = surface = collection = None
+        if isinstance(subject, Topography):
+            topography = subject
+        elif isinstance(subject, Surface):
+            surface = subject
+        elif isinstance(subject, SurfaceCollection):
+            collection = subject
+        else:
+            raise ValueError('`subject` argument must be of type `Topography`, `Surface` or `SurfaceCollection`.')
+        return cls.objects.create(topography=topography, surface=surface, collection=collection)
+
+    @staticmethod
+    def Q(subject):
+        topography = surface = collection = None
+        if isinstance(subject, Topography):
+            return models.Q(subject_dispatch__topography_id=subject.id)
+        elif isinstance(subject, Surface):
+            return models.Q(subject_dispatch__surface_id=subject.id)
+        elif isinstance(subject, SurfaceCollection):
+            return models.Q(subject_dispatch__collection_id=subject.id)
+        else:
+            raise ValueError('`subject` argument must be of type `Topography`, `Surface` or `SurfaceCollection`.')
+
+    def get(self):
+        if self.topography is not None:
+            return self.topography
+        elif self.surface is not None:
+            return self.surface
+        elif self.collection is not None:
+            return self.collection
+        else:
+            raise RuntimeError('Database corruption: All subjects appear to be None/null.')
+
+    def save(self, *args, **kwargs):
+        if sum([self.collection is not None, self.surface is not None, self.topography is not None]) != 1:
+            raise ValidationError('Only of of collection, surface or topgoraphy can be defined.')
+        super().save(*args, **kwargs)
 
 
 class Analysis(models.Model):
@@ -109,14 +159,12 @@ class Analysis(models.Model):
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
 
     # Definition of the subject
-    subject_type = models.ForeignKey(ContentType, null=True, on_delete=models.CASCADE)
-    subject_id = models.PositiveIntegerField(null=True)
-    subject = GenericForeignKey('subject_type', 'subject_id')
+    subject_dispatch = models.OneToOneField(AnalysisSubject, null=True, on_delete=models.CASCADE)
 
     # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
     users = models.ManyToManyField(User)
 
-    # Keyword agruments passed to the Python analysis function
+    # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
 
     # This is the Celery task id
@@ -149,6 +197,18 @@ class Analysis(models.Model):
     def __str__(self):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
 
+    def delete(self, *args, **kwargs):
+        # Cancel possibly running task
+        if self.task_id is not None:
+            r = celery.result.AsyncResult(self.task_id)
+            r.revoke()
+
+        # Remove files from storage
+        recursive_delete(self.storage_prefix)
+
+        # Delete dabase entry
+        super().delete(*args, **kwargs)
+
     def save(self, *args, **kwargs):
         if not self.id:
             self.creation_time = timezone.now()
@@ -158,6 +218,11 @@ class Analysis(models.Model):
         if self._result is not None:
             store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
             self._result = None
+
+    @property
+    def subject(self):
+        """Return the subject of the analysis, which can be a Topography, a Surface or a SurfaceCollection"""
+        return self.subject_dispatch.get()
 
     @property
     def duration(self):
@@ -200,7 +265,7 @@ class Analysis(models.Model):
             return None
         r = celery.result.AsyncResult(self.task_id)
         if isinstance(r.info, Exception):
-            return(str(r.info))
+            return (str(r.info))
         else:
             # No error occurred
             return None
@@ -247,10 +312,13 @@ class Analysis(models.Model):
         """Returns sequence of surface instances related to the subject of this analysis."""
         return self.subject.related_surfaces()
 
+    def get_implementation(self):
+        return self.function.get_implementation(ContentType.objects.get_for_model(self.subject))
+
     def is_visible_for_user(self, user):
         """Returns True if given user should be able to see this analysis."""
         is_allowed_to_view_surfaces = all(user.has_perm("view_surface", s) for s in self.related_surfaces())
-        is_allowed_to_use_implementation = self.function.get_implementation(self.subject_type).is_available_for_user(user)
+        is_allowed_to_use_implementation = self.get_implementation().is_available_for_user(user)
         return is_allowed_to_use_implementation and is_allowed_to_view_surfaces
 
     def get_default_users(self):
@@ -262,30 +330,23 @@ class Analysis(models.Model):
         # Find all users having access to all related surfaces
         users_allowed_by_surfaces = self.subject.get_users_with_perms()
         # Filter those users for those having access to the function implementation
-        users_allowed = [u for u in users_allowed_by_surfaces
-                         if self.function.get_implementation(self.subject_type).is_available_for_user(u)]
+        users_allowed = [u for u in users_allowed_by_surfaces if self.get_implementation().is_available_for_user(u)]
         return User.objects.filter(id__in=[u.id for u in users_allowed]).order_by('name')
 
     @property
     def is_topography_related(self):
-        """Returns True, if the analysis subject is a topography, else False.
-        """
-        topography_ct = ContentType.objects.get_by_natural_key('manager', 'topography')
-        return topography_ct == self.subject_type
+        """Returns True, if the analysis subject is a topography, else False."""
+        return self.subject_dispatch.topography is not None
 
     @property
     def is_surface_related(self):
-        """Returns True, if the analysis subject is a surface, else False.
-        """
-        surface_ct = ContentType.objects.get_by_natural_key('manager', 'surface')
-        return surface_ct == self.subject_type
+        """Returns True, if the analysis subject is a surface, else False."""
+        return self.subject_dispatch.surface is not None
 
     @property
-    def is_surfacecollection_related(self):
-        """Returns True, if the analysis subject is a surface collection, else False.
-        """
-        surface_ct = ContentType.objects.get_by_natural_key('manager', 'surfacecollection')
-        return surface_ct == self.subject_type
+    def is_collection_related(self):
+        """Returns True, if the analysis subject is a surface collection, else False."""
+        return self.subject_dispatch.collection is not None
 
 
 class AnalysisFunction(models.Model):
@@ -438,4 +499,3 @@ class AnalysisCollection(models.Model):
     # We have a manytomany field, because an analysis could be part of multiple collections.
     # This happens e.g. if the user presses "recalculate" several times and
     # one analysis becomes part in each of these requests.
-

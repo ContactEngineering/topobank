@@ -2,17 +2,17 @@ import itertools
 import logging
 from collections import OrderedDict
 
-from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from django.views.generic import DetailView, TemplateView
 from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
-from django.shortcuts import redirect, reverse
+from django.shortcuts import redirect
 from django.conf import settings
 
-from rest_framework import generics, mixins, viewsets, status
+from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
+from rest_framework.reverse import reverse
 
 import bokeh.palettes as palettes
 
@@ -23,10 +23,10 @@ from trackstats.models import Metric
 from ..manager.models import Topography, Surface, SurfaceCollection
 from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_base64
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from .controller import AnalysisController, renew_analysis
-from .models import Analysis, AnalysisFunction, AnalysisCollection
+from .controller import AnalysisController, renew_existing_analysis
+from .models import Analysis, AnalysisFunction, Configuration
 from .registry import AnalysisRegistry
-from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer
+from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer, ConfigurationSerializer
 from .utils import filter_and_order_analyses, palette_for_topographies
 
 _log = logging.getLogger(__name__)
@@ -36,33 +36,31 @@ MAX_NUM_POINTS_FOR_SYMBOLS = 50
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
+class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+    queryset = Configuration.objects.prefetch_related('versions')
+    serializer_class = ConfigurationSerializer
+
+
+class AnalysisFunctionView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
+    queryset = AnalysisFunction.objects.all()
+    serializer_class = AnalysisFunctionSerializer
+
+
 class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
-    queryset = Analysis.objects.all()
+    queryset = Analysis.objects.select_related('function', 'subject_dispatch__topography', 'subject_dispatch__surface',
+                                               'subject_dispatch__collection') .prefetch_related('users')
     serializer_class = AnalysisResultSerializer
 
     def update(self, request, *args, **kwargs):
         """Renew existing analysis."""
         analysis = self.get_object()
         if analysis.is_visible_for_user(request.user):
-            new_analysis = renew_analysis(analysis)
+            new_analysis = renew_existing_analysis(analysis)
             serializer = self.get_serializer(new_analysis)
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
-
-
-@api_view(['GET'])
-def registry_view(request):
-    """Access to analysis function registry"""
-    _models = [SurfaceCollection, Surface, Topography]
-
-    # Find out which analysis function are actually available to the user
-    r = []
-    for analysis_function in AnalysisFunction.objects.all().order_by('name'):
-        if analysis_function.is_available_for_user(request.user):
-            r += [AnalysisFunctionSerializer(analysis_function).data]
-    return Response(r)
 
 
 @api_view(['POST'])
@@ -173,21 +171,16 @@ def series_card_view(request, **kwargs):
     #
     # Extract subject names for display
     #
-    surface_ct = ContentType.objects.get_for_model(Surface)
-    surfacecollection_ct = ContentType.objects.get_for_model(SurfaceCollection)
-    topography_ct = ContentType.objects.get_for_model(Topography)
-
     subject_names = []  # will be shown under category with key "subject_name" (see plot.js)
     has_at_least_one_surface_subject = False
     has_at_least_one_surfacecollection_subject = False
     for a in analyses_success_list:
         s = a.subject
-        subject_ct = s.get_content_type()
         subject_name = s.label.replace("'", "&apos;")
-        if subject_ct == surface_ct:
+        if isinstance(s, Surface):
             subject_name = f"Average of »{subject_name}«"
             has_at_least_one_surface_subject = True
-        if subject_ct == surfacecollection_ct:
+        elif isinstance(s, SurfaceCollection):
             has_at_least_one_surfacecollection_subject = True
         subject_names.append(subject_name)
 
@@ -195,8 +188,8 @@ def series_card_view(request, **kwargs):
     # Use first analysis to determine some properties for the whole plot
     #
     first_analysis_result = analyses_success_list[0].result
-    xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else None
-    yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else None
+    xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else 'm'
+    yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else 'm'
 
     ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
 
@@ -242,14 +235,14 @@ def series_card_view(request, **kwargs):
         if analysis.task_state != analysis.SUCCESS:
             continue  # should not happen if only called with successful analyses
 
-        series_names.update([s['name'] if 'name' in s else f'{i}'
-                             for i, s in enumerate(analysis.result_metadata['series'])])
+        series_metadata = analysis.result_metadata.get('series', [])
+        series_names.update([s['name'] if 'name' in s else f'{i}' for i, s in enumerate(series_metadata)])
 
-        if isinstance(analysis.subject, Surface):
+        if analysis.subject_dispatch.surface is not None:
             nb_surfaces += 1
-        elif isinstance(analysis.subject, Topography):
+        elif analysis.subject_dispatch.topography is not None:
             nb_topographies += 1
-        elif isinstance(analysis.subject, SurfaceCollection):
+        elif analysis.subject_dispatch.collection is not None:
             nb_surfacecollections += 1
         else:
             nb_others += 1
@@ -284,20 +277,19 @@ def series_card_view(request, **kwargs):
         #
         # Define some helper variables
         #
-        subject = analysis.subject
-
-        is_surface_analysis = isinstance(subject, Surface)
-        is_topography_analysis = isinstance(subject, Topography)
-        # is_surfacecollection_analysis = isinstance(subject, SurfaceCollection)
+        is_surface_analysis = analysis.subject_dispatch.surface is not None
+        is_topography_analysis = analysis.subject_dispatch.topography is not None
+        is_surfacecollection_analysis = analysis.subject_dispatch.collection is not None
 
         #
         # Change display name depending on whether there is a parent analysis or not
         #
         parent_analysis = None
-        if is_topography_analysis and analysis.subject.surface.num_topographies() > 1:
+        if is_topography_analysis and analysis.subject_dispatch.topography.surface.num_topographies() > 1:
             for a in analyses_success_list:
-                if a.subject_type == surface_ct and a.subject_id == analysis.subject.surface.id and \
-                    a.function == analysis.function:
+                if a.subject_dispatch.surface is not None and \
+                    a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
+                    a.function.id == analysis.function.id:
                     parent_analysis = a
 
         subject_display_name = subject_names[analysis_idx]
@@ -308,13 +300,13 @@ def series_card_view(request, **kwargs):
         if is_surface_analysis:
             # Surface results are plotted in black/grey
             surface_index += 1
-            subject_colors[subject] = \
+            subject_colors[analysis.subject_dispatch.id] = \
                 surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
         elif is_topography_analysis:
             topography_index += 1
-            subject_colors[subject] = topography_color_palette[topography_index]
+            subject_colors[analysis.subject_dispatch.id] = topography_color_palette[topography_index]
         else:
-            subject_colors[subject] = 'black'  # Find better colors later, if needed
+            subject_colors[analysis.subject_dispatch.id] = 'black'  # Find better colors later, if needed
 
         #
         # Handle unexpected task states for robustness, shouldn't be needed in general
@@ -327,7 +319,7 @@ def series_card_view(request, **kwargs):
         # Find out scale for data
         #
         result_metadata = analysis.result_metadata
-        series_metadata = result_metadata['series']
+        series_metadata = result_metadata.get('series', [])
 
         messages = []
 
@@ -335,7 +327,7 @@ def series_card_view(request, **kwargs):
             analysis_xscale = 1
         else:
             try:
-                analysis_xscale = ureg.convert(1, result_metadata['xunit'], xunit)
+                analysis_xscale = ureg.convert(1, result_metadata.get('xunit', 'm'), xunit)
             except (UndefinedUnitError, DimensionalityError) as exc:
                 err_msg = f"Cannot convert x units when displaying results for analysis with id {analysis.id}. " \
                           f"Cause: {exc}"
@@ -349,7 +341,7 @@ def series_card_view(request, **kwargs):
             analysis_yscale = 1
         else:
             try:
-                analysis_yscale = ureg.convert(1, result_metadata['yunit'], yunit)
+                analysis_yscale = ureg.convert(1, result_metadata.get('yunit', 'm'), yunit)
             except (UndefinedUnitError, DimensionalityError) as exc:
                 err_msg = f"Cannot convert y units when displaying results for analysis with id {analysis.id}. " \
                           f"Cause: {exc}"
@@ -364,7 +356,7 @@ def series_card_view(request, **kwargs):
             #
             # Collect data for visibility of the corresponding series
             #
-            series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'))
+            series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'), request=request)
             # series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
 
             series_name = s['name'] if 'name' in s else f'{series_idx}'
@@ -388,7 +380,7 @@ def series_card_view(request, **kwargs):
             #
             show_symbols = s['nbDataPoints'] <= MAX_NUM_POINTS_FOR_SYMBOLS if 'nbDataPoints' in s else True
 
-            curr_color = subject_colors[subject]
+            curr_color = subject_colors[analysis.subject_dispatch.id]
             curr_dash = series_dashes[series_name]
 
             # hover_name = "{} for '{}'".format(series_name, topography_name)
@@ -401,7 +393,7 @@ def series_card_view(request, **kwargs):
             #
             has_parent = (parent_analysis is not None) and \
                          any(s['name'] == series_name if 'name' in s else f'{i}' == series_name
-                             for i, s in enumerate(parent_analysis.result_metadata['series']))
+                             for i, s in enumerate(parent_analysis.result_metadata.get('series', [])))
 
             #
             # Context information for this data source, will be interpreted by client JS code

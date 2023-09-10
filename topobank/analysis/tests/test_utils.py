@@ -19,7 +19,7 @@ def test_request_analysis(two_topos, test_analysis_function):
     topo2 = Topography.objects.get(name="Example 4 - Default")
 
     # delete all prior analyses for these two topographies in order to have a clean state
-    Analysis.objects.filter(topography__in=[topo1, topo2]).delete()
+    Analysis.objects.filter(subject_dispatch__topography__in=[topo1, topo2]).delete()
 
     user = UserFactory()
 
@@ -39,13 +39,13 @@ def test_latest_analyses(two_topos, test_analysis_function):
     user = topo1.creator
 
     # delete all prior analyses for these two topographies in order to have a clean state
-    Analysis.objects.filter(topography__in=[topo1, topo2]).delete()
+    Analysis.objects.filter(subject_dispatch__topography__in=[topo1, topo2]).delete()
 
     #
     # Topography 1
     #
     analysis = TopographyAnalysisFactory.create(
-        subject=topo1,
+        subject_topography=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={},
@@ -57,7 +57,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 
     # save a second only, which has a later start time
     analysis = TopographyAnalysisFactory.create(
-        subject=topo1,
+        subject_topography=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={},
@@ -71,7 +71,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     # Topography 2
     #
     analysis = TopographyAnalysisFactory.create(
-        subject=topo2,
+        subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={},
@@ -83,7 +83,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 
     # save a second one, which has the latest start time
     analysis = TopographyAnalysisFactory.create(
-        subject=topo2,
+        subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={},
@@ -95,7 +95,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 
     # save a third one, which has a later start time than the first
     analysis = TopographyAnalysisFactory.create(
-        subject=topo2,
+        subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={},
@@ -106,14 +106,14 @@ def test_latest_analyses(two_topos, test_analysis_function):
     analysis.users.add(user)
 
     tt = ContentType.objects.get_for_model(Topography)
-    analyses = AnalysisController(user, subjects=subjects_to_dict([topo1, topo2]), function=test_analysis_function)
+    analyses = AnalysisController(user, subjects=[topo1, topo2], function=test_analysis_function)
 
     assert len(analyses) == 2  # one analysis per function and topography
 
     # both topographies should be in there
 
-    at1, = analyses.get(subject_type=tt, subject_id=topo1.id)
-    at2, = analyses.get(subject_type=tt, subject_id=topo2.id)
+    at1, = AnalysisController(user, subjects=[topo1], function=test_analysis_function).get()
+    at2, = AnalysisController(user, subjects=[topo2], function=test_analysis_function).get()
 
     from django.conf import settings
 
@@ -128,7 +128,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 @pytest.mark.django_db
 def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
-    assert len(AnalysisController(user, function=test_analysis_function)) == 0
+    assert Analysis.objects.filter(users=user, function=test_analysis_function).count() == 0
 
 
 def test_mangle_sheet_name():

@@ -17,14 +17,12 @@ def test_thumbnail_exists_for_new_topography():
 
 @pytest.mark.django_db
 def test_renewal_on_topography_detrend_mode_change(client, mocker, django_capture_on_commit_callbacks):
-    """Check whether thumbnail is renewed if detrend mode changes for a topography
-    """
+    """Check whether thumbnail is renewed if detrend mode changes for a topography"""
 
     from ..models import Topography
-    renew_squeezed_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.si')
-    renew_bandwidth_cache_mock = mocker.patch('topobank.manager.views.renew_bandwidth_cache.si')
-    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
-    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
+    renew_squeezed_mock = mocker.patch('topobank.taskapp.tasks.renew_squeezed_datafile.si')
+    renew_bandwidth_cache_mock = mocker.patch('topobank.taskapp.tasks.renew_bandwidth_cache.si')
+    renew_topo_images_mock = mocker.patch('topobank.taskapp.tasks.renew_topography_images.si')
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -54,8 +52,7 @@ def test_renewal_on_topography_detrend_mode_change(client, mocker, django_captur
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
     assert_no_form_errors(response)
     assert response.status_code == 200
-    assert len(callbacks) == 1  # single chain for squeezed file, thumbnail and for analyses
+    assert len(callbacks) == 2  # single chain for squeezed file and thumbnail, another for analyses
     assert renew_topo_images_mock.called
-    assert renew_topo_analyses_mock.called
     assert renew_squeezed_mock.called  # was directly called, not as callback from commit
     assert renew_bandwidth_cache_mock.called  # was directly called, not as callback from commit

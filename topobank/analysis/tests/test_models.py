@@ -23,7 +23,7 @@ from ..functions import topography_analysis_function_for_tests
 def test_topography_as_analysis_subject():
     topo = Topography1DFactory()
     func = AnalysisFunction.objects.get(name="test")
-    analysis = TopographyAnalysisFactory(subject=topo, function=func)
+    analysis = TopographyAnalysisFactory(subject_topography=topo, function=func)
     assert analysis.subject == topo
 
 
@@ -31,7 +31,7 @@ def test_topography_as_analysis_subject():
 def test_surface_as_analysis_subject():
     surf = SurfaceFactory()
     func = AnalysisFunction.objects.get(name="test")
-    analysis = SurfaceAnalysisFactory(subject=surf, function=func)
+    analysis = SurfaceAnalysisFactory(subject_surface=surf, function=func)
     assert analysis.subject == surf
 
 
@@ -42,7 +42,7 @@ def test_surfacecollection_as_analysis_subject():
     s3 = SurfaceFactory()
     sc = SurfaceCollectionFactory(surfaces=[s1, s2, s3])
     func = AnalysisFunction.objects.get(name="test")
-    analysis = SurfaceCollectionAnalysisFactory(subject=sc, function=func)
+    analysis = SurfaceCollectionAnalysisFactory(subject_collection=sc, function=func)
     assert analysis.subject == sc
 
 
@@ -53,7 +53,7 @@ def test_default_users_for_surface_analysis():
     surf = SurfaceFactory(creator=u1)
     surf.share(u2)
     func = AnalysisFunction.objects.get(name="test")
-    analysis = SurfaceAnalysisFactory(subject=surf, function=func)
+    analysis = SurfaceAnalysisFactory(subject_surface=surf, function=func)
     assert sorted(analysis.get_default_users(), key=operator.attrgetter('name')) == [u1, u2]
 
 
@@ -69,7 +69,7 @@ def test_default_users_for_surfacecollection_analysis():
     # Only Kim is allowed to see both surfaces
     sc = SurfaceCollectionFactory(surfaces=[surf1, surf2])
     func = AnalysisFunction.objects.get(name="test")
-    analysis = SurfaceCollectionAnalysisFactory(subject=sc, function=func)
+    analysis = SurfaceCollectionAnalysisFactory(subject_collection=sc, function=func)
     assert sorted(analysis.get_default_users(), key=operator.attrgetter('name')) == [u3]
 
 
@@ -81,7 +81,7 @@ def test_default_users_for_topography_analysis():
     surf.share(u2)
     topo = Topography1DFactory(surface=surf)
     func = AnalysisFunction.objects.get(name="test")
-    analysis = TopographyAnalysisFactory(subject=topo, function=func)
+    analysis = TopographyAnalysisFactory(subject_topography=topo, function=func)
     assert sorted(analysis.get_default_users(), key=operator.attrgetter('name')) == [u1, u2]
 
 
@@ -116,7 +116,7 @@ def test_analysis_times(two_topos, test_analysis_function):
     now = timezone.now()
 
     analysis = TopographyAnalysisFactory.create(
-            subject=Topography.objects.first(),
+            subject_topography=Topography.objects.first(),
             function=test_analysis_function,
             task_state=Analysis.SUCCESS,
             kwargs={'a': 2, 'b': 4},

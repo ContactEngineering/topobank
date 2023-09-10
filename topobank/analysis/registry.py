@@ -105,8 +105,8 @@ class ImplementationMissingAnalysisFunctionException(RegistryException):
 
     def __str__(self):
         return f"Implementation for analysis function '{self._name}' for " \
-               f"subject type '{self._subject_model}' (app '{self._subject_app_name}')" +\
-               " not found."
+               f"subject type '{self._subject_model}' (app '{self._subject_app_name}')" + \
+            " not found."
 
 
 class InconsistentAnalysisResultTypeException(RegistryException):
@@ -118,9 +118,9 @@ class InconsistentAnalysisResultTypeException(RegistryException):
         self._new_visualization_type = new_visualization_type
 
     def __str__(self):
-        return f"An implementation for analysis function '{self._name}' was given with "+\
-               f"visualization type '{self._new_visualization_type}', but before "+\
-               f"visualization type '{self._curr_visualization_type}' was defined. It should be unique."
+        return f"An implementation for analysis function '{self._name}' was given with " + \
+            f"visualization type '{self._new_visualization_type}', but before " + \
+            f"visualization type '{self._curr_visualization_type}' was defined. It should be unique."
 
 
 class UnknownCardViewFlavorException(RegistryException):
@@ -153,6 +153,7 @@ class AnalysisRegistry(metaclass=Singleton):
     Checks for consistency so nothing get overwritten
     during registration process.
     """
+
     def __init__(self):
         self._analysis_functions = {}
         # key: (name, subject_app_name, subject_model)
@@ -267,9 +268,9 @@ class AnalysisRegistry(metaclass=Singleton):
 
         Parameters
         ----------
-        name: str
+        name : str
             Name of analysis function.
-        subject_type: ContentType
+        subject_type : ContentType
             ContentType of subject (first argument of implementing function)
 
         Returns
@@ -283,6 +284,27 @@ class AnalysisRegistry(metaclass=Singleton):
         except KeyError as exc:
             raise ImplementationMissingAnalysisFunctionException(name, subject_app_name, subject_model) from exc
 
+    def get_implementations(self, name):
+        """
+        Return all `AnalysisFunctionImplementation`s for a given analysis function.
+
+        Parameters
+        ----------
+        name : str
+            Name of analysis function.
+
+        Returns
+        -------
+        impl : AnalysisFunctionImplementation
+            Returns the actual implementation
+        """
+        implementations = {}
+        for key, value in self._analysis_functions.items():
+            key_name, key_subject_app_name, key_subject_model = key
+            if key_name == name:
+                implementations[(key_subject_app_name, key_subject_model)] = value
+        return implementations
+
     def get_analysis_function_names(self, user=None):
         """
         Returns function names as list.
@@ -293,8 +315,8 @@ class AnalysisRegistry(metaclass=Singleton):
         implementations = self._analysis_functions
         if user is not None:
             # filter for user
-            implementations = { k:impl for k, impl in implementations.items()
-                                if impl.is_available_for_user(user) }
+            implementations = {k: impl for k, impl in implementations.items()
+                               if impl.is_available_for_user(user)}
 
         return list(set(name for name, subject_app_name, subject_model in implementations.keys()))
 
@@ -447,6 +469,7 @@ def register_implementation(visualization_app_name, visualization_type, name, su
     subject_app_name: str
         App name where the subject is defined as model, e.g. "manager"
     """
+
     def register_decorator(func):
         """
         :param func: function to be registered, first arg must be a "topography" or "surface"
@@ -475,6 +498,7 @@ def register_download_function(visualization_type, spec, file_format):
     file_format: str
         File format provided by the given function
     """
+
     def register_decorator(func):
         registry = AnalysisRegistry()  # singleton
         registry.add_download_function(visualization_type, spec, file_format, func)
@@ -555,6 +579,7 @@ class AnalysisFunctionImplementation:
         argspec = inspect.getfullargspec(self._pyfunc)
         return argspec.args[0]
 
+
 def _get_app_config_for_obj(obj):
     """For given object, find out app config it belongs to."""
     from django.apps import apps
@@ -571,7 +596,7 @@ def _get_app_config_for_obj(obj):
                 break
             search_path, _ = search_path.rsplit(".", 1)
     # FIXME: `app` should not be None, except in certain tests. Can we add some form of guard here?
-    #if app is None:
+    # if app is None:
     #    raise RuntimeError(f'Could not find app config for {obj.__module__}. Is the Django app installed and '
     #                       f'registered? This is likely a misconfigured Django installation.')
     return app

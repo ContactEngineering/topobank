@@ -1,5 +1,13 @@
 # Changelog for *TopoBank*
 
+## 1.3.0 (not yet released)
+
+- MAINT: Removed usage of content type framework and generic related fields 
+  for analysis subjects (#1014)
+- MAINT: Moved logic for triggering of tasks (for renewing cache or analyses)
+  to the models (#1017)
+- MAINT: Performance optimization, e.g. prefetching of datasets (#967)
+
 ## 1.2.5 (2023-08-30)
 
 - MAINT: Updated SurfaceTopography to 1.10.1

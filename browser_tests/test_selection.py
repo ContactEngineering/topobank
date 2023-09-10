@@ -5,8 +5,9 @@ Browser test for selection of topographies and functions.
 import pytest
 import os, os.path
 
-from topobank.analysis.models import AnalysisFunction
 from browser_tests.conftest import wait_for_page_load, logout_user, login_user
+
+from topobank.analysis.models import AnalysisFunction
 
 @pytest.mark.django_db(transaction=False)
 def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, webdriver):

@@ -1,10 +1,8 @@
 import pytest
-import pickle
 
 from ..tasks import perform_analysis, current_configuration
 
 from topobank.analysis.models import Analysis
-from topobank.analysis.models import AnalysisFunction
 from topobank.manager.models import Topography
 from topobank.manager.tests.utils import two_topos
 from topobank.analysis.tests.utils import TopographyAnalysisFactory
@@ -33,7 +31,7 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
                        window="hamming")
 
     analysis = TopographyAnalysisFactory.create(
-        subject=topo,
+        subject_topography=topo,
         function=af,
         kwargs=func_kwargs)
     analysis.save()
@@ -66,7 +64,7 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
 
     topo2 = Topography.objects.last()
     analysis2 = TopographyAnalysisFactory.create(
-        subject=topo2,
+        subject_topography=topo2,
         function=af,
         kwargs=func_kwargs)
 

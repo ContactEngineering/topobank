@@ -5,7 +5,7 @@ from guardian.shortcuts import get_perms
 from rest_framework import serializers
 
 from .models import Surface, Topography, TagModel
-from .utils import get_search_term, filtered_topographies, subjects_to_base64, mangle_content_type
+from .utils import get_search_term, filtered_topographies, subjects_to_base64
 
 _log = logging.getLogger(__name__)
 
@@ -13,11 +13,33 @@ _log = logging.getLogger(__name__)
 class TopographySerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Topography
+        fields = ['url', 'name', 'creator', 'datafile_format', 'description', 'measurement_date', 'surface',
+                  'size_editable',
+                  'size_x', 'size_y', 'unit_editable', 'unit', 'height_scale_editable', 'height_scale',
+                  'has_undefined_data', 'fill_undefined_data_mode', 'detrend_mode', 'resolution_x', 'resolution_y',
+                  'bandwidth_lower', 'bandwidth_upper', 'short_reliability_cutoff', 'is_periodic', 'instrument_name',
+                  'instrument_type', 'instrument_parameters']
+
+    url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
+    creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
+    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail', read_only=True)
+
+class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Surface
+        fields = ['url', 'name', 'category', 'creator', 'description', 'topography_set']
+
+    url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
+    creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
+    topography_set = TopographySerializer(many=True, read_only=True)
+
+
+class TopographySearchSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Topography
         fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
                   'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
                   'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
-
-    title = serializers.CharField(source='name', read_only=True)  # set this through name
 
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,
@@ -25,6 +47,8 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         lookup_field='username',
         default=serializers.CurrentUserDefault()
     )
+
+    title = serializers.CharField(source='name', read_only=True)  # set this through name
 
     urls = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
@@ -105,7 +129,7 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
         return obj.label
 
 
-class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
+class SurfaceSearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Surface
         fields = ['id', 'type', 'name', 'creator', 'creator_name', 'description', 'category', 'category_name', 'tags',
@@ -113,14 +137,15 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
                   'publication_doi', 'publication_date', 'publication_authors', 'publication_license',
                   'topography_count', 'label']
 
-    title = serializers.CharField(source='name')
-    children = serializers.SerializerMethodField()
-
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,
         view_name='users:detail',
-        lookup_field='username'
+        lookup_field='username',
+        default=serializers.CurrentUserDefault()
     )
+
+    title = serializers.CharField(source='name')
+    children = serializers.SerializerMethodField()
 
     urls = serializers.SerializerMethodField()
     selected = serializers.SerializerMethodField()
@@ -167,7 +192,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
             topographies = filtered_topographies(request, [obj])
         else:
             topographies = obj.topography_set.all()
-        return TopographySerializer(topographies, many=True, context=self.context).data
+        return TopographySearchSerializer(topographies, many=True, context=self.context).data
 
     def get_urls(self, obj):
 
@@ -256,7 +281,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
         return obj.label
 
 
-class TagSerializer(serializers.ModelSerializer):
+class TagSearchSerizalizer(serializers.ModelSerializer):
     class Meta:
         model = TagModel
         fields = ['id', 'key', 'type', 'title', 'name', 'children', 'folder', 'urls', 'selected', 'version',
@@ -309,9 +334,9 @@ class TagSerializer(serializers.ModelSerializer):
         #
         # Serialize children and append to this tag
         #
-        result.extend(TopographySerializer(topographies, many=True, context=self.context).data)
-        result.extend(SurfaceSerializer(surfaces, many=True, context=self.context).data)
-        result.extend(TagSerializer(tags, many=True, context=self.context).data)
+        result.extend(TopographySearchSerializer(topographies, many=True, context=self.context).data)
+        result.extend(SurfaceSearchSerializer(surfaces, many=True, context=self.context).data)
+        result.extend(TagSearchSerizalizer(tags, many=True, context=self.context).data)
 
         return result
 

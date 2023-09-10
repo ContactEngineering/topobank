@@ -6,6 +6,7 @@ from django.db.models.signals import pre_save
 from django.dispatch import receiver
 from django.db.utils import ProgrammingError
 
+from guardian.core import ObjectPermissionChecker
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_objects_for_user, get_anonymous_user
 
@@ -13,15 +14,18 @@ import os
 
 DEFAULT_GROUP_NAME = 'all'
 
+
 class ORCIDException(Exception):
     pass
 
 
 class User(GuardianUserMixin, AbstractUser):
-
     # First Name and Last Name do not cover name patterns
     # around the globe.
     name = models.CharField(_("Name of User"), max_length=255)
+
+    # Load anonymous user once and cache to avoid further database hits
+    anonymous_user = None
 
     def __str__(self):
         try:
@@ -31,12 +35,23 @@ class User(GuardianUserMixin, AbstractUser):
 
         return "{} ({})".format(self.name, orcid_id if orcid_id else "no ORCID ID")
 
+    def _get_anonymous_user(self):
+        if self.anonymous_user is None:
+            self.anonymous_user = get_anonymous_user()
+        return self.anonymous_user
+
     def get_absolute_url(self):
         return reverse("users:detail", kwargs={"username": self.username})
 
     def get_media_path(self):
         """Return relative path of directory for files of this user."""
         return os.path.join('topographies', 'user_{}'.format(self.id))
+
+    def has_obj_perms(self, perm, objs):
+        """Return permission for list of objects"""
+        checker = ObjectPermissionChecker(self)
+        checker.prefetch_perms(objs)
+        return [checker.has_perm(perm, obj) for obj in objs]
 
     def _orcid_info(self):  # TODO use local cache
         try:
@@ -101,7 +116,7 @@ class User(GuardianUserMixin, AbstractUser):
         try:
             # we might get an exception if the migrations
             # haven't been performed yet
-            return self.id == get_anonymous_user().id
+            return self.id == self._get_anonymous_user().id
         except ProgrammingError:
             return super().is_anonymous
 
@@ -120,7 +135,7 @@ class User(GuardianUserMixin, AbstractUser):
         try:
             # we might get an exception if the migrations
             # haven't been performed yet
-            return self.id != get_anonymous_user().id
+            return self.id != self._get_anonymous_user().id
         except ProgrammingError:
             return super().is_anonymous
 

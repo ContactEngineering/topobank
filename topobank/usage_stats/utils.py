@@ -238,7 +238,7 @@ def current_statistics(user=None):
     else:
         unpublished_surfaces = Surface.unpublished.all()
     unpublished_topographies = Topography.objects.filter(surface__in=unpublished_surfaces)
-    unpublished_analyses = Analysis.objects.filter(topography__in=unpublished_topographies)
+    unpublished_analyses = Analysis.objects.filter(subject_dispatch__topography__in=unpublished_topographies)
 
     return dict(
         num_surfaces_excluding_publications=unpublished_surfaces.count(),

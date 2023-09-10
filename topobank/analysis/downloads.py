@@ -80,7 +80,7 @@ def download_analyses(request, ids, file_format):
         # (this is useful for averages - the only surface analyses so far -
         # and may be controlled by other means later, if needed)
         #
-        if (analysis.subject_type == surface_ct) and (analysis.subject.num_topographies() <= 1):
+        if analysis.is_surface_related and analysis.subject.num_topographies() <= 1:
             continue
 
         analyses.append(analysis)
@@ -121,7 +121,7 @@ def analyses_meta_data_dataframe(analyses, request):
     properties = []
     values = []
     for i, analysis in enumerate(analyses):
-
+        subject = analysis.subject
         surfaces = analysis.related_surfaces()
         pubs = [surface.publication for surface in surfaces if surface.is_published]
 
@@ -138,12 +138,12 @@ def analyses_meta_data_dataframe(analyses, request):
                        'Instrument parameters', 'Further arguments of analysis function', 'Start time of analysis task',
                        'End time of analysis task', 'Duration of analysis task']
 
-        values += [str(analysis.subject.get_content_type().model), str(analysis.subject.name),
-                   str(analysis.subject.creator) if hasattr(analysis.subject, 'creator') else '',
-                   str(analysis.subject.instrument_name) if hasattr(analysis.subject, 'instrument_name') else '',
-                   str(analysis.subject.instrument_type) if hasattr(analysis.subject, 'instrument_type') else '',
-                   str(analysis.subject.instrument_parameters)
-                   if hasattr(analysis.subject, 'instrument_parameters') else '',
+        values += [str(subject.get_content_type().model), str(subject.name),
+                   str(subject.creator) if hasattr(subject, 'creator') else '',
+                   str(subject.instrument_name) if hasattr(subject, 'instrument_name') else '',
+                   str(subject.instrument_type) if hasattr(subject, 'instrument_type') else '',
+                   str(subject.instrument_parameters)
+                   if hasattr(subject, 'instrument_parameters') else '',
                    str(analysis.kwargs), str(analysis.start_time),
                    str(analysis.end_time), str(analysis.duration)]
 
@@ -214,7 +214,7 @@ def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
     """
 
     subject = analysis.subject
-    subject_type_str = analysis.subject_type.model.title()
+    subject_type_str = subject._meta.model_name
     headline = f"{subject_type_str}: {subject.name}"
 
     s = f'{headline}\n' + '=' * len(headline) + '\n'
@@ -422,6 +422,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
     index_entries = []  # tuples with (subject name, subject type, function name, data series, hyperlink to sheet)
 
     for analysis_idx, analysis in enumerate(analyses):
+        subject = analysis.subject
         result = analysis.result
         xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
         column1 = '{} ({})'.format(result['xlabel'], xunit)
@@ -429,11 +430,11 @@ def download_plot_analyses_to_xlsx(request, analyses):
         column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
         column4 = 'comment'
 
-        creator = str(analysis.subject.creator) if hasattr(analysis.subject, 'creator') else ''
-        instrument_name = str(analysis.subject.instrument_name) if hasattr(analysis.subject, 'instrument_name') else ''
-        instrument_type = str(analysis.subject.instrument_type) if hasattr(analysis.subject, 'instrument_type') else ''
-        instrument_parameters = str(analysis.subject.instrument_parameters) \
-            if hasattr(analysis.subject, 'instrument_parameters') else ''
+        creator = str(subject.creator) if hasattr(subject, 'creator') else ''
+        instrument_name = str(subject.instrument_name) if hasattr(subject, 'instrument_name') else ''
+        instrument_type = str(subject.instrument_type) if hasattr(subject, 'instrument_type') else ''
+        instrument_parameters = str(subject.instrument_parameters) \
+            if hasattr(subject, 'instrument_parameters') else ''
 
         for series_idx, series in enumerate(result['series']):
             df_columns_dict = {column1: np.array(series['x']) * xconv, column2: np.array(series['y']) * yconv}
@@ -455,10 +456,10 @@ def download_plot_analyses_to_xlsx(request, analyses):
             #
             sheet_name = f"analysis-{analysis_idx}-series-{series_idx}"
 
-            subject_type = analysis.subject.get_content_type().name  # human-readable name
+            subject_type = subject.get_content_type().name  # human-readable name
             if subject_type == 'topography':
                 subject_type = 'measurement'  # this is how topographies are denoted in the UI
-            index_entries.append((analysis.subject.name, subject_type,
+            index_entries.append((subject.name, subject_type,
                                   analysis.function.name, series['name'], sheet_name,
                                   creator, instrument_name, instrument_type, instrument_parameters))
 
@@ -472,7 +473,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
             sheet["B1"] = analysis.function.name
             sheet["A2"] = "Subject"
             sheet["A2"].font = bold_font
-            sheet["B2"] = analysis.subject.name
+            sheet["B2"] = subject.name
             sheet["A3"] = "Subject type"
             sheet["A3"].font = bold_font
             sheet["B3"] = subject_type
@@ -618,6 +619,7 @@ def download_plot_analyses_to_csv(request, analyses):
     for analysis_idx, analysis in enumerate(analyses):
         # Get results and compute unit conversion factors
         result = analysis.result
+        subject = analysis.subject
         xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
 
         # FIXME! Check that columns are actually identical
@@ -627,21 +629,21 @@ def download_plot_analyses_to_csv(request, analyses):
         # _column4 = 'comment'
 
         # Get metadata
-        subject_type = analysis.subject.get_content_type().name  # human-readable name
+        subject_type = subject.get_content_type().name  # human-readable name
         if subject_type == 'topography':
             subject_type = 'measurement'  # this is how topographies are denoted in the UI
-        creator = str(analysis.subject.creator) if hasattr(analysis.subject, 'creator') else ''
-        instrument_name = str(analysis.subject.instrument_name) if hasattr(analysis.subject, 'instrument_name') else ''
-        instrument_type = str(analysis.subject.instrument_type) if hasattr(analysis.subject, 'instrument_type') else ''
-        instrument_parameters = str(analysis.subject.instrument_parameters) \
-            if hasattr(analysis.subject, 'instrument_parameters') else ''
+        creator = str(subject.creator) if hasattr(subject, 'creator') else ''
+        instrument_name = str(subject.instrument_name) if hasattr(subject, 'instrument_name') else ''
+        instrument_type = str(subject.instrument_type) if hasattr(subject, 'instrument_type') else ''
+        instrument_parameters = str(subject.instrument_parameters) \
+            if hasattr(subject, 'instrument_parameters') else ''
 
         for series_idx, series in enumerate(result['series']):
             x = np.array(series['x'])
             y = np.array(series['y'])
             df_columns_dict = {
                 column_subject_type: len(x) * [subject_type],
-                column_subject_name: len(x) * [analysis.subject.name],
+                column_subject_name: len(x) * [subject.name],
                 column_creator: len(x) * [creator],
                 column_instrument_name: len(x) * [instrument_name],
                 column_instrument_type: len(x) * [instrument_type],

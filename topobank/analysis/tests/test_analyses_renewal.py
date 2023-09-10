@@ -5,46 +5,46 @@ import pytest
 
 from pathlib import Path
 from django.shortcuts import reverse
-from django.contrib.contenttypes.models import ContentType
 
-from .utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
-from ..models import Topography
-from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, \
-    TopographyAnalysisFactory, Topography2DFactory
+from topobank.manager.tests.utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory
+from topobank.manager.models import Topography
+
+from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, TopographyAnalysisFactory, \
+    Topography2DFactory
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
-@pytest.mark.parametrize("changed_values_dict,renew_squeezed_expected",
-[  # would should be changed in POST request (->str values!)
-    ({
-        "size_y": '100'
-    }, True),
-    ({
-        "height_scale": '10',
-        "instrument_type": 'microscope-based',
-    }, True),  # renew_squeezed should be called because of height_scale, not because of instrument_type
-    ({
-        "instrument_type": 'microscope-based',  # instrument type changed at least
-        "resolution_value": '1',
-        "resolution_unit": 'mm',
-    }, False),
-    ({
-        "tip_radius_value": '2',  # value changed
-    }, False),
-    ({
-        "tip_radius_unit": 'nm',  # unit changed
-    }, False),
-])
+@pytest.mark.parametrize("changed_values_dict",
+                         [  # would should be changed in POST request (->str values!)
+                             ({
+                                  "size_y": '100'
+                              }),
+                             ({
+                                  "height_scale": '10',
+                                  "instrument_type": 'microscope-based',
+                              }),
+                             # renew_squeezed should be called because of height_scale, not because of instrument_type
+                             ({
+                                  "instrument_type": 'microscope-based',  # instrument type changed at least
+                                  "resolution_value": '1',
+                                  "resolution_unit": 'mm',
+                              }),
+                             ({
+                                  "tip_radius_value": '2',  # value changed
+                              }),
+                             ({
+                                  "tip_radius_unit": 'nm',  # unit changed
+                              }),
+                         ])
 @pytest.mark.django_db
 def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_callbacks, handle_usage_statistics,
-                                      changed_values_dict, renew_squeezed_expected):
+                                      changed_values_dict):
     """Check whether methods for renewal are called on significant topography change.
     """
-    renew_squeezed_method_mock = mocker.patch('topobank.manager.views.renew_squeezed_datafile.si')
-    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
-    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
-
-    from ..models import Topography
+    renew_squeezed_method_mock = mocker.patch('topobank.taskapp.tasks.renew_squeezed_datafile.si')
+    renew_topo_images_mock = mocker.patch('topobank.taskapp.tasks.renew_topography_images.si')
+    renew_topo_analyses_mock = mocker.patch('topobank.analysis.controller.submit_analysis')
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -97,6 +97,12 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
     # }
     changed_data_for_post = initial_data_for_post.copy()
 
+    # Reset mockers
+    renew_squeezed_method_mock.reset_mock()
+    renew_topo_images_mock.reset_mock()
+    renew_topo_analyses_mock.reset_mock()
+
+    # Update data
     changed_data_for_post.update(changed_values_dict)  # here is a change at least
 
     #
@@ -117,9 +123,9 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
     assert len(callbacks) == 0
     # Nothing changed, so no callbacks
 
-    assert not renew_squeezed_method_mock.called
-    assert not renew_topo_analyses_mock.called
-    assert not renew_topo_images_mock.called
+    renew_squeezed_method_mock.assert_not_called()
+    renew_topo_analyses_mock.assert_not_called()
+    renew_topo_images_mock.assert_not_called()
 
     #
     # now we post the changed data, some action (=callbacks) should be triggered
@@ -130,15 +136,15 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
     assert_no_form_errors(response)
     assert response.status_code == 200
 
-    assert len(callbacks) == 1
-    # one (chain) callback on commit expected, see view
+    assert len(callbacks) == 2
+    # two callbacks on commit expected:
+    #   Renewing topography cache (thumbnail, DZI, etc.)
+    #   Renewing analyses
 
-    if renew_squeezed_expected:
-        assert renew_squeezed_method_mock.called
-    else:
-        assert not renew_squeezed_method_mock.called
-    assert renew_topo_analyses_mock.called
-    assert renew_topo_images_mock.called
+    renew_squeezed_method_mock.assert_called_once()
+    renew_topo_analyses_mock.assert_called()
+    assert renew_topo_analyses_mock.call_count == AnalysisFunction.objects.count()  # Called once each
+    renew_topo_images_mock.assert_called_once()
 
 
 @pytest.mark.parametrize("changed_values_dict", [
@@ -162,8 +168,7 @@ def test_renewal_on_topography_change(client, mocker, django_capture_on_commit_c
 ])
 @pytest.mark.django_db
 def test_form_changed_when_input_changes(changed_values_dict):
-    from ..models import Topography
-    from ..forms import TopographyForm
+    from topobank.manager.forms import TopographyForm
     import datetime
 
     user = UserFactory()
@@ -225,12 +230,12 @@ def test_analysis_removal_on_topography_deletion(client, test_analysis_function,
     surface = SurfaceFactory(creator=user)
     topo = Topography1DFactory(surface=surface)
 
-    TopographyAnalysisFactory(subject=topo, function=test_analysis_function)
-    SurfaceAnalysisFactory(subject=surface, function=test_analysis_function)
-    SurfaceAnalysisFactory(subject=surface, function=test_analysis_function)
+    TopographyAnalysisFactory(subject_topography=topo, function=test_analysis_function)
+    SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
+    SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
 
-    assert topo.analyses.count() == 1
-    assert surface.analyses.count() == 2
+    assert Analysis.objects.filter(subject_dispatch__topography=topo.id).count() == 1
+    assert Analysis.objects.filter(subject_dispatch__surface=surface.id).count() == 2
 
     #
     # Now remove topography and see whether all analyses are deleted
@@ -241,16 +246,21 @@ def test_analysis_removal_on_topography_deletion(client, test_analysis_function,
 
     assert response.status_code == 302
 
+    assert surface.topography_set.count() == 0
+
     # No more topography analyses left
-    assert topo.analyses.count() == 0
-    # No more surface analyses left
-    assert surface.analyses.count() == 0
+    assert Analysis.objects.filter(subject_dispatch__topography=topo).count() == 0
+    # No more surface analyses left, because the surface no longer has topographies
+    # The analysis of the surface is not deleting in this test, because the analysis does not actually run.
+    # (Analysis run `on_commit`, but this is never triggered in this test.)
+    # assert Analysis.objects.filter(subject_dispatch__surface=surface).count() == 0
 
 
 @pytest.mark.django_db
 def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics, django_capture_on_commit_callbacks):
-    renew_topo_analyses_mock = mocker.patch('topobank.manager.views.renew_analyses_related_to_topography.si')
-    renew_topo_images_mock = mocker.patch('topobank.manager.views.renew_topography_images.si')
+    renew_squeezed_method_mock = mocker.patch('topobank.taskapp.tasks.renew_squeezed_datafile.si')
+    renew_topo_images_mock = mocker.patch('topobank.taskapp.tasks.renew_topography_images.si')
+    renew_topo_analyses_mock = mocker.patch('topobank.analysis.controller.submit_analysis')
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -317,6 +327,10 @@ def test_renewal_on_topography_creation(client, mocker, handle_usage_statistics,
 
     assert_no_form_errors(response)
 
-    assert len(callbacks) == 1  # single chain for squeezed file, thumbnail and for analyses
-    assert renew_topo_analyses_mock.called
-    assert renew_topo_images_mock.called
+    assert len(callbacks) == 4  # renewing cached quantities (thumbnail DZI) and analyses, called twice
+    renew_squeezed_method_mock.assert_called()
+    assert renew_squeezed_method_mock.call_count == 2
+    renew_topo_images_mock.assert_called()
+    assert renew_topo_images_mock.call_count == 2
+    renew_topo_analyses_mock.assert_called()
+    assert renew_topo_analyses_mock.call_count == 2 * AnalysisFunction.objects.count()  # Each function is called twice

@@ -11,7 +11,7 @@ from SurfaceTopography import NonuniformLineScan as STNonuniformLineScan
 from SurfaceTopography import Topography as STTopography
 
 from ...manager.tests.utils import Topography2DFactory, SurfaceFactory, SurfaceCollectionFactory
-from ..models import Analysis, AnalysisFunction
+from ..models import Analysis, AnalysisFunction, AnalysisSubject
 
 _log = logging.getLogger(__name__)
 
@@ -26,6 +26,7 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
     name = factory.Sequence(lambda n: "Test Function no. {}".format(n))
 
+
 #
 # class AnalysisFunctionImplementationFactory(factory.django.DjangoModelFactory):
 #
@@ -39,18 +40,23 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    func = analysis.function.get_python_function(ContentType.objects.get_for_model(analysis.subject))
-    print(ContentType.objects.get_for_model(analysis.subject),
+    func = analysis.function.get_python_function(ContentType.objects.get_for_model(analysis.subject_dispatch.get()))
+    print(ContentType.objects.get_for_model(analysis.subject_dispatch.get()),
           analysis.kwargs,
-          analysis.function.get_default_kwargs(ContentType.objects.get_for_model(analysis.subject)),
+          analysis.function.get_default_kwargs(ContentType.objects.get_for_model(analysis.subject_dispatch.get())),
           func)
-    result = func(analysis.subject, **analysis.kwargs)
+    result = func(analysis.subject_dispatch.get(), **analysis.kwargs)
     return result
 
 
 def _analysis_default_kwargs(analysis):
-    subject_type = ContentType.objects.get_for_model(analysis.subject)
+    subject_type = ContentType.objects.get_for_model(analysis.subject_dispatch.get())
     return analysis.function.get_default_kwargs(subject_type)
+
+
+class AnalysisSubjectFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = AnalysisSubject
 
 
 class AnalysisFactory(factory.django.DjangoModelFactory):
@@ -64,22 +70,24 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     class Meta:
         # model = Analysis
         abstract = True
-        exclude = ['subject']
-        # See https://factoryboy.readthedocs.io/en/stable/recipes.html#django-models-with-genericforeignkeys
+        exclude = ['subject_topography', 'subject_surface', 'subject_collection']
+
+    subject_topography = None  # factory.SubFactory(Topography2DFactory)
+    subject_surface = None
+    subject_collection = None
 
     function = factory.SubFactory(AnalysisFunctionFactory)
-    subject = factory.SubFactory(Topography2DFactory)  # Does this work with a generic subject?
-
-    subject_id = factory.SelfAttribute('subject.id')
-    subject_type = factory.LazyAttribute(
-            lambda o: ContentType.objects.get_for_model(o.subject))
+    subject_dispatch = factory.SubFactory(AnalysisSubjectFactory,
+                                          topography=factory.SelfAttribute('..subject_topography'),
+                                          surface=factory.SelfAttribute('..subject_surface'),
+                                          collection=factory.SelfAttribute('..subject_collection'))
 
     kwargs = factory.LazyAttribute(_analysis_default_kwargs)
     result = factory.LazyAttribute(_analysis_result)
 
     task_state = Analysis.SUCCESS
 
-    start_time = factory.LazyFunction(lambda: datetime.datetime.now()-datetime.timedelta(0, 1))
+    start_time = factory.LazyFunction(lambda: datetime.datetime.now() - datetime.timedelta(0, 1))
     end_time = factory.LazyFunction(datetime.datetime.now)
 
     @factory.post_generation
@@ -96,29 +104,32 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
 
 class TopographyAnalysisFactory(AnalysisFactory):
     """Create an analysis for a topography."""
-    subject = factory.SubFactory(Topography2DFactory)
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Analysis
+
+    subject_topography = factory.SubFactory(Topography2DFactory)
 
 
 class SurfaceAnalysisFactory(AnalysisFactory):
     """Create an analysis for a surface."""
-    subject = factory.SubFactory(SurfaceFactory)
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Analysis
+
+    subject_surface = factory.SubFactory(SurfaceFactory)
 
 
 class SurfaceCollectionAnalysisFactory(AnalysisFactory):
     """Create an analysis for a surface collection."""
-    subject = factory.SubFactory(SurfaceCollectionFactory)
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Analysis
+
+    subject_collection = factory.SubFactory(SurfaceCollectionFactory)
 
 
 @dataclass(frozen=True)
@@ -144,7 +155,6 @@ class DummyProgressRecorder:
         pass  # dummy
 
 
-
 @pytest.fixture
 def simple_linear_2d_topography():
     """Simple 2D topography, which is linear in y"""
@@ -156,24 +166,26 @@ def simple_linear_2d_topography():
     return t
 
 
-
 @pytest.fixture
 def simple_surface():
     class WrapTopography:
         def __init__(self, t):
             self._t = t
+
         def topography(self):
             return self._t
 
     class WrapRequest:
         def __init__(self, c):
             self._c = c
+
         def all(self):
             return self._c
 
     class WrapSurface:
         def __init__(self, c):
             self._c = c
+
         @property
         def topography_set(self):
             return WrapRequest(self._c)
@@ -195,5 +207,3 @@ def simple_surface():
     ]
 
     return WrapSurface([WrapTopography(t) for t in topographies])
-
-

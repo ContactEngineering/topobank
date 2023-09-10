@@ -3,8 +3,19 @@ from django.urls import reverse
 from django.views.generic import DetailView, ListView, RedirectView, UpdateView
 from django.core.exceptions import PermissionDenied
 
+from rest_framework import mixins, viewsets
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
+
 from .models import User
+from .serializers import UserSerializer
 from .utils import are_collaborating
+
+
+class UserViewSet(mixins.RetrieveModelMixin,
+                  viewsets.GenericViewSet):
+    queryset = User.objects.all()
+    serializer_class = UserSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
 
 class UserDetailView(LoginRequiredMixin, DetailView):

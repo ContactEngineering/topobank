@@ -74,20 +74,20 @@ def test_unmark_other_analyses_during_request_analysis(mocker, test_analysis_fun
 
     topo = Topography1DFactory()
 
-    a1 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=dict(a=9, b=19), users=[])
-    a2 = TopographyAnalysisFactory(subject=topo, function=af, kwargs=dict(a=29, b=39), users=[user])
+    a1 = TopographyAnalysisFactory(subject_topography=topo, function=af, kwargs=dict(a=9, b=19), users=[])
+    a2 = TopographyAnalysisFactory(subject_topography=topo, function=af, kwargs=dict(a=29, b=39), users=[user])
 
     a3 = request_analysis(user, af, topo, a=1, b=2)
 
     #
     # Now there are three analyses for af+topo
     #
-    assert Analysis.objects.filter(topography=topo, function=af).count() == 3
+    assert Analysis.objects.filter(subject_dispatch__topography=topo, function=af).count() == 3
 
     #
     # Only one analysis is marked for user 'user'
     #
-    analyses = Analysis.objects.filter(topography=topo, function=af, users__in=[user])
+    analyses = Analysis.objects.filter(subject_dispatch__topography=topo, function=af, users__in=[user])
 
     assert len(analyses) == 1
 

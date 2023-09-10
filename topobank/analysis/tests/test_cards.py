@@ -1,15 +1,14 @@
 import pytest
 
 from django.contrib.contenttypes.models import ContentType
-from django.urls import reverse, reverse_lazy
+from django.urls import reverse
 
+from ...manager.models import Topography, Surface
 from ...manager.tests.utils import Topography1DFactory, Topography2DFactory, UserFactory, SurfaceFactory
-from ...manager.models import Analysis, Topography, Surface
-from ...manager.utils import subjects_to_dict, subjects_to_base64
-from ..models import AnalysisFunction
+from ...manager.utils import subjects_to_base64
+from ..models import Analysis, AnalysisFunction
 from ..functions import VIZ_SERIES
-from ..views import series_card_view
-from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
+from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory, AnalysisSubjectFactory
 
 
 @pytest.mark.django_db
@@ -24,7 +23,7 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
 
     topo1 = Topography2DFactory(surface=surface)
 
-    analysis = TopographyAnalysisFactory(subject=topo1, function=func1, users=[user])
+    analysis = TopographyAnalysisFactory(subject_topography=topo1, function=func1, users=[user])
 
     #
     # login and request plot card view
@@ -47,7 +46,8 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
             "seriesNameIndex": 0,
             "xScaleFactor": 1,
             "yScaleFactor": 1,
-            "url": reverse('analysis:data', kwargs=dict(pk=analysis.id, location="series-0.json")),
+            "url": 'http://testserver' + reverse('analysis:data',
+                                                 kwargs=dict(pk=analysis.id, location="series-0.json")),
             "color": "#1f77b4", "dash": "solid", "width": 1, "alpha": 1.0,
             "showSymbols": True,
             "visible": True,
@@ -64,7 +64,8 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
             "seriesNameIndex": 1,
             "xScaleFactor": 1,
             "yScaleFactor": 1,
-            "url": reverse('analysis:data', kwargs=dict(pk=analysis.id, location="series-1.json")),
+            "url": 'http://testserver' + reverse('analysis:data',
+                                                 kwargs=dict(pk=analysis.id, location="series-1.json")),
             "color": "#1f77b4", "dash": "dashed", "width": 1, "alpha": 1.0,
             "showSymbols": True,
             "visible": True,
@@ -92,18 +93,18 @@ def test_series_card_if_no_successful_topo_analysis(api_client, handle_usage_sta
     topo = Topography1DFactory(surface=surf)  # also generates the surface
 
     # There is a successful surface analysis, but no successful topography analysis
-    SurfaceAnalysisFactory(task_state='su', subject_id=topo.surface.id,
-                           subject_type_id=surface_ct.id, function=func1, users=[user])
+    SurfaceAnalysisFactory(task_state='su', subject_dispatch=AnalysisSubjectFactory(surface_id=topo.surface.id),
+                           function=func1, users=[user])
 
     # add a failed analysis for the topography
-    TopographyAnalysisFactory(task_state='fa', subject_id=topo.id,
-                              subject_type_id=topography_ct.id, function=func1, users=[user])
+    TopographyAnalysisFactory(task_state='fa', subject_dispatch=AnalysisSubjectFactory(topography_id=topo.id),
+                              function=func1, users=[user])
 
-    assert Analysis.objects.filter(function=func1, subject_id=topo.id, subject_type_id=topography_ct.id,
+    assert Analysis.objects.filter(function=func1, subject_dispatch__topography_id=topo.id,
                                    task_state='su').count() == 0
-    assert Analysis.objects.filter(function=func1, subject_id=topo.id, subject_type_id=topography_ct.id,
+    assert Analysis.objects.filter(function=func1, subject_dispatch__topography_id=topo.id,
                                    task_state='fa').count() == 1
-    assert Analysis.objects.filter(function=func1, subject_id=topo.surface.id, subject_type_id=surface_ct.id,
+    assert Analysis.objects.filter(function=func1, subject_dispatch__surface_id=topo.surface.id,
                                    task_state='su').count() == 1
 
     # login and request plot card view
