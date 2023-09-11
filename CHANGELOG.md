@@ -1,7 +1,9 @@
 # Changelog for *TopoBank*
 
-## 1.3.0 (not yet released)
+## 1.3.0 (2023-09-11)
 
+- ENH: Updated SurfaceTopography to 1.11.0
+  (to add support for JPK files, but fixes for DATX files)
 - MAINT: Removed usage of content type framework and generic related fields 
   for analysis subjects (#1014)
 - MAINT: Moved logic for triggering of tasks (for renewing cache or analyses)
@@ -14,12 +16,12 @@
 
 ## 1.2.4 (2023-08-29)
 
-- MAINT: Updated SurfaceTopography to 1.10.0
+- ENH: Updated SurfaceTopography to 1.10.0
   (to add support for PLUX and WSXM files, bug fixes for GWY and text)
 
 ## 1.2.3 (2023-08-28)
 
-- MAINT: Updated SurfaceTopography to 1.9.0
+- ENH: Updated SurfaceTopography to 1.9.0
   (to add support for OIR and POIR files, bug fixes for SUR and LEXT)
 
 ## 1.2.2 (2023-08-21)
