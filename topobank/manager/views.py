@@ -829,7 +829,7 @@ class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
         return initial
 
     def get_success_url(self):
-        return f"{reverse('manager:surface-detail')}?surface={self.object.pk}",
+        return f"{reverse('manager:surface-detail')}?surface={self.object.pk}"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -973,7 +973,6 @@ class SurfaceShareView(FormMixin, DetailView):
     def get_success_url(self):
         return f"{reverse('manager:surface-detail')}?surface={self.object.pk}"
 
-
     def post(self, request, *args, **kwargs):
         self.object = self.get_object()
         form = self.get_form()
@@ -1040,64 +1039,6 @@ class SurfaceShareView(FormMixin, DetailView):
         context['instance_label'] = surface.label
         context['instance_type_label'] = "surface"
         context['cancel_url'] = f"{reverse('manager:surface-detail')}?surface={surface.pk}"
-
-        return context
-
-
-class PublicationsTable(tables.Table):
-    publication = tables.Column(linkify=True, verbose_name='Surface', order_by='surface__name')
-    num_topographies = tables.Column(verbose_name='# Measurements')
-    authors_names = tables.Column(verbose_name="Authors")
-    license = tables.Column(verbose_name="License")
-    datetime = tables.Column(verbose_name="Publication Date")
-    version = tables.Column(verbose_name="Version")
-    doi_url = tables.URLColumn(verbose_name="DOI")
-
-    def render_publication(self, value):
-        return value.surface.name
-
-    def render_datetime(self, value):
-        return value.date()
-
-    def render_license(self, value, record):
-        return mark_safe(f"""
-        <a href="{settings.CC_LICENSE_INFOS[value]['description_url']}" target="_blank">
-                {record['publication'].get_license_display()}</a>
-        """)
-
-    class Meta:
-        orderable = True
-
-
-class PublicationListView(ListView):
-    template_name = "manager/publication_list.html"
-
-    def get_queryset(self):
-        return Publication.objects.filter(publisher=self.request.user)  # TODO move to publication app?
-
-    def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(*args, **kwargs)
-
-        #
-        # Create table cells
-        #
-        data = [
-            {
-                'publication': pub,
-                'surface': pub.surface,
-                'num_topographies': pub.surface.num_topographies(),
-                'authors_names': pub.get_authors_string(),
-                'license': pub.license,
-                'datetime': pub.datetime,
-                'version': pub.version,
-                'doi_url': pub.doi_url,
-            } for pub in self.get_queryset()
-        ]
-
-        context['publication_table'] = PublicationsTable(
-            data=data,
-            empty_text="You haven't published any surfaces yet.",
-            request=self.request)
 
         return context
 
@@ -1241,134 +1182,6 @@ class PublicationErrorView(TemplateView):
             }
         ]
         return context
-
-
-class SharingInfoTable(tables.Table):
-    surface = tables.Column(linkify=lambda **kwargs: kwargs['record']['surface'].get_absolute_url(),
-                            accessor='surface__name')
-    num_topographies = tables.Column(verbose_name='# Measurements')
-    created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['created_by'].get_absolute_url(),
-                               accessor='created_by__name')
-    shared_with = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),
-                                accessor='shared_with__name')
-    allow_change = tables.BooleanColumn()
-    selected = tables.CheckBoxColumn(attrs={
-        'th__input': {'class': 'select-all-checkbox'},
-        'td__input': {'class': 'select-checkbox'},
-    })
-
-    def __init__(self, *args, **kwargs):
-        self._request = kwargs['request']
-        super().__init__(*args, **kwargs)
-
-    # def render_surface(self, value):
-    #     return value.label
-
-    # def render_created_by(self, value):
-    #     return self._render_user(value)
-
-    # def render_shared_with(self, value):
-    #    return self._render_user(value)
-
-    # def _render_user(self, user):
-    #    if self._request.user == user:
-    #        return "You"
-    #    return user.name
-
-    class Meta:
-        orderable = True
-        order_by = ('surface', 'shared_with')
-
-
-def sharing_info(request):
-    if request.user.is_anonymous:
-        raise PermissionDenied()
-
-    #
-    # Handle POST request if any
-    #
-    if (request.method == "POST") and ('selected' in request.POST):
-        # only do sth if there is a selection
-
-        unshare = 'unshare' in request.POST
-        allow_change = 'allow_change' in request.POST
-
-        for s in request.POST.getlist('selected'):
-            # decode selection string
-            surface_id, share_with_user_id = s.split(',')
-            surface_id = int(surface_id)
-            share_with_user_id = int(share_with_user_id)
-
-            surface = Surface.objects.get(id=surface_id)
-            share_with = User.objects.get(id=share_with_user_id)
-
-            if request.user not in [share_with, surface.creator]:
-                # we don't allow to change shares if the request user is not involved
-                _log.warning(f"Changing share on surface {surface.id} not allowed for user {request.user}.")
-                continue
-
-            if unshare:
-                surface.unshare(share_with)
-                notify.send(sender=request.user, recipient=share_with, verb='unshare', public=False,
-                            description=f"Surface '{surface.name}' from {request.user} is no longer shared with you",
-                            href=reverse('manager:sharing-info'))
-            elif allow_change and (request.user == surface.creator):  # only allow change for surface creator
-                surface.share(share_with, allow_change=True)
-                notify.send(sender=request.user, recipient=share_with, verb='allow change', target=surface,
-                            public=False,
-                            description=f"{request.user} has given you permissions to change surface '{surface.name}'",
-                            href=surface.get_absolute_url())
-    #
-    # Collect information to display
-    #
-    # Get all surfaces, which are visible, but exclude the published surfaces
-    surfaces = get_objects_for_user(request.user, 'view_surface', klass=Surface).filter(publication=None)
-
-    tmp = []
-    for s in surfaces:
-        surface_perms = get_users_with_perms(s, attach_perms=True)
-        # is now a dict of the form
-        #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
-        surface_users = sorted(surface_perms.keys(), key=lambda u: u.name if u else '')
-        for u in surface_users:
-            # Leave out these shares:
-            #
-            # - share of a user with himself as creator (trivial)
-            # - ignore user if anonymous
-            # - shares where the request user is not involved
-            #
-            if (u != s.creator) and (not u.is_anonymous) and \
-                ((u == request.user) or (s.creator == request.user)):
-                allow_change = ('change_surface' in surface_perms[u])
-                tmp.append((s, u, allow_change))
-
-    #
-    # Create table cells
-    #
-    data = [
-        {
-            'surface': surface,
-            'num_topographies': surface.num_topographies(),
-            'created_by': surface.creator,
-            'shared_with': shared_with,
-            'allow_change': allow_change,
-            'selected': "{},{}".format(surface.id, shared_with.id),
-        } for surface, shared_with, allow_change in tmp
-    ]
-
-    #
-    # Build table and render result
-    #
-    sharing_info_table = SharingInfoTable(data=data,
-                                          empty_text="No surfaces shared by or with you.",
-                                          request=request)
-
-    RequestConfig(request).configure(sharing_info_table)
-    # sharing_info_table.order_by('num_topographies')
-
-    return render(request,
-                  template_name='manager/sharing_info.html',
-                  context={'sharing_info_table': sharing_info_table})
 
 
 def download_surface(request, surface_id):

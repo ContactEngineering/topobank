@@ -11,7 +11,6 @@ from topobank.utils import assert_in_content, assert_not_in_content, assert_no_f
 
 
 def test_individual_read_access_permissions(client, django_user_model, handle_usage_statistics):
-
     #
     # create database objects
     #
@@ -43,7 +42,7 @@ def test_individual_read_access_permissions(client, django_user_model, handle_us
     assert client.login(username=username_2, password=password)
     response = client.get(surface_detail_url)
 
-    assert response.status_code == 403 # forbidden
+    assert response.status_code == 403  # forbidden
 
     client.logout()
 
@@ -72,7 +71,6 @@ def test_individual_read_access_permissions(client, django_user_model, handle_us
 
 @pytest.mark.django_db
 def test_list_surface_permissions(client, handle_usage_statistics):
-
     #
     # create database objects
     #
@@ -117,7 +115,6 @@ def test_list_surface_permissions(client, handle_usage_statistics):
 
 @pytest.mark.django_db
 def test_appearance_buttons_based_on_permissions(client, handle_usage_statistics):
-
     password = "secret"
 
     user1 = UserFactory(password=password)
@@ -172,9 +169,9 @@ def test_appearance_buttons_based_on_permissions(client, handle_usage_statistics
     surface.share(user2, allow_change=True)
 
     response = client.get(surface_detail_url)
-    assert_not_in_content(response, surface_share_url) # still not share
+    assert_not_in_content(response, surface_share_url)  # still not share
     assert_in_content(response, surface_update_url)
-    assert_not_in_content(response, surface_delete_url) # still not delete
+    assert_not_in_content(response, surface_delete_url)  # still not delete
 
     response = client.get(topo_detail_url)
     assert_in_content(response, topo_update_url)
@@ -202,18 +199,6 @@ def _parse_html_table(table):
         data.append(tmp)
 
     return data
-
-
-@pytest.mark.django_db
-def test_link_for_sharing_info(client):
-    password = "secret"
-    user = UserFactory(password=password)
-    assert client.login(username=user.username, password=password)
-
-    response = client.get(reverse('home'))
-
-    assert response.status_code == 200
-    assert_in_content(response, reverse('manager:sharing-info'))
 
 
 @pytest.mark.django_db
@@ -407,7 +392,6 @@ def test_sharing_info_table(client, handle_usage_statistics):
 
 @pytest.mark.django_db
 def test_share_surface_through_UI(client, handle_usage_statistics):
-
     user1 = UserFactory()
     user2 = UserFactory()
 
@@ -456,7 +440,6 @@ def test_share_surface_through_UI(client, handle_usage_statistics):
 
 @pytest.mark.django_db
 def test_notification_when_deleting_shared_stuff(client):
-
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
@@ -470,7 +453,7 @@ def test_notification_when_deleting_shared_stuff(client):
     client.force_login(user2)
 
     response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topography.pk)))
-    assert response.status_code == 302 # redirect
+    assert response.status_code == 302  # redirect
 
     assert Notification.objects.filter(recipient=user1, verb='delete',
                                        description__contains=topography.name).count() == 1
@@ -482,7 +465,7 @@ def test_notification_when_deleting_shared_stuff(client):
     client.force_login(user1)
 
     response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface.pk)))
-    assert response.status_code == 302 # redirect
+    assert response.status_code == 302  # redirect
 
     assert Notification.objects.filter(recipient=user2, verb='delete',
                                        description__contains=surface.name).count() == 1
@@ -491,7 +474,6 @@ def test_notification_when_deleting_shared_stuff(client):
 
 @pytest.mark.django_db
 def test_notification_when_editing_shared_stuff(client, handle_usage_statistics):
-
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
@@ -546,7 +528,7 @@ def test_notification_when_editing_shared_stuff(client, handle_usage_statistics)
                            })
 
     assert response.status_code == 302
-    #assert_no_form_errors(response)
+    # assert_no_form_errors(response)
 
     assert Notification.objects.filter(recipient=user2, verb='change',
                                        description__contains=new_name).count() == 1
@@ -555,8 +537,7 @@ def test_notification_when_editing_shared_stuff(client, handle_usage_statistics)
 
 @pytest.mark.django_db
 def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
-
-    input_file_path = Path(FIXTURE_DIR+'/example3.di')
+    input_file_path = Path(FIXTURE_DIR + '/example3.di')
     description = "test description"
 
     password = 'abcd$1234'
@@ -565,8 +546,7 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
     user2 = UserFactory(password=password)
 
     surface = SurfaceFactory(creator=user1)
-    surface.share(user2) # first without allowing change
-
+    surface.share(user2)  # first without allowing change
 
     assert client.login(username=user2.username, password=password)
 
@@ -574,16 +554,15 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
     # open first step of wizard: file upload
     #
     with open(str(input_file_path), mode='rb') as fp:
-
         response = client.post(reverse('manager:topography-create',
                                        kwargs=dict(surface_id=surface.id)),
                                data={
-                                'topography_create_wizard-current_step': 'upload',
-                                'upload-datafile': fp,
-                                'upload-surface': surface.id,
+                                   'topography_create_wizard-current_step': 'upload',
+                                   'upload-datafile': fp,
+                                   'upload-surface': surface.id,
                                }, follow=True)
 
-    assert response.status_code == 403 # user2 is not allowed to change
+    assert response.status_code == 403  # user2 is not allowed to change
 
     #
     # Now allow to change and get response again
@@ -606,7 +585,7 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
     #
 
     # now we should be on the page with second step
-    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
+    assert b"Step 2 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
 
     # we should have two datasources as options, "ZSensor" and "Height"
 
@@ -621,11 +600,11 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
     response = client.post(reverse('manager:topography-create',
                                    kwargs=dict(surface_id=surface.id)),
                            data={
-                            'topography_create_wizard-current_step': 'metadata',
-                            'metadata-name': 'topo1',
-                            'metadata-measurement_date': '2018-06-21',
-                            'metadata-data_source': 0,
-                            'metadata-description': description,
+                               'topography_create_wizard-current_step': 'metadata',
+                               'metadata-name': 'topo1',
+                               'metadata-measurement_date': '2018-06-21',
+                               'metadata-data_source': 0,
+                               'metadata-description': description,
                            })
 
     assert response.status_code == 200
@@ -661,7 +640,7 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
 
     t = topos[0]
 
-    assert t.measurement_date == datetime.date(2018,6,21)
+    assert t.measurement_date == datetime.date(2018, 6, 21)
     assert t.description == description
     assert "example3" in t.datafile.name
     assert 256 == t.resolution_x
@@ -687,9 +666,8 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
     #
     # There should be a notification of the user
     #
-    exp_mesg = f"User '{user2.name}' has created the topography '{t.name}' "+\
-                                    f"in surface '{t.surface.name}'."
+    exp_mesg = f"User '{user2.name}' has created the topography '{t.name}' " + \
+               f"in surface '{t.surface.name}'."
 
     assert Notification.objects.filter(unread=True, recipient=user1, verb='create',
                                        description__contains=exp_mesg).count() == 1
-

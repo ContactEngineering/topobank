@@ -19,7 +19,6 @@ export default {
             default: []
         }
     },
-    inject: ['csrfToken'],
     data() {
         return {
             _analyses: this.analyses === undefined ? [] : this.analyses,

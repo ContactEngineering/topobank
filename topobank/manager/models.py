@@ -2,7 +2,15 @@
 Basic models for the web app for handling topography data.
 """
 
+import io
+import logging
+import math
+import matplotlib.pyplot, matplotlib.cm
+import numpy as np
+import os.path
+import PIL
 import sys
+import tempfile
 
 from django.db import models
 from django.shortcuts import reverse
@@ -579,9 +587,9 @@ class Topography(models.Model, SubjectMixin):
     # Descriptive fields
     #
     surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
-    name = models.CharField(max_length=80)
+    name = models.CharField(max_length=80)  # This must be identical to the file name on upload
     creator = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
-    measurement_date = models.DateField()
+    measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=TagModel)
 
@@ -592,7 +600,7 @@ class Topography(models.Model, SubjectMixin):
                                 upload_to=_upload_path_for_datafile)  # currently upload_to not used in forms
     datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
                                        null=True, default=None, blank=True)
-    data_source = models.IntegerField()
+    data_source = models.IntegerField(null=True)
     # Django documentation discourages the use of null=True on a CharField. I'll use it here
     # nevertheless, because I need this values as argument to a function where None has
     # a special meaning (autodetection of format). If I would use an empty string
@@ -610,11 +618,11 @@ class Topography(models.Model, SubjectMixin):
     # Fields with physical meta data
     #
     size_editable = models.BooleanField(default=False)
-    size_x = models.FloatField()
+    size_x = models.FloatField(null=True)
     size_y = models.FloatField(null=True)  # null for line scans
 
     unit_editable = models.BooleanField(default=False)
-    unit = models.TextField(choices=LENGTH_UNIT_CHOICES)
+    unit = models.TextField(choices=LENGTH_UNIT_CHOICES, null=True)
 
     height_scale_editable = models.BooleanField(default=False)
     height_scale = models.FloatField(default=1)

@@ -67,6 +67,7 @@ def test_failing_publication(settings):
     # Check that the copy of the surface was properly deleted again
     assert len(Surface.objects.all()) == nb_surfaces
 
+
 @pytest.mark.parametrize("should_be_visible", [True, False])
 @pytest.mark.django_db
 def test_availability_publication_button(settings, rf, should_be_visible, handle_usage_statistics):
@@ -336,29 +337,6 @@ def test_license_in_surface_download(client, license, handle_usage_statistics, e
             license_txt = license_bytes.decode('utf-8')
             # title of license should be in the text
             assert settings.CC_LICENSE_INFOS[license]['title'] in license_txt
-
-
-@pytest.mark.django_db
-def test_dont_show_published_surfaces_on_sharing_info(client, example_authors):
-    alice = UserFactory()
-    bob = UserFactory()
-    surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
-    surface1.share(bob)
-    surface2 = SurfaceFactory(creator=alice, name="Published Surface")
-    surface2.publish('cc0-1.0', example_authors)
-
-    #
-    # Login as Bob, surface 1 should be listed on sharing info page
-    # and same for alice
-    #
-    for user in [alice, bob]:
-        client.force_login(user)
-
-        response = client.get(reverse('manager:sharing-info'))
-        assert_in_content(response, "Shared Surface")
-        assert_not_in_content(response, "Published Surface")
-
-        client.logout()
 
 
 @pytest.mark.django_db

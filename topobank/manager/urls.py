@@ -119,16 +119,6 @@ urlpatterns += [
         view=TemplateView.as_view(template_name="403.html"),
         name='access-denied'
     ),
-    path(
-        'html/sharing/',
-        view=login_required(views.sharing_info),
-        name='sharing-info'
-    ),
-    path(
-        'html/publications/',
-        view=login_required(views.PublicationListView.as_view()),
-        name='publications'
-    ),
     #
     # Data routes
     #

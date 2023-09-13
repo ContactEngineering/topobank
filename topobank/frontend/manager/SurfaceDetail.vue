@@ -1,25 +1,26 @@
 <script>
 
-import {v4 as uuid4} from 'uuid';
-
+import DropZone from '../components/DropZone.vue';
 import TopographyPropertiesCard from "./TopographyPropertiesCard.vue";
 
 export default {
     name: 'surface-detail',
     components: {
+        DropZone,
         TopographyPropertiesCard
     },
     inject: ['csrfToken'],
     props: {
-        apiUrl: {
+        surfaceUrl: String,
+        newTopographyUrl: {
             type: String,
-            default: '/manager/api/surface'
+            default: '/manager/api/topography/'
         },
-        surfaceId: Number
     },
     data() {
         return {
-            _data: null
+            _data: null,
+            _topographies: [],
         }
     },
     mounted() {
@@ -30,7 +31,7 @@ export default {
     methods: {
         updateCard() {
             /* Fetch JSON describing the card */
-            fetch(`${this.apiUrl}/${this.surfaceId}/`, {
+            fetch(this.surfaceUrl, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -40,7 +41,30 @@ export default {
                 .then(response => response.json())
                 .then(data => {
                     this._data = data;
+                    this._topographies = data.topography_set;
                     console.log(data);
+                });
+        },
+        onFilesDropped(files) {
+            for (const file of files) {
+                this.createNewTopography(file);
+            }
+        },
+        createNewTopography(file) {
+            console.log(file);
+            fetch(this.newTopographyUrl, {
+                method: 'POST',
+                headers: {
+                    'Accept': 'application/json',
+                    'Content-Type': 'application/json',
+                    'X-CSRFToken': this.csrfToken
+                },
+                body: JSON.stringify({surface: this.surfaceUrl, name: file.name}),
+            })
+                .then(response => response.json())
+                .then(data => {
+                    console.log(data);
+                    this._topographies.push(data);
                 });
         }
     }
@@ -116,19 +140,9 @@ export default {
             <div class="tab-content rounded tab-content-vertical-tabs">
 
                 <div class="tab-pane fade active show" id="topographies">
-                    <div v-if="_data === null">
-                        <span class="spinner"></span>
-                        <div>Please wait...</div>
-                    </div>
-                    <div v-if="_data !== null && _data.num_topographies == 0"
-                         class="alert alert-info">
-                        This digital surface twin has no measurements yet.
-                        You can add measurements by pressing the
-                        <b>{% fa5_icon 'plus-square-o' %} Add measurement</b> button.
-                    </div>
-                    <topography-properties-card v-if="_data !== null"
-                                                v-for="topography in _data.children"
-                                                :data="topography">
+                    <drop-zone @files-dropped="onFilesDropped"></drop-zone>
+                    <topography-properties-card v-for="measurement in _topographies"
+                                                :data="measurement">
                     </topography-properties-card>
                 </div>
 
