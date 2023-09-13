@@ -45,7 +45,7 @@ class AnalysisFunctionSerializer(serializers.HyperlinkedModelSerializer):
 class AnalysisSubjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = AnalysisSubject
-        fields = ['topography', 'surface', 'collection']
+        fields = ['id', 'topography', 'surface', 'collection']
 
     topography = serializers.HyperlinkedRelatedField(view_name='manager:topography-api-detail', read_only=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail', read_only=True)
@@ -54,8 +54,8 @@ class AnalysisSubjectSerializer(serializers.HyperlinkedModelSerializer):
 class AnalysisResultSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Analysis
-        fields = ['url', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time', 'start_time',
-                  'end_time', 'dois', 'configuration', 'duration', 'data_prefix', 'error']
+        fields = ['id', 'url', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time',
+                  'start_time', 'end_time', 'dois', 'configuration', 'duration', 'data_prefix', 'error']
 
     url = serializers.HyperlinkedIdentityField(view_name='analysis:result-detail', read_only=True)
     data_prefix = serializers.SerializerMethodField()
