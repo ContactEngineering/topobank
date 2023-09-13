@@ -2,6 +2,7 @@
 
 ## 1.3.1 (2023-09-13)
 
+- BUG: Return raw ids in addition to API urls (fixes analysis download)
 - BUG: Limit list of analysis functions based on user permissions
 
 ## 1.3.0 (2023-09-11)
