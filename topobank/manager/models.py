@@ -21,6 +21,7 @@ from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.contrib.contenttypes.models import ContentType
+from django.utils.deconstruct import deconstructible
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
 import tagulous.models as tm
@@ -519,20 +520,17 @@ class SurfaceCollection(models.Model, SubjectMixin):
         return all(s.is_shared(with_user, allow_change=allow_change) for s in self.related_surfaces())
 
 
+def topography_datafile_path(instance, filename):
+    return f'{instance.storage_prefix}/raw/{filename}'
+
+def topography_squeezed_datafile_path(instance, filename):
+    return f'{instance.storage_prefix}/nc/{filename}'
+
+def topography_thumbnail_path(instance, filename):
+    return f'{instance.storage_prefix}/thumbnail/{filename}'
+
 class Topography(models.Model, SubjectMixin):
     """Topography measurement of a surface."""
-
-    @staticmethod
-    def datafile_path(instance, filename):
-        return f'{instance.storage_prefix}/raw/{filename}'
-
-    @staticmethod
-    def squeezed_datafile_path(instance, filename):
-        return f'{instance.storage_prefix}/nc/{filename}'
-
-    @staticmethod
-    def thumbnail_path(instance, filename):
-        return f'{instance.storage_prefix}/thumbnail/{filename}'
 
     # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
@@ -597,7 +595,7 @@ class Topography(models.Model, SubjectMixin):
     # Fields related to raw data
     #
     datafile = models.FileField(max_length=250,
-                                upload_to=datafile_path)  # currently upload_to not used in forms
+                                upload_to=topography_datafile_path)  # currently upload_to not used in forms
     datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
                                        null=True, default=None, blank=True)
     data_source = models.IntegerField(null=True)
@@ -611,7 +609,7 @@ class Topography(models.Model, SubjectMixin):
     # This is probably netCDF3. Scales and detrend has already been applied here.
     squeezed_datafile = models.FileField(
         max_length=260,
-        upload_to=squeezed_datafile_path,
+        upload_to=topography_squeezed_datafile_path,
         null=True)
 
     #
@@ -654,7 +652,7 @@ class Topography(models.Model, SubjectMixin):
     #
     thumbnail = models.ImageField(
         null=True,
-        upload_to=thumbnail_path)
+        upload_to=topography_thumbnail_path)
 
     #
     # _refresh_dependent_data indicates whether caches (thumbnail, DZI) and analyses need to be refreshed after a call

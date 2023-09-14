@@ -166,7 +166,7 @@ class Command(BaseCommand):
             # We need to save the topography to get an id...
             topography.save()
             # ...which we need for the storage prefix
-            new_topo_file_path = Topography.datafile_path(topography, topo_name)
+            new_topo_file_path = topography_datafile_path(topography, topo_name)
             actual_topo_file_path = default_storage.save(new_topo_file_path, File(topo_file))
             topography.datafile = actual_topo_file_path
             # We need to save again to store the new file name

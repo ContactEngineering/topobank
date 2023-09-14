@@ -43,9 +43,9 @@ from ..publication.models import MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
+from .forms import TopographyForm,SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
-    PlotTopographyException, PublicationException
+    PlotTopographyException, PublicationException, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
 from .serializers import SurfaceSerializer, TopographySerializer, TagSearchSerizalizer, SurfaceSearchSerializer
 from .utils import selected_instances, get_topography_reader, tags_for_user, get_reader_infos, \
@@ -428,7 +428,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         #
         # move file to the permanent storage (wizard's files will be deleted)
         #
-        new_path = Topography.datafile_path(instance, os.path.basename(datafile.name))
+        new_path = topography_datafile_path(instance, os.path.basename(datafile.name))
         with datafile.open(mode='rb') as f:
             instance.datafile = default_storage.save(new_path, File(f))
         instance.save()
@@ -1707,7 +1707,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
         instance = serializer.save(creator=self.request.user)
 
         # Now we have an id, so populate update path
-        datafile_path = Topography.datafile_path(instance, filename)
+        datafile_path = topography_datafile_path(instance, filename)
 
         # Populate upload_url, the presigned key should expire quickly
         serializer.update(instance, {'post_data': s3_post(datafile_path, self.EXPIRE_UPLOAD)})
