@@ -486,18 +486,6 @@ class Surface(models.Model, SubjectMixin):
         return [self]
 
 
-def _upload_path_for_datafile(instance, filename):
-    return f'{instance.storage_prefix}/raw/{filename}'
-
-
-def _upload_path_for_squeezed_datafile(instance, filename):
-    return f'{instance.storage_prefix}/nc/{filename}'
-
-
-def _upload_path_for_thumbnail(instance, filename):
-    return f'{instance.storage_prefix}/thumbnail/{filename}'
-
-
 class SurfaceCollection(models.Model, SubjectMixin):
     """A collection of surfaces."""
     name = models.CharField(max_length=MAX_LENGTH_SURFACE_COLLECTION_NAME)
@@ -533,6 +521,18 @@ class SurfaceCollection(models.Model, SubjectMixin):
 
 class Topography(models.Model, SubjectMixin):
     """Topography measurement of a surface."""
+
+    @staticmethod
+    def datafile_path(instance, filename):
+        return f'{instance.storage_prefix}/raw/{filename}'
+
+    @staticmethod
+    def squeezed_datafile_path(instance, filename):
+        return f'{instance.storage_prefix}/nc/{filename}'
+
+    @staticmethod
+    def thumbnail_path(instance, filename):
+        return f'{instance.storage_prefix}/thumbnail/{filename}'
 
     # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
@@ -597,7 +597,7 @@ class Topography(models.Model, SubjectMixin):
     # Fields related to raw data
     #
     datafile = models.FileField(max_length=250,
-                                upload_to=_upload_path_for_datafile)  # currently upload_to not used in forms
+                                upload_to=datafile_path)  # currently upload_to not used in forms
     datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
                                        null=True, default=None, blank=True)
     data_source = models.IntegerField(null=True)
@@ -611,7 +611,7 @@ class Topography(models.Model, SubjectMixin):
     # This is probably netCDF3. Scales and detrend has already been applied here.
     squeezed_datafile = models.FileField(
         max_length=260,
-        upload_to=_upload_path_for_squeezed_datafile,
+        upload_to=squeezed_datafile_path,
         null=True)
 
     #
@@ -654,7 +654,7 @@ class Topography(models.Model, SubjectMixin):
     #
     thumbnail = models.ImageField(
         null=True,
-        upload_to=_upload_path_for_thumbnail)
+        upload_to=thumbnail_path)
 
     #
     # _refresh_dependent_data indicates whether caches (thumbnail, DZI) and analyses need to be refreshed after a call
@@ -682,25 +682,7 @@ class Topography(models.Model, SubjectMixin):
             # Do not check for None in self.id as this breaks should we switch to UUIDs
             old_obj = Topography.objects.get(pk=self.pk)
         except self.DoesNotExist:
-            # Object is new, this means `storage_prefix` does not exists since the model instance has yet been written
-            # to the database. (The `id` only becomes available then.)
-            datafile = self.datafile
-            squeezed_datafile = self.squeezed_datafile
-            thumbnail = self.thumbnail
-            # Since we do not have an id yet, we cannot store the file since we don't know where to put it
-            self.datafile = None
-            self.squeezed_datafile = None
-            self.thumbnail = None
-            # Save to get an id
-            super().save(*args, **kwargs)
-            # Now we have an id, so we can now save the files
-            self.datafile = datafile
-            self.squeezed_datafile = squeezed_datafile
-            self.thumbnail = thumbnail
-            kwargs.update(dict(update_fields=['datafile', 'squeezed_datafile', 'thumbnail'],
-                               force_insert=False, force_update=True))  # The next save must be an update
-            # We need to refresh, because this is the creation of this dataset
-            self._refresh_dependent_data = True
+            pass  # Do nothing, we have just created a new topography
         else:
             # Check which fields actually changed
             changed_fields = [getattr(self, name) != getattr(old_obj, name)

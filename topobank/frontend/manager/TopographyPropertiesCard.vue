@@ -2,6 +2,8 @@
 
 import { v4 as uuid4 } from 'uuid';
 
+import axios from "axios";
+
 import {
     BAlert, BFormCheckbox, BFormInput, BFormSelect, BFormTags, BFormTextarea, BSpinner
 } from 'bootstrap-vue-next';
@@ -52,8 +54,8 @@ export default {
             type: Number,
             value: 30
         },
-        topographyId: {
-            type: Number,
+        topographyUrl: {
+            type: String,
             default: null
         },
         uid: {
@@ -76,7 +78,7 @@ export default {
             _instrument_parameters_tip_radius_unit: null,
             _instrumentVisible: false,
             _saving: false,
-            _topographyId: this.topographyId === null ? this.data.id : this.topographyId,
+            _topographyUrl: this.topographyUrl === null ? this.data.url : this.topographyUrl,
             _savedData: null,
             _units: [
                 { value: "km", text: 'km' },
@@ -97,14 +99,13 @@ export default {
     mounted() {
         if (this.data !== null) {
             this.mogrifyDataFromGETRequest(this.data);
-            console.log(this._data);
             this.updateCard();
         }
     },
     methods: {
         updateCard() {
             /* Fetch JSON describing the card */
-            fetch(`${this.apiUrl}/${this._topographyId}/`, {
+            fetch(this._topographyUrl, {
                 method: 'GET',
                 headers: {
                     'Accept': 'application/json',
@@ -114,13 +115,13 @@ export default {
                 .then(response => response.json())
                 .then(data => {
                     this._data = data;
-                    this._topographyId = data.id;
+                    this._topographyUrl = data.url;
                 });
         },
         mogrifyDataFromGETRequest(data) {
             // Get data object
             this._data = data;
-            this._topographyId = data.id;
+            this._topographyUrl = data.url;
 
             // Flatten instrument parameters
             if (data.instrument_parameters.resolution !== undefined) {
@@ -174,7 +175,7 @@ export default {
         saveCard() {
             this._editing = false;
             this._saving = true;
-            fetch(`${this.apiUrl}/${this._topographyId}/`, {
+            fetch(this._topographyUrl, {
                 method: 'PATCH',
                 body: JSON.stringify(this.mogrifyDataForPATCHRequest()),
                 headers: {
@@ -195,6 +196,10 @@ export default {
                 .finally(() => {
                     this._saving = false;
                 });
+        },
+        deleteTopography() {
+            axios.delete(this._topographyUrl);
+            this.$emit('topography-deleted', this._topographyUrl);
         }
     }
 };
@@ -207,6 +212,10 @@ export default {
                 <button v-if="!_editing && !_saving" class="btn btn-outline-secondary float-end"
                     @click="_savedData = JSON.parse(JSON.stringify(_data)); _editing = true">
                     Edit
+                </button>
+                <button v-if="!_editing && !_saving" class="btn btn-outline-secondary float-end"
+                    @click="deleteTopography">
+                    <i class="fa fa-trash"></i>
                 </button>
                 <button v-if="_editing" class="btn btn-danger float-end" @click="_editing = false; _data = _savedData">
                     Discard

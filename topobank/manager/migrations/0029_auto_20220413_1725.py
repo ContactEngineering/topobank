@@ -14,16 +14,16 @@ class Migration(migrations.Migration):
         migrations.AlterField(
             model_name='topography',
             name='datafile',
-            field=models.FileField(max_length=250, upload_to=topobank.manager.models._upload_path_for_datafile),
+            field=models.FileField(max_length=250, upload_to=topobank.manager.models.Topography.datafile_path),
         ),
         migrations.AlterField(
             model_name='topography',
             name='squeezed_datafile',
-            field=models.FileField(max_length=260, null=True, upload_to=topobank.manager.models._upload_path_for_squeezed_datafile),
+            field=models.FileField(max_length=260, null=True, upload_to=topobank.manager.models.Topography.squeezed_datafile_path),
         ),
         migrations.AlterField(
             model_name='topography',
             name='thumbnail',
-            field=models.ImageField(null=True, upload_to=topobank.manager.models._upload_path_for_thumbnail),
+            field=models.ImageField(null=True, upload_to=topobank.manager.models.Topography.thumbnail_path),
         ),
     ]

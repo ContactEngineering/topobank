@@ -2,12 +2,14 @@
 
 import DropZone from '../components/DropZone.vue';
 import TopographyPropertiesCard from "./TopographyPropertiesCard.vue";
+import TopographyUploadCard from "./TopographyUploadCard.vue";
 
 export default {
     name: 'surface-detail',
     components: {
         DropZone,
-        TopographyPropertiesCard
+        TopographyPropertiesCard,
+        TopographyUploadCard
     },
     inject: ['csrfToken'],
     props: {
@@ -21,6 +23,7 @@ export default {
         return {
             _data: null,
             _topographies: [],
+            _uploads: []
         }
     },
     mounted() {
@@ -47,10 +50,10 @@ export default {
         },
         onFilesDropped(files) {
             for (const file of files) {
-                this.createNewTopography(file);
+                this.uploadNewTopography(file);
             }
         },
-        createNewTopography(file) {
+        uploadNewTopography(file) {
             console.log(file);
             fetch(this.newTopographyUrl, {
                 method: 'POST',
@@ -64,11 +67,18 @@ export default {
                 .then(response => response.json())
                 .then(data => {
                     console.log(data);
-                    this._topographies.push(data);
+                    data.file = file;
+                    this._uploads.push(data);
                 });
+        },
+        uploadSuccessful(topography) {
+            this._uploads.splice(this._uploads.indexOf(topography), 1);
+            this._topographies.push(topography);
+        },
+        topographyDeleted(topography) {
+            this._topographies.splice(this._uploads.indexOf(topography), 1);
         }
     }
-
 };
 </script>
 
@@ -141,8 +151,15 @@ export default {
 
                 <div class="tab-pane fade active show" id="topographies">
                     <drop-zone @files-dropped="onFilesDropped"></drop-zone>
-                    <topography-properties-card v-for="measurement in _topographies"
-                                                :data="measurement">
+                    <topography-upload-card v-for="upload in _uploads"
+                                            :name="upload.name"
+                                            :file="upload.file"
+                                            :post-data="upload.post_data"
+                                            @upload-successful="(url) => uploadSuccessful(upload)">
+                    </topography-upload-card>
+                    <topography-properties-card v-for="topography in _topographies"
+                                                :data="topography"
+                                                @topography-deleted="(url) => topographyDeleted(topography)">
                     </topography-properties-card>
                 </div>
 

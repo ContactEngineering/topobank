@@ -5,34 +5,26 @@ import traceback
 from io import BytesIO
 
 import dateutil.parser
-import django_tables2 as tables
-import numpy as np
 from bokeh.embed import components
-from bokeh.models import TapTool, OpenURL
-from bokeh.plotting import figure, ColumnDataSource
 
 from django.conf import settings
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
-from django.core.files.storage import FileSystemStorage
-from django.core.files.storage import default_storage
+from django.core.files.storage import FileSystemStorage, default_storage
 from django.db.models import Q
-from django.db import transaction
 from django.http import HttpResponse, Http404
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
-from django.utils.safestring import mark_safe
-from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView, ListView, FormView
+from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView, FormView
 from django.views.generic.edit import FormMixin
-from django_tables2 import RequestConfig
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.contrib import messages
 from django.utils.text import slugify
 
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import get_users_with_perms, get_objects_for_user
+from guardian.shortcuts import get_users_with_perms
 from formtools.wizard.views import SessionWizardView
 from notifications.signals import notify
 
@@ -47,20 +39,19 @@ from trackstats.models import Metric, Period
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
-from ..users.models import User
-from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
+from ..publication.models import MAX_LEN_AUTHORS_FIELD
 from .containers import write_surface_container
 
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
-    PlotTopographyException, PublicationException, _upload_path_for_datafile
+    PlotTopographyException, PublicationException
 from .permissions import ObjectPermissions, ParentObjectPermissions
 from .serializers import SurfaceSerializer, TopographySerializer, TagSearchSerizalizer, SurfaceSearchSerializer
-from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
+from .utils import selected_instances, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    get_permission_table_data, subjects_to_base64
+    subjects_to_base64, s3_post
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -437,7 +428,7 @@ class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
         #
         # move file to the permanent storage (wizard's files will be deleted)
         #
-        new_path = _upload_path_for_datafile(instance, os.path.basename(datafile.name))
+        new_path = Topography.datafile_path(instance, os.path.basename(datafile.name))
         with datafile.open(mode='rb') as f:
             instance.datafile = default_storage.save(new_path, File(f))
         instance.save()
@@ -1700,10 +1691,23 @@ class TopographyViewSet(mixins.CreateModelMixin,
                         mixins.UpdateModelMixin,
                         mixins.DestroyModelMixin,
                         viewsets.GenericViewSet):
+
+    EXPIRE_UPLOAD = 1000  # Presigned key for uploading expires after 10 second
+
     queryset = Topography.objects.all()
     serializer_class = TopographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
 
     def perform_create(self, serializer):
+        # File name is passed in the 'name' field on create. It is the only field that needs to be present for the
+        # create (POST) request.
+        filename = self.request.data['name']
+
         # Set creator to current user when creating a new topography
-        serializer.save(creator=self.request.user)
+        instance = serializer.save(creator=self.request.user)
+
+        # Now we have an id, so populate update path
+        datafile_path = Topography.datafile_path(instance, filename)
+
+        # Populate upload_url, the presigned key should expire quickly
+        serializer.update(instance, {'post_data': s3_post(datafile_path, self.EXPIRE_UPLOAD)})

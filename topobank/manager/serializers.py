@@ -17,12 +17,15 @@ class TopographySerializer(serializers.HyperlinkedModelSerializer):
                   'size_editable', 'size_x', 'size_y', 'unit_editable', 'unit', 'height_scale_editable', 'height_scale',
                   'has_undefined_data', 'fill_undefined_data_mode', 'detrend_mode', 'resolution_x', 'resolution_y',
                   'bandwidth_lower', 'bandwidth_upper', 'short_reliability_cutoff', 'is_periodic', 'instrument_name',
-                  'instrument_type', 'instrument_parameters']
+                  'instrument_type', 'instrument_parameters', 'post_data']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
                                                   queryset=Surface.objects.all())
+
+    post_data = serializers.DictField(default=None, read_only=True)  # Pre-signed upload location
+
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:

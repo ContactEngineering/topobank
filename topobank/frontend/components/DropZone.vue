@@ -39,7 +39,7 @@ export default {
 </script>
 
 <template>
-    <div class="drop-zone"
+    <div class="drop-zone mb-1"
          :class="{ 'drop-zone-active': _active }"
          :data-active="_active"
          @dragenter.prevent="_active=true"
@@ -47,6 +47,6 @@ export default {
          @dragleave.prevent="_active=false"
          @drop.prevent="onDrop">
         <!-- share state with the scoped slot -->
-        <slot :dropZoneActive="_active">Drop your data files here</slot>
+        <slot :dropZoneActive="_active">Drop your measurements here</slot>
     </div>
 </template>

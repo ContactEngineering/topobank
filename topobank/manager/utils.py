@@ -2,9 +2,12 @@ import base64
 import functools
 import json
 import logging
+
 import markdown2
 import tempfile
 import traceback
+
+from storages.utils import clean_name
 
 from django.shortcuts import reverse
 from django.conf import settings
@@ -15,6 +18,7 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector, SearchQuery
+from django.utils.encoding import filepath_to_uri
 
 from guardian.core import ObjectPermissionChecker
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
@@ -74,9 +78,9 @@ def default_storage_replace(name, content):
     content : stream
         Contents of the file.
     """
-    if default_storage.exists(name):
-        default_storage.delete(name)
-    actual_name = default_storage.save(name, content)
+    if default_default_storage.exists(name):
+        default_default_storage.delete(name)
+    actual_name = default_default_storage.save(name, content)
     if actual_name != name:
         raise IOError(f"Trying to store file with name '{name}', but Django "
                       f"storage renamed this file to '{actual_name}'.")
@@ -92,15 +96,15 @@ def recursive_delete(prefix):
     prefix : str
         Prefix to delete.
     """
-    if default_storage.exists(prefix):
-        directories, filenames = default_storage.listdir(prefix)
+    if default_default_storage.exists(prefix):
+        directories, filenames = default_default_storage.listdir(prefix)
         for filename in filenames:
             _log.info(f'Deleting file {prefix}/{filename}...')
-            default_storage.delete(f'{prefix}/{filename}')
+            default_default_storage.delete(f'{prefix}/{filename}')
         for directory in directories:
             _log.info(f'Deleting directory {prefix}/{directory}...')
             recursive_delete(f'{prefix}/{directory}')
-            default_storage.delete(f'{prefix}/{directory}')
+            default_default_storage.delete(f'{prefix}/{directory}')
 
 
 def mangle_content_type(obj, default_app_label='manager'):
@@ -1126,7 +1130,7 @@ def dzi_exists(path_prefix):
     -------
     True, if DZI data is expected to be available, else False.
     """
-    return default_storage.exists(f'{path_prefix}/dzi.json')
+    return default_default_storage.exists(f'{path_prefix}/dzi.json')
 
 
 def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):
@@ -1180,3 +1184,12 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             target_name = f'{path_prefix}/{storage_filename}'
             # Upload to S3
             default_storage_replace(target_name, File(open(filename, mode='rb')))
+
+
+def s3_post(name, expire):
+    """Generate a presigned URL for an upload direct to S3"""
+    # Preserve the trailing slash after normalizing the path.
+    name = default_storage._normalize_name(clean_name(name))
+    url = default_storage.bucket.meta.client.generate_presigned_post(settings.AWS_STORAGE_BUCKET_NAME, name,
+                                                                     ExpiresIn=expire)
+    return url
