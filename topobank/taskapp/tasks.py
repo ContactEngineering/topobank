@@ -163,12 +163,6 @@ def perform_analysis(self, analysis_id):
         result = evaluate_function(subject, progress_recorder=progress_recorder, storage_prefix=analysis.storage_prefix,
                                    dois=dois, **kwargs)
         save_result(result, Analysis.SUCCESS, dois)
-    except (Topography.DoesNotExist, Surface.DoesNotExist, IntegrityError) as exc:
-        _log.warning(f"Subject for analysis '{analysis.id}' doesn't exist any more, so that analysis will be "
-                     f"deleted...")
-        analysis.delete()
-        # we want a real exception here so celery's flower can show the task as failure
-        raise
     except Exception as exc:
         is_incompatible = isinstance(exc, EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES)
         _log.warning(f"Exception while performing analysis {analysis_id} (compatible? {is_incompatible}): {exc}")
@@ -293,112 +287,6 @@ def save_landing_page_statistics():
 
 
 @app.task
-def renew_squeezed_datafile(topography_id):
-    """Renew squeezed datafile for given topography,
-
-    Parameters
-    ----------
-    topography_id: int
-        ID if topography for which the datafile should be calculated
-        and saved.
-
-    Returns
-    -------
-    None
-    """
-    _log.debug(f"Renewing squeezed datafile for topography id {topography_id}..")
-    try:
-        topography = Topography.objects.get(id=topography_id)
-        topography.renew_squeezed_datafile()
-    except Topography.DoesNotExist:
-        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew squeezed datafile.")
-    _log.debug(f"Done - renewed squeezed datafile for topography id {topography_id}.")
-
-
-@app.task
-def renew_bandwidth_cache(topography_id):
-    """Renew bandwidth cache for given topography,
-
-    Parameters
-    ----------
-    topography_id: int
-        ID if topography for which the datafile should be calculated
-        and saved.
-
-    Returns
-    -------
-    None
-    """
-    _log.debug(f"Renewing bandwidth cache for topography id {topography_id}..")
-    try:
-        topography = Topography.objects.get(id=topography_id)
-        topography.renew_bandwidth_cache()
-    except Topography.DoesNotExist:
-        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew bandwidth cache.")
-    _log.debug(f"Done - renewed bandwidth cache for topography id {topography_id}.")
-
-
-@app.task
-def renew_topography_images(topography_id):
-    """Renew thumbnail for given topography,
-
-    Parameters
-    ----------
-    topography_id: int
-        ID if topography for which the thumbnail should be generated
-        and saved.
-
-    Returns
-    -------
-    None
-    """
-    _log.debug(f"Renewing images for topography id {topography_id}..")
-    group(renew_topography_thumbnail.si(topography_id),
-          renew_topography_dzi.si(topography_id)).delay()
-    _log.debug(f"Done - renewed images for topography id {topography_id}.")
-
-
-@app.task
-def renew_topography_thumbnail(topography_id):
-    """Renew thumbnail for given topography.
-
-    Parameters
-    ----------
-    topography_id: int
-        ID if topography for which a thumbnail should be generated
-        and saved.
-
-    Returns
-    -------
-    None
-    """
-    _log.debug(f"Renewing thumbnail for topography id {topography_id}..")
-    try:
-        topography = Topography.objects.get(id=topography_id)
-        topography.renew_thumbnail(none_on_error=False)
-    except Topography.DoesNotExist:
-        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew thumbnail.")
-    _log.debug(f"Done - renewed thumbnail for topography id {topography_id}.")
-
-
-@app.task
-def renew_topography_dzi(topography_id):
-    """Renew DZI files for given topography.
-
-    Parameters
-    ----------
-    topography_id: int
-        ID if topography for which the DZI files should be generated
-        and saved.
-
-    Returns
-    -------
-    None
-    """
-    _log.debug(f"Renewing DZI images for topography id {topography_id}..")
-    try:
-        topography = Topography.objects.get(id=topography_id)
-        topography.renew_dzi(none_on_error=False)
-    except Topography.DoesNotExist:
-        _log.error(f"Couldn't find topography with id {topography_id}. Cannot renew DZI.")
-    _log.debug(f"Done - renewed DZI for topography id {topography_id}.")
+def renew_topography_cache(topography_id):
+    topography = Topography.objects.get(id=topography_id)
+    topography.renew_cache()
