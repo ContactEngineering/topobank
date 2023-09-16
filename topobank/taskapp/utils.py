@@ -1,9 +1,10 @@
 import importlib
 
 from django.db import transaction
+
 from watchman.decorators import check as watchman_check
 
-from topobank.analysis.models import Dependency, Version
+from ..analysis.models import Dependency, Version
 
 
 class ConfigurationException(Exception):
@@ -87,6 +88,7 @@ def celery_worker_check():
         'celery': _celery_worker_check(),
     }
 
+
 @watchman_check
 def _celery_worker_check():
     """Used with watchman in order to check whether celery workers are available."""
@@ -99,5 +101,3 @@ def _celery_worker_check():
         'min_num_workers_expected': MIN_NUM_WORKERS_EXPECTED,
         'ok': len(d) >= MIN_NUM_WORKERS_EXPECTED,
     }
-
-

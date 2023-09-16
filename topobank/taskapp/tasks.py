@@ -6,14 +6,11 @@ import traceback
 from decimal import Decimal
 
 from django.utils import timezone
-from django.db.utils import IntegrityError
-from django.conf import settings
 from django.shortcuts import reverse
 
 from celery.signals import after_setup_task_logger
 from celery.app.log import TaskFormatter
 from celery.utils.log import get_task_logger
-from celery import group
 
 from notifications.signals import notify
 
@@ -22,14 +19,13 @@ from SurfaceTopography.Support import doi
 from ContactMechanics.Systems import IncompatibleFormulationError
 
 from .celeryapp import app
-from .utils import get_package_version_instance
 
-from topobank.analysis.functions import IncompatibleTopographyException
-from topobank.analysis.models import Analysis, Configuration, AnalysisCollection, RESULT_FILE_BASENAME
-from topobank.manager.models import Topography, Surface
+from ..analysis.functions import IncompatibleTopographyException
+from ..analysis.models import Analysis, AnalysisCollection, RESULT_FILE_BASENAME
+from ..manager.models import Topography
 from ..utils import store_split_dict
-from topobank.users.models import User
-from topobank.usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object, \
+from ..users.models import User
+from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object, \
     current_statistics
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError,
@@ -286,7 +282,7 @@ def save_landing_page_statistics():
     )
 
 
-@app.task
-def renew_topography_cache(topography_id):
+@app.task(bind=True)
+def renew_topography_cache(celery_task, topography_id):
     topography = Topography.objects.get(id=topography_id)
-    topography.renew_cache()
+    topography.run_task(celery_task)

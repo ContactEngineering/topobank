@@ -1,11 +1,9 @@
-
 import os
 from celery import Celery
 from celery.schedules import crontab
 
 from django.apps import apps, AppConfig
 from django.conf import settings
-
 
 if not settings.configured:
     # set the default Django settings module for the 'celery' program.
@@ -39,4 +37,3 @@ class CeleryAppConfig(AppConfig):
                 'schedule': crontab(hour='0', minute='0'),
             }
         }
-

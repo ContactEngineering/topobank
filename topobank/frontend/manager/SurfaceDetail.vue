@@ -3,10 +3,12 @@
 import DropZone from '../components/DropZone.vue';
 import TopographyPropertiesCard from "./TopographyPropertiesCard.vue";
 import TopographyUploadCard from "./TopographyUploadCard.vue";
+import TopographyErrorCard from "topobank/manager/TopographyErrorCard.vue";
 
 export default {
     name: 'surface-detail',
     components: {
+        TopographyErrorCard,
         DropZone,
         TopographyPropertiesCard,
         TopographyUploadCard
@@ -157,6 +159,11 @@ export default {
                                             :post-data="upload.post_data"
                                             @upload-successful="(url) => uploadSuccessful(upload)">
                     </topography-upload-card>
+                    <topography-error-card v-for="topography in _topographies"
+                                           :url="topography.url"
+                                           :name="topography.name"
+                                           :error="topography.error">
+                    </topography-error-card>
                     <topography-properties-card v-for="topography in _topographies"
                                                 :data="topography"
                                                 @topography-deleted="(url) => topographyDeleted(topography)">

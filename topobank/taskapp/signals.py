@@ -9,7 +9,7 @@ from celery import chain
 
 from ..manager.models import Topography
 
-from .tasks import renew_bandwidth_cache, renew_squeezed_datafile, renew_topography_images
+from .tasks import renew_topography_cache
 
 _log = logging.getLogger(__name__)
 
@@ -24,12 +24,7 @@ def post_topography_save(sender, instance, **kwargs):
     # Since the model appears to have changed, we need to regenerate cached properties.
     #
     if instance._refresh_dependent_data:
-        if _IN_CELERY_WORKER_PROCESS:
-            raise RuntimeError('A Celery worker process updated a significant field on a topography. This would '
-                               'retrigger that same worker process again and lead to an infinite loop! Please do not '
-                               'update significant fields in Celery worker processes.')
-        _log.info(f"Creating squeezed datafile, bandwidth cache and images for {instance.get_subject_type()} "
-                  f"{instance.id}...")
-        transaction.on_commit(chain(renew_squeezed_datafile.si(instance.id),
-                                    renew_bandwidth_cache.si(instance.id),
-                                    renew_topography_images.si(instance.id)))
+        if not _IN_CELERY_WORKER_PROCESS:
+            # Don' trigger this from inside a Celery worker, otherwise we'd have an infinite loop
+            _log.info(f"Renewing cached properties of {instance.get_subject_type()} {instance.id}...")
+            transaction.on_commit(renew_topography_cache.si(instance.id))

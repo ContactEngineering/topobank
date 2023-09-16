@@ -12,6 +12,7 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage, default_storage
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, Http404
 from django.shortcuts import redirect, render
@@ -38,12 +39,13 @@ from trackstats.models import Metric, Period
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
+from ..taskapp.tasks import renew_topography_cache
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..publication.models import MAX_LEN_AUTHORS_FIELD
-from .containers import write_surface_container
 
+from .containers import write_surface_container
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
-from .forms import TopographyForm,SurfaceForm, SurfaceShareForm, SurfacePublishForm
+from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
     PlotTopographyException, PublicationException, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
@@ -1687,12 +1689,10 @@ class SurfaceViewSet(mixins.CreateModelMixin,
 
 
 class TopographyViewSet(mixins.CreateModelMixin,
-                        mixins.RetrieveModelMixin,
                         mixins.UpdateModelMixin,
                         mixins.DestroyModelMixin,
                         viewsets.GenericViewSet):
-
-    EXPIRE_UPLOAD = 1000  # Presigned key for uploading expires after 10 second
+    EXPIRE_UPLOAD = 10  # Presigned key for uploading expires after 10 second
 
     queryset = Topography.objects.all()
     serializer_class = TopographySerializer
@@ -1711,3 +1711,14 @@ class TopographyViewSet(mixins.CreateModelMixin,
 
         # Populate upload_url, the presigned key should expire quickly
         serializer.update(instance, {'post_data': s3_post(datafile_path, self.EXPIRE_UPLOAD)})
+
+    # From mixins.RetrieveModelMixin
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        print(instance, instance.task_state)
+        if instance.task_state == Topography.NOTRUN:
+            # The cache has never been created
+            renew_topography_cache.delay(instance.id)
+        print(instance)
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)

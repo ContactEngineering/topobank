@@ -20,11 +20,9 @@ def post_topography_save(sender, instance, **kwargs):
     # Since the topography appears to have changed, we need to regenerate the analyses.
     #
     if instance._refresh_dependent_data:
-        if _IN_CELERY_WORKER_PROCESS:
-            raise RuntimeError('A Celery worker process updated a significant field on a topography. This would '
-                               'retrigger that same worker process again and lead to an infinite loop! Please do not '
-                               'update significant fields in Celery worker processes.')
-        renew_analyses_for_subject(instance)
+        if not _IN_CELERY_WORKER_PROCESS:
+            # Don' trigger this from inside a Celery worker, otherwise we'd have an infinite loop
+            renew_analyses_for_subject(instance)
 
 
 @receiver(post_delete, sender=Topography)

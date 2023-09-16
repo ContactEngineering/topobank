@@ -21,7 +21,6 @@ from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.contrib.contenttypes.models import ContentType
-from django.utils.deconstruct import deconstructible
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
 import tagulous.models as tm
@@ -29,8 +28,10 @@ import tagulous.models as tm
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 
+from SurfaceTopography.IO import detect_format, open_topography
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
+from .abstract import TaskStateModel
 from .utils import dzi_exists, get_topography_reader, make_dzi, recursive_delete, MAX_LENGTH_SURFACE_COLLECTION_NAME
 
 from ..plots import configure_plot
@@ -523,13 +524,16 @@ class SurfaceCollection(models.Model, SubjectMixin):
 def topography_datafile_path(instance, filename):
     return f'{instance.storage_prefix}/raw/{filename}'
 
+
 def topography_squeezed_datafile_path(instance, filename):
     return f'{instance.storage_prefix}/nc/{filename}'
+
 
 def topography_thumbnail_path(instance, filename):
     return f'{instance.storage_prefix}/thumbnail/{filename}'
 
-class Topography(models.Model, SubjectMixin):
+
+class Topography(TaskStateModel, SubjectMixin):
     """Topography measurement of a surface."""
 
     # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
@@ -598,7 +602,8 @@ class Topography(models.Model, SubjectMixin):
                                 upload_to=topography_datafile_path)  # currently upload_to not used in forms
     datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
                                        null=True, default=None, blank=True)
-    data_source = models.IntegerField(null=True)
+    channel_names = models.JSONField(default=list)
+    data_source = models.IntegerField(null=True)  # Channel index
     # Django documentation discourages the use of null=True on a CharField. I'll use it here
     # nevertheless, because I need this values as argument to a function where None has
     # a special meaning (autodetection of format). If I would use an empty string
@@ -819,6 +824,44 @@ class Topography(models.Model, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
+    def _read(self, reader):
+        """Construct kwargs for reading topography given channel information"""
+        if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+            _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
+                         'process. This operation is potentially slow and may require a lot of memory - do not use '
+                         '`Topography.topography` within the main Django server!')
+
+        reader_kwargs = dict(channel_index=self.data_source,
+                             periodic=self.is_periodic)
+
+        channel = reader.channels[self.data_source]
+
+        # Set size if physical size was not given in datafile
+        # (see also  TopographyCreateWizard.get_form_initial)
+        # Physical size is always a tuple or None.
+        if channel.physical_sizes is None:
+            if self.size_y is None:
+                reader_kwargs['physical_sizes'] = self.size_x,
+            else:
+                reader_kwargs['physical_sizes'] = self.size_x, self.size_y
+
+        if self.height_scale_editable:
+            # Adjust height scale to value chosen by user
+            reader_kwargs['height_scale_factor'] = self.height_scale
+
+            # This is only possible and needed, if no height scale was given in the data file already.
+            # So default is to use the factor from the file.
+
+        # Set the unit, if not already given by file contents
+        if channel.unit is None:
+            reader_kwargs['unit'] = self.unit
+
+        # Eventually get topography from module "SurfaceTopography" using the given keywords
+        topo = reader.topography(**reader_kwargs)
+        if self.fill_undefined_data_mode != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING:
+            topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
+        return topo.detrend(detrend_mode=self.detrend_mode)
+
     def topography(self, allow_cache=settings.DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY, allow_squeezed=True,
                    return_reader=False):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
@@ -856,11 +899,6 @@ class Topography(models.Model, SubjectMixin):
             If True, return a tuple containing the topography and the reader.
             (Default: False)
         """
-        if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
-            _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
-                         'process. This operation is potentially slow and may require a lot of memory - do not use '
-                         '`Topography.topography` within the main Django server!')
-
         cache_key = self.cache_key()
 
         #
@@ -879,69 +917,25 @@ class Topography(models.Model, SubjectMixin):
                 }
             }
 
-            if allow_squeezed:
-                try:
-                    # If we are allowed to use a squeezed version, create one if not already happened
-                    # (also needed for downloads/analyses, so this is saved in the database)
-                    if not self.has_squeezed_datafile:
-                        from topobank.taskapp.tasks import renew_squeezed_datafile
-                        renew_squeezed_datafile.delay(self.id)
-                        # this is now done in background, we load the original files instead for minimal delay
-                    else:
-                        # Okay, we can use the squeezed datafile, it's already there.
-                        toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
-                        topo = toporeader.topography(info=info)
-                        # In the squeezed format, these things are already applied/included:
-                        # unit, scaling, detrending, physical sizes
-                        # so don't need to provide them to the .topography() method
-                        _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
-                except Exception as exc:
-                    _log.error(f"Could not create squeezed datafile for topography with id {self.id}. "
-                               "Using original file instead.")
-                    topo = None
+            if allow_squeezed and self.has_squeezed_datafile:
+                if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+                    _log.warning(
+                        'You are requesting to load a (2D) topography and you are not within in a Celery worker '
+                        'process. This operation is potentially slow and may require a lot of memory - do not use '
+                        '`Topography.topography` within the main Django server!')
+
+                # Okay, we can use the squeezed datafile, it's already there.
+                toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
+                topo = toporeader.topography(info=info)
+                # In the squeezed format, these things are already applied/included:
+                # unit, scaling, detrending, physical sizes
+                # so don't need to provide them to the .topography() method
+                _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
 
             if topo is None:
+                # Read raw file if squeezed file is unavailable
                 toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
-                topography_kwargs = dict(channel_index=self.data_source,
-                                         periodic=self.is_periodic,
-                                         info=info)
-
-                # Set size if physical size was not given in datafile
-                # (see also  TopographyCreateWizard.get_form_initial)
-                # Physical size is always a tuple or None.
-                channel_dict = toporeader.channels[self.data_source]
-                channel_physical_sizes = channel_dict.physical_sizes
-                physical_sizes_is_None = channel_physical_sizes is None \
-                                         or (channel_physical_sizes == (None,)) \
-                                         or (channel_physical_sizes == (None, None))
-                # workaround, see GH 299 in Pyco
-
-                if physical_sizes_is_None:
-                    if self.size_y is None:
-                        topography_kwargs['physical_sizes'] = self.size_x,
-                    else:
-                        topography_kwargs['physical_sizes'] = self.size_x, self.size_y
-
-                if self.height_scale_editable:
-                    # Adjust height scale to value chosen by user
-                    topography_kwargs['height_scale_factor'] = self.height_scale
-
-                    # This is only possible and needed, if no height scale was
-                    # given in the data file already.
-                    # So default is to use the factor from the file.
-
-                #
-                # Set the unit, if not already given by file contents
-                #
-                channel_unit = channel_dict.unit
-                if not channel_unit and self.unit:
-                    topography_kwargs['unit'] = self.unit
-
-                # Eventually get topography from module "SurfaceTopography" using the given keywords
-                topo = toporeader.topography(**topography_kwargs)
-                if self.fill_undefined_data_mode != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING:
-                    topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
-                topo = topo.detrend(detrend_mode=self.detrend_mode)
+                topo = self._read(toporeader)
 
             cache.set(cache_key, topo)
             # be sure to invalidate the cache key if topography is saved again -> signals.py
@@ -1011,7 +1005,7 @@ class Topography(models.Model, SubjectMixin):
 
         return copy
 
-    def get_thumbnail(self, width=400, height=400, cmap=None):
+    def get_thumbnail(self, width=400, height=400, cmap=None, st_topo=None):
         """
         Make thumbnail image.
 
@@ -1029,7 +1023,8 @@ class Topography(models.Model, SubjectMixin):
         image : bytes-like
             Thumbnail image.
         """
-        st_topo = self.topography()  # SurfaceTopography instance (=st)
+        if st_topo is None:
+            st_topo = self.topography()  # SurfaceTopography instance (=st)
         image_file = io.BytesIO()
         if st_topo.dim == 1:
             dpi = 100
@@ -1230,7 +1225,7 @@ class Topography(models.Model, SubjectMixin):
 
         return plot
 
-    def _renew_thumbnail(self):
+    def _renew_thumbnail(self, st_topo=None):
         """Renews thumbnail.
 
 
@@ -1239,7 +1234,10 @@ class Topography(models.Model, SubjectMixin):
         -------
         None
         """
-        image_file = self.get_thumbnail()
+        if st_topo is None:
+            st_topo = self.topography()
+
+        image_file = self.get_thumbnail(st_topo=st_topo)
 
         # Remove old thumbnail
         self.thumbnail.delete()
@@ -1254,18 +1252,20 @@ class Topography(models.Model, SubjectMixin):
         """Return prefix for storing DZI images."""
         return f'{self.storage_prefix}/dzi'
 
-    def _renew_dzi(self):
+    def _renew_dzi(self, st_topo=None):
         """Renew deep zoom images.
 
         Returns
         -------
         None
         """
+        if st_topo is None:
+            st_topo = self.topography()
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            make_dzi(self.topography(), self._dzi_storage_prefix())
+            make_dzi(st_topo, self._dzi_storage_prefix())
 
-    def renew_thumbnail(self, none_on_error=True):
+    def renew_thumbnail(self, none_on_error=True, st_topo=None):
         """Renew thumbnail field.
 
         Parameters
@@ -1283,7 +1283,7 @@ class Topography(models.Model, SubjectMixin):
         ThumbnailGenerationException
         """
         try:
-            self._renew_thumbnail()
+            self._renew_thumbnail(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
                 self.thumbnail = None
@@ -1295,7 +1295,7 @@ class Topography(models.Model, SubjectMixin):
             else:
                 raise ThumbnailGenerationException(self, str(exc)) from exc
 
-    def renew_dzi(self, none_on_error=True):
+    def renew_dzi(self, none_on_error=True, st_topo=None):
         """Renew deep zoom image files.
 
         Parameters
@@ -1313,7 +1313,7 @@ class Topography(models.Model, SubjectMixin):
         DZIGenerationException
         """
         try:
-            self._renew_dzi()
+            self._renew_dzi(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
                 _log.warning(f"Problems while generating deep zoom images for topography {self.id}: {exc}.")
@@ -1322,33 +1322,27 @@ class Topography(models.Model, SubjectMixin):
             else:
                 raise DZIGenerationException(self, str(exc)) from exc
 
-    def renew_images(self, none_on_error=True):
-        """Renew thumbnail field and deep zoom image files.
+    def renew_squeezed_datafile(self, st_topo=None):
+        if st_topo is None:
+            st_topo = self.topography()
+        with tempfile.NamedTemporaryFile() as tmp:
+            # Write and upload NetCDF file
+            st_topo.to_netcdf(tmp.name)
+            # Delete old squeezed file
+            self.squeezed_datafile.delete()
+            # Upload new squeezed file
+            dirname, basename = os.path.split(self.datafile.name)
+            orig_stem, orig_ext = os.path.splitext(basename)
+            squeezed_name = f'{orig_stem}-squeezed.nc'
+            self.squeezed_datafile.save(squeezed_name, File(open(tmp.name, mode='rb')))
 
-        Parameters
-        ----------
-        none_on_error: bool
-            If True (default), sets thumbnail to None if there are any errors.
-            If False, exceptions have to be caught outside.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        ThumbnailGenerationException
-        DZIGenerationException
-        """
-        self.renew_thumbnail(none_on_error=none_on_error)
-        self.renew_dzi(none_on_error=none_on_error)
-
-    def renew_bandwidth_cache(self):
+    def renew_bandwidth_cache(self, st_topo=None):
         """Renew bandwidth cache.
 
         Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
         """
-        st_topo = self.topography()
+        if st_topo is None:
+            st_topo = self.topography()
         if st_topo.unit is not None:
             bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
             fac = get_unit_conversion_factor(st_topo.unit, 'm')
@@ -1359,49 +1353,116 @@ class Topography(models.Model, SubjectMixin):
             if short_reliability_cutoff is not None:
                 short_reliability_cutoff *= fac
             self.short_reliability_cutoff = short_reliability_cutoff  # None is also saved here
-            self.save()
 
-    def renew_squeezed_datafile(self):
-        """Renew squeezed datafile file."""
-        _log.info(f"Renewing squeezed datafile for topography {self.id}..")
-        with tempfile.NamedTemporaryFile() as tmp:
-            # Reread topography from original file
-            st_topo, st_toporeader = self.topography(allow_cache=False, allow_squeezed=False, return_reader=True)
+    @property
+    def is_metadata_complete(self):
+        """Check whether we have all metadata to actually read the file"""
+        return self.size_x is not None and self.unit is not None and self.height_scale is not None
 
-            # Populate datafile information in the database.
-            # (We never load the topography, so we don't know this until here.
-            # Note that datafile format information is initially undefined, which means autodetect.)
-            self.datafile_format = st_toporeader.format()
+    def renew_cache(self):
+        """
+        Inspect datafile and renew cached properties, in particular database entries on resolution, size etc. and the
+        squeezed NetCDF representation of the data.
+        """
+        # First check if we have a datafile
+        print(self.datafile)
+        if not self.datafile:
+            # No datafile; this may mean a datafile has been uploaded to S3
+            file_path = topography_datafile_path(self, self.name)  # name and filename are identical at this point
+            if not default_storage.exists(file_path):
+                raise RuntimeError(f'Topography {self.id} does not appear to have a data file.')
+            _log.info(f"Found newly uploaded file: {file_path}")
+            # Data file exists; path the datafile field to point to the correct file
+            self.datafile.name = file_path
 
-            # Populate resolution information in the database.
-            # (Note that resolution information is initially undefined.)
-            if st_topo.dim == 1:
-                self.resolution_x, = st_topo.nb_grid_pts
-                self.resolution_y = None  # This indicates that this is a line scan
-            elif st_topo.dim == 2:
-                self.resolution_x, self.resolution_y = st_topo.nb_grid_pts
+        # Populate datafile information in the database.
+        # (We never load the topography, so we don't know this until here.
+        # Fields that are undefined are autodetected.)
+        _log.info(f"Caching properties of topography {self.id}...")
+
+        # Detect file format
+        self.datafile_format = detect_format(self.datafile)
+
+        # Open topography file
+        reader = open_topography(self.datafile, self.datafile_format)
+
+        # Update channel names
+        self.channel_names = [channel.name for channel in reader.channels]
+
+        # Idiot check
+        if len(self.channel_names) == 0:
+            raise RuntimeError('Datafile could be opened, but it appears to contain no valid data.')
+
+        # Check whether the user already selected a (valid) channel, if not set to default channel
+        if self.data_source is None or self.data_source >= len(self.channel_names):
+            self.data_source = reader.default_channel.index
+
+        # Select channel
+        channel = reader.channels[self.data_source]
+
+        # Populate resolution information in the database
+        if channel.dim == 1:
+            self.resolution_x, = channel.nb_grid_pts
+            self.resolution_y = None  # This indicates that this is a line scan
+        elif channel.dim == 2:
+            self.resolution_x, self.resolution_y = channel.nb_grid_pts
+        else:
+            raise NotImplementedError(f'Cannot handle topographies of dimension {channel.dim}.')
+
+        # Populate size information in the database
+        if channel.physical_sizes is None:
+            # Data file *does not* provide size information; the user must provide it
+            self.size_editable = True
+        else:
+            # Data file *does* provide size information; the user cannot override it
+            self.size_editable = True
+            # Reset size information here
+            if channel.dim == 1:
+                self.size_x, = channel.physical_sizes
+                self.size_y = None
+            elif channel.dim == 2:
+                self.size_x, self.size_y = channel.physical_sizes
             else:
-                raise NotImplementedError(f'Cannot handle topographies of dimension {st_topo.dim}.')
+                raise NotImplementedError(f'Cannot handle topographies of dimension {channel.dim}.')
+
+        # Populate unit information in the database
+        if channel.unit is None:
+            # Data file *does not* provide unit information; the user must provide it
+            self.unit_editable = True
+        else:
+            # Data file *does* provide unit information; the user cannot override it
+            self.unit_editable = True
+            # Reset unit information here
+            self.unit = channel.unit
+
+        # Populate height scale information in the database
+        if channel.height_scale_factor is None:
+            # Data file *does not* provide height scale information; the user must provide it
+            self.height_scale_editable = True
+        else:
+            # Data file *does* provide height scale information; the user cannot override it
+            self.height_scale_editable = True
+            # Reset unit information here
+            self.height_scale = channel.height_scale_factor
+
+        # Read the file if metadata information is complete
+        if self.is_metadata_complete:
+            st_topo = self._read(reader)
 
             # Check whether original data file has undefined data point and update database accordingly.
             # (`has_undefined_data` can be undefined if undetermined.)
-            parent_topo = st_topo
-            while hasattr(parent_topo, 'parent_topography'):
-                parent_topo = parent_topo.parent_topography
-            self.has_undefined_data = parent_topo.has_undefined_data
-            if not self.has_undefined_data:
+            self.has_undefined_data = st_topo.has_undefined_data
+            if not self.has_undefined_data or self.fill_undefined_data_mode is None:
                 self.fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
-            # Write and upload NetCDF file
-            st_topo.to_netcdf(tmp.name)
-            # Delete old squeezed file
-            self.squeezed_datafile.delete()
-            # Upload new squeezed file
-            dirname, basename = os.path.split(self.datafile.name)
-            orig_stem, orig_ext = os.path.splitext(basename)
-            squeezed_name = f'{orig_stem}-squeezed.nc'
-            self.squeezed_datafile.save(squeezed_name, File(open(tmp.name, mode='rb')))
-            self.save()
+            # Refresh other cached quantities
+            self.renew_bandwidth_cache(st_topo=st_topo)
+            self.renew_thumbnail(st_topo=st_topo)
+            self.renew_dzi(st_topo=st_topo)
+            self.renew_squeezed_datafile(st_topo=st_topo)
+
+        # Save dataset
+        self.save()
 
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""
@@ -1411,3 +1472,6 @@ class Topography(models.Model, SubjectMixin):
         elif self.fill_undefined_data_mode == Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC:
             s += ' Undefined/missing values are filled in with values obtained from a harmonic interpolation.'
         return s
+
+    def task_worker(self):
+        self.renew_cache()

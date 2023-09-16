@@ -54,6 +54,11 @@ def renew_analyses_for_subject(subject, recursive=True):
 
     def submit_all(subj):
         """Trigger analyses for this subject for all available analyses functions."""
+        if subj.subject_dispatch.topography is not None:
+            if not subj.subject_dispatch.topography.is_metadata_complete:
+                _log.info(f"Analyses for {subj.get_subject_type()} {subj.id} was not triggered because metadata is not "
+                          f"complete.")
+                return
         _log.info(f"Deleting all analyses for {subj.get_subject_type()} {subj.id}...")
         Analysis.objects.filter(AnalysisSubject.Q(subj)).delete()
         _log.info(f"Triggering analyses for {subj.get_content_type().name} {subj.id} and all analysis functions...")

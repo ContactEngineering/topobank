@@ -18,7 +18,6 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector, SearchQuery
-from django.utils.encoding import filepath_to_uri
 
 from guardian.core import ObjectPermissionChecker
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
@@ -78,9 +77,9 @@ def default_storage_replace(name, content):
     content : stream
         Contents of the file.
     """
-    if default_default_storage.exists(name):
-        default_default_storage.delete(name)
-    actual_name = default_default_storage.save(name, content)
+    if default_storage.exists(name):
+        default_storage.delete(name)
+    actual_name = default_storage.save(name, content)
     if actual_name != name:
         raise IOError(f"Trying to store file with name '{name}', but Django "
                       f"storage renamed this file to '{actual_name}'.")
@@ -96,15 +95,15 @@ def recursive_delete(prefix):
     prefix : str
         Prefix to delete.
     """
-    if default_default_storage.exists(prefix):
-        directories, filenames = default_default_storage.listdir(prefix)
+    if default_storage.exists(prefix):
+        directories, filenames = default_storage.listdir(prefix)
         for filename in filenames:
             _log.info(f'Deleting file {prefix}/{filename}...')
-            default_default_storage.delete(f'{prefix}/{filename}')
+            default_storage.delete(f'{prefix}/{filename}')
         for directory in directories:
             _log.info(f'Deleting directory {prefix}/{directory}...')
             recursive_delete(f'{prefix}/{directory}')
-            default_default_storage.delete(f'{prefix}/{directory}')
+            default_storage.delete(f'{prefix}/{directory}')
 
 
 def mangle_content_type(obj, default_app_label='manager'):
@@ -1130,7 +1129,7 @@ def dzi_exists(path_prefix):
     -------
     True, if DZI data is expected to be available, else False.
     """
-    return default_default_storage.exists(f'{path_prefix}/dzi.json')
+    return default_storage.exists(f'{path_prefix}/dzi.json')
 
 
 def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):

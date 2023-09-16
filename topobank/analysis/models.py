@@ -10,7 +10,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
-from ..manager.abstract import TaskStateModel
+from ..manager.abstract import TaskStateModel, TaskStateModelSerializer
 from ..manager.models import Surface, SurfaceCollection, Topography
 from ..manager.utils import recursive_delete
 from ..users.models import User
