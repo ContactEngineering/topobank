@@ -5,6 +5,7 @@ Definition of celery tasks used in TopoBank.
 import traceback
 from decimal import Decimal
 
+from django.conf import settings
 from django.utils import timezone
 from django.shortcuts import reverse
 
@@ -18,15 +19,16 @@ from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from SurfaceTopography.Support import doi
 from ContactMechanics.Systems import IncompatibleFormulationError
 
-from .celeryapp import app
-
 from ..analysis.functions import IncompatibleTopographyException
-from ..analysis.models import Analysis, AnalysisCollection, RESULT_FILE_BASENAME
+from ..analysis.models import Analysis, AnalysisCollection, Configuration, RESULT_FILE_BASENAME
 from ..manager.models import Topography
 from ..utils import store_split_dict
 from ..users.models import User
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object, \
     current_statistics
+
+from .celeryapp import app
+from .utils import get_package_version_instance
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError,
                                            CannotPerformAnalysisError)

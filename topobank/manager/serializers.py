@@ -18,7 +18,7 @@ class TopographySerializer(TaskStateModelSerializer):
                   'size_editable', 'size_x', 'size_y', 'unit_editable', 'unit', 'height_scale_editable', 'height_scale',
                   'has_undefined_data', 'fill_undefined_data_mode', 'detrend_mode', 'resolution_x', 'resolution_y',
                   'bandwidth_lower', 'bandwidth_upper', 'short_reliability_cutoff', 'is_periodic', 'instrument_name',
-                  'instrument_type', 'instrument_parameters', 'post_data',
+                  'instrument_type', 'instrument_parameters', 'post_data', 'is_metadata_complete', 'thumbnail',
                   'duration', 'error', 'task_progress', 'task_state']  # TaskStateModelSerializer
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
@@ -26,7 +26,12 @@ class TopographySerializer(TaskStateModelSerializer):
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
                                                   queryset=Surface.objects.all())
 
+    is_metadata_complete = serializers.SerializerMethodField()
+
     post_data = serializers.DictField(default=None, read_only=True)  # Pre-signed upload location
+
+    def get_is_metadata_complete(self, obj):
+        return obj.is_metadata_complete
 
 
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):

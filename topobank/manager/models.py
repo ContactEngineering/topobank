@@ -667,7 +667,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
     # Changes in these fields trigger a refresh
     _significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale', 'fill_undefined_data_mode',
-                           'detrend_mode', 'datafile', 'data_source', 'instrument_type', 'instrument_parameters'}
+                           'detrend_mode', 'data_source', 'instrument_type', 'instrument_parameters'}
 
     #
     # Methods
@@ -690,6 +690,9 @@ class Topography(TaskStateModel, SubjectMixin):
             # Check which fields actually changed
             changed_fields = [getattr(self, name) != getattr(old_obj, name)
                               for name in self._significant_fields]
+
+            _log.debug(f'The following fields of topography {self.id} changed: '
+                       f'{[name for name, changed in zip(self._significant_fields, changed_fields) if changed ]}')
 
             # We need to refresh if any of the significant fields changed during this save
             self._refresh_dependent_data = any(changed_fields)
@@ -845,7 +848,7 @@ class Topography(TaskStateModel, SubjectMixin):
             else:
                 reader_kwargs['physical_sizes'] = self.size_x, self.size_y
 
-        if self.height_scale_editable:
+        if channel.height_scale_factor is None and self.height_scale:
             # Adjust height scale to value chosen by user
             reader_kwargs['height_scale_factor'] = self.height_scale
 
@@ -1365,7 +1368,6 @@ class Topography(TaskStateModel, SubjectMixin):
         squeezed NetCDF representation of the data.
         """
         # First check if we have a datafile
-        print(self.datafile)
         if not self.datafile:
             # No datafile; this may mean a datafile has been uploaded to S3
             file_path = topography_datafile_path(self, self.name)  # name and filename are identical at this point
@@ -1415,7 +1417,7 @@ class Topography(TaskStateModel, SubjectMixin):
             self.size_editable = True
         else:
             # Data file *does* provide size information; the user cannot override it
-            self.size_editable = True
+            self.size_editable = False
             # Reset size information here
             if channel.dim == 1:
                 self.size_x, = channel.physical_sizes
@@ -1431,7 +1433,7 @@ class Topography(TaskStateModel, SubjectMixin):
             self.unit_editable = True
         else:
             # Data file *does* provide unit information; the user cannot override it
-            self.unit_editable = True
+            self.unit_editable = False
             # Reset unit information here
             self.unit = channel.unit
 
@@ -1441,7 +1443,7 @@ class Topography(TaskStateModel, SubjectMixin):
             self.height_scale_editable = True
         else:
             # Data file *does* provide height scale information; the user cannot override it
-            self.height_scale_editable = True
+            self.height_scale_editable = False
             # Reset unit information here
             self.height_scale = channel.height_scale_factor
 

@@ -1,19 +1,18 @@
 <script>
 
+import axios from "axios";
+
 import DropZone from '../components/DropZone.vue';
-import TopographyPropertiesCard from "./TopographyPropertiesCard.vue";
+import TopographyCard from "./TopographyCard.vue";
 import TopographyUploadCard from "./TopographyUploadCard.vue";
-import TopographyErrorCard from "topobank/manager/TopographyErrorCard.vue";
 
 export default {
     name: 'surface-detail',
     components: {
-        TopographyErrorCard,
         DropZone,
-        TopographyPropertiesCard,
+        TopographyCard,
         TopographyUploadCard
     },
-    inject: ['csrfToken'],
     props: {
         surfaceUrl: String,
         newTopographyUrl: {
@@ -36,19 +35,11 @@ export default {
     methods: {
         updateCard() {
             /* Fetch JSON describing the card */
-            fetch(this.surfaceUrl, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRFToken': this.csrfToken
-                }
-            })
-                .then(response => response.json())
-                .then(data => {
-                    this._data = data;
-                    this._topographies = data.topography_set;
-                    console.log(data);
-                });
+            axios.get(this.surfaceUrl).then(response => {
+                this._data = response.data;
+                this._topographies = response.data.topography_set;
+                console.log(response.data);
+            });
         },
         onFilesDropped(files) {
             for (const file of files) {
@@ -56,26 +47,15 @@ export default {
             }
         },
         uploadNewTopography(file) {
-            console.log(file);
-            fetch(this.newTopographyUrl, {
-                method: 'POST',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.csrfToken
-                },
-                body: JSON.stringify({surface: this.surfaceUrl, name: file.name}),
-            })
-                .then(response => response.json())
-                .then(data => {
-                    console.log(data);
-                    data.file = file;
-                    this._uploads.push(data);
-                });
+            axios.post(this.newTopographyUrl, {surface: this.surfaceUrl, name: file.name}).then(response => {
+                let upload = response.data;
+                upload.file = file;  // need to know which file to upload
+                this._uploads.push(upload);
+            });
         },
         uploadSuccessful(topography) {
             this._uploads.splice(this._uploads.indexOf(topography), 1);
-            this._topographies.push(topography);
+            this._topographies.push(topography);  // add to beginning of array
         },
         topographyDeleted(topography) {
             this._topographies.splice(this._uploads.indexOf(topography), 1);
@@ -159,15 +139,11 @@ export default {
                                             :post-data="upload.post_data"
                                             @upload-successful="(url) => uploadSuccessful(upload)">
                     </topography-upload-card>
-                    <topography-error-card v-for="topography in _topographies"
-                                           :url="topography.url"
-                                           :name="topography.name"
-                                           :error="topography.error">
-                    </topography-error-card>
-                    <topography-properties-card v-for="topography in _topographies"
-                                                :data="topography"
-                                                @topography-deleted="(url) => topographyDeleted(topography)">
-                    </topography-properties-card>
+                    <div v-for="topography in _topographies">
+                        <topography-card :topography="topography"
+                                         @topography-deleted="(url) => topographyDeleted(topography)">
+                        </topography-card>
+                    </div>
                 </div>
 
                 <div class="tab-pane fade" id="bandwidths">
@@ -239,7 +215,7 @@ export default {
             <div class="row mb-3">
                 <div class="col">
 
-                    <a :href="`/analysis/html/list/?subjects=${subjects_b64}`"
+                    <a :href="`/analysis/html/list/?subjects=`"
                        class="btn btn-default btn-block btn-lg">
                         Analyze this digital surface twin
                     </a>

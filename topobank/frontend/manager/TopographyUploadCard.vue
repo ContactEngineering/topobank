@@ -8,7 +8,6 @@ import {
 
 export default {
     name: 'topography-upload-card',
-    inject: ['csrfToken'],
     components: {
         BProgress
     },
@@ -34,7 +33,6 @@ export default {
             {onUploadProgress: this.onProgress}
         ).then(response => {
             // Upload successfully finished
-            console.log(response);
             this.$emit('upload-successful', this.postData.url);
         });
     },

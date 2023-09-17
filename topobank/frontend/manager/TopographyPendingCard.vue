@@ -2,15 +2,21 @@
 
 import axios from "axios";
 
+import {
+    BSpinner
+} from 'bootstrap-vue-next';
+
 export default {
-    name: 'topography-error-card',
+    name: 'topography-pending-card',
+    components: {
+        BSpinner
+    },
     emits: [
         'topography-deleted'
     ],
     props: {
         url: String,  // API url
         name: String,  // Used for the title of the card
-        error: String,  // Error string to display
     },
     methods: {
         deleteTopography() {
@@ -22,7 +28,7 @@ export default {
 </script>
 
 <template>
-    <div class="card text-white bg-danger mb-1">
+    <div class="card text-white bg-secondary mb-1">
         <div class="card-header">
             <div class="btn-group btn-group-sm float-end">
                 <button class="btn btn-outline-light text-white float-end"
@@ -35,7 +41,8 @@ export default {
             </div>
         </div>
         <div class="card-body">
-            {{ error }}
+            <b-spinner small></b-spinner>
+            Inspecting data file...
         </div>
     </div>
 </template>

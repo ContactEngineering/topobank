@@ -13,7 +13,6 @@ export default {
             default: 2000  // milliseconds
         }
     },
-    inject: ['csrfToken'],
     data() {
         return {
             _analysis: this.analysis,
