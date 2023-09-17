@@ -1,16 +1,19 @@
 <script>
 
 import axios from "axios";
+
 import TopographyErrorCard from "./TopographyErrorCard.vue";
 import TopographyPendingCard from "./TopographyPendingCard.vue";
 import TopographyPropertiesCard from "./TopographyPropertiesCard.vue";
+import TopographyUploadCard from "./TopographyUploadCard.vue";
 
 export default {
     name: 'topography-card',
     components: {
+        TopographyErrorCard,
         TopographyPropertiesCard,
         TopographyPendingCard,
-        TopographyErrorCard
+        TopographyUploadCard,
     },
     emits: [
         'topography-deleted'
@@ -50,18 +53,24 @@ export default {
 </script>
 
 <template>
-    <topography-pending-card v-if="_topography.task_state != 'su' && _topography.task_state != 'fa'"
+    <topography-upload-card v-if="_topography.post_data !== null"
+                            :name="_topography.name"
+                            :file="_topography.file"
+                            :post-data="_topography.post_data"
+                            @upload-successful="checkState">
+    </topography-upload-card>
+    <topography-pending-card v-if="_topography.post_data === null && _topography.task_state != 'su' && _topography.task_state != 'fa'"
                              :url="_topography.url"
                              :name="_topography.name"
                              @topography-deleted="topographyDeleted">
     </topography-pending-card>
-    <topography-error-card v-if="_topography.task_state == 'fa'"
+    <topography-error-card v-if="_topography.post_data === null && _topography.task_state == 'fa'"
                            :url="_topography.url"
                            :name="_topography.name"
                            :error="_topography.error"
                            @topography-deleted="topographyDeleted">
     </topography-error-card>
-    <topography-properties-card v-if="_topography.task_state == 'su'"
+    <topography-properties-card v-if="_topography.post_data === null && _topography.task_state == 'su'"
                                 :data="_topography"
                                 @topography-deleted="topographyDeleted">
     </topography-properties-card>

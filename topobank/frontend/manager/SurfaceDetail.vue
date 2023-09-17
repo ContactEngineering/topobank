@@ -4,14 +4,12 @@ import axios from "axios";
 
 import DropZone from '../components/DropZone.vue';
 import TopographyCard from "./TopographyCard.vue";
-import TopographyUploadCard from "./TopographyUploadCard.vue";
 
 export default {
     name: 'surface-detail',
     components: {
         DropZone,
-        TopographyCard,
-        TopographyUploadCard
+        TopographyCard
     },
     props: {
         surfaceUrl: String,
@@ -24,7 +22,6 @@ export default {
         return {
             _data: null,
             _topographies: [],
-            _uploads: []
         }
     },
     mounted() {
@@ -50,15 +47,11 @@ export default {
             axios.post(this.newTopographyUrl, {surface: this.surfaceUrl, name: file.name}).then(response => {
                 let upload = response.data;
                 upload.file = file;  // need to know which file to upload
-                this._uploads.push(upload);
+                this._topographies.push(upload);
             });
         },
-        uploadSuccessful(topography) {
-            this._uploads.splice(this._uploads.indexOf(topography), 1);
-            this._topographies.push(topography);  // add to beginning of array
-        },
         topographyDeleted(topography) {
-            this._topographies.splice(this._uploads.indexOf(topography), 1);
+            this._topographies.splice(this._topographies.indexOf(topography), 1);
         }
     }
 };
@@ -133,12 +126,6 @@ export default {
 
                 <div class="tab-pane fade active show" id="topographies">
                     <drop-zone @files-dropped="onFilesDropped"></drop-zone>
-                    <topography-upload-card v-for="upload in _uploads"
-                                            :name="upload.name"
-                                            :file="upload.file"
-                                            :post-data="upload.post_data"
-                                            @upload-successful="(url) => uploadSuccessful(upload)">
-                    </topography-upload-card>
                     <div v-for="topography in _topographies">
                         <topography-card :topography="topography"
                                          @topography-deleted="(url) => topographyDeleted(topography)">
