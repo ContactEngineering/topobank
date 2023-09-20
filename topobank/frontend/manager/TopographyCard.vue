@@ -16,7 +16,8 @@ export default {
         TopographyUploadCard,
     },
     emits: [
-        'topography-deleted'
+        'topography-deleted',
+        'topography-updated',
     ],
     props: {
         topography: Object,
@@ -42,36 +43,59 @@ export default {
         checkState() {
             axios.get(this._topography.url).then(response => {
                 this._topography = response.data;
+                this.$emit('topography-updated', this._topography);
                 this.scheduleStateCheck();
             });
         },
         topographyDeleted(url) {
+            console.log(url);
             this.$emit('topography-deleted', url);
+        },
+        topographyUpdated(topography) {
+            this._topography = topography;
+            this.$emit('topography-updated', this._topography);
+            this.scheduleStateCheck();
+        }
+    },
+    computed: {
+        isUploading() {
+            return this._topography.post_data !== undefined && this._topography.post_data !== null
+        }
+    },
+    watch: {
+        topography(newValue, oldValue) {
+            this._topography = newValue;
+            this.scheduleStateCheck();
         }
     }
 };
 </script>
 
 <template>
-    <topography-upload-card v-if="_topography.post_data !== null"
-                            :name="_topography.name"
-                            :file="_topography.file"
-                            :post-data="_topography.post_data"
-                            @upload-successful="checkState">
+    <topography-upload-card
+        v-if="isUploading"
+        :name="_topography.name"
+        :file="_topography.file"
+        :post-data="_topography.post_data"
+        @upload-successful="checkState">
     </topography-upload-card>
-    <topography-pending-card v-if="_topography.post_data === null && _topography.task_state != 'su' && _topography.task_state != 'fa'"
-                             :url="_topography.url"
-                             :name="_topography.name"
-                             @topography-deleted="topographyDeleted">
+    <topography-pending-card
+        v-if="!isUploading && _topography.task_state != 'su' && _topography.task_state != 'fa'"
+        :url="_topography.url"
+        :name="_topography.name"
+        @topography-deleted="topographyDeleted">
     </topography-pending-card>
-    <topography-error-card v-if="_topography.post_data === null && _topography.task_state == 'fa'"
-                           :url="_topography.url"
-                           :name="_topography.name"
-                           :error="_topography.error"
-                           @topography-deleted="topographyDeleted">
+    <topography-error-card
+        v-if="!isUploading && _topography.task_state == 'fa'"
+        :url="_topography.url"
+        :name="_topography.name"
+        :error="_topography.error"
+        @topography-deleted="topographyDeleted">
     </topography-error-card>
-    <topography-properties-card v-if="_topography.post_data === null && _topography.task_state == 'su'"
-                                :data="_topography"
-                                @topography-deleted="topographyDeleted">
+    <topography-properties-card
+        v-if="!isUploading && _topography.task_state == 'su'"
+        :data="_topography"
+        @topography-deleted="topographyDeleted"
+        @topography-updated="topographyUpdated">
     </topography-properties-card>
 </template>

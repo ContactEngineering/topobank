@@ -696,6 +696,8 @@ class Topography(TaskStateModel, SubjectMixin):
 
             # We need to refresh if any of the significant fields changed during this save
             self._refresh_dependent_data = any(changed_fields)
+
+        # Save to data base
         super().save(*args, **kwargs)
         cache.delete(self.cache_key())
 
@@ -1382,11 +1384,9 @@ class Topography(TaskStateModel, SubjectMixin):
         # Fields that are undefined are autodetected.)
         _log.info(f"Caching properties of topography {self.id}...")
 
-        # Detect file format
-        self.datafile_format = detect_format(self.datafile)
-
         # Open topography file
-        reader = open_topography(self.datafile, self.datafile_format)
+        reader = get_topography_reader(self.datafile)
+        self.datafile_format = reader.format()
 
         # Update channel names
         self.channel_names = [channel.name for channel in reader.channels]
@@ -1449,6 +1449,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:
+            _log.info(f"Metadata of topography {self.id} is complete. Generating imaeges.")
             st_topo = self._read(reader)
 
             # Check whether original data file has undefined data point and update database accordingly.

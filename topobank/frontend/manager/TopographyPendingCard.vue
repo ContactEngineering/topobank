@@ -31,7 +31,7 @@ export default {
     <div class="card mb-1">
         <div class="card-header">
             <div class="btn-group btn-group-sm float-end">
-                <button class="btn btn-outline-light text-white float-end"
+                <button class="btn btn-outline-secondary float-end"
                         @click="deleteTopography">
                     <i class="fa fa-trash"></i>
                 </button>

@@ -50,8 +50,13 @@ export default {
                 this._topographies.push(upload);
             });
         },
-        topographyDeleted(topography) {
-            this._topographies.splice(this._topographies.indexOf(topography), 1);
+        topographyDeleted(url) {
+            const index = this._topographies.findIndex(topography => topography.url === url);
+            console.log(index)
+            this._topographies.splice(index, 1);
+        },
+        topographyUpdated(index, topography) {
+            this._topographies[index] = topography;
         }
     }
 };
@@ -126,9 +131,10 @@ export default {
 
                 <div class="tab-pane fade active show" id="topographies">
                     <drop-zone @files-dropped="onFilesDropped"></drop-zone>
-                    <div v-for="topography in _topographies">
+                    <div v-for="(topography, index) in _topographies">
                         <topography-card :topography="topography"
-                                         @topography-deleted="(url) => topographyDeleted(topography)">
+                                         @topography-deleted="topographyDeleted"
+                                         @topography-updated="topography => topographyUpdated(index, topography)">
                         </topography-card>
                     </div>
                 </div>

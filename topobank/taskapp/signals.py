@@ -28,4 +28,7 @@ def post_topography_save(sender, instance, **kwargs):
             # Don' trigger this from inside a Celery worker, otherwise we'd have an infinite loop
             _log.info(f"Renewing cached properties of {instance.get_subject_type()} {instance.id} because metadata "
                       f"was modified...")
-            transaction.on_commit(renew_topography_cache.si(instance.id))
+            instance.task_id = None
+            instance.task_state = 'pe'
+            instance.save()
+            renew_topography_cache.delay(instance.id)
