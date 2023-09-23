@@ -131,13 +131,16 @@ export default {
             // Copy writable entries
             let writeableEntries = [
                 'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'is_periodic',
-                'meansurement_data', 'name', 'tags'
+                'measurement_date', 'name', 'tags'
             ];
             if (this._data.size_editable) {
                 writeableEntries.push('size_x', 'size_y');
             }
             if (this._data.unit_editable) {
                 writeableEntries.push('unit');
+            }
+            if (this._data.height_scale_editable) {
+                writeableEntries.push('height_scale');
             }
 
             let returnDict = {};
