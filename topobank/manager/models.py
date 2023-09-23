@@ -665,7 +665,7 @@ class Topography(TaskStateModel, SubjectMixin):
     #
     _refresh_dependent_data = False
 
-    # Changes in these fields trigger a refresh
+    # Changes in these fields trigger a refresh of the topography cache and of all analyses
     _significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale', 'fill_undefined_data_mode',
                            'detrend_mode', 'data_source', 'instrument_type', 'instrument_parameters'}
 
@@ -691,8 +691,10 @@ class Topography(TaskStateModel, SubjectMixin):
             changed_fields = [getattr(self, name) != getattr(old_obj, name)
                               for name in self._significant_fields]
 
-            _log.debug(f'The following fields of topography {self.id} changed: '
-                       f'{[name for name, changed in zip(self._significant_fields, changed_fields) if changed ]}')
+            changed_fields = [name for name, changed in zip(self._significant_fields, changed_fields) if changed ]
+            _log.debug(f'The following significant fields of topography {self.id} changed: ')
+            for name in changed_fields:
+                _log.debug(f"{name}: was '{getattr(old_obj, name)}', is now '{getattr(self, name)}'")
 
             # We need to refresh if any of the significant fields changed during this save
             self._refresh_dependent_data = any(changed_fields)

@@ -43,7 +43,7 @@
     <!-- Navbar -->
 
     {# Logo / name of the application #}
-    <a class="navbar-brand" href="{% url 'home' %}"><img src="{% static 'images/ce_logo.svg' %}" height="25px">&nbsp
+    <a class="navbar-brand ms-3" href="{% url 'home' %}"><img src="{% static 'images/ce_logo.svg' %}" height="25px">&nbsp
       contact.engineering</a>
     {% if request %}  {# in case of error 500, there is no request #}
       <div class="collapse navbar-collapse" id="navbar_supported_content">
