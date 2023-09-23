@@ -589,7 +589,7 @@ class Topography(TaskStateModel, SubjectMixin):
     # Descriptive fields
     #
     surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
-    name = models.CharField(max_length=80)  # This must be identical to the file name on upload
+    name = models.TextField(blank=True)  # This must be identical to the file name on upload
     creator = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)

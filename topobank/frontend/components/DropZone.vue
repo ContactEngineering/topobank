@@ -50,7 +50,7 @@ export default {
          @dragleave.prevent="_active=false"
          @drop.prevent="onDrop">
         <!-- share state with the scoped slot -->
-        <slot :dropZoneActive="_active">Drop your measurements here or</slot>
+        <slot :dropZoneActive="_active">Drop your measurements here or </slot>
         <label>
             <span class="btn btn-primary">click to select files</span>
             <input class="d-none"
