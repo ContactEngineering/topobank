@@ -88,10 +88,6 @@ input.checkbox-color-design:checked + span:after {
     font-size: small;
 }
 
-.search-result-card:hover {
-    box-shadow: 2px 2px 2px lightgrey;
-}
-
 .btn:active {
     box-shadow: inset 0 3px 5px rgba(0, 0, 0, 0.125);
 }
@@ -185,13 +181,13 @@ td.ellipsis {
 
 /** bokeh's "primary" color should be same as bootstrap's */
 div.bk-btn-group button.bk-btn-primary {
-    background-color: #007bff;
-    border-color: #007aff;
+    background-color: $primary;
+    border-color: $primary;
 }
 
 div.bk-btn-group button.bk-btn-primary:hover {
-    background-color: #0069d9;
-    border-color: #0062cc;
+    background-color: $primary;
+    border-color: $primary;
 }
 
 /** Extra (dynamic) tabs */
@@ -282,7 +278,7 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 .nav-pills-custom .nav-link {
     background: $white;
     position: relative;
-    border: 1px solid $white;
+    border: 1px solid $primary-border-subtle;
 }
 
 .nav-pills-custom .nav-link.active {
@@ -1073,15 +1069,15 @@ body.sidebar-toggled footer.sticky-footer {
 }
 
 .card-default > .card-header {
-    color: #333;
-    background-color: #f5f5f5;
-    border-color: #ddd;
+    color: $dark;
+    background-color: $white;
+    border-color: $secondary-border-subtle;
 }
 
 .btn-default {
-    color: #333;
-    background-color: #fff;
-    border-color: #ccc;
+    color: $dark;
+    background-color: $white;
+    border-color: $secondary-border-subtle;
 }
 
 .navbar-expand .navbar-nav .alerts-dropdown {
@@ -1187,15 +1183,6 @@ body.sidebar-toggled footer.sticky-footer {
 
 #information-content, #user-profile-details-content, #notification-content {
     display: none;
-}
-
-.signout-class, contact-class, version-info-class, fb-in-for-class {
-    color: black !important;
-}
-
-.signout-class, contact-class, version-info-class, fb-in-for-class:hover {
-    color: darkgray !important;
-    background: #fff !important;
 }
 
 .dropdown-divider {
