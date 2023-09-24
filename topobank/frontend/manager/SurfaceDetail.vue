@@ -43,7 +43,6 @@ export default {
             axios.get(this.surfaceUrl).then(response => {
                 this._data = response.data;
                 this._topographies = response.data.topography_set;
-                console.log(response.data);
             });
         },
         onFilesDropped(files) {
@@ -60,7 +59,6 @@ export default {
         },
         topographyDeleted(url) {
             const index = this._topographies.findIndex(topography => topography.url === url);
-            console.log(index)
             this._topographies.splice(index, 1);
         },
         topographyUpdated(index, topography) {
