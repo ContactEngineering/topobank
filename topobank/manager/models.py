@@ -196,7 +196,7 @@ class Surface(models.Model, SubjectMixin):
     name = models.CharField(max_length=80)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
-    category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
+    category = models.CharField(max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False)
     tags = tm.TagField(to=TagModel)
 
     objects = models.Manager()

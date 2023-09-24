@@ -88,28 +88,28 @@ export default {
             <div class="nav nav-pills nav-pills-custom flex-column"
                  aria-orientation="vertical">
 
-                <a class="nav-link mb-3 p-3 shadow active"
+                <a class="nav-link mb-3 p-3 active"
                    data-toggle="pill"
                    href="#topographies"
                    role="tab"
                    aria-selected="true">
                     Measurements
                 </a>
-                <a class="nav-link mb-3 p-3 shadow"
+                <a class="nav-link mb-3 p-3"
                    data-toggle="pill"
                    href="#bandwidths"
                    role="tab"
                    aria-selected="false">
                     Bandwidths
                 </a>
-                <a class="nav-link mb-3 p-3 shadow"
+                <a class="nav-link mb-3 p-3"
                    data-toggle="pill"
                    href="#description"
                    role="tab"
                    aria-selected="false">
                     Description
                 </a>
-                <a class="nav-link mb-3 p-3 shadow"
+                <a class="nav-link mb-3 p-3"
                    data-toggle="pill"
                    href="#permissions"
                    role="tab"
@@ -143,9 +143,9 @@ export default {
             </div>
         </div>
 
-        <div class="col-12 col-sm-5 col-md-6 col-lg-7">
+        <div class="col-12 col-sm-5 col-md-6 col-lg-7 bg-light">
 
-            <div class="tab-content rounded tab-content-vertical-tabs">
+            <div class="tab-content rounded tab-content-vertical-tabs mt-2 mb-2">
 
                 <div class="tab-pane fade active show" id="topographies">
                     <drop-zone @files-dropped="onFilesDropped"></drop-zone>
