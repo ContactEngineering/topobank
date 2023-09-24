@@ -1398,7 +1398,7 @@ class Topography(TaskStateModel, SubjectMixin):
             raise RuntimeError('Datafile could be opened, but it appears to contain no valid data.')
 
         # Check whether the user already selected a (valid) channel, if not set to default channel
-        if self.data_source is None or self.data_source >= len(self.channel_names):
+        if self.data_source is None or self.data_source < 0 or self.data_source >= len(self.channel_names):
             self.data_source = reader.default_channel.index
 
         # Select channel
