@@ -17,6 +17,14 @@ export default {
             type: String,
             default: '/manager/api/topography/'
         },
+        categories: {
+            type: Object,
+            default: {
+                dum: 'Dummy data',
+                exp: 'Experimental data',
+                sim: 'Simulated data'
+            }
+        }
     },
     data() {
         return {
@@ -57,6 +65,18 @@ export default {
         },
         topographyUpdated(index, topography) {
             this._topographies[index] = topography;
+        }
+    },
+    computed: {
+        category() {
+            if (this._data === null) {
+                return 'Unknown category';
+            }
+            const retval = this.categories[this._data.category];
+            if (retval === undefined) {
+                return 'Unknown category';
+            }
+            return retval;
         }
     }
 };
@@ -189,17 +209,17 @@ export default {
             </div>
             <div class="row mb-3">
                 <div class="col">
-                    <div class="card">
+                    <div v-if="_data !== null"
+                         class="card">
                         <div class="card-body">
                             <div>
                                 <span class="badge bg-secondary surface-category-headline">
-                                  ...surface.get_category_display|default_if_none:"category not defined yet"...
+                                    {{ category }}
                                 </span>
                             </div>
                             <div>
-                                ...for tag in surface.tags.all...
-                                <span class="badge bg-success">...tag.name...</span>
-                                ...endfor...
+                                <span v-for="tag in _data.tags"
+                                      class="badge bg-success">{{ tag.name }}</span>
                             </div>
                         </div>
                     </div>
