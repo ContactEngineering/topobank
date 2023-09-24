@@ -188,12 +188,21 @@ export default {
         data(newValue, oldValue) {
             this.mogrifyDataFromGETRequest(newValue);
         }
+    },
+    computed: {
+        isMetadataIncomplete() {
+            if (this._data !== null && this._data.is_metadata_complete !== undefined) {
+                return !this._data.is_metadata_complete;
+            } else {
+                return true;
+            }
+        }
     }
 };
 </script>
 
 <template>
-    <div class="card mb-1">
+    <div class="card mb-1" :class="{ 'bg-danger-subtle': isMetadataIncomplete }">
         <div class="card-header">
             <div class="btn-group btn-group-sm float-end">
                 <button v-if="!_editing && !_saving" class="btn btn-outline-secondary float-end"
@@ -231,10 +240,14 @@ export default {
                 <span class="badge bg-info ms-2">{{ _data.resolution_x }} &times; {{
                         _data.resolution_y
                     }} data points</span>
+                <span v-if="_data.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
+                <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
             </div>
             <div v-if="_data !== null && _data.resolution_y === null">
                 <div class="badge bg-warning ms-1">{{ _data.datafile_format }}</div>
                 <div class="badge bg-info ms-2">{{ _data.resolution_x }} data points</div>
+                <span v-if="_data.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
+                <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
             </div>
         </div>
         <div class="card-body">
@@ -242,45 +255,65 @@ export default {
                      variant="danger">
                 {{ _error }}
             </b-alert>
-            <div v-if="_data === null" class="tab-content">
+            <div v-if="_data === null"
+                 class="tab-content">
                 <b-spinner small></b-spinner>
                 Please wait...
             </div>
             <div v-if="_data !== null">
                 <div class="row">
                     <div class="col-2">
-                        <img class="img-thumbnail mw-100" :src="_data.thumbnail">
+                        <img class="img-thumbnail mw-100"
+                             :src="_data.thumbnail">
                     </div>
                     <div class="col-10">
                         <div class="row">
                             <div class="col-4">
                                 <label for="input-name">Name</label>
-                                <b-form-input id="input-name" v-model="_data.name" :disabled="!_editing">
+                                <b-form-input id="input-name"
+                                              v-model="_data.name"
+                                              :disabled="!_editing">
                                 </b-form-input>
                             </div>
                             <div class="col-4">
                                 <label for="input-physical-size">Physical size</label>
                                 <div class="input-group mb-1">
-                                    <input id="input-physical-size" type="number" step="any" class="form-control"
-                                           v-model="_data.size_x" :disabled="!_editing || !_data.size_editable">
-                                    <span class="input-group-text">&times;</span>
-                                    <input type="number" step="any" class="form-control" v-model="_data.size_y"
+                                    <input id="input-physical-size"
+                                           type="number"
+                                           step="any"
+                                           class="form-control"
+                                           :class="{ 'border-danger': _data.size_x === null }"
+                                           v-model="_data.size_x"
                                            :disabled="!_editing || !_data.size_editable">
-                                    <b-form-select :options="_units" v-model="_data.unit"
+                                    <span class="input-group-text">&times;</span>
+                                    <input type="number"
+                                           step="any"
+                                           class="form-control"
+                                           :class="{ 'border-danger': _data.size_y === null }"
+                                           v-model="_data.size_y"
+                                           :disabled="!_editing || !_data.size_editable">
+                                    <b-form-select :options="_units"
+                                                   v-model="_data.unit"
+                                                   :class="{ 'border-danger': _data.unit === null }"
                                                    :disabled="!_editing || !_data.unit_editable">
                                     </b-form-select>
                                 </div>
                             </div>
                             <div class="col-2">
                                 <label for="input-physical-size">Height scale</label>
-                                <b-form-input id="input-physical-size" type="number" step="any"
+                                <b-form-input id="input-physical-size"
+                                              type="number"
+                                              step="any"
+                                              :class="{ 'border-danger': _data.height_scale === null }"
                                               v-model="_data.height_scale"
                                               :disabled="!_editing || !_data.height_scale_editable">
                                 </b-form-input>
                             </div>
                             <div class="col-2">
                                 <label for="input-measurement-date">Date</label>
-                                <b-form-input id="input-measurement-date" type="date" v-model="_data.measurement_date"
+                                <b-form-input id="input-measurement-date"
+                                              type="date"
+                                              v-model="_data.measurement_date"
                                               :disabled="!_editing">
                                 </b-form-input>
                             </div>
@@ -319,14 +352,17 @@ export default {
                             <div class="row">
                                 <div class="col-6">
                                     <label for="input-instrument-name">Instrument name</label>
-                                    <b-form-input id="input-instrument-name" v-model="_data.instrument_name"
+                                    <b-form-input id="input-instrument-name"
+                                                  v-model="_data.instrument_name"
                                                   :disabled="!_editing">
                                     </b-form-input>
                                 </div>
                                 <div class="col-6">
                                     <label for="input-instrument-type">Instrument type</label>
-                                    <b-form-select id="input-instrument-type" :options="_instrumentTypes"
-                                                   v-model="_data.instrument_type" :disabled="!_editing">
+                                    <b-form-select id="input-instrument-type"
+                                                   :options="_instrumentTypes"
+                                                   v-model="_data.instrument_type"
+                                                   :disabled="!_editing">
                                     </b-form-select>
                                 </div>
                             </div>
