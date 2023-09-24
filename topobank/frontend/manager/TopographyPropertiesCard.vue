@@ -260,95 +260,110 @@ export default {
                 <b-spinner small></b-spinner>
                 Please wait...
             </div>
-            <div v-if="_data !== null">
+            <div v-if="_data !== null"
+                 class="container">
                 <div class="row">
                     <div class="col-2">
                         <img class="img-thumbnail mw-100"
                              :src="_data.thumbnail">
                     </div>
                     <div class="col-10">
-                        <div class="row">
-                            <div class="col-4">
-                                <label for="input-name">Name</label>
-                                <b-form-input id="input-name"
-                                              v-model="_data.name"
-                                              :disabled="!_editing">
-                                </b-form-input>
-                            </div>
-                            <div class="col-4">
-                                <label for="input-physical-size">Physical size</label>
-                                <div class="input-group mb-1">
-                                    <input id="input-physical-size"
-                                           type="number"
-                                           step="any"
-                                           class="form-control"
-                                           :class="{ 'border-danger': _data.size_x === null }"
-                                           v-model="_data.size_x"
-                                           :disabled="!_editing || !_data.size_editable">
-                                    <span class="input-group-text">&times;</span>
-                                    <input type="number"
-                                           step="any"
-                                           class="form-control"
-                                           :class="{ 'border-danger': _data.size_y === null }"
-                                           v-model="_data.size_y"
-                                           :disabled="!_editing || !_data.size_editable">
-                                    <b-form-select :options="_units"
-                                                   v-model="_data.unit"
-                                                   :class="{ 'border-danger': _data.unit === null }"
-                                                   :disabled="!_editing || !_data.unit_editable">
-                                    </b-form-select>
+                        <div class="container">
+                            <div class="row">
+                                <div class="col-6">
+                                    <label for="input-name">Name</label>
+                                    <b-form-input id="input-name"
+                                                  v-model="_data.name"
+                                                  :disabled="!_editing">
+                                    </b-form-input>
+                                </div>
+                                <div class="col-3">
+                                    <label for="input-measurement-date">Date</label>
+                                    <b-form-input id="input-measurement-date"
+                                                  type="date"
+                                                  v-model="_data.measurement_date"
+                                                  :disabled="!_editing">
+                                    </b-form-input>
+                                </div>
+                                <div class="col-3">
+                                    <label for="input-periodic">Flags</label>
+                                    <b-form-checkbox id="input-periodic"
+                                                     v-model="_data.is_periodic"
+                                                     :disabled="!_editing">
+                                        Data is periodic
+                                    </b-form-checkbox>
                                 </div>
                             </div>
-                            <div class="col-2">
-                                <label for="input-physical-size">Height scale</label>
-                                <b-form-input id="input-physical-size"
-                                              type="number"
-                                              step="any"
-                                              :class="{ 'border-danger': _data.height_scale === null }"
-                                              v-model="_data.height_scale"
-                                              :disabled="!_editing || !_data.height_scale_editable">
-                                </b-form-input>
-                            </div>
-                            <div class="col-2">
-                                <label for="input-measurement-date">Date</label>
-                                <b-form-input id="input-measurement-date"
-                                              type="date"
-                                              v-model="_data.measurement_date"
-                                              :disabled="!_editing">
-                                </b-form-input>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-12">
-                                <b-form-checkbox v-model="_data.is_periodic" :disabled="!_editing">
-                                    This topography should be considered periodic in terms of a repeating array of
-                                    the uploaded data
-                                </b-form-checkbox>
-                            </div>
-                        </div>
-                        <div class="row">
-                            <div class="col-12">
-                                <label for="input-tags">Tags</label>
-                                <b-form-tags id="input-tags" v-model="_data.tags" :disabled="!_editing">
-                                </b-form-tags>
+                            <div class="row">
+                                <div class="col-8">
+                                    <label for="input-physical-size">Physical size</label>
+                                    <div class="input-group mb-1">
+                                        <b-form-input id="input-physical-size"
+                                                      type="number"
+                                                      step="any"
+                                                      :class="{ 'border-danger': _data.size_x === null }"
+                                                      v-model="_data.size_x"
+                                                      :disabled="!_editing || !_data.size_editable">
+                                        </b-form-input>
+                                        <span v-if="_data.resolution_y !== null"
+                                              class="input-group-text">
+                                            &times;
+                                        </span>
+                                        <b-form-input v-if="_data.resolution_y !== null"
+                                                      type="number"
+                                                      step="any"
+                                                      :class="{ 'border-danger': _data.size_y === null }"
+                                                      v-model="_data.size_y"
+                                                      :disabled="!_editing || !_data.size_editable">
+                                        </b-form-input>
+                                        <b-form-select class="unit-select"
+                                                       :options="_units"
+                                                       v-model="_data.unit"
+                                                       :class="{ 'border-danger': _data.unit === null }"
+                                                       :disabled="!_editing || !_data.unit_editable">
+                                        </b-form-select>
+                                    </div>
+                                </div>
+                                <div class="col-4">
+                                    <label for="input-physical-size">Height scale</label>
+                                    <b-form-input id="input-physical-size"
+                                                  type="number"
+                                                  step="any"
+                                                  :class="{ 'border-danger': _data.height_scale === null }"
+                                                  v-model="_data.height_scale"
+                                                  :disabled="!_editing || !_data.height_scale_editable">
+                                    </b-form-input>
+                                </div>
                             </div>
                         </div>
                     </div>
                 </div>
                 <div class="row mt-2">
                     <div class="col-12">
-                        <div class="row" v-if="_descriptionVisible">
-                            <div class="col-12">
-                                <label for="input-descriptions">Description</label>
-                                <b-form-textarea id="input-description"
-                                                 placeholder="Please provide a short description of this measurement"
-                                                 v-model="_data.description"
-                                                 :disabled="!_editing"
-                                                 rows="5">
-                                </b-form-textarea>
+                        <div v-if="_descriptionVisible" class="container">
+                            <div class="row">
+                                <div class="col-12">
+                                    <label for="input-descriptions">Description</label>
+                                    <b-form-textarea id="input-description"
+                                                     placeholder="Please provide a short description of this measurement"
+                                                     v-model="_data.description"
+                                                     :disabled="!_editing"
+                                                     rows="5">
+                                    </b-form-textarea>
+                                </div>
+                            </div>
+                            <div class="row">
+                                <div class="col-12">
+                                    <label for="input-tags">Tags</label>
+                                    <b-form-tags id="input-tags"
+                                                 tag-pills
+                                                 v-model="_data.tags"
+                                                 :disabled="!_editing">
+                                    </b-form-tags>
+                                </div>
                             </div>
                         </div>
-                        <div v-if="_instrumentVisible">
+                        <div v-if="_instrumentVisible" class="container">
                             <div class="row">
                                 <div class="col-6">
                                     <label for="input-instrument-name">Instrument name</label>
@@ -405,7 +420,8 @@ export default {
                                 </div>
                             </div>
                         </div>
-                        <div class="row" v-if="_filtersVisible">
+                        <div v-if="_filtersVisible" class="container" >
+
                         </div>
                     </div>
                 </div>
