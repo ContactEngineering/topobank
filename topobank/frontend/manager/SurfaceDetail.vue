@@ -207,21 +207,22 @@ export default {
             </div>
             <div class="row mb-3">
                 <div class="col">
+                    <div class="btn-group-vertical" role="group">
+                        <a :href="`/analysis/html/list/?subjects=`"
+                           class="btn btn-default btn-block">
+                            Analyze this digital surface twin
+                        </a>
 
-                    <a :href="`/analysis/html/list/?subjects=`"
-                       class="btn btn-default btn-block btn-lg">
-                        Analyze this digital surface twin
-                    </a>
+                        <a href="`/manager/${surfaceId}/download`"
+                           class="btn btn-default btn-block">
+                            Download
+                        </a>
 
-                    <a href="`/manager/${surfaceId}/download`"
-                       class="btn btn-default btn-block btn-lg">
-                        Download
-                    </a>
-
-                    <a href="#"
-                       class="btn btn-outline-danger btn-block btn-lg">
-                        Delete
-                    </a>
+                        <a href="#"
+                           class="btn btn-outline-danger btn-block">
+                            Delete
+                        </a>
+                    </div>
                 </div>
             </div>
         </div>
