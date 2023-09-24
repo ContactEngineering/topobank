@@ -3,6 +3,7 @@ import logging
 from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
 from rest_framework import serializers
+from tagulous.contrib.drf import TagRelatedManagerField
 
 from .abstract import TaskStateModelSerializer
 from .models import Surface, Topography, TagModel
@@ -19,12 +20,14 @@ class TopographySerializer(TaskStateModelSerializer):
                   'has_undefined_data', 'fill_undefined_data_mode', 'detrend_mode', 'resolution_x', 'resolution_y',
                   'bandwidth_lower', 'bandwidth_upper', 'short_reliability_cutoff', 'is_periodic', 'instrument_name',
                   'instrument_type', 'instrument_parameters', 'post_data', 'is_metadata_complete', 'thumbnail',
-                  'duration', 'error', 'task_progress', 'task_state']  # TaskStateModelSerializer
+                  'duration', 'error', 'task_progress', 'task_state', 'tags']  # TaskStateModelSerializer
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
                                                   queryset=Surface.objects.all())
+
+    tags = TagRelatedManagerField()
 
     is_metadata_complete = serializers.SerializerMethodField()
 
@@ -37,11 +40,13 @@ class TopographySerializer(TaskStateModelSerializer):
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
-        fields = ['url', 'name', 'category', 'creator', 'description', 'topography_set']
+        fields = ['url', 'name', 'category', 'creator', 'description', 'tags', 'topography_set']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
     topography_set = TopographySerializer(many=True, read_only=True)
+
+    tags = TagRelatedManagerField()
 
 
 class TopographySearchSerializer(serializers.ModelSerializer):
@@ -70,7 +75,7 @@ class TopographySearchSerializer(serializers.ModelSerializer):
     # `folder` is Fancytree-specific, see
     # https://wwwendt.de/tech/fancytree/doc/jsdoc/global.html#NodeData
     folder = serializers.BooleanField(default=False, read_only=True)
-    tags = serializers.SerializerMethodField()
+    tags = TagRelatedManagerField()
     # `type` should be the output of mangle_content_type(Meta.model)
     type = serializers.CharField(default='topography', read_only=True)
     version = serializers.CharField(default=None, read_only=True)
@@ -131,9 +136,6 @@ class TopographySearchSerializer(serializers.ModelSerializer):
         else:
             return "shared"
 
-    def get_tags(self, obj):  # TODO prove if own method needed
-        return [t.name for t in obj.tags.all()]
-
     def get_creator_name(self, obj):
         return obj.creator.name
 
@@ -166,7 +168,7 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
     # https://wwwendt.de/tech/fancytree/doc/jsdoc/global.html#NodeData
     folder = serializers.BooleanField(default=True, read_only=True)
     sharing_status = serializers.SerializerMethodField()
-    tags = serializers.SerializerMethodField()
+    tags = TagRelatedManagerField()
     # `type` should be the output of mangle_content_type(Meta.model)
     type = serializers.CharField(default='surface', read_only=True)
     version = serializers.SerializerMethodField()
@@ -261,9 +263,6 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
             return "own"
         else:
             return "shared"
-
-    def get_tags(self, obj):
-        return [t.name for t in obj.tags.all()]
 
     def get_version(self, obj):
         return obj.publication.version if obj.is_published else None
