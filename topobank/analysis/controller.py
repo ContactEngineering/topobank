@@ -6,11 +6,10 @@ from django.db.models import Q
 
 from ..manager.utils import subjects_from_dict, subjects_to_dict, dict_from_base64, subjects_to_base64
 
-from ..taskapp.tasks import perform_analysis
-
 from .models import Analysis, AnalysisFunction, AnalysisSubject
 from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
 from .serializers import AnalysisResultSerializer
+from .tasks import perform_analysis
 from .utils import find_children
 
 _log = logging.getLogger(__name__)

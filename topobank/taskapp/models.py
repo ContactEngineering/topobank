@@ -2,15 +2,14 @@ import logging
 
 import celery.result
 import celery.states
+from celery.utils.log import get_task_logger
 
 import django.db.models as models
 from django.utils import timezone
 
-from rest_framework import serializers
-
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
-_log = logging.getLogger(__name__)
+_log = get_task_logger(__name__)
 
 
 class TaskStateModel(models.Model):
@@ -146,63 +145,67 @@ class TaskStateModel(models.Model):
             self.save()
 
 
-class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
+class Dependency(models.Model):
+    """A dependency of analysis results, e.g. "SurfaceTopography", "topobank"
+    """
+
     class Meta:
-        abstract = True
-        model = TaskStateModel
-        fields = ['duration', 'error', 'task_progress', 'task_state']
+        db_table = 'analysis_dependency'  # This used to be part of the analysis app
 
-    duration = serializers.SerializerMethodField()
-    error = serializers.SerializerMethodField()
-    task_state = serializers.SerializerMethodField()
-    task_progress = serializers.SerializerMethodField()
+    # this is used with "import":
+    import_name = models.CharField(max_length=30, unique=True)
 
-    def get_duration(self, obj):
-        return obj.duration
+    def __str__(self):
+        return self.import_name
 
-    def get_error(self, obj):
-        return obj.get_error()
 
-    def get_task_progress(self, obj):
-        task_state = self.get_task_state(obj)
-        if task_state == TaskStateModel.STARTED:
-            return obj.get_task_progress()
-        elif task_state == TaskStateModel.SUCCESS:
-            return 1.0
-        else:
-            return 0.0
+class Version(models.Model):
+    """
+    A specific version of a dependency.
+    Part of a configuration.
+    """
 
-    def get_task_state(self, obj):
-        """
-        Return the most likely state of the task from the self-reported task
-        information in the database and the information obtained from Celery.
-        """
-        # This is self-reported by the task runner
-        self_reported_task_state = obj.task_state
-        # This is what Celery reports back
-        celery_task_state = obj.get_celery_state()
+    class Meta:
+        db_table = 'analysis_version'  # This used to be part of the analysis app
 
-        if celery_task_state is None:
-            # There is no Celery state, possibly because the Celery task has not yet been created
-            return self_reported_task_state
+    dependency = models.ForeignKey(Dependency, on_delete=models.CASCADE)
 
-        if self_reported_task_state == celery_task_state:
-            # We're good!
-            return self_reported_task_state
-        else:
-            if self_reported_task_state == TaskStateModel.SUCCESS:
-                # Something is wrong, but we return success if the task self-reports success.
-                _log.info(f"The object with id {obj.id} self-reported the state '{self_reported_task_state}', "
-                          f"but Celery reported '{celery_task_state}'. I am returning a success.")
-                return TaskStateModel.SUCCESS
-            elif celery_task_state == TaskStateModel.FAILURE:
-                # Celery seems to think this task failed, we trust it as the self-reported state will
-                # be unreliable in this case.
-                _log.info(f"The object with id {obj.id} self-reported the state '{self_reported_task_state}', "
-                          f"but Celery reported '{celery_task_state}'. I am returning a failure.")
-                return TaskStateModel.FAILURE
-            else:
-                # In all other cases, we trust the self-reported state.
-                _log.info(f"The object with id {obj.id} self-reported the state '{self_reported_task_state}', "
-                          f"but Celery reported '{celery_task_state}'. I am returning the self-reported state.")
-                return self_reported_task_state
+    major = models.SmallIntegerField()
+    minor = models.SmallIntegerField()
+    micro = models.SmallIntegerField(null=True)
+    extra = models.CharField(max_length=100, null=True)
+
+    # the following can be used to indicate that this
+    # version should not be used any more / or the analyses
+    # should be recalculated
+    # valid = models.BooleanField(default=True)
+
+    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
+    class Meta:
+        unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
+
+    def number_as_string(self):
+        x = f"{self.major}.{self.minor}"
+        if self.micro is not None:
+            x += f".{self.micro}"
+        if self.extra is not None:
+            x += self.extra
+        return x
+
+    def __str__(self):
+        return f"{self.dependency} {self.number_as_string()}"
+
+
+class Configuration(models.Model):
+    """For keeping track which versions were used for an analysis.
+    """
+
+    class Meta:
+        db_table = 'analysis_configuration'  # This used to be part of the analysis app
+
+    valid_since = models.DateTimeField(auto_now_add=True)
+    versions = models.ManyToManyField(Version)
+
+    def __str__(self):
+        versions = [str(v) for v in self.versions.all()]
+        return f"Valid since: {self.valid_since}, versions: {versions}"

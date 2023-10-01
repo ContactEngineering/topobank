@@ -4,7 +4,8 @@ from django.db import transaction
 
 from watchman.decorators import check as watchman_check
 
-from ..analysis.models import Dependency, Version
+from .celeryapp import app
+from .models import Dependency, TaskStateModel, Version
 
 
 class ConfigurationException(Exception):
@@ -101,3 +102,15 @@ def _celery_worker_check():
         'min_num_workers_expected': MIN_NUM_WORKERS_EXPECTED,
         'ok': len(d) >= MIN_NUM_WORKERS_EXPECTED,
     }
+
+
+@app.task(bind=True)
+def task_dispatch(celery_task, cls, obj_id):
+    obj = cls.objects.get(id=obj_id)
+    obj.run_task(celery_task)
+
+
+def run_task(model_instance, *args, **kwargs):
+    model_instance.task_state = TaskStateModel.PENDING
+    # Only submit this on_commit, once save() has finalized
+    transaction.on_commit(lambda: task_dispatch.delay(model_instance.__class__, model_instance.id, *args, **kwargs))

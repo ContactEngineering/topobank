@@ -3,7 +3,7 @@ import logging
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 
-from ..manager.abstract import TaskStateModelSerializer
+import topobank.taskapp.serializers
 
 from .models import Analysis, AnalysisFunction, AnalysisSubject, Configuration
 from .registry import AnalysisRegistry
@@ -53,7 +53,7 @@ class AnalysisSubjectSerializer(serializers.HyperlinkedModelSerializer):
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail', read_only=True)
 
 
-class AnalysisResultSerializer(TaskStateModelSerializer):
+class AnalysisResultSerializer(topobank.taskapp.serializers.TaskStateModelSerializer):
     class Meta:
         model = Analysis
         fields = ['url', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time', 'start_time',

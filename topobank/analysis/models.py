@@ -10,69 +10,15 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
-from ..manager.abstract import TaskStateModel, TaskStateModelSerializer
 from ..manager.models import Surface, SurfaceCollection, Topography
 from ..manager.utils import recursive_delete
+from ..taskapp.models import Configuration, TaskStateModel
 from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
 
 from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry
 
 RESULT_FILE_BASENAME = 'result'
-
-
-class Dependency(models.Model):
-    """A dependency of analysis results, e.g. "SurfaceTopography", "topobank"
-    """
-    # this is used with "import":
-    import_name = models.CharField(max_length=30, unique=True)
-
-    def __str__(self):
-        return self.import_name
-
-
-class Version(models.Model):
-    """
-    A specific version of a dependency.
-    Part of a configuration.
-    """
-    dependency = models.ForeignKey(Dependency, on_delete=models.CASCADE)
-
-    major = models.SmallIntegerField()
-    minor = models.SmallIntegerField()
-    micro = models.SmallIntegerField(null=True)
-    extra = models.CharField(max_length=100, null=True)
-
-    # the following can be used to indicate that this
-    # version should not be used any more / or the analyses
-    # should be recalculated
-    # valid = models.BooleanField(default=True)
-
-    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
-    class Meta:
-        unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
-
-    def number_as_string(self):
-        x = f"{self.major}.{self.minor}"
-        if self.micro is not None:
-            x += f".{self.micro}"
-        if self.extra is not None:
-            x += self.extra
-        return x
-
-    def __str__(self):
-        return f"{self.dependency} {self.number_as_string()}"
-
-
-class Configuration(models.Model):
-    """For keeping track which versions were used for an analysis.
-    """
-    valid_since = models.DateTimeField(auto_now_add=True)
-    versions = models.ManyToManyField(Version)
-
-    def __str__(self):
-        versions = [str(v) for v in self.versions.all()]
-        return f"Valid since: {self.valid_since}, versions: {versions}"
 
 
 class AnalysisSubject(models.Model):
@@ -169,7 +115,6 @@ class Analysis(TaskStateModel):
 
         # Delete database entry
         super().delete(*args, **kwargs)
-
 
     def save(self, *args, **kwargs):
         if not self.id:

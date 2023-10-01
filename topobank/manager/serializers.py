@@ -5,7 +5,8 @@ from guardian.shortcuts import get_perms
 from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from .abstract import TaskStateModelSerializer
+from ..taskapp.serializers import TaskStateModelSerializer
+
 from .models import Surface, Topography, TagModel
 from .utils import get_search_term, filtered_topographies, subjects_to_base64
 

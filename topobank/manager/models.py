@@ -28,14 +28,14 @@ import tagulous.models as tm
 from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
 from bokeh.plotting import figure
 
-from SurfaceTopography.IO import detect_format, open_topography
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
-from .abstract import TaskStateModel
 from .utils import dzi_exists, get_topography_reader, make_dzi, recursive_delete, MAX_LENGTH_SURFACE_COLLECTION_NAME
 
 from ..plots import configure_plot
 from ..publication.models import Publication, DOICreationException
+from ..taskapp.models import TaskStateModel
+from ..taskapp.utils import run_task
 from ..users.models import User
 from ..users.utils import get_default_group
 
@@ -699,7 +699,12 @@ class Topography(TaskStateModel, SubjectMixin):
             # We need to refresh if any of the significant fields changed during this save
             self._refresh_dependent_data = any(changed_fields)
 
+        # Check if we need to run the update task
+        if self._refresh_dependent_data:
+            run_task(self)
+
         # Save to data base
+        _log.debug('Saving model...')
         super().save(*args, **kwargs)
         cache.delete(self.cache_key())
 
@@ -945,7 +950,6 @@ class Topography(TaskStateModel, SubjectMixin):
                 topo = self._read(toporeader)
 
             cache.set(cache_key, topo)
-            # be sure to invalidate the cache key if topography is saved again -> signals.py
 
         else:
             _log.info(f"Using topography from cache for id {self.id}.")

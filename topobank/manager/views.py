@@ -39,7 +39,8 @@ from trackstats.models import Metric, Period
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
-from ..taskapp.tasks import renew_topography_cache
+import topobank.taskapp.utils
+
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..publication.models import MAX_LEN_AUTHORS_FIELD
 
@@ -1715,9 +1716,11 @@ class TopographyViewSet(mixins.CreateModelMixin,
     # From mixins.RetrieveModelMixin
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
+        _log.debug(instance.measurement_date)
         if instance.task_state == Topography.NOTRUN:
             # The cache has never been created
             _log.info(f"Creating cached properties of new {instance.get_subject_type()} {instance.id}...")
-            renew_topography_cache.delay(instance.id)
+            topobank.taskapp.utils.run_task(instance)
+            instance.save()  # run_task sets the initial task state to 'pe', so we need to save
         serializer = self.get_serializer(instance)
         return Response(serializer.data)

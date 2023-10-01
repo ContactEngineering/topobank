@@ -84,10 +84,19 @@ export default {
                 {value: "Å", text: 'Å'},
                 {value: "pm", text: 'pm'}
             ],
-            _instrumentTypes: [
+            _instrumentChoices: [
                 {value: 'undefined', text: 'Instrument of unknown type - all data considered as reliable'},
                 {value: 'microscope-based', text: 'Microscope-based instrument with known resolution'},
                 {value: 'contact-based', text: 'Contact-based instrument with known tip radius'}
+            ],
+            _detrendChoices: [
+                {value: 'center', text: 'No detrending, but subtract mean height'},
+                {value: 'height', text: 'Remove tilt'},
+                {value: 'curvature', text: 'Remove curvature and tilt'}
+            ],
+            _undefinedDataChoices: [
+                {value: 'do-not-fill', text: 'Do not fill undefined data points'},
+                {value: 'harmonic', text: 'Interpolate undefined data points with harmonic functions'}
             ]
         }
     },
@@ -131,7 +140,7 @@ export default {
             // Copy writable entries
             let writeableEntries = [
                 'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'is_periodic',
-                'measurement_date', 'name', 'tags'
+                'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_data_mode'
             ];
             if (this._data.size_editable) {
                 writeableEntries.push('size_x', 'size_y');
@@ -375,7 +384,7 @@ export default {
                                 <div class="col-6">
                                     <label for="input-instrument-type">Instrument type</label>
                                     <b-form-select id="input-instrument-type"
-                                                   :options="_instrumentTypes"
+                                                   :options="_instrumentChoices"
                                                    v-model="_data.instrument_type"
                                                    :disabled="!_editing">
                                     </b-form-select>
@@ -421,7 +430,26 @@ export default {
                             </div>
                         </div>
                         <div v-if="_filtersVisible" class="container" >
-
+                            <div class="row">
+                                <div class="col-6 mt-1">
+                                    <label for="input-detrending">Detrending</label>
+                                    <div id="input-detrending" class="input-group mb-1">
+                                    <b-form-select :options="_detrendChoices"
+                                                   v-model="_data.detrend_mode"
+                                                   :disabled="!_editing">
+                                    </b-form-select>
+                                    </div>
+                                </div>
+                                <div class="col-6 mt-1">
+                                    <label for="input-undefined-data">Undefined/missing data</label>
+                                    <div id="input-undefined-data" class="input-group mb-1">
+                                    <b-form-select :options="_undefinedDataChoices"
+                                                   v-model="_data.fill_undefined_data_mode"
+                                                   :disabled="!_editing">
+                                    </b-form-select>
+                                    </div>
+                                </div>
+                            </div>
                         </div>
                     </div>
                 </div>
