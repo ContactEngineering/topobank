@@ -12,6 +12,7 @@ from SurfaceTopography.Support import doi
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 
 from ..taskapp.celeryapp import app
+from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version_instance
 from ..utils import store_split_dict
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object

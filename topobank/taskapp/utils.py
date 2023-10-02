@@ -1,5 +1,6 @@
 import importlib
 
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
 from watchman.decorators import check as watchman_check
@@ -105,12 +106,20 @@ def _celery_worker_check():
 
 
 @app.task(bind=True)
-def task_dispatch(celery_task, cls, obj_id):
-    obj = cls.objects.get(id=obj_id)
+def task_dispatch(celery_task, cls_id, obj_id):
+    ct = ContentType.objects.get_for_id(cls_id)
+    obj = ct.get_object_for_this_type(id=obj_id)
     obj.run_task(celery_task)
 
 
 def run_task(model_instance, *args, **kwargs):
     model_instance.task_state = TaskStateModel.PENDING
     # Only submit this on_commit, once save() has finalized
-    transaction.on_commit(lambda: task_dispatch.delay(model_instance.__class__, model_instance.id, *args, **kwargs))
+    transaction.on_commit(
+        lambda: task_dispatch.delay(
+            ContentType.objects.get_for_model(model_instance).id,
+            model_instance.id,
+            *args,
+            **kwargs
+        )
+    )
