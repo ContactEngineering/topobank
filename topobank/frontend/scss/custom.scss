@@ -275,7 +275,12 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 }
 
 /** vertical navigation */
+.nav-pills-custom .nav-item {
+    margin-bottom: 0.5rem;
+}
+
 .nav-pills-custom .nav-link {
+    width: 100%;
     background: $white;
     position: relative;
     border: 1px solid $primary-border-subtle;

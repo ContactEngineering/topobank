@@ -2,12 +2,19 @@
 
 import axios from "axios";
 
+import {
+    BAlert, BTab, BTabs,
+} from 'bootstrap-vue-next';
+
 import DropZone from '../components/DropZone.vue';
 import TopographyCard from "./TopographyCard.vue";
 
 export default {
     name: 'surface-detail',
     components: {
+        BAlert,
+        BTab,
+        BTabs,
         DropZone,
         TopographyCard
     },
@@ -43,6 +50,7 @@ export default {
             axios.get(this.surfaceUrl).then(response => {
                 this._data = response.data;
                 this._topographies = response.data.topography_set;
+                console.log(this._topographies);
             });
         },
         onFilesDropped(files) {
@@ -82,126 +90,10 @@ export default {
 
 <template>
     <div class="container">
-
         <div class="row">
-
-            <div class="col-3">
-                <div class="nav nav-pills nav-pills-custom flex-column"
-                     aria-orientation="vertical">
-
-                    <a class="nav-item nav-link mb-3 p-3 active"
-                       data-toggle="pill"
-                       href="#topographies"
-                       role="tab"
-                       aria-selected="true">
-                        Measurements
-                    </a>
-                    <a class="nav-item nav-link mb-3 p-3"
-                       data-toggle="pill"
-                       href="#bandwidths"
-                       role="tab"
-                       aria-selected="false">
-                        Bandwidths
-                    </a>
-                    <a class="nav-item nav-link mb-3 p-3"
-                       data-toggle="pill"
-                       href="#description"
-                       role="tab"
-                       aria-selected="false">
-                        Description
-                    </a>
-                    <a class="nav-item nav-link mb-3 p-3"
-                       data-toggle="pill"
-                       href="#permissions"
-                       role="tab"
-                       aria-selected="false">
-                        Permissions
-                    </a>
-                    <a v-if="_data !== null && _data.is_published"
-                       class="nav-item nav-link mb-3 p-3 shadow"
-                       data-toggle="pill"
-                       href="#authors"
-                       role="tab"
-                       aria-selected="false">
-                        Authors
-                    </a>
-                    <a v-if="_data !== null && _data.is_published"
-                       class="nav-item nav-link mb-3 p-3 shadow"
-                       data-toggle="pill"
-                       href="#license"
-                       role="tab"
-                       aria-selected="false">
-                        License
-                    </a>
-                    <a v-if="_data !== null && _data.is_published"
-                       class="nav-item nav-link mb-3 p-3 shadow"
-                       data-toggle="pill"
-                       href="#howtocite"
-                       role="tab"
-                       aria-selected="false">
-                        How to cite
-                    </a>
-                </div>
-                <hr/>
-                <div v-if="_data !== null && _data.publication !== null"
-                     class="btn-group">
-                    <button type="button" id="versions-btn"
-                            class="btn btn-info dropdown-toggle"
-                            data-toggle="dropdown" aria-haspopup="true"
-                            aria-expanded="false">
-                        ...this_version_label...
-                        ...if version_badge_text...
-                        <span class="badge bg-warning">...version_badge_text...</span>
-                        ...endif...
-                    </button>
-                    <div class="dropdown-menu" id="versions-dropdown">
-                        ...for version_item in version_dropdown_items...
-                        <a class="dropdown-item{% if version_item.surface == surface %} disabled{% endif %}"
-                           href="...version_item.surface.get_absolute_url...">
-                            ...version_item.label...
-                        </a>
-                        ...endfor...
-                    </div>
-                </div>
-                <div v-if="_data !== null"
-                     class="card mt-2">
-                    <div class="card-body">
-                        <div>
-                            <span class="badge bg-secondary surface-category-headline">
-                                {{ category }}
-                            </span>
-                        </div>
-                        <div>
-                            <span v-for="tag in _data.tags"
-                                  class="badge bg-success">
-                                {{ tag.name }}
-                            </span>
-                        </div>
-                        <div class="btn-group-vertical mt-2 w-100" role="group">
-                            <a :href="`/analysis/html/list/?subjects=`"
-                               class="btn btn-outline-secondary btn-block">
-                                Analyze this digital surface twin
-                            </a>
-
-                            <a href="`/manager/${surfaceId}/download`"
-                               class="btn btn-outline-secondary btn-block">
-                                Download
-                            </a>
-
-                            <a href="#"
-                               class="btn btn-outline-danger btn-block">
-                                Delete
-                            </a>
-                        </div>
-                    </div>
-                </div>
-            </div>
-
-            <div class="col-9 bg-light">
-
-                <div class="tab-content rounded tab-content-vertical-tabs mt-2 mb-2">
-
-                    <div class="tab-pane fade active show" id="topographies">
+            <div class="col-12">
+                <b-tabs class="nav-pills-custom" fill pills vertical>
+                    <b-tab title="Measurements">
                         <drop-zone @files-dropped="onFilesDropped"></drop-zone>
                         <div v-for="(topography, index) in _topographies">
                             <topography-card :topography="topography"
@@ -209,31 +101,91 @@ export default {
                                              @topography-updated="topography => topographyUpdated(index, topography)">
                             </topography-card>
                         </div>
-                    </div>
-
-                    <div class="tab-pane fade" id="bandwidths">
-                        <div v-if="_data !== null && _data.num_topographies == 0"
-                             class="alert alert-info">
+                    </b-tab>
+                    <b-tab title="Bandwidths">
+                        ABC
+                        <b-alert v-if="_topographies.length == 0" info>
                             This surface has no measurements yet.
-                            You can add measurements by pressing the
-                            <b>{% fa5_icon 'plus-square-o' %} Add measurement</b> button.
-                        </div>
-                        <div v-if="_data !== null && _data.num_topographies > 0"
-                             class="alert alert-secondary">
+                        </b-alert>
+                        <b-alert v-if="_topographies.length > 0" secondary>
                             This bandwidth plot shows the range of length scales that have been measured for this
                             digital surface
-                            twin. Each of the blocks below represents one measurement. Part of the bandwidth shown may
+                            twin. Each of the blocks below represents one measurement. Part of the bandwidth shown
+                            may
                             be unreliable
                             due to the configured instrument's measurement capacities.
+                        </b-alert>
+                    </b-tab>
+                    <b-tab title="Description">
+                    </b-tab>
+                    <b-tab title="Permissions">
+                    </b-tab>
+                    <b-tab v-if="_data !== null && _data.is_published"
+                           title="Authors">
+                    </b-tab>
+                    <b-tab v-if="_data !== null && _data.is_published"
+                           title="License">
+                    </b-tab>
+                    <b-tab v-if="_data !== null && _data.is_published"
+                           title="How to cite">
+                    </b-tab>
+                    <template #tabs-end>
+                        <hr />
+                        <div v-if="_data !== null && _data.publication !== null"
+                             class="btn-group">
+                            <button type="button" id="versions-btn"
+                                    class="btn btn-info dropdown-toggle"
+                                    data-toggle="dropdown" aria-haspopup="true"
+                                    aria-expanded="false">
+                                ...this_version_label...
+                                ...if version_badge_text...
+                                <span class="badge bg-warning">...version_badge_text...</span>
+                                ...endif...
+                            </button>
+                            <div class="dropdown-menu" id="versions-dropdown">
+                                ...for version_item in version_dropdown_items...
+                                <a class="dropdown-item{% if version_item.surface == surface %} disabled{% endif %}"
+                                   href="...version_item.surface.get_absolute_url...">
+                                    ...version_item.label...
+                                </a>
+                                ...endfor...
+                            </div>
                         </div>
-                    </div>
+                        <div v-if="_data !== null"
+                             class="card mt-2">
+                            <div class="card-body">
+                                <div>
+                            <span class="badge bg-secondary surface-category-headline">
+                                {{ category }}
+                            </span>
+                                </div>
+                                <div>
+                            <span v-for="tag in _data.tags"
+                                  class="badge bg-success">
+                                {{ tag.name }}
+                            </span>
+                                </div>
+                                <div class="btn-group-vertical mt-2 w-100" role="group">
+                                    <a :href="`/analysis/html/list/?subjects=`"
+                                       class="btn btn-outline-secondary btn-block">
+                                        Analyze this digital surface twin
+                                    </a>
 
-                    <div class="tab-pane p-2 fade" id="permissions">
-                    </div>
-                </div>
+                                    <a href="`/manager/${surfaceId}/download`"
+                                       class="btn btn-outline-secondary btn-block">
+                                        Download
+                                    </a>
 
+                                    <a href="#"
+                                       class="btn btn-outline-danger btn-block">
+                                        Delete
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </b-tabs>
             </div>
-
         </div>
     </div>
 
