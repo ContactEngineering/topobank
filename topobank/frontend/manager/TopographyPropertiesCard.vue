@@ -140,7 +140,7 @@ export default {
             // Copy writable entries
             let writeableEntries = [
                 'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'is_periodic',
-                'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_data_mode'
+                'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_data_mode', 'data_source'
             ];
             if (this._data.size_editable) {
                 writeableEntries.push('size_x', 'size_y');
@@ -205,6 +205,17 @@ export default {
             } else {
                 return true;
             }
+        },
+        channelOptions() {
+            if (this._data === null) {
+                return [];
+            }
+
+            let options = [];
+            for (const [channelIndex, channelName] of this._data.channel_names.entries()) {
+                options.push({value: channelIndex, text: channelName});
+            }
+            return options;
         }
     }
 };
@@ -213,6 +224,13 @@ export default {
 <template>
     <div class="card mb-1" :class="{ 'bg-danger-subtle': isMetadataIncomplete }">
         <div class="card-header">
+            <div v-if="_data !== null"
+                 class="input-group-sm float-start">
+                <b-form-select :options="channelOptions"
+                               v-model="_data.data_source"
+                               :disabled="!_editing">
+                </b-form-select>
+            </div>
             <div class="btn-group btn-group-sm float-end">
                 <button v-if="!_editing && !_saving" class="btn btn-outline-secondary float-end"
                         @click="_savedData = JSON.parse(JSON.stringify(_data)); _editing = true">
@@ -243,20 +261,6 @@ export default {
                         @click="_filtersVisible = !_filtersVisible">
                     Filters
                 </button>
-            </div>
-            <div v-if="_data !== null && _data.resolution_y !== null">
-                <span class="badge bg-warning ms-1">{{ _data.datafile_format }}</span>
-                <span class="badge bg-info ms-2">{{ _data.resolution_x }} &times; {{
-                        _data.resolution_y
-                    }} data points</span>
-                <span v-if="_data.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
-                <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
-            </div>
-            <div v-if="_data !== null && _data.resolution_y === null">
-                <div class="badge bg-warning ms-1">{{ _data.datafile_format }}</div>
-                <div class="badge bg-info ms-2">{{ _data.resolution_x }} data points</div>
-                <span v-if="_data.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
-                <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
             </div>
         </div>
         <div class="card-body">
@@ -429,30 +433,46 @@ export default {
                                 </div>
                             </div>
                         </div>
-                        <div v-if="_filtersVisible" class="container" >
+                        <div v-if="_filtersVisible" class="container">
                             <div class="row">
                                 <div class="col-6 mt-1">
                                     <label for="input-detrending">Detrending</label>
                                     <div id="input-detrending" class="input-group mb-1">
-                                    <b-form-select :options="_detrendChoices"
-                                                   v-model="_data.detrend_mode"
-                                                   :disabled="!_editing">
-                                    </b-form-select>
+                                        <b-form-select :options="_detrendChoices"
+                                                       v-model="_data.detrend_mode"
+                                                       :disabled="!_editing">
+                                        </b-form-select>
                                     </div>
                                 </div>
                                 <div class="col-6 mt-1">
                                     <label for="input-undefined-data">Undefined/missing data</label>
                                     <div id="input-undefined-data" class="input-group mb-1">
-                                    <b-form-select :options="_undefinedDataChoices"
-                                                   v-model="_data.fill_undefined_data_mode"
-                                                   :disabled="!_editing">
-                                    </b-form-select>
+                                        <b-form-select :options="_undefinedDataChoices"
+                                                       v-model="_data.fill_undefined_data_mode"
+                                                       :disabled="!_editing">
+                                        </b-form-select>
                                     </div>
                                 </div>
                             </div>
                         </div>
                     </div>
                 </div>
+            </div>
+        </div>
+        <div class="card-footer">
+            <div v-if="_data !== null && _data.resolution_y !== null">
+                <span class="badge bg-warning ms-1">{{ _data.datafile_format }}</span>
+                <span class="badge bg-info ms-2">{{ _data.resolution_x }} &times; {{
+                        _data.resolution_y
+                    }} data points</span>
+                <span v-if="_data.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
+                <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
+            </div>
+            <div v-if="_data !== null && _data.resolution_y === null">
+                <div class="badge bg-warning ms-1">{{ _data.datafile_format }}</div>
+                <div class="badge bg-info ms-2">{{ _data.resolution_x }} data points</div>
+                <span v-if="_data.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
+                <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
             </div>
         </div>
     </div>

@@ -42,7 +42,7 @@ export default {
 </script>
 
 <template>
-    <div class="drop-zone mb-1"
+    <div class="drop-zone mb-1 bg-light"
          :class="{ 'drop-zone-active': _active }"
          :data-active="_active"
          @dragenter.prevent="_active=true"
