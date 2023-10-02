@@ -6,12 +6,14 @@ import {
     BAlert, BTab, BTabs,
 } from 'bootstrap-vue-next';
 
+import BandwidthPlot from './BandwidthPlot.vue';
 import DropZone from '../components/DropZone.vue';
 import TopographyCard from "./TopographyCard.vue";
 
 export default {
     name: 'surface-detail',
     components: {
+        BandwidthPlot,
         BAlert,
         BTab,
         BTabs,
@@ -103,7 +105,6 @@ export default {
                         </div>
                     </b-tab>
                     <b-tab title="Bandwidths">
-                        ABC
                         <b-alert v-if="_topographies.length == 0" info>
                             This surface has no measurements yet.
                         </b-alert>
@@ -115,6 +116,9 @@ export default {
                             be unreliable
                             due to the configured instrument's measurement capacities.
                         </b-alert>
+                        <bandwidth-plot v-if="_topographies.length > 0"
+                                        :topographies="_topographies">
+                        </bandwidth-plot>
                     </b-tab>
                     <b-tab title="Description">
                     </b-tab>
@@ -130,7 +134,7 @@ export default {
                            title="How to cite">
                     </b-tab>
                     <template #tabs-end>
-                        <hr />
+                        <hr/>
                         <div v-if="_data !== null && _data.publication !== null"
                              class="btn-group">
                             <button type="button" id="versions-btn"

@@ -261,7 +261,7 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 /** improve bandwidth plot */
 .bandwidth-hover-box {
     display: flex;
-    flex-direction: row;
+    flex-direction: column;
     align-items: center;
 }
 
@@ -277,6 +277,10 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
 /** vertical navigation */
 .nav-pills-custom .nav-item {
     margin-bottom: 0.5rem;
+}
+
+.nav-pills-custom .nav-fill {
+    width: 15rem;
 }
 
 .nav-pills-custom .nav-link {
