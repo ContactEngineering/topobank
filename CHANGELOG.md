@@ -1,5 +1,15 @@
 # Changelog for *TopoBank*
 
+## 1.4.0 (not yet released)
+
+- ENH: Batch upload
+- MAINT: Surface view is now largely a single-page application
+- MAINT: REST API for topography handling
+- MAINT: Major refactor of task handling code
+- MAINT: Cached topography properties (thumbnail, DZI, etc.) are now generated
+  in a single task
+- MAINT: Updated SurfaceTopography to 1.11.1
+
 ## 1.3.0 (2023-09-11)
 
 - ENH: Updated SurfaceTopography to 1.11.0
