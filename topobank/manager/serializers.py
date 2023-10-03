@@ -117,16 +117,7 @@ class TopographySearchSerializer(serializers.ModelSerializer):
         }
 
         if 'view_surface' in perms:
-            urls['detail'] = reverse('manager:topography-detail', kwargs=dict(pk=obj.pk))
             urls['analyze'] = f"{reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
-
-        if 'change_surface' in perms:
-            urls.update({
-                'update': reverse('manager:topography-update', kwargs=dict(pk=obj.pk))
-            })
-
-        if 'delete_surface' in perms:
-            urls['delete'] = reverse('manager:topography-delete', kwargs=dict(pk=obj.pk))
 
         return urls
 
@@ -243,7 +234,6 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
 
         if 'change_surface' in perms:
             urls.update({
-                'add_topography': reverse('manager:topography-create', kwargs=dict(surface_id=obj.id)),
                 'update': reverse('manager:surface-update', kwargs=dict(pk=obj.pk)),
             })
         if 'delete_surface' in perms:
