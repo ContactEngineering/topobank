@@ -1,0 +1,75 @@
+{% extends "base.html" %}
+{% load static %}
+{% load i18n %}
+{% load icon_tags %}
+{% load crispy_forms_tags %}
+{% load progress_bar %}
+
+{% block extra_css %}
+  {# a stylesheet for syntax highlighting in the file format descriptions #}
+  <link href="{% static 'css/pygments-default.css' %}" rel="stylesheet">
+  {# generated using https://github.com/richleland/pygments-css by replacing .highlight with .codehilite #}
+  {# as suggested here: https://github.com/trentm/python-markdown2/wiki/fenced-code-blocks #}
+  {{ form.media.css }}
+{% endblock extra_css %}
+
+{% block content %}
+
+      <div class="tab-content p-2 extra-tab">
+
+        <h3>
+          Step {{ wizard.steps.step1 }} of {{ wizard.steps.count }}
+        </h3>
+        <form method="post" enctype="multipart/form-data">{% csrf_token %}
+            <table>
+            {{ wizard.management_form }}
+            </table>
+            {% if wizard.form.errors %}
+              {% for field in wizard.form %}
+                {% for error in field.errors %}
+                  <div class="alert alert-danger">
+                    <strong>Field {{ field.name }}: {{ error|escape }}</strong>
+                  </div>
+                {% endfor %}
+              {% endfor %}
+              {% for error in wizard.form.non_field_errors %}
+                <div class="alert alert-danger">
+                  <strong>{{ error|escape }}</strong>
+                </div>
+              {% endfor %}
+            {% endif %}
+
+            {% crispy wizard.form wizard.form.helper %}
+            {% if wizard.steps.step1 == 1 %}
+              {% progress_bar %}
+            {% endif %}
+            <input type="hidden" name="redirect" value="{{ cancel_action }}" />
+        </form>
+
+        {% if wizard.steps.step1 == 1 %}
+          {% include "manager/file_formats.html" %}
+        {% endif %}
+      </div>
+{% endblock content %}
+
+{% block javascript %}
+  {% if wizard.steps.step1 == 1 %}
+    {% progress_bar_media %}
+  {% elif wizard.steps.step1 == 3 %}
+    {# Load JS code for loading instrument details via AJAX #}
+    <script src="{% static 'js/instrument.js' %}"></script>
+    <script>
+
+    $(document).ready(function () {
+      // set values from topography
+      update_instrument_parameters_in_form();
+
+      $('#id_instrument_type').change(function () {
+        update_instrument_parameters_in_form();
+      })
+    });
+    </script>
+  {% endif %}
+
+  {{ form.media.js }}
+{% endblock %}

@@ -1,0 +1,76 @@
+{% extends 'base.html' %}
+{% load icon_tags %}
+{% load static %}
+
+{% block content %}
+
+  {% load crispy_forms_tags %}
+
+  <div class="tab-content pt-2 extra-tab">
+
+    <div class="btn-group float-end">
+      <a href="{% url 'manager:topography-update' topography_prev %}"
+         class="btn btn-default {% if topography_prev == topography.id %} disabled {% endif %}"
+         data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show previous measurement of related surface">
+        {% fa5_icon 'chevron-left' %}
+      </a>
+      <a href="{% url 'manager:topography-update' topography_next %}"
+         class="btn btn-default {% if topography_next == topography.id %} disabled {% endif %}"
+         data-toggle="tooltip" data-placement="bottom" title="Discard unsaved changes and show next measurement of related surface">
+        {% fa5_icon 'chevron-right' %}
+      </a>
+    </div>
+
+    {% if form.errors %}
+      {% for field in form %}
+          {% for error in field.errors %}
+              <div class="alert alert-danger">
+                  <strong>Field {{ field.name }}: {{ error|escape }}</strong>
+              </div>
+          {% endfor %}
+      {% endfor %}
+      {% for error in form.non_field_errors %}
+          <div class="alert alert-danger">
+              <strong>{{ error|escape }}</strong>
+          </div>
+      {% endfor %}
+    {% endif %}
+
+    <div class="container">
+      <div class="row">
+        {% crispy form form.helper %}
+      </div>
+    </div>
+  </div>
+{% endblock content %}
+
+{% block extra_css %}
+  {{ form.media.css }}
+{% endblock %}
+
+{% block javascript %}
+
+  {{ block.super }}
+
+  <script src="{% static 'js/instrument.js' %}"></script>
+
+  {# Some JSON code to define JS variables from Django context #}
+  {{ topography.instrument_parameters | json_script:"instrument-parameters" }}
+
+  <script>
+    const instrument_parameters = JSON.parse(document.getElementById('instrument-parameters').textContent);
+    $(document).ready(function () {
+      $('[data-toggle="tooltip"]').tooltip();
+
+      // set values from topography
+      update_instrument_parameters_in_form(instrument_parameters);
+
+      $('#id_instrument_type').change(function () {
+        update_instrument_parameters_in_form(instrument_parameters);
+      })
+    })
+  </script>
+
+  {# See issue 742, if included, the layout is broken - why? #}
+  {#  {{ form.media.js }} #}
+{% endblock javascript %}

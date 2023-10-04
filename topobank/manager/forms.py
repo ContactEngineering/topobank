@@ -310,7 +310,7 @@ class TopographyUnitsForm(forms.ModelForm):
             fill_undefined_data_mode_help = "We could not (yet) determine whether there are undefined/missing " \
                                             "data points. Choose your preference if there is undefined data."
         elif self._has_undefined_data:
-            fill_undefined_data_mode_help = "The dataset has undefined/missing data points. " \
+            fill_undefined_data_mode_help = "The dataset has undefined/missing data points. "\
                                             "Select a procedure for filling (imputation of) these points."
         else:
             fill_undefined_data_mode_help = "No undefined/missing data found. No filter needed here."
@@ -539,6 +539,82 @@ class TopographyWizardUnitsForm(TopographyUnitsForm):
             ),
             ASTERISK_HELP_HTML
         )
+
+
+class TopographyForm(CleanVulnerableFieldsMixin, TopographyUnitsForm):
+    """
+    This form is used for editing 1D and 2D topographies.
+    """
+
+    class Meta:
+        model = Topography
+        fields = ('size_editable',
+                  'unit_editable',
+                  'height_scale_editable',
+                  'name', 'description',
+                  'measurement_date', 'tags',
+                  'datafile', 'data_source',
+                  'size_x', 'size_y',
+                  'unit', 'is_periodic',
+                  'height_scale',
+                  'fill_undefined_data_mode',
+                  'detrend_mode',
+                  'instrument_name',
+                  'instrument_type',
+                  'instrument_parameters',
+                  'surface')
+
+    def __init__(self, *args, **kwargs):
+        autocomplete_tags = kwargs.pop('autocomplete_tags')
+
+        super().__init__(*args, **kwargs)
+
+        for fn in ['surface', 'data_source']:
+            self.fields[fn].label = False
+
+        self.helper.form_tag = True
+        self.helper.form_method = 'POST'
+        self.helper.form_show_errors = False  # crispy forms has nicer template code for errors
+
+        self.helper.layout = Layout(
+            Div(
+                Field('surface', readonly=True, hidden=True),
+                Field('data_source', readonly=True, hidden=True),
+                Field('name'),
+                Field('measurement_date'),
+                Field('description'),
+                Field('tags'),
+                Fieldset(*self._size_fieldset_args),
+                Fieldset('Height conversion',
+                         Field('height_scale')),
+                Fieldset('Filters',
+                         Field('fill_undefined_data_mode'),
+                         Field('detrend_mode')),
+                InstrumentLayout(),
+                *self.editable_fields,
+            ),
+            FormActions(
+                Submit('save-stay', 'Save and keep editing'),
+                Submit('save-finish', 'Save and finish editing'),
+                HTML("""
+                        <a href="{% url 'manager:topography-detail' object.id %}" class="btn btn-default" id="cancel-btn">
+                        Finish editing without saving</a>
+                    """),
+            ),
+            ASTERISK_HELP_HTML
+        )
+        self.fields['tags'] = TagField(
+            required=False,
+            autocomplete_tags=autocomplete_tags,  # set special values for user
+            help_text=TAGS_HELP_TEXT,
+        )
+
+    datafile = forms.FileInput()
+    measurement_date = forms.DateField(widget=DatePickerInput(format=MEASUREMENT_DATE_INPUT_FORMAT),
+                                       help_text=MEASUREMENT_DATE_HELP_TEXT)
+    description = forms.Textarea()
+
+    is_periodic = make_is_periodic_field()
 
 
 class SurfaceForm(CleanVulnerableFieldsMixin, forms.ModelForm):
@@ -772,7 +848,7 @@ class SurfacePublishForm(forms.Form):
             # Brute force search for duplicates
             #
             for a_idx, a in enumerate(authors):
-                for b in authors[a_idx + 1:]:
+                for b in authors[a_idx+1:]:
                     if a == b:
                         raise forms.ValidationError("Duplicate author given! Make sure authors differ "
                                                     "in at least one field.")

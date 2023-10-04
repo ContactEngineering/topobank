@@ -1,0 +1,9 @@
+{% for err in errors %}
+  <div class="alert alert-error">
+    {{ err.message }}
+    Please <a class="alert-link" href="{{ err.link }}">click here</a>
+    to send us an e-mail about this issue. Sorry for the inconvenience.
+  </div>
+{% endfor %}
+{{ image_plot_div | safe }}
+{{ image_plot_script | safe }}
