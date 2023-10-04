@@ -25,6 +25,7 @@ from ..manager.utils import instances_to_selection, selection_to_subjects_dict, 
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController, renew_existing_analysis
 from .models import Analysis, AnalysisFunction, Configuration
+from .permissions import AnalysisFunctionPermissions
 from .registry import AnalysisRegistry
 from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer, ConfigurationSerializer
 from .utils import filter_and_order_analyses, palette_for_topographies
@@ -42,14 +43,21 @@ class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 
 
 class AnalysisFunctionView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
-    queryset = AnalysisFunction.objects.all()
     serializer_class = AnalysisFunctionSerializer
+    permission_classes = [AnalysisFunctionPermissions]
+
+    def get_queryset(self):
+        # We need to filter the queryset to exclude functions in the list view
+        user = self.request.user
+        # FIXME!!! This is a hack!!! The analysis function permission system needs to be refactored.
+        ids = [f.id for f in AnalysisFunction.objects.all() if f.is_available_for_user(user)]
+        return AnalysisFunction.objects.filter(pk__in=ids)
 
 
 class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
     queryset = Analysis.objects.select_related('function', 'subject_dispatch__topography', 'subject_dispatch__surface',
-                                               'subject_dispatch__collection') .prefetch_related('users')
+                                               'subject_dispatch__collection').prefetch_related('users')
     serializer_class = AnalysisResultSerializer
 
     def update(self, request, *args, **kwargs):
@@ -288,8 +296,8 @@ def series_card_view(request, **kwargs):
         if is_topography_analysis and analysis.subject_dispatch.topography.surface.num_topographies() > 1:
             for a in analyses_success_list:
                 if a.subject_dispatch.surface is not None and \
-                    a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
-                    a.function.id == analysis.function.id:
+                        a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
+                        a.function.id == analysis.function.id:
                     parent_analysis = a
 
         subject_display_name = subject_names[analysis_idx]
