@@ -679,6 +679,9 @@ class Topography(TaskStateModel, SubjectMixin):
         # Reset to no refresh
         self._refresh_dependent_data = False
 
+        # Clean up instrument parameters
+        self.instrument_parameters = self._clean_instrument_parameters(self.instrument_parameters)
+
         # Strategies to detect changes in significant fields:
         # https://stackoverflow.com/questions/1355150/when-saving-how-can-you-check-if-a-field-has-changed
         try:
@@ -836,12 +839,8 @@ class Topography(TaskStateModel, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
-    @property
-    def _instrument_info(self):
-        # We need to idiot-check the parameters JSON so surface topography does not complain
-        # Would it be better to use JSON Schema for this? Or should we simply have dedicated database fields?
-        params = self.instrument_parameters
-
+    @staticmethod
+    def _clean_instrument_parameters(params):
         # Check that resolution parameter is complete
         try:
             r = params['resolution']
@@ -868,13 +867,21 @@ class Topography(TaskStateModel, SubjectMixin):
                 # Make sure it is a floating-point value
                 params['tip_radius']['value'] = float(params['tip_radius']['value'])
 
+        return params
+
+    @property
+    def _instrument_info(self):
+        # We need to idiot-check the parameters JSON so surface topography does not complain
+        # Would it be better to use JSON Schema for this? Or should we simply have dedicated database fields?
+        params = self._clean_instrument_parameters(self.instrument_parameters)
+
         # Build dictionary with instrument information from database... this may override data provided by the
         # topography reader
         return {
             'instrument': {
                 'name': self.instrument_name,
                 'type': self.instrument_type,
-                'parameters': self.instrument_parameters,
+                'parameters': params,
             }
         }
 
@@ -1498,8 +1505,6 @@ class Topography(TaskStateModel, SubjectMixin):
             # Check whether original data file has undefined data point and update database accordingly.
             # (`has_undefined_data` can be undefined if undetermined.)
             self.has_undefined_data = st_topo.has_undefined_data
-            if not self.has_undefined_data or self.fill_undefined_data_mode is None:
-                self.fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
             # Refresh other cached quantities
             self.renew_bandwidth_cache(st_topo=st_topo)
