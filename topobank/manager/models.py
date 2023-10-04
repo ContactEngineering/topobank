@@ -691,7 +691,7 @@ class Topography(TaskStateModel, SubjectMixin):
             changed_fields = [getattr(self, name) != getattr(old_obj, name)
                               for name in self._significant_fields]
 
-            changed_fields = [name for name, changed in zip(self._significant_fields, changed_fields) if changed ]
+            changed_fields = [name for name, changed in zip(self._significant_fields, changed_fields) if changed]
             _log.debug(f'The following significant fields of topography {self.id} changed: ')
             for name in changed_fields:
                 _log.debug(f"{name}: was '{getattr(old_obj, name)}', is now '{getattr(self, name)}'")
@@ -836,6 +836,48 @@ class Topography(TaskStateModel, SubjectMixin):
         """
         return self.surface.is_shared(with_user, allow_change=allow_change)
 
+    @property
+    def _instrument_info(self):
+        # We need to idiot-check the parameters JSON so surface topography does not complain
+        # Would it be better to use JSON Schema for this? Or should we simply have dedicated database fields?
+        params = self.instrument_parameters
+
+        # Check that resolution parameter is complete
+        try:
+            r = params['resolution']
+        except KeyError:
+            pass
+        else:
+            if not ('value' in r and 'unit' in r):
+                # This needs both value and unit
+                del params['resolution']
+            else:
+                # Make sure it is a floating-point value
+                params['resolution']['value'] = float(params['resolution']['value'])
+
+        # Check that tip radius parameter is complete
+        try:
+            r = params['tip_radius']
+        except KeyError:
+            pass
+        else:
+            if not ('value' in r and 'unit' in r):
+                # This needs both value and unit
+                del params['tip_radius']
+            else:
+                # Make sure it is a floating-point value
+                params['tip_radius']['value'] = float(params['tip_radius']['value'])
+
+        # Build dictionary with instrument information from database... this may override data provided by the
+        # topography reader
+        return {
+            'instrument': {
+                'name': self.instrument_name,
+                'type': self.instrument_type,
+                'parameters': self.instrument_parameters,
+            }
+        }
+
     def _read(self, reader):
         """Construct kwargs for reading topography given channel information"""
         if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
@@ -867,6 +909,11 @@ class Topography(TaskStateModel, SubjectMixin):
         # Set the unit, if not already given by file contents
         if channel.unit is None:
             reader_kwargs['unit'] = self.unit
+
+        # Populate instrument information
+        reader_kwargs['info'] = self._instrument_info
+
+        print(reader_kwargs)
 
         # Eventually get topography from module "SurfaceTopography" using the given keywords
         topo = reader.topography(**reader_kwargs)
@@ -919,16 +966,6 @@ class Topography(TaskStateModel, SubjectMixin):
         toporeader = None
         topo = cache.get(cache_key) if allow_cache else None
         if topo is None:
-            # Build dictionary with instrument information from database... this may override data provided by the
-            # topography reader
-            info = {
-                'instrument': {
-                    'name': self.instrument_name,
-                    'type': self.instrument_type,
-                    'parameters': self.instrument_parameters,
-                }
-            }
-
             if allow_squeezed and self.has_squeezed_datafile:
                 if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
                     _log.warning(
@@ -938,7 +975,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
                 # Okay, we can use the squeezed datafile, it's already there.
                 toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
-                topo = toporeader.topography(info=info)
+                topo = toporeader.topography(info=self._instrument_info)
                 # In the squeezed format, these things are already applied/included:
                 # unit, scaling, detrending, physical sizes
                 # so don't need to provide them to the .topography() method
