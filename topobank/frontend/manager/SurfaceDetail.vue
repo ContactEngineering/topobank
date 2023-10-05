@@ -3,11 +3,23 @@
 import axios from "axios";
 
 import {
-    BAlert, BCard, BCardBody, BTab, BTabs,
+    BAlert,
+    BButton,
+    BButtonGroup,
+    BCard,
+    BCardBody,
+    BCardHeader,
+    BForm,
+    BFormGroup,
+    BFormInput,
+    BFormTextarea,
+    BTab,
+    BTabs,
 } from 'bootstrap-vue-next';
 
 import BandwidthPlot from './BandwidthPlot.vue';
 import DropZone from '../components/DropZone.vue';
+import SurfaceDescription from './SurfaceDescription.vue';
 import TopographyCard from "./TopographyCard.vue";
 
 export default {
@@ -15,11 +27,19 @@ export default {
     components: {
         BandwidthPlot,
         BAlert,
+        BButton,
+        BButtonGroup,
         BCard,
         BCardBody,
+        BCardHeader,
+        BForm,
+        BFormGroup,
+        BFormInput,
+        BFormTextarea,
         BTab,
         BTabs,
         DropZone,
+        SurfaceDescription,
         TopographyCard
     },
     props: {
@@ -54,7 +74,7 @@ export default {
             axios.get(this.surfaceUrl).then(response => {
                 this._data = response.data;
                 this._topographies = response.data.topography_set;
-                console.log(this._topographies);
+                console.log(this._data);
             });
         },
         onFilesDropped(files) {
@@ -111,7 +131,10 @@ export default {
                         </div>
                     </b-tab>
                     <b-tab title="Bandwidths">
-                        <b-card class="w-100" title="Bandwidths">
+                        <b-card class="w-100">
+                            <template #header>
+                                <h5 class="float-start">Bandwidths</h5>
+                            </template>
                             <b-card-body>
                                 <b-alert v-if="_topographies.length == 0" info>
                                     This surface has no measurements yet.
@@ -133,6 +156,10 @@ export default {
                         </b-card>
                     </b-tab>
                     <b-tab title="Description">
+                        <surface-description v-if="_data !== null"
+                                             :name="_data.name"
+                                             :description="_data.description">
+                        </surface-description>
                     </b-tab>
                     <b-tab title="Permissions">
                     </b-tab>
