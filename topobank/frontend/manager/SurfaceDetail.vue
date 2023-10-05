@@ -157,6 +157,7 @@ export default {
                     </b-tab>
                     <b-tab title="Description">
                         <surface-description v-if="_data !== null"
+                                             :surface-url="_data.url"
                                              :name="_data.name"
                                              :description="_data.description">
                         </surface-description>

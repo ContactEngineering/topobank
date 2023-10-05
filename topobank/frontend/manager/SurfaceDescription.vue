@@ -3,12 +3,13 @@
 import axios from "axios";
 
 import {
-    BButton, BButtonGroup, BCard, BCardBody, BForm, BFormGroup, BFormInput, BFormTextarea
+    BAlert, BButton, BButtonGroup, BCard, BCardBody, BForm, BFormGroup, BFormInput, BFormTextarea, BSpinner
 } from 'bootstrap-vue-next';
 
 export default {
     name: 'surface-description',
     components: {
+        BAlert,
         BButton,
         BButtonGroup,
         BCard,
@@ -17,16 +18,38 @@ export default {
         BFormGroup,
         BFormInput,
         BFormTextarea,
+        BSpinner
     },
     props: {
-        apiUrl: String,
+        surfaceUrl: String,
         name: String,
         description: String
     },
     data() {
         return {
+            _description: this.description,
+            _editing: false,
+            _error: null,
             _name: this.name,
-            _description: this.description
+            _savedDescription: this.description,
+            _savedName: this.name,
+            _saving: false
+        }
+    },
+    methods: {
+        saveCard() {
+            this._editing = false;
+            this._saving = true;
+            axios.patch(this.surfaceUrl, {name: this._name, description: this._description}).then(response => {
+                this._error = null;
+                this.$emit('surface-updated', response.data);
+            }).catch(error => {
+                this._error = error;
+                this._name = this._savedName;
+                this._description = this._saveDescription;
+            }).finally(() => {
+                this._saving = false;
+            });
         }
     }
 };
@@ -36,16 +59,34 @@ export default {
     <b-card>
         <template #header>
             <h5 class="float-start">Description</h5>
-            <b-button-group class="float-end" size="sm">
-                <b-button variant="outline-secondary">
+            <b-button-group v-if="!_editing && !_saving"
+                            class="float-end"
+                            size="sm">
+                <b-button variant="outline-secondary"
+                          @click="_savedName = `${_name}`; _savedDescription = `${_description}`; _editing = true">
                     <i class="fa fa-pen"></i>
                 </b-button>
-                <b-button variant="outline-secondary">
-                    <i class="fa fa-trash"></i>
+            </b-button-group>
+            <b-button-group v-if="_editing || _saving"
+                            class="float-end"
+                            size="sm">
+                <b-button v-if="_editing"
+                          variant="danger"
+                          @click="_editing = false; _name = _savedName; _description = _savedDescription">
+                    Discard
+                </b-button>
+                <b-button variant="success"
+                          @click="saveCard">
+                    <b-spinner small v-if="_saving"></b-spinner>
+                    SAVE
                 </b-button>
             </b-button-group>
         </template>
         <b-card-body>
+            <b-alert :model-value="_error !== null"
+                     variant="danger">
+                {{ _error }}
+            </b-alert>
             <b-form>
                 <b-form-group id="input-group-name"
                               label="Name"
@@ -54,7 +95,7 @@ export default {
                     <b-form-input id="input-name"
                                   v-model="_name"
                                   placeholder="Please enter a name here"
-                                  required>
+                                  :disabled="!_editing">
                     </b-form-input>
                 </b-form-group>
                 <b-form-group id="input-group-description"
@@ -64,7 +105,8 @@ export default {
                     <b-form-textarea id="input-description"
                                      v-model="_description"
                                      placeholder="Please enter a description here"
-                                     rows="10">
+                                     rows="10"
+                                     :disabled="!_editing">
                     </b-form-textarea>
                 </b-form-group>
             </b-form>
