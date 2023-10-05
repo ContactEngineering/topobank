@@ -235,24 +235,37 @@ export default {
                                :disabled="!_editing">
                 </b-form-select>
             </div>
-            <div class="btn-group btn-group-sm float-end">
-                <button v-if="!_editing && !_saving" class="btn btn-outline-secondary float-end"
-                        @click="_savedData = JSON.parse(JSON.stringify(_data)); _editing = true">
-                    Edit
+            <div v-if="!_editing && !_saving"
+                 class="btn-group btn-group-sm float-end">
+                <button class="btn btn-outline-secondary float-end ms-2">
+                    <i class="fa fa-expand"></i>
                 </button>
-                <button v-if="!_editing && !_saving" class="btn btn-outline-secondary float-end"
+            </div>
+            <div v-if="!_editing && !_saving"
+                 class="btn-group btn-group-sm float-end">
+                <button class="btn btn-outline-secondary"
+                        @click="_savedData = JSON.parse(JSON.stringify(_data)); _editing = true">
+                    <i class="fa fa-pen"></i>
+                </button>
+                <button class="btn btn-outline-secondary"
                         @click="deleteTopography">
                     <i class="fa fa-trash"></i>
                 </button>
-                <button v-if="_editing" class="btn btn-danger float-end" @click="_editing = false; _data = _savedData">
+            </div>
+            <div v-if="_editing || _saving"
+                 class="btn-group btn-group-sm float-end">
+                <button v-if="_editing"
+                        class="btn btn-danger"
+                        @click="_editing = false; _data = _savedData">
                     Discard
                 </button>
-                <button v-if="_editing || _saving" class="btn btn-success float-end" @click="saveCard">
+                <button class="btn btn-success"
+                        @click="saveCard">
                     <b-spinner small v-if="_saving"></b-spinner>
                     SAVE
                 </button>
             </div>
-            <div class="btn-group btn-group-sm float-end me-5">
+            <div class="btn-group btn-group-sm float-end me-2">
                 <button class="btn btn-outline-secondary" :class="{ active: _descriptionVisible }"
                         @click="_descriptionVisible = !_descriptionVisible">
                     Description
