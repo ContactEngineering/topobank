@@ -20,6 +20,7 @@ import {
 import BandwidthPlot from './BandwidthPlot.vue';
 import DropZone from '../components/DropZone.vue';
 import SurfaceDescription from './SurfaceDescription.vue';
+import SurfacePermissions from './SurfacePermissions.vue';
 import TopographyCard from "./TopographyCard.vue";
 
 export default {
@@ -40,6 +41,7 @@ export default {
         BTabs,
         DropZone,
         SurfaceDescription,
+        SurfacePermissions,
         TopographyCard
     },
     props: {
@@ -71,7 +73,7 @@ export default {
     methods: {
         updateCard() {
             /* Fetch JSON describing the card */
-            axios.get(this.surfaceUrl).then(response => {
+            axios.get(`${this.surfaceUrl}?children=yes&permissions=yes`).then(response => {
                 this._data = response.data;
                 this._topographies = response.data.topography_set;
                 console.log(this._data);
@@ -163,6 +165,10 @@ export default {
                         </surface-description>
                     </b-tab>
                     <b-tab title="Permissions">
+                        <surface-permissions v-if="_data !== null"
+                                             :surface-url="_data.url"
+                                             :permissions="_data.permissions">
+                        </surface-permissions>
                     </b-tab>
                     <b-tab v-if="_data !== null && _data.is_published"
                            title="Authors">

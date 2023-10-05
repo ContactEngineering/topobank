@@ -58,6 +58,6 @@ export default {
                    multiple
                    @change="onSelect"/>
         </label>
-        for file upload.
+        for upload.
     </div>
 </template>

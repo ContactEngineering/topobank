@@ -1,13 +1,14 @@
 import logging
 
-from django.shortcuts import reverse
-from guardian.shortcuts import get_perms
-from rest_framework import serializers
+from django import shortcuts
+from guardian.shortcuts import get_perms, get_users_with_perms
+from rest_framework import reverse, serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..taskapp.serializers import TaskStateModelSerializer
 
 from .models import Surface, Topography, TagModel
+from .permissions import guardian_to_api
 from .utils import get_search_term, filtered_topographies, subjects_to_base64
 
 _log = logging.getLogger(__name__)
@@ -56,13 +57,41 @@ class TopographySerializer(TaskStateModelSerializer):
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
-        fields = ['url', 'name', 'category', 'creator', 'description', 'publication', 'tags', 'topography_set']
+        fields = ['url', 'name', 'category', 'creator', 'description', 'publication', 'tags', 'topography_set',
+                  'permissions']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
     topography_set = TopographySerializer(many=True, read_only=True)
 
     tags = TagRelatedManagerField(required=False)
+
+    permissions = serializers.SerializerMethodField()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # We only return the topography set if requested to do so
+        children = self.context['request'].query_params.get('children')
+        with_children = children is not None and children.lower() in ['yes', 'true']
+        if not with_children:
+            self.fields.pop('topography_set')
+
+        # We only return permissions if requested to do so
+        permissions = self.context['request'].query_params.get('permissions')
+        with_permissions = permissions is not None and permissions.lower() in ['yes', 'true']
+        if not with_permissions:
+            self.fields.pop('permissions')
+
+    def get_permissions(self, obj):
+        users = get_users_with_perms(obj, attach_perms=True)
+        return {reverse.reverse('users:user-api-detail', args=[obj.id],
+                                request=self.context['request']): {
+            'id': key.id,
+            'name': key.name,
+            'orcid': key.orcid_id,
+            'permission': guardian_to_api(value)
+        } for key, value in users.items()}
 
 
 class TopographySearchSerializer(serializers.ModelSerializer):
@@ -112,21 +141,13 @@ class TopographySearchSerializer(serializers.ModelSerializer):
         perms = get_perms(user, surface)  # TODO are permissions needed here?
 
         urls = {
-            'select': reverse('manager:topography-select', kwargs=dict(pk=obj.pk)),
-            'unselect': reverse('manager:topography-unselect', kwargs=dict(pk=obj.pk))
+            'select': shortcuts.reverse('manager:topography-select', kwargs=dict(pk=obj.pk)),
+            'unselect': shortcuts.reverse('manager:topography-unselect', kwargs=dict(pk=obj.pk))
         }
 
         if 'view_surface' in perms:
-            urls['detail'] = reverse('manager:topography-detail', kwargs=dict(pk=obj.pk))
-            urls['analyze'] = f"{reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
-
-        if 'change_surface' in perms:
-            urls.update({
-                'update': reverse('manager:topography-update', kwargs=dict(pk=obj.pk))
-            })
-
-        if 'delete_surface' in perms:
-            urls['delete'] = reverse('manager:topography-delete', kwargs=dict(pk=obj.pk))
+            urls['detail'] = shortcuts.reverse('manager:topography-detail', kwargs=dict(pk=obj.pk))
+            urls['analyze'] = f"{shortcuts.reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
 
         return urls
 
@@ -230,33 +251,33 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
         perms = get_perms(user, obj)  # TODO are permissions needed here?
 
         urls = {
-            'select': reverse('manager:surface-select', kwargs=dict(pk=obj.pk)),
-            'unselect': reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
+            'select': shortcuts.reverse('manager:surface-select', kwargs=dict(pk=obj.pk)),
+            'unselect': shortcuts.reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
         }
         if 'view_surface' in perms:
-            urls['detail'] = f"{reverse('manager:surface-detail')}?surface={obj.pk}",
+            urls['detail'] = f"{shortcuts.reverse('manager:surface-detail')}?surface={obj.pk}",
             if obj.num_topographies() > 0:
                 urls.update({
-                    'analyze': f"{reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
+                    'analyze': f"{shortcuts.reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
                 })
-            urls['download'] = reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
+            urls['download'] = shortcuts.reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
 
         if 'change_surface' in perms:
             urls.update({
-                'add_topography': reverse('manager:topography-create', kwargs=dict(surface_id=obj.id)),
-                'update': reverse('manager:surface-update', kwargs=dict(pk=obj.pk)),
+                'add_topography': shortcuts.reverse('manager:topography-create', kwargs=dict(surface_id=obj.id)),
+                'update': shortcuts.reverse('manager:surface-update', kwargs=dict(pk=obj.pk)),
             })
         if 'delete_surface' in perms:
             urls.update({
-                'delete': reverse('manager:surface-delete', kwargs=dict(pk=obj.pk)),
+                'delete': shortcuts.reverse('manager:surface-delete', kwargs=dict(pk=obj.pk)),
             })
         if 'share_surface' in perms:
             urls.update({
-                'share': reverse('manager:surface-share', kwargs=dict(pk=obj.pk)),
+                'share': shortcuts.reverse('manager:surface-share', kwargs=dict(pk=obj.pk)),
             })
         if 'publish_surface' in perms:
             urls.update({
-                'publish': reverse('manager:surface-publish', kwargs=dict(pk=obj.pk)),
+                'publish': shortcuts.reverse('manager:surface-publish', kwargs=dict(pk=obj.pk)),
             })
 
         return urls
@@ -336,8 +357,8 @@ class TagSearchSerizalizer(serializers.ModelSerializer):
 
     def get_urls(self, obj):
         urls = {
-            'select': reverse('manager:tag-select', kwargs=dict(pk=obj.pk)),
-            'unselect': reverse('manager:tag-unselect', kwargs=dict(pk=obj.pk))
+            'select': shortcuts.reverse('manager:tag-select', kwargs=dict(pk=obj.pk)),
+            'unselect': shortcuts.reverse('manager:tag-unselect', kwargs=dict(pk=obj.pk))
         }
         return urls
 
