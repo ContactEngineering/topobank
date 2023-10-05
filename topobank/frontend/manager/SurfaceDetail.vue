@@ -3,7 +3,7 @@
 import axios from "axios";
 
 import {
-    BAlert, BTab, BTabs,
+    BAlert, BCard, BCardBody, BTab, BTabs,
 } from 'bootstrap-vue-next';
 
 import BandwidthPlot from './BandwidthPlot.vue';
@@ -15,6 +15,8 @@ export default {
     components: {
         BandwidthPlot,
         BAlert,
+        BCard,
+        BCardBody,
         BTab,
         BTabs,
         DropZone,
@@ -94,7 +96,11 @@ export default {
     <div class="container">
         <div class="row">
             <div class="col-12">
-                <b-tabs class="nav-pills-custom" fill pills vertical>
+                <b-tabs class="nav-pills-custom"
+                        content-class="w-100"
+                        fill
+                        pills
+                        vertical>
                     <b-tab title="Measurements">
                         <drop-zone @files-dropped="onFilesDropped"></drop-zone>
                         <div v-for="(topography, index) in _topographies">
@@ -105,20 +111,26 @@ export default {
                         </div>
                     </b-tab>
                     <b-tab title="Bandwidths">
-                        <b-alert v-if="_topographies.length == 0" info>
-                            This surface has no measurements yet.
-                        </b-alert>
-                        <b-alert v-if="_topographies.length > 0" secondary>
-                            This bandwidth plot shows the range of length scales that have been measured for this
-                            digital surface
-                            twin. Each of the blocks below represents one measurement. Part of the bandwidth shown
-                            may
-                            be unreliable
-                            due to the configured instrument's measurement capacities.
-                        </b-alert>
-                        <bandwidth-plot v-if="_topographies.length > 0"
-                                        :topographies="_topographies">
-                        </bandwidth-plot>
+                        <b-card class="w-100" title="Bandwidths">
+                            <b-card-body>
+                                <b-alert v-if="_topographies.length == 0" info>
+                                    This surface has no measurements yet.
+                                </b-alert>
+                                <b-alert v-if="_topographies.length > 0" secondary>
+                                    This bandwidth plot shows the range of length scales that have been measured for
+                                    this
+                                    digital surface
+                                    twin. Each of the blocks below represents one measurement. Part of the bandwidth
+                                    shown
+                                    may
+                                    be unreliable
+                                    due to the configured instrument's measurement capacities.
+                                </b-alert>
+                                <bandwidth-plot v-if="_topographies.length > 0"
+                                                :topographies="_topographies">
+                                </bandwidth-plot>
+                            </b-card-body>
+                        </b-card>
                     </b-tab>
                     <b-tab title="Description">
                     </b-tab>

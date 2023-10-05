@@ -4,6 +4,8 @@ import {v4 as uuid4} from 'uuid';
 
 import {ColumnDataSource, HoverTool, Plotting} from "@bokeh/bokehjs";
 
+import {applyDefaultBokehStyle} from "../utils/bokeh";
+
 export default {
     name: 'bandwidth-plot',
     props: {
@@ -36,10 +38,13 @@ export default {
                 x_axis_label: 'Bandwidth (m)',
                 x_axis_type: 'log',
                 output_backend: 'svg',
-                //sizing_mode: 'stretch_width',
+                sizing_mode: 'stretch_width',
                 tools: [hover_tool],
                 toolbar_location: null,
             });
+
+            // Apply default settings
+            applyDefaultBokehStyle(figure);
 
             // Adjust properties not accessible in the constructor
             figure.yaxis.visible = false;
@@ -68,6 +73,14 @@ export default {
                 data: {
                     y: y,
                     left: left,
+                    /*
+                    cutoff: this.topographies.map(t =>
+                        t.short_wavelength_cutoff === null ? t.bandwidth_lower :
+                            t.short_wavelength_cutoff > t.bandwidth_lower &&
+                            t.short_wavelength_cutoff < t.bandwidth_upper ? t.short_wavelength_cutoff :
+                                t.bandwidth_lower),
+                       */
+                    cutoff: this.topographies.map(t => t.short_reliability_cutoff),
                     right: this.topographies.map(t => t.bandwidth_upper),
                     name: this.topographies.map(t => t.name),
                     thumbnail: this.topographies.map(t => t.thumbnail)
@@ -83,7 +96,19 @@ export default {
                 height: 1.0,
                 color: '#2c90d9',
                 name: 'bandwidths',
-                legend_label: "Reliable bandwidth",
+                legend_label: "Reliable",
+                level: "underlay",
+                source: bw_source
+            });
+
+            figure.hbar({
+                y: {field: 'y'},
+                left: {field: 'left'},
+                right: {field: 'cutoff'},
+                height: 1.0,
+                color: '#dc3545',
+                name: 'bandwidths',
+                legend_label: "Unreliable",
                 level: "underlay",
                 source: bw_source
             });
