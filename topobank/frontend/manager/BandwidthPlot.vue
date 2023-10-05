@@ -57,14 +57,11 @@ export default {
             figure.legend.border_line_width = 3;
             figure.legend.border_line_cap = "round";
 
-            console.log(this.topographies);
-
             // Sort topographies
             const left = this.topographies.map(t => t.bandwidth_lower);
             const argsort = left.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]).map(a => a[1]);
             let y = Array(argsort.length);
             for (const i of argsort.keys()) {
-                console.log(i);
                 y[argsort[i]] = i;
             }
 
