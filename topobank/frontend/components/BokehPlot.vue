@@ -25,7 +25,7 @@ import {
 import {formatExponential} from "topobank/utils/formatting";
 
 export default {
-    name: 'bokeh-plot',
+    name: 'bokeh_plot',
     emits: [
         'selected'
     ],
@@ -95,6 +95,9 @@ export default {
             type: Array, default: function () {
                 return ["layout", "legend", "lineWidth", "symbolSize", "opacity"];
             }
+        },
+        functionTitle: {
+          type: String, default: "bokeh_plot"
         }
     },
     data: function () {
@@ -304,7 +307,7 @@ export default {
                             })
                         }));
                     }
-                    const saveTool = new SaveTool();
+                    const saveTool = new SaveTool({filename: this.functionTitle.replace(" ","_").toLowerCase()});
                     tools.push(saveTool);
 
                     /* Determine type of x and y-axis */
@@ -321,7 +324,8 @@ export default {
                         x_axis_type: xAxisType,
                         y_axis_type: yAxisType,
                         tools: tools,
-                        output_backend: this.outputBackend
+                        output_backend: this.outputBackend,
+                        title: this.functionTitle
                     });
 
                     /* Change formatters for linear axes */
