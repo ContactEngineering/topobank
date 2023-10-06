@@ -6,6 +6,7 @@ from rest_framework import reverse, serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..taskapp.serializers import TaskStateModelSerializer
+from ..users.serializers import UserSerializer
 
 from .models import Surface, Topography, TagModel
 from .permissions import guardian_to_api
@@ -85,13 +86,13 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     def get_permissions(self, obj):
         users = get_users_with_perms(obj, attach_perms=True)
-        return {reverse.reverse('users:user-api-detail', args=[obj.id],
-                                request=self.context['request']): {
-            'id': key.id,
-            'name': key.name,
-            'orcid': key.orcid_id,
-            'permission': guardian_to_api(value)
-        } for key, value in users.items()}
+        return [
+            {
+                'user': UserSerializer(key, context=self.context).data,
+                'permission': guardian_to_api(value)
+            }
+            for key, value in users.items()
+        ]
 
 
 class TopographySearchSerializer(serializers.ModelSerializer):

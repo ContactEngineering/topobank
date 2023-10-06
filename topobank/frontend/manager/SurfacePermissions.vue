@@ -3,8 +3,10 @@
 import axios from "axios";
 
 import {
-    BAlert, BButton, BButtonGroup, BCard, BCardBody, BForm, BFormSelect, BSpinner
+    BAlert, BButton, BButtonGroup, BCard, BCardBody, BForm, BFormSelect, BSpinner, BModal
 } from 'bootstrap-vue-next';
+
+import SearchUserModal from "../components/SearchUserModal.vue";
 
 export default {
     name: 'surface-permissions',
@@ -16,7 +18,9 @@ export default {
         BCardBody,
         BForm,
         BFormSelect,
-        BSpinner
+        BSpinner,
+        SearchUserModal,
+        BModal
     },
     props: {
         surfaceUrl: String,
@@ -29,7 +33,9 @@ export default {
             _permissions: this.permissions,
             _savedPermissions: this.permissions,
             _saving: false,
+            _searchUser: false,
             _options: [
+                {value: 'no-access', text: 'Revoke access (unshare digital surface twin)'},
                 {value: 'view', text: 'Allowed to view this digital surface twin'},
                 {value: 'edit', text: 'Can edit (add, remove, modify measurements)'},
                 {value: 'full', text: 'Full access (including publishing and access control)'}
@@ -50,6 +56,10 @@ export default {
             }).finally(() => {
                 this._saving = false;
             });
+        },
+        addUser(user) {
+            this._searchUser = false;
+            this._permissions.push({user: user, permission: 'view'});
         }
     }
 };
@@ -85,8 +95,9 @@ export default {
                             class="float-end me-2"
                             size="sm">
                 <b-button v-if="_editing"
-                          variant="outline-secondary">
-                    Share
+                          variant="outline-secondary"
+                          @click="_searchUser = !_searchUser">
+                    Add user (share dataset)
                 </b-button>
             </b-button-group>
         </template>
@@ -95,27 +106,24 @@ export default {
                      variant="danger">
                 {{ _error }}
             </b-alert>
-            <div v-for="[userUrl, perms] in Object.entries(_permissions)"
+            <div v-for="permission in _permissions"
                  class="row">
                 <div class="col-4 my-auto">
-                    {{ perms.name }} ({{ perms.orcid }})
+                    {{ permission.user.name }} ({{ permission.user.orcid }})
                 </div>
-                <div class="col-6">
+                <div class="col-8">
                     <b-form>
-                        <b-form-select v-model="perms.permission"
+                        <b-form-select v-model="permission.permission"
                                        :options="_options"
                                        :disabled="!_editing">
                         </b-form-select>
                     </b-form>
                 </div>
-                <div class="col-2">
-                    <b-button variant="outline-danger"
-                              class="float-end"
-                              :disabled="!_editing">
-                        Unshare
-                    </b-button>
-                </div>
             </div>
         </b-card-body>
     </b-card>
+    <search-user-modal v-model="_searchUser"
+                       :class="{ 'd-block': _searchUser }"
+                       @user-selected="addUser">
+    </search-user-modal>
 </template>
