@@ -25,7 +25,7 @@ import {
 import {formatExponential} from "topobank/utils/formatting";
 
 export default {
-    name: 'height_distribution',
+    name: 'bokeh_plot',
     emits: [
         'selected'
     ],
@@ -308,7 +308,6 @@ export default {
                         }));
                     }
                     const saveTool = new SaveTool({filename: this.functionTitle.replace(" ","_").toLowerCase()});
-                    console.log(this.functionTitle)
                     tools.push(saveTool);
 
                     /* Determine type of x and y-axis */
