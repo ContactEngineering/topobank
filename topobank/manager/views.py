@@ -12,9 +12,8 @@ from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.storage import FileSystemStorage, default_storage
-from django.db import transaction
 from django.db.models import Q
-from django.http import HttpResponse, Http404
+from django.http import HttpResponse, Http404, HttpResponseForbidden
 from django.shortcuts import redirect, render
 from django.urls import reverse, reverse_lazy
 from django.utils.decorators import method_decorator
@@ -25,7 +24,7 @@ from django.contrib import messages
 from django.utils.text import slugify
 
 from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import get_users_with_perms
+from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
 from formtools.wizard.views import SessionWizardView
 from notifications.signals import notify
 
@@ -43,13 +42,14 @@ import topobank.taskapp.utils
 
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..publication.models import MAX_LEN_AUTHORS_FIELD
+from ..users.models import User
 
 from .containers import write_surface_container
 from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
 from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
     PlotTopographyException, PublicationException, topography_datafile_path
-from .permissions import ObjectPermissions, ParentObjectPermissions
+from .permissions import ObjectPermissions, ParentObjectPermissions, api_to_guardian
 from .serializers import SurfaceSerializer, TopographySerializer, TagSearchSerizalizer, SurfaceSearchSerializer
 from .utils import selected_instances, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
@@ -1724,3 +1724,41 @@ class TopographyViewSet(mixins.CreateModelMixin,
             instance.save()  # run_task sets the initial task state to 'pe', so we need to save
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+
+@api_view(['PATCH'])
+def set_permissions(request, pk=None):
+    user = request.user
+    obj = Surface.objects.get(pk=pk)
+
+    # Check that user has the right to modify permissions
+    if not user.has_perms(['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface'],
+                          obj):
+        return HttpResponseForbidden()
+
+    # Check that the request does not ask to revoke permissions from the current user
+    for permission in request.data:
+        if permission['user']['id'] == user.id:
+            if permission['permission'] != 'full':
+                return Response({'message': 'Permissions cannot be revoked from logged in user'}, status=405)  # Not allowed
+
+    # Everything looks okay, update permissions
+    for permission in request.data:
+        user_id = permission['user']['id']
+        if user_id != user.id:
+            other_user = User.objects.get(id=user_id)
+
+            # Get current set of permissions and new permissions
+            current_perms = set(other_user.get_user_permissions(obj))
+            new_perms = set(api_to_guardian(permission['permission']))
+
+            # Assign all perms that are in the new set but not in the old
+            for perm in new_perms - current_perms:
+                assign_perm(perm, other_user, obj)
+
+            # Remove all perms that are in the old set but not in the new
+            for perm in current_perms - new_perms:
+                remove_perm(perm, other_user, obj)
+
+    # Permissions were updated successfully
+    return Response({}, status=204)

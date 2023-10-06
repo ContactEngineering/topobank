@@ -143,6 +143,7 @@ def api_to_guardian(api_permission):
     """
     Translate a REST API permissions to a list of Django guardian permissions.
     The API exposes the following permissions:
+        'no-access': No access to the dataset
         'view': Basic view access, corresponding to 'view_surface'
         'edit': Edit access, corresponding to 'view_surface' and
             'change_surface'
@@ -151,6 +152,7 @@ def api_to_guardian(api_permission):
             'share_surface' and 'publish_surface'
     """
     _permissions = {
+        'no-access': [],
         'view': ['view_surface'],
         'edit': ['view_surface', 'change_surface'],
         'full': ['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface']
@@ -163,6 +165,7 @@ def guardian_to_api(guardian_permissions):
     """
     Translate a list of Django guardian permissions to an API permission
     keyword. The API exposes the following permissions:
+        'no-access': No access to the dataset
         'view': Basic view access, corresponding to 'view_surface'
         'edit': Edit access, corresponding to 'view_surface' and
             'change_surface'
@@ -171,7 +174,7 @@ def guardian_to_api(guardian_permissions):
             'share_surface' and 'publish_surface'
     """
 
-    api_permission = None
+    api_permission = 'no-access'
     if 'view_surface' in guardian_permissions:
         api_permission = 'view'
         if 'change_surface' in guardian_permissions:

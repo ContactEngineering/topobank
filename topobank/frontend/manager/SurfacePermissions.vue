@@ -46,13 +46,12 @@ export default {
         saveCard() {
             this._editing = false;
             this._saving = true;
-            axios.patch(this.surfaceUrl, {name: this._name, description: this._description}).then(response => {
+            axios.patch(`${this.surfaceUrl}set-permissions/`, this._permissions).then(response => {
                 this._error = null;
-                this.$emit('surface-updated', response.data);
+                this.$emit('permissions-updated', response.data);
             }).catch(error => {
                 this._error = error;
-                this._name = this._savedName;
-                this._description = this._saveDescription;
+                this._permissions = this._savedPermissions;
             }).finally(() => {
                 this._saving = false;
             });
@@ -73,7 +72,7 @@ export default {
                             class="float-end"
                             size="sm">
                 <b-button variant="outline-secondary"
-                          @click="_savedName = `${_name}`; _savedDescription = `${_description}`; _editing = true">
+                          @click="_savedPermissions = JSON.parse(JSON.stringify(_permissions)); _editing = true">
                     <i class="fa fa-pen"></i>
                 </b-button>
             </b-button-group>
@@ -82,7 +81,7 @@ export default {
                             size="sm">
                 <b-button v-if="_editing"
                           variant="danger"
-                          @click="_editing = false; _name = _savedName; _description = _savedDescription">
+                          @click="_editing = false; _permissions = _savedPermissions">
                     Discard
                 </b-button>
                 <b-button variant="success"
@@ -107,7 +106,7 @@ export default {
                 {{ _error }}
             </b-alert>
             <div v-for="permission in _permissions"
-                 class="row">
+                 class="row mb-2">
                 <div class="col-4 my-auto">
                     {{ permission.user.name }} ({{ permission.user.orcid }})
                 </div>

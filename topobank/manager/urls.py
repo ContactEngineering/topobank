@@ -7,7 +7,6 @@ from rest_framework.routers import DefaultRouter
 from . import views
 from . import forms
 
-
 WIZARD_FORMS = [
     ('upload', forms.TopographyFileUploadForm),
     ('metadata', forms.TopographyMetaDataForm),
@@ -80,19 +79,19 @@ urlpatterns += [
         name='surface-update'
     ),
     re_path(
-       r'html/surface/(?P<pk>\d+)/delete/$',
-       view=login_required(views.SurfaceDeleteView.as_view()),
-       name='surface-delete'
+        r'html/surface/(?P<pk>\d+)/delete/$',
+        view=login_required(views.SurfaceDeleteView.as_view()),
+        name='surface-delete'
     ),
     re_path(
-       r'html/surface/(?P<pk>\d+)/share/$',
-       view=login_required(views.SurfaceShareView.as_view()),
-       name='surface-share'
+        r'html/surface/(?P<pk>\d+)/share/$',
+        view=login_required(views.SurfaceShareView.as_view()),
+        name='surface-share'
     ),
     re_path(
-       r'html/surface/(?P<pk>\d+)/publish/$',
-       view=login_required(views.SurfacePublishView.as_view()),
-       name='surface-publish'
+        r'html/surface/(?P<pk>\d+)/publish/$',
+        view=login_required(views.SurfacePublishView.as_view()),
+        name='surface-publish'
     ),
     re_path(
         r'html/surface/(?P<pk>\d+)/publication-rate-too-high/$',
@@ -145,15 +144,20 @@ urlpatterns += [
         view=views.TagTreeView.as_view(),
         name='tag-list'  # TODO rename
     ),
-    re_path(
-       r'api/selection/surface/(?P<pk>\d+)/select/$',
-       view=views.select_surface,
-       name='surface-select'
+    path(
+        'api/surface/<pk>/set-permissions/',
+        view=login_required(views.set_permissions),
+        name='set-permissions'
     ),
     re_path(
-       r'api/selection/surface/(?P<pk>\d+)/unselect/$',
-       view=views.unselect_surface,
-       name='surface-unselect'
+        r'api/selection/surface/(?P<pk>\d+)/select/$',
+        view=views.select_surface,
+        name='surface-select'
+    ),
+    re_path(
+        r'api/selection/surface/(?P<pk>\d+)/unselect/$',
+        view=views.unselect_surface,
+        name='surface-unselect'
     ),
     re_path(
         r'api/selection/topography/(?P<pk>\d+)/select/$',
@@ -166,14 +170,14 @@ urlpatterns += [
         name='topography-unselect'
     ),
     re_path(
-       r'api/selection/tag/(?P<pk>\d+)/select/$',
-       view=views.select_tag,
-       name='tag-select'
+        r'api/selection/tag/(?P<pk>\d+)/select/$',
+        view=views.select_tag,
+        name='tag-select'
     ),
     re_path(
-       r'api/selection/tag/(?P<pk>\d+)/unselect/$',
-       view=views.unselect_tag,
-       name='tag-unselect'
+        r'api/selection/tag/(?P<pk>\d+)/unselect/$',
+        view=views.unselect_tag,
+        name='tag-unselect'
     ),
     path(
         'api/selection/unselect-all/',
