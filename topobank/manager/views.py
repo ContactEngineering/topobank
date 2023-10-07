@@ -1742,6 +1742,9 @@ def set_permissions(request, pk=None):
             if permission['permission'] != 'full':
                 return Response({'message': 'Permissions cannot be revoked from logged in user'}, status=405)  # Not allowed
 
+    # Get all current object permissions
+    users_with_perms = {user.id: perms for user, perms in get_users_with_perms(obj, attach_perms=True).items()}
+
     # Everything looks okay, update permissions
     for permission in request.data:
         user_id = permission['user']['id']
@@ -1749,7 +1752,10 @@ def set_permissions(request, pk=None):
             other_user = User.objects.get(id=user_id)
 
             # Get current set of permissions and new permissions
-            current_perms = set(other_user.get_user_permissions(obj))
+            try:
+                current_perms = set(users_with_perms[user_id])
+            except KeyError:
+                current_perms = set()
             new_perms = set(api_to_guardian(permission['permission']))
 
             # Assign all perms that are in the new set but not in the old
