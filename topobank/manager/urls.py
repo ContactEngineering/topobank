@@ -38,11 +38,6 @@ urlpatterns += [
         view=views.dzi,
         name='topography-dzi'
     ),
-    re_path(
-        r'html/topography/(?P<pk>\d+)/plot/$',
-        view=views.topography_plot,
-        name='topography-plot'
-    ),
     path(
         r'html/surface/',
         view=views.SurfaceDetailView.as_view(),
