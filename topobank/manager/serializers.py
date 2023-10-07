@@ -85,14 +85,14 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
             self.fields.pop('permissions')
 
     def get_permissions(self, obj):
+        request = self.context['request']
+        current_user = request.user
         users = get_users_with_perms(obj, attach_perms=True)
-        return [
-            {
-                'user': UserSerializer(key, context=self.context).data,
-                'permission': guardian_to_api(value)
-            }
-            for key, value in users.items()
-        ]
+        return {'current_user': {'user': UserSerializer(current_user, context=self.context).data,
+                                 'permission': guardian_to_api(users[current_user])},
+                'other_users': [{'user': UserSerializer(key, context=self.context).data,
+                                 'permission': guardian_to_api(value)}
+                                for key, value in users.items() if key != current_user]}
 
 
 class TopographySearchSerializer(serializers.ModelSerializer):

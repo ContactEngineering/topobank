@@ -46,7 +46,7 @@ export default {
         saveCard() {
             this._editing = false;
             this._saving = true;
-            axios.patch(`${this.surfaceUrl}set-permissions/`, this._permissions).then(response => {
+            axios.patch(`${this.surfaceUrl}set-permissions/`, this._permissions.other_users).then(response => {
                 this._error = null;
                 this.$emit('permissions-updated', response.data);
             }).catch(error => {
@@ -58,7 +58,7 @@ export default {
         },
         addUser(user) {
             this._searchUser = false;
-            this._permissions.push({user: user, permission: 'view'});
+            this._permissions.other_users.push({user: user, permission: 'view'});
         }
     }
 };
@@ -105,10 +105,27 @@ export default {
                      variant="danger">
                 {{ _error }}
             </b-alert>
-            <div v-for="permission in _permissions"
+            <div class="row mb-2">
+                <div class="col-4 my-auto">
+                    <b>{{ _permissions.current_user.user.name }}<br>({{ _permissions.current_user.user.orcid }})</b>
+                </div>
+                <div class="col-8">
+                    <b-form>
+                        <b-form-select v-model="_permissions.current_user.permission"
+                                       :options="_options"
+                                       disabled>
+                        </b-form-select>
+                    </b-form>
+                </div>
+            </div>
+            <hr/>
+            <div v-if="_permissions.other_users.length == 0">
+                Only you can access this digital surface twin.
+            </div>
+            <div v-if="_permissions.other_users.length > 0" v-for="permission in _permissions.other_users"
                  class="row mb-2">
                 <div class="col-4 my-auto">
-                    {{ permission.user.name }} ({{ permission.user.orcid }})
+                    {{ permission.user.name }}<br>({{ permission.user.orcid }})
                 </div>
                 <div class="col-8">
                     <b-form>
