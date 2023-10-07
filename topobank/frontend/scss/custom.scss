@@ -206,8 +206,15 @@ div.bk-btn-group button.bk-btn-primary:hover {
   z-index: 1000;
 }
 */
+
+html, body {
+    height: 100%;
+}
+
 body {
     padding-top: 105px; /* choose sth like 162px when using fix-top-3 */
+    display: flex;
+    flex-direction: column;
 }
 
 /** Animate search bar */
@@ -541,6 +548,7 @@ body {
     display: -webkit-box;
     display: -ms-flexbox;
     display: flex;
+    flex: 1 0 auto;
 }
 
 #wrapper #content-wrapper {
@@ -826,14 +834,6 @@ body.fixed-nav.sidebar-toggled #content-wrapper {
 }
 
 footer.sticky-footer {
-    display: -webkit-box;
-    display: -ms-flexbox;
-    display: flex;
-    position: absolute;
-    right: 0;
-    bottom: 0;
-    /* width: calc(100% - 90px); use this with sidebar */
-    width: 100%;
     height: 80px;
     background-color: white;
 }
