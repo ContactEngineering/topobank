@@ -3,7 +3,8 @@
 import axios from "axios";
 
 import {
-    BAlert, BButton, BButtonGroup, BCard, BCardBody, BForm, BFormGroup, BFormInput, BFormTextarea, BSpinner
+    BAlert, BButton, BButtonGroup, BCard, BCardBody, BForm, BFormGroup, BFormInput, BFormSelect, BFormTags,
+    BFormTextarea, BSpinner
 } from 'bootstrap-vue-next';
 
 export default {
@@ -17,30 +18,46 @@ export default {
         BForm,
         BFormGroup,
         BFormInput,
+        BFormSelect,
+        BFormTags,
         BFormTextarea,
         BSpinner
     },
     props: {
-        surfaceUrl: String,
+        category: String,
+        description: String,
         name: String,
-        description: String
+        surfaceUrl: String,
+        tags: Object
     },
     data() {
         return {
+            _category: this.category,
             _description: this.description,
             _editing: false,
             _error: null,
             _name: this.name,
+            _options: [
+                {value: 'exp', text: 'Experimental data'},
+                {value: 'sim', text: 'Simulated data'},
+                {value: 'dum', text: 'Dummy data'},
+            ],
             _savedDescription: this.description,
             _savedName: this.name,
-            _saving: false
+            _saving: false,
+            _tags: this.tags
         }
     },
     methods: {
         saveCard() {
             this._editing = false;
             this._saving = true;
-            axios.patch(this.surfaceUrl, {name: this._name, description: this._description}).then(response => {
+            axios.patch(this.surfaceUrl, {
+                name: this._name,
+                description: this._description,
+                category: this._category,
+                tags: this._tags
+            }).then(response => {
                 this._error = null;
                 this.$emit('surface-updated', response.data);
             }).catch(error => {
@@ -108,6 +125,25 @@ export default {
                                      rows="10"
                                      :disabled="!_editing">
                     </b-form-textarea>
+                </b-form-group>
+                <b-form-group id="input-group-category"
+                              label="Category"
+                              label-for="input-category"
+                              description="Please indicate the category of the data contained in this digital surface twin.">
+                    <b-form-select id="input-category"
+                                   v-model="_category"
+                                   :options="_options"
+                                   :disabled="!_editing">
+                    </b-form-select>
+                </b-form-group>
+                <b-form-group id="input-group-tags"
+                              label="Tags"
+                              label-for="input-tags"
+                              description="Attach arbitrary tags (labels) to this digital surface twin.">
+                    <b-form-tags id="input-tags"
+                                   v-model="_tags"
+                                   :disabled="!_editing">
+                    </b-form-tags>
                 </b-form-group>
             </b-form>
         </b-card-body>

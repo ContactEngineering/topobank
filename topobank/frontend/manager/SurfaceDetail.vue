@@ -161,7 +161,9 @@ export default {
                         <surface-description v-if="_data !== null"
                                              :surface-url="_data.url"
                                              :name="_data.name"
-                                             :description="_data.description">
+                                             :description="_data.description"
+                                             :category="_data.category"
+                                             :tags="_data.tags">
                         </surface-description>
                     </b-tab>
                     <b-tab title="Permissions">
