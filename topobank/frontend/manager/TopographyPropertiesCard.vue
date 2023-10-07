@@ -260,6 +260,11 @@ export default {
                 </button>
             </div>
             <div class="btn-group btn-group-sm float-end me-2">
+                <button class="btn btn-outline-secondary">
+                    Analyze
+                </button>
+            </div>
+            <div class="btn-group btn-group-sm float-end me-2">
                 <button v-if="!enlarged"
                         class="btn btn-outline-secondary"
                         :class="{ active: _descriptionVisible }"
