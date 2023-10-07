@@ -1,7 +1,5 @@
 <script>
 
-import {v4 as uuid4} from 'uuid';
-
 import axios from "axios";
 
 import {
@@ -26,10 +24,6 @@ export default {
         'topography-updated'
     ],
     props: {
-        apiUrl: {
-            type: String,
-            default: '/manager/api/topography'
-        },
         data: {
             type: Object,
             default: null
@@ -50,29 +44,27 @@ export default {
             type: Number,
             value: 30
         },
+        enlarged: {
+            type: Boolean,
+            default: false
+        },
         topographyUrl: {
             type: String,
             default: null
-        },
-        uid: {
-            type: String,
-            default() {
-                return uuid4();
-            }
         }
     },
     data() {
         return {
             _data: null,
-            _descriptionVisible: false,
+            _descriptionVisible: this.enlarged,
             _editing: false,
             _error: null,
-            _filtersVisible: false,
+            _filtersVisible: this.enlarged,
             _instrument_parameters_resolution_value: null,
             _instrument_parameters_resolution_unit: null,
             _instrument_parameters_tip_radius_value: null,
             _instrument_parameters_tip_radius_unit: null,
-            _instrumentVisible: false,
+            _instrumentVisible: this.enlarged,
             _saving: false,
             _topographyUrl: this.topographyUrl === null ? this.data.url : this.topographyUrl,
             _savedData: null,
@@ -104,7 +96,8 @@ export default {
     mounted() {
         if (this.data !== null) {
             this.mogrifyDataFromGETRequest(this.data);
-            //this.updateCard();
+        } else {
+            this.updateCard();
         }
     },
     methods: {
@@ -235,11 +228,12 @@ export default {
                                :disabled="!_editing">
                 </b-form-select>
             </div>
-            <div v-if="!_editing && !_saving"
+            <div v-if="this._data !== null && !_editing && !_saving && !enlarged"
                  class="btn-group btn-group-sm float-end">
-                <button class="btn btn-outline-secondary float-end ms-2">
+                <a class="btn btn-outline-secondary float-end ms-2"
+                   :href="`/manager/html/topography/?topography=${this._data.id}`">
                     <i class="fa fa-expand"></i>
-                </button>
+                </a>
             </div>
             <div v-if="!_editing && !_saving"
                  class="btn-group btn-group-sm float-end">
@@ -266,15 +260,21 @@ export default {
                 </button>
             </div>
             <div class="btn-group btn-group-sm float-end me-2">
-                <button class="btn btn-outline-secondary" :class="{ active: _descriptionVisible }"
+                <button v-if="!enlarged"
+                        class="btn btn-outline-secondary"
+                        :class="{ active: _descriptionVisible }"
                         @click="_descriptionVisible = !_descriptionVisible">
                     Description
                 </button>
-                <button class="btn btn-outline-secondary" :class="{ active: _instrumentVisible }"
+                <button v-if="!enlarged"
+                        class="btn btn-outline-secondary"
+                        :class="{ active: _instrumentVisible }"
                         @click="_instrumentVisible = !_instrumentVisible">
                     Instrument
                 </button>
-                <button class="btn btn-outline-secondary" :class="{ active: _filtersVisible }"
+                <button v-if="!enlarged"
+                        class="btn btn-outline-secondary"
+                        :class="{ active: _filtersVisible }"
                         @click="_filtersVisible = !_filtersVisible">
                     Filters
                 </button>

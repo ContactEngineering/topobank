@@ -645,111 +645,42 @@ def topography_plot(request, pk):
     return render(request, 'manager/topography_plot.html', context=context)
 
 
-class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
-    model = Topography
-    context_object_name = 'topography'
+class TopographyDetailView(TemplateView):
+    template_name = "manager/topography_detail.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        topo = self.object
-        context['subjects_b64'] = subjects_to_base64([topo])
-
-        try:
-            context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
-        except Topography.DoesNotExist:
-            context['topography_next'] = topo.id
-        try:
-            context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
-        except Topography.DoesNotExist:
-            context['topography_prev'] = topo.id
-
-        fac = get_unit_conversion_factor(topo.unit, 'm')
-        # context['bandwidth_lower_meter'] = topo.bandwidth_lower / fac
-        # context['bandwidth_upper_meter'] = topo.bandwidth_upper / fac
-        if topo.short_reliability_cutoff:
-            context['short_reliability_cutoff_meter'] = topo.short_reliability_cutoff / fac
+        # Get surface instance
+        topography_id = self.request.GET.get('topography')
+        if topography_id is None:
+            return context
+        topography = Topography.objects.get(id=int(topography_id))
 
         #
         # Add context needed for tabs
         #
         context['extra_tabs'] = [
             {
-                'title': f"{topo.surface.label}",
+                'title': f"{topography.surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={topo.surface.pk}",
+                'href': f"{reverse('manager:surface-detail')}?surface={topography.surface.pk}",
                 'active': False,
                 'login_required': False,
-                'tooltip': f"Properties of surface '{topo.surface.label}'"
+                'tooltip': f"Properties of surface '{topography.surface.label}'"
             },
             {
-                'title': f"{topo.name}",
+                'title': f"{topography.name}",
                 'icon': "file",
                 'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
-                'tooltip': f"Properties of topography '{topo.name}'"
+                'tooltip': f"Properties of topography '{topography.name}'"
             }
         ]
 
-        return context
-
-
-class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
-    model = Topography
-    context_object_name = 'topography'
-    success_url = reverse_lazy('manager:select')
-
-    def get_success_url(self):
-        user = self.request.user
-        topo = self.object
-        surface = topo.surface
-
-        link = f"{reverse('manager:surface-detail')}?surface={surface.pk}"
-        #
-        # notify other users
-        #
-        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
-        for u in other_users:
-            notify.send(sender=user, verb="delete",
-                        recipient=u,
-                        description=f"User '{user.name}' deleted topography '{topo.name}' " + \
-                                    f"from surface '{surface.name}'.",
-                        href=link)
-
-        return link
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        topo = self.object
-        surface = topo.surface
-        context['extra_tabs'] = [
-            {
-                'title': f"{topo.surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={topo.surface.pk}",
-                'active': False,
-                'tooltip': f"Properties of surface '{topo.surface.label}'"
-            },
-            {
-                'title': f"{topo.name}",
-                'icon': "file",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-                'active': False,
-                'tooltip': f"Properties of topography '{topo.name}'"
-            },
-            {
-                'title': f"Delete Topography?",
-                'icon': "trash",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Conforming deletion of topography '{topo.name}'"
-            }
-        ]
         return context
 
 
@@ -863,197 +794,6 @@ class SurfaceDetailView(TemplateView):
                 'tooltip': f"Properties of surface '{surface.label}'"
             }
         ]
-
-        return context
-
-class SurfaceUpdateView(UpdateView):
-    model = Surface
-    form_class = SurfaceForm
-
-    @surface_update_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
-        return kwargs
-
-    def form_valid(self, form):
-        surface = self.object
-        user = self.request.user
-        notification_msg = f"User {user} changed surface '{surface.name}'. Changed fields: {','.join(form.changed_data)}."
-
-        #
-        # notify other users
-        #
-        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
-        for u in other_users:
-            notify.send(sender=user, verb='change', target=surface,
-                        recipient=u,
-                        description=notification_msg,
-                        href=f"{reverse('manager:surface-detail')}?surface={surface.pk}")
-
-            return super().form_valid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        surface = self.object
-
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Edit surface",
-                'icon': "pencil",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Editing surface '{surface.label}'"
-            }
-        ]
-
-        return context
-
-    def get_success_url(self):
-        return f"{reverse('manager:surface-detail')}?surface={self.object.pk}"
-
-
-class SurfaceDeleteView(DeleteView):
-    model = Surface
-    context_object_name = 'surface'
-    success_url = reverse_lazy('manager:select')
-
-    @surface_delete_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_success_url(self):
-        user = self.request.user
-        surface = self.object
-
-        link = reverse('manager:select')
-        #
-        # notify other users
-        #
-        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
-        for u in other_users:
-            notify.send(sender=user, verb="delete",
-                        recipient=u,
-                        description=f"User '{user.name}' deleted surface '{surface.name}'.",
-                        href=link)
-        return link
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        surface = self.object
-        #
-        # Add context needed for tabs
-        #
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Delete Surface?",
-                'icon': "trash",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Conforming deletion of surface '{surface.label}'"
-            }
-        ]
-        return context
-
-
-class SurfaceShareView(FormMixin, DetailView):
-    model = Surface
-    context_object_name = 'surface'
-    template_name = "manager/share.html"
-    form_class = SurfaceShareForm
-
-    @surface_share_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_success_url(self):
-        return f"{reverse('manager:surface-detail')}?surface={self.object.pk}"
-
-    def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
-
-    def form_valid(self, form):
-
-        if 'save' in self.request.POST:
-            users = form.cleaned_data.get('users', [])
-            allow_change = form.cleaned_data.get('allow_change', False)
-            surface = self.object
-            for user in users:
-                _log.info("Sharing surface {} with user {} (allow change? {}).".format(
-                    surface.pk, user.username, allow_change))
-
-                surface.share(user, allow_change=allow_change)
-
-                #
-                # Notify user about the shared surface
-                #
-                notification_message = f"{self.request.user} has shared surface '{surface.name}' with you"
-                notify.send(self.request.user, recipient=user,
-                            verb="share",  # TODO Does verb follow activity stream defintions?
-                            target=surface,
-                            public=False,
-                            description=notification_message,
-                            href=surface.get_absolute_url())
-
-                if allow_change:
-                    notify.send(self.request.user, recipient=user, verb="allow change",
-                                target=surface, public=False,
-                                description=f"""
-                                You are allowed to change the surface '{surface.name}' shared by {self.request.user}
-                                """,
-                                href=surface.get_absolute_url())
-
-        return super().form_valid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        surface = self.object
-
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Share surface?",
-                'icon': "share-alt",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Sharing surface '{surface.label}'"
-            }
-        ]
-        context['surface'] = surface
-        context['instance_label'] = surface.label
-        context['instance_type_label'] = "surface"
-        context['cancel_url'] = f"{reverse('manager:surface-detail')}?surface={surface.pk}"
 
         return context
 
@@ -1761,7 +1501,8 @@ def set_permissions(request, pk=None):
     for permission in request.data:
         if permission['user']['id'] == user.id:
             if permission['permission'] != 'full':
-                return Response({'message': 'Permissions cannot be revoked from logged in user'}, status=405)  # Not allowed
+                return Response({'message': 'Permissions cannot be revoked from logged in user'},
+                                status=405)  # Not allowed
 
     # Get all current object permissions
     users_with_perms = {user.id: perms for user, perms in get_users_with_perms(obj, attach_perms=True).items()}

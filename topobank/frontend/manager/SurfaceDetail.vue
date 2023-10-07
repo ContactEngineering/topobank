@@ -76,7 +76,6 @@ export default {
             axios.get(`${this.surfaceUrl}?children=yes&permissions=yes`).then(response => {
                 this._data = response.data;
                 this._topographies = response.data.topography_set;
-                console.log(this._data);
             });
         },
         onFilesDropped(files) {

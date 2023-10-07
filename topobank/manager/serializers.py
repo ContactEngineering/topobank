@@ -19,6 +19,7 @@ class TopographySerializer(TaskStateModelSerializer):
     class Meta:
         model = Topography
         fields = ['url',
+                  'id',
                   'surface',
                   'name',
                   'creator',
@@ -58,7 +59,15 @@ class TopographySerializer(TaskStateModelSerializer):
 class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
-        fields = ['url', 'name', 'category', 'creator', 'description', 'publication', 'tags', 'topography_set',
+        fields = ['url',
+                  'id',
+                  'name',
+                  'category',
+                  'creator',
+                  'description',
+                  'publication',
+                  'tags',
+                  'topography_set',
                   'permissions']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
