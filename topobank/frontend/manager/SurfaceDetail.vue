@@ -227,6 +227,11 @@ export default {
                                     </a>
 
                                     <a href="#"
+                                       class="btn btn-outline-success btn-block">
+                                        Publish
+                                    </a>
+
+                                    <a href="#"
                                        class="btn btn-outline-danger btn-block">
                                         Delete
                                     </a>
