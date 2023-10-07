@@ -844,6 +844,27 @@ class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
 class SurfaceDetailView(TemplateView):
     template_name = "manager/surface_detail.html"
 
+    def get_context_data(self, **kwargs):
+        context = super().get_context_data(**kwargs)
+
+        # Get surface instance
+        surface_id = self.request.GET.get('surface')
+        if surface_id is None:
+            return context
+        surface = Surface.objects.get(id=int(surface_id))
+
+        context['extra_tabs'] = [
+            {
+                'title': f"{surface.label}",
+                'icon': "gem",
+                'icon_style_prefix': 'far',
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
+                'active': False,
+                'tooltip': f"Properties of surface '{surface.label}'"
+            }
+        ]
+
+        return context
 
 class SurfaceUpdateView(UpdateView):
     model = Surface
