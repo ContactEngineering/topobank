@@ -295,8 +295,10 @@ export default {
                  class="container">
                 <div class="row">
                     <div class="col-2">
-                        <img class="img-thumbnail mw-100"
-                             :src="_data.thumbnail">
+                        <a :href="`/manager/html/topography/?topography=${this._data.id}`">
+                            <img class="img-thumbnail mw-100"
+                                 :src="_data.thumbnail">
+                        </a>
                     </div>
                     <div class="col-10">
                         <div class="container">

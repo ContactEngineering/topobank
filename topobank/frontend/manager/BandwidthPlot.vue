@@ -73,8 +73,8 @@ export default {
                     cutoff: topographies.map(t => t.short_reliability_cutoff),
                     right: topographies.map(t => t.bandwidth_upper),
                     name: topographies.map(t => t.name),
-                    thumbnail: topographies.map(t => t.thumbnail)
-                    //topography_link: bw_topography_links,
+                    thumbnail: topographies.map(t => t.thumbnail),
+                    link: topographies.map(t => `/manager/html/topography/?topography=${t.id}`),
                 }
             });
 
