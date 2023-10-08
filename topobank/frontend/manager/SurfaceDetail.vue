@@ -78,7 +78,7 @@ export default {
                 this._topographies = response.data.topography_set;
             });
         },
-        onFilesDropped(files) {
+        filesDropped(files) {
             for (const file of files) {
                 this.uploadNewTopography(file);
             }
@@ -123,7 +123,7 @@ export default {
                         pills
                         vertical>
                     <b-tab title="Measurements">
-                        <drop-zone @files-dropped="onFilesDropped"></drop-zone>
+                        <drop-zone @files-dropped="filesDropped"></drop-zone>
                         <div v-for="(topography, index) in _topographies">
                             <topography-card :topography="topography"
                                              @topography-deleted="topographyDeleted"

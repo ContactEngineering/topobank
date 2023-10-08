@@ -3,7 +3,7 @@
 import axios from "axios";
 
 import {
-    BAlert, BFormCheckbox, BFormInput, BFormSelect, BFormTags, BFormTextarea, BSpinner
+    BAlert, BFormCheckbox, BFormInput, BFormSelect, BFormTags, BFormTextarea, BModal, BSpinner
 } from 'bootstrap-vue-next';
 
 import TopographyBadges from "topobank/manager/TopographyBadges.vue";
@@ -17,6 +17,7 @@ export default {
         BFormSelect,
         BFormTags,
         BFormTextarea,
+        BModal,
         BSpinner,
         TopographyBadges
     },
@@ -69,6 +70,7 @@ export default {
             _saving: false,
             _topographyUrl: this.topographyUrl === null ? this.data.url : this.topographyUrl,
             _savedData: null,
+            _showDeleteModal: false,
             _units: [
                 {value: "km", text: 'km'},
                 {value: "m", text: 'm'},
@@ -241,7 +243,7 @@ export default {
                 </button>
                 <button v-if="!enlarged"
                         class="btn btn-outline-secondary"
-                        @click="deleteTopography">
+                        @click="_showDeleteModal = !_showDeleteModal">
                     <i class="fa fa-trash"></i>
                 </button>
             </div>
@@ -480,4 +482,11 @@ export default {
             <topography-badges :topography="_data"></topography-badges>
         </div>
     </div>
+    {{ _showDeleteModal }}
+    <b-modal v-if="_data !== null"
+             v-model="_showDeleteModal"
+             title="Delete measurements">
+        You are about to delete the measurement with name <b>{{ _data.name }}</b>.
+        Are you sure you want to proceed?
+    </b-modal>
 </template>

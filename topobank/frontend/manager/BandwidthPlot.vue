@@ -21,10 +21,10 @@ export default {
         }
     },
     mounted() {
-        this.buildPlot();
+        this.buildPlot(this.topographies);
     },
     methods: {
-        buildPlot() {
+        buildPlot(topographies) {
             // Hover tool
             const hover_tool = new HoverTool({
                 'tooltips': '<div class="bandwidth-hover-box">' +
@@ -58,7 +58,7 @@ export default {
             figure.legend.border_line_cap = "round";
 
             // Sort topographies
-            const left = this.topographies.map(t => t.bandwidth_lower);
+            const left = topographies.map(t => t.bandwidth_lower);
             const argsort = left.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]).map(a => a[1]);
             let y = Array(argsort.length);
             for (const i of argsort.keys()) {
@@ -70,17 +70,10 @@ export default {
                 data: {
                     y: y,
                     left: left,
-                    /*
-                    cutoff: this.topographies.map(t =>
-                        t.short_wavelength_cutoff === null ? t.bandwidth_lower :
-                            t.short_wavelength_cutoff > t.bandwidth_lower &&
-                            t.short_wavelength_cutoff < t.bandwidth_upper ? t.short_wavelength_cutoff :
-                                t.bandwidth_lower),
-                       */
-                    cutoff: this.topographies.map(t => t.short_reliability_cutoff),
-                    right: this.topographies.map(t => t.bandwidth_upper),
-                    name: this.topographies.map(t => t.name),
-                    thumbnail: this.topographies.map(t => t.thumbnail)
+                    cutoff: topographies.map(t => t.short_reliability_cutoff),
+                    right: topographies.map(t => t.bandwidth_upper),
+                    name: topographies.map(t => t.name),
+                    thumbnail: topographies.map(t => t.thumbnail)
                     //topography_link: bw_topography_links,
                 }
             });
@@ -112,6 +105,12 @@ export default {
 
             // Render to component
             Plotting.show(figure, `#plot-${this.uid}`);
+        }
+    },
+    watch: {
+        topographies(newValue, oldValue) {
+            console.log('topographies changed');
+            this.buildPlot(newValue);
         }
     }
 };
