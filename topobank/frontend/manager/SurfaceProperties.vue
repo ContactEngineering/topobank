@@ -8,7 +8,7 @@ import {
 } from 'bootstrap-vue-next';
 
 export default {
-    name: 'surface-description',
+    name: 'surface-properties',
     components: {
         BAlert,
         BButton,
@@ -75,7 +75,7 @@ export default {
 <template>
     <b-card>
         <template #header>
-            <h5 class="float-start">Description</h5>
+            <h5 class="float-start">Properties</h5>
             <b-button-group v-if="!_editing && !_saving"
                             class="float-end"
                             size="sm">

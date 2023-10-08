@@ -19,7 +19,7 @@ import {
 
 import BandwidthPlot from './BandwidthPlot.vue';
 import DropZone from '../components/DropZone.vue';
-import SurfaceDescription from './SurfaceDescription.vue';
+import SurfaceProperties from './SurfaceProperties.vue';
 import SurfacePermissions from './SurfacePermissions.vue';
 import TopographyCard from "./TopographyCard.vue";
 
@@ -40,7 +40,7 @@ export default {
         BTab,
         BTabs,
         DropZone,
-        SurfaceDescription,
+        SurfaceProperties,
         SurfacePermissions,
         TopographyCard
     },
@@ -156,14 +156,14 @@ export default {
                             </b-card-body>
                         </b-card>
                     </b-tab>
-                    <b-tab title="Description">
-                        <surface-description v-if="_data !== null"
+                    <b-tab title="Properties">
+                        <surface-properties v-if="_data !== null"
                                              :surface-url="_data.url"
                                              :name="_data.name"
                                              :description="_data.description"
                                              :category="_data.category"
                                              :tags="_data.tags">
-                        </surface-description>
+                        </surface-properties>
                     </b-tab>
                     <b-tab title="Permissions">
                         <surface-permissions v-if="_data !== null"

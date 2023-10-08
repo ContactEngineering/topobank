@@ -265,7 +265,7 @@ export default {
                         class="btn btn-outline-secondary"
                         :class="{ active: _descriptionVisible }"
                         @click="_descriptionVisible = !_descriptionVisible">
-                    Description
+                    Properties
                 </button>
                 <button v-if="!enlarged"
                         class="btn btn-outline-secondary"

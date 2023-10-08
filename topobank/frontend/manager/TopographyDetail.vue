@@ -6,7 +6,7 @@ import {BTab, BTabs} from "bootstrap-vue-next";
 
 import BandwidthPlot from "topobank/manager/BandwidthPlot.vue";
 import DropZone from "topobank/components/DropZone.vue";
-import SurfaceDescription from "topobank/manager/SurfaceDescription.vue";
+import SurfaceDescription from "topobank/manager/SurfaceProperties.vue";
 import SurfacePermissions from "topobank/manager/SurfacePermissions.vue";
 import TopographyCard from "topobank/manager/TopographyCard.vue";
 
@@ -38,7 +38,7 @@ export default {
                         vertical>
                     <b-tab title="Visualization">
                     </b-tab>
-                    <b-tab title="Description">
+                    <b-tab title="Properties">
                         <topography-card :topography-url="topographyUrl"
                                                     :enlarged="true">
                         </topography-card>
