@@ -6,7 +6,7 @@ import {
     BAlert, BFormCheckbox, BFormInput, BFormSelect, BFormTags, BFormTextarea, BSpinner
 } from 'bootstrap-vue-next';
 
-import {formatExponential} from "../utils/formatting";
+import TopographyBadges from "topobank/manager/TopographyBadges.vue";
 
 export default {
     name: 'topography-properties-card',
@@ -17,7 +17,8 @@ export default {
         BFormSelect,
         BFormTags,
         BFormTextarea,
-        BSpinner
+        BSpinner,
+        TopographyBadges
     },
     emits: [
         'topography-deleted',
@@ -210,9 +211,6 @@ export default {
                 options.push({value: channelIndex, text: channelName});
             }
             return options;
-        },
-        shortReliabilityCutoff() {
-            return formatExponential(this._data.short_reliability_cutoff, 2) + ` m`;
         }
     }
 };
@@ -478,26 +476,7 @@ export default {
             </div>
         </div>
         <div class="card-footer">
-            <div v-if="_data !== null && _data.resolution_y !== null">
-                <span class="badge bg-warning ms-1">{{ _data.datafile_format }}</span>
-                <span class="badge bg-info ms-2">{{ _data.resolution_x }} &times; {{
-                        _data.resolution_y
-                    }} data points</span>
-                <span v-if="_data.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
-                <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
-                <span v-if="_data.short_reliability_cutoff !== null" class="badge bg-dark ms-2">
-                    reliability cutoff {{ shortReliabilityCutoff }}
-                </span>
-            </div>
-            <div v-if="_data !== null && _data.resolution_y === null">
-                <div class="badge bg-warning ms-1">{{ _data.datafile_format }}</div>
-                <div class="badge bg-info ms-2">{{ _data.resolution_x }} data points</div>
-                <span v-if="_data.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
-                <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
-                <span v-if="_data.short_reliability_cutoff !== null" class="badge bg-dark ms-2">
-                    reliability cutoff {{ shortReliabilityCutoff }}
-                </span>
-            </div>
+            <topography-badges :topography="_data"></topography-badges>
         </div>
     </div>
 </template>

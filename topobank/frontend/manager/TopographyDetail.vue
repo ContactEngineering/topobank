@@ -8,6 +8,7 @@ import BandwidthPlot from "topobank/manager/BandwidthPlot.vue";
 import DropZone from "topobank/components/DropZone.vue";
 import SurfaceDescription from "topobank/manager/SurfaceProperties.vue";
 import SurfacePermissions from "topobank/manager/SurfacePermissions.vue";
+import TopographyBadges from "topobank/manager/TopographyBadges.vue";
 import TopographyCard from "topobank/manager/TopographyCard.vue";
 
 export default {
@@ -19,6 +20,7 @@ export default {
         DropZone,
         SurfaceDescription,
         SurfacePermissions,
+        TopographyBadges,
         TopographyCard,
     },
     props: {
@@ -40,7 +42,7 @@ export default {
                     </b-tab>
                     <b-tab title="Properties">
                         <topography-card :topography-url="topographyUrl"
-                                                    :enlarged="true">
+                                         :enlarged="true">
                         </topography-card>
                     </b-tab>
                     <template #tabs-end>
