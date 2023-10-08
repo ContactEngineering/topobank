@@ -33,11 +33,6 @@ urlpatterns += [
         view=views.TopographyDetailView.as_view(),
         name='topography-detail'
     ),
-    re_path(
-        r'topography/(?P<pk>\d+)/dzi/(?P<dzi_filename>.*)$',
-        view=views.dzi,
-        name='topography-dzi'
-    ),
     path(
         r'html/surface/',
         view=views.SurfaceDetailView.as_view(),
@@ -76,13 +71,18 @@ urlpatterns += [
     #
     # Data routes
     #
+    re_path(
+        r'api/topography/(?P<pk>\d+)/dzi/(?P<dzi_filename>.*)$',
+        view=views.dzi,
+        name='topography-dzi'
+    ),
     path(
         'select/download/',
         view=views.download_selection_as_surfaces,
         name='download-selection'
     ),
     re_path(
-        r'surface/(?P<surface_id>\d+)/download/$',
+        r'api/surface/(?P<surface_id>\d+)/download/$',
         view=views.download_surface,
         name='surface-download'
     ),

@@ -1,32 +1,22 @@
-import datetime
 import logging
 import os.path
-import traceback
 from io import BytesIO
-
-import dateutil.parser
-from bokeh.embed import components
 
 from django.conf import settings
 from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
-from django.core.files import File
-from django.core.files.storage import FileSystemStorage, default_storage
-from django.db.models import Q
+from django.core.files.storage import default_storage
 from django.http import HttpResponse, Http404, HttpResponseForbidden
-from django.shortcuts import redirect, render
-from django.urls import reverse, reverse_lazy
+from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView, FormView
-from django.views.generic.edit import FormMixin
+from django.views.generic import CreateView, TemplateView, FormView
 from django.contrib.staticfiles.storage import staticfiles_storage
 from django.contrib import messages
 from django.utils.text import slugify
 
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
-from formtools.wizard.views import SessionWizardView
-from notifications.signals import notify
 
 from rest_framework import generics, mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -36,8 +26,6 @@ from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
 
-from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
-
 import topobank.taskapp.utils
 
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
@@ -45,16 +33,14 @@ from ..publication.models import MAX_LEN_AUTHORS_FIELD
 from ..users.models import User
 
 from .containers import write_surface_container
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
-    PlotTopographyException, PublicationException, topography_datafile_path
+from .forms import SurfaceForm, SurfacePublishForm
+from .models import Topography, Surface, TagModel, NewPublicationTooFastException, PublicationException, \
+    topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions, api_to_guardian
 from .serializers import SurfaceSerializer, TopographySerializer, TagSearchSerizalizer, SurfaceSearchSerializer
-from .utils import selected_instances, get_topography_reader, tags_for_user, get_reader_infos, \
-    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
+from .utils import selected_instances, tags_for_user, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    subjects_to_base64, s3_post
+    s3_post
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',

@@ -24,6 +24,7 @@ class TopographySerializer(TaskStateModelSerializer):
                   'name',
                   'creator',
                   'datafile_format', 'channel_names', 'data_source',
+                  'squeezed_datafile',
                   'description',
                   'measurement_date',
                   'size_editable', 'size_x', 'size_y',

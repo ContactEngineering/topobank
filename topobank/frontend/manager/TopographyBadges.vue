@@ -1,4 +1,5 @@
 <script setup>
+
 import {computed} from "vue";
 
 import {formatExponential} from "topobank/utils/formatting";

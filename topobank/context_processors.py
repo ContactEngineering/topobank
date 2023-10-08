@@ -4,7 +4,6 @@ from django.shortcuts import reverse
 import django
 
 import json
-import bokeh
 import celery
 import numpy
 import scipy
@@ -61,11 +60,7 @@ def versions_processor(request):
         dict(module='Celery',
              version=celery.__version__,
              license=('BSD 3-Clause', 'https://github.com/celery/celery/blob/main/LICENSE'),
-             links={'Website': 'http://www.celeryproject.org/'}),
-        dict(module='Bokeh',
-             version=bokeh.__version__,
-             license=('BSD 3-Clause', 'https://github.com/bokeh/bokeh/blob/branch-3.1/LICENSE.txt'),
-             links={'Website': 'https://bokeh.pydata.org/en/latest/'}),
+             links={'Website': 'http://www.celeryproject.org/'})
     ]
 
     return dict(versions=versions, contact_email_address=settings.CONTACT_EMAIL_ADDRESS)

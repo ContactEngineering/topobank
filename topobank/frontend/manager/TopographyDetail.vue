@@ -5,11 +5,13 @@ import axios from "axios";
 import {BSpinner, BTab, BTabs} from "bootstrap-vue-next";
 
 import BandwidthPlot from "topobank/manager/BandwidthPlot.vue";
+import DeepZoomImage from "topobank/components/DeepZoomImage.vue";
 import DropZone from "topobank/components/DropZone.vue";
 import SurfaceDescription from "topobank/manager/SurfaceProperties.vue";
 import SurfacePermissions from "topobank/manager/SurfacePermissions.vue";
 import TopographyBadges from "topobank/manager/TopographyBadges.vue";
 import TopographyCard from "topobank/manager/TopographyCard.vue";
+import TopographyPlot from "topobank/manager/TopographyPlot.vue";
 
 export default {
     name: 'topography-detail',
@@ -18,11 +20,13 @@ export default {
         BSpinner,
         BTab,
         BTabs,
+        DeepZoomImage,
         DropZone,
         SurfaceDescription,
         SurfacePermissions,
         TopographyBadges,
         TopographyCard,
+        TopographyPlot
     },
     props: {
         topographyUrl: String
@@ -64,6 +68,12 @@ export default {
                         pills
                         vertical>
                     <b-tab title="Visualization">
+                        <topography-plot v-if="_topography.size_y === null"
+                                         :topography="_topography">
+                        </topography-plot>
+                        <deep-zoom-image v-if="_topography.size_y !== null"
+                                         :prefix-url="`${_topography.url}dzi/`">
+                        </deep-zoom-image>
                     </b-tab>
                     <b-tab title="Properties">
                         <topography-card :topography="_topography"
