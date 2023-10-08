@@ -863,45 +863,6 @@ def unselect_all(request):
     return Response([])
 
 
-def thumbnail(request, pk):
-    """Returns image data for a topography thumbail
-
-    Parameters
-    ----------
-    request
-
-    Returns
-    -------
-    HTML Response with image data
-    """
-    try:
-        pk = int(pk)
-    except ValueError:
-        raise Http404()
-
-    try:
-        topo = Topography.objects.get(pk=pk)
-    except Topography.DoesNotExist:
-        raise Http404()
-
-    if not request.user.has_perm('view_surface', topo.surface):
-        raise PermissionDenied()
-
-    # okay, we have a valid topography and the user is allowed to see it
-
-    image = topo.thumbnail
-    response = HttpResponse(content_type="image/png")
-    try:
-        response.write(image.file.read())
-    except Exception as exc:
-        _log.warning(f"Cannot load thumbnail for topography {topo.id}. Reason: {exc}")
-        # return some default image so the client gets sth in any case
-        with staticfiles_storage.open('images/thumbnail_unavailable.png', mode='rb') as img_file:
-            response.write(img_file.read())
-
-    return response
-
-
 def dzi(request, pk, dzi_filename):
     """Returns deepzoom image data for a topography
 
