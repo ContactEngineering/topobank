@@ -482,7 +482,6 @@ export default {
             <topography-badges :topography="_data"></topography-badges>
         </div>
     </div>
-    {{ _showDeleteModal }}
     <b-modal v-if="_data !== null"
              v-model="_showDeleteModal"
              @ok="deleteTopography"
