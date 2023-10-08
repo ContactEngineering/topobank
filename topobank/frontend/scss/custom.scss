@@ -3,7 +3,8 @@
 $font-family-sans-serif: -apple-system, BlinkMacSystemFont, "Segoe UI", Roboto, "Helvetica Neue", Arial, "Noto Sans",
 "Liberation Sans", sans-serif, "Apple Color Emoji", "Segoe UI Emoji", "Segoe UI Symbol", "Noto Color Emoji" !default;
 
-@import "../../../../node_modules/bootstrap/scss/bootstrap";
+@import "~bootstrap";
+@import "~bootstrap-vue-next/dist/bootstrap-vue-next.css";
 
 // Then add additional custom code here
 

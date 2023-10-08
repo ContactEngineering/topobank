@@ -485,7 +485,8 @@ export default {
     {{ _showDeleteModal }}
     <b-modal v-if="_data !== null"
              v-model="_showDeleteModal"
-             title="Delete measurements">
+             @ok="deleteTopography"
+             title="Delete measurement">
         You are about to delete the measurement with name <b>{{ _data.name }}</b>.
         Are you sure you want to proceed?
     </b-modal>

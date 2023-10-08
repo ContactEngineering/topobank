@@ -54,7 +54,7 @@ export default {
 </script>
 
 <template>
-    <b-modal title="Search user" hide-backdrop ok-only ok-title="Close">
+    <b-modal title="Search user" ok-only ok-title="Close">
         <b-form>
             <b-form-group id="input-group-1"
                           label="Name"

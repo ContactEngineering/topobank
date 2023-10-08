@@ -139,7 +139,6 @@ export default {
         </b-card-body>
     </b-card>
     <search-user-modal v-model="_searchUser"
-                       :class="{ 'd-block': _searchUser }"
                        @user-selected="addUser">
     </search-user-modal>
 </template>
