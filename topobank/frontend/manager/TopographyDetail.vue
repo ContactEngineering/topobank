@@ -2,7 +2,7 @@
 
 import axios from "axios";
 
-import {BTab, BTabs} from "bootstrap-vue-next";
+import {BSpinner, BTab, BTabs} from "bootstrap-vue-next";
 
 import BandwidthPlot from "topobank/manager/BandwidthPlot.vue";
 import DropZone from "topobank/components/DropZone.vue";
@@ -15,6 +15,7 @@ export default {
     name: 'topography-detail',
     components: {
         BandwidthPlot,
+        BSpinner,
         BTab,
         BTabs,
         DropZone,
@@ -25,6 +26,22 @@ export default {
     },
     props: {
         topographyUrl: String
+    },
+    data() {
+        return {
+            _topography: null
+        }
+    },
+    mounted() {
+        this.updateCard();
+    },
+    methods: {
+        updateCard() {
+            /* Fetch JSON describing the card */
+            axios.get(this.topographyUrl).then(response => {
+                this._topography = response.data;
+            });
+        },
     }
 };
 </script>
@@ -33,7 +50,15 @@ export default {
     <div class="container">
         <div class="row">
             <div class="col-12">
-                <b-tabs class="nav-pills-custom"
+                <div v-if="_topography === null"
+                     class="card mb-1">
+                    <div class="card-body">
+                        <b-spinner small></b-spinner>
+                        Querying topography data, please wait...
+                    </div>
+                </div>
+                <b-tabs v-if="_topography !== null"
+                        class="nav-pills-custom"
                         content-class="w-100"
                         fill
                         pills
@@ -41,7 +66,7 @@ export default {
                     <b-tab title="Visualization">
                     </b-tab>
                     <b-tab title="Properties">
-                        <topography-card :topography-url="topographyUrl"
+                        <topography-card :topography="_topography"
                                          :enlarged="true">
                         </topography-card>
                     </b-tab>
@@ -49,6 +74,7 @@ export default {
                         <hr/>
                         <div class="card mt-2">
                             <div class="card-body">
+                                <topography-badges :topography="_topography"></topography-badges>
                                 <div class="btn-group-vertical mt-2 w-100" role="group">
                                     <a :href="`/analysis/html/list/?subjects=`"
                                        class="btn btn-outline-secondary btn-block">

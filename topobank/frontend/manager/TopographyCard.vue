@@ -2,8 +2,6 @@
 
 import axios from "axios";
 
-import {BSpinner} from "bootstrap-vue-next";
-
 import TopographyErrorCard from "./TopographyErrorCard.vue";
 import TopographyPendingCard from "./TopographyPendingCard.vue";
 import TopographyPropertiesCard from "./TopographyPropertiesCard.vue";
@@ -12,7 +10,6 @@ import TopographyUploadCard from "./TopographyUploadCard.vue";
 export default {
     name: 'topography-card',
     components: {
-        BSpinner,
         TopographyErrorCard,
         TopographyPropertiesCard,
         TopographyPendingCard,
@@ -91,13 +88,6 @@ export default {
 </script>
 
 <template>
-    <div v-if="_topography === null"
-         class="card mb-1">
-        <div class="card-body">
-            <b-spinner small></b-spinner>
-            Querying topography data, please wait...
-        </div>
-    </div>
     <topography-upload-card
         v-if="_topography !== null && isUploading"
         :name="_topography.name"

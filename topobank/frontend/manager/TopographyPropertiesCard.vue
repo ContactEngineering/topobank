@@ -475,7 +475,8 @@ export default {
                 </div>
             </div>
         </div>
-        <div class="card-footer">
+        <div v-if="!enlarged"
+             class="card-footer">
             <topography-badges :topography="_data"></topography-badges>
         </div>
     </div>
