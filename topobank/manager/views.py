@@ -10,8 +10,7 @@ from django.http import HttpResponse, Http404, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.views.generic import CreateView, TemplateView, FormView
-from django.contrib.staticfiles.storage import staticfiles_storage
+from django.views.generic import TemplateView, FormView
 from django.contrib import messages
 from django.utils.text import slugify
 
@@ -33,7 +32,7 @@ from ..publication.models import MAX_LEN_AUTHORS_FIELD
 from ..users.models import User
 
 from .containers import write_surface_container
-from .forms import SurfaceForm, SurfacePublishForm
+from .forms import SurfacePublishForm
 from .models import Topography, Surface, TagModel, NewPublicationTooFastException, PublicationException, \
     topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions, api_to_guardian
@@ -230,40 +229,6 @@ class SelectView(TemplateView):
         # The session needs a default for the state of the select tab
         session['select_tab_state'] = select_tab_state
 
-        return context
-
-
-class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
-    model = Surface
-    form_class = SurfaceForm
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
-        return kwargs
-
-    def get_initial(self, *args, **kwargs):
-        initial = super(SurfaceCreateView, self).get_initial()
-        initial = initial.copy()
-        initial['creator'] = self.request.user
-        return initial
-
-    def get_success_url(self):
-        return f"{reverse('manager:surface-detail')}?surface={self.object.pk}"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        context['extra_tabs'] = [
-            {
-                'title': f"Create surface",
-                'icon': "plus-square",
-                'icon_style_prefix': 'far',
-                'href': self.request.path,
-                'active': True,
-                'tooltip': "Creating a new surface"
-            }
-        ]
         return context
 
 

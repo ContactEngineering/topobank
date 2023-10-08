@@ -5,13 +5,6 @@ from django.views.generic import TemplateView
 from rest_framework.routers import DefaultRouter
 
 from . import views
-from . import forms
-
-WIZARD_FORMS = [
-    ('upload', forms.TopographyFileUploadForm),
-    ('metadata', forms.TopographyMetaDataForm),
-    ('units', forms.TopographyWizardUnitsForm),
-]
 
 router = DefaultRouter()
 router.register(r'api/surface', views.SurfaceViewSet, basename='surface-api')
@@ -52,11 +45,6 @@ urlpatterns += [
         r'html/surface/(?P<pk>\d+)/publication-error/$',
         view=login_required(views.PublicationErrorView.as_view()),
         name='surface-publication-error'
-    ),
-    path(
-        'html/surface/new/',
-        view=login_required(views.SurfaceCreateView.as_view()),
-        name='surface-create'
     ),
     path(
         'html/select/',
