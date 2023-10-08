@@ -241,7 +241,8 @@ export default {
                         @click="_savedData = JSON.parse(JSON.stringify(_data)); _editing = true">
                     <i class="fa fa-pen"></i>
                 </button>
-                <button class="btn btn-outline-secondary"
+                <button v-if="!enlarged"
+                        class="btn btn-outline-secondary"
                         @click="deleteTopography">
                     <i class="fa fa-trash"></i>
                 </button>
@@ -257,11 +258,6 @@ export default {
                         @click="saveCard">
                     <b-spinner small v-if="_saving"></b-spinner>
                     SAVE
-                </button>
-            </div>
-            <div class="btn-group btn-group-sm float-end me-2">
-                <button class="btn btn-outline-secondary">
-                    Analyze
                 </button>
             </div>
             <div class="btn-group btn-group-sm float-end me-2">
