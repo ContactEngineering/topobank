@@ -157,7 +157,7 @@ class TopographySearchSerializer(serializers.ModelSerializer):
         }
 
         if 'view_surface' in perms:
-            urls['detail'] = shortcuts.reverse('manager:topography-detail', kwargs=dict(pk=obj.pk))
+            urls['detail'] = f"{shortcuts.reverse('manager:topography-detail')}?topography={obj.pk}"
             urls['analyze'] = f"{shortcuts.reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
 
         return urls
@@ -273,19 +273,6 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
                 })
             urls['download'] = shortcuts.reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
 
-        if 'change_surface' in perms:
-            urls.update({
-                'add_topography': shortcuts.reverse('manager:topography-create', kwargs=dict(surface_id=obj.id)),
-                'update': shortcuts.reverse('manager:surface-update', kwargs=dict(pk=obj.pk)),
-            })
-        if 'delete_surface' in perms:
-            urls.update({
-                'delete': shortcuts.reverse('manager:surface-delete', kwargs=dict(pk=obj.pk)),
-            })
-        if 'share_surface' in perms:
-            urls.update({
-                'share': shortcuts.reverse('manager:surface-share', kwargs=dict(pk=obj.pk)),
-            })
         if 'publish_surface' in perms:
             urls.update({
                 'publish': shortcuts.reverse('manager:surface-publish', kwargs=dict(pk=obj.pk)),

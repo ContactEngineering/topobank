@@ -11,7 +11,7 @@ from storages.utils import clean_name
 
 from django.shortcuts import reverse
 from django.conf import settings
-from django.db.models import Q, Value, Count
+from django.db.models import Q, Value, Count, TextField
 from django.db.models.functions import Replace
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
@@ -264,7 +264,7 @@ def filtered_surfaces(request):
             topography_tag_names_for_search=Replace(  # same for the topographies
                 Replace('topography__tags__name', Value('.'), Value(' ')),
                 Value('/'), Value(' ')),
-            topography_name_for_search=Replace('topography__name', Value('.'), Value(' '))  # often there are filenames
+            topography_name_for_search=Replace('topography__name', Value('.'), Value(' '), output_field=TextField())  # often there are filenames
         ).distinct('id').order_by('id')
         qs = filter_queryset_by_search_term(qs, search_term, [
             'description', 'name', 'creator__name', 'tag_names_for_search',
@@ -298,7 +298,7 @@ def filtered_topographies(request, surfaces):
             tag_names_for_search=Replace(
                 Replace('tags__name', Value('.'), Value(' ')),  # replace . with space
                 Value('/'), Value(' ')),  # replace / with space
-            name_for_search=Replace('name', Value('.'), Value(' '))
+            name_for_search=Replace('name', Value('.'), Value(' '), output_field=TextField())
         ).distinct('id').order_by('id')
         topographies = filter_queryset_by_search_term(topographies, search_term, [
             'description', 'creator__name', 'name_for_search', 'tag_names_for_search',
