@@ -1,12 +1,21 @@
 <script>
 
+import axios from "axios";
+
+import {BForm, BFormCheckbox, BFormCheckboxGroup, BFormGroup} from "bootstrap-vue-next";
+
 import Basket from "topobank/manager/Basket.vue";
 import AnalysisCards from 'config/analysis_cards';
+
 
 export default {
     name: 'analysis-results-list',
     components: {
         Basket,
+        BForm,
+        BFormCheckbox,
+        BFormCheckboxGroup,
+        BFormGroup,
         ...AnalysisCards
     },
     props: {
@@ -16,41 +25,31 @@ export default {
         },
         subjects: String
     },
-    inject: ['csrfToken'],
     data() {
         return {
+            _activeCards: new Set([]),  // Cards that are active, i.e. have data loaded
             _cards: [],
-            _visible: []
+            _visibleCards: []  // Cards that are visible
         }
     },
     mounted() {
-        const _this = this;
-        fetch(this.apiRegistryUrl, {
-            method: 'GET',
-            headers: {
-                'Accept': 'application/json',
-                'X-CSRFToken': this.csrfToken
-            }
-        })
-            .then(response => response.json())
-            .then(data => {
-                this._cards = data.map(function (v) {
-                    let visible = _this.$cookies.get(`card-${v.id}`);
-                    visible = visible === null ? false : visible === 'true';
-                    return {...v, isCurrentlyVisible: visible, isOrWasVisible: visible}
-                });
+        const visibleCards = this.$cookies.get("topobank-visible-cards");
+        this._visibleCards = visibleCards === null ? [] : visibleCards;
+        this._activeCards = new Set(this._visibleCards);
+        axios.get(this.apiRegistryUrl)
+            .then(response => {
+                this._cards = response.data;
             });
     },
     computed: {
         subjectsAsBasketItems() {
             let subjects = [];
             try {
-              subjects = JSON.parse(atob(this.subjects));
-            }
-            catch(err) {
-              // Ignore errors that occur while parsing the subjects line
-              //console.log(`Error encountered while parsing subjects string: ${err}.`);
-              console.log(err);
+                subjects = JSON.parse(atob(this.subjects));
+            } catch (err) {
+                // Ignore errors that occur while parsing the subjects line
+                //console.log(`Error encountered while parsing subjects string: ${err}.`);
+                console.log(err);
             }
             let basket = [];
             for (const [key, value] of Object.entries(subjects)) {
@@ -66,20 +65,17 @@ export default {
                 }
             }
             return basket;
-        },
-        visibleCards() {
-            return this._cards.filter(v => v.isCurrentlyVisible);
         }
     },
     methods: {
-        updateCookie(event) {
-            this.$cookies.set(`card-${event.target.value}`, event.target.checked);
+        updateSelection(event) {
+            this.$cookies.set("topobank-visible-cards", this._visibleCards);
+            for (const id of this._visibleCards) {
+                this._activeCards.add(id);
+            }
         },
         basketItemsChanged(basket, key) {
             basket.analyze();  // reload page
-        },
-        visibilityChanged(card) {
-          card.isOrWasVisible = true;
         }
     }
 };
@@ -92,32 +88,23 @@ export default {
             :has-download-button="false"
             @unselect-successful="basketItemsChanged">
     </basket>
-    <div class="row">
-        <div class="col-12 form-group">
-            <div v-for="card in this._cards"
-                 class="custom-control custom-checkbox custom-control-inline">
-                <input v-model="card.isCurrentlyVisible"
-                       v-on:change="visibilityChanged(card)"
-                       type="checkbox"
-                       class="custom-control-input"
-                       name="functions"
-                       :value="card.id"
-                       :id="`id_functions_${card.id}`"
-                       @click="updateCookie">
-                <label class="custom-control-label"
-                       :for="`id_functions_${card.id}`">
-                    {{ card.name }}
-                </label>
-            </div>
-            <small id="hint_id_functions" class="form-text text-muted">
-                Select one or multiple analysis functions.
-            </small>
-        </div>
+    <div class="row mb-2">
+        <b-form class="col-12">
+            <b-form-group>
+                <b-form-checkbox-group v-model="_visibleCards">
+                    <b-form-checkbox v-for="card in this._cards"
+                                     :value="card.id"
+                                     @change="updateSelection">
+                        {{ card.name }}
+                    </b-form-checkbox>
+                </b-form-checkbox-group>
+            </b-form-group>
+        </b-form>
     </div>
     <div class="row">
         <div v-for="card in this._cards"
-             :class="{ 'col-lg-6': true, 'mb-4': true, 'd-none': !card.isCurrentlyVisible }">
-            <component v-if="card.isOrWasVisible"
+             :class="{ 'col-lg-6': true, 'mb-4': true, 'd-none': !_visibleCards.includes(card.id) }">
+            <component v-if="_activeCards.has(card.id)"
                        :is="`${card.visualization_type}-card`"
                        :enlarged="false"
                        :function-id="card.id"

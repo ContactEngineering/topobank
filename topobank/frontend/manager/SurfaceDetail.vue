@@ -2,6 +2,8 @@
 
 import axios from "axios";
 
+import {subjectsToBase64} from "../utils/api";
+
 import {
     BAlert,
     BButton,
@@ -108,6 +110,9 @@ export default {
                 return 'Unknown category';
             }
             return retval;
+        },
+        base64Subjects() {
+            return subjectsToBase64({surface: [this._data.id]});
         }
     }
 };
@@ -217,7 +222,7 @@ export default {
                             </span>
                                 </div>
                                 <div class="btn-group-vertical mt-2 w-100" role="group">
-                                    <a :href="`/analysis/html/list/?subjects=`"
+                                    <a :href="`/analysis/html/list/?subjects=${base64Subjects}`"
                                        class="btn btn-outline-secondary btn-block">
                                         Analyze this digital surface twin
                                     </a>
