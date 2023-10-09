@@ -241,14 +241,14 @@ export default {
                         @click="_savedData = JSON.parse(JSON.stringify(_data)); _editing = true">
                     <i class="fa fa-pen"></i>
                 </button>
-                <a v-if="!_enlarged"
+                <a v-if="!enlarged"
                    class="btn btn-outline-secondary"
                    :href="_data.datafile">
                     <i class="fa fa-download"></i>
                 </a>
                 <button v-if="!enlarged"
                         class="btn btn-outline-secondary"
-                        @click="_showDeleteModal = !_showDeleteModal">
+                        @click="_showDeleteModal = true">
                     <i class="fa fa-trash"></i>
                 </button>
             </div>

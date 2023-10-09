@@ -2,7 +2,7 @@
 
 import axios from "axios";
 
-import {BSpinner, BTab, BTabs} from "bootstrap-vue-next";
+import {BModal, BSpinner, BTab, BTabs} from "bootstrap-vue-next";
 
 import DeepZoomImage from "../components/DeepZoomImage.vue";
 import DropZone from "../components/DropZone.vue";
@@ -13,12 +13,13 @@ import SurfaceDescription from "./SurfaceProperties.vue";
 import SurfacePermissions from "./SurfacePermissions.vue";
 import TopographyBadges from "./TopographyBadges.vue";
 import TopographyCard from "./TopographyCard.vue";
-import {subjectsToBase64} from "topobank/utils/api";
+import {getIdFromUrl, subjectsToBase64} from "topobank/utils/api.js";
 
 export default {
     name: 'topography-detail',
     components: {
         BandwidthPlot,
+        BModal,
         BSpinner,
         BTab,
         BTabs,
@@ -35,6 +36,7 @@ export default {
     },
     data() {
         return {
+            _showDeleteModal: false,
             _topography: null
         }
     },
@@ -48,6 +50,12 @@ export default {
                 this._topography = response.data;
             });
         },
+        deleteTopography() {
+            axios.delete(this._topography.url);
+            this.$emit('topography-deleted', this._topography.url);
+            const id = getIdFromUrl(this._topography.surface);
+            window.location.href = `/manager/html/surface/?surface=${id}`;
+        }
     },
     computed: {
         base64Subjects() {
@@ -105,7 +113,8 @@ export default {
                                     </a>
 
                                     <a href="#"
-                                       class="btn btn-outline-danger btn-block">
+                                       class="btn btn-outline-danger btn-block"
+                                       @click="_showDeleteModal = true">
                                         Delete
                                     </a>
                                 </div>
@@ -116,4 +125,11 @@ export default {
             </div>
         </div>
     </div>
+    <b-modal v-if="_topography !== null"
+             v-model="_showDeleteModal"
+             @ok="deleteTopography"
+             title="Delete measurement">
+        You are about to delete the measurement with name <b>{{ _topography.name }}</b>.
+        Are you sure you want to proceed?
+    </b-modal>
 </template>
