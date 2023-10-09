@@ -817,7 +817,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def get_absolute_url(self):
         """URL of detail page for this topography."""
-        return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
+        return f"{reverse('manager:topography-detail')}?topography={self.pk}"
 
     def cache_key(self):
         """Used for caching topographies avoiding reading datafiles again when interpreted in the same way"""
