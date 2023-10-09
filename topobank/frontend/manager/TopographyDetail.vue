@@ -13,6 +13,7 @@ import SurfaceDescription from "./SurfaceProperties.vue";
 import SurfacePermissions from "./SurfacePermissions.vue";
 import TopographyBadges from "./TopographyBadges.vue";
 import TopographyCard from "./TopographyCard.vue";
+import {subjectsToBase64} from "topobank/utils/api";
 
 export default {
     name: 'topography-detail',
@@ -47,6 +48,11 @@ export default {
                 this._topography = response.data;
             });
         },
+    },
+    computed: {
+        base64Subjects() {
+            return subjectsToBase64({topography: [this._topography.id]});
+        }
     }
 };
 </script>
@@ -88,7 +94,7 @@ export default {
                             <div class="card-body">
                                 <topography-badges :topography="_topography"></topography-badges>
                                 <div class="btn-group-vertical mt-2 w-100" role="group">
-                                    <a :href="`/analysis/html/list/?subjects=`"
+                                    <a :href="`/analysis/html/list/?subjects=${base64Subjects}`"
                                        class="btn btn-outline-secondary btn-block">
                                         Analyze this measurement
                                     </a>
