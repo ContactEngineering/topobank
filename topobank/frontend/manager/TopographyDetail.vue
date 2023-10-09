@@ -101,12 +101,12 @@ export default {
 
                                     <a :href="_topography.datafile"
                                        class="btn btn-outline-secondary btn-block">
-                                        <i class="fa fa-download"></i> Download
+                                        Download
                                     </a>
 
                                     <a href="#"
                                        class="btn btn-outline-danger btn-block">
-                                        <i class="fa fa-trash"></i> Delete
+                                        Delete
                                     </a>
                                 </div>
                             </div>

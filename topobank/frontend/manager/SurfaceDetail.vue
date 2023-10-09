@@ -227,9 +227,9 @@ export default {
                                         Analyze this digital surface twin
                                     </a>
 
-                                    <a href="`/manager/${surfaceId}/download`"
+                                    <a :href="`${surfaceUrl}download/`"
                                        class="btn btn-outline-secondary btn-block">
-                                        <i class="fa fa-download"></i> Download
+                                        Download
                                     </a>
 
                                     <a href="#"
@@ -239,7 +239,7 @@ export default {
 
                                     <a href="#"
                                        class="btn btn-outline-danger btn-block">
-                                        <i class="fa fa-trash"></i> Delete
+                                        Delete
                                     </a>
                                 </div>
                             </div>
