@@ -224,7 +224,7 @@ export default {
 
                                     <a href="`/manager/${surfaceId}/download`"
                                        class="btn btn-outline-secondary btn-block">
-                                        Download
+                                        <i class="fa fa-download"></i> Download
                                     </a>
 
                                     <a href="#"
@@ -234,7 +234,7 @@ export default {
 
                                     <a href="#"
                                        class="btn btn-outline-danger btn-block">
-                                        Delete
+                                        <i class="fa fa-trash"></i> Delete
                                     </a>
                                 </div>
                             </div>

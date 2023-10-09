@@ -228,19 +228,24 @@ export default {
                                :disabled="!_editing">
                 </b-form-select>
             </div>
-            <div v-if="this._data !== null && !_editing && !_saving && !enlarged"
+            <div v-if="_data !== null && !_editing && !_saving && !enlarged"
                  class="btn-group btn-group-sm float-end">
                 <a class="btn btn-outline-secondary float-end ms-2"
                    :href="`/manager/html/topography/?topography=${this._data.id}`">
                     <i class="fa fa-expand"></i>
                 </a>
             </div>
-            <div v-if="!_editing && !_saving"
+            <div v-if="_data !== null && !_editing && !_saving"
                  class="btn-group btn-group-sm float-end">
                 <button class="btn btn-outline-secondary"
                         @click="_savedData = JSON.parse(JSON.stringify(_data)); _editing = true">
                     <i class="fa fa-pen"></i>
                 </button>
+                <a v-if="!_enlarged"
+                   class="btn btn-outline-secondary"
+                   :href="_data.datafile">
+                    <i class="fa fa-download"></i>
+                </a>
                 <button v-if="!enlarged"
                         class="btn btn-outline-secondary"
                         @click="_showDeleteModal = !_showDeleteModal">

@@ -70,7 +70,7 @@ export default {
                         vertical>
                     <b-tab title="Visualization">
                         <line-scan-plot v-if="_topography.size_y === null"
-                                         :topography="_topography">
+                                        :topography="_topography">
                         </line-scan-plot>
                         <deep-zoom-image v-if="_topography.size_y !== null"
                                          :colorbar="true"
@@ -93,14 +93,14 @@ export default {
                                         Analyze this measurement
                                     </a>
 
-                                    <a href="`/manager/${surfaceId}/download`"
+                                    <a :href="_topography.datafile"
                                        class="btn btn-outline-secondary btn-block">
-                                        Download
+                                        <i class="fa fa-download"></i> Download
                                     </a>
 
                                     <a href="#"
                                        class="btn btn-outline-danger btn-block">
-                                        Delete
+                                        <i class="fa fa-trash"></i> Delete
                                     </a>
                                 </div>
                             </div>
