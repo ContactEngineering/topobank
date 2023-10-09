@@ -4,7 +4,7 @@ import {v4 as uuid4} from 'uuid';
 
 import axios from "axios";
 import {onMounted, ref} from "vue";
-import {ColumnDataSource, HoverTool, Plotting} from "@bokeh/bokehjs";
+import {ColumnDataSource, Plotting} from "@bokeh/bokehjs";
 import {NetCDFReader} from 'netcdfjs';
 
 import {applyDefaultBokehStyle} from "../utils/bokeh";

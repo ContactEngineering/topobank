@@ -4,14 +4,15 @@ import axios from "axios";
 
 import {BSpinner, BTab, BTabs} from "bootstrap-vue-next";
 
-import BandwidthPlot from "topobank/manager/BandwidthPlot.vue";
-import DeepZoomImage from "topobank/components/DeepZoomImage.vue";
-import DropZone from "topobank/components/DropZone.vue";
-import SurfaceDescription from "topobank/manager/SurfaceProperties.vue";
-import SurfacePermissions from "topobank/manager/SurfacePermissions.vue";
-import TopographyBadges from "topobank/manager/TopographyBadges.vue";
-import TopographyCard from "topobank/manager/TopographyCard.vue";
-import TopographyPlot from "topobank/manager/TopographyPlot.vue";
+import DeepZoomImage from "../components/DeepZoomImage.vue";
+import DropZone from "../components/DropZone.vue";
+import LineScanPlot from "../components/LineScanPlot.vue";
+
+import BandwidthPlot from "./BandwidthPlot.vue";
+import SurfaceDescription from "./SurfaceProperties.vue";
+import SurfacePermissions from "./SurfacePermissions.vue";
+import TopographyBadges from "./TopographyBadges.vue";
+import TopographyCard from "./TopographyCard.vue";
 
 export default {
     name: 'topography-detail',
@@ -22,11 +23,11 @@ export default {
         BTabs,
         DeepZoomImage,
         DropZone,
+        LineScanPlot,
         SurfaceDescription,
         SurfacePermissions,
         TopographyBadges,
-        TopographyCard,
-        TopographyPlot
+        TopographyCard
     },
     props: {
         topographyUrl: String
@@ -68,10 +69,11 @@ export default {
                         pills
                         vertical>
                     <b-tab title="Visualization">
-                        <topography-plot v-if="_topography.size_y === null"
+                        <line-scan-plot v-if="_topography.size_y === null"
                                          :topography="_topography">
-                        </topography-plot>
+                        </line-scan-plot>
                         <deep-zoom-image v-if="_topography.size_y !== null"
+                                         :colorbar="true"
                                          :prefix-url="`${_topography.url}dzi/`">
                         </deep-zoom-image>
                     </b-tab>
