@@ -137,7 +137,7 @@ export default {
 </script>
 
 <template>
-    <div id="basket-container" class="container-fluid bg-light border rounded shadow-sm py-2 mb-5">
+    <div id="basket-container" class="container-fluid bg-light border rounded shadow-sm py-2 mb-2">
         <div v-if="_keys.length">
             <basket-element v-for="elem in _elements"
                             v-bind:elem="elem"
