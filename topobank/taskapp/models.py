@@ -165,8 +165,10 @@ class Version(models.Model):
     Part of a configuration.
     """
 
+    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
         db_table = 'analysis_version'  # This used to be part of the analysis app
+        unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
 
     dependency = models.ForeignKey(Dependency, on_delete=models.CASCADE)
 
@@ -179,10 +181,6 @@ class Version(models.Model):
     # version should not be used any more / or the analyses
     # should be recalculated
     # valid = models.BooleanField(default=True)
-
-    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
-    class Meta:
-        unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
 
     def number_as_string(self):
         x = f"{self.major}.{self.minor}"
