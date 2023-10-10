@@ -232,7 +232,7 @@ export default {
                                         Download
                                     </a>
 
-                                    <a href="#"
+                                    <a :href="`${surfaceUrl.replace('/api/', '/html/')}publish/`"
                                        class="btn btn-outline-success btn-block">
                                         Publish
                                     </a>

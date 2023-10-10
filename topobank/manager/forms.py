@@ -62,7 +62,7 @@ class SurfacePublishForm(forms.Form):
             FormActions(
                 Submit('save', 'Yes, publish this surface', css_class='btn-success'),
                 HTML("""
-                      <a href="{% url 'manager:surface-detail' surface.pk %}" class="btn btn-default" id="cancel-btn">Cancel</a>
+                      <a href="{% url 'manager:surface-detail' %}?surface={{ surface.pk }}" class="btn btn-default" id="cancel-btn">Cancel</a>
                       """),
             ),
             ASTERISK_HELP_HTML,

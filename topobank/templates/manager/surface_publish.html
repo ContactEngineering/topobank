@@ -41,16 +41,6 @@
       </p>
     </div>
 
-    <div class="alert alert-secondary">
-      <h2 class="alert-heading">Alternative to publication: Sharing</h2>
-      <p>If you want to share this digital surface twin with a few users for <b>collaboration</b>,
-      please consider <a href="{% url 'manager:surface-share' surface.id %}">sharing this digital twin</a> instead.</p>
-      <p>Unlike publishing this means, that the digital twin and all related measurements
-        are only visible for <b>selected users</b>, not for everyone.
-        No snapshot is created.
-      </p>
-    </div>
-
     {% if surface.topography_set.count == 0 %}
       <div class="alert alert-error">
         <h2 class="alert-heading">This digital surface twin has no measurements yet</h2>
