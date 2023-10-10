@@ -484,50 +484,12 @@ section[title="Terms and Conditions"] div.toc-container, #tc-terms-html {
     margin-right: 0.5em;
 }
 
-.plot-controls-accordion {
-    margin: 1rem;
-}
-
 .plot-controls-card-header {
     padding: 0px;
 }
 
 .plot-controls-card-body {
     padding: 3px 12px;
-}
-
-/*
- * https://stackoverflow.com/questions/57851961/dynamic-bootstrap-accordion-display-issue-when-first-of-type-and-last-of-type-is
- */
-.accordion > .card:first-of-type:last-of-type {
-    border-bottom: 1px solid rgba(0, 0, 0, 0.125);
-    border-radius: 0.25rem;
-}
-
-.accordion-button {
-    width: 100%;
-    position: relative;
-    text-align: left;
-}
-
-.accordion-button::before {
-    content: '\f107';
-    position: absolute;
-    top: 50%;
-    right: 0.8rem;
-    transform: translateY(-50%);
-    display: block;
-    font-family: 'FontAwesome';
-    font-size: 1.1rem;
-}
-
-.accordion-button[aria-expanded='true']::before {
-    content: '\f106';
-}
-
-.accordion-header-control {
-    position: absolute;
-    top: 0.35rem;
 }
 
 /*!

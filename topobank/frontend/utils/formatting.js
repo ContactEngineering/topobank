@@ -33,23 +33,23 @@ function unicodeSuperscript(s) {
  * @returns {Formatter} A formatter for general values.
  */
 export function formatExponential(d, maxNumberOfDecimalPlaces) {
-  if (maxNumberOfDecimalPlaces === void 0) {
+  if (maxNumberOfDecimalPlaces === undefined) {
     maxNumberOfDecimalPlaces = 3;
   }
 
   if (d === 0 || d === undefined || isNaN(d) || Math.abs(d) == Infinity) {
     return String(d);
   } else if ("number" === typeof d) {
-    var multiplier = Math.pow(10, maxNumberOfDecimalPlaces);
-    var sign = d < 0 ? -1 : 1;
-    var e = Math.floor(Math.log(sign * d) / Math.log(10));
-    var m = sign * d / Math.pow(10, e);
-    var m_rounded = Math.round(m * multiplier) / multiplier;
-    if (10 == m_rounded) {
+    const multiplier = Math.pow(10, maxNumberOfDecimalPlaces);
+    const sign = d < 0 ? -1 : 1;
+    let e = Math.floor(Math.log(sign * d) / Math.log(10));
+    const m = sign * d / Math.pow(10, e);
+    let m_rounded = Math.round(m * multiplier) / multiplier;
+    if (10 === m_rounded) {
       m_rounded = 1;
       e++;
     }
-    if (0 == e) {
+    if (0 === e) {
       return String(sign * m_rounded); // do not attach ×10⁰ == 1
     } else if (1 == m_rounded) {
       if (0 < sign) {
