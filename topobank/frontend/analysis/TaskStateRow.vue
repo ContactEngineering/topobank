@@ -1,5 +1,7 @@
 <script>
 
+import axios from "axios";
+
 export default {
     name: 'task-state-row',
     emits: [
@@ -65,18 +67,11 @@ export default {
                 } else if (this._analysis.task_state == 'fa') {
                     // This is a failure. Query reason.
                     if (this._analysis.error === null) {
-                        // The analysis function did not raise an exception itself. This means it acutally finished and
+                        // The analysis function did not raise an exception itself. This means it actually finished and
                         // we have a result.json, that should contain an error message.
-                        fetch(`${this._analysis.api.dataUrl}/result.json`, {
-                            method: 'GET',
-                            headers: {
-                                'Accept': 'application/json',
-                                'X-CSRFToken': this.csrfToken
-                            }
-                        })
-                            .then(response => response.json())
-                            .then(result => {
-                                this._error = result.message;
+                        axios.get(`${this._analysis.data_prefix}result.json`)
+                            .then(response => {
+                                this._error = response.data.message;
                             });
                     } else {
                         // The analysis function failed and we have an error message (Python exception).
@@ -182,8 +177,8 @@ export default {
                 started running {{ new Date(_analysis.start_time) }}
                 but failed
                 <span v-if="_error !== null">
-            with message <i>{{ _error }}</i>
-          </span>.
+            with message: <i>{{ _error }}</i>
+          </span>
             </p>
             <p v-if="_analysis.task_state == 'pe'">
                 This task was created on {{ new Date(_analysis.creation_time) }} and is currently waiting to be started.

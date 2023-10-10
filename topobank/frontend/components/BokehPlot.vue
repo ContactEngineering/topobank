@@ -614,8 +614,8 @@ export default {
             <div :id='"bokeh-plot-"+uuid+"-"+index' ref="plot"></div>
         </div>
     </div>
-    <div v-if="plots.length > 1" class="card">
-        <div class="card-header plot-controls-card-header">
+    <div v-if="plots.length > 1" class="card mb-2">
+        <div class="card-body plot-controls-card-header">
             <h6 class="m-1">
                 <!-- Navigation pills for each individual plot, but only if there is more than one -->
                 <ul v-if="plots.length > 1" class="nav nav-pills">

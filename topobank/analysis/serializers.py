@@ -57,7 +57,7 @@ class AnalysisResultSerializer(topobank.taskapp.serializers.TaskStateModelSerial
     class Meta:
         model = Analysis
         fields = ['id', 'url', 'function', 'subject', 'kwargs', 'task_progress', 'task_state', 'creation_time',
-                  'start_time', 'end_time', 'dois', 'configuration', 'duration', 'data_prefix', 'error']
+                  'start_time', 'end_time', 'dois', 'configuration', 'duration', 'data_prefix', 'error', 'data_prefix']
 
     url = serializers.HyperlinkedIdentityField(view_name='analysis:result-detail', read_only=True)
     data_prefix = serializers.SerializerMethodField()
