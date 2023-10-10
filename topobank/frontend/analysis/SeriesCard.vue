@@ -163,6 +163,7 @@ export default {
                         :categories="_categories"
                         :data-sources="_dataSources"
                         :output-backend="_outputBackend"
+                        :functionTitle="_title"
                         ref="plot">
                     </bokeh-plot>
                 </div>
