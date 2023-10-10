@@ -7,7 +7,6 @@ export default {
     emits: [
         'setTaskState'
     ],
-    inject: ['csrfToken'],
     props: {
         analysis: Object,
         pollingInterval: {
@@ -31,16 +30,9 @@ export default {
             // Tasks are still pending or running if this state check is scheduled
             if (this._analysis !== null) {
                 if (this._function === null) {
-                    fetch(this._analysis.function, {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRFToken': this.csrfToken
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(result => {
-                            this._function = result;
+                    axios.get(this._analysis.function)
+                        .then(response => {
+                            this._function = response.data;
                         });
                 }
 
@@ -49,16 +41,9 @@ export default {
                     const subjectUrl = subject.topography !== null ?
                         subject.topography : subject.surface !== null ?
                             subject.surface : subject.collection;
-                    fetch(subjectUrl, {
-                        method: 'GET',
-                        headers: {
-                            'Accept': 'application/json',
-                            'X-CSRFToken': this.csrfToken
-                        }
-                    })
-                        .then(response => response.json())
-                        .then(result => {
-                            this._subject = result;
+                    axios.get(subjectUrl)
+                        .then(response => {
+                            this._subject = response.data;
                         });
                 }
 
@@ -84,38 +69,23 @@ export default {
             }
         },
         checkState() {
-            fetch(this._analysis.url, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRFToken': this.csrfToken
-                }
-            })
-                .then(response => response.json())
-                .then(data => {
-                    if (this._analysis === null || this._analysis.task_state !== data.task_state) {
+            axios.get(this._analysis.url)
+                .then(response => {
+                    if (this._analysis === null || this._analysis.task_state !== response.data.task_state) {
                         // State has changed
-                        this.$emit('setTaskState', data.task_state);
+                        this.$emit('setTaskState', response.data.task_state);
                     }
                     // Update current state of the analysis
-                    this._analysis = data;
+                    this._analysis = response.data;
                     this.scheduleStateCheck();
                 })
         },
         renew() {
             this._analysis.task_state = 'pe';
             this.$emit('setTaskState', 'pe');
-            fetch(this._analysis.url, {
-                method: 'PUT',
-                headers: {
-                    'Accept': 'application/json',
-                    'Content-Type': 'application/json',
-                    'X-CSRFToken': this.csrfToken
-                }
-            })
-                .then(response => response.json())
-                .then(data => {
-                    this._analysis = data;
+            axios.get(this._analysis.url)
+                .then(response => {
+                    this._analysis = response.data;
                     this.scheduleStateCheck();
                 })
         }
