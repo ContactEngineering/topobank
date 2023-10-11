@@ -452,11 +452,6 @@ GUARDIAN_RENDER_403 = True
 # see https://django-guardian.readthedocs.io/en/stable/configuration.html#guardian-render-403
 
 #
-# Settings for django-tables2
-#
-DJANGO_TABLES2_TEMPLATE = 'django_tables2/bootstrap4.html'
-
-#
 # Setting for progress bar during upload
 #
 # see https://github.com/ouhouhsami/django-progressbarupload

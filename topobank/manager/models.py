@@ -324,6 +324,7 @@ class Surface(models.Model, SubjectMixin):
 
         copy = Surface.objects.get(pk=self.pk)
         copy.pk = None
+        copy.task_id = None  # We need to indicate that no tasks have run
         copy.tags = self.tags.get_tag_list()
         copy.save()
 
@@ -1056,6 +1057,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
         copy = Topography.objects.get(pk=self.pk)
         copy.pk = None
+        copy.task_id = None  # We need to indicate that no tasks have run
         copy.surface = to_surface
 
         with self.datafile.open(mode='rb') as datafile:

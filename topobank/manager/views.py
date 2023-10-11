@@ -288,7 +288,7 @@ class SurfacePublishView(FormView):
     #     return kwargs
 
     def get_success_url(self):
-        return reverse('manager:publications')
+        return f"{reverse('manager:surface-detail')}?surface={self.kwargs['pk']}"
 
     def form_valid(self, form):
         license = form.cleaned_data.get('license')
