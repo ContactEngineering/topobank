@@ -1,10 +1,19 @@
 from django.shortcuts import redirect, Http404
 
+from rest_framework import mixins, viewsets
+
 from trackstats.models import Metric, Period
 
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from .models import Publication
 from ..manager.views import download_surface
+
+from .models import Publication
+from .serializers import PublicationSerializer
+
+
+class PublicationViewSet(mixins.RetrieveModelMixin,
+                         viewsets.GenericViewSet):
+    serializer_class = PublicationSerializer
 
 
 def go(request, short_url):
@@ -27,4 +36,3 @@ def download(request, short_url):
         raise Http404()
 
     return download_surface(request, pub.surface_id)
-

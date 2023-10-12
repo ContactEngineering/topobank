@@ -163,11 +163,11 @@ export default {
                     </b-tab>
                     <b-tab title="Properties">
                         <surface-properties v-if="_data !== null"
-                                             :surface-url="_data.url"
-                                             :name="_data.name"
-                                             :description="_data.description"
-                                             :category="_data.category"
-                                             :tags="_data.tags">
+                                            :surface-url="_data.url"
+                                            :name="_data.name"
+                                            :description="_data.description"
+                                            :category="_data.category"
+                                            :tags="_data.tags">
                         </surface-properties>
                     </b-tab>
                     <b-tab title="Permissions">
@@ -187,39 +187,39 @@ export default {
                     </b-tab>
                     <template #tabs-end>
                         <hr/>
-                        <div v-if="_data !== null && _data.publication !== null"
-                             class="btn-group">
-                            <button type="button" id="versions-btn"
-                                    class="btn btn-info dropdown-toggle"
-                                    data-toggle="dropdown" aria-haspopup="true"
-                                    aria-expanded="false">
-                                ...this_version_label...
-                                ...if version_badge_text...
-                                <span class="badge bg-warning">...version_badge_text...</span>
-                                ...endif...
-                            </button>
-                            <div class="dropdown-menu" id="versions-dropdown">
-                                ...for version_item in version_dropdown_items...
-                                <a class="dropdown-item{% if version_item.surface == surface %} disabled{% endif %}"
-                                   href="...version_item.surface.get_absolute_url...">
-                                    ...version_item.label...
-                                </a>
-                                ...endfor...
-                            </div>
-                        </div>
                         <div v-if="_data !== null"
                              class="card mt-2">
                             <div class="card-body">
                                 <div>
-                            <span class="badge bg-secondary surface-category-headline">
-                                {{ category }}
-                            </span>
+                                    <span class="badge bg-secondary surface-category-headline">
+                                        {{ category }}
+                                    </span>
                                 </div>
                                 <div>
-                            <span v-for="tag in _data.tags"
-                                  class="badge bg-success">
-                                {{ tag.name }}
-                            </span>
+                                    <span v-for="tag in _data.tags"
+                                          class="badge bg-success">
+                                        {{ tag.name }}
+                                    </span>
+                                </div>
+                                <div v-if="_data.publication !== null"
+                                     class="btn-group mt-2">
+                                    <button type="button" id="versions-btn"
+                                            class="btn btn-info dropdown-toggle"
+                                            data-toggle="dropdown" aria-haspopup="true"
+                                            aria-expanded="false">
+                                        Version {{_data.publication.version}}
+                                        ...if version_badge_text...
+                                        <span class="badge bg-warning">...version_badge_text...</span>
+                                        ...endif...
+                                    </button>
+                                    <div class="dropdown-menu" id="versions-dropdown">
+                                        ...for version_item in version_dropdown_items...
+                                        <a class="dropdown-item{% if version_item.surface == surface %} disabled{% endif %}"
+                                           href="...version_item.surface.get_absolute_url...">
+                                            ...version_item.label...
+                                        </a>
+                                        ...endfor...
+                                    </div>
                                 </div>
                                 <div class="btn-group-vertical mt-2 w-100" role="group">
                                     <a :href="`/analysis/html/list/?subjects=${base64Subjects}`"

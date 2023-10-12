@@ -1,6 +1,6 @@
 from rest_framework import serializers
 
-from .models import User
+from .models import ORCIDException, User
 
 
 class UserSerializer(serializers.HyperlinkedModelSerializer):
@@ -12,5 +12,8 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
     orcid = serializers.SerializerMethodField()
 
     def get_orcid(self, obj):
-        return obj.orcid_id
+        try:
+            return obj.orcid_id
+        except ORCIDException:
+            return None
 

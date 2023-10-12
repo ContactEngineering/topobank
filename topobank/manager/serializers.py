@@ -5,6 +5,7 @@ from guardian.shortcuts import get_perms, get_users_with_perms
 from rest_framework import reverse, serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
+from ..publication.serializers import PublicationSerializer
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
 
@@ -73,6 +74,8 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
+    #publication = serializers.HyperlinkedRelatedField(view_name='publication:publication-api-detail', read_only=True)
+    publication = PublicationSerializer(read_only=True)
     topography_set = TopographySerializer(many=True, read_only=True)
 
     tags = TagRelatedManagerField(required=False)
