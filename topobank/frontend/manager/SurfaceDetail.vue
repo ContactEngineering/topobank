@@ -195,6 +195,11 @@ export default {
                                         {{ category }}
                                     </span>
                                 </div>
+                                <div v-if="_data.publication !== null">
+                                    <span class="badge bg-info">
+                                        Published by {{ _data.publication.publisher.name }}
+                                    </span>
+                                </div>
                                 <div>
                                     <span v-for="tag in _data.tags"
                                           class="badge bg-success">
@@ -208,6 +213,7 @@ export default {
                                             data-toggle="dropdown" aria-haspopup="true"
                                             aria-expanded="false">
                                         Version {{_data.publication.version}}
+                                        ({{_data.publication.datetime.slice(0, 10)}})
                                         ...if version_badge_text...
                                         <span class="badge bg-warning">...version_badge_text...</span>
                                         ...endif...
