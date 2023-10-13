@@ -2,7 +2,7 @@
 
 import axios from "axios";
 
-import {subjectsToBase64} from "../utils/api";
+import {getIdFromUrl, subjectsToBase64} from "../utils/api";
 
 import {
     BAlert,
@@ -11,10 +11,13 @@ import {
     BCard,
     BCardBody,
     BCardHeader,
+    BDropdown,
+    BDropdownItem,
     BForm,
     BFormGroup,
     BFormInput,
     BFormTextarea,
+    BSpinner,
     BTab,
     BTabs,
 } from 'bootstrap-vue-next';
@@ -35,10 +38,13 @@ export default {
         BCard,
         BCardBody,
         BCardHeader,
+        BDropdown,
+        BDropdownItem,
         BForm,
         BFormGroup,
         BFormInput,
         BFormTextarea,
+        BSpinner,
         BTab,
         BTabs,
         DropZone,
@@ -64,7 +70,8 @@ export default {
     data() {
         return {
             _data: null,
-            _topographies: [],
+            _topographies: [],  // Topographies contained in this surface
+            _versions: null  // Published versions of this topography
         }
     },
     mounted() {
@@ -73,11 +80,25 @@ export default {
         }
     },
     methods: {
+        getOriginalSurfaceId() {
+            if (this._data.publication === null) {
+                return getIdFromUrl(this._data.url);
+            } else {
+                return getIdFromUrl(this._data.publication.original_surface);
+            }
+        },
         updateCard() {
             /* Fetch JSON describing the card */
             axios.get(`${this.surfaceUrl}?children=yes&permissions=yes`).then(response => {
                 this._data = response.data;
                 this._topographies = response.data.topography_set;
+                this.updateVersions();
+            });
+        },
+        updateVersions() {
+            axios.get(`/go/api/publication/?original_surface=${this.getOriginalSurfaceId()}`).then(response => {
+                this._versions = response.data;
+                console.log(this._versions);
             });
         },
         filesDropped(files) {
@@ -98,6 +119,9 @@ export default {
         },
         topographyUpdated(index, topography) {
             this._topographies[index] = topography;
+        },
+        surfaceHrefForVersion(version) {
+            return `http://localhost:8000/manager/html/surface/?surface=${getIdFromUrl(version.surface)}`;
         }
     },
     computed: {
@@ -113,6 +137,16 @@ export default {
         },
         base64Subjects() {
             return subjectsToBase64({surface: [this._data.id]});
+        },
+        versionString() {
+            if (this._data === null || this._data.publication === null) {
+                return "Work in progress";
+            } else {
+                return `Version ${this._data.publication.version} (${this._data.publication.datetime.slice(0, 10)})`;
+            }
+        },
+        hrefOriginalSurface() {
+            return `http://localhost:8000/manager/html/surface/?surface=${this.getOriginalSurfaceId()}`;
         }
     }
 };
@@ -176,13 +210,7 @@ export default {
                                              :permissions="_data.permissions">
                         </surface-permissions>
                     </b-tab>
-                    <b-tab v-if="_data !== null && _data.is_published"
-                           title="Authors">
-                    </b-tab>
-                    <b-tab v-if="_data !== null && _data.is_published"
-                           title="License">
-                    </b-tab>
-                    <b-tab v-if="_data !== null && _data.is_published"
+                    <b-tab v-if="_data !== null && _data.publication !== null"
                            title="How to cite">
                     </b-tab>
                     <template #tabs-end>
@@ -206,27 +234,21 @@ export default {
                                         {{ tag.name }}
                                     </span>
                                 </div>
-                                <div v-if="_data.publication !== null"
-                                     class="btn-group mt-2">
-                                    <button type="button" id="versions-btn"
-                                            class="btn btn-info dropdown-toggle"
-                                            data-toggle="dropdown" aria-haspopup="true"
-                                            aria-expanded="false">
-                                        Version {{_data.publication.version}}
-                                        ({{_data.publication.datetime.slice(0, 10)}})
-                                        ...if version_badge_text...
-                                        <span class="badge bg-warning">...version_badge_text...</span>
-                                        ...endif...
-                                    </button>
-                                    <div class="dropdown-menu" id="versions-dropdown">
-                                        ...for version_item in version_dropdown_items...
-                                        <a class="dropdown-item{% if version_item.surface == surface %} disabled{% endif %}"
-                                           href="...version_item.surface.get_absolute_url...">
-                                            ...version_item.label...
-                                        </a>
-                                        ...endfor...
-                                    </div>
-                                </div>
+                                <b-dropdown class="mt-2"
+                                            variant="info"
+                                            :text="versionString">
+                                    <b-dropdown-item :href="hrefOriginalSurface">
+                                        Work in progress
+                                    </b-dropdown-item>
+                                    <b-dropdown-item v-if="_versions === null">
+                                        <b-spinner small/> Loading versions...
+                                    </b-dropdown-item>
+                                    <b-dropdown-item v-if="_versions !== null"
+                                                     v-for="version in _versions"
+                                                     :href="surfaceHrefForVersion(version)">
+                                        Version {{ version.version }}
+                                    </b-dropdown-item>
+                                </b-dropdown>
                                 <div class="btn-group-vertical mt-2 w-100" role="group">
                                     <a :href="`/analysis/html/list/?subjects=${base64Subjects}`"
                                        class="btn btn-outline-secondary btn-block">

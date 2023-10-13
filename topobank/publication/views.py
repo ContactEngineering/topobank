@@ -11,9 +11,18 @@ from .models import Publication
 from .serializers import PublicationSerializer
 
 
-class PublicationViewSet(mixins.RetrieveModelMixin,
+class PublicationViewSet(mixins.ListModelMixin,
+                         mixins.RetrieveModelMixin,
                          viewsets.GenericViewSet):
     serializer_class = PublicationSerializer
+    # FIXME! This view needs pagination
+
+    def get_queryset(self):
+        try:
+            original_surface = int(self.request.query_params.get('original_surface', default=None))
+            return Publication.objects.filter(original_surface=original_surface).order_by('version')
+        except TypeError:
+            return Publication.objects.all()
 
 
 def go(request, short_url):
