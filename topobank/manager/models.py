@@ -1061,11 +1061,18 @@ class Topography(TaskStateModel, SubjectMixin):
         copy.task_id = None  # We need to indicate that no tasks have run
         copy.surface = to_surface
 
+        # Set file names of derived data to None, otherwise they will be deleted and become unavailable to the
+        # original topography
+        copy.thumbnail = None
+        copy.squeezed_datafile = None
+
+        # Copy the actual data file
         with self.datafile.open(mode='rb') as datafile:
             copy.datafile = default_storage.save(self.datafile.name, File(datafile))
 
         copy.tags = self.tags.get_tag_list()
 
+        # Recreate cache to recreate derived files
         _log.info(f"Creating cached properties of new {copy.get_subject_type()} {copy.id}...")
         run_task(copy)
         copy.save()  # run_task sets the initial task state to 'pe', so we need to save
