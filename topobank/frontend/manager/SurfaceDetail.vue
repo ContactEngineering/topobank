@@ -289,7 +289,8 @@ export default {
                                 <b-dropdown class="mt-2"
                                             variant="info"
                                             :text="versionString">
-                                    <b-dropdown-item :href="hrefOriginalSurface">
+                                    <b-dropdown-item :href="hrefOriginalSurface"
+                                                     :disabled="_data.publication === null">
                                         Work in progress
                                     </b-dropdown-item>
                                     <b-dropdown-item v-if="_versions === null">
@@ -298,7 +299,8 @@ export default {
                                     </b-dropdown-item>
                                     <b-dropdown-item v-if="_versions !== null"
                                                      v-for="version in _versions"
-                                                     :href="surfaceHrefForVersion(version)">
+                                                     :href="surfaceHrefForVersion(version)"
+                                                     :disabled="_data.publication !== null && _data.publication.version === version.version">
                                         Version {{ version.version }}
                                     </b-dropdown-item>
                                 </b-dropdown>
