@@ -211,12 +211,22 @@ export default {
                                             :tags="_data.tags">
                         </surface-properties>
                     </b-tab>
-                    <b-tab v-if="_data !== null && _data.publication === null"
+                    <b-tab v-if="_data !== null"
                            title="Permissions">
-                        <surface-permissions v-if="_data !== null"
+                        <surface-permissions v-if="_data.publication === null"
                                              :surface-url="_data.url"
                                              :permissions="_data.permissions">
                         </surface-permissions>
+                        <b-card v-if="_data.publication !== null"
+                                class="w-100">
+                            <template #header>
+                                <h5 class="float-start">Permissions</h5>
+                            </template>
+                            <b-card-body>
+                                This dataset is published. It is visible to everyone (even without logging into the
+                                system) and can no longer be modified.
+                            </b-card-body>
+                        </b-card>
                     </b-tab>
                     <b-tab v-if="_data !== null && _data.publication !== null"
                            title="How to cite">
