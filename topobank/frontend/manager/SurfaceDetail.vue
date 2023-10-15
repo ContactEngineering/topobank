@@ -5,6 +5,8 @@ import axios from "axios";
 import {getIdFromUrl, subjectsToBase64} from "../utils/api";
 
 import {
+    BAccordion,
+    BAccordionItem,
     BAlert,
     BButton,
     BButtonGroup,
@@ -32,6 +34,8 @@ export default {
     name: 'surface-detail',
     components: {
         BandwidthPlot,
+        BAccordion,
+        BAccordionItem,
         BAlert,
         BButton,
         BButtonGroup,
@@ -122,6 +126,9 @@ export default {
         },
         surfaceHrefForVersion(version) {
             return `http://localhost:8000/manager/html/surface/?surface=${getIdFromUrl(version.surface)}`;
+        },
+        htmlLinebreaks(s) {
+            return s.replace(' ', '&nbsp;').replace('\n', '<br>');
         }
     },
     computed: {
@@ -204,7 +211,8 @@ export default {
                                             :tags="_data.tags">
                         </surface-properties>
                     </b-tab>
-                    <b-tab title="Permissions">
+                    <b-tab v-if="_data !== null && _data.publication === null"
+                           title="Permissions">
                         <surface-permissions v-if="_data !== null"
                                              :surface-url="_data.url"
                                              :permissions="_data.permissions">
@@ -212,6 +220,40 @@ export default {
                     </b-tab>
                     <b-tab v-if="_data !== null && _data.publication !== null"
                            title="How to cite">
+                        <b-card class="w-100">
+                            <template #header>
+                                <h5 class="float-start">How to cite</h5>
+                            </template>
+                            <b-card-body>
+                                <p class="mb-5">
+                                    <img :src="`/static/images/cc/${_data.publication.license}.svg`"
+                                         title="Dataset can be reused under the terms of a Creative Commons license."
+                                         style="float:right"/>
+                                    This dataset can be reused under the terms of a Creative Commons license.
+                                    When reusing this dataset, please cite the original source.
+                                </p>
+                                <b-accordion>
+                                    <b-accordion-item title="Citation" visible>
+                                        <div v-html="_data.publication.citation.html"/>
+                                    </b-accordion-item>
+                                    <b-accordion-item title="RIS">
+                                        <code>
+                                            <pre>{{ _data.publication.citation.ris }}</pre>
+                                        </code>
+                                    </b-accordion-item>
+                                    <b-accordion-item title="BibTeX">
+                                        <code>
+                                            <pre>{{ _data.publication.citation.bibtex }}</pre>
+                                        </code>
+                                    </b-accordion-item>
+                                    <b-accordion-item title="BibLaTeX">
+                                        <code>
+                                            <pre>{{ _data.publication.citation.biblatex }}</pre>
+                                        </code>
+                                    </b-accordion-item>
+                                </b-accordion>
+                            </b-card-body>
+                        </b-card>
                     </b-tab>
                     <template #tabs-end>
                         <hr/>
@@ -241,7 +283,8 @@ export default {
                                         Work in progress
                                     </b-dropdown-item>
                                     <b-dropdown-item v-if="_versions === null">
-                                        <b-spinner small/> Loading versions...
+                                        <b-spinner small/>
+                                        Loading versions...
                                     </b-dropdown-item>
                                     <b-dropdown-item v-if="_versions !== null"
                                                      v-for="version in _versions"

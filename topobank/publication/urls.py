@@ -20,5 +20,5 @@ urlpatterns += [
         '<str:short_url>/download/',
         view=views.download,
         name='go-download'
-    ),
+    )
 ]
