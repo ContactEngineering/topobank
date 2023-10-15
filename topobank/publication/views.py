@@ -20,7 +20,7 @@ class PublicationViewSet(mixins.ListModelMixin,
     def get_queryset(self):
         try:
             original_surface = int(self.request.query_params.get('original_surface', default=None))
-            return Publication.objects.filter(original_surface=original_surface).order_by('version')
+            return Publication.objects.filter(original_surface=original_surface).order_by('-version')
         except TypeError:
             return Publication.objects.all()
 
