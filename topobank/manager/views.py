@@ -3,7 +3,6 @@ import os.path
 from io import BytesIO
 
 from django.conf import settings
-from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.http import HttpResponse, Http404, HttpResponseForbidden
@@ -66,77 +65,13 @@ DEFAULT_SELECT_TAB_STATE = {
     # and the page is loaded the first time
 }
 
-MEASUREMENT_TIME_INFO_FIELD = 'acquisition_time'
-
 DEFAULT_CONTAINER_FILENAME = "digital_surface_twin.zip"
 
 _log = logging.getLogger(__name__)
 
-surface_view_permission_required = method_decorator(
-    permission_required_or_403('manager.view_surface', ('manager.Surface', 'pk', 'pk'))
-    # translates to:
-    #
-    # In order to access, a specific permission is required. This permission
-    # is 'view_surface' for a specific surface. Which surface? This is calculated
-    # from view argument 'pk' (the last element in tuple), which is used to get a
-    # 'manager.Surface' instance (first element in tuple) with field 'pk' with same value as
-    # last element in tuple (the view argument 'pk').
-    #
-    # Or in pseudocode:
-    #
-    #  s = Surface.objects.get(pk=view.kwargs['pk'])
-    #  assert request.user.has_perm('view_surface', s)
-)
-
-surface_update_permission_required = method_decorator(
-    permission_required_or_403('manager.change_surface', ('manager.Surface', 'pk', 'pk'))
-)
-
-surface_delete_permission_required = method_decorator(
-    permission_required_or_403('manager.delete_surface', ('manager.Surface', 'pk', 'pk'))
-)
-
-surface_share_permission_required = method_decorator(
-    permission_required_or_403('manager.share_surface', ('manager.Surface', 'pk', 'pk'))
-)
-
 surface_publish_permission_required = method_decorator(
     permission_required_or_403('manager.publish_surface', ('manager.Surface', 'pk', 'pk'))
 )
-
-
-class TopographyPermissionMixin(UserPassesTestMixin):
-    redirect_field_name = None
-
-    def has_surface_permissions(self, perms):
-        if 'pk' not in self.kwargs:
-            return True
-
-        try:
-            topo = Topography.objects.get(pk=self.kwargs['pk'])
-        except Topography.DoesNotExist:
-            raise Http404()
-
-        return all(self.request.user.has_perm(perm, topo.surface)
-                   for perm in perms)
-
-    def test_func(self):
-        return NotImplementedError()
-
-
-class TopographyViewPermissionMixin(TopographyPermissionMixin):
-    def test_func(self):
-        return self.has_surface_permissions(['view_surface'])
-
-
-class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
-    def test_func(self):
-        return self.has_surface_permissions(['view_surface', 'change_surface'])
-
-
-class ORCIDUserRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        return not self.request.user.is_anonymous
 
 
 class TopographyDetailView(TemplateView):
@@ -875,7 +810,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
                         mixins.UpdateModelMixin,
                         mixins.DestroyModelMixin,
                         viewsets.GenericViewSet):
-    EXPIRE_UPLOAD = 10  # Presigned key for uploading expires after 10 second
+    EXPIRE_UPLOAD = 10  # Presigned key for uploading expires after 10 seconds
 
     queryset = Topography.objects.all()
     serializer_class = TopographySerializer
@@ -885,6 +820,14 @@ class TopographyViewSet(mixins.CreateModelMixin,
         # File name is passed in the 'name' field on create. It is the only field that needs to be present for the
         # create (POST) request.
         filename = self.request.data['name']
+
+        # Check whether the user is allowed to write to the parent surface; if not, we cannot add a topography
+        parent = serializer.validated_data['surface']
+        if not self.request.user.has_perm(f'change_{parent._meta.model_name}', parent):
+            self.permission_denied(
+                self.request,
+                code=403
+            )
 
         # Set creator to current user when creating a new topography
         instance = serializer.save(creator=self.request.user)
