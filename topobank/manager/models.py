@@ -1065,7 +1065,10 @@ class Topography(TaskStateModel, SubjectMixin):
             copy.datafile = default_storage.save(self.datafile.name, File(datafile))
 
         copy.tags = self.tags.get_tag_list()
-        copy.save()
+
+        _log.info(f"Creating cached properties of new {copy.get_subject_type()} {copy.id}...")
+        run_task(copy)
+        copy.save()  # run_task sets the initial task state to 'pe', so we need to save
 
         return copy
 

@@ -24,10 +24,9 @@ from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
 from trackstats.models import Metric, Period
 
-import topobank.taskapp.utils
-
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..publication.models import MAX_LEN_AUTHORS_FIELD
+from ..taskapp.utils import run_task
 from ..users.models import User
 
 from .containers import write_surface_container
@@ -845,7 +844,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
         if instance.task_state == Topography.NOTRUN:
             # The cache has never been created
             _log.info(f"Creating cached properties of new {instance.get_subject_type()} {instance.id}...")
-            topobank.taskapp.utils.run_task(instance)
+            run_task(instance)
             instance.save()  # run_task sets the initial task state to 'pe', so we need to save
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
