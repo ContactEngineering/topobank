@@ -596,7 +596,8 @@ class Topography(TaskStateModel, SubjectMixin):
     # Fields related to raw data
     #
     datafile = models.FileField(max_length=250,
-                                upload_to=topography_datafile_path)  # currently upload_to not used in forms
+                                upload_to=topography_datafile_path,
+                                blank=True)  # currently upload_to not used in forms
     datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
                                        null=True, default=None, blank=True)
     channel_names = models.JSONField(default=list)
