@@ -1,3 +1,4 @@
+import logging
 import re
 
 from django.forms import forms
@@ -6,15 +7,8 @@ from django.conf import settings
 import bleach  # using bleach instead of django.utils.html.escape because it allows more (e.g. for markdown)
 
 from crispy_forms.helper import FormHelper
-from crispy_forms.layout import Submit, Layout, Field, HTML, Div, Fieldset
+from crispy_forms.layout import Submit, Layout, Field, HTML, Div
 from crispy_forms.bootstrap import FormActions
-
-try:
-    from bootstrap_datepicker_plus.widgets import DatePickerInput
-except ModuleNotFoundError:
-    from bootstrap_datepicker_plus import DatePickerInput
-
-import logging
 
 from .models import Surface
 

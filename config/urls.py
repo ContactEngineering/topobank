@@ -78,9 +78,6 @@ urlpatterns = [
                   # the defaults
                   re_path(r'^terms/', include('termsandconditions.urls')),
 
-                  # progress bar during file upload
-                  re_path(r'^progressbarupload/', include('progressbarupload.urls')),
-
                   # for notifications - see package djano-notifications
                   re_path('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
                   # Your stuff: custom urls includes go here

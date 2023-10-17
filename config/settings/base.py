@@ -19,8 +19,10 @@ import topobank
 
 _log = logging.getLogger(__name__)
 
+
 def random_string(l=16):
     return ''.join(random.choice(string.ascii_lowercase) for i in range(l))
+
 
 # We provide (dummy) default values for every setting so we can run manage.py
 # without needing a configured stack.
@@ -78,25 +80,19 @@ DJANGO_APPS = [
 ]
 THIRD_PARTY_APPS = [
     'crispy_forms',
-    'crispy_bootstrap4',
+    'crispy_bootstrap5',
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.orcid',
     'rest_framework',
-    'fontawesomefree',
-    'formtools',
     'termsandconditions',
     'storages',
     'guardian',
-    'bootstrap_datepicker_plus',  # for datepicker, see https://github.com/monim67/django-bootstrap-datepicker-plus
     'django_select2',
-    'progressbarupload',
     'notifications',
-    'django_filters',
     'tagulous',
     'trackstats',
-    'fullurl',
     'watchman',
     'request_profiler',
 ]
@@ -298,10 +294,10 @@ CELERY_RESULT_SERIALIZER = 'json'
 # CELERYD_TASK_SOFT_TIME_LIMIT = 60
 
 # https://docs.celeryproject.org/en/stable/userguide/configuration.html#worker-cancel-long-running-tasks-on-connection-loss
-CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS=True
+CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = True
 # https://docs.celeryproject.org/en/stable/userguide/configuration.html?highlight=heartbeat#broker-heartbeat
-CELERY_BROKER_HEARTBEAT=60
-CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL=30
+CELERY_BROKER_HEARTBEAT = 60
+CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 30
 
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
 # CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
@@ -347,7 +343,6 @@ ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 # ------------------------------------------------------------------------------
 
 
-
 #
 # Define permissions when using the rest framework
 #
@@ -377,8 +372,11 @@ SOCIALACCOUNT_PROVIDERS = {
     }
 }
 SOCIALACCOUNT_QUERY_EMAIL = True  # e-mail should be aquired from social account provider
+
+
 def ACCOUNT_USER_DISPLAY(user):
     return user.name
+
 
 #
 # Settings for handling terms and conditions
@@ -435,7 +433,6 @@ STATICFILES_FINDERS = [
 ]
 STATICFILES_STORAGE = 'django.contrib.staticfiles.storage.StaticFilesStorage'
 
-
 # MEDIA
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#media-root
@@ -450,18 +447,6 @@ GUARDIAN_MONKEY_PATCH = False
 GUARDIAN_RENDER_403 = True
 # uses template "403.html" by default
 # see https://django-guardian.readthedocs.io/en/stable/configuration.html#guardian-render-403
-
-#
-# Setting for progress bar during upload
-#
-# see https://github.com/ouhouhsami/django-progressbarupload
-#
-FILE_UPLOAD_HANDLERS = (
-    "progressbarupload.uploadhandler.ProgressBarUploadHandler",
-    "django.core.files.uploadhandler.MemoryFileUploadHandler",
-    "django.core.files.uploadhandler.TemporaryFileUploadHandler",
-)
-PROGRESSBARUPLOAD_INCLUDE_JQUERY = False
 
 #
 # Settings for tracking package versions for analyses
@@ -479,9 +464,8 @@ TRACKED_DEPENDENCIES = [
 # Extend tracked dependencies by Plugin apps
 for plugin_app in PLUGIN_APPS:
     TRACKED_DEPENDENCIES.append(
-        (plugin_app, plugin_app+'.__version__')  # we use the module name as readable name at first
+        (plugin_app, plugin_app + '.__version__')  # we use the module name as readable name at first
     )
-
 
 #
 # Settings for notifications package
@@ -504,10 +488,10 @@ SELECT2_I18N_PATH = '/static/tagulous/lib/select2-4/js/i18n'
 # Settings for django-tagulous (tagging)
 #
 SERIALIZATION_MODULES = {
-    'xml':    'tagulous.serializers.xml_serializer',
-    'json':   'tagulous.serializers.json',
+    'xml': 'tagulous.serializers.xml_serializer',
+    'json': 'tagulous.serializers.json',
     'python': 'tagulous.serializers.python',
-    'yaml':   'tagulous.serializers.pyyaml',
+    'yaml': 'tagulous.serializers.pyyaml',
 }
 
 TAGULOUS_AUTOCOMPLETE_JS = (
@@ -515,7 +499,6 @@ TAGULOUS_AUTOCOMPLETE_JS = (
     "tagulous/tagulous.js",
     "tagulous/adaptor/select2-4.js",
 )
-
 
 #
 # E-Mail address to contact us
@@ -600,11 +583,10 @@ PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR = 20
 # Analysis-specific settings
 #
 CONTACT_MECHANICS_KWARGS_LIMITS = {
-            'nsteps': dict(min=1, max=50),
-            'maxiter': dict(min=100, max=1000),
-            'pressures': dict(maxlen=50),
+    'nsteps': dict(min=1, max=50),
+    'maxiter': dict(min=100, max=1000),
+    'pressures': dict(maxlen=50),
 }
-
 
 #
 # Settings related to contact characterization challenge
@@ -619,13 +601,12 @@ CHALLENGE_REDIRECT_URL = env.str('CHALLENGE_REDIRECT_URL', default='https://form
 DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY = True
 
 # Configure watchman checks
-WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.celery_worker_check', )
+WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.celery_worker_check',)
 
 #
 # Tabnav configuration
 #
 TABNAV_DISPLAY_HOME_TAB = True
-
 
 #
 # Request profiler
