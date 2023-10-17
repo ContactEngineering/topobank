@@ -54,14 +54,15 @@ class AnalysisFunctionView(viewsets.GenericViewSet, mixins.ListModelMixin, mixin
         return AnalysisFunction.objects.filter(pk__in=ids)
 
 
-class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+class AnalysisResultView(viewsets.GenericViewSet,
+                         mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
     queryset = Analysis.objects.select_related('function', 'subject_dispatch__topography', 'subject_dispatch__surface',
                                                'subject_dispatch__collection').prefetch_related('users')
     serializer_class = AnalysisResultSerializer
 
     def update(self, request, *args, **kwargs):
-        """Renew existing analysis."""
+        """Renew existing analysis (PUT)."""
         analysis = self.get_object()
         if analysis.is_visible_for_user(request.user):
             new_analysis = renew_existing_analysis(analysis)

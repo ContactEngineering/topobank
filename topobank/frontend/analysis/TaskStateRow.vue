@@ -83,7 +83,7 @@ export default {
         renew() {
             this._analysis.task_state = 'pe';
             this.$emit('setTaskState', 'pe');
-            axios.get(this._analysis.url)
+            axios.put(this._analysis.url)
                 .then(response => {
                     this._analysis = response.data;
                     this.scheduleStateCheck();
