@@ -189,7 +189,7 @@ class Surface(models.Model, SubjectMixin):
 
     LICENSE_CHOICES = [(k, settings.CC_LICENSE_INFOS[k]['option_name']) for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
 
-    name = models.CharField(max_length=80)
+    name = models.CharField(max_length=80, blank=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.CharField(max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False)

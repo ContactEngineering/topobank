@@ -13,6 +13,7 @@
  */
 
 import $ from 'jquery';
+import axios from "axios";
 
 import {createTree} from 'jquery.fancytree';
 
@@ -42,7 +43,6 @@ export default {
         sharingStatus: String,
         sharingStatusFilterChoices: Object,
         searchTerm: String,
-        surfaceCreateUrl: String,
         treeMode: String
     },
     data() {
@@ -361,6 +361,11 @@ export default {
         },
         unselect(basket, keys) {
             this.setSelectedKeys(keys);
+        },
+        createSurface() {
+            axios.post('/manager/api/surface/').then(response => {
+               window.location.href = `/manager/html/surface/?surface=${response.data.id}`;
+            });
         }
     }
 }
@@ -460,12 +465,14 @@ export default {
         <div class="col-md-4">
             <div v-if="isAnonymous" class="form-group">
                 <button class="btn btn-primary form-control disabled"
-                        title="Please sign-in to use this feature">
+                        title="Please sign-in to use this feature"
+                        disabled>
                     Create digital surface twin
                 </button>
             </div>
             <div v-if="!isAnonymous" class="form-group" title="Create a new digital surface twin">
-                <a class="btn btn-primary form-control" :href="surfaceCreateUrl">
+                <a class="btn btn-primary form-control"
+                   @click="createSurface">
                     Create digital surface twin
                 </a>
             </div>

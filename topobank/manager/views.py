@@ -802,7 +802,11 @@ class SurfaceViewSet(mixins.CreateModelMixin,
 
     def perform_create(self, serializer):
         # Set creator to current user when creating a new surface
-        serializer.save(creator=self.request.user)
+        instance = serializer.save(creator=self.request.user)
+
+        # We now have an id, set name
+        instance.name = f'Digital surface twin #{instance.id}'
+        instance.save()
 
 
 class TopographyViewSet(mixins.CreateModelMixin,
