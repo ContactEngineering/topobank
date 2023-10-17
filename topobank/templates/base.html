@@ -136,7 +136,7 @@
                             </a>
                         </li>
                         <li class="nav-item">
-                            <a class="nav-link" id="user-dropdown" role="button" onclick="toggleUserNav()">
+                            <a class="nav-link me-3" id="user-dropdown" role="button" onclick="toggleUserNav()">
                                 <i class="fa fa-user-circle fa-fw" aria-hidden="true"></i>
                                 {% if not request.user.is_anonymous %}
                                     {{ request.user.name }}
@@ -145,7 +145,7 @@
                         </li>
                     {% else %} {# user is anonymous #}
                         <li class="nav-item">
-                            <a class="btn btn-info" href="{% provider_login_url 'orcid' method="oauth2" %}">
+                            <a class="btn btn-info me-3" href="{% provider_login_url 'orcid' method="oauth2" %}">
                                 Sign in
                             </a>
                         </li>
