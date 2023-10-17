@@ -91,7 +91,6 @@ THIRD_PARTY_APPS = [
     'guardian',
     'bootstrap_datepicker_plus',  # for datepicker, see https://github.com/monim67/django-bootstrap-datepicker-plus
     'django_select2',
-    'django_tables2',
     'progressbarupload',
     'notifications',
     'django_filters',
