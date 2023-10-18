@@ -1,12 +1,18 @@
+// jQuery
 import jQuery from 'jquery';
 
 window.$ = window.jQuery = jQuery;
 
-// TODO: Bootstrap can be imported here but does not register event handlers globally
-//import * as bootstrap from 'bootstrap';
+// Fontawesome
+import { library, dom } from '@fortawesome/fontawesome-svg-core'
+import { far } from '@fortawesome/free-regular-svg-icons'
+import { fas } from '@fortawesome/free-solid-svg-icons'
 
+library.add(far, fas);
+dom.watch();
+
+// Vue & Bokeh
 import {createApp} from 'vue';
-
 import * as Bokeh from '@bokeh/bokehjs';
 
 window.Bokeh = Bokeh;
