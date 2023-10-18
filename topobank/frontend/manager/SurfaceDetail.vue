@@ -105,7 +105,6 @@ export default {
         updateVersions() {
             axios.get(`/go/api/publication/?original_surface=${this.getOriginalSurfaceId()}`).then(response => {
                 this._versions = response.data;
-                console.log(this._versions);
             });
         },
         filesDropped(files) {

@@ -210,7 +210,8 @@ export default {
 
             let options = [];
             for (const [channelIndex, channelName] of this._data.channel_names.entries()) {
-                options.push({value: channelIndex, text: channelName});
+                const [name, unit] = channelName;
+                options.push({value: channelIndex, text: `${name} (${unit})`});
             }
             return options;
         }

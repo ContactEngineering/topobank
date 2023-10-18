@@ -1289,7 +1289,12 @@ class Topography(TaskStateModel, SubjectMixin):
         self.datafile_format = reader.format()
 
         # Update channel names
-        self.channel_names = [channel.name for channel in reader.channels]
+        def _get_unit(channel):
+            if isinstance(channel.unit, tuple):
+                lateral_unit, data_unit = channel.unit
+                return data_unit
+            return channel.unit
+        self.channel_names = [(channel.name, _get_unit(channel)) for channel in reader.channels]
 
         # Idiot check
         if len(self.channel_names) == 0:
