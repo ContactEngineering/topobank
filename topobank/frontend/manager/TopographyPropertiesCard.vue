@@ -231,7 +231,7 @@ export default {
 <template>
     <div class="card mb-1" :class="{ 'bg-danger-subtle': isMetadataIncomplete }">
         <div class="card-header">
-            <div v-if="_topography !== null"
+            <div v-if="_topography !== null && _topography.channel_names.length > 0"
                  class="input-group-sm float-start">
                 <b-form-select :options="channelOptions"
                                v-model="_topography.data_source"

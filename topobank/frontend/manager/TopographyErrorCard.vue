@@ -69,7 +69,7 @@ export default {
                     <i class="fa fa-trash"></i>
                 </button>
             </div>
-            <div v-if="topography !== null && topography.data_source !== null"
+            <div v-if="topography !== null && topography.data_source !== null && topography.channel_names.length > 0"
                  class="input-group-sm float-start me-2">
                 <b-form-select :options="channelOptions"
                                v-model="topography.data_source"
