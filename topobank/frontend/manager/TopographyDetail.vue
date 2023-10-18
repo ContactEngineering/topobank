@@ -51,10 +51,11 @@ export default {
             });
         },
         deleteTopography() {
-            axios.delete(this._topography.url);
-            this.$emit('topography-deleted', this._topography.url);
-            const id = getIdFromUrl(this._topography.surface);
-            window.location.href = `/manager/html/surface/?surface=${id}`;
+            axios.delete(this._topography.url).then(response => {
+                this.$emit('topography-deleted', this._topography.url);
+                const id = getIdFromUrl(this._topography.surface);
+                window.location.href = `/manager/html/surface/?surface=${id}`;
+            });
         }
     },
     computed: {

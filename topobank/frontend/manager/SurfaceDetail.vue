@@ -19,6 +19,7 @@ import {
     BFormGroup,
     BFormInput,
     BFormTextarea,
+    BModal,
     BSpinner,
     BTab,
     BTabs,
@@ -48,6 +49,7 @@ export default {
         BFormGroup,
         BFormInput,
         BFormTextarea,
+        BModal,
         BSpinner,
         BTab,
         BTabs,
@@ -74,6 +76,7 @@ export default {
     data() {
         return {
             _data: null,
+            _showDeleteModal: false,
             _topographies: [],  // Topographies contained in this surface
             _versions: null  // Published versions of this topography
         }
@@ -129,6 +132,12 @@ export default {
         },
         htmlLinebreaks(s) {
             return s.replace(' ', '&nbsp;').replace('\n', '<br>');
+        },
+        deleteSurface() {
+            axios.delete(this._data.url).then(response => {
+                this.$emit('surface-deleted', this._data.url);
+                window.location.href = `/manager/html/select/`;
+            });
         }
     },
     computed: {
@@ -321,7 +330,8 @@ export default {
                                     </a>
 
                                     <a href="#"
-                                       class="btn btn-outline-danger btn-block">
+                                       class="btn btn-outline-danger btn-block"
+                                       @click="_showDeleteModal = true">
                                         Delete
                                     </a>
                                 </div>
@@ -332,4 +342,11 @@ export default {
             </div>
         </div>
     </div>
+    <b-modal v-if="_data !== null"
+             v-model="_showDeleteModal"
+             @ok="deleteSurface"
+             title="Delete digital surface twin">
+        You are about to delete the digital surface twin with name <b>{{ _data.name }}</b> and all contained
+        measurements. Are you sure you want to proceed?
+    </b-modal>
 </template>
