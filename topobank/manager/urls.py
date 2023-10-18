@@ -88,6 +88,11 @@ urlpatterns += [
         name='tag-list'  # TODO rename
     ),
     path(
+        'api/topography/<pk>/force-inspect/',
+        view=login_required(views.force_inspect),
+        name='force-inspect'
+    ),
+    path(
         'api/surface/<pk>/set-permissions/',
         view=login_required(views.set_permissions),
         name='set-permissions'

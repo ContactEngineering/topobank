@@ -62,7 +62,6 @@ export default {
             });
         },
         topographyDeleted(url) {
-            console.log(url);
             this.$emit('topography-deleted', url);
         },
         topographyUpdated(topography) {
@@ -99,18 +98,18 @@ export default {
         v-if="_topography !== null && !isUploading && _topography.task_state != 'su' && _topography.task_state != 'fa'"
         :url="_topography.url"
         :name="_topography.name"
-        @topography-deleted="topographyDeleted">
+        @topography-deleted="topographyDeleted"
+        @topography-updated="topographyUpdated">
     </topography-pending-card>
     <topography-error-card
         v-if="_topography !== null && !isUploading && _topography.task_state == 'fa'"
-        :url="_topography.url"
-        :name="_topography.name"
-        :error="_topography.error"
-        @topography-deleted="topographyDeleted">
+        :topography="_topography"
+        @topography-deleted="topographyDeleted"
+        @topography-updated="topographyUpdated">
     </topography-error-card>
     <topography-properties-card
         v-if="_topography !== null && !isUploading && _topography.task_state == 'su'"
-        :data="_topography"
+        :topography="_topography"
         :enlarged="enlarged"
         @topography-deleted="topographyDeleted"
         @topography-updated="topographyUpdated">

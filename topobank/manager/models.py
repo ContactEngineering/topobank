@@ -52,6 +52,13 @@ def user_directory_path(instance, filename):
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
 
 
+def _get_unit(channel):
+    if isinstance(channel.unit, tuple):
+        lateral_unit, data_unit = channel.unit
+        return data_unit
+    return channel.unit
+
+
 class PublicationException(Exception):
     """A general exception related to publications."""
     pass
@@ -1289,11 +1296,6 @@ class Topography(TaskStateModel, SubjectMixin):
         self.datafile_format = reader.format()
 
         # Update channel names
-        def _get_unit(channel):
-            if isinstance(channel.unit, tuple):
-                lateral_unit, data_unit = channel.unit
-                return data_unit
-            return channel.unit
         self.channel_names = [(channel.name, _get_unit(channel)) for channel in reader.channels]
 
         # Idiot check
@@ -1340,6 +1342,8 @@ class Topography(TaskStateModel, SubjectMixin):
             # Data file *does* provide unit information; the user cannot override it
             self.unit_editable = False
             # Reset unit information here
+            if isinstance(channel.unit, tuple):
+                raise NotImplementedError(f"Data channel '{channel.name}' contains information that is not height.")
             self.unit = channel.unit
 
         # Populate height scale information in the database

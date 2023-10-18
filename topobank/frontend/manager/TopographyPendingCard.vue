@@ -12,7 +12,8 @@ export default {
         BSpinner
     },
     emits: [
-        'topography-deleted'
+        'topography-deleted',
+        'topography-updated'
     ],
     props: {
         url: String,  // API url
@@ -22,6 +23,11 @@ export default {
         deleteTopography() {
             axios.delete(this.url);
             this.$emit('topography-deleted', this.url);
+        },
+        forceInspect() {
+            axios.post(`${this.url}force-inspect/`).then(response => {
+                this.$emit('topography-updated', response.data);
+            });
         }
     }
 };
@@ -31,6 +37,10 @@ export default {
     <div class="card mb-1">
         <div class="card-header">
             <div class="btn-group btn-group-sm float-end">
+                <button class="btn btn-outline-secondary">
+                    <i class="fa fa-refresh"
+                       @click="forceInspect"></i>
+                </button>
                 <button class="btn btn-outline-secondary float-end"
                         @click="deleteTopography">
                     <i class="fa fa-trash"></i>
