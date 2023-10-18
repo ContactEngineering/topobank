@@ -211,7 +211,11 @@ export default {
             let options = [];
             for (const [channelIndex, channelName] of this._data.channel_names.entries()) {
                 const [name, unit] = channelName;
-                options.push({value: channelIndex, text: `${name} (${unit})`});
+                if (unit === null) {
+                    options.push({value: channelIndex, text: name});
+                } else {
+                    options.push({value: channelIndex, text: `${name} (${unit})`});
+                }
             }
             return options;
         }
