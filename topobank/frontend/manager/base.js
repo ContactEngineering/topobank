@@ -4,12 +4,14 @@ import jQuery from 'jquery';
 window.$ = window.jQuery = jQuery;
 
 // Fontawesome
-import { library, dom } from '@fortawesome/fontawesome-svg-core'
-import { far } from '@fortawesome/free-regular-svg-icons'
-import { fas } from '@fortawesome/free-solid-svg-icons'
+/*
+import { library, dom } from '@fortawesome/fontawesome-svg-core';
+import { far } from '@fortawesome/free-regular-svg-icons';
+import { fas } from '@fortawesome/free-solid-svg-icons';
 
 library.add(far, fas);
 dom.watch();
+*/
 
 // Vue & Bokeh
 import {createApp} from 'vue';
