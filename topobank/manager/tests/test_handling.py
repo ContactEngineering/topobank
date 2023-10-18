@@ -18,7 +18,6 @@ import yaml
 from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, two_topos, \
     one_line_scan
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
-from ..forms import TopographyForm, TopographyWizardUnitsForm
 from ..views import DEFAULT_CONTAINER_FILENAME
 
 from topobank.utils import assert_in_content, \
@@ -478,7 +477,7 @@ def test_upload_topography_instrument_parameters(client, django_user_model,
                                'category': 'sim'
                            }, follow=True)
 
-    assert_no_form_errors(response)   # it should be allowed to leave out values within instrument
+    assert_no_form_errors(response)  # it should be allowed to leave out values within instrument
     assert response.status_code == 200
 
     surface = Surface.objects.get(name='surface1')
@@ -567,8 +566,8 @@ def test_upload_topography_instrument_parameters(client, django_user_model,
     assert input_file_path.stem in t.datafile.name
     assert t.instrument_type == instrument_type
     if instrument_type == Topography.INSTRUMENT_TYPE_UNDEFINED \
-       or (instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED and resolution_value == '') \
-       or (instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED and tip_radius_value == ''):
+            or (instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED and resolution_value == '') \
+            or (instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED and tip_radius_value == ''):
         expected_instrument_parameters = {}
     elif instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
         expected_instrument_parameters = {
@@ -1517,50 +1516,6 @@ def test_topography_form_field_is_periodic():
     assert form.fields['is_periodic'].disabled
 
 
-@pytest.mark.parametrize('form_class', [TopographyWizardUnitsForm, TopographyForm])
-def test_topography_form_field_fill_undefined_data_mode(form_class):
-    data = {
-        'size_editable': True,
-        'unit_editable': True,
-        'height_scale_editable': True,
-        'size_x': 1,
-        'unit': 'm',
-        'is_periodic': False,
-        'height_scale': 1,
-        'detrend_mode': 'center',
-        'resolution_x': '1',
-    }
-
-    form_default_kwargs = dict(initial=data, allow_periodic=False, has_size_y=False)
-
-    if form_class == TopographyForm:
-        form_default_kwargs['autocomplete_tags'] = []  # the wizard has the tags already on the previous page
-
-    #
-    # Case 1: Data has no undefined points for sure
-    #
-    form = form_class(has_undefined_data=False, **form_default_kwargs)
-    mode_field = form.fields['fill_undefined_data_mode']
-    assert mode_field.disabled
-    assert "No undefined/missing data found" in mode_field.help_text
-
-    #
-    # Case 2: Data has undefined points for sure
-    #
-    form = form_class(has_undefined_data=True, **form_default_kwargs)
-    mode_field = form.fields['fill_undefined_data_mode']
-    assert not mode_field.disabled
-    assert "The dataset has undefined/missing data points" in mode_field.help_text
-
-    #
-    # Case 3: Not sure whether data has undefined points or not
-    #
-    form = form_class(has_undefined_data=None, **form_default_kwargs)
-    mode_field = form.fields['fill_undefined_data_mode']
-    assert not mode_field.disabled  # user should choose, this is a suggestion
-    assert "We could not (yet) determine whether there are undefined/missing data points" in mode_field.help_text
-
-
 @pytest.mark.django_db
 def test_usage_of_cached_container_on_download_of_published_surface(client, example_pub, mocker,
                                                                     handle_usage_statistics):
@@ -1614,9 +1569,3 @@ def test_download_of_unpublished_surface(client, handle_usage_statistics):
                           follow=True)
     assert response.status_code == 200
     assert response['Content-Disposition'] == f'attachment; filename="{slugify(surface.name) + ".zip"}"'
-
-
-
-
-
-

@@ -713,6 +713,26 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Save to data base
         _log.debug('Saving model...')
+        if self.id is None and (
+                self.datafile is not None or self.squeezed_datafile is not None or self.thumbnail is not None):
+            # We don't have an `id` but are trying to save a model with a data file; this does not work because the
+            # `storage_prefix`  contains the `id`. (The `id` only becomes available once the model instance has
+            # been saved.) Note that this situation is only relevant for tests.
+            datafile = self.datafile
+            squeezed_datafile = self.squeezed_datafile
+            thumbnail = self.thumbnail
+            # Since we do not have an id yet, we cannot store the file since we don't know where to put it
+            self.datafile = None
+            self.squeezed_datafile = None
+            self.thumbnail = None
+            # Save to get an id
+            super().save(*args, **kwargs)
+            # Now we have an id, so we can now save the files
+            self.datafile = datafile
+            self.squeezed_datafile = squeezed_datafile
+            self.thumbnail = thumbnail
+            kwargs.update(dict(update_fields=['datafile', 'squeezed_datafile', 'thumbnail'],
+                               force_insert=False, force_update=True))  # The next save must be an update
         super().save(*args, **kwargs)
         cache.delete(self.cache_key())
 

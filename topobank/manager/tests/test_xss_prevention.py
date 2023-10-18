@@ -2,7 +2,7 @@ import pytest
 from django.core.files.uploadedfile import SimpleUploadedFile
 
 from .utils import UserFactory, Topography1DFactory, Topography2DFactory, SurfaceFactory
-from ..forms import SurfaceForm, TopographyForm, SurfacePublishForm, TopographyMetaDataForm
+from ..forms import SurfacePublishForm
 from ..models import Topography
 
 MALICIOUS_TEXT = "<script>alert('hi')</script>"

@@ -15,12 +15,12 @@ import pytest
 from django.urls import reverse
 
 import topobank
-from ...manager.utils import subjects_to_dict, subjects_to_base64
+from ...manager.utils import subjects_to_base64
 from ...manager.models import Topography, Surface
-from ...manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory, two_topos
-from ...taskapp.tasks import current_configuration, perform_analysis
-from ...utils import assert_in_content, assert_not_in_content
+from ...manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, two_topos
+from ...utils import assert_in_content
 from ..models import Analysis, AnalysisFunction
+from ..tasks import current_configuration, perform_analysis
 from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
 
 
