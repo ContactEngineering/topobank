@@ -357,7 +357,8 @@ REST_FRAMEWORK = {
     'DEFAULT_PERMISSION_CLASSES': (
         # Anonymous user is not authenticated by needs read-only access
         'rest_framework.permissions.IsAuthenticatedOrReadOnly',
-    )
+    ),
+    'TEST_REQUEST_DEFAULT_FORMAT': 'json'
 }
 
 #

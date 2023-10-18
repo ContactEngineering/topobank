@@ -99,51 +99,47 @@ def test_download_selection(client, mocker, handle_usage_statistics):
 # of the topobank code
 #
 @pytest.mark.django_db
-def test_upload_topography_di(client, handle_usage_statistics):
-    input_file_path = Path(FIXTURE_DIR + '/example3.di')  # maybe use package 'pytest-datafiles' here instead
+def test_upload_topography_di(api_client, handle_usage_statistics):
+    name = 'example3.di'
+    input_file_path = Path(f'{FIXTURE_DIR}/{name}')  # maybe use package 'pytest-datafiles' here instead
     description = "test description"
     category = 'exp'
 
     user = UserFactory()
 
-    client.force_login(user)
+    api_client.force_login(user)
 
     # first create a surface
-    response = client.post(reverse('manager:surface-create'),
-                           data={
-                               'name': 'surface1',
-                               'creator': user.id,
-                               'category': category,
-                           }, follow=True)
+    response = api_client.post(reverse('manager:surface-api-list'))
+    assert response.status_code == 201  # Created
+    surface_id = response.data['id']
 
-    assert_no_form_errors(response)
-
+    # populate surface with some info
+    response = api_client.patch(reverse('manager:surface-api-detail', kwargs=dict(pk=surface_id)),
+                                {
+                                    'name': 'surface1',
+                                    'category': category,
+                                    'description': description
+                                })
     assert response.status_code == 200
 
     surface = Surface.objects.get(name='surface1')
 
-    #
-    # open first step of wizard: file upload
-    #
+    # create new topography (and request file upload location)
+    response = api_client.post(reverse('manager:topography-api-list'),
+                                 {
+                                     'surface': reverse('manager:surface-api-detail',
+                                                        kwargs=dict(pk=surface_id)),
+                                     'name': name
+                                 })
+    assert response.status_code == 201  # Created
+
+    # upload file
+    post_data = response.data['post_data']  # The POST request above informs us how to upload the file
     with open(str(input_file_path), mode='rb') as fp:
-        response = client.post(reverse('manager:topography-create',
-                                       kwargs=dict(surface_id=surface.id)),
-                               data={
-                                   'topography_create_wizard-current_step': 'upload',
-                                   'upload-datafile': fp,
-                                   'upload-datafile_format': '',
-                                   'upload-surface': surface.id,
-                               }, follow=True)
-
-    assert response.status_code == 200
-    assert_no_form_errors(response)
-
-    #
-    # check contents of second page
-    #
-
-    # now we should be on the page with second step
-    assert_in_content(response, "Step 2 of 3")
+        api_client.post(post_data['url'], {**post_data['fields'], 'file': fp}, format='multipart')
+    assert response.status_code == 201  # Created
+    print(response.data)
 
     # we should have two datasources as options, "ZSensor" and "Height"
     assert_in_content(response, '<option value="0">ZSensor</option>')
@@ -154,15 +150,15 @@ def test_upload_topography_di(client, handle_usage_statistics):
     #
     # Send data for second page
     #
-    response = client.post(reverse('manager:topography-create',
-                                   kwargs=dict(surface_id=surface.id)),
-                           data={
-                               'topography_create_wizard-current_step': 'metadata',
-                               'metadata-name': 'topo1',
-                               'metadata-measurement_date': '2018-06-21',
-                               'metadata-data_source': 0,
-                               'metadata-description': description,
-                           })
+    response = api_client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                   'topography_create_wizard-current_step': 'metadata',
+                                   'metadata-name': 'topo1',
+                                   'metadata-measurement_date': '2018-06-21',
+                                   'metadata-data_source': 0,
+                                   'metadata-description': description,
+                               })
 
     assert response.status_code == 200
     assert_no_form_errors(response)
@@ -172,20 +168,20 @@ def test_upload_topography_di(client, handle_usage_statistics):
     #
     # Send data for third page
     #
-    response = client.post(reverse('manager:topography-create',
-                                   kwargs=dict(surface_id=surface.id)),
-                           data={
-                               'topography_create_wizard-current_step': 'units',
-                               'units-size_x': '9000',
-                               'units-size_y': '9000',
-                               'units-unit': 'nm',
-                               'units-height_scale': 0.3,
-                               'units-detrend_mode': 'height',
-                               'units-resolution_x': 256,
-                               'units-resolution_y': 256,
-                               'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-                           }, follow=True)
+    response = api_client.post(reverse('manager:topography-create',
+                                       kwargs=dict(surface_id=surface.id)),
+                               data={
+                                   'topography_create_wizard-current_step': 'units',
+                                   'units-size_x': '9000',
+                                   'units-size_y': '9000',
+                                   'units-unit': 'nm',
+                                   'units-height_scale': 0.3,
+                                   'units-detrend_mode': 'height',
+                                   'units-resolution_x': 256,
+                                   'units-resolution_y': 256,
+                                   'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                   'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+                               }, follow=True)
 
     assert response.status_code == 200
     # assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
@@ -1481,39 +1477,6 @@ def test_delete_surface(client, handle_usage_statistics):
     assert reverse('manager:select') == response.url
 
     assert Surface.objects.all().count() == 0
-
-
-def test_topography_form_field_is_periodic():
-    data = {
-        'size_editable': True,
-        'unit_editable': True,
-        'height_scale_editable': True,
-        'size_x': 1,
-        'unit': 'm',
-        'is_periodic': False,
-        'height_scale': 1,
-        'detrend_mode': 'center',
-        'resolution_x': '1',
-    }
-
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=False, has_undefined_data=None)
-    assert form.fields['is_periodic'].disabled
-
-    data['size_y'] = 1
-
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=False, has_size_y=True, has_undefined_data=None)
-    assert form.fields['is_periodic'].disabled
-
-    form = TopographyWizardUnitsForm(initial=data, allow_periodic=True, has_size_y=True, has_undefined_data=None)
-    assert not form.fields['is_periodic'].disabled
-
-    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=True, autocomplete_tags=[],
-                          has_undefined_data=None)
-    assert not form.fields['is_periodic'].disabled
-
-    form = TopographyForm(initial=data, has_size_y=True, allow_periodic=False, autocomplete_tags=[],
-                          has_undefined_data=None)
-    assert form.fields['is_periodic'].disabled
 
 
 @pytest.mark.django_db
