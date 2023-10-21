@@ -46,7 +46,7 @@ class TopographySerializer(TaskStateModelSerializer):
     url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
-                                                  queryset=Surface.objects.all(), read_only=True)
+                                                  queryset=Surface.objects.all())
 
     tags = TagRelatedManagerField(required=False)
 
