@@ -625,14 +625,14 @@ class Topography(TaskStateModel, SubjectMixin):
     #
     # Fields with physical meta data
     #
-    size_editable = models.BooleanField(default=False)
+    size_editable = models.BooleanField(default=False, editable=False)
     size_x = models.FloatField(null=True)
     size_y = models.FloatField(null=True)  # null for line scans
 
-    unit_editable = models.BooleanField(default=False)
+    unit_editable = models.BooleanField(default=False, editable=False)
     unit = models.TextField(choices=LENGTH_UNIT_CHOICES, null=True)
 
-    height_scale_editable = models.BooleanField(default=False)
+    height_scale_editable = models.BooleanField(default=False, editable=False)
     height_scale = models.FloatField(default=1)
 
     has_undefined_data = models.BooleanField(null=True, default=None)  # default is undefined
@@ -641,12 +641,12 @@ class Topography(TaskStateModel, SubjectMixin):
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
-    resolution_x = models.IntegerField(null=True)  # null for line scans TODO really?
-    resolution_y = models.IntegerField(null=True)  # null for line scans
+    resolution_x = models.IntegerField(null=True, editable=False)  # null for line scans TODO really?
+    resolution_y = models.IntegerField(null=True, editable=False)  # null for line scans
 
-    bandwidth_lower = models.FloatField(null=True, default=None)  # in meters
-    bandwidth_upper = models.FloatField(null=True, default=None)  # in meters
-    short_reliability_cutoff = models.FloatField(null=True, default=None)
+    bandwidth_lower = models.FloatField(null=True, default=None, editable=False)  # in meters
+    bandwidth_upper = models.FloatField(null=True, default=None, editable=False)  # in meters
+    short_reliability_cutoff = models.FloatField(null=True, default=None, editable=False)
 
     is_periodic = models.BooleanField(default=False)
 
@@ -707,14 +707,10 @@ class Topography(TaskStateModel, SubjectMixin):
             # We need to refresh if any of the significant fields changed during this save
             self._refresh_dependent_data = any(changed_fields)
 
-        # Check if we need to run the update task
-        if self._refresh_dependent_data:
-            run_task(self)
-
         # Save to data base
         _log.debug('Saving model...')
         if self.id is None and (
-                self.datafile is not None or self.squeezed_datafile is not None or self.thumbnail is not None):
+            self.datafile is not None or self.squeezed_datafile is not None or self.thumbnail is not None):
             # We don't have an `id` but are trying to save a model with a data file; this does not work because the
             # `storage_prefix`  contains the `id`. (The `id` only becomes available once the model instance has
             # been saved.) Note that this situation is only relevant for tests.
@@ -735,6 +731,10 @@ class Topography(TaskStateModel, SubjectMixin):
                                force_insert=False, force_update=True))  # The next save must be an update
         super().save(*args, **kwargs)
         cache.delete(self.cache_key())
+
+        # Check if we need to run the update task
+        if self._refresh_dependent_data:
+            run_task(self)
 
         # Reset to no refresh
         self._refresh_dependent_data = False
@@ -1175,10 +1175,9 @@ class Topography(TaskStateModel, SubjectMixin):
         self.thumbnail.delete()
 
         # Save the contents of in-memory file in Django image field
-        self.thumbnail.save(
-            'thumbnail.png',
-            ContentFile(image_file.getvalue()),
-        )
+        self.thumbnail.save('thumbnail.png',
+                            ContentFile(image_file.getvalue()),
+                            save=False)  # Do NOT trigger a model save
 
     def _dzi_storage_prefix(self):
         """Return prefix for storing DZI images."""
@@ -1266,7 +1265,9 @@ class Topography(TaskStateModel, SubjectMixin):
             dirname, basename = os.path.split(self.datafile.name)
             orig_stem, orig_ext = os.path.splitext(basename)
             squeezed_name = f'{orig_stem}-squeezed.nc'
-            self.squeezed_datafile.save(squeezed_name, File(open(tmp.name, mode='rb')))
+            self.squeezed_datafile.save(squeezed_name,
+                                        File(open(tmp.name, mode='rb')),
+                                        save=False)  # Do NOT trigger a model save
 
     def renew_bandwidth_cache(self, st_topo=None):
         """Renew bandwidth cache.
@@ -1378,7 +1379,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:
-            _log.info(f"Metadata of topography {self.id} is complete. Generating imaeges.")
+            _log.info(f"Metadata of topography {self.id} is complete. Generating images.")
             st_topo = self._read(reader)
 
             # Check whether original data file has undefined data point and update database accordingly.

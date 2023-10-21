@@ -46,13 +46,32 @@ class TopographySerializer(TaskStateModelSerializer):
     url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
-                                                  queryset=Surface.objects.all())
+                                                  queryset=Surface.objects.all(), read_only=True)
 
     tags = TagRelatedManagerField(required=False)
 
     is_metadata_complete = serializers.SerializerMethodField()
 
     post_data = serializers.DictField(default=None, read_only=True)  # Pre-signed upload location
+
+    def validate(self, data):
+        read_only_fields = []
+        if self.instance is not None:
+            if not self.instance.size_editable:
+                if 'size_x' in data:
+                    read_only_fields += ['size_x']
+                if 'size_y' in data:
+                    read_only_fields += ['size_y']
+            if not self.instance.unit_editable:
+                if 'unit' in data:
+                    read_only_fields += ['unit']
+            if not self.instance.height_scale_editable:
+                if 'unit' in data:
+                    read_only_fields += ['height_scale']
+            if len(read_only_fields) > 0:
+                s = ', '.join([f'`{name}`' for name in read_only_fields])
+                raise serializers.ValidationError(f'{s} is given by the data file and cannot be set')
+        return super().validate(data)
 
     def get_is_metadata_complete(self, obj):
         return obj.is_metadata_complete
@@ -74,7 +93,7 @@ class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
-    #publication = serializers.HyperlinkedRelatedField(view_name='publication:publication-api-detail', read_only=True)
+    # publication = serializers.HyperlinkedRelatedField(view_name='publication:publication-api-detail', read_only=True)
     publication = PublicationSerializer(read_only=True)
     topography_set = TopographySerializer(many=True, read_only=True)
 
