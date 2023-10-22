@@ -844,7 +844,6 @@ class TopographyViewSet(mixins.CreateModelMixin,
     # From mixins.RetrieveModelMixin
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
-        _log.debug(instance.measurement_date)
         if instance.task_state == Topography.NOTRUN:
             # The cache has never been created
             _log.info(f"Creating cached properties of new {instance.get_subject_type()} {instance.id}...")
