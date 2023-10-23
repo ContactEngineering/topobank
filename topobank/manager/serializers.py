@@ -1,6 +1,8 @@
 import logging
 
 from django import shortcuts
+from django.utils.translation import gettext_lazy as _
+
 from guardian.shortcuts import get_perms, get_users_with_perms
 from rest_framework import reverse, serializers
 from tagulous.contrib.drf import TagRelatedManagerField
@@ -17,11 +19,26 @@ _log = logging.getLogger(__name__)
 
 
 # From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
-class StrictReadOnlyFieldsMixin:
-    """Raises error if read only fields passed to input data"""
+class StrictFieldMixin:
+    """Raises error if read only fields or non-existing fields passed to input data"""
     default_error_messages = {
-        'read_only': 'This field is read only'
+        'read_only': _('This field is read only'),
+        'does_not_exist': _('This field does not exist')
     }
+
+    def to_internal_value(self, data):
+        field_names = set(field.field_name for field in self._writable_fields)
+        errors = {}
+
+        # check that all dictionary keys are fields
+        for key in data.keys():
+            if key not in field_names:
+                errors[key] = serializers.ErrorDetail(self.error_messages['does_not_exist'], code='does_not_exist')
+
+        if errors != {}:
+            raise serializers.ValidationError(errors)
+
+        return super().to_internal_value(data)
 
     def validate(self, attrs):
         attrs = super().validate(attrs)
@@ -45,7 +62,7 @@ class StrictReadOnlyFieldsMixin:
         return attrs
 
 
-class TopographySerializer(StrictReadOnlyFieldsMixin,
+class TopographySerializer(StrictFieldMixin,
                            TaskStateModelSerializer):
     class Meta:
         model = Topography
@@ -107,7 +124,7 @@ class TopographySerializer(StrictReadOnlyFieldsMixin,
         return obj.is_metadata_complete
 
 
-class SurfaceSerializer(StrictReadOnlyFieldsMixin,
+class SurfaceSerializer(StrictFieldMixin,
                         serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
