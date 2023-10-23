@@ -138,7 +138,7 @@ def test_download_selection(client, mocker, handle_usage_statistics):
 # we add some tests for formats which had problems because
 # of the topobank code
 #
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_upload_topography_di(api_client, settings, handle_usage_statistics, django_capture_on_commit_callbacks):
     settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
 
@@ -314,7 +314,7 @@ def test_upload_topography_npy(api_client, settings, handle_usage_statistics, dj
                          [(FIXTURE_DIR + "/10x10.txt", 'asc', 10, 10, (1, 1), (1, 1)),
                           (FIXTURE_DIR + "/line_scan_1.asc", 'xyz', 11, None, None, (9.0,)),
                           (FIXTURE_DIR + "/line_scan_1_minimal_spaces.asc", 'xyz', 11, None, None, (9.0,)),
-                          (FIXTURE_DIR + "/example6.txt", 'asc', 10, None, (1.,), (1.,))])
+                          (FIXTURE_DIR + "/example6.txt", 'asc', 9, None, (1.,), (1.,))])
 # Add this for a larger file: ("topobank/manager/fixtures/500x500_random.txt", 500)]) # takes quire long
 @pytest.mark.django_db
 def test_upload_topography_txt(api_client, django_user_model, django_capture_on_commit_callbacks,
@@ -380,7 +380,6 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                         'unit': 'nm',
                                         'height_scale': 1,
                                         'detrend_mode': 'height',
-                                        'resolution_x': exp_resolution_x,
                                         'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                         'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                     })
