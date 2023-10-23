@@ -16,7 +16,37 @@ from .utils import get_search_term, filtered_topographies, subjects_to_base64
 _log = logging.getLogger(__name__)
 
 
-class TopographySerializer(TaskStateModelSerializer):
+# From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
+class StrictReadOnlyFieldsMixin:
+    """Raises error if read only fields passed to input data"""
+    default_error_messages = {
+        'read_only': 'This field is read only'
+    }
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if not hasattr(self, 'initial_data'):
+            return attrs
+
+        # collect declared read only fields and read only fields from Meta
+        read_only_fields = ({field_name for field_name, field in self.fields.items() if field.read_only} |
+                            set(getattr(self.Meta, 'read_only_fields', set())))
+
+        received_read_only_fields = set(self.initial_data) & read_only_fields
+
+        if received_read_only_fields:
+            errors = {}
+            for field_name in received_read_only_fields:
+                errors[field_name] = serializers.ErrorDetail(self.error_messages['read_only'], code='read_only')
+
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+class TopographySerializer(StrictReadOnlyFieldsMixin,
+                           TaskStateModelSerializer):
     class Meta:
         model = Topography
         fields = ['url',
@@ -77,7 +107,8 @@ class TopographySerializer(TaskStateModelSerializer):
         return obj.is_metadata_complete
 
 
-class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
+class SurfaceSerializer(StrictReadOnlyFieldsMixin,
+                        serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
         fields = ['url',
