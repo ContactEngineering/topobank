@@ -217,7 +217,7 @@ def test_upload_topography_di(api_client, settings, handle_usage_statistics, dja
                                 {
                                     'resolution_x': 300,
                                 })
-    assert response.status_code == 200  # FIXME!!! This should raise 400 (but resolution_x is actually not updated)
+    assert response.status_code == 400  # resolution_x is read only
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
@@ -277,7 +277,20 @@ def test_upload_topography_npy(api_client, settings, handle_usage_statistics, dj
                                     'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                     'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                 })
-    assert response.status_code == 200
+    assert response.status_code == 400  # resolution_x and resolution_y are read only
+
+    # Update more metadata
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)),
+                                {
+                                    'size_x': '1',
+                                    'size_y': '1',
+                                    'unit': 'nm',
+                                    'height_scale': 1,
+                                    'detrend_mode': 'height',
+                                    'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                    'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+                                })
+    assert response.status_code == 200  # without resolution_x and resolution_y
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
