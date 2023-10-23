@@ -340,7 +340,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
     # first create a surface
     response = api_client.post(reverse('manager:surface-api-list'),
                                data={
-                                   'creator': user.id,
+                                   'name': 'surface1',
                                    'category': 'sim'
                                })
     assert response.status_code == 201
@@ -349,7 +349,6 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
     surface_id = response.data['id']
     response = api_client.patch(reverse('manager:surface-api-detail', kwargs=dict(pk=surface_id)),
                                 {
-                                    'name': 'surface1',
                                     'category': 'exp',
                                     'description': description
                                 })
@@ -396,8 +395,6 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                         'unit': 'nm',
                                         'height_scale': 1,
                                         'detrend_mode': 'height',
-                                        'resolution_x': exp_resolution_x,
-                                        'resolution_y': exp_resolution_y,
                                         'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                         'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                     })
