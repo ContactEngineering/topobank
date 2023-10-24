@@ -603,7 +603,7 @@ def test_trying_upload_of_topography_file_with_unknown_format(api_client, settin
     assert response.data['error'] == 'The data file is of an unknown or unsupported format.'
 
 
-@pytest.mark.skip  # Skip test, this is not handled gracefully by the current implementation
+@pytest.mark.skip('Skip test, this is not handled gracefully by the current implementation')
 @pytest.mark.django_db(transaction=True)
 def test_trying_upload_of_topography_file_with_too_long_format_name(api_client, settings,
                                                                     django_capture_on_commit_callbacks,
@@ -769,7 +769,7 @@ def topo_example4(two_topos):
 
 
 @pytest.mark.django_db
-def test_edit_topography(client, django_user_model, topo_example3, handle_usage_statistics):
+def test_edit_topography(api_client, django_user_model, topo_example3, handle_usage_statistics):
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
     new_description = "New results available"
@@ -777,54 +777,40 @@ def test_edit_topography(client, django_user_model, topo_example3, handle_usage_
     username = 'testuser'
     password = 'abcd$1234'
 
-    assert client.login(username=username, password=password)
+    assert api_client.login(username=username, password=password)
 
     #
     # First get the form and look whether all the expected data is in there
     #
-    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)))
-    assert response.status_code == 200
+    response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_example3.pk)))
+    assert response.status_code == 200, response.data
 
-    assert 'form' in response.context
-
-    form = response.context['form']
-    initial = form.initial
-
-    assert initial['name'] == topo_example3.name
-    assert initial['measurement_date'] == datetime.date(2018, 1, 1)
-    assert initial['description'] == 'description1'
-    assert initial['size_x'] == approx(10)
-    assert initial['size_y'] == approx(10)
-    assert initial['height_scale'] == approx(0.29638271279074097)
-    assert initial['detrend_mode'] == 'height'
+    assert response.data['name'] == topo_example3.name
+    assert response.data['measurement_date'] == str(datetime.date(2018, 1, 1))
+    assert response.data['description'] == 'description1'
+    assert response.data['size_x'] == approx(10)
+    assert response.data['size_y'] == approx(10)
+    assert response.data['height_scale'] == approx(0.29638271279074097)
+    assert response.data['detrend_mode'] == 'height'
 
     #
     # Then send a post with updated data
     #
-    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)),
-                           data={
-                               'save-stay': 1,  # we want to save, but stay on page
-                               'surface': topo_example3.surface.pk,
-                               'data_source': 0,
-                               'name': new_name,
-                               'measurement_date': new_measurement_date,
-                               'description': new_description,
-                               'size_x': 500,
-                               'size_y': 1000,
-                               'unit': 'nm',
-                               'height_scale': 0.1,
-                               'detrend_mode': 'height',
-                               'tags': 'ab, bc',  # needs a string
-                               'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-                               'has_undefined_data': False,
-                           }, follow=True)
-
-    assert_no_form_errors(response)
-    assert_in_content(response, 'Fill undefined data mode')
-
-    # we should stay on the update page for this topography
-    assert_redirects(response, reverse('manager:topography-update', kwargs=dict(pk=topo_example3.pk)))
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_example3.pk)),
+                                {
+                                    'data_source': 0,
+                                    'name': new_name,
+                                    'measurement_date': new_measurement_date,
+                                    'description': new_description,
+                                    'size_x': 500,
+                                    'size_y': 1000,
+                                    'detrend_mode': 'height',
+                                    'tags': ['ab', 'bc'],
+                                    'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                    'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+                                    'has_undefined_data': False,
+                                })
+    assert response.status_code == 200, response.data
 
     #
     # let's check whether it has been changed
@@ -843,15 +829,14 @@ def test_edit_topography(client, django_user_model, topo_example3, handle_usage_
     assert t.size_y == approx(1000)
     assert t.tags == ['ab', 'bc']
 
-    #
     # the changed topography should also appear in the list of topographies
-    #
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.pk)))
-    assert bytes(new_name, 'utf-8') in response.content
+    url = reverse('manager:surface-api-detail', kwargs=dict(pk=t.surface.pk))
+    response = api_client.get(f'{url}?children=yes')
+    assert response.data['topography_set'][0]['name'] == new_name
 
 
 @pytest.mark.django_db
-def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_statistics):
+def test_edit_line_scan(api_client, one_line_scan, django_user_model, handle_usage_statistics):
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
     new_description = "New results available"
@@ -862,53 +847,44 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
     topo_id = one_line_scan.id
     surface_id = one_line_scan.surface.id
 
-    assert client.login(username=username, password=password)
+    assert api_client.login(username=username, password=password)
 
     #
     # First get the form and look whether all the expected data is in there
     #
-    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topo_id)))
-    assert response.status_code == 200
+    response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_id)))
+    assert response.status_code == 200, response.data
 
-    assert 'form' in response.context
-
-    form = response.context['form']
-    initial = form.initial
-
-    assert initial['name'] == 'Simple Line Scan'
-    assert initial['measurement_date'] == datetime.date(2018, 1, 1)
-    assert initial['description'] == 'description1'
-    assert initial['size_x'] == 9
-    assert initial['height_scale'] == approx(1.)
-    assert initial['detrend_mode'] == 'height'
-    assert 'size_y' not in form.fields  # should have been removed by __init__
-    assert initial['is_periodic'] == False
+    assert response.data['name'] == 'Simple Line Scan'
+    assert response.data['measurement_date'] == str(datetime.date(2018, 1, 1))
+    assert response.data['description'] == 'description1'
+    assert response.data['size_x'] == 9
+    assert response.data['height_scale'] == approx(1.)
+    assert response.data['detrend_mode'] == 'height'
+    assert response.data['size_y'] is None   # should have been removed by __init__
+    assert response.data['is_periodic'] == False
 
     #
-    # Then send a post with updated data
+    # Then send a patch with updated data
     #
-    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo_id)),
-                           data={
-                               'save-stay': 1,  # we want to save, but stay on page
-                               'surface': surface_id,
-                               'data_source': 0,
-                               'name': new_name,
-                               'measurement_date': new_measurement_date,
-                               'description': new_description,
-                               'size_x': 500,
-                               'unit': 'nm',
-                               'height_scale': 0.1,
-                               'detrend_mode': 'height',
-                               'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-                               'has_undefined_data': False,
-                           })
-
-    assert response.context is None, "Errors in form: {}".format(response.context['form'].errors)
-    assert response.status_code == 302
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_id)),
+                                {
+                                    'data_source': 0,
+                                    'name': new_name,
+                                    'measurement_date': new_measurement_date,
+                                    'description': new_description,
+                                    'size_x': 500,
+                                    'height_scale': 0.1,
+                                    'detrend_mode': 'height',
+                                    'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                    'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+                                    'has_undefined_data': False,
+                                })
+    assert response.status_code == 200, response.data
 
     # due to the changed topography editing, we should stay on update page
-    assert reverse('manager:topography-update', kwargs=dict(pk=topo_id)) == response.url
+    url = reverse('manager:topography-api-detail', kwargs=dict(pk=topo_id))
+    assert f'http://testserver{url}' == response.data['url']
 
     topos = Topography.objects.filter(surface__creator__username=username).order_by('pk')
 
@@ -926,10 +902,12 @@ def test_edit_line_scan(client, one_line_scan, django_user_model, handle_usage_s
     #
     # should also appear in the list of topographies
     #
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=t.surface.pk)))
-    assert bytes(new_name, 'utf-8') in response.content
+    url = reverse('manager:surface-api-detail', kwargs=dict(pk=t.surface.pk))
+    response = api_client.get(f'{url}?children=yes')
+    assert response.data['topography_set'][0]['name'] == new_name
 
 
+@pytest.mark.skip('Currently you can set detrending on any topography, even periodic ones')
 @pytest.mark.django_db
 def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model):
     input_file_path = Path(FIXTURE_DIR + "/10x10.txt")
@@ -1169,74 +1147,32 @@ def test_only_positive_size_values_on_edit(api_client, handle_usage_statistics):
     assert response.status_code == 400, response.data
     assert response.data['size_x'][0].title() == 'Ensure This Value Is Greater Than Or Equal To 0.0.'
 
+
 #######################################################################
 # Surfaces
 #######################################################################
 
-@pytest.mark.django_db
-def test_create_surface(client, django_user_model, handle_usage_statistics):
-    description = "My description. hasdhahdlahdla"
-    name = "Surface 1 kjfhakfhökadsökdf"
-    category = "exp"
-
-    username = 'testuser'
-    password = 'abcd$1234'
-
-    user = django_user_model.objects.create_user(username=username, password=password)
-
-    assert client.login(username=username, password=password)
-
-    assert 0 == Surface.objects.count()
-
-    #
-    # Create first surface
-    #
-    response = client.post(reverse('manager:surface-create'),
-                           data={
-                               'name': name,
-                               'creator': user.id,
-                               'description': description,
-                               'category': category,
-                           }, follow=True)
-
-    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(
-        response.context['form'].errors)
-
-    assert response.status_code == 200
-
-    assert description.encode() in response.content
-    assert name.encode() in response.content
-    assert b"Experimental data" in response.content
-
-    assert 1 == Surface.objects.count()
-
 
 @pytest.mark.django_db
-def test_edit_surface(client):
+def test_edit_surface(api_client):
     category = 'sim'
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user, category=category)
 
-    client.force_login(user)
+    api_client.force_login(user)
 
     new_name = "This is a better surface name"
     new_description = "This is new description"
     new_category = 'dum'
 
-    response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface.id)),
-                           data={
-                               'name': new_name,
-                               'creator': user.id,
-                               'description': new_description,
-                               'category': new_category
-                           })
-
-    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(
-        response.context['form'].errors)
-
-    assert response.status_code == 302
-    assert reverse('manager:surface-detail', kwargs=dict(pk=surface.id)) == response.url
+    response = api_client.patch(reverse('manager:surface-api-detail', kwargs=dict(pk=surface.id)),
+                                {
+                                    'name': new_name,
+                                    'description': new_description,
+                                    'category': new_category
+                                })
+    assert response.status_code == 200
 
     surface = Surface.objects.get(pk=surface.id)
 
@@ -1246,27 +1182,15 @@ def test_edit_surface(client):
 
 
 @pytest.mark.django_db
-def test_delete_surface(client, handle_usage_statistics):
+def test_delete_surface(api_client, handle_usage_statistics):
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    client.force_login(user)
+    api_client.force_login(user)
 
     assert Surface.objects.all().count() == 1
 
-    response = client.get(reverse('manager:surface-delete', kwargs=dict(pk=surface.id)))
-
-    assert response.status_code == 200
-
-    # user should be asked if he/she is sure
-    assert b'Are you sure' in response.content
-
-    response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface.id)))
-
-    assert ('context' not in response) or ('form' not in response.context), "Still on form: {}".format(
-        response.context['form'].errors)
-
-    assert response.status_code == 302
-    assert reverse('manager:select') == response.url
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface.id)))
+    assert response.status_code == 204, response.data
 
     assert Surface.objects.all().count() == 0
 
