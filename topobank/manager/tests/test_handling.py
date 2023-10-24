@@ -18,7 +18,6 @@ from rest_framework.test import APIRequestFactory
 
 from trackstats.models import Metric, Period
 
-
 from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, two_topos, \
     one_line_scan
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
@@ -730,11 +729,11 @@ def test_upload_opd_file_check(api_client, settings, django_capture_on_commit_ca
 
 
 @pytest.mark.django_db
-def test_topography_list(client, two_topos, django_user_model, handle_usage_statistics):
+def test_topography_list(api_client, two_topos, django_user_model, handle_usage_statistics):
     username = 'testuser'
     password = 'abcd$1234'
 
-    assert client.login(username=username, password=password)
+    assert api_client.login(username=username, password=password)
 
     # response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=1)))
 
@@ -744,17 +743,19 @@ def test_topography_list(client, two_topos, django_user_model, handle_usage_stat
     surface = Surface.objects.get(name="Surface 1", creator__username=username)
     topos = Topography.objects.filter(surface=surface)
 
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
+    url = reverse('manager:surface-api-detail', kwargs=dict(pk=surface.pk))
+    response = api_client.get(f'{url}?children=yes')  # We need children=yes to get the topography set
+    assert response.status_code == 200, response.data
 
-    content = str(response.content)
+    topo_names = [t['name'] for t in response.data['topography_set']]
+    topo_urls = [t['url'] for t in response.data['topography_set']]
     for t in topos:
         # currently 'listed' means: name in list
-        assert t.name in content
+        assert t.name in topo_names
 
         # click on a bar should lead to details, so URL must be included
-        assert reverse('manager:topography-detail', kwargs=dict(pk=t.pk)) in content
-
-        # TODO tests missing for bar length and position (selenium??)
+        url = reverse('manager:topography-api-detail', kwargs=dict(pk=t.pk))
+        assert f'http://testserver{url}' in topo_urls
 
 
 @pytest.fixture
@@ -1005,9 +1006,6 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
     #
     response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
                            data={
-                               'save-stay': 1,  # we want to save, but stay on page
-                               'surface': surface.pk,
-                               'data_source': 0,
                                'name': topo.name,
                                'measurement_date': topo.measurement_date,
                                'description': topo.description,
@@ -1030,63 +1028,8 @@ def test_edit_topography_only_detrend_center_when_periodic(client, django_user_m
     assert_form_error(response, "When enabling periodicity only detrend mode", "detrend_mode")
 
 
-@pytest.mark.parametrize("kind", ["resolution", "tip_radius"])
 @pytest.mark.django_db
-def test_instrument_parameters_empty_if_no_value_on_topography_change(client, handle_usage_statistics, kind):
-    """Check whether instrument parameters are empty if no value was given
-    """
-    user = UserFactory()
-    surface = SurfaceFactory(creator=user)
-    topo = Topography2DFactory(surface=surface, size_x=1, size_y=1, size_editable=True,
-                               instrument_type=Topography.INSTRUMENT_TYPE_CONTACT_BASED,
-                               instrument_parameters={
-                                   kind: {
-                                       "value": 1.0,
-                                       "unit": "mm"
-                                   }
-                               })
-    client.force_login(user)
-
-    changed_data_for_post = {
-        'save-stay': 'Save and keep editing',  # we want to save, but stay on page
-        'surface': str(surface.pk),
-        'data_source': str(topo.data_source),
-        'description': topo.description,
-        'name': topo.name,
-        'size_x': str(topo.size_x),
-        'size_y': str(topo.size_y),
-        'size_editable': "True",
-        'unit': topo.unit,
-        'unit_editable': "True",
-        'height_scale': str(topo.height_scale),
-        'height_scale_editable': "True",
-        'detrend_mode': 'center',
-        'measurement_date': format(topo.measurement_date, '%Y-%m-%d'),
-        'tags': '',
-        'instrument_name': '',
-        'instrument_type': topo.instrument_type,
-        'instrument_parameters': f'{{"{kind}": {{ "value": 1.0, "unit": "mm"}} }}',
-        # add some helper fields which have been added to the form, such that
-        # the POST request has all parameters as the original HTML form
-        'tip_radius_value': '',  # No value
-        'tip_radius_unit': 'mm',
-        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-    }
-
-    #
-    # we post the changed data, instrument parameters should saved as empty
-    #
-    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
-                           data=changed_data_for_post, follow=True)
-    assert_no_form_errors(response)
-    assert response.status_code == 200
-
-    changed_topo = Topography.objects.get(pk=topo.pk)
-    assert changed_topo.instrument_parameters == {}
-
-
-@pytest.mark.django_db
-def test_topography_detail(client, two_topos, django_user_model, topo_example4, handle_usage_statistics):
+def test_topography_detail(api_client, two_topos, django_user_model, topo_example4, handle_usage_statistics):
     username = 'testuser'
     password = 'abcd$1234'
 
@@ -1094,26 +1037,29 @@ def test_topography_detail(client, two_topos, django_user_model, topo_example4, 
 
     django_user_model.objects.get(username=username)
 
-    assert client.login(username=username, password=password)
+    assert api_client.login(username=username, password=password)
 
-    response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=topo_pk)))
-    assert response.status_code == 200
+    response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pk)))
+    assert response.status_code == 200, response.data
 
     # resolution should be written somewhere
-    assert_in_content(response, "305 x 75")
+    assert response.data['resolution_x'] == 305
+    assert response.data['resolution_y'] == 75
 
     # .. as well as detrending mode
-    assert_in_content(response, "Remove tilt")
+    assert response.data['detrend_mode'] == 'height'
 
     # .. description
-    assert_in_content(response, "description2")
+    assert response.data['description'] == 'description2'
 
     # .. physical size
-    assert_in_content(response, "112.80791 µm x 27.73965 µm")
+    assert response.data['unit'] == 'µm'
+    assert response.data['size_x'] == approx(112.80791)
+    assert response.data['size_y'] == approx(27.73965)
 
 
 @pytest.mark.django_db
-def test_delete_topography(client, two_topos, django_user_model, topo_example3, handle_usage_statistics):
+def test_delete_topography(api_client, two_topos, django_user_model, topo_example3, handle_usage_statistics):
     username = 'testuser'
     password = 'abcd$1234'
 
@@ -1122,8 +1068,7 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
     surface = topo.surface
 
     # make squeezed datafile
-    topo.renew_squeezed_datafile()
-    topo.renew_images()
+    topo.renew_cache()
 
     # store names of files in storage system
     pk = topo.pk
@@ -1139,17 +1084,9 @@ def test_delete_topography(client, two_topos, django_user_model, topo_example3, 
     assert default_storage.exists(f'{dzi_name}/dzi.json')
     assert default_storage.exists(f'{dzi_name}/dzi_files/0/0_0.jpg')
 
-    assert client.login(username=username, password=password)
+    assert api_client.login(username=username, password=password)
 
-    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=pk)))
-
-    # user should be asked if he/she is sure
-    assert b'Are you sure' in response.content
-
-    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=pk)))
-
-    # user should be redirected to surface details
-    assert reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)) == response.url
+    response = api_client.delete(reverse('manager:topography-api-detail', kwargs=dict(pk=pk)))
 
     # topography topo_id is no more in database
     assert not Topography.objects.filter(pk=pk).exists()
@@ -1199,7 +1136,7 @@ def test_delete_topography_with_its_datafile_used_by_others(client, two_topos, d
 
 
 @pytest.mark.django_db
-def test_only_positive_size_values_on_edit(client, handle_usage_statistics):
+def test_only_positive_size_values_on_edit(api_client, handle_usage_statistics):
     #
     # prepare database
     #
@@ -1210,33 +1147,27 @@ def test_only_positive_size_values_on_edit(client, handle_usage_statistics):
     surface = SurfaceFactory(creator=user)
     topography = Topography2DFactory(surface=surface, size_x=1024, size_y=1024, size_editable=True)
 
-    assert client.login(username=username, password=password)
+    assert api_client.login(username=username, password=password)
 
     #
-    # Then send a post with negative size values
+    # Then send a patch with negative size values
     #
-    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topography.pk)),
-                           data={
-                               'surface': surface.id,
-                               'data_source': topography.data_source,
-                               'name': topography.name,
-                               'measurement_date': topography.measurement_date,
-                               'description': topography.description,
-                               'size_x': -500.0,  # negative, should be > 0
-                               'size_y': 0,  # zero, should be > 0
-                               'unit': 'nm',
-                               'height_scale': 0.1,
-                               'detrend_mode': 'height',
-                               'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'instrument_parameters': '{}',
-                               'instrument_name': '',
-                           })
-
-    assert response.status_code == 200
-    assert 'form' in response.context
-    assert "Size x must be greater than zero" in response.context['form'].errors['size_x'][0]
-    assert "Size y must be greater than zero" in response.context['form'].errors['size_y'][0]
-
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography.pk)),
+                                {
+                                    'data_source': topography.data_source,
+                                    'name': topography.name,
+                                    'measurement_date': topography.measurement_date,
+                                    'description': topography.description,
+                                    'size_x': -500.0,  # negative, should be > 0
+                                    'size_y': 0,  # zero, should be > 0
+                                    'height_scale': 0.1,
+                                    'detrend_mode': 'height',
+                                    'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                    'instrument_parameters': {},
+                                    'instrument_name': '',
+                                })
+    assert response.status_code == 400, response.data
+    assert response.data['size_x'][0].title() == 'Ensure This Value Is Greater Than Or Equal To 0.0.'
 
 #######################################################################
 # Surfaces

@@ -20,6 +20,7 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
+from django.core.validators import MinValueValidator
 from django.contrib.contenttypes.models import ContentType
 
 from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
@@ -626,8 +627,8 @@ class Topography(TaskStateModel, SubjectMixin):
     # Fields with physical meta data
     #
     size_editable = models.BooleanField(default=False, editable=False)
-    size_x = models.FloatField(null=True)
-    size_y = models.FloatField(null=True)  # null for line scans
+    size_x = models.FloatField(null=True, validators=[MinValueValidator(0.0)])
+    size_y = models.FloatField(null=True, validators=[MinValueValidator(0.0)])  # null for line scans
 
     unit_editable = models.BooleanField(default=False, editable=False)
     unit = models.TextField(choices=LENGTH_UNIT_CHOICES, null=True)
@@ -641,8 +642,8 @@ class Topography(TaskStateModel, SubjectMixin):
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
-    resolution_x = models.IntegerField(null=True, editable=False)  # null for line scans TODO really?
-    resolution_y = models.IntegerField(null=True, editable=False)  # null for line scans
+    resolution_x = models.IntegerField(null=True, editable=False, validators=[MinValueValidator(0)])  # null for line scans
+    resolution_y = models.IntegerField(null=True, editable=False, validators=[MinValueValidator(0)])  # null for line scans
 
     bandwidth_lower = models.FloatField(null=True, default=None, editable=False)  # in meters
     bandwidth_upper = models.FloatField(null=True, default=None, editable=False)  # in meters

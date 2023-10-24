@@ -95,15 +95,15 @@ def recursive_delete(prefix):
     prefix : str
         Prefix to delete.
     """
-    if default_storage.exists(prefix):
-        directories, filenames = default_storage.listdir(prefix)
-        for filename in filenames:
-            _log.info(f'Deleting file {prefix}/{filename}...')
-            default_storage.delete(f'{prefix}/{filename}')
-        for directory in directories:
-            _log.info(f'Deleting directory {prefix}/{directory}...')
-            recursive_delete(f'{prefix}/{directory}')
-            default_storage.delete(f'{prefix}/{directory}')
+    _log.info(f'Recursive delete of {prefix}')
+    directories, filenames = default_storage.listdir(prefix)
+    for filename in filenames:
+        _log.info(f'Deleting file {prefix}/{filename}...')
+        default_storage.delete(f'{prefix}/{filename}')
+    for directory in directories:
+        _log.info(f'Deleting directory {prefix}/{directory}...')
+        recursive_delete(f'{prefix}/{directory}')
+        default_storage.delete(f'{prefix}/{directory}')
 
 
 def mangle_content_type(obj, default_app_label='manager'):
