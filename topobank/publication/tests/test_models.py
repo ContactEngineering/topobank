@@ -24,7 +24,7 @@ def test_citation_html(rf, example_pub):
     Hermione Granger, Harry Potter. (2020). contact.engineering. <em>Diamond Structure (Version 1)</em>. <a href="{url}">{url}</a>
     """.format(url=example_pub.get_full_url()).strip()
 
-    result_html = example_pub.get_citation('html', request).strip()
+    result_html = example_pub.get_citation('html').strip()
 
     assert exp_html == result_html
 
@@ -49,7 +49,7 @@ KW  - diamond
 ER  -
     """.format(url=example_pub.get_full_url()).strip()
 
-    result_ris = example_pub.get_citation('ris', request).strip()
+    result_ris = example_pub.get_citation('ris').strip()
 
     assert exp_ris == result_ris
 
@@ -71,7 +71,7 @@ def test_citation_bibtex(rf, example_pub):
         }}
     """.format(url=example_pub.get_full_url()).strip()
 
-    result_bibtex = example_pub.get_citation('bibtex', request).strip()
+    result_bibtex = example_pub.get_citation('bibtex').strip()
 
     assert exp_bibtex == result_bibtex
 
@@ -97,7 +97,7 @@ def test_citation_biblatex(rf, example_pub):
         }}""".format(url=example_pub.get_full_url()).strip()
 
     with freeze_time(datetime.date(2020, 10, 1)):
-        result_biblatex = example_pub.get_citation('biblatex', request).strip()
+        result_biblatex = example_pub.get_citation('biblatex').strip()
 
     assert exp_biblatex == result_biblatex
 

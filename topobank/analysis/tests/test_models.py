@@ -12,6 +12,7 @@ from topobank.manager.tests.utils import two_topos, Topography1DFactory  # neede
 from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory, SurfaceCollectionFactory, UserFactory
 
 from ..models import Analysis, AnalysisFunction
+from ..tasks import current_configuration
 from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceCollectionAnalysisFactory
 
 from ..registry import ImplementationMissingAnalysisFunctionException, AnalysisFunctionImplementation, \
@@ -179,8 +180,6 @@ def test_current_configuration(settings):
         ('topobank', 'topobank.__version__'),
         ('numpy', 'numpy.version.full_version')
     ]
-
-    from topobank.taskapp.tasks import current_configuration
 
     config = current_configuration()
 
