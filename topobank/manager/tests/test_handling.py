@@ -512,17 +512,16 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
     assert t.description == description
     assert input_file_path.stem in t.datafile.name
     assert t.instrument_type == instrument_type
-    if instrument_type == Topography.INSTRUMENT_TYPE_UNDEFINED \
-        or (instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED and resolution_value == '') \
-        or (instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED and tip_radius_value == ''):
-        expected_instrument_parameters = {}
-    elif instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
+    expected_instrument_parameters = {}
+    if instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
         expected_instrument_parameters = {
             "resolution": {
                 "value": resolution_value,
                 "unit": resolution_unit,
             }
         }
+        if resolution_value == '':
+            del expected_instrument_parameters['resolution']['value']
     elif instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
         expected_instrument_parameters = {
             "tip_radius": {
@@ -530,6 +529,8 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
                 "unit": tip_radius_unit,
             }
         }
+        if tip_radius_value == '':
+            del expected_instrument_parameters['tip_radius']['value']
 
     assert t.instrument_parameters == expected_instrument_parameters
 
