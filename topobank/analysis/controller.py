@@ -40,7 +40,7 @@ def renew_analyses_for_subject(subject, recursive=True):
     will be deleted. Only analyses for the default parameters
     will be automatically generated at the moment.
 
-    Implementation Note:
+    Implementation note:
 
     This method cannot be easily used in a post_save signal,
     because the pre_delete signal deletes the datafile and
@@ -74,12 +74,12 @@ def renew_analyses_for_subject(subject, recursive=True):
                                f"({subj.get_content_type().name} {subj.id}). Reason: {str(err)}")
 
     # Note: on_commit will not execute in tests, unless transaction=True is added to pytest.mark.django_db
-    transaction.on_commit(lambda: submit_all(subject))
+    submit_all(subject)
 
     if recursive and hasattr(subject, 'topography_set'):
         for topo in subject.topography_set.all():
             # Note: on_commit will not execute in tests, unless transaction=True is added to pytest.mark.django_db
-            transaction.on_commit(lambda: submit_all(topo))
+            submit_all(topo)
 
 
 def renew_existing_analysis(analysis, use_default_kwargs=False):
@@ -113,8 +113,7 @@ def renew_existing_analysis(analysis, use_default_kwargs=False):
               f"subject type {subject_type}, subject id {analysis.subject.id}, "
               f"kwargs: {pyfunc_kwargs}")
     analysis.delete()
-    return submit_analysis(users, func, subject=analysis.subject,
-                           pyfunc_kwargs=pyfunc_kwargs)
+    return submit_analysis(users, func, subject=analysis.subject, pyfunc_kwargs=pyfunc_kwargs)
 
 
 def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):

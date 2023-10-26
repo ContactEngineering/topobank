@@ -1,15 +1,16 @@
+import os.path
+import logging
+import datetime
+import factory
+import requests
 import json
 import tempfile
 from operator import itemgetter
 
 import pytest
+
 from django.core.management import call_command
 from django.shortcuts import reverse
-
-import os.path
-import logging
-import datetime
-import factory
 
 from ...users.tests.factories import UserFactory
 from ..models import Topography, Surface, SurfaceCollection, TagModel
@@ -21,6 +22,46 @@ FIXTURE_DIR = os.path.join(
 )
 
 _log = logging.getLogger(__name__)
+
+
+def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, final_task_state='su',
+                **kwargs):
+    # create new topography (and request file upload location)
+    name = fn.split('/')[-1]
+    response = api_client.post(reverse('manager:topography-api-list'),
+                               {
+                                   'surface': reverse('manager:surface-api-detail',
+                                                      kwargs=dict(pk=surface_id)),
+                                   'name': name,
+                                   **kwargs
+                               })
+    assert response.status_code == 201, response.data  # Created
+    topography_id = response.data['id']
+
+    # upload file
+    post_data = response.data['post_data']  # The POST request above informs us how to upload the file
+    with open(fn, mode='rb') as fp:
+        # We need to use `requests` as the upload is directly to S3, not to the Django app
+        response = requests.post(post_data['url'], data={**post_data['fields']}, files={'file': fp})
+    assert response.status_code == 204, response.data  # Created
+
+    # We need to execute on commit actions, because this is where the renew_cache task is triggered
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        # Get info on file (this will trigger the inspection). In the production instance, the first GET triggers a
+        # background (Celery) task and always returns a 'pe'nding state. In this testing environment, this is run
+        # immediately after the `save` but not yet reflected in the returned dictionary.
+        response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
+        assert response.status_code == 200, response.data
+        assert response.data['task_state'] == 'pe'
+        # We need to close the commit capture here because the file inspection runs on commit
+
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        # Get info on file again, this should not report a successful file inspection.
+        response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
+        assert response.status_code == 200, response.data
+        assert response.data['task_state'] == final_task_state
+
+    return response
 
 
 #

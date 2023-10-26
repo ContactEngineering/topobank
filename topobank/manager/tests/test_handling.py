@@ -8,8 +8,6 @@ from io import BytesIO
 import pytest
 from pytest import approx
 
-import requests
-
 from django.shortcuts import reverse
 from django.conf import settings
 from django.core.files.storage import default_storage
@@ -19,52 +17,12 @@ from rest_framework.test import APIRequestFactory
 from trackstats.models import Metric, Period
 
 from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, two_topos, \
-    one_line_scan
+    one_line_scan, upload_file
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 from ..views import DEFAULT_CONTAINER_FILENAME
 
 from topobank.utils import assert_in_content, \
     assert_redirects, assert_no_form_errors, assert_form_error
-
-
-def _upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, final_task_state='su',
-                 **kwargs):
-    # create new topography (and request file upload location)
-    name = fn.split('/')[-1]
-    response = api_client.post(reverse('manager:topography-api-list'),
-                               {
-                                   'surface': reverse('manager:surface-api-detail',
-                                                      kwargs=dict(pk=surface_id)),
-                                   'name': name,
-                                   **kwargs
-                               })
-    assert response.status_code == 201, response.data  # Created
-    topography_id = response.data['id']
-
-    # upload file
-    post_data = response.data['post_data']  # The POST request above informs us how to upload the file
-    with open(fn, mode='rb') as fp:
-        # We need to use `requests` as the upload is directly to S3, not to the Django app
-        response = requests.post(post_data['url'], data={**post_data['fields']}, files={'file': fp})
-    assert response.status_code == 204, response.data  # Created
-
-    # We need to execute on commit actions, because this is where the renew_cache task is triggered
-    with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        # Get info on file (this will trigger the inspection). In the production instance, the first GET triggers a
-        # background (Celery) task and always returns a 'pe'nding state. In this testing environment, this is run
-        # immediately after the `save` but not yet reflected in the returned dictionary.
-        response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
-        assert response.status_code == 200, response.data
-        assert response.data['task_state'] == 'pe'
-        # We need to close the commit capture here because the file inspection runs on commit
-
-    with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        # Get info on file again, this should not report a successful file inspection.
-        response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
-        assert response.status_code == 200, response.data
-        assert response.data['task_state'] == final_task_state
-
-    return response
 
 
 #######################################################################
@@ -168,7 +126,7 @@ def test_upload_topography_di(api_client, settings, handle_usage_statistics, dja
                                 })
     assert response.status_code == 200, response.data
 
-    response = _upload_file(str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks)
+    response = upload_file(str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks)
 
     # we should have four datasources as options
     assert response.data['name'] == 'example3.di'
@@ -250,7 +208,7 @@ def test_upload_topography_npy(api_client, settings, handle_usage_statistics, dj
     # upload file
     name = 'example-2d.npy'
     input_file_path = Path(f'{FIXTURE_DIR}/{name}')  # maybe use package 'pytest-datafiles' here instead
-    response = _upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
 
     # idiot-check some response properties
     assert response.data['name'] == 'example-2d.npy'
@@ -357,7 +315,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                 })
     assert response.status_code == 200, response.data
 
-    response = _upload_file(str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks)
+    response = upload_file(str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks)
     assert response.data['name'] == expected_toponame
 
     # Updated metadata
@@ -466,7 +424,7 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
 
     surface = Surface.objects.get(name='surface1')
 
-    response = _upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
     assert response.data['name'] == expected_toponame
 
     # create parameters dictionary
@@ -558,10 +516,10 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(api_client
 
     api_client.force_login(user)
 
-    response = _upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks,
-                            measurement_date='2018-06-21',
-                            data_source=0,
-                            description="bla")
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks,
+                           measurement_date='2018-06-21',
+                           data_source=0,
+                           description="bla")
 
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=response.data['id'])),
                                 {'name': 'TOPO'})
@@ -598,8 +556,8 @@ def test_trying_upload_of_topography_file_with_unknown_format(api_client, settin
     surface = Surface.objects.get(name='surface1')
 
     # upload file
-    response = _upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks,
-                            final_task_state='fa')
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks,
+                           final_task_state='fa')
     assert response.data['error'] == 'The data file is of an unknown or unsupported format.'
 
 
@@ -629,7 +587,7 @@ def test_trying_upload_of_topography_file_with_too_long_format_name(api_client, 
 
     surface = SurfaceFactory(creator=user)
 
-    response = _upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
     assert response.status_code == 200, response.data
 
 
@@ -665,8 +623,8 @@ def test_trying_upload_of_corrupted_topography_file(api_client, settings, django
     surface = Surface.objects.get(name='surface1')
 
     # file upload
-    response = _upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks,
-                            final_task_state='fa')
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks,
+                           final_task_state='fa')
 
     # This should yield an error
     assert response.data['error'] == 'The data file is of an unknown or unsupported format.'
@@ -693,10 +651,10 @@ def test_upload_opd_file_check(api_client, settings, django_capture_on_commit_ca
 
     # file upload
     input_file_path = Path(FIXTURE_DIR + '/example.opd')  # maybe use package 'pytest-datafiles' here instead
-    response = _upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks,
-                            measurement_date='2021-06-09',
-                            description=description,
-                            detrend_mode='height')
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks,
+                           measurement_date='2021-06-09',
+                           description=description,
+                           detrend_mode='height')
 
     assert response.data['channel_names'] == [['Raw', 'mm']]
     assert response.data['name'] == 'example.opd'
@@ -861,7 +819,7 @@ def test_edit_line_scan(api_client, one_line_scan, django_user_model, handle_usa
     assert response.data['size_x'] == 9
     assert response.data['height_scale'] == approx(1.)
     assert response.data['detrend_mode'] == 'height'
-    assert response.data['size_y'] is None   # should have been removed by __init__
+    assert response.data['size_y'] is None  # should have been removed by __init__
     assert response.data['is_periodic'] == False
 
     #

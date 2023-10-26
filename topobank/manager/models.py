@@ -12,6 +12,7 @@ import PIL
 import sys
 import tempfile
 
+import django.dispatch
 from django.db import models
 from django.shortcuts import reverse
 from django.utils import timezone
@@ -37,6 +38,8 @@ from ..users.models import User
 from ..users.utils import get_default_group
 
 _log = logging.getLogger(__name__)
+
+cache_renewed = django.dispatch.Signal()
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
@@ -642,8 +645,10 @@ class Topography(TaskStateModel, SubjectMixin):
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
-    resolution_x = models.IntegerField(null=True, editable=False, validators=[MinValueValidator(0)])  # null for line scans
-    resolution_y = models.IntegerField(null=True, editable=False, validators=[MinValueValidator(0)])  # null for line scans
+    resolution_x = models.IntegerField(null=True, editable=False,
+                                       validators=[MinValueValidator(0)])  # null for line scans
+    resolution_y = models.IntegerField(null=True, editable=False,
+                                       validators=[MinValueValidator(0)])  # null for line scans
 
     bandwidth_lower = models.FloatField(null=True, default=None, editable=False)  # in meters
     bandwidth_upper = models.FloatField(null=True, default=None, editable=False)  # in meters
@@ -684,9 +689,6 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Reset to no refresh
         self._refresh_dependent_data = False
-
-        # Clean up instrument parameters
-        self.instrument_parameters = self._clean_instrument_parameters(self.instrument_parameters)
 
         # Strategies to detect changes in significant fields:
         # https://stackoverflow.com/questions/1355150/when-saving-how-can-you-check-if-a-field-has-changed
@@ -873,8 +875,8 @@ class Topography(TaskStateModel, SubjectMixin):
         except KeyError:
             pass
         else:
-            if 'value' not in r and 'unit' not in r:
-                # Neither value nor unit is set
+            if not ('value' in r and 'unit' in r):
+                # Value/unit pair is incomplete
                 del params['resolution']
             else:
                 # Make sure it is a floating-point value
@@ -896,8 +898,8 @@ class Topography(TaskStateModel, SubjectMixin):
         except KeyError:
             pass
         else:
-            if 'value' not in r and 'unit' not in r:
-                # Neither value nor unit is set
+            if not ('value' in r and 'unit' in r):
+                # Value/unit pair is incomplete
                 del params['tip_radius']
             else:
                 # Make sure it is a floating-point value
@@ -965,8 +967,6 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Populate instrument information
         reader_kwargs['info'] = self._instrument_info
-
-        print(reader_kwargs)
 
         # Eventually get topography from module "SurfaceTopography" using the given keywords
         topo = reader.topography(**reader_kwargs)
@@ -1405,6 +1405,9 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Save dataset
         self.save()
+
+        # Send signal
+        cache_renewed.send(sender=self.__class__, instance=self)
 
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""
