@@ -883,14 +883,14 @@ class Topography(TaskStateModel, SubjectMixin):
                 try:
                     params['resolution']['value'] = float(params['resolution']['value'])
                 except KeyError:
-                    # 'value' does not exist
+                    # 'value' does not exist - should not happen
                     pass
                 except TypeError:
                     # None
-                    del params['resolution']['value']
+                    del params['resolution']
                 except ValueError:
                     # Value cannot be converted to float
-                    del params['resolution']['value']
+                    del params['resolution']
 
         # Check that tip radius parameter is complete
         try:
@@ -906,14 +906,14 @@ class Topography(TaskStateModel, SubjectMixin):
                 try:
                     params['tip_radius']['value'] = float(params['tip_radius']['value'])
                 except KeyError:
-                    # 'value' does not exist
+                    # 'value' does not exist - should not happen
                     pass
                 except TypeError:
                     # None
-                    del params['tip_radius']['value']
+                    del params['tip_radius']
                 except ValueError:
                     # Value cannot be converted to float
-                    del params['tip_radius']['value']
+                    del params['tip_radius']
 
         return params
 

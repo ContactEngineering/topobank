@@ -472,20 +472,25 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
     assert input_file_path.stem in t.datafile.name
     assert t.instrument_type == instrument_type
     expected_instrument_parameters = {}
+    clean_instrument_parameters = {}
     if instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
         expected_instrument_parameters = {
             "resolution": {
-                "value": resolution_value,
                 "unit": resolution_unit,
+                "value": resolution_value
             }
         }
+        if resolution_value != '':
+            clean_instrument_parameters = expected_instrument_parameters
     elif instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
         expected_instrument_parameters = {
             "tip_radius": {
-                "value": tip_radius_value,
                 "unit": tip_radius_unit,
+                "value": tip_radius_value
             }
         }
+        if tip_radius_value != '':
+            clean_instrument_parameters = expected_instrument_parameters
 
     assert t.instrument_parameters == expected_instrument_parameters
 
@@ -494,9 +499,12 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
     #
     st_topo = t.topography(allow_cache=False, allow_squeezed=False)
     assert st_topo.info["instrument"] == {'name': instrument_name,
-                                          'parameters': expected_instrument_parameters,
+                                          'parameters': clean_instrument_parameters,
                                           'type': instrument_type}
-
+    if 'parameters' in t._instrument_info['instrument']:
+        assert t._instrument_info['instrument']['parameters'] == clean_instrument_parameters
+    else:
+        assert clean_instrument_parameters == {}
 
 @pytest.mark.django_db
 def test_upload_topography_and_name_like_an_existing_for_same_surface(api_client, settings,
