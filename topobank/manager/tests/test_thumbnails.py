@@ -16,43 +16,34 @@ def test_thumbnail_exists_for_new_topography():
 
 
 @pytest.mark.django_db
-def test_renewal_on_topography_detrend_mode_change(client, mocker, django_capture_on_commit_callbacks):
+def test_renewal_on_topography_detrend_mode_change(api_client, mocker, settings, django_capture_on_commit_callbacks):
     """Check whether thumbnail is renewed if detrend mode changes for a topography"""
+    settings.CELERY_TASK_ALWAYS_EAGER = True
 
     from ..models import Topography
-    renew_squeezed_mock = mocker.patch('topobank.taskapp.tasks.renew_squeezed_datafile.si')
-    renew_bandwidth_cache_mock = mocker.patch('topobank.taskapp.tasks.renew_bandwidth_cache.si')
-    renew_topo_images_mock = mocker.patch('topobank.taskapp.tasks.renew_topography_images.si')
+    renew_cache_mock = mocker.patch('topobank.manager.models.Topography.renew_cache')
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     topo = Topography1DFactory(surface=surface, size_y=1, detrend_mode='center')
 
-    client.force_login(user)
+    api_client.force_login(user)
 
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topo.pk)),
-                               data={
-                                   'save-stay': 1,  # we want to save, but stay on page
-                                   'surface': surface.pk,
-                                   'data_source': 0,
-                                   'name': topo.name,
-                                   'measurement_date': topo.measurement_date,
-                                   'description': "something",
-                                   'size_x': 1,
-                                   'size_y': 1,
-                                   'unit': 'nm',
-                                   'height_scale': 1,
-                                   'detrend_mode': 'height',
-                                   'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                                   'has_undefined_data': False,
-                                   'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-                               }, follow=True)
+        response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo.pk)),
+                                    {
+                                        'data_source': 0,
+                                        'name': topo.name,
+                                        'measurement_date': topo.measurement_date,
+                                        'description': "something",
+                                        'height_scale': 1.0,
+                                        'detrend_mode': 'height',
+                                        'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                        'has_undefined_data': False,
+                                        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+                                    })
 
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
-    assert_no_form_errors(response)
-    assert response.status_code == 200
-    assert len(callbacks) == 2  # single chain for squeezed file and thumbnail, another for analyses
-    assert renew_topo_images_mock.called
-    assert renew_squeezed_mock.called  # was directly called, not as callback from commit
-    assert renew_bandwidth_cache_mock.called  # was directly called, not as callback from commit
+    assert response.status_code == 200, response.data
+    assert len(callbacks) == 1  # single callback for cache renewal
+    assert renew_cache_mock.called
