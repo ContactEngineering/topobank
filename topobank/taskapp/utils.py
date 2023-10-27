@@ -109,13 +109,18 @@ def _celery_worker_check():
 @app.task(bind=True)
 def task_dispatch(celery_task, cls_id, obj_id):
     ct = ContentType.objects.get_for_id(cls_id)
-    obj = ct.get_object_for_this_type(id=obj_id)
-    obj.run_task(celery_task)
+    try:
+        obj = ct.get_object_for_this_type(id=obj_id)
+        obj.run_task(celery_task)
+    except ct.model_class().DoesNotExist:
+        # Ignore the task if the instance no longer exists
+        pass
 
 
 def run_task(model_instance, *args, **kwargs):
     model_instance.task_state = TaskStateModel.PENDING
-    # Only submit this on_commit, once save() has finalized
+    # Only submit this on_commit, once save() has finalized and everything
+    # has been flushed to the database (including a possible 'pe'nding state)
     transaction.on_commit(
         lambda: task_dispatch.delay(
             ContentType.objects.get_for_model(model_instance).id,

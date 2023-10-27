@@ -12,8 +12,7 @@ from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
 
 from .models import Surface, Topography, TagModel
-from .permissions import guardian_to_api
-from .utils import get_search_term, filtered_topographies, subjects_to_base64
+from .utils import get_search_term, filtered_topographies, subjects_to_base64, guardian_to_api
 
 _log = logging.getLogger(__name__)
 

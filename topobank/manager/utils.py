@@ -264,7 +264,8 @@ def filtered_surfaces(request):
             topography_tag_names_for_search=Replace(  # same for the topographies
                 Replace('topography__tags__name', Value('.'), Value(' ')),
                 Value('/'), Value(' ')),
-            topography_name_for_search=Replace('topography__name', Value('.'), Value(' '), output_field=TextField())  # often there are filenames
+            topography_name_for_search=Replace('topography__name', Value('.'), Value(' '), output_field=TextField())
+            # often there are filenames
         ).distinct('id').order_by('id')
         qs = filter_queryset_by_search_term(qs, search_term, [
             'description', 'name', 'creator__name', 'tag_names_for_search',
@@ -1192,3 +1193,49 @@ def s3_post(name, expire):
     url = default_storage.bucket.meta.client.generate_presigned_post(settings.AWS_STORAGE_BUCKET_NAME, name,
                                                                      ExpiresIn=expire)
     return url
+
+
+def api_to_guardian(api_permission):
+    """
+    Translate a REST API permissions to a list of Django guardian permissions.
+    The API exposes the following permissions:
+        'no-access': No access to the dataset
+        'view': Basic view access, corresponding to 'view_surface'
+        'edit': Edit access, corresponding to 'view_surface' and
+            'change_surface'
+        'full': Full access (essentially transfer), corresponding to
+            'view_surface', 'change_surface', 'delete_surface',
+            'share_surface' and 'publish_surface'
+    """
+    _permissions = {
+        'no-access': [],
+        'view': ['view_surface'],
+        'edit': ['view_surface', 'change_surface'],
+        'full': ['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface']
+    }
+
+    return _permissions[api_permission]
+
+
+def guardian_to_api(guardian_permissions):
+    """
+    Translate a list of Django guardian permissions to an API permission
+    keyword. The API exposes the following permissions:
+        'no-access': No access to the dataset
+        'view': Basic view access, corresponding to 'view_surface'
+        'edit': Edit access, corresponding to 'view_surface' and
+            'change_surface'
+        'full': Full access (essentially transfer), corresponding to
+            'view_surface', 'change_surface', 'delete_surface',
+            'share_surface' and 'publish_surface'
+    """
+
+    api_permission = 'no-access'
+    if 'view_surface' in guardian_permissions:
+        api_permission = 'view'
+        if 'change_surface' in guardian_permissions:
+            api_permission = 'edit'
+            if ('delete_surface' in guardian_permissions and 'share_surface' in guardian_permissions and
+                'publish_surface' in guardian_permissions):
+                api_permission = 'full'
+    return api_permission
