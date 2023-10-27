@@ -11,18 +11,18 @@ from ..utils import subjects_to_base64
 from .utils import ordereddicts_to_dicts, Topography1DFactory, UserFactory, SurfaceFactory, search_surfaces
 
 
-def assert_dict_equal(a, b):
+def assert_dict_equal(a, b, key=None):
     try:
         keys_a = set(a.keys())
         keys_b = set(b.keys())
     except AttributeError:
-        assert a == b
+        assert a == b, f'The value of the following key differs: {key}'
         return
 
     assert keys_a == keys_b, f'The following keys are not present in both dictionaries: {keys_a ^ keys_b}'
     for key in keys_a:
         if isinstance(a[key], dict):
-            assert_dict_equal(a[key], b[key])
+            assert_dict_equal(a[key], b[key], key=key)
         elif isinstance(a[key], list):
             assert_dicts_equal(a[key], b[key])
         else:
@@ -55,7 +55,6 @@ def user_three_surfaces_four_topographies():
 
 @pytest.mark.django_db
 def test_surface_search_with_request_factory(user_three_surfaces_four_topographies):
-
     user, surface1, surface2, surface3, topo1a, topo1b, topo2a, topo2b = user_three_surfaces_four_topographies
 
     #
@@ -86,26 +85,6 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
 
     user_url = request.build_absolute_uri(user.get_absolute_url())
 
-    surface1_prefix = f"/manager/surface/{surface1.pk}/"
-    surface1_html_prefix = f"/manager/html/surface/{surface1.pk}/"
-    surface1_select_prefix = f"/manager/api/selection/surface/{surface1.pk}/"
-    topo1a_html_prefix = f"/manager/html/topography/{topo1a.pk}/"
-    topo1a_select_prefix = f"/manager/api/selection/topography/{topo1a.pk}/"
-    topo1b_html_prefix = f"/manager/html/topography/{topo1b.pk}/"
-    topo1b_select_prefix = f"/manager/api/selection/topography/{topo1b.pk}/"
-
-    surface2_prefix = f"/manager/surface/{surface2.pk}/"
-    surface2_html_prefix = f"/manager/html/surface/{surface2.pk}/"
-    surface2_select_prefix = f"/manager/api/selection/surface/{surface2.pk}/"
-    topo2a_html_prefix = f"/manager/html/topography/{topo2a.pk}/"
-    topo2a_select_prefix = f"/manager/api/selection/topography/{topo2a.pk}/"
-    topo2b_html_prefix = f"/manager/html/topography/{topo2b.pk}/"
-    topo2b_select_prefix = f"/manager/api/selection/topography/{topo2b.pk}/"
-
-    surface3_prefix = f"/manager/surface/{surface3.pk}/"
-    surface3_html_prefix = f"/manager/html/surface/{surface3.pk}/"
-    surface3_select_prefix = f"/manager/api/selection/surface/{surface3.pk}/"
-
     topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
     topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
     topo2a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo2a])}"
@@ -135,12 +114,26 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'title': topo1a.name,
                  'type': 'topography',
                  'version': None,
-                 'urls': {'delete': topo1a_html_prefix + 'delete/',
-                          'detail': topo1a_html_prefix,
-                          'select': topo1a_select_prefix + 'select/',
+                 'datafile_format': None,
+                 'height_scale': int(topo1a.height_scale),
+                 'height_scale_editable': topo1a.height_scale_editable,
+                 'instrument_name': '',
+                 'instrument_parameters': {},
+                 'instrument_type': 'undefined',
+                 'is_periodic': topo1a.is_periodic,
+                 'measurement_date': str(topo1a.measurement_date),
+                 'resolution_x': topo1a.resolution_x,
+                 'resolution_y': topo1a.resolution_y,
+                 'size_editable': topo1a.size_editable,
+                 'size_x': topo1a.size_x,
+                 'size_y': topo1a.size_y,
+                 'thumbnail': None,
+                 'unit': topo1a.unit,
+                 'unit_editable': topo1a.unit_editable,
+                 'urls': {'detail': f'/manager/html/topography/?topography={topo1a.id}',
+                          'select': f'/manager/api/selection/topography/{topo1a.id}/select/',
                           'analyze': topo1a_analyze,
-                          'unselect': topo1a_select_prefix + 'unselect/',
-                          'update': topo1a_html_prefix + 'update/'}},
+                          'unselect': f'/manager/api/selection/topography/{topo1a.id}/unselect/'}},
                 {'creator': user_url,
                  'creator_name': user.name,
                  'description': '',
@@ -158,12 +151,26 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'title': topo1b.name,
                  'type': 'topography',
                  'version': None,
-                 'urls': {'delete': topo1b_html_prefix + 'delete/',
-                          'detail': topo1b_html_prefix,
-                          'select': topo1b_select_prefix + 'select/',
+                 'datafile_format': None,
+                 'height_scale': topo1b.height_scale,
+                 'height_scale_editable': topo1b.height_scale_editable,
+                 'instrument_name': '',
+                 'instrument_parameters': {},
+                 'instrument_type': 'undefined',
+                 'is_periodic': topo1b.is_periodic,
+                 'measurement_date': str(topo1b.measurement_date),
+                 'resolution_x': topo1b.resolution_x,
+                 'resolution_y': topo1b.resolution_y,
+                 'size_editable': topo1b.size_editable,
+                 'size_x': topo1b.size_x,
+                 'size_y': topo1b.size_y,
+                 'thumbnail': None,
+                 'unit': topo1b.unit,
+                 'unit_editable': topo1b.unit_editable,
+                 'urls': {'detail': f'/manager/html/topography/?topography={topo1b.id}',
+                          'select': f'/manager/api/selection/topography/{topo1b.id}/select/',
                           'analyze': topo1b_analyze,
-                          'unselect': topo1b_select_prefix + 'unselect/',
-                          'update': topo1b_html_prefix + 'update/'}},
+                          'unselect': f'/manager/api/selection/topography/{topo1b.id}/unselect/'}},
 
             ],
             'creator': user_url,
@@ -185,16 +192,12 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'topography_count': 2,
             'type': 'surface',
             'version': None,
-            'urls': {'add_topography': surface1_html_prefix + 'new-topography/',
-                     'delete': surface1_html_prefix + 'delete/',
-                     'detail': surface1_html_prefix,
-                     'download': surface1_prefix + 'download/',
-                     'select': surface1_select_prefix + 'select/',
-                     'share': surface1_html_prefix + 'share/',
-                     'publish': surface1_html_prefix + 'publish/',
-                     'analyze': surface1_analyze,
-                     'unselect': surface1_select_prefix + 'unselect/',
-                     'update': surface1_html_prefix + 'update/'}
+            'urls': {'analyze': surface1_analyze,
+                     'download': f'/manager/api/surface/{surface1.id}/download/',
+                     'detail': f'/manager/html/surface/?surface={surface1.id}',
+                     'select': f'/manager/api/selection/surface/{surface1.id}/select/',
+                     'publish': f'/manager/html/surface/{surface1.id}/publish/',
+                     'unselect': f'/manager/api/selection/surface/{surface1.id}/unselect/'}
         },
         {
             'category': 'sim',
@@ -217,12 +220,26 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'title': topo2a.name,
                  'type': 'topography',
                  'version': None,
-                 'urls': {'delete': topo2a_html_prefix + 'delete/',
-                          'detail': topo2a_html_prefix,
-                          'select': topo2a_select_prefix + 'select/',
+                 'datafile_format': None,
+                 'height_scale': topo2a.height_scale,
+                 'height_scale_editable': topo2a.height_scale_editable,
+                 'instrument_name': '',
+                 'instrument_parameters': {},
+                 'instrument_type': 'undefined',
+                 'is_periodic': topo2a.is_periodic,
+                 'measurement_date': str(topo2a.measurement_date),
+                 'resolution_x': topo2a.resolution_x,
+                 'resolution_y': topo2a.resolution_y,
+                 'size_editable': topo2a.size_editable,
+                 'size_x': topo2a.size_x,
+                 'size_y': topo2a.size_y,
+                 'thumbnail': None,
+                 'unit': topo2a.unit,
+                 'unit_editable': topo2a.unit_editable,
+                 'urls': {'detail': f'/manager/html/topography/?topography={topo2a.id}',
+                          'select': f'/manager/api/selection/topography/{topo2a.id}/select/',
                           'analyze': topo2a_analyze,
-                          'unselect': topo2a_select_prefix + 'unselect/',
-                          'update': topo2a_html_prefix + 'update/'}},
+                          'unselect': f'/manager/api/selection/topography/{topo2a.id}/unselect/'}},
                 {'creator': user_url,
                  'creator_name': user.name,
                  'description': '',
@@ -240,13 +257,26 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'title': topo2b.name,
                  'type': 'topography',
                  'version': None,
-                 'urls': {'delete': topo2b_html_prefix + 'delete/',
-                          'detail': topo2b_html_prefix,
-                          'select': topo2b_select_prefix + 'select/',
+                 'datafile_format': None,
+                 'height_scale': topo2b.height_scale,
+                 'height_scale_editable': topo2b.height_scale_editable,
+                 'instrument_name': '',
+                 'instrument_parameters': {},
+                 'instrument_type': 'undefined',
+                 'is_periodic': topo2b.is_periodic,
+                 'measurement_date': str(topo2b.measurement_date),
+                 'resolution_x': topo2b.resolution_x,
+                 'resolution_y': topo2b.resolution_y,
+                 'size_editable': topo2b.size_editable,
+                 'size_x': topo2b.size_x,
+                 'size_y': topo2b.size_y,
+                 'thumbnail': None,
+                 'unit': topo2b.unit,
+                 'unit_editable': topo2b.unit_editable,
+                 'urls': {'detail': f'/manager/html/topography/?topography={topo2b.id}',
+                          'select': f'/manager/api/selection/topography/{topo2b.id}/select/',
                           'analyze': topo2b_analyze,
-                          'unselect': topo2b_select_prefix + 'unselect/',
-                          'update': topo2b_html_prefix + 'update/'}},
-
+                          'unselect': f'/manager/api/selection/topography/{topo2b.id}/unselect/'}},
             ],
             'creator': user_url,
             'creator_name': user.name,
@@ -267,16 +297,12 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'topography_count': 2,
             'type': 'surface',
             'version': None,
-            'urls': {'add_topography': surface2_html_prefix + 'new-topography/',
-                     'delete': surface2_html_prefix + 'delete/',
-                     'detail': surface2_html_prefix,
-                     'download': surface2_prefix + 'download/',
-                     'select': surface2_select_prefix + 'select/',
-                     'share': surface2_html_prefix + 'share/',
-                     'publish': surface2_html_prefix + 'publish/',
-                     'analyze': surface2_analyze,
-                     'unselect': surface2_select_prefix + 'unselect/',
-                     'update': surface2_html_prefix + 'update/'}
+            'urls': {'analyze': surface2_analyze,
+                     'download': f'/manager/api/surface/{surface2.id}/download/',
+                     'detail': f'/manager/html/surface/?surface={surface2.id}',
+                     'select': f'/manager/api/selection/surface/{surface2.id}/select/',
+                     'publish': f'/manager/html/surface/{surface2.id}/publish/',
+                     'unselect': f'/manager/api/selection/surface/{surface2.id}/unselect/'}
         },
         {
             'category': 'dum',
@@ -301,25 +327,20 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'topography_count': 0,
             'type': 'surface',
             'version': None,
-            'urls': {'add_topography': surface3_html_prefix + 'new-topography/',
-                     'delete': surface3_html_prefix + 'delete/',
-                     'detail': surface3_html_prefix,
-                     'download': surface3_prefix + 'download/',
-                     'select': surface3_select_prefix + 'select/',
-                     'share': surface3_html_prefix + 'share/',
-                     'publish': surface3_html_prefix + 'publish/',
-                     # 'analyze': surface3_prefix + 'show-analyses/', # this should be missing
-                     'unselect': surface3_select_prefix + 'unselect/',
-                     'update': surface3_html_prefix + 'update/'}
+            'urls': {'download': f'/manager/api/surface/{surface3.id}/download/',
+                     'detail': f'/manager/html/surface/?surface={surface3.id}',
+                     'select': f'/manager/api/selection/surface/{surface3.id}/select/',
+                     'publish': f'/manager/html/surface/{surface3.id}/publish/',
+                     'unselect': f'/manager/api/selection/surface/{surface3.id}/unselect/'}
         },
     ]
 
-    assert_dicts_equal(ordereddicts_to_dicts(response.data['page_results']), expected_dicts)
+    assert ordereddicts_to_dicts(response.data['page_results']) == expected_dicts
 
     #
     # Do a search and check for reduced results because search for "topo2a"
     #
-    request = factory.get(reverse('manager:search')+f"?search={topo2a.name}")
+    request = factory.get(reverse('manager:search') + f"?search={topo2a.name}")
     request.user = user
     request.session = session
 
@@ -352,12 +373,26 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'title': topo2a.name,
                  'type': 'topography',
                  'version': None,
-                 'urls': {'delete': topo2a_html_prefix + 'delete/',
-                          'detail': topo2a_html_prefix,
-                          'select': topo2a_select_prefix + 'select/',
+                 'datafile_format': None,
+                 'height_scale': int(topo2a.height_scale),
+                 'height_scale_editable': topo2a.height_scale_editable,
+                 'instrument_name': '',
+                 'instrument_parameters': {},
+                 'instrument_type': 'undefined',
+                 'is_periodic': topo2a.is_periodic,
+                 'measurement_date': str(topo2a.measurement_date),
+                 'resolution_x': topo2a.resolution_x,
+                 'resolution_y': topo2a.resolution_y,
+                 'size_editable': topo2a.size_editable,
+                 'size_x': topo2a.size_x,
+                 'size_y': topo2a.size_y,
+                 'thumbnail': None,
+                 'unit': topo2a.unit,
+                 'unit_editable': topo2a.unit_editable,
+                 'urls': {'detail': f'/manager/html/topography/?topography={topo2a.id}',
+                          'select': f'/manager/api/selection/topography/{topo2a.id}/select/',
                           'analyze': topo2a_analyze,
-                          'unselect': topo2a_select_prefix + 'unselect/',
-                          'update': topo2a_html_prefix + 'update/'}},
+                          'unselect': f'/manager/api/selection/topography/{topo2a.id}/unselect/'}},
             ],
             'creator': user_url,
             'creator_name': user.name,
@@ -378,21 +413,17 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'topography_count': 2,
             'type': 'surface',
             'version': None,
-            'urls': {'add_topography': surface2_html_prefix + 'new-topography/',
-                     'delete': surface2_html_prefix + 'delete/',
-                     'detail': surface2_html_prefix,
-                     'download': surface2_prefix + 'download/',
-                     'select': surface2_select_prefix + 'select/',
-                     'share': surface2_html_prefix + 'share/',
-                     'publish': surface2_html_prefix + 'publish/',
-                     'analyze': surface2_analyze,
-                     'unselect': surface2_select_prefix + 'unselect/',
-                     'update': surface2_html_prefix + 'update/'}
+            'urls': {'analyze': surface2_analyze,
+                     'download': f'/manager/api/surface/{surface2.id}/download/',
+                     'detail': f'/manager/html/surface/?surface={surface2.id}',
+                     'select': f'/manager/api/selection/surface/{surface2.id}/select/',
+                     'publish': f'/manager/html/surface/{surface2.id}/publish/',
+                     'unselect': f'/manager/api/selection/surface/{surface2.id}/unselect/'}
         },
     ]
 
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-    assert_dicts_equal(resulted_dicts, expected_dicts)
+    assert resulted_dicts == expected_dicts
 
     #
     # Do a search and check for reduced results because search for category "exp"
@@ -430,12 +461,26 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'title': topo1a.name,
                  'type': 'topography',
                  'version': None,
-                 'urls': {'delete': topo1a_html_prefix + 'delete/',
-                          'detail': topo1a_html_prefix,
-                          'select': topo1a_select_prefix + 'select/',
+                 'datafile_format': None,
+                 'height_scale': int(topo1a.height_scale),
+                 'height_scale_editable': topo1a.height_scale_editable,
+                 'instrument_name': '',
+                 'instrument_parameters': {},
+                 'instrument_type': 'undefined',
+                 'is_periodic': topo1a.is_periodic,
+                 'measurement_date': str(topo1a.measurement_date),
+                 'resolution_x': topo1a.resolution_x,
+                 'resolution_y': topo1a.resolution_y,
+                 'size_editable': topo1a.size_editable,
+                 'size_x': topo1a.size_x,
+                 'size_y': topo1a.size_y,
+                 'thumbnail': None,
+                 'unit': topo1a.unit,
+                 'unit_editable': topo1a.unit_editable,
+                 'urls': {'detail': f'/manager/html/topography/?topography={topo1a.id}',
+                          'select': f'/manager/api/selection/topography/{topo1a.id}/select/',
                           'analyze': topo1a_analyze,
-                          'unselect': topo1a_select_prefix + 'unselect/',
-                          'update': topo1a_html_prefix + 'update/'}},
+                          'unselect': f'/manager/api/selection/topography/{topo1a.id}/unselect/'}},
                 {'creator': user_url,
                  'creator_name': user.name,
                  'description': '',
@@ -453,12 +498,26 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                  'title': topo1b.name,
                  'type': 'topography',
                  'version': None,
-                 'urls': {'delete': topo1b_html_prefix + 'delete/',
-                          'detail': topo1b_html_prefix,
-                          'select': topo1b_select_prefix + 'select/',
+                 'datafile_format': None,
+                 'height_scale': int(topo1b.height_scale),
+                 'height_scale_editable': topo1b.height_scale_editable,
+                 'instrument_name': '',
+                 'instrument_parameters': {},
+                 'instrument_type': 'undefined',
+                 'is_periodic': topo1b.is_periodic,
+                 'measurement_date': str(topo1b.measurement_date),
+                 'resolution_x': topo1b.resolution_x,
+                 'resolution_y': topo1b.resolution_y,
+                 'size_editable': topo1b.size_editable,
+                 'size_x': topo1b.size_x,
+                 'size_y': topo1b.size_y,
+                 'thumbnail': None,
+                 'unit': topo1b.unit,
+                 'unit_editable': topo1b.unit_editable,
+                 'urls': {'detail': f'/manager/html/topography/?topography={topo1b.id}',
+                          'select': f'/manager/api/selection/topography/{topo1b.id}/select/',
                           'analyze': topo1b_analyze,
-                          'unselect': topo1b_select_prefix + 'unselect/',
-                          'update': topo1b_html_prefix + 'update/'}},
+                          'unselect': f'/manager/api/selection/topography/{topo1b.id}/unselect/'}},
 
             ],
             'creator': user_url,
@@ -480,21 +539,17 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'topography_count': 2,
             'type': 'surface',
             'version': None,
-            'urls': {'add_topography': surface1_html_prefix + 'new-topography/',
-                     'delete': surface1_html_prefix + 'delete/',
-                     'detail': surface1_html_prefix,
-                     'download': surface1_prefix + 'download/',
-                     'select': surface1_select_prefix + 'select/',
-                     'share': surface1_html_prefix + 'share/',
-                     'publish': surface1_html_prefix + 'publish/',
-                     'analyze': surface1_analyze,
-                     'unselect': surface1_select_prefix + 'unselect/',
-                     'update': surface1_html_prefix + 'update/'}
+            'urls': {'analyze': surface1_analyze,
+                     'download': f'/manager/api/surface/{surface1.id}/download/',
+                     'detail': f'/manager/html/surface/?surface={surface1.id}',
+                     'select': f'/manager/api/selection/surface/{surface1.id}/select/',
+                     'publish': f'/manager/html/surface/{surface1.id}/publish/',
+                     'unselect': f'/manager/api/selection/surface/{surface1.id}/unselect/'}
         },
     ]
 
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-    assert_dicts_equal(resulted_dicts, expected_dicts)
+    assert resulted_dicts == expected_dicts
 
 
 @pytest.mark.django_db
@@ -530,24 +585,6 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     user_url = request.build_absolute_uri(user.get_absolute_url())
 
-    surface1_prefix = f"/manager/surface/{surface1.pk}/"
-    surface1_html_prefix = f"/manager/html/surface/{surface1.pk}/"
-    surface1_select_prefix = f"/manager/api/selection/surface/{surface1.pk}/"
-    topo1a_html_prefix = f"/manager/html/topography/{topo1a.pk}/"
-    topo1a_select_prefix = f"/manager/api/selection/topography/{topo1a.pk}/"
-    topo1b_html_prefix = f"/manager/html/topography/{topo1b.pk}/"
-    topo1b_select_prefix = f"/manager/api/selection/topography/{topo1b.pk}/"
-
-    surface2_html_prefix = f"/manager/html/surface/{surface2.pk}/"
-    surface2_select_prefix = f"/manager/api/selection/surface/{surface2.pk}/"
-    topo2a_html_prefix = f"/manager/html/topography/{topo2a.pk}/"
-    topo2a_select_prefix = f"/manager/api/selection/topography/{topo2a.pk}/"
-    topo2b_html_prefix = f"/manager/html/topography/{topo2b.pk}/"
-    topo2b_select_prefix = f"/manager/api/selection/topography/{topo2b.pk}/"
-
-    surface3_html_prefix = f"/manager/html/surface/{surface3.pk}/"
-    surface3_select_prefix = f"/manager/api/selection/surface/{surface3.pk}/"
-
     topo1a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1a])}"
     topo1b_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo1b])}"
     topo2a_analyze = f"/analysis/html/list/?subjects={subjects_to_base64([topo2a])}"
@@ -573,12 +610,26 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'title': topo1a.name,
         'type': 'topography',
         'version': None,
-        'urls': {'delete': topo1a_html_prefix + 'delete/',
-                 'detail': topo1a_html_prefix,
-                 'select': topo1a_select_prefix + 'select/',
+        'datafile_format': None,
+        'height_scale': int(topo1a.height_scale),
+        'height_scale_editable': topo1a.height_scale_editable,
+        'instrument_name': '',
+        'instrument_parameters': {},
+        'instrument_type': 'undefined',
+        'is_periodic': topo1a.is_periodic,
+        'measurement_date': str(topo1a.measurement_date),
+        'resolution_x': topo1a.resolution_x,
+        'resolution_y': topo1a.resolution_y,
+        'size_editable': topo1a.size_editable,
+        'size_x': topo1a.size_x,
+        'size_y': topo1a.size_y,
+        'thumbnail': None,
+        'unit': topo1a.unit,
+        'unit_editable': topo1a.unit_editable,
+        'urls': {'detail': f'/manager/html/topography/?topography={topo1a.id}',
+                 'select': f'/manager/api/selection/topography/{topo1a.id}/select/',
                  'analyze': topo1a_analyze,
-                 'unselect': topo1a_select_prefix + 'unselect/',
-                 'update': topo1a_html_prefix + 'update/'}
+                 'unselect': f'/manager/api/selection/topography/{topo1a.id}/unselect/'}
     }
     expected_dict_topo1b = {
         'creator': user_url,
@@ -598,12 +649,26 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'title': topo1b.name,
         'type': 'topography',
         'version': None,
-        'urls': {'delete': topo1b_html_prefix + 'delete/',
-                 'detail': topo1b_html_prefix,
-                 'select': topo1b_select_prefix + 'select/',
+        'datafile_format': None,
+        'height_scale': int(topo1b.height_scale),
+        'height_scale_editable': topo1b.height_scale_editable,
+        'instrument_name': '',
+        'instrument_parameters': {},
+        'instrument_type': 'undefined',
+        'is_periodic': topo1b.is_periodic,
+        'measurement_date': str(topo1b.measurement_date),
+        'resolution_x': topo1b.resolution_x,
+        'resolution_y': topo1b.resolution_y,
+        'size_editable': topo1b.size_editable,
+        'size_x': topo1b.size_x,
+        'size_y': topo1b.size_y,
+        'thumbnail': None,
+        'unit': topo1b.unit,
+        'unit_editable': topo1b.unit_editable,
+        'urls': {'detail': f'/manager/html/topography/?topography={topo1b.id}',
+                 'select': f'/manager/api/selection/topography/{topo1b.id}/select/',
                  'analyze': topo1b_analyze,
-                 'unselect': topo1b_select_prefix + 'unselect/',
-                 'update': topo1b_html_prefix + 'update/'}
+                 'unselect': f'/manager/api/selection/topography/{topo1b.id}/unselect/'}
     }
 
     expected_dict_topo2a = {
@@ -624,12 +689,26 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'title': topo2a.name,
         'type': 'topography',
         'version': None,
-        'urls': {'delete': topo2a_html_prefix + 'delete/',
-                 'detail': topo2a_html_prefix,
-                 'select': topo2a_select_prefix + 'select/',
+        'datafile_format': None,
+        'height_scale': int(topo2a.height_scale),
+        'height_scale_editable': topo2a.height_scale_editable,
+        'instrument_name': '',
+        'instrument_parameters': {},
+        'instrument_type': 'undefined',
+        'is_periodic': topo2a.is_periodic,
+        'measurement_date': str(topo2a.measurement_date),
+        'resolution_x': topo2a.resolution_x,
+        'resolution_y': topo2a.resolution_y,
+        'size_editable': topo2a.size_editable,
+        'size_x': topo2a.size_x,
+        'size_y': topo2a.size_y,
+        'thumbnail': None,
+        'unit': topo2a.unit,
+        'unit_editable': topo2a.unit_editable,
+        'urls': {'detail': f'/manager/html/topography/?topography={topo2a.id}',
+                 'select': f'/manager/api/selection/topography/{topo2a.id}/select/',
                  'analyze': topo2a_analyze,
-                 'unselect': topo2a_select_prefix + 'unselect/',
-                 'update': topo2a_html_prefix + 'update/'}
+                 'unselect': f'/manager/api/selection/topography/{topo2a.id}/unselect/'}
     }
 
     expected_dict_topo2b = {
@@ -650,12 +729,26 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'title': topo2b.name,
         'type': 'topography',
         'version': None,
-        'urls': {'delete': topo2b_html_prefix + 'delete/',
-                 'detail': topo2b_html_prefix,
-                 'select': topo2b_select_prefix + 'select/',
+        'datafile_format': None,
+        'height_scale': int(topo2b.height_scale),
+        'height_scale_editable': topo2b.height_scale_editable,
+        'instrument_name': '',
+        'instrument_parameters': {},
+        'instrument_type': 'undefined',
+        'is_periodic': topo2b.is_periodic,
+        'measurement_date': str(topo2b.measurement_date),
+        'resolution_x': topo2b.resolution_x,
+        'resolution_y': topo2b.resolution_y,
+        'size_editable': topo2b.size_editable,
+        'size_x': topo2b.size_x,
+        'size_y': topo2b.size_y,
+        'thumbnail': None,
+        'unit': topo2b.unit,
+        'unit_editable': topo2b.unit_editable,
+        'urls': {'detail': f'/manager/html/topography/?topography={topo2b.id}',
+                 'select': f'/manager/api/selection/topography/{topo2b.id}/select/',
                  'analyze': topo2b_analyze,
-                 'unselect': topo2b_select_prefix + 'unselect/',
-                 'update': topo2b_html_prefix + 'update/'}
+                 'unselect': f'/manager/api/selection/topography/{topo2b.id}/unselect/'}
     }
 
     expected_dict_surface1 = {
@@ -681,16 +774,12 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
         'topography_count': 2,
         'type': 'surface',
         'version': None,
-        'urls': {'add_topography': surface1_html_prefix + 'new-topography/',
-                 'delete': surface1_html_prefix + 'delete/',
-                 'detail': surface1_html_prefix,
-                 'download': surface1_prefix + 'download/',
-                 'select': surface1_select_prefix + 'select/',
-                 'share': surface1_html_prefix + 'share/',
-                 'publish': surface1_html_prefix + 'publish/',
-                 'analyze': surface1_analyze,
-                 'unselect': surface1_select_prefix + 'unselect/',
-                 'update': surface1_html_prefix + 'update/'}
+        'urls': {'analyze': surface1_analyze,
+                 'download': f'/manager/api/surface/{surface1.id}/download/',
+                 'detail': f'/manager/html/surface/?surface={surface1.id}',
+                 'select': f'/manager/api/selection/surface/{surface1.id}/select/',
+                 'publish': f'/manager/html/surface/{surface1.id}/publish/',
+                 'unselect': f'/manager/api/selection/surface/{surface1.id}/unselect/'}
     }
 
     bike_pk = TagModel.objects.get(name='bike').pk
@@ -779,8 +868,8 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                         }
                     ],
                     'urls': {
-                        'select': train_ice_select_prefix+'select/',
-                        'unselect': train_ice_select_prefix+'unselect/'
+                        'select': train_ice_select_prefix + 'select/',
+                        'unselect': train_ice_select_prefix + 'unselect/'
                     }
                 },
                 {
@@ -814,12 +903,12 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     ]
 
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-    assert_dicts_equal(resulted_dicts, expected_dicts)
+    assert resulted_dicts == expected_dicts
 
     #
     # Now restrict result by query parameters, search for "topo2a"
     #
-    request = factory.get(reverse('manager:tag-list')+f"?search={topo2a.name}")
+    request = factory.get(reverse('manager:tag-list') + f"?search={topo2a.name}")
     request.user = user
     request.session = session
 
@@ -898,13 +987,13 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
     ]
     resulted_dicts = ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-    assert_dicts_equal(resulted_dicts, expected_dicts)
+    assert resulted_dicts == expected_dicts
 
     #
     # Now restrict result by query parameters, search for category 'dum'
     # -> no result, because surface 3 would match, but has no tag
     #
-    request = factory.get(reverse('manager:tag-list')+"?category=dum")
+    request = factory.get(reverse('manager:tag-list') + "?category=dum")
     request.user = user
     request.session = session
 
@@ -986,7 +1075,6 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
 
 @pytest.mark.django_db
 def test_search_expressions_with_request_factory():
-
     user = UserFactory()
 
     surface1 = SurfaceFactory(creator=user)
@@ -1111,7 +1199,7 @@ def test_search_for_user_with_request_factory():
     #
     # User1 shares his surface with user2
     #
-    surf1.share(user2, allow_change=True)
+    surf1.set_permissions(user2, 'edit')
 
     # User 2 searches, now surface of user 1 is also visible
     result = search_surfaces(request_factory, user2, "Bob")
@@ -1154,7 +1242,7 @@ def test_search_for_user_with_request_factory():
     assert len(result) == 2
     assert set(r['name'] for r in result) == set((surf1.name, surf2.name))
     assert len(result[0]['children']) == 1
-    assert len(result[1]['children']) == 0   # user2's own surface has no topography
+    assert len(result[1]['children']) == 0  # user2's own surface has no topography
 
     result = search_surfaces(request_factory, user2, "Marley")
     assert len(result) == 1
@@ -1185,7 +1273,7 @@ def test_search_for_user_with_request_factory():
 
     result = search_surfaces(request_factory, user1, "Dylan")
     assert len(result) == 1
-    assert result[0]['name'] == surf1.name   # now own surface is also listed with one topography matching "Dylan"
+    assert result[0]['name'] == surf1.name  # now own surface is also listed with one topography matching "Dylan"
     assert len(result[0]['children']) == 1  # topography uploaded by user2 should be shown alone
     assert result[0]['children'][0]['name'] == topo1b.name
 
@@ -1194,7 +1282,7 @@ def test_search_for_user_with_request_factory():
     assert len(result) == 2
     assert set(r['name'] for r in result) == set((surf1.name, surf2.name))
     assert len(result[0]['children']) == 2
-    assert len(result[1]['children']) == 0   # user2's own surface has no topography
+    assert len(result[1]['children']) == 0  # user2's own surface has no topography
 
     result = search_surfaces(request_factory, user2, "Marley")
     assert len(result) == 1
@@ -1210,11 +1298,3 @@ def test_search_for_user_with_request_factory():
     assert result[0]['children'][0]['name'] == topo1b.name
     assert result[1]['name'] == surf2.name
     assert len(result[1]['children']) == 0
-
-
-
-
-
-
-
-

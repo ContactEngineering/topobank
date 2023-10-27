@@ -335,7 +335,7 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
             'unselect': shortcuts.reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
         }
         if 'view_surface' in perms:
-            urls['detail'] = f"{shortcuts.reverse('manager:surface-detail')}?surface={obj.pk}",
+            urls['detail'] = f"{shortcuts.reverse('manager:surface-detail')}?surface={obj.pk}"
             if obj.num_topographies() > 0:
                 urls.update({
                     'analyze': f"{shortcuts.reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
