@@ -14,7 +14,7 @@ import yaml
 import logging
 import datetime
 
-from topobank.manager.models import Surface, Topography
+from topobank.manager.models import Surface, Topography, topography_datafile_path
 from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
@@ -101,17 +101,9 @@ class Command(BaseCommand):
             help='If True, trigger analyses for all topographies and surfaces.',
         )
 
-        parser.add_argument(
-            '--skip-thumbnails',
-            action='store_true',
-            dest='skip_thumbnails',
-            help='If True, do not create thumbnails. Faster, can be created separately.',
-        )
-
-
     def process_topography(self, topo_dict, topo_file, surface,
                            ignore_missing=False, dry_run=False,
-                           trigger_analyses=False, skip_thumbnails=False):
+                           trigger_analyses=False):
         self.stdout.write(self.style.NOTICE(f"  Topography name: '{topo_dict['name']}'"))
         self.stdout.write(self.style.NOTICE(f"  Original creator is '{topo_dict['creator']}'."))
 
@@ -173,14 +165,14 @@ class Command(BaseCommand):
             topography.save()
             self.stdout.write(self.style.NOTICE(f"  Path got topography file in backend: {actual_topo_file_path}"))
             self.stdout.write(self.style.SUCCESS(f"Topography '{topo_name}' saved in database."))
-            if not skip_thumbnails:
-                topography.renew_images()
+            # Renew/generate cache
+            topography.renew_cache()
             if trigger_analyses:
                 topography.renew_analyses()
 
     def process_surface_archive(self, surface_zip, user, datafile_attribute='datafile',
                                 ignore_missing=False, dry_run=False, trigger_analyses=False,
-                                skip_thumbnails=False, unsafe_yaml_loader=False):
+                                unsafe_yaml_loader=False):
         """Process surface archive i.e. importing the surfaces.
 
         Parameters
@@ -197,8 +189,6 @@ class Command(BaseCommand):
             If True, only show what would be done without actually importing data.
         trigger_analyses: bool
             If True, trigger analyses after importing a surface.
-        skip_thumbnails: bool
-            If True, do not create thumbnails for topographies.
         unsafe_yaml_loader: bool
             If True, use an unsafe YAML loader. Use this with care,
             if there is malicious code in the metadata, this can compromise your system.
@@ -230,7 +220,7 @@ class Command(BaseCommand):
                 num_topographies = len(surface_dict['topographies'])
                 for topo_idx, topo_dict in enumerate(surface_dict['topographies']):
                     self.stdout.write(
-                        self.style.NOTICE(f"Processing topography {topo_idx+1}/{num_topographies} in archive..."))
+                        self.style.NOTICE(f"Processing topography {topo_idx + 1}/{num_topographies} in archive..."))
                     try:
                         datafile_name = topo_dict[datafile_attribute]['original']  # there will be more entries later
                         self.stdout.write(self.style.NOTICE(f"  Trying to read file '{datafile_name}' in archive..."))
@@ -242,8 +232,7 @@ class Command(BaseCommand):
                     try:
                         self.process_topography(topo_dict, topo_file, surface,
                                                 ignore_missing=ignore_missing,
-                                                dry_run=dry_run, trigger_analyses=trigger_analyses,
-                                                skip_thumbnails=skip_thumbnails)
+                                                dry_run=dry_run, trigger_analyses=trigger_analyses)
                     except Exception as exc:
                         raise CommandError(
                             f"  Cannot create topography from description {topo_dict}. Reason: {exc}") from exc
@@ -296,7 +285,6 @@ class Command(BaseCommand):
                                                  ignore_missing=options['ignore_missing'],
                                                  dry_run=options['dry_run'],
                                                  trigger_analyses=options['trigger_analyses'],
-                                                 skip_thumbnails=options['skip_thumbnails'],
                                                  unsafe_yaml_loader=unsafe_yaml_loader)
             except Exception as exc:
                 err_msg = f"Cannot process file '{filename}'. Reason: {exc}"

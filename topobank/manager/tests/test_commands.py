@@ -22,7 +22,7 @@ def test_import_downloaded_surface_archive(client):
     user = UserFactory(username=username)
     surface = SurfaceFactory(creator=user, name=surface_name, category=surface_category)
     topo1 = Topography2DFactory(surface=surface, name='2D Measurement', size_x=10, size_y=10, unit='mm')
-    topo2 = Topography1DFactory(surface=surface, name='1D Measurement', size_x=10, unit='µm')
+    topo2 = Topography1DFactory(surface=surface, name='1D Measurement', size_x=9, unit='µm')
 
     client.force_login(user)
 
