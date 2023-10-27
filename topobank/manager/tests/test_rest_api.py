@@ -12,8 +12,10 @@ from .utils import two_topos, two_users
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('is_authenticated', [True, False])
-def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle_usage_statistics):
+@pytest.mark.parametrize('is_authenticated,with_children', [[True, False],
+                                                            [False, False],
+                                                            [True, True]])
+def test_surface_retrieve_routes(api_client, is_authenticated, with_children, two_topos, handle_usage_statistics):
     topo1, topo2 = two_topos
     user = topo1.creator
     assert topo2.creator == user
@@ -31,6 +33,9 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
                      'creator': f'http://testserver/users/api/user/{user.id}/',
                      'description': '',
                      'name': 'Surface 1',
+                     'id': surface1.id,
+                     'tags': [],
+                     'publication': None,
                      'url': f'http://testserver/manager/api/surface/{surface1.id}/',
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
@@ -57,11 +62,27 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
                                          'surface': f'http://testserver/manager/api/surface/{surface1.id}/',
                                          'unit': 'µm',
                                          'unit_editable': False,
-                                         'url': f'http://testserver/manager/api/topography/{topo1.id}/'}]}
+                                         'url': f'http://testserver/manager/api/topography/{topo1.id}/',
+                                         'duration': None,
+                                         'error': None,
+                                         'id': topo1.id,
+                                         'post_data': None,
+                                         'squeezed_datafile': None,
+                                         'tags': [],
+                                         'task_progress': 0.0,
+                                         'task_state': 'no',
+                                         'thumbnail': None,
+                                         'channel_names': [],
+                                         'data_source': 0,
+                                         'is_metadata_complete': True
+                                         }]}
     surface2_dict = {'category': None,
                      'creator': f'http://testserver/users/api/user/{user.id}/',
                      'description': '',
                      'name': 'Surface 2',
+                     'id': surface2.id,
+                     'tags': [],
+                     'publication': None,
                      'url': f'http://testserver/manager/api/surface/{surface2.id}/',
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
@@ -88,7 +109,24 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
                                          'surface': f'http://testserver/manager/api/surface/{surface2.id}/',
                                          'unit': 'µm',
                                          'unit_editable': False,
-                                         'url': f'http://testserver/manager/api/topography/{topo2.id}/'}]}
+                                         'url': f'http://testserver/manager/api/topography/{topo2.id}/',
+                                         'duration': None,
+                                         'error': None,
+                                         'id': topo2.id,
+                                         'post_data': None,
+                                         'squeezed_datafile': None,
+                                         'tags': [],
+                                         'task_progress': 0.0,
+                                         'task_state': 'no',
+                                         'thumbnail': None,
+                                         'channel_names': [],
+                                         'data_source': 0,
+                                         'is_metadata_complete': True
+                                         }]}
+
+    if not with_children:
+        del surface1_dict['topography_set']
+        del surface2_dict['topography_set']
 
     if is_authenticated:
         api_client.force_authenticate(user)
@@ -96,19 +134,31 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
     response = api_client.get(reverse('manager:surface-api-list'))
     assert response.status_code == 405
 
-    response = api_client.get(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)))
+    url = reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id))
+    if with_children:
+        url += '?children=yes'
+    response = api_client.get(url)
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
+        if 'topography_set' in data:
+            for t in data['topography_set']:
+                del t['datafile']  # datafile has an S3 hash which is difficult to mock
         assert data == surface1_dict
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
 
-    response = api_client.get(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)))
+    url = reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id))
+    if with_children:
+        url += '?children=yes'
+    response = api_client.get(url)
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
+        if 'topography_set' in data:
+            for t in data['topography_set']:
+                del t['datafile']  # datafile has an S3 hash which is difficult to mock
         assert data == surface2_dict
     else:
         # Anonymous user does not have access by default
