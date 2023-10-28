@@ -134,7 +134,7 @@ def test_try_to_select_surface_but_not_allowed():
     assert response.status_code == 403
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_try_to_select_topography_but_not_allowed():
     user1 = UserFactory()
     user2 = UserFactory()
@@ -158,7 +158,7 @@ def test_try_to_select_topography_but_not_allowed():
     assert response.status_code == 200
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_try_to_select_tag_but_not_allowed():
     user1 = UserFactory()
     user2 = UserFactory()
