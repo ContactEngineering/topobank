@@ -395,7 +395,6 @@ USE_S3_STORAGE = env.bool('USE_S3_STORAGE', default=False)
 if USE_S3_STORAGE:
     # Enable this storage for the S3 backend
     DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-    # DEFAULT_FILE_STORAGE = 'topobank.manager.storage_backends.MediaStorage'
     AWS_LOCATION = env.str('AWS_MEDIA_PREFIX', default='media')
 
     AWS_ACCESS_KEY_ID = env.str('AWS_ACCESS_KEY_ID', default=None)

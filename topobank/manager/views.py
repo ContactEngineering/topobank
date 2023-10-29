@@ -40,7 +40,7 @@ from .permissions import ObjectPermissions, ParentObjectPermissions
 from .serializers import SurfaceSerializer, TopographySerializer, TagSearchSerizalizer, SurfaceSearchSerializer
 from .utils import selected_instances, tags_for_user, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    s3_post, api_to_guardian
+    get_upload_post_request, api_to_guardian
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -865,7 +865,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
         datafile_path = topography_datafile_path(instance, filename)
 
         # Populate upload_url, the presigned key should expire quickly
-        serializer.update(instance, {'post_data': s3_post(datafile_path, self.EXPIRE_UPLOAD)})
+        serializer.update(instance, {'post_data': get_upload_post_request(instance, datafile_path, self.EXPIRE_UPLOAD)})
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
@@ -955,3 +955,11 @@ def set_permissions(request, pk=None):
 
     # Permissions were updated successfully
     return Response({}, status=204)
+
+
+@api_view(['POST'])
+def upload_topography(request, pk=None):
+    instance = Topography.objects.get(pk=pk)
+    for filename, file in request.FILES.iteritems():
+        instance.datafile = file
+

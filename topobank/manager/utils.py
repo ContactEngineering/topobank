@@ -1186,13 +1186,19 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             default_storage_replace(target_name, File(open(filename, mode='rb')))
 
 
-def s3_post(name, expire):
+def get_upload_post_request(instance, name, expire):
     """Generate a presigned URL for an upload direct to S3"""
     # Preserve the trailing slash after normalizing the path.
-    name = default_storage._normalize_name(clean_name(name))
-    url = default_storage.bucket.meta.client.generate_presigned_post(settings.AWS_STORAGE_BUCKET_NAME, name,
-                                                                     ExpiresIn=expire)
-    return url
+    if settings.USE_S3_STORAGE:
+        name = default_storage._normalize_name(clean_name(name))
+        post_data = default_storage.bucket.meta.client.generate_presigned_post(settings.AWS_STORAGE_BUCKET_NAME, name,
+                                                                               ExpiresIn=expire)
+    else:
+        post_data = {
+            'url': reverse('manager:upload-topography', kwargs=dict(pk=instance.id)),
+            'fields': {}
+        }
+    return post_data
 
 
 def api_to_guardian(api_permission):
