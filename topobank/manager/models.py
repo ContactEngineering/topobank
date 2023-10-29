@@ -24,8 +24,9 @@ from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.contrib.contenttypes.models import ContentType
 
-from guardian.shortcuts import assign_perm, remove_perm, get_perms, get_users_with_perms, get_anonymous_user
 import tagulous.models as tm
+from guardian.shortcuts import assign_perm, remove_perm, get_perms, get_users_with_perms, get_anonymous_user
+from notifications.signals import notify
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -1369,6 +1370,14 @@ class Topography(TaskStateModel, SubjectMixin):
             _log.info(f"Found newly uploaded file: {file_path}")
             # Data file exists; path the datafile field to point to the correct file
             self.datafile.name = file_path
+            # Notify users that a new file has been uploaded
+            other_users = get_users_with_perms(self.surface).filter(~models.Q(id=self.creator.id))
+            for u in other_users:
+                notify.send(sender=self.creator,
+                            recipient=u,
+                            verb='create',
+                            description=f"User '{self.creator}' uploaded the measurement '{self.name}' to digital "
+                                        f"surface twin '{self.surface.name}'.")
 
         # Populate datafile information in the database.
         # (We never load the topography, so we don't know this until here.

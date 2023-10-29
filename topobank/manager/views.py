@@ -3,15 +3,16 @@ import os.path
 from io import BytesIO
 
 from django.conf import settings
+from django.contrib import messages
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
+from django.db.models import Q
 from django.http import HttpResponse, Http404, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.decorators import method_decorator
-from django.views.generic import TemplateView, FormView
-from django.contrib import messages
 from django.utils.text import slugify
+from django.views.generic import TemplateView, FormView
 
 from guardian.decorators import permission_required_or_403
 from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
@@ -22,6 +23,8 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
+
+from notifications.signals import notify
 from trackstats.models import Metric, Period
 
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
@@ -800,6 +803,13 @@ class SurfaceViewSet(mixins.CreateModelMixin,
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
+    def _notify(self, instance, verb):
+        user = self.request.user
+        other_users = get_users_with_perms(instance).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb=verb, recipient=u,
+                        description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.")
+
     def perform_create(self, serializer):
         # Set creator to current user when creating a new surface
         instance = serializer.save(creator=self.request.user)
@@ -808,6 +818,14 @@ class SurfaceViewSet(mixins.CreateModelMixin,
         if not 'name' in serializer.data:
             instance.name = f'Digital surface twin #{instance.id}'
             instance.save()
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._notify(serializer.instance, "change")
+
+    def perform_destroy(self, instance):
+        self._notify(instance, "delete")
+        super().perform_destroy(instance)
 
 
 class TopographyViewSet(mixins.CreateModelMixin,
@@ -819,6 +837,13 @@ class TopographyViewSet(mixins.CreateModelMixin,
     queryset = Topography.objects.all()
     serializer_class = TopographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
+
+    def _notify(self, instance, verb):
+        user = self.request.user
+        other_users = get_users_with_perms(instance.surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb=verb, recipient=u,
+                        description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.")
 
     def perform_create(self, serializer):
         # File name is passed in the 'name' field on create. It is the only field that needs to be present for the
@@ -841,6 +866,14 @@ class TopographyViewSet(mixins.CreateModelMixin,
 
         # Populate upload_url, the presigned key should expire quickly
         serializer.update(instance, {'post_data': s3_post(datafile_path, self.EXPIRE_UPLOAD)})
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._notify(serializer.instance, "change")
+
+    def perform_destroy(self, instance):
+        self._notify(instance, "delete")
+        super().perform_destroy(instance)
 
     # From mixins.RetrieveModelMixin
     def retrieve(self, request, *args, **kwargs):
