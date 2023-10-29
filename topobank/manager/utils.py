@@ -9,7 +9,6 @@ import traceback
 
 from storages.utils import clean_name
 
-from django.shortcuts import reverse
 from django.conf import settings
 from django.db.models import Q, Value, Count, TextField
 from django.db.models.functions import Replace
@@ -18,6 +17,8 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector, SearchQuery
+
+from rest_framework.reverse import reverse
 
 from guardian.core import ObjectPermissionChecker
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
@@ -1186,7 +1187,7 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             default_storage_replace(target_name, File(open(filename, mode='rb')))
 
 
-def get_upload_post_request(instance, name, expire):
+def get_upload_post_request(request, instance, name, expire):
     """Generate a presigned URL for an upload direct to S3"""
     # Preserve the trailing slash after normalizing the path.
     if settings.USE_S3_STORAGE:
@@ -1195,7 +1196,7 @@ def get_upload_post_request(instance, name, expire):
                                                                                ExpiresIn=expire)
     else:
         post_data = {
-            'url': reverse('manager:upload-topography', kwargs=dict(pk=instance.id)),
+            'url': reverse('manager:upload-topography', kwargs=dict(pk=instance.id), request=request),
             'fields': {}
         }
     return post_data
