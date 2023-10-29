@@ -29,11 +29,12 @@ jobs:
         image: minio/minio
         ports:
           - 9000:9000
-          - 9001:9001
         env:
           MINIO_ROOT_USER: admin
           MINIO_ROOT_PASSWORD: secret12
-        command: server /data --console-address ":9001"
+        volumes:
+          - ${{ github.workspace }}/data:/data
+        options: --name=minio --health-cmd "curl http://localhost:9000/minio/health/live"
 
       minio-create-buckets:
         image: minio/mc
