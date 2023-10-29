@@ -38,6 +38,9 @@ jobs:
 
       minio-create-buckets:
         image: minio/mc
+        depends_on:
+          minio:
+            condition: service_healthy
         env:
           BUCKET_NAME: topobank-dev
           ENDPOINT: http://minio:9000
