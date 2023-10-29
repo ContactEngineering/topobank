@@ -135,7 +135,7 @@ urlpatterns += [
     ),
 ]
 
-if settings.USE_S3_STORAGE:
+if not settings.USE_S3_STORAGE:
     urlpatterns += [path(
         'api/topography/<pk>/upload/',
         view=login_required(views.upload_topography),
