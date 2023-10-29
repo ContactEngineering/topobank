@@ -25,32 +25,6 @@ jobs:
         ports:
           - 5432:5432
 
-      minio:
-        image: minio/minio
-        ports:
-          - 9000:9000
-          - 9001:9001
-        env:
-          MINIO_ROOT_USER: admin
-          MINIO_ROOT_PASSWORD: secret12
-        command: server /data --console-address ":9001"
-
-      minio-create-buckets:
-        image: minio/mc
-        depends_on:
-          minio:
-            condition: service_healthy
-        env:
-          BUCKET_NAME: topobank-dev
-          ENDPOINT: http://minio:9000
-        entrypoint: >
-            /bin/sh -c "
-            /usr/bin/mc config host add minio http://minio:9000 admin secret12;
-            /usr/bin/mc mb --ignore-existing minio/topobank-dev;
-            /usr/bin/mc anonymous set public minio/topobank-dev;
-            exit 0;
-            "
-
     env:
       USE_DOCKER: no
       DJANGO_SETTINGS_MODULE: config.settings.test
