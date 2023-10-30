@@ -41,6 +41,8 @@ jobs:
       USE_DOCKER: no
       DJANGO_SETTINGS_MODULE: config.settings.test
       DATABASE_URL: postgres://postgres:secret@localhost/topobank-test
+      CELERY_BROKER_URL: redis://redis:6379/0
+      CELERY_RESULT_BACKEND: redis://redis:6379/0
 
     strategy:
       matrix:

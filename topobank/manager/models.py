@@ -1366,7 +1366,8 @@ class Topography(TaskStateModel, SubjectMixin):
             # No datafile; this may mean a datafile has been uploaded to S3
             file_path = topography_datafile_path(self, self.name)  # name and filename are identical at this point
             if not default_storage.exists(file_path):
-                raise RuntimeError(f'Topography {self.id} does not appear to have a data file.')
+                raise RuntimeError(f"Topography {self.id} does not appear to have a data file (expected at path "
+                                   f"'{file_path}').")
             _log.info(f"Found newly uploaded file: {file_path}")
             # Data file exists; path the datafile field to point to the correct file
             self.datafile.name = file_path
