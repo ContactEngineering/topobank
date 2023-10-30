@@ -9,6 +9,7 @@ from operator import itemgetter
 
 import pytest
 
+from django.conf import settings
 from django.core.management import call_command
 from django.shortcuts import reverse
 
@@ -24,8 +25,7 @@ FIXTURE_DIR = os.path.join(
 _log = logging.getLogger(__name__)
 
 
-def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, final_task_state='su',
-                **kwargs):
+def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, final_task_state='su', **kwargs):
     # create new topography (and request file upload location)
     name = fn.split('/')[-1]
     response = api_client.post(reverse('manager:topography-api-list'),
@@ -41,8 +41,11 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
     # upload file
     post_data = response.data['post_data']  # The POST request above informs us how to upload the file
     with open(fn, mode='rb') as fp:
-        # We need to use `requests` as the upload is directly to S3, not to the Django app
-        response = requests.post(post_data['url'], data={**post_data['fields']}, files={'file': fp})
+        if settings.USE_S3_STORAGE:
+            # We need to use `requests` as the upload is directly to S3, not to the Django app
+            response = requests.post(post_data['url'], data={**post_data['fields']}, files={'file': fp})
+        else:
+            response = api_client.post(post_data['url'], data={**post_data['fields']}, files={'file': fp})
     assert response.status_code == 204, response.data  # Created
 
     # We need to execute on commit actions, because this is where the renew_cache task is triggered

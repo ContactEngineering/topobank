@@ -866,7 +866,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
 
         # Populate upload_url, the presigned key should expire quickly
         serializer.update(instance, {
-            'post_data': get_upload_post_request(self.request, instance, datafile_path, self.EXPIRE_UPLOAD)
+            'post_data': get_upload_post_request(instance, datafile_path, self.EXPIRE_UPLOAD)
         })
 
     def perform_update(self, serializer):

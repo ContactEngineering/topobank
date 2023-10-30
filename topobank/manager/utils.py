@@ -1187,7 +1187,7 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             default_storage_replace(target_name, File(open(filename, mode='rb')))
 
 
-def get_upload_post_request(request, instance, name, expire):
+def get_upload_post_request(instance, name, expire):
     """Generate a presigned URL for an upload direct to S3"""
     # Preserve the trailing slash after normalizing the path.
     if settings.USE_S3_STORAGE:
@@ -1196,7 +1196,7 @@ def get_upload_post_request(request, instance, name, expire):
                                                                                ExpiresIn=expire)
     else:
         post_data = {
-            'url': reverse('manager:upload-topography', kwargs=dict(pk=instance.id), request=request),
+            'url': reverse('manager:upload-topography', kwargs=dict(pk=instance.id)),
             'fields': {}
         }
     return post_data
