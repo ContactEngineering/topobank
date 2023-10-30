@@ -955,7 +955,7 @@ def set_permissions(request, pk=None):
             for perm in current_perms - new_perms:
                 remove_perm(perm, other_user, obj)
 
-    # Permissions were updated successfully
+    # Permissions were updated successfully, return 204 No Content
     return Response({}, status=204)
 
 
@@ -964,3 +964,6 @@ def upload_topography(request, pk=None):
     instance = Topography.objects.get(pk=pk)
     for filename, file in request.FILES.items():
         instance.datafile = file
+
+    # Return 204 No Content
+    return Response({}, status=204)
