@@ -5,6 +5,7 @@ from io import BytesIO
 from django.conf import settings
 from django.contrib import messages
 from django.core.exceptions import PermissionDenied
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db.models import Q
 from django.http import HttpResponse, Http404, HttpResponseForbidden
@@ -962,8 +963,9 @@ def set_permissions(request, pk=None):
 @api_view(['POST'])
 def upload_topography(request, pk=None):
     instance = Topography.objects.get(pk=pk)
+    _log.debug(f"Receiving uploaded file for {instance}...")
     for filename, file in request.FILES.items():
-        instance.datafile = file
+        instance.datafile.save(filename, file)
         _log.debug(f"Received uploaded file and stored it at path '{instance.datafile.path}'.")
 
     # Return 204 No Content
