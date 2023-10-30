@@ -962,5 +962,5 @@ def set_permissions(request, pk=None):
 @api_view(['POST'])
 def upload_topography(request, pk=None):
     instance = Topography.objects.get(pk=pk)
-    for filename, file in request.FILES.iteritems():
+    for filename, file in request.FILES.items():
         instance.datafile = file
