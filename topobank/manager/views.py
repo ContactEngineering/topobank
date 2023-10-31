@@ -966,7 +966,7 @@ def upload_topography(request, pk=None):
     _log.debug(f"Receiving uploaded file for {instance}...")
     for filename, file in request.FILES.items():
         instance.datafile.save(filename, file)
-        _log.debug(f"Received uploaded file and stored it at path '{instance.datafile.path}'.")
+        _log.debug(f"Received uploaded file and stored it at path '{instance.datafile.name}'.")
 
     # Return 204 No Content
     return Response({}, status=204)
