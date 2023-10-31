@@ -1356,6 +1356,11 @@ class Topography(TaskStateModel, SubjectMixin):
         """Check whether we have all metadata to actually read the file"""
         return self.size_x is not None and self.unit is not None and self.height_scale is not None
 
+    def notify_users_with_perms(self, verb, description):
+        other_users = get_users_with_perms(self.surface).filter(~models.Q(id=self.creator.id))
+        for u in other_users:
+            notify.send(sender=self.creator, recipient=u, verb=verb, description=description)
+
     def renew_cache(self):
         """
         Inspect datafile and renew cached properties, in particular database entries on resolution, size etc. and the
@@ -1372,13 +1377,9 @@ class Topography(TaskStateModel, SubjectMixin):
             # Data file exists; path the datafile field to point to the correct file
             self.datafile.name = file_path
             # Notify users that a new file has been uploaded
-            other_users = get_users_with_perms(self.surface).filter(~models.Q(id=self.creator.id))
-            for u in other_users:
-                notify.send(sender=self.creator,
-                            recipient=u,
-                            verb='create',
-                            description=f"User '{self.creator}' uploaded the measurement '{self.name}' to digital "
-                                        f"surface twin '{self.surface.name}'.")
+            self.notify_users_with_perms('create',
+                                         f"User '{self.creator}' uploaded the measurement '{self.name}' to "
+                                         f"digital surface twin '{self.surface.name}'.")
 
         # Populate datafile information in the database.
         # (We never load the topography, so we don't know this until here.

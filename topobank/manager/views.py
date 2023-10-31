@@ -967,6 +967,9 @@ def upload_topography(request, pk=None):
     for filename, file in request.FILES.items():
         instance.datafile.save(filename, file)
         _log.debug(f"Received uploaded file and stored it at path '{instance.datafile.name}'.")
+        instance.notify_users_with_perms('create',
+                                         f"User '{instance.creator}' uploaded the measurement '{instance.name}' to "
+                                         f"digital surface twin '{instance.surface.name}'.")
 
     # Return 204 No Content
     return Response({}, status=204)
