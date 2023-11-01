@@ -1,11 +1,8 @@
 <script setup>
 
 import {v4 as uuid4} from 'uuid';
-
 import {onMounted, ref, watch} from "vue";
-
 import {ColumnDataSource, HoverTool, Plotting} from "@bokeh/bokehjs";
-
 import {applyDefaultBokehStyle} from "../utils/bokeh";
 
 const uid = ref(uuid4());
