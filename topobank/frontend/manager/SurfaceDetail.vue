@@ -120,10 +120,12 @@ export default {
             });
         },
         topographyDeleted(url) {
+            console.log('Received topography-deleted event...')
             const index = this._topographies.findIndex(topography => topography.url === url);
             this._topographies.splice(index, 1);
         },
         topographyUpdated(index, topography) {
+            console.log('Received topography-updated event...')
             this._topographies[index] = topography;
         },
         surfaceHrefForVersion(version) {
@@ -196,13 +198,9 @@ export default {
                                 </b-alert>
                                 <b-alert v-if="_topographies.length > 0" secondary>
                                     This bandwidth plot shows the range of length scales that have been measured for
-                                    this
-                                    digital surface
-                                    twin. Each of the blocks below represents one measurement. Part of the bandwidth
-                                    shown
-                                    may
-                                    be unreliable
-                                    due to the configured instrument's measurement capacities.
+                                    this digital surface twin. Each of the blocks below represents one measurement.
+                                    Part of the bandwidth shown may be unreliable due to the configured instrument's
+                                    measurement capacities.
                                 </b-alert>
                                 <bandwidth-plot v-if="_topographies.length > 0"
                                                 :topographies="_topographies">
