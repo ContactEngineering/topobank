@@ -48,52 +48,44 @@ const bw_source = new ColumnDataSource({
     }
 });
 
-function buildPlot() {
-    // Clear figure
-    figure.reset.emit();
+// Apply default settings
+applyDefaultBokehStyle(figure);
 
-    // Apply default settings
-    applyDefaultBokehStyle(figure);
+// Adjust properties not accessible in the constructor
+figure.yaxis.visible = false;
+figure.grid.visible = false;
+figure.outline_line_color = null;
+figure.legend.location = "top_left";
+figure.legend.title = "Measurement artifacts";
+figure.legend.title_text_font_style = "bold";
+figure.legend.background_fill_color = "#f0f0f0";
+figure.legend.border_line_width = 3;
+figure.legend.border_line_cap = "round";
 
-    // Adjust properties not accessible in the constructor
-    figure.yaxis.visible = false;
-    figure.grid.visible = false;
-    figure.outline_line_color = null;
-    figure.legend.location = "top_left";
-    figure.legend.title = "Measurement artifacts";
-    figure.legend.title_text_font_style = "bold";
-    figure.legend.background_fill_color = "#f0f0f0";
-    figure.legend.border_line_width = 3;
-    figure.legend.border_line_cap = "round";
+// Construct glyphs
+figure.hbar({
+    y: {field: 'y'},
+    left: {field: 'left'},
+    right: {field: 'right'},
+    height: 1.0,
+    color: '#2c90d9',
+    name: 'bandwidths',
+    legend_label: "Reliable",
+    level: "underlay",
+    source: bw_source
+});
 
-    // Construct glyphs
-    figure.hbar({
-        y: {field: 'y'},
-        left: {field: 'left'},
-        right: {field: 'right'},
-        height: 1.0,
-        color: '#2c90d9',
-        name: 'bandwidths',
-        legend_label: "Reliable",
-        level: "underlay",
-        source: bw_source
-    });
-
-    figure.hbar({
-        y: {field: 'y'},
-        left: {field: 'left'},
-        right: {field: 'cutoff'},
-        height: 1.0,
-        color: '#dc3545',
-        name: 'bandwidths',
-        legend_label: "Unreliable",
-        level: "underlay",
-        source: bw_source
-    });
-
-    // Render to component
-    Plotting.show(figure, `#plot-${uid.value}`);
-}
+figure.hbar({
+    y: {field: 'y'},
+    left: {field: 'left'},
+    right: {field: 'cutoff'},
+    height: 1.0,
+    color: '#dc3545',
+    name: 'bandwidths',
+    legend_label: "Unreliable",
+    level: "underlay",
+    source: bw_source
+});
 
 function setPlotData(topographies) {
     // Sort topographies
@@ -117,7 +109,10 @@ function setPlotData(topographies) {
 }
 
 onMounted(() => {
-    buildPlot();
+    // Render to component
+    Plotting.show(figure, `#plot-${uid.value}`);
+
+    // Set data
     setPlotData(props.topographies);
 });
 
