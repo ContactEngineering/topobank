@@ -1,6 +1,7 @@
 <script>
 
 import axios from "axios";
+import {cloneDeep} from "lodash";
 
 import {
     BAlert, BFormCheckbox, BFormInput, BFormSelect, BFormTags, BFormTextarea, BModal, BSpinner
@@ -104,6 +105,7 @@ export default {
         }
     },
     methods: {
+        cloneDeep,
         updateCard() {
             /* Fetch JSON describing the card */
             axios.get(this._topographyUrl).then(response => {
@@ -176,6 +178,8 @@ export default {
             this._saving = true;
             axios.patch(this._topographyUrl, this.mogrifyDataForPATCHRequest()).then(response => {
                 this._error = null;
+                console.log('saveCard');
+                console.log(response.data);
                 this.$emit('update:topography', response.data);
                 this.mogrifyDataFromGETRequest(response.data);
             }).catch(error => {
@@ -248,7 +252,7 @@ export default {
             <div v-if="_topography !== null && !_editing && !_saving"
                  class="btn-group btn-group-sm float-end">
                 <button class="btn btn-outline-secondary"
-                        @click="_savedTopography = JSON.parse(JSON.stringify(_topography)); _editing = true">
+                        @click="_savedTopography = cloneDeep(_topography); _editing = true">
                     <i class="fa fa-pen"></i>
                 </button>
                 <a v-if="!enlarged"

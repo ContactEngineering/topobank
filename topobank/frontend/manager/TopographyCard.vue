@@ -1,8 +1,7 @@
 <script setup>
 
 import axios from "axios";
-import {cloneDeep} from "lodash";
-import {computed, onMounted, ref, watch, watchEffect} from "vue";
+import {computed, onMounted, ref} from "vue";
 
 import TopographyErrorCard from "./TopographyErrorCard.vue";
 import TopographyPendingCard from "./TopographyPendingCard.vue";
@@ -33,7 +32,7 @@ const emit = defineEmits([
     'update:topography',
 ]);
 
-const _topography = ref(cloneDeep(props.topography));
+const _topography = ref(props.topography);
 
 onMounted(() => {
     scheduleStateCheck();
@@ -61,7 +60,7 @@ function topographyDeleted(url) {
 }
 
 function topographyUpdated(topography) {
-    _topography.value = cloneDeep(topography);
+    _topography.value = topography;
     emit('update:topography', _topography.value);
     scheduleStateCheck();
 }
