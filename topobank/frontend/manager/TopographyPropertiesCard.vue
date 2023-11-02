@@ -22,8 +22,8 @@ export default {
         TopographyBadges
     },
     emits: [
-        'topography-deleted',
-        'topography-updated'
+        'delete:topography',
+        'update:topography'
     ],
     props: {
         topography: {
@@ -176,7 +176,7 @@ export default {
             this._saving = true;
             axios.patch(this._topographyUrl, this.mogrifyDataForPATCHRequest()).then(response => {
                 this._error = null;
-                this.$emit('topography-updated', response.data);
+                this.$emit('update:topography', response.data);
                 this.mogrifyDataFromGETRequest(response.data);
             }).catch(error => {
                 this._error = error;
@@ -187,11 +187,11 @@ export default {
         },
         deleteTopography() {
             axios.delete(this._topographyUrl);
-            this.$emit('topography-deleted', this._topographyUrl);
+            this.$emit('delete:topography', this._topographyUrl);
         },
         forceInspect() {
             axios.post(`${this._topographyUrl}force-inspect/`).then(response => {
-                this.$emit('topography-updated', response.data);
+                this.$emit('update:topography', response.data);
             });
         }
     },

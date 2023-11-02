@@ -12,8 +12,8 @@ export default {
         BSpinner
     },
     emits: [
-        'topography-deleted',
-        'topography-updated'
+        'delete:topography',
+        'update:topography'
     ],
     props: {
         url: String,  // API url
@@ -22,11 +22,11 @@ export default {
     methods: {
         deleteTopography() {
             axios.delete(this.url);
-            this.$emit('topography-deleted', this.url);
+            this.$emit('delete:topography', this.url);
         },
         forceInspect() {
             axios.post(`${this.url}force-inspect/`).then(response => {
-                this.$emit('topography-updated', response.data);
+                this.$emit('update:topography', response.data);
             });
         }
     }

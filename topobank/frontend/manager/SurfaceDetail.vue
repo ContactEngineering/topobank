@@ -1,29 +1,23 @@
-<script>
+<script setup>
 
 import axios from "axios";
-
-import {getIdFromUrl, subjectsToBase64} from "../utils/api";
+import {computed, onMounted, ref} from "vue";
 
 import {
     BAccordion,
     BAccordionItem,
     BAlert,
-    BButton,
-    BButtonGroup,
     BCard,
     BCardBody,
-    BCardHeader,
     BDropdown,
     BDropdownItem,
-    BForm,
-    BFormGroup,
-    BFormInput,
-    BFormTextarea,
     BModal,
     BSpinner,
     BTab,
     BTabs,
 } from 'bootstrap-vue-next';
+
+import {getIdFromUrl, subjectsToBase64} from "../utils/api";
 
 import BandwidthPlot from './BandwidthPlot.vue';
 import DropZone from '../components/DropZone.vue';
@@ -31,142 +25,120 @@ import SurfaceProperties from './SurfaceProperties.vue';
 import SurfacePermissions from './SurfacePermissions.vue';
 import TopographyCard from "./TopographyCard.vue";
 
-export default {
-    name: 'surface-detail',
-    components: {
-        BandwidthPlot,
-        BAccordion,
-        BAccordionItem,
-        BAlert,
-        BButton,
-        BButtonGroup,
-        BCard,
-        BCardBody,
-        BCardHeader,
-        BDropdown,
-        BDropdownItem,
-        BForm,
-        BFormGroup,
-        BFormInput,
-        BFormTextarea,
-        BModal,
-        BSpinner,
-        BTab,
-        BTabs,
-        DropZone,
-        SurfaceProperties,
-        SurfacePermissions,
-        TopographyCard
+const props = defineProps({
+    surfaceUrl: String,
+    newTopographyUrl: {
+        type: String,
+        default: '/manager/api/topography/'
     },
-    props: {
-        surfaceUrl: String,
-        newTopographyUrl: {
-            type: String,
-            default: '/manager/api/topography/'
-        },
-        categories: {
-            type: Object,
-            default: {
-                dum: 'Dummy data',
-                exp: 'Experimental data',
-                sim: 'Simulated data'
-            }
-        }
-    },
-    data() {
-        return {
-            _data: null,
-            _showDeleteModal: false,
-            _topographies: [],  // Topographies contained in this surface
-            _versions: null  // Published versions of this topography
-        }
-    },
-    mounted() {
-        if (this._data === null) {
-            this.updateCard();
-        }
-    },
-    methods: {
-        getOriginalSurfaceId() {
-            if (this._data.publication === null) {
-                return getIdFromUrl(this._data.url);
-            } else {
-                return getIdFromUrl(this._data.publication.original_surface);
-            }
-        },
-        updateCard() {
-            /* Fetch JSON describing the card */
-            axios.get(`${this.surfaceUrl}?children=yes&permissions=yes`).then(response => {
-                this._data = response.data;
-                this._topographies = response.data.topography_set;
-                this.updateVersions();
-            });
-        },
-        updateVersions() {
-            axios.get(`/go/api/publication/?original_surface=${this.getOriginalSurfaceId()}`).then(response => {
-                this._versions = response.data;
-            });
-        },
-        filesDropped(files) {
-            for (const file of files) {
-                this.uploadNewTopography(file);
-            }
-        },
-        uploadNewTopography(file) {
-            axios.post(this.newTopographyUrl, {surface: this.surfaceUrl, name: file.name}).then(response => {
-                let upload = response.data;
-                upload.file = file;  // need to know which file to upload
-                this._topographies.push(upload);
-            });
-        },
-        topographyDeleted(url) {
-            console.log('Received topography-deleted event...')
-            const index = this._topographies.findIndex(topography => topography.url === url);
-            this._topographies.splice(index, 1);
-        },
-        topographyUpdated(index, topography) {
-            console.log('Received topography-updated event...')
-            this._topographies[index] = topography;
-        },
-        surfaceHrefForVersion(version) {
-            return `http://localhost:8000/manager/html/surface/?surface=${getIdFromUrl(version.surface)}`;
-        },
-        htmlLinebreaks(s) {
-            return s.replace(' ', '&nbsp;').replace('\n', '<br>');
-        },
-        deleteSurface() {
-            axios.delete(this._data.url).then(response => {
-                this.$emit('surface-deleted', this._data.url);
-                window.location.href = `/manager/html/select/`;
-            });
-        }
-    },
-    computed: {
-        category() {
-            if (this._data === null) {
-                return 'Unknown category';
-            }
-            const retval = this.categories[this._data.category];
-            if (retval === undefined) {
-                return 'Unknown category';
-            }
-            return retval;
-        },
-        base64Subjects() {
-            return subjectsToBase64({surface: [this._data.id]});
-        },
-        versionString() {
-            if (this._data === null || this._data.publication === null) {
-                return "Work in progress";
-            } else {
-                return `Version ${this._data.publication.version} (${this._data.publication.datetime.slice(0, 10)})`;
-            }
-        },
-        hrefOriginalSurface() {
-            return `http://localhost:8000/manager/html/surface/?surface=${this.getOriginalSurfaceId()}`;
+    categories: {
+        type: Object,
+        default: {
+            dum: 'Dummy data',
+            exp: 'Experimental data',
+            sim: 'Simulated data'
         }
     }
-};
+});
+
+const emit = defineEmits([
+    'delete:surface'
+])
+
+const _data = ref(null);
+const _showDeleteModal = ref(false);
+const _topographies = ref([]);  // Topographies contained in this surface
+const _versions = ref(null);  // Published versions of this topography
+
+onMounted(() => {
+    if (_data.value === null) {
+        updateCard();
+    }
+});
+
+function getOriginalSurfaceId() {
+    if (_data.value.publication === null) {
+        return getIdFromUrl(_data.value.url);
+    } else {
+        return getIdFromUrl(_data.value.publication.original_surface);
+    }
+}
+
+function updateCard() {
+    /* Fetch JSON describing the card */
+    axios.get(`${props.surfaceUrl}?children=yes&permissions=yes`).then(response => {
+        _data.value = response.data;
+        _topographies.value = response.data.topography_set;
+        updateVersions();
+    });
+}
+
+function updateVersions() {
+    axios.get(`/go/api/publication/?original_surface=${getOriginalSurfaceId()}`).then(response => {
+        _versions.value = response.data;
+    });
+}
+
+function filesDropped(files) {
+    for (const file of files) {
+        uploadNewTopography(file);
+    }
+}
+
+function uploadNewTopography(file) {
+    axios.post(props.newTopographyUrl, {surface: props.surfaceUrl, name: file.name}).then(response => {
+        let upload = response.data;
+        upload.file = file;  // need to know which file to upload
+        _topographies.value.push(upload);
+    });
+}
+
+function topographyDeleted(index) {
+    _topographies.value[index] = null;
+}
+
+function topographyUpdated(index, topography) {
+    _topographies.value[index] = topography;
+}
+
+function surfaceHrefForVersion(version) {
+    return `http://localhost:8000/manager/html/surface/?surface=${getIdFromUrl(version.surface)}`;
+}
+
+function deleteSurface() {
+    axios.delete(_data.value.url).then(response => {
+        emit('delete:surface', _data.value.url);
+        window.location.href = `/manager/html/select/`;
+    });
+}
+
+const category = computed(() => {
+    if (_data.value === null) {
+        return 'Unknown category';
+    }
+    const retval = props.categories[_data.value.category];
+    if (retval === undefined) {
+        return 'Unknown category';
+    }
+    return retval;
+});
+
+const base64Subjects = computed(() => {
+    return subjectsToBase64({surface: [_data.value.id]});
+});
+
+const versionString = computed(() => {
+    if (_data.value === null || _data.value.publication === null) {
+        return "Work in progress";
+    } else {
+        return `Version ${_data.value.publication.version} (${_data.value.publication.datetime.slice(0, 10)})`;
+    }
+});
+
+const hrefOriginalSurface = computed(() => {
+    return `http://localhost:8000/manager/html/surface/?surface=${getOriginalSurfaceId()}`;
+});
+
 </script>
 
 <template>
@@ -181,9 +153,10 @@ export default {
                     <b-tab title="Measurements">
                         <drop-zone @files-dropped="filesDropped"></drop-zone>
                         <div v-for="(topography, index) in _topographies">
-                            <topography-card :topography="topography"
-                                             @topography-deleted="topographyDeleted"
-                                             @topography-updated="topography => topographyUpdated(index, topography)">
+                            <topography-card v-if="topography !== null"
+                                             :topography="topography"
+                                             @delete:topography="url => topographyDeleted(index)"
+                                             @update:topography="newTopography => topographyUpdated(index, newTopography)">
                             </topography-card>
                         </div>
                     </b-tab>

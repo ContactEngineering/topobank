@@ -85,8 +85,11 @@ figure.hbar({
 });
 
 function setPlotData(topographies) {
+    // Filter nulls
+    const filtered_topographies = topographies.filter(t => t !== null);
+
     // Sort topographies
-    const left = topographies.map(t => t.bandwidth_lower);
+    const left = filtered_topographies.map(t => t.bandwidth_lower);
     const argsort = left.map((v, i) => [v, i]).sort((a, b) => a[0] - b[0]).map(a => a[1]);
     let y = Array(argsort.length);
     for (const i of argsort.keys()) {
@@ -97,11 +100,11 @@ function setPlotData(topographies) {
     bw_source.data = {
         y: y,
         left: left,
-        cutoff: topographies.map(t => t.short_reliability_cutoff),
-        right: topographies.map(t => t.bandwidth_upper),
-        name: topographies.map(t => t.name),
-        thumbnail: topographies.map(t => t.thumbnail),
-        link: topographies.map(t => `/manager/html/topography/?topography=${t.id}`),
+        cutoff: filtered_topographies.map(t => t.short_reliability_cutoff),
+        right: filtered_topographies.map(t => t.bandwidth_upper),
+        name: filtered_topographies.map(t => t.name),
+        thumbnail: filtered_topographies.map(t => t.thumbnail),
+        link: filtered_topographies.map(t => `/manager/html/topography/?topography=${t.id}`),
     };
 }
 

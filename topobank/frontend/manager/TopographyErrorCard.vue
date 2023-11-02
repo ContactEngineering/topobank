@@ -10,8 +10,8 @@ export default {
         BFormSelect
     },
     emits: [
-        'topography-deleted',
-        'topography-updated'
+        'delete:topography',
+        'update:topography'
     ],
     props: {
         topography: {
@@ -22,16 +22,16 @@ export default {
     methods: {
         deleteTopography() {
             axios.delete(this.topography.url);
-            this.$emit('topography-deleted', this.topography.url);
+            this.$emit('delete:topography', this.topography.url);
         },
         forceInspect() {
             axios.post(`${this.topography.url}force-inspect/`).then(response => {
-                this.$emit('topography-updated', response.data);
+                this.$emit('update:topography', response.data);
             });
         },
         dataSourceChanged(value) {
             axios.patch(this.topography.url, {'data_source': value}).then(response => {
-                this.$emit('topography-updated', response.data);
+                this.$emit('update:topography', response.data);
             });
         }
     },
