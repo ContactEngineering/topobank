@@ -2,7 +2,7 @@
 
 import {v4 as uuid4} from 'uuid';
 import {onMounted, ref, watch} from "vue";
-import {ColumnDataSource, HoverTool, Plotting} from "@bokeh/bokehjs";
+import {ColumnDataSource, HoverTool, OpenURL, Plotting, TapTool} from "@bokeh/bokehjs";
 import {applyDefaultBokehStyle} from "../utils/bokeh";
 
 const uid = ref(uuid4());
@@ -16,10 +16,18 @@ const props = defineProps({
 
 // Hover tool
 const hover_tool = new HoverTool({
-    'tooltips': '<div class="bandwidth-hover-box">' +
-        '<img src="@thumbnail" height="80" width="80" alt="Thumbnail is missing">' +
+    'tooltips': '<div style="width: 7rem;">' +
+        '<img src="@thumbnail" width="100%" alt="Thumbnail is missing">' +
         '<span>@name</span>' +
         '</div>'
+});
+
+// Tap tool
+const tap_tool = new TapTool({
+    callback: new OpenURL({
+        url: "@link",
+        same_tab: true
+    })
 });
 
 // Bokeh figure
@@ -28,7 +36,7 @@ const figure = new Plotting.Figure({
     x_axis_type: 'log',
     output_backend: 'svg',
     sizing_mode: 'stretch_width',
-    tools: [hover_tool],
+    tools: [hover_tool, tap_tool],
     toolbar_location: null,
 });
 
