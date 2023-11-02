@@ -889,14 +889,6 @@ class TopographyViewSet(mixins.CreateModelMixin,
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
-    def update(self, request, *args, **kwargs):
-        mixins.UpdateModelMixin.update(self, request, *args, **kwargs)
-        instance = self.get_object()
-        data = self.get_serializer(instance).data
-        # FIXME!!! The next line is a hack. For some reason, the task_state is not serialized correctly.
-        data['task_state'] = instance.task_state
-        return Response(data)
-
 
 @api_view(['POST'])
 def force_inspect(request, pk=None):

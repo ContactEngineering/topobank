@@ -785,12 +785,14 @@ class Topography(TaskStateModel, SubjectMixin):
             self.thumbnail = thumbnail
             kwargs.update(dict(update_fields=['datafile', 'squeezed_datafile', 'thumbnail'],
                                force_insert=False, force_update=True))  # The next save must be an update
-        super().save(*args, **kwargs)
-        cache.delete(self.cache_key())
 
         # Check if we need to run the update task
         if self._refresh_dependent_data:
             run_task(self)
+
+        # Save after run task, because run task may update the task state
+        super().save(*args, **kwargs)
+        cache.delete(self.cache_key())
 
         # Reset to no refresh
         self._refresh_dependent_data = False
