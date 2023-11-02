@@ -139,7 +139,7 @@ export default {
                 <b-form-group id="input-group-tags"
                               label="Tags"
                               label-for="input-tags"
-                              description="Attach arbitrary tags (labels) to this digital surface twin.">
+                              description="Attach arbitrary tags (labels) to this digital surface twin. Tags can be hierachical (like a directory structure); separate hierarchies with a /, e.g. 'bear/foot/nail' may indicate a set of topography scans on the nail of a bear foot.">
                     <b-form-tags id="input-tags"
                                    v-model="_tags"
                                    :disabled="!_editing">
