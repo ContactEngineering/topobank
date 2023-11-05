@@ -48,7 +48,7 @@ class Publication(models.Model):
 
     short_url = models.CharField(max_length=10, unique=True, null=True)
     surface = models.OneToOneField("manager.Surface", on_delete=models.PROTECT, related_name='publication')
-    original_surface = models.ForeignKey("manager.Surface", on_delete=models.SET_NULL,
+    original_surface = models.ForeignKey("manager.Surface", on_delete=models.PROTECT,  # original surface can no longer be deleted once published
                                          null=True, related_name='derived_publications')
     publisher = models.ForeignKey("users.User", on_delete=models.PROTECT)
     publisher_orcid_id = models.CharField(max_length=19, default='')  # 16 digits including 3 dashes

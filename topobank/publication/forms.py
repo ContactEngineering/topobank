@@ -10,7 +10,7 @@ from crispy_forms.helper import FormHelper
 from crispy_forms.layout import Submit, Layout, Field, HTML, Div
 from crispy_forms.bootstrap import FormActions
 
-from .models import Surface
+from ..manager.models import Surface
 
 _log = logging.getLogger(__name__)
 

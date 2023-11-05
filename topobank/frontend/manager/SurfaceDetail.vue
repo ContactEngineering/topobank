@@ -56,6 +56,10 @@ onMounted(() => {
     }
 });
 
+function getSurfaceId() {
+    return getIdFromUrl(_data.value.url);
+}
+
 function getOriginalSurfaceId() {
     if (_data.value.publication === null) {
         return getIdFromUrl(_data.value.url);
@@ -136,8 +140,12 @@ const versionString = computed(() => {
 });
 
 const hrefOriginalSurface = computed(() => {
-    return `http://localhost:8000/manager/html/surface/?surface=${getOriginalSurfaceId()}`;
+    return `/manager/html/surface/?surface=${getOriginalSurfaceId()}`;
 });
+
+const publishUrl = computed(() => {
+    return `/go/publish/${getSurfaceId()}/`;
+})
 
 </script>
 
@@ -294,7 +302,7 @@ const hrefOriginalSurface = computed(() => {
                                         Download
                                     </a>
 
-                                    <a :href="`${surfaceUrl.replace('/api/', '/html/')}publish/`"
+                                    <a :href="publishUrl"
                                        class="btn btn-outline-success btn-block">
                                         Publish
                                     </a>

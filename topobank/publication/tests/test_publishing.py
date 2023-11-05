@@ -6,9 +6,8 @@ from django.conf import settings
 from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
 
-from .utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
-from ..forms import SurfacePublishForm
-from ..views import SurfaceDetailView
+from topobank.topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
+from topobank.topobank.publication.forms import SurfacePublishForm
 from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.manager.models import Surface, NewPublicationTooFastException, PublicationsDisabledException, \
     PublicationException

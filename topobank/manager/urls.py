@@ -32,30 +32,10 @@ urlpatterns += [
         view=views.SurfaceDetailView.as_view(),
         name='surface-detail'
     ),
-    re_path(
-        r'html/surface/(?P<pk>\d+)/publish/$',
-        view=login_required(views.SurfacePublishView.as_view()),
-        name='surface-publish'
-    ),
-    re_path(
-        r'html/surface/(?P<pk>\d+)/publication-rate-too-high/$',
-        view=login_required(views.PublicationRateTooHighView.as_view()),
-        name='surface-publication-rate-too-high'
-    ),
-    re_path(
-        r'html/surface/(?P<pk>\d+)/publication-error/$',
-        view=login_required(views.PublicationErrorView.as_view()),
-        name='surface-publication-error'
-    ),
     path(
         'html/select/',
         view=views.SelectView.as_view(),
         name='select'
-    ),
-    path(
-        'html/access-denied/',
-        view=TemplateView.as_view(template_name="403.html"),
-        name='access-denied'
     ),
     #
     # Data routes

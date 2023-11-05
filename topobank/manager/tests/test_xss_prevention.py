@@ -1,4 +1,4 @@
-from ..forms import SurfacePublishForm
+from topobank.topobank.publication.forms import SurfacePublishForm
 
 MALICIOUS_TEXT = "<script>alert('hi')</script>"
 BLEACHED_MALICIOUS_TEXT = "&lt;script&gt;alert('hi')&lt;/script&gt;"

@@ -344,7 +344,7 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
 
         if 'publish_surface' in perms:
             urls.update({
-                'publish': shortcuts.reverse('manager:surface-publish', kwargs=dict(pk=obj.pk)),
+                'publish': shortcuts.reverse('publication:surface-publish', kwargs=dict(pk=obj.pk)),
             })
 
         return urls
