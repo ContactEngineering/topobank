@@ -2,12 +2,14 @@ import pytest
 import datetime
 import zipfile
 
+import django.db.models.deletion
 from django.conf import settings
 from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
 
 from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
 from topobank.publication.forms import SurfacePublishForm
+from topobank.publication.models import Publication
 from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.manager.models import Surface, NewPublicationTooFastException, PublicationsDisabledException, \
     PublicationException
@@ -341,3 +343,19 @@ def test_publishing_wrong_license(example_authors):
     assert not form.is_valid()
 
     assert form.errors['license'] == ['Select a valid choice. fantasy is not one of the available choices.']
+
+
+@pytest.mark.django_db
+def test_publication_original_cannot_be_deleted(example_authors):
+    user = UserFactory(name="Tom")
+    surface = SurfaceFactory(creator=user)
+    surface.publish('cc0-1.0', example_authors)
+
+    assert Surface.objects.filter(id=surface.id).count() == 1
+    assert Publication.objects.filter(original_surface=surface.id).count() == 1
+
+    with pytest.raises(django.db.models.deletion.ProtectedError):
+        surface.delete()
+
+    assert Surface.objects.filter(id=surface.id).count() == 1
+    assert Publication.objects.filter(original_surface=surface.id).count() == 1
