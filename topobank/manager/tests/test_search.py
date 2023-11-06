@@ -196,7 +196,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'download': f'/manager/api/surface/{surface1.id}/download/',
                      'detail': f'/manager/html/surface/?surface={surface1.id}',
                      'select': f'/manager/api/selection/surface/{surface1.id}/select/',
-                     'publish': f'/manager/html/surface/{surface1.id}/publish/',
+                     'publish': f'/go/publish/{surface1.id}/',
                      'unselect': f'/manager/api/selection/surface/{surface1.id}/unselect/'}
         },
         {
@@ -301,7 +301,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'download': f'/manager/api/surface/{surface2.id}/download/',
                      'detail': f'/manager/html/surface/?surface={surface2.id}',
                      'select': f'/manager/api/selection/surface/{surface2.id}/select/',
-                     'publish': f'/manager/html/surface/{surface2.id}/publish/',
+                     'publish': f'/go/publish/{surface2.id}/',
                      'unselect': f'/manager/api/selection/surface/{surface2.id}/unselect/'}
         },
         {
@@ -330,7 +330,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
             'urls': {'download': f'/manager/api/surface/{surface3.id}/download/',
                      'detail': f'/manager/html/surface/?surface={surface3.id}',
                      'select': f'/manager/api/selection/surface/{surface3.id}/select/',
-                     'publish': f'/manager/html/surface/{surface3.id}/publish/',
+                     'publish': f'/go/publish/{surface3.id}/',
                      'unselect': f'/manager/api/selection/surface/{surface3.id}/unselect/'}
         },
     ]
@@ -417,7 +417,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'download': f'/manager/api/surface/{surface2.id}/download/',
                      'detail': f'/manager/html/surface/?surface={surface2.id}',
                      'select': f'/manager/api/selection/surface/{surface2.id}/select/',
-                     'publish': f'/manager/html/surface/{surface2.id}/publish/',
+                     'publish': f'/go/publish/{surface2.id}/',
                      'unselect': f'/manager/api/selection/surface/{surface2.id}/unselect/'}
         },
     ]
@@ -543,7 +543,7 @@ def test_surface_search_with_request_factory(user_three_surfaces_four_topographi
                      'download': f'/manager/api/surface/{surface1.id}/download/',
                      'detail': f'/manager/html/surface/?surface={surface1.id}',
                      'select': f'/manager/api/selection/surface/{surface1.id}/select/',
-                     'publish': f'/manager/html/surface/{surface1.id}/publish/',
+                     'publish': f'/go/publish/{surface1.id}/',
                      'unselect': f'/manager/api/selection/surface/{surface1.id}/unselect/'}
         },
     ]
@@ -778,7 +778,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
                  'download': f'/manager/api/surface/{surface1.id}/download/',
                  'detail': f'/manager/html/surface/?surface={surface1.id}',
                  'select': f'/manager/api/selection/surface/{surface1.id}/select/',
-                 'publish': f'/manager/html/surface/{surface1.id}/publish/',
+                 'publish': f'/go/publish/{surface1.id}/',
                  'unselect': f'/manager/api/selection/surface/{surface1.id}/unselect/'}
     }
 
