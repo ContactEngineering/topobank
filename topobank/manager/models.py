@@ -416,7 +416,7 @@ class Surface(models.Model, SubjectMixin):
         # Remove edit, share and delete permission from everyone
         users = get_users_with_perms(self)
         for u in users:
-            for perm in ['publish_surface', 'share_surface', 'change_surface', 'delete_surface']:
+            for perm in api_to_guardian('full'):
                 remove_perm(perm, u, self)
 
         # Add read permission for everyone
