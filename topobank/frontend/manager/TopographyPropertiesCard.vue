@@ -27,10 +27,6 @@ export default {
         'update:topography'
     ],
     props: {
-        topography: {
-            type: Object,
-            default: null
-        },
         defaultResolutionUnit: {
             type: String,
             default: 'nm'
@@ -47,9 +43,17 @@ export default {
             type: Number,
             value: 30
         },
+        disabled: {
+            type: Boolean,
+            default: false
+        },
         enlarged: {
             type: Boolean,
             default: false
+        },
+        topography: {
+            type: Object,
+            default: null
         },
         topographyUrl: {
             type: String,
@@ -252,6 +256,7 @@ export default {
             <div v-if="_topography !== null && !_editing && !_saving"
                  class="btn-group btn-group-sm float-end">
                 <button class="btn btn-outline-secondary"
+                        :disabled="disabled"
                         @click="_savedTopography = cloneDeep(_topography); _editing = true">
                     <i class="fa fa-pen"></i>
                 </button>
@@ -265,6 +270,7 @@ export default {
                        @click="forceInspect"></i>
                 </button>
                 <button v-if="!enlarged"
+                        :disabled="disabled"
                         class="btn btn-outline-secondary"
                         @click="_showDeleteModal = true">
                     <i class="fa fa-trash"></i>

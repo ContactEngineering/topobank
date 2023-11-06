@@ -27,6 +27,7 @@ export default {
         category: String,
         description: String,
         name: String,
+        permission: String,
         surfaceUrl: String,
         tags: Object
     },
@@ -68,6 +69,11 @@ export default {
                 this._saving = false;
             });
         }
+    },
+    computed: {
+        isEditable() {
+            return this.permission !== 'view';
+        }
     }
 };
 </script>
@@ -80,6 +86,7 @@ export default {
                             class="float-end"
                             size="sm">
                 <b-button variant="outline-secondary"
+                          :disabled="!isEditable"
                           @click="_savedName = `${_name}`; _savedDescription = `${_description}`; _editing = true">
                     <i class="fa fa-pen"></i>
                 </b-button>

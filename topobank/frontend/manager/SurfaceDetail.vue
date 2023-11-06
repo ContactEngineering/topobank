@@ -145,7 +145,15 @@ const hrefOriginalSurface = computed(() => {
 
 const publishUrl = computed(() => {
     return `/go/publish/${getSurfaceId()}/`;
-})
+});
+
+const isEditable = computed(() => {
+    return _data.value !== null && _data.value.permissions.current_user.permission !== 'view';
+});
+
+const isPublication = computed(() => {
+    return _data.value !== null && _data.value.publication !== null;
+});
 
 </script>
 
@@ -159,10 +167,12 @@ const publishUrl = computed(() => {
                         pills
                         vertical>
                     <b-tab title="Measurements">
-                        <drop-zone @files-dropped="filesDropped"></drop-zone>
+                        <drop-zone v-if="isEditable"
+                                   @files-dropped="filesDropped"></drop-zone>
                         <div v-for="(topography, index) in _topographies">
                             <topography-card v-if="topography !== null"
                                              :topography="topography"
+                                             :disabled="!isEditable"
                                              @delete:topography="url => topographyDeleted(index)"
                                              @update:topography="newTopography => topographyUpdated(index, newTopography)">
                             </topography-card>
@@ -195,7 +205,8 @@ const publishUrl = computed(() => {
                                             :name="_data.name"
                                             :description="_data.description"
                                             :category="_data.category"
-                                            :tags="_data.tags">
+                                            :tags="_data.tags"
+                                            :permission="_data.permissions.current_user.permission">
                         </surface-properties>
                     </b-tab>
                     <b-tab v-if="_data !== null"
@@ -215,7 +226,7 @@ const publishUrl = computed(() => {
                             </b-card-body>
                         </b-card>
                     </b-tab>
-                    <b-tab v-if="_data !== null && _data.publication !== null"
+                    <b-tab v-if="isPublication"
                            title="How to cite">
                         <b-card class="w-100">
                             <template #header>
@@ -273,7 +284,8 @@ const publishUrl = computed(() => {
                                         {{ tag.name }}
                                     </span>
                                 </div>
-                                <b-dropdown class="mt-2"
+                                <b-dropdown v-if="_versions === null || _versions.length > 0"
+                                            class="mt-2"
                                             variant="info"
                                             :text="versionString">
                                     <b-dropdown-item :href="hrefOriginalSurface"
@@ -302,12 +314,14 @@ const publishUrl = computed(() => {
                                         Download
                                     </a>
 
-                                    <a :href="publishUrl"
+                                    <a v-if="!isPublication"
+                                       :href="publishUrl"
                                        class="btn btn-outline-success btn-block">
                                         Publish
                                     </a>
 
-                                    <a href="#"
+                                    <a v-if="_versions === null || _versions.length === 0"
+                                       href="#"
                                        class="btn btn-outline-danger btn-block"
                                        @click="_showDeleteModal = true">
                                         Delete

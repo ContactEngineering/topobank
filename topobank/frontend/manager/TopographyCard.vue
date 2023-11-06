@@ -9,6 +9,10 @@ import TopographyPropertiesCard from "./TopographyPropertiesCard.vue";
 import TopographyUploadCard from "./TopographyUploadCard.vue";
 
 const props = defineProps({
+    disabled: {
+        type: Boolean,
+        default: false
+    },
     enlarged: {
         type: Boolean,
         default: false
@@ -98,6 +102,7 @@ const isUploading = computed(() => {
         v-if="_topography !== null && !isUploading && _topography.task_state === 'su'"
         :topography="_topography"
         :enlarged="enlarged"
+        :disabled="disabled"
         @delete:topography="topographyDeleted"
         @update:topography="topographyUpdated">
     </topography-properties-card>
