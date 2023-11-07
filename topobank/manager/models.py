@@ -1455,7 +1455,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:
-            _log.info(f"Metadata of topography {self.id} is complete. Generating images.")
+            _log.info(f"Metadata of {self} is complete. Generating images.")
             st_topo = self._read(reader)
 
             # Check whether original data file has undefined data point and update database accordingly.
@@ -1472,7 +1472,8 @@ class Topography(TaskStateModel, SubjectMixin):
         self.save()
 
         # Send signal
-        post_renew_cache.send(sender=self.__class__, instance=self)
+        _log.debug(f'Sending `post_renew_cache` signal from {self}...')
+        post_renew_cache.send(sender=Topography, instance=self)
 
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""

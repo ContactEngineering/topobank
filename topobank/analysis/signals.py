@@ -18,6 +18,7 @@ _IN_CELERY_WORKER_PROCESS = sys.argv and sys.argv[0].endswith('celery') and 'wor
 @receiver(post_renew_cache, sender=Topography)
 def cache_renewed(sender, instance, **kwargs):
     # Cache is renewed, this means something significant changed and we need to renew the analyses
+    _log.debug(f'Received `post_renew_cache` signal on {instance}')
     renew_analyses_for_subject(instance)
 
 
