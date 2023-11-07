@@ -196,6 +196,8 @@ class Surface(models.Model, SubjectMixin):
     description = models.TextField(blank=True)
     category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
     tags = tm.TagField(to=TagModel)
+    creation_datetime = models.DateTimeField(auto_now_add=True)
+    modification_datetime = models.DateTimeField(auto_now=True)
 
     objects = models.Manager()
     published = PublishedSurfaceManager()

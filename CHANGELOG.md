@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.3.2 (Not yet released)
+
+- ENH: Added Creation and Last Modified datetime to surfaces
+
 ## 1.3.1 (2023-09-13)
 
 - BUG: Return raw ids in addition to API urls (fixes analysis download)
