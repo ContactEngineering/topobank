@@ -143,7 +143,7 @@ export default {
             // Copy writable entries
             let writeableEntries = [
                 'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'is_periodic',
-                'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_topography_mode', 'data_source'
+                'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_data_mode', 'data_source'
             ];
             if (this._topography.size_editable) {
                 writeableEntries.push('size_x', 'size_y');
@@ -497,7 +497,7 @@ export default {
                                     <label for="input-undefined-data">Undefined/missing data</label>
                                     <div id="input-undefined-data" class="input-group mb-1">
                                         <b-form-select :options="_undefinedDataChoices"
-                                                       v-model="_topography.fill_undefined_topography_mode"
+                                                       v-model="_topography.fill_undefined_data_mode"
                                                        :disabled="!_editing">
                                         </b-form-select>
                                     </div>

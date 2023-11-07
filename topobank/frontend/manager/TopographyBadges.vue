@@ -27,7 +27,7 @@ const shortReliabilityCutoff = computed(() => {
         <span class="badge bg-info ms-2">{{ topography.resolution_x }} &times; {{
                 topography.resolution_y
             }} data points</span>
-        <span v-if="topography.has_undefinedtopography" class="badge bg-danger ms-2">undefined data</span>
+        <span v-if="topography.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
         <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
         <span v-if="topography.short_reliability_cutoff !== null" class="badge bg-dark ms-2">
                     reliability cutoff {{ shortReliabilityCutoff }}
@@ -36,7 +36,7 @@ const shortReliabilityCutoff = computed(() => {
     <div v-if="topography !== null && topography.resolution_y === null">
         <div class="badge bg-warning ms-1">{{ topography.datafile_format }}</div>
         <div class="badge bg-info ms-2">{{ topography.resolution_x }} data points</div>
-        <span v-if="topography.has_undefinedtopography" class="badge bg-danger ms-2">undefined data</span>
+        <span v-if="topography.has_undefined_data" class="badge bg-danger ms-2">undefined data</span>
         <span v-if="isMetadataIncomplete" class="badge bg-danger ms-2">metadata incomplete</span>
         <span v-if="topography.short_reliability_cutoff !== null" class="badge bg-dark ms-2">
                     reliability cutoff {{ shortReliabilityCutoff }}

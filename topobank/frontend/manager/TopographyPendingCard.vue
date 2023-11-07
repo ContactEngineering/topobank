@@ -52,7 +52,7 @@ export default {
         </div>
         <div class="card-body">
             <b-spinner small></b-spinner>
-            Inspecting data file...
+            Inspecting data file and applying filters...
         </div>
     </div>
 </template>
