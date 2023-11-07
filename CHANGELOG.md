@@ -2,12 +2,15 @@
 
 ## 1.4.0 (not yet released)
 
-- ENH: Batch upload
+- ENH: Batch upload (#173, #877, #906)
+- ENH: Button to regenerate cached properties (thumbnail, DZI, etc., #895)
+- BUG: Fixes related to uploading files (#223, #261, #667)
 - MAINT: Surface view is now largely a single-page application
-- MAINT: REST API for topography handling
+- MAINT: REST API for topography handling (#173)
 - MAINT: Major refactor of task handling code
+- MAINT: Refactor of codebase to respect hierarchy of Django apps (#1018)
 - MAINT: Cached topography properties (thumbnail, DZI, etc.) are now generated
-  in a single task
+  in a single task (#895)
 - MAINT: Updated SurfaceTopography to 1.11.1
 
 ## 1.3.1 (2023-09-13)
