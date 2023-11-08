@@ -594,6 +594,8 @@ class Topography(models.Model, SubjectMixin):
     measurement_date = models.DateField()
     description = models.TextField(blank=True)
     tags = tm.TagField(to=TagModel)
+    creation_datetime = models.DateTimeField(auto_now_add=True)
+    modification_datetime = models.DateTimeField(auto_now=True)
 
     #
     # Fields related to raw data
