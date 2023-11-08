@@ -2,7 +2,7 @@
 
 ## 1.3.2 (Not yet released)
 
-- ENH: Added Creation and Last Modified datetime to surfaces
+- ENH: Added Creation and Last Modified datetime to surfaces and topographies
 
 ## 1.3.1 (2023-09-13)
 
