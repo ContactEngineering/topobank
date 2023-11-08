@@ -237,6 +237,7 @@ def filtered_surfaces(request):
         qs = qs.filter(category=category)
 
     sharing_status = get_sharing_status(request)
+
     match sharing_status:
         case 'own':
             qs = qs.filter(creator=user)
@@ -248,15 +249,13 @@ def filtered_surfaces(request):
             viewable_surfaces_perms = (UserObjectPermission.objects
                                        .filter(permission__codename='view_surface')     # only view permissions
                                        .filter(content_type__app_label='manager', content_type__model='surface')
-                                       .exclude(user=user))  # only surfaces
+                                       .exclude(user=user))  # not own permissions
             surface_ids = [x[0] for x in viewable_surfaces_perms.values_list("object_pk")]
             qs = qs.filter(creator=user, id__in=surface_ids)  # own surfaces, shared with others
         case 'published_egress':
             qs = qs.filter(publication__isnull=False, creator=user)
         case 'all':
             pass
-        case other:
-            _log.error(f"Invalid sharing filter: {other}")
     #
     # Filter by search term
     #
