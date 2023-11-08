@@ -2,6 +2,7 @@
 
 ## 1.4.0 (not yet released)
 
+- ENH: Added select filter options: '(shared|published) by you'
 - ENH: Batch upload (#173, #877, #906)
 - ENH: Button to regenerate cached properties (thumbnail, DZI, etc., #895)
 - ENH: Added creation and last modified datetime to surfaces and topographies (#1010)
