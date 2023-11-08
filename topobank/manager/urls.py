@@ -1,18 +1,11 @@
-from django.urls import re_path, path
+from django.conf import settings
 from django.contrib.auth.decorators import login_required
+from django.urls import re_path, path
 from django.views.generic import TemplateView
 
 from rest_framework.routers import DefaultRouter
 
 from . import views
-from . import forms
-
-
-WIZARD_FORMS = [
-    ('upload', forms.TopographyFileUploadForm),
-    ('metadata', forms.TopographyMetaDataForm),
-    ('units', forms.TopographyWizardUnitsForm),
-]
 
 router = DefaultRouter()
 router.register(r'api/surface', views.SurfaceViewSet, basename='surface-api')
@@ -29,116 +22,36 @@ urlpatterns += [
     #
     # HTML routes
     #
-    re_path(
-        r'html/topography/(?P<pk>\d+)/$',
+    path(
+        r'html/topography/',
         view=views.TopographyDetailView.as_view(),
         name='topography-detail'
     ),
-    re_path(
-        r'html/topography/(?P<pk>\d+)/update/$',
-        view=login_required(views.TopographyUpdateView.as_view()),
-        name='topography-update'
-    ),
-    re_path(
-        r'html/topography/(?P<pk>\d+)/delete/$',
-        view=login_required(views.TopographyDeleteView.as_view()),
-        name='topography-delete'
-    ),
-    re_path(
-        r'topography/(?P<pk>\d+)/thumbnail/$',
-        view=views.thumbnail,
-        name='topography-thumbnail'
-    ),
-    re_path(
-        r'topography/(?P<pk>\d+)/dzi/(?P<dzi_filename>.*)$',
-        view=views.dzi,
-        name='topography-dzi'
-    ),
-    re_path(
-        r'html/topography/(?P<pk>\d+)/plot/$',
-        view=views.topography_plot,
-        name='topography-plot'
-    ),
-    re_path(
-        r'html/surface/(?P<surface_id>\d+)/new-topography/$',
-        view=login_required(views.TopographyCreateWizard.as_view(WIZARD_FORMS)),
-        name='topography-create'
-    ),
-    re_path(
-        r'html/surface/(?P<surface_id>\d+)/new-topography/corrupted$',
-        view=login_required(views.CorruptedTopographyView.as_view()),
-        name='topography-corrupted'
-    ),
-    re_path(
-        r'html/surface/(?P<pk>\d+)/$',
+    path(
+        r'html/surface/',
         view=views.SurfaceDetailView.as_view(),
         name='surface-detail'
-    ),
-    re_path(
-        r'html/surface/(?P<pk>\d+)/update/$',
-        view=login_required(views.SurfaceUpdateView.as_view()),
-        name='surface-update'
-    ),
-    re_path(
-       r'html/surface/(?P<pk>\d+)/delete/$',
-       view=login_required(views.SurfaceDeleteView.as_view()),
-       name='surface-delete'
-    ),
-    re_path(
-       r'html/surface/(?P<pk>\d+)/share/$',
-       view=login_required(views.SurfaceShareView.as_view()),
-       name='surface-share'
-    ),
-    re_path(
-       r'html/surface/(?P<pk>\d+)/publish/$',
-       view=login_required(views.SurfacePublishView.as_view()),
-       name='surface-publish'
-    ),
-    re_path(
-        r'html/surface/(?P<pk>\d+)/publication-rate-too-high/$',
-        view=login_required(views.PublicationRateTooHighView.as_view()),
-        name='surface-publication-rate-too-high'
-    ),
-    re_path(
-        r'html/surface/(?P<pk>\d+)/publication-error/$',
-        view=login_required(views.PublicationErrorView.as_view()),
-        name='surface-publication-error'
-    ),
-    path(
-        'html/surface/new/',
-        view=login_required(views.SurfaceCreateView.as_view()),
-        name='surface-create'
     ),
     path(
         'html/select/',
         view=views.SelectView.as_view(),
         name='select'
     ),
-    path(
-        'html/access-denied/',
-        view=TemplateView.as_view(template_name="403.html"),
-        name='access-denied'
-    ),
-    path(
-        'html/sharing/',
-        view=login_required(views.sharing_info),
-        name='sharing-info'
-    ),
-    path(
-        'html/publications/',
-        view=login_required(views.PublicationListView.as_view()),
-        name='publications'
-    ),
     #
     # Data routes
     #
+    re_path(
+        r'api/topography/(?P<pk>\d+)/dzi/(?P<dzi_filename>.*)$',
+        view=views.dzi,
+        name='topography-dzi'
+    ),
     path(
         'select/download/',
         view=views.download_selection_as_surfaces,
         name='download-selection'
     ),
     re_path(
-        r'surface/(?P<surface_id>\d+)/download/$',
+        r'api/surface/(?P<surface_id>\d+)/download/$',
         view=views.download_surface,
         name='surface-download'
     ),
@@ -155,15 +68,25 @@ urlpatterns += [
         view=views.TagTreeView.as_view(),
         name='tag-list'  # TODO rename
     ),
-    re_path(
-       r'api/selection/surface/(?P<pk>\d+)/select/$',
-       view=views.select_surface,
-       name='surface-select'
+    path(
+        'api/topography/<pk>/force-inspect/',
+        view=login_required(views.force_inspect),
+        name='force-inspect'
+    ),
+    path(
+        'api/surface/<pk>/set-permissions/',
+        view=login_required(views.set_permissions),
+        name='set-permissions'
     ),
     re_path(
-       r'api/selection/surface/(?P<pk>\d+)/unselect/$',
-       view=views.unselect_surface,
-       name='surface-unselect'
+        r'api/selection/surface/(?P<pk>\d+)/select/$',
+        view=views.select_surface,
+        name='surface-select'
+    ),
+    re_path(
+        r'api/selection/surface/(?P<pk>\d+)/unselect/$',
+        view=views.unselect_surface,
+        name='surface-unselect'
     ),
     re_path(
         r'api/selection/topography/(?P<pk>\d+)/select/$',
@@ -176,14 +99,14 @@ urlpatterns += [
         name='topography-unselect'
     ),
     re_path(
-       r'api/selection/tag/(?P<pk>\d+)/select/$',
-       view=views.select_tag,
-       name='tag-select'
+        r'api/selection/tag/(?P<pk>\d+)/select/$',
+        view=views.select_tag,
+        name='tag-select'
     ),
     re_path(
-       r'api/selection/tag/(?P<pk>\d+)/unselect/$',
-       view=views.unselect_tag,
-       name='tag-unselect'
+        r'api/selection/tag/(?P<pk>\d+)/unselect/$',
+        view=views.unselect_tag,
+        name='tag-unselect'
     ),
     path(
         'api/selection/unselect-all/',
@@ -191,3 +114,10 @@ urlpatterns += [
         name='unselect-all'
     ),
 ]
+
+if not settings.USE_S3_STORAGE:
+    urlpatterns += [path(
+        'api/topography/<pk>/upload/',
+        view=login_required(views.upload_topography),
+        name='upload-topography'
+    )]

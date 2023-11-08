@@ -25,10 +25,24 @@ jobs:
         ports:
           - 5432:5432
 
+      redis:
+        # Docker Hub image
+        image: redis
+        # Set health checks to wait until redis has started
+        options: >-
+          --health-cmd "redis-cli ping"
+          --health-interval 10s
+          --health-timeout 5s
+          --health-retries 5
+        ports:
+            - 6379:6379
+
     env:
       USE_DOCKER: no
       DJANGO_SETTINGS_MODULE: config.settings.test
       DATABASE_URL: postgres://postgres:secret@localhost/topobank-test
+      CELERY_BROKER_URL: redis://127.0.0.1:6379/0
+      CELERY_RESULT_BACKEND: redis://127.0.0.1:6379/0
 
     strategy:
       matrix:

@@ -3,7 +3,7 @@
 {% load license_tags %}
 
 <div class="{% if field_class %} {{ field_class }}{% endif %}"{% if flat_attrs %} {{ flat_attrs|safe }}{% endif %}>
-    {% include 'bootstrap4/layout/field_errors_block.html' %}
+    {% include 'bootstrap5/layout/field_errors_block.html' %}
 
     {% for choice in field.field.choices %}
       <div class="custom-control custom-radio">
@@ -14,5 +14,5 @@
       </div>
     {% endfor %}
 
-    {% include 'bootstrap4/layout/help_text.html' %}
+    {% include 'bootstrap5/layout/help_text.html' %}
 </div>

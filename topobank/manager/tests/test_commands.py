@@ -22,7 +22,7 @@ def test_import_downloaded_surface_archive(client):
     user = UserFactory(username=username)
     surface = SurfaceFactory(creator=user, name=surface_name, category=surface_category)
     topo1 = Topography2DFactory(surface=surface, name='2D Measurement', size_x=10, size_y=10, unit='mm')
-    topo2 = Topography1DFactory(surface=surface, name='1D Measurement', size_x=10, unit='µm')
+    topo2 = Topography1DFactory(surface=surface, name='1D Measurement', size_x=9, unit='µm')
 
     client.force_login(user)
 
@@ -103,14 +103,13 @@ def test_fix_height_scale(two_topos):
 
 
 @pytest.mark.django_db
-def test_renew_bandwidth_cache(mocker):
+def test_renew_cache(mocker):
     Topography2DFactory()
-    import topobank.manager.management.commands
-    renew_bandwidth_cache_mock = mocker.patch('topobank.manager.management.commands.renew_bandwidth_cache.renew_bandwidth_cache')
+    renew_cache_mock = mocker.patch('topobank.manager.models.Topography.renew_cache')
 
-    call_command('renew_bandwidth_cache', background=True)
+    call_command('renew_cache', background=False)
 
-    assert renew_bandwidth_cache_mock.delay.called
+    assert renew_cache_mock.called
 
 
 

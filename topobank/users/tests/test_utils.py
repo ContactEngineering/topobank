@@ -20,7 +20,7 @@ def test_collaborators(django_user_model):
     surface1.share(user2)
 
     assert surface1.is_shared(user2)
-    assert not surface1.is_shared(user2, allow_change=True)
+    assert surface1.get_permissions(user2) == 'view'
 
     # now they are collaborating
     assert are_collaborating(user1, user2)

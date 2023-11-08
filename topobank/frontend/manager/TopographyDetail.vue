@@ -1,0 +1,136 @@
+<script>
+
+import axios from "axios";
+
+import {BModal, BSpinner, BTab, BTabs} from "bootstrap-vue-next";
+
+import DeepZoomImage from "../components/DeepZoomImage.vue";
+import DropZone from "../components/DropZone.vue";
+import LineScanPlot from "../components/LineScanPlot.vue";
+
+import BandwidthPlot from "./BandwidthPlot.vue";
+import SurfaceDescription from "./SurfaceProperties.vue";
+import SurfacePermissions from "./SurfacePermissions.vue";
+import TopographyBadges from "./TopographyBadges.vue";
+import TopographyCard from "./TopographyCard.vue";
+import {getIdFromUrl, subjectsToBase64} from "topobank/utils/api.js";
+
+export default {
+    name: 'topography-detail',
+    components: {
+        BandwidthPlot,
+        BModal,
+        BSpinner,
+        BTab,
+        BTabs,
+        DeepZoomImage,
+        DropZone,
+        LineScanPlot,
+        SurfaceDescription,
+        SurfacePermissions,
+        TopographyBadges,
+        TopographyCard
+    },
+    props: {
+        topographyUrl: String
+    },
+    data() {
+        return {
+            _showDeleteModal: false,
+            _topography: null
+        }
+    },
+    mounted() {
+        this.updateCard();
+    },
+    methods: {
+        updateCard() {
+            /* Fetch JSON describing the card */
+            axios.get(this.topographyUrl).then(response => {
+                this._topography = response.data;
+            });
+        },
+        deleteTopography() {
+            axios.delete(this._topography.url).then(response => {
+                this.$emit('topography-deleted', this._topography.url);
+                const id = getIdFromUrl(this._topography.surface);
+                window.location.href = `/manager/html/surface/?surface=${id}`;
+            });
+        }
+    },
+    computed: {
+        base64Subjects() {
+            return subjectsToBase64({topography: [this._topography.id]});
+        }
+    }
+};
+</script>
+
+<template>
+    <div class="container">
+        <div class="row">
+            <div class="col-12">
+                <div v-if="_topography === null"
+                     class="card mb-1">
+                    <div class="card-body">
+                        <b-spinner small></b-spinner>
+                        Querying topography data, please wait...
+                    </div>
+                </div>
+                <b-tabs v-if="_topography !== null"
+                        class="nav-pills-custom"
+                        content-class="w-100"
+                        fill
+                        pills
+                        vertical>
+                    <b-tab title="Visualization">
+                        <line-scan-plot v-if="_topography.size_y === null"
+                                        :topography="_topography">
+                        </line-scan-plot>
+                        <deep-zoom-image v-if="_topography.size_y !== null"
+                                         :colorbar="true"
+                                         :prefix-url="`${_topography.url}dzi/`">
+                        </deep-zoom-image>
+                    </b-tab>
+                    <b-tab title="Properties">
+                        <topography-card :topography="_topography"
+                                         :enlarged="true">
+                        </topography-card>
+                    </b-tab>
+                    <template #tabs-end>
+                        <hr/>
+                        <div class="card mt-2">
+                            <div class="card-body">
+                                <topography-badges :topography="_topography"></topography-badges>
+                                <div class="btn-group-vertical mt-2 w-100" role="group">
+                                    <a :href="`/analysis/html/list/?subjects=${base64Subjects}`"
+                                       class="btn btn-outline-secondary btn-block">
+                                        Analyze this measurement
+                                    </a>
+
+                                    <a :href="_topography.datafile"
+                                       class="btn btn-outline-secondary btn-block">
+                                        Download
+                                    </a>
+
+                                    <a href="#"
+                                       class="btn btn-outline-danger btn-block"
+                                       @click="_showDeleteModal = true">
+                                        Delete
+                                    </a>
+                                </div>
+                            </div>
+                        </div>
+                    </template>
+                </b-tabs>
+            </div>
+        </div>
+    </div>
+    <b-modal v-if="_topography !== null"
+             v-model="_showDeleteModal"
+             @ok="deleteTopography"
+             title="Delete measurement">
+        You are about to delete the measurement with name <b>{{ _topography.name }}</b>.
+        Are you sure you want to proceed?
+    </b-modal>
+</template>

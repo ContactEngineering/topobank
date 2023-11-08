@@ -1,11 +1,9 @@
-
 import os
 from celery import Celery
 from celery.schedules import crontab
 
 from django.apps import apps, AppConfig
 from django.conf import settings
-
 
 if not settings.configured:
     # set the default Django settings module for the 'celery' program.
@@ -19,8 +17,6 @@ class CeleryAppConfig(AppConfig):
     verbose_name = 'Celery Config'
 
     def ready(self):
-        from . import signals
-
         # Using a string here means the worker will not have to
         # pickle the object when using Windows.
         app.config_from_object('django.conf:settings', namespace='CELERY')
@@ -39,4 +35,3 @@ class CeleryAppConfig(AppConfig):
                 'schedule': crontab(hour='0', minute='0'),
             }
         }
-

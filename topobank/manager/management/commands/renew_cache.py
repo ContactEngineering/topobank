@@ -4,18 +4,18 @@ from django.core.management.base import BaseCommand
 import logging
 
 from topobank.manager.models import Topography
-from topobank.taskapp.tasks import renew_bandwidth_cache
+from topobank.taskapp.utils import run_task
 
 _log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = """Renew bandwidth cache for topographies.
+    help = """Renew cache for topographies.
 
-    For each topography, the bandwidth and a short reliabililty cutoff
-    is stored in the database. In case the way of calculation has changed
-    or some values are missing, this command can be used to recalculate
-    these values.
+    For each topography, a couple of images, the bandwidth and a short
+    reliabililty cutoff are stored in the database. In case the way of
+    calculation has changed or some values are missing, this command can
+    be used to recalculate these values.
     """
 
     def add_arguments(self, parser):
@@ -42,16 +42,16 @@ class Command(BaseCommand):
         num_total = Topography.objects.count()
 
         for topo_idx, topo in enumerate(Topography.objects.order_by('name')):
-            _log.info(f"Renewing bandwidth cache file for '{topo.name}', id {topo.id}, {topo_idx+1}/{num_total}..")
+            _log.info(f"Renewing cache file for '{topo.name}', id {topo.id}, {topo_idx+1}/{num_total}..")
 
             try:
                 if options['background']:
-                    renew_bandwidth_cache.delay(topo.id)
+                    run_task(topo)
                 else:
-                    topo.renew_bandwidth_cache()
+                    topo.renew_cache()
                 num_success += 1
             except Exception as exc:
-                _log.error(f"Cannot renew bandwidth cache for topography {topo.id}, reason: {exc}")
+                _log.error(f"Cannot renew cache for topography {topo.id}, reason: {exc}")
                 if options['with_traceback']:
                     _log.error(traceback.format_exc())
                 num_failed += 1

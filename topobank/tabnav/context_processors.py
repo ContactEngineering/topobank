@@ -4,8 +4,6 @@ from django.conf import settings
 
 HOME_URL = reverse('home')
 SELECT_URL = reverse('manager:select')
-SHARING_INFO_URL = reverse('manager:sharing-info')
-PUBLICATIONS_URL = reverse('manager:publications')
 
 
 def fixed_tabs_processor(request):
@@ -40,28 +38,6 @@ def fixed_tabs_processor(request):
             'href': HOME_URL,
             'active': request.path == HOME_URL,
             'tooltip': "Welcome to contact.engineering",
-            'show_basket': False,
-        }]
-
-    if settings.PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS:
-        tabs += [{
-            'login_required': True,
-            'title': '',  # no text
-            'icon': 'bullhorn',
-            'href': PUBLICATIONS_URL,
-            'active': request.path == PUBLICATIONS_URL,
-            'tooltip': "Surfaces published by you",
-            'show_basket': False,
-        }]
-
-    if settings.TABNAV_DISPLAY_SHARING_TAB:
-        tabs += [{
-            'login_required': True,
-            'title': '',  # no text
-            'icon': 'share-alt',
-            'href': SHARING_INFO_URL,
-            'active': request.path == SHARING_INFO_URL,
-            'tooltip': "Surfaces shared with you or by you",
             'show_basket': False,
         }]
 

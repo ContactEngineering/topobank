@@ -15,6 +15,7 @@ export default {
         CardExpandButton,
         TasksButton
     },
+    inject: ['csrfToken'],
     props: {
         apiUrl: {
             type: String,
@@ -114,21 +115,21 @@ export default {
 <template>
     <div class="card search-result-card">
         <div class="card-header">
-            <div class="btn-group btn-group-sm float-right">
+            <div class="btn-group btn-group-sm float-end">
                 <tasks-button v-if="_analyses !== null && _analyses.length > 0"
                               :analyses="_analyses"
                               @task-state-changed="taskStateChanged">
                 </tasks-button>
                 <button v-if="_analyses !== null && _analyses.length > 0"
                         @click="updateCard"
-                        class="btn btn-default float-right ml-1">
+                        class="btn btn-default float-end ms-1">
                     <i class="fa fa-redo"></i>
                 </button>
                 <card-expand-button v-if="!enlarged"
                                     :detail-url="detailUrl"
                                     :function-id="functionId"
                                     :subjects="subjects"
-                                    class="btn-group btn-group-sm float-right">
+                                    class="btn-group btn-group-sm float-end">
                 </card-expand-button>
             </div>
             <h5 v-if="_analyses === null"
@@ -180,7 +181,7 @@ export default {
                     </a>
                     <li class="nav-item mb-1 mt-1">
                         Download
-                        <div class="btn-group ml-1" role="group" aria-label="Download formats">
+                        <div class="btn-group ms-1" role="group" aria-label="Download formats">
                             <a :href="`/analysis/download/${analysisIds}/txt`"
                                class="btn btn-default"
                                @click="_sidebarVisible=false">

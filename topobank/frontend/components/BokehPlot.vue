@@ -21,12 +21,31 @@ import {
     SaveTool,
     TapTool
 } from '@bokeh/bokehjs';
+import {
+    BAccordion,
+    BAccordionItem,
+    BFormCheckbox,
+    BFormCheckboxGroup,
+    BFormGroup,
+    BFormInput,
+    BFormSelect,
+    BFormSelectOption
+} from "bootstrap-vue-next";
 
 import {formatExponential} from "topobank/utils/formatting";
 
 export default {
-    name: 'bokeh_plot',
-    emits: [
+    name: 'bokeh-plot',
+    components: {
+        BAccordion,
+        BAccordionItem,
+        BFormCheckbox,
+        BFormCheckboxGroup,
+        BFormGroup,
+        BFormInput,
+        BFormSelect,
+        BFormSelectOption
+    },    emits: [
         'selected'
     ],
     props: {
@@ -151,8 +170,26 @@ export default {
                 }
             }
 
+            const elementHtml = function (e) {
+                let s = "";
+                if (e.color !== null) {
+                    s += `<span class="dot" style="background-color: ${e.color};"></span>`;
+                }
+                if (e.hasParent) {
+                    s += "└─ ";
+                }
+                s += e.title;
+                return s;
+            };
+
             // Removed undefined entries from elements array
-            elements = elements.filter(e => e !== undefined);
+            elements = elements.filter(e => e !== undefined).map((e, index) => {
+                return {
+                    ...e,
+                    value: index,
+                    html: elementHtml(e)
+                }
+            });
 
             // Add to category information
             this.categoryElements.push({
@@ -571,157 +608,99 @@ export default {
 </script>
 
 <template>
-    <div>
-        <div class="tab-content">
-            <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'"
-                 :id="'plot-'+uuid+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uuid+'-'+index">
-                <div :id='"bokeh-plot-"+uuid+"-"+index' ref="plot"></div>
-            </div>
-        </div>
-        <div :id='"plot-controls-accordion-"+uuid' class="accordion plot-controls-accordion">
-            <div v-if="plots.length > 1" class="card">
-                <div class="card-header plot-controls-card-header">
-                    <h6 class="m-1">
-                        <!-- Navigation pills for each individual plot, but only if there is more than one -->
-                        <ul v-if="plots.length > 1" class="nav nav-pills">
-                            <li v-for="(plot, index) in plots" class="nav-item">
-                                <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index"
-                                   :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab"
-                                   :aria-controls="'plot-'+uuid+'-'+index"
-                                   :aria-selected="index == 0">{{
-                                    plot.title
-                                    }}</a>
-                            </li>
-                        </ul>
-                    </h6>
-                </div>
-            </div>
-            <div v-for="category in categoryElements" class="card">
-                <div :id='"heading-"+uuid+"-"+category.key' class="card-header plot-controls-card-header">
-                    <h2 class="mb-0">
-                        <div class="accordion-header-control custom-checkbox">
-                            <input :id='"select-all-"+uuid+"-"+category.key'
-                                   class="custom-control-input"
-                                   type="checkbox"
-                                   value=""
-                                   v-model="category.isAllSelected"
-                                   v-on:change="selectAll(category)"
-                                   :indeterminate.prop="category.isIndeterminate">
-                            <label class="custom-control-label btn-block text-left"
-                                   :for='"select-all-"+uuid+"-"+category.key'>
-                            </label>
-                        </div>
-                        <button class="btn btn-link btn-block text-left accordion-button collapsed"
-                                type="button"
-                                data-toggle="collapse"
-                                :data-target='"#collapse-"+uuid+"-"+category.key'
-                                aria-expanded="false"
-                                :aria-controls='"collapse-"+uuid+"-"+category.key'>
-                            {{ category.title }}
-                        </button>
-                    </h2>
-                </div>
-                <div :id='"collapse-"+uuid+"-"+category.key'
-                     class="collapse"
-                     :aria-labelledby='"heading-"+uuid+"-"+category.key'
-                     :data-parent='"#plot-controls-accordion-"+uuid'>
-                    <div :id='"card-subjects"+uuid' class="card-body plot-controls-card-body">
-                        <div v-for="(element, index) in category.elements" class="custom-control custom-checkbox">
-                            <input :id='"switch-"+uuid+"-"+category.key+"-"+index'
-                                   class="custom-control-input"
-                                   type="checkbox"
-                                   :value="index"
-                                   v-model="category.selection">
-                            <label class="custom-control-label"
-                                   :for='"switch-"+uuid+"-"+category.key+"-"+index'>
-                                <span class="dot" v-if="element.color !== null"
-                                      :style='"background-color: "+element.color'></span>
-                                <span v-if="element.hasParent">└─ </span>
-                                {{ element.title }}
-                            </label>
-                        </div>
-                    </div>
-                </div>
-            </div>
-            <div class="card">
-                <div :id='"heading-plot-options-"+uuid' class="card-header plot-controls-card-header">
-                    <h2 class="mb-0">
-                        <button class="btn btn-link btn-block text-left accordion-button collapsed"
-                                type="button"
-                                data-toggle="collapse"
-                                :data-target='"#collapse-plot-options-"+uuid'
-                                aria-expanded="false"
-                                :aria-controls='"collapse-plot-options-"+uuid'>
-                            Plot options
-                        </button>
-                    </h2>
-                </div>
-                <div :id='"collapse-plot-options-"+uuid'
-                     class="collapse"
-                     :aria-labelledby='"heading-plot-options-"+uuid'
-                     :data-parent='"#plot-controls-accordion-"+uuid'>
-                    <div class="card-body plot-controls-card-body">
-                        <div v-if="optionsWidgets.includes('layout')" class="form-group">
-                            <label :for='"plot-layout-"+uuid' hidden>Plot layout:</label>
-                            <select class="form-control"
-                                    :id='"plot-layout-"+uuid'
-                                    v-model="layout">
-                                <option value="web">Optimize plot for web (plot scales with window size)</option>
-                                <option value="print-single">Optimize plot for print (single-column layout)</option>
-                                <option value="print-double">Optimize plot for print (two-column layout)</option>
-                            </select>
-                        </div>
-
-                        <div v-if="optionsWidgets.includes('legend')" class="form-group">
-                            <label :for='"plot-legend-"+uuid' hidden>Legend:</label>
-                            <select class="form-control"
-                                    :id='"plot-legend-"+uuid'
-                                    v-model="legendLocation">
-                                <option value="off">Do not show legend</option>
-                                <option value="top_right">Show legend top right</option>
-                                <option value="top_left">Show legend top left</option>
-                                <option value="bottom_right">Show legend bottom right</option>
-                                <option value="bottom_left">Show legend bottom left</option>
-                            </select>
-                        </div>
-
-                        <div v-if="optionsWidgets.includes('lineWidth')" class="form-group">
-                            <label :for='"line-width-slider-"+uuid'>Line width: <b>{{ lineWidth }}</b></label>
-                            <input :id='"line-width-slider-"+uuid'
-                                   type="range"
-                                   min="0.1"
-                                   max="3.0"
-                                   step="0.1"
-                                   class="form-control-range"
-                                   v-model="lineWidth">
-                        </div>
-
-                        <div v-if="optionsWidgets.includes('symbolSize')" class="form-group">
-                            <label :for='"symbol-size-slider-"+uuid'>Symbol size: <b>{{ symbolSize }}</b></label>
-                            <input :id='"symbol-size-slider-"+uuid'
-                                   type="range"
-                                   min="1"
-                                   max="20"
-                                   step="1"
-                                   class="form-control-range"
-                                   v-model="symbolSize">
-                        </div>
-
-                        <div v-if="optionsWidgets.includes('opacity')" class="form-group">
-                            <label :for='"opacity-slider-"+uuid'>Opacity of lines/symbols (measurements only): <b>{{
-                                opacity
-                                }}</b></label>
-                            <input :id='"opacity-slider-"+uuid'
-                                   type="range"
-                                   min="0"
-                                   max="1"
-                                   step="0.1"
-                                   class="form-control-range"
-                                   v-model="opacity">
-                        </div>
-                    </div>
-                </div>
-            </div>
+    <div class="tab-content">
+        <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'"
+             :id="'plot-'+uuid+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uuid+'-'+index">
+            <div :id='"bokeh-plot-"+uuid+"-"+index' ref="plot"></div>
         </div>
     </div>
+    <div v-if="plots.length > 1" class="card mb-2">
+        <div class="card-body plot-controls-card-header">
+            <h6 class="m-1">
+                <!-- Navigation pills for each individual plot, but only if there is more than one -->
+                <ul v-if="plots.length > 1" class="nav nav-pills">
+                    <li v-for="(plot, index) in plots" class="nav-item">
+                        <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index"
+                           :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab"
+                           :aria-controls="'plot-'+uuid+'-'+index"
+                           :aria-selected="index == 0">{{
+                                plot.title
+                            }}</a>
+                    </li>
+                </ul>
+            </h6>
+        </div>
+    </div>
+    <b-accordion>
+        <b-accordion-item v-for="category in categoryElements"
+                          :title="category.title">
+            <b-form-checkbox-group v-model="category.selection"
+                                   :options="category.elements"
+                                   stacked/>
+        </b-accordion-item>
+        <b-accordion-item title="Plot options">
+            <b-form-group v-if="optionsWidgets.includes('layout')"
+                          label="Plot layout"
+                          label-cols="4"
+                          content-cols="8">
+                <b-form-select v-model="layout">
+                    <b-form-select-option value="web">
+                        Optimize plot for web (plot scales with window size)
+                    </b-form-select-option>
+                    <b-form-select-option value="print-single">
+                        Optimize plot for print (single-column layout)
+                    </b-form-select-option>
+                    <b-form-select-option value="print-double">
+                        Optimize plot for print (two-column layout)
+                    </b-form-select-option>
+                </b-form-select>
+            </b-form-group>
+
+            <b-form-group v-if="optionsWidgets.includes('legend')"
+                          label="Legend"
+                          label-cols="4"
+                          content-cols="8">
+                <b-form-select v-model="legendLocation">
+                    <b-form-select-option value="off">Do not show legend</b-form-select-option>
+                    <b-form-select-option value="top_right">Show legend top right</b-form-select-option>
+                    <b-form-select-option value="top_left">Show legend top left</b-form-select-option>
+                    <b-form-select-option value="bottom_right">Show legend bottom right</b-form-select-option>
+                    <b-form-select-option value="bottom_left">Show legend bottom left</b-form-select-option>
+                </b-form-select>
+            </b-form-group>
+
+            <b-form-group v-if="optionsWidgets.includes('lineWidth')"
+                          label="Line width"
+                          label-cols="4"
+                          content-cols="8">
+                <b-form-input type="range"
+                              min="0.1"
+                              max="3.0"
+                              step="0.1"
+                              v-model="lineWidth"/>
+            </b-form-group>
+
+            <b-form-group v-if="optionsWidgets.includes('symbolSize')"
+                          label="Symbol size"
+                          label-cols="4"
+                          content-cols="8">
+                <b-form-input type="range"
+                              min="1"
+                              max="20"
+                              step="1"
+                              v-model="symbolSize"/>
+            </b-form-group>
+
+            <b-form-group v-if="optionsWidgets.includes('opacity')"
+                          label="Opacity of lines/symbols (measurements only)"
+                          label-cols="4"
+                          content-cols="8">
+                <b-form-input type="range"
+                              min="0"
+                              max="1"
+                              step="0.1"
+                              v-model="opacity"/>
+            </b-form-group>
+        </b-accordion-item>
+    </b-accordion>
 </template>

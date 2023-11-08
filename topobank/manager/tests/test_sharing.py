@@ -6,12 +6,11 @@ from bs4 import BeautifulSoup
 from notifications.models import Notification
 
 from ..models import Topography
-from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory
+from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, upload_file
 from topobank.utils import assert_in_content, assert_not_in_content, assert_no_form_errors
 
 
-def test_individual_read_access_permissions(client, django_user_model, handle_usage_statistics):
-
+def test_individual_read_access_permissions(api_client, django_user_model, handle_usage_statistics):
     #
     # create database objects
     #
@@ -24,28 +23,27 @@ def test_individual_read_access_permissions(client, django_user_model, handle_us
 
     surface = SurfaceFactory(creator=user_1)
 
-    surface_detail_url = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
-    surface_update_url = reverse('manager:surface-update', kwargs=dict(pk=surface.pk))
+    surface_detail_url = reverse('manager:surface-api-detail', kwargs=dict(pk=surface.pk))
 
     #
     # now user 1 has access to surface detail page
     #
-    assert client.login(username=username_1, password=password)
-    response = client.get(surface_detail_url)
+    assert api_client.login(username=username_1, password=password)
+    response = api_client.get(surface_detail_url)
 
     assert response.status_code == 200
 
-    client.logout()
+    api_client.logout()
 
     #
     # User 2 has no access
     #
-    assert client.login(username=username_2, password=password)
-    response = client.get(surface_detail_url)
+    assert api_client.login(username=username_2, password=password)
+    response = api_client.get(surface_detail_url)
 
-    assert response.status_code == 403 # forbidden
+    assert response.status_code == 404  # forbidden
 
-    client.logout()
+    api_client.logout()
 
     #
     # Now grant access and user 2 should be able to access
@@ -55,24 +53,23 @@ def test_individual_read_access_permissions(client, django_user_model, handle_us
 
     assign_perm('view_surface', user_2, surface)
 
-    assert client.login(username=username_2, password=password)
-    response = client.get(surface_detail_url)
+    assert api_client.login(username=username_2, password=password)
+    response = api_client.get(surface_detail_url)
 
     assert response.status_code == 200  # now it's okay
 
     #
     # Write access is still not possible
     #
-    response = client.get(surface_update_url)
+    response = api_client.patch(surface_detail_url)
 
     assert response.status_code == 403  # forbidden
 
-    client.logout()
+    api_client.logout()
 
 
 @pytest.mark.django_db
-def test_list_surface_permissions(client, handle_usage_statistics):
-
+def test_list_surface_permissions(api_client, handle_usage_statistics):
     #
     # create database objects
     #
@@ -84,479 +81,129 @@ def test_list_surface_permissions(client, handle_usage_statistics):
 
     surface = SurfaceFactory(creator=user1)
     surface.share(user2)
-    surface.share(user3, allow_change=True)
+    surface.set_permissions(user3, 'edit')
 
-    surface_detail_url = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
+    surface_detail_url = reverse('manager:surface-api-detail', kwargs=dict(pk=surface.pk))
 
     #
     # now user 1 has access to surface detail page
     #
-    assert client.login(username=user1.username, password=password)
-    response = client.get(surface_detail_url)
-
-    assert_in_content(response, "Permissions")
+    assert api_client.login(username=user1.username, password=password)
+    response = api_client.get(f'{surface_detail_url}?permissions=yes')
 
     # related to user 1
-    assert_in_content(response, "You have the permission to share this surface")
-    assert_in_content(response, "You have the permission to delete this surface")
-    assert_in_content(response, "You have the permission to change this surface")
-    assert_in_content(response, "You have the permission to view this surface")
+    assert response.data['permissions']['current_user']['user']['id'] == user1.id
+    assert response.data['permissions']['current_user']['permission'] == 'full'
 
-    # related to user 2
-    assert_in_content(response, "Bob Marley hasn&#x27;t the permission to share this surface")
-    assert_in_content(response, "Bob Marley hasn&#x27;t the permission to delete this surface")
-    assert_in_content(response, "Bob Marley hasn&#x27;t the permission to change this surface")
-    assert_in_content(response, "Bob Marley has the permission to view this surface")
-
-    # related to user 3
-    assert_in_content(response, "Alice Cooper hasn&#x27;t the permission to share this surface")
-    assert_in_content(response, "Alice Cooper hasn&#x27;t the permission to delete this surface")
-    assert_in_content(response, "Alice Cooper has the permission to change this surface")
-    assert_in_content(response, "Alice Cooper has the permission to view this surface")
-
-
-@pytest.mark.django_db
-def test_appearance_buttons_based_on_permissions(client, handle_usage_statistics):
-
-    password = "secret"
-
-    user1 = UserFactory(password=password)
-    user2 = UserFactory(password=password)
-
-    surface = SurfaceFactory(creator=user1)
-    surface_detail_url = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
-    surface_share_url = reverse('manager:surface-share', kwargs=dict(pk=surface.pk))
-    surface_update_url = reverse('manager:surface-update', kwargs=dict(pk=surface.pk))
-    surface_delete_url = reverse('manager:surface-delete', kwargs=dict(pk=surface.pk))
-
-    surface.share(user2)
-
-    topo = Topography2DFactory(surface=surface, size_y=512)
-    topo_detail_url = reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
-    topo_update_url = reverse('manager:topography-update', kwargs=dict(pk=topo.pk))
-    topo_delete_url = reverse('manager:topography-delete', kwargs=dict(pk=topo.pk))
-
-    #
-    # first user can see links for editing and deletion
-    #
-    assert client.login(username=user1.username, password=password)
-
-    response = client.get(surface_detail_url)
-    assert_in_content(response, surface_share_url)
-    assert_in_content(response, surface_update_url)
-    assert_in_content(response, surface_delete_url)
-
-    response = client.get(topo_detail_url)
-    assert_in_content(response, topo_update_url)
-    assert_in_content(response, topo_delete_url)
-
-    client.logout()
-    #
-    # Second user can't see those links, only view stuff
-    #
-    assert client.login(username=user2.username, password=password)
-
-    response = client.get(surface_detail_url)
-    assert_not_in_content(response, surface_share_url)
-    assert_not_in_content(response, surface_update_url)
-    assert_not_in_content(response, surface_delete_url)
-
-    response = client.get(topo_detail_url)
-    assert_not_in_content(response, topo_update_url)
-    assert_not_in_content(response, topo_delete_url)
-
-    #
-    # When allowing to change, the second user should see links
-    # for edit as well, for topography also "delete" and "add"
-    #
-    surface.share(user2, allow_change=True)
-
-    response = client.get(surface_detail_url)
-    assert_not_in_content(response, surface_share_url) # still not share
-    assert_in_content(response, surface_update_url)
-    assert_not_in_content(response, surface_delete_url) # still not delete
-
-    response = client.get(topo_detail_url)
-    assert_in_content(response, topo_update_url)
-    assert_in_content(response, topo_delete_url)
-
-
-def _parse_html_table(table):
-    """Return list of lists with cell texts.
-
-    :param table: beautifulsoup tag with table element
-    """
-    rows = table.findAll("tr")
-
-    data = []
-    for row in rows:
-
-        tds = row.findAll("td")
-        ths = row.findAll("th")
-
-        if len(ths) > 0:
-            tmp = [th.text.strip() for th in ths]
+    other_permissions = response.data['permissions']['other_users']
+    assert len(other_permissions) == 2
+    for permissions in other_permissions:
+        if permissions['user']['id'] == user2.id:
+            # related to user 2
+            assert permissions['permission'] == 'view'
+        elif permissions['user']['id'] == user3.id:
+            # related to user 3
+            assert permissions['permission'] == 'edit'
         else:
-            tmp = [td.text.strip() for td in tds]
+            assert False, 'Unknown user'
 
-        data.append(tmp)
 
-    return data
-
-
-@pytest.mark.django_db
-def test_link_for_sharing_info(client):
-    password = "secret"
-    user = UserFactory(password=password)
-    assert client.login(username=user.username, password=password)
-
-    response = client.get(reverse('home'))
-
-    assert response.status_code == 200
-    assert_in_content(response, reverse('manager:sharing-info'))
-
-
-@pytest.mark.django_db
-def test_sharing_info_table(client, handle_usage_statistics):
-    password = "secret"
-
-    # adding users with defined order when ordered by name
-    user1 = UserFactory(name='A', password=password)
-    user2 = UserFactory(name='B', password=password)
-    user3 = UserFactory(name='C', password=password)
-
-    surface1 = SurfaceFactory(creator=user1)
-    surface2 = SurfaceFactory(creator=user2)
-
-    surface1.share(user2, allow_change=False)
-    surface1.share(user3, allow_change=True)
-
-    surface2.share(user1)
-
-    Topography1DFactory(surface=surface1)  # one topography for surface 1
-
-    FALSE_CHAR = '✘'
-    TRUE_CHAR = '✔'
-
-    #
-    # Test for user 1
-    #
-    assert client.login(username=user1.username, password=password)
-
-    response = client.get(reverse('manager:sharing-info'))
-
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.content)
-
-    table = soup.find("table")
-
-    data = _parse_html_table(table)
-
-    import pprint
-    pprint.pprint(data)
-
-    assert data == [
-        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
-        [surface1.name, '1', user1.name, user2.name, FALSE_CHAR, ''],
-        [surface1.name, '1', user1.name, user3.name, TRUE_CHAR, ''],
-        [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
-    ]
-
-    client.logout()
-
-    #
-    # Test for user 2
-    #
-    assert client.login(username=user2.username, password=password)
-
-    response = client.get(reverse('manager:sharing-info'))
-
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.content)
-
-    table = soup.find("table")
-
-    data = _parse_html_table(table)
-
-    import pprint
-    pprint.pprint(data)
-
-    assert data == [
-        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
-        [surface1.name, '1', user1.name, user2.name, FALSE_CHAR, ''],
-        [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
-    ]
-
-    client.logout()
-
-    #
-    # Test for user 3
-    #
-    assert client.login(username=user3.username, password=password)
-
-    response = client.get(reverse('manager:sharing-info'))
-
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.content)
-
-    table = soup.find("table")
-
-    data = _parse_html_table(table)
-
-    import pprint
-    pprint.pprint(data)
-
-    assert data == [
-        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
-        [surface1.name, '1', user1.name, user3.name, TRUE_CHAR, ''],
-    ]
-
-    client.logout()
-
-    #
-    # First: User 1 removes share for user 3
-    #
-    assert client.login(username=user1.username, password=password)
-
-    response = client.post(reverse('manager:sharing-info'),
-                           {
-                               'selected': '{},{}'.format(surface1.id, user3.id),
-                               'unshare': 'unshare'
-                           })
-
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.content)
-
-    table = soup.find("table")
-
-    data = _parse_html_table(table)
-
-    import pprint
-    pprint.pprint(data)
-
-    assert data == [
-        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
-        [surface1.name, '1', user1.name, user2.name, FALSE_CHAR, ''],
-        [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
-    ]
-
-    #
-    # Next: User 1 allows changing surface 1 for user 2
-    #
-    response = client.post(reverse('manager:sharing-info'),
-                           {
-                               'selected': '{},{}'.format(surface1.id, user2.id),
-                               'allow_change': 'allow_change'
-                           })
-
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.content)
-
-    table = soup.find("table")
-
-    data = _parse_html_table(table)
-
-    import pprint
-    pprint.pprint(data)
-
-    assert data == [
-        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
-        [surface1.name, '1', user1.name, user2.name, TRUE_CHAR, ''],
-        [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
-    ]
-
-    client.logout()
-
-    #
-    # This is also visible for user2
-    #
-    assert client.login(username=user2.username, password=password)
-
-    response = client.get(reverse('manager:sharing-info'))
-
-    assert response.status_code == 200
-
-    soup = BeautifulSoup(response.content)
-
-    table = soup.find("table")
-
-    data = _parse_html_table(table)
-
-    import pprint
-    pprint.pprint(data)
-
-    assert data == [
-        ['Surface', '# Measurements', 'Created by', 'Shared with', 'Allow change', ''],
-        [surface1.name, '1', user1.name, user2.name, TRUE_CHAR, ''],
-        [surface2.name, '0', user2.name, user1.name, FALSE_CHAR, ''],
-    ]
-
-    client.logout()
-
-    #
-    # Test notifications
-    #
-    assert Notification.objects.filter(unread=True, recipient=user3, verb='unshare').count() == 1
-    assert Notification.objects.filter(unread=True, recipient=user2, verb='allow change').count() == 1
-
-
-@pytest.mark.django_db
-def test_share_surface_through_UI(client, handle_usage_statistics):
-
-    user1 = UserFactory()
-    user2 = UserFactory()
-
-    surface = SurfaceFactory(creator=user1)
-    assert not user2.has_perm('view_surface', surface)
-    assert not user2.has_perm('change_surface', surface)
-    assert not user2.has_perm('delete_surface', surface)
-    assert not user2.has_perm('share_surface', surface)
-
-    client.force_login(user1)
-
-    response = client.get(reverse("manager:surface-detail", kwargs=dict(pk=surface.pk)))
-
-    share_link = reverse("manager:surface-share", kwargs=dict(pk=surface.pk))
-    assert_in_content(response, share_link)
-
-    response = client.get(share_link)
-    assert_in_content(response, "Share this surface")
-
-    response = client.post(share_link, {
-        'save': 'save',
-        'users': [user2.id],
-        'allow_change': True
-    }, follow=True)
-
-    assert response.status_code == 200
-
-    #
-    # Now the surface should be shared
-    #
-    assert user2.has_perm('view_surface', surface)
-    assert user2.has_perm('change_surface', surface)
-
-    # still no delete or change allowed
-    assert not user2.has_perm('delete_surface', surface)
-    assert not user2.has_perm('share_surface', surface)
-
-    #
-    # There are notifications for user 2
-    #
-    assert Notification.objects.filter(recipient=user2, verb='share',
-                                       description__contains=surface.name).count() == 1
-    assert Notification.objects.filter(recipient=user2, verb='allow change',
-                                       description__contains=surface.name).count() == 1
-
-
-@pytest.mark.django_db
-def test_notification_when_deleting_shared_stuff(client):
-
+@pytest.mark.django_db(transaction=True)
+def test_notification_when_deleting_shared_stuff(api_client):
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
     topography = Topography1DFactory(surface=surface)
 
-    surface.share(user2, allow_change=True)
+    surface.set_permissions(user2, 'full')
 
     #
     # First: user2 deletes the topography, user1 should be notified
     #
-    client.force_login(user2)
+    api_client.force_login(user2)
 
-    response = client.post(reverse('manager:topography-delete', kwargs=dict(pk=topography.pk)))
-    assert response.status_code == 302 # redirect
+    response = api_client.delete(reverse('manager:topography-api-detail', kwargs=dict(pk=topography.pk)))
+    assert response.status_code == 204  # redirect
 
     assert Notification.objects.filter(recipient=user1, verb='delete',
                                        description__contains=topography.name).count() == 1
-    client.logout()
+    api_client.logout()
 
     #
     # Second: user1 deletes the surface, user2 should be notified
     #
-    client.force_login(user1)
+    api_client.force_login(user1)
 
-    response = client.post(reverse('manager:surface-delete', kwargs=dict(pk=surface.pk)))
-    assert response.status_code == 302 # redirect
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface.pk)))
+    assert response.status_code == 204  # redirect
 
     assert Notification.objects.filter(recipient=user2, verb='delete',
                                        description__contains=surface.name).count() == 1
-    client.logout()
+    api_client.logout()
 
 
 @pytest.mark.django_db
-def test_notification_when_editing_shared_stuff(client, handle_usage_statistics):
-
+def test_notification_when_editing_shared_stuff(api_client, handle_usage_statistics):
     user1 = UserFactory()
     user2 = UserFactory()
     surface = SurfaceFactory(creator=user1)
     topography = Topography2DFactory(surface=surface, size_y=512)
 
-    surface.share(user2, allow_change=True)
+    surface.set_permissions(user2, 'edit')
 
     #
     # First: user2 edits the topography, user1 should be notified
     #
-    client.force_login(user2)
+    api_client.force_login(user2)
 
-    response = client.post(reverse('manager:topography-update', kwargs=dict(pk=topography.pk)), {
-        'save-stay': 1,  # we want to save, but stay on page
-        'surface': surface.id,
-        'data_source': 0,
-        'name': topography.name,
-        'measurement_date': topography.measurement_date,
-        'description': topography.description,
-        'size_x': topography.size_x,
-        'size_y': topography.size_y,
-        'unit': topography.unit,
-        'height_scale': 0.1,  # we also change a significant value here -> recalculate
-        'detrend_mode': 'height',
-        'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-        'has_undefined_data': False,
-        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-    }, follow=True)
-    assert response.status_code == 200
-    assert_no_form_errors(response)
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography.pk)),
+                                {
+                                    'data_source': 0,
+                                    'name': topography.name,
+                                    'measurement_date': topography.measurement_date,
+                                    'description': topography.description,
+                                    'height_scale': 0.1,  # we also change a significant value here -> recalculate
+                                    'detrend_mode': 'height',
+                                    'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                                    'has_undefined_data': False,
+                                    'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+                                })
+    assert response.status_code == 200, response.data
 
     note = Notification.objects.get(recipient=user1, verb='change',
                                     description__contains=topography.name)
-    assert "Changed fields:" in note.description
-    client.logout()
+    assert "changed digital surface twin" in note.description
+    api_client.logout()
 
     #
     # Second: user1 edits the surface, user2 should be notified
     #
-    client.force_login(user1)
+    api_client.force_login(user1)
 
     new_name = "This is a better surface name"
     new_description = "This is new description"
     new_category = 'dum'
 
-    response = client.post(reverse('manager:surface-update', kwargs=dict(pk=surface.pk)),
-                           data={
-                               'name': new_name,
-                               'creator': user1.id,
-                               'description': new_description,
-                               'category': new_category
-                           })
+    response = api_client.patch(reverse('manager:surface-api-detail', kwargs=dict(pk=surface.pk)),
+                                {
+                                    'name': new_name,
+                                    'description': new_description,
+                                    'category': new_category
+                                })
 
-    assert response.status_code == 302
-    #assert_no_form_errors(response)
+    assert response.status_code == 200, response.data
 
     assert Notification.objects.filter(recipient=user2, verb='change',
                                        description__contains=new_name).count() == 1
-    client.logout()
+    api_client.logout()
 
 
 @pytest.mark.django_db
-def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
+def test_upload_topography_for_shared_surface(api_client, settings, handle_usage_statistics,
+                                              django_capture_on_commit_callbacks):
+    settings.CELERY_TASK_ALWAYS_EAGER = True
 
-    input_file_path = Path(FIXTURE_DIR+'/example3.di')
+    input_file_path = Path(FIXTURE_DIR + '/example3.di')
     description = "test description"
 
     password = 'abcd$1234'
@@ -565,95 +212,41 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
     user2 = UserFactory(password=password)
 
     surface = SurfaceFactory(creator=user1)
-    surface.share(user2) # first without allowing change
+    surface.share(user2)  # first without allowing change
 
-
-    assert client.login(username=user2.username, password=password)
+    assert api_client.login(username=user2.username, password=password)
 
     #
     # open first step of wizard: file upload
     #
-    with open(str(input_file_path), mode='rb') as fp:
-
-        response = client.post(reverse('manager:topography-create',
-                                       kwargs=dict(surface_id=surface.id)),
-                               data={
-                                'topography_create_wizard-current_step': 'upload',
-                                'upload-datafile': fp,
-                                'upload-surface': surface.id,
-                               }, follow=True)
-
-    assert response.status_code == 403 # user2 is not allowed to change
+    response = api_client.post(reverse('manager:topography-api-list'),
+                               {
+                                   'surface': reverse('manager:surface-api-detail',
+                                                      kwargs=dict(pk=surface.id)),
+                                   'name': 'example3.di'
+                               })
+    assert response.status_code == 403  # user2 is not allowed to change
 
     #
     # Now allow to change and get response again
     #
-    surface.share(user2, allow_change=True)
-
-    with open(str(input_file_path), mode='rb') as fp:
-        response = client.post(reverse('manager:topography-create',
-                                       kwargs=dict(surface_id=surface.id)),
-                               data={
-                                   'topography_create_wizard-current_step': 'upload',
-                                   'upload-datafile': fp,
-                                   'upload-surface': surface.id,
-                               }, follow=True)
-
-    assert response.status_code == 200
-
-    #
-    # check contents of second page
-    #
-
-    # now we should be on the page with second step
-    assert b"Step 2 of 3" in response.content, "Errors:"+str(response.context['form'].errors)
-
-    # we should have two datasources as options, "ZSensor" and "Height"
-
-    assert b'<option value="0">ZSensor</option>' in response.content
-    assert b'<option value="3">Height</option>' in response.content
-
-    assert response.context['form'].initial['name'] == 'example3.di'
-
-    #
-    # Send data for second page
-    #
-    response = client.post(reverse('manager:topography-create',
-                                   kwargs=dict(surface_id=surface.id)),
-                           data={
-                            'topography_create_wizard-current_step': 'metadata',
-                            'metadata-name': 'topo1',
-                            'metadata-measurement_date': '2018-06-21',
-                            'metadata-data_source': 0,
-                            'metadata-description': description,
+    surface.set_permissions(user2, 'edit')
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks,
+                           **{
+                               'measurement_date': '2018-06-21',
+                               'data_source': 0,
+                               'description': description,
+                               'size_x': '9000',
+                               'size_y': '9000',
+                               'unit': 'nm',
+                               'height_scale': 0.3,
+                               'detrend_mode': 'height',
+                               'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
+                               'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                            })
-
-    assert response.status_code == 200
-    assert b"Step 3 of 3" in response.content, "Errors:" + str(response.context['form'].errors)
-
-    #
-    # Send data for third page
-    #
-    response = client.post(reverse('manager:topography-create',
-                                   kwargs=dict(surface_id=surface.id)),
-                           data={
-                               'topography_create_wizard-current_step': 'units',
-                               'units-size_x': '9000',
-                               'units-size_y': '9000',
-                               'units-unit': 'nm',
-                               'units-height_scale': 0.3,
-                               'units-detrend_mode': 'height',
-                               'units-resolution_x': 256,
-                               'units-resolution_y': 256,
-                               'units-instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
-                               'units-fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-                           }, follow=True)
-
-    assert response.status_code == 200
-    # assert reverse('manager:topography-detail', kwargs=dict(pk=1)) == response.url
-    # export_reponse_as_html(response)
-
-    assert 'form' not in response.context, "Errors:" + str(response.context['form'].errors)
+    assert response.data['name'] == 'example3.di'
+    assert response.data['channel_names'] == [['ZSensor', 'nm'], ['AmplitudeError', None], ['Phase', None],
+                                              ['Height', 'nm']]
 
     topos = surface.topography_set.all()
 
@@ -661,7 +254,7 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
 
     t = topos[0]
 
-    assert t.measurement_date == datetime.date(2018,6,21)
+    assert t.measurement_date == datetime.date(2018, 6, 21)
     assert t.description == description
     assert "example3" in t.datafile.name
     assert 256 == t.resolution_x
@@ -671,25 +264,18 @@ def test_upload_topography_for_shared_surface(client, handle_usage_statistics):
     #
     # Test little badge which shows who uploaded data
     #
-    response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=t.pk)))
+    response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=t.pk)))
     assert response.status_code == 200
+    api_client.logout()
 
-    assert_in_content(response, 'uploaded by you')
-
-    client.logout()
-    assert client.login(username=user1.username, password=password)
-    response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=t.pk)))
+    assert api_client.login(username=user1.username, password=password)
+    response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=t.pk)))
     assert response.status_code == 200
-
-    assert_in_content(response, 'uploaded by {}'.format(user2.name))
-    client.logout()
+    api_client.logout()
 
     #
     # There should be a notification of the user
     #
-    exp_mesg = f"User '{user2.name}' has created the topography '{t.name}' "+\
-                                    f"in surface '{t.surface.name}'."
-
+    exp_mesg = f"User '{user2}' uploaded the measurement '{t.name}' to digital surface twin '{t.surface.name}'."
     assert Notification.objects.filter(unread=True, recipient=user1, verb='create',
                                        description__contains=exp_mesg).count() == 1
-

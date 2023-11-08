@@ -12,6 +12,7 @@ from topobank.manager.tests.utils import two_topos, Topography1DFactory  # neede
 from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory, SurfaceCollectionFactory, UserFactory
 
 from ..models import Analysis, AnalysisFunction
+from ..tasks import current_configuration
 from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceCollectionAnalysisFactory
 
 from ..registry import ImplementationMissingAnalysisFunctionException, AnalysisFunctionImplementation, \
@@ -51,7 +52,7 @@ def test_default_users_for_surface_analysis():
     u1 = UserFactory(name='Alice')
     u2 = UserFactory(name='Bob')
     surf = SurfaceFactory(creator=u1)
-    surf.share(u2)
+    surf.set_permissions(u2, 'view')
     func = AnalysisFunction.objects.get(name="test")
     analysis = SurfaceAnalysisFactory(subject_surface=surf, function=func)
     assert sorted(analysis.get_default_users(), key=operator.attrgetter('name')) == [u1, u2]
@@ -64,8 +65,8 @@ def test_default_users_for_surfacecollection_analysis():
     u3 = UserFactory(name='Kim')
     surf1 = SurfaceFactory(creator=u1)
     surf2 = SurfaceFactory(creator=u2)
-    surf1.share(u3)
-    surf2.share(u3)
+    surf1.set_permissions(u3, 'view')
+    surf2.set_permissions(u3, 'view')
     # Only Kim is allowed to see both surfaces
     sc = SurfaceCollectionFactory(surfaces=[surf1, surf2])
     func = AnalysisFunction.objects.get(name="test")
@@ -179,8 +180,6 @@ def test_current_configuration(settings):
         ('topobank', 'topobank.__version__'),
         ('numpy', 'numpy.version.full_version')
     ]
-
-    from topobank.taskapp.tasks import current_configuration
 
     config = current_configuration()
 

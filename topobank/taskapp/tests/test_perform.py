@@ -1,6 +1,6 @@
 import pytest
 
-from ..tasks import perform_analysis, current_configuration
+from topobank.analysis.tasks import perform_analysis, current_configuration
 
 from topobank.analysis.models import Analysis
 from topobank.manager.models import Topography

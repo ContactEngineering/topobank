@@ -6,14 +6,15 @@ from django.shortcuts import reverse
 
 from guardian.shortcuts import get_anonymous_user
 
-from ...manager.utils import subjects_to_base64
 from ...manager.models import Surface, Topography
 from .utils import two_topos, two_users
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('is_authenticated', [True, False])
-def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle_usage_statistics):
+@pytest.mark.parametrize('is_authenticated,with_children', [[True, False],
+                                                            [False, False],
+                                                            [True, True]])
+def test_surface_retrieve_routes(api_client, is_authenticated, with_children, two_topos, handle_usage_statistics):
     topo1, topo2 = two_topos
     user = topo1.creator
     assert topo2.creator == user
@@ -31,6 +32,9 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
                      'creator': f'http://testserver/users/api/user/{user.id}/',
                      'description': '',
                      'name': 'Surface 1',
+                     'id': surface1.id,
+                     'tags': [],
+                     'publication': None,
                      'url': f'http://testserver/manager/api/surface/{surface1.id}/',
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
@@ -57,11 +61,27 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
                                          'surface': f'http://testserver/manager/api/surface/{surface1.id}/',
                                          'unit': 'µm',
                                          'unit_editable': False,
-                                         'url': f'http://testserver/manager/api/topography/{topo1.id}/'}]}
+                                         'url': f'http://testserver/manager/api/topography/{topo1.id}/',
+                                         'duration': None,
+                                         'error': None,
+                                         'id': topo1.id,
+                                         'post_data': None,
+                                         'squeezed_datafile': None,
+                                         'tags': [],
+                                         'task_progress': 0.0,
+                                         'task_state': 'no',
+                                         'thumbnail': None,
+                                         'channel_names': [],
+                                         'data_source': 0,
+                                         'is_metadata_complete': True
+                                         }]}
     surface2_dict = {'category': None,
                      'creator': f'http://testserver/users/api/user/{user.id}/',
                      'description': '',
                      'name': 'Surface 2',
+                     'id': surface2.id,
+                     'tags': [],
+                     'publication': None,
                      'url': f'http://testserver/manager/api/surface/{surface2.id}/',
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
@@ -88,7 +108,24 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
                                          'surface': f'http://testserver/manager/api/surface/{surface2.id}/',
                                          'unit': 'µm',
                                          'unit_editable': False,
-                                         'url': f'http://testserver/manager/api/topography/{topo2.id}/'}]}
+                                         'url': f'http://testserver/manager/api/topography/{topo2.id}/',
+                                         'duration': None,
+                                         'error': None,
+                                         'id': topo2.id,
+                                         'post_data': None,
+                                         'squeezed_datafile': None,
+                                         'tags': [],
+                                         'task_progress': 0.0,
+                                         'task_state': 'no',
+                                         'thumbnail': None,
+                                         'channel_names': [],
+                                         'data_source': 0,
+                                         'is_metadata_complete': True
+                                         }]}
+
+    if not with_children:
+        del surface1_dict['topography_set']
+        del surface2_dict['topography_set']
 
     if is_authenticated:
         api_client.force_authenticate(user)
@@ -96,19 +133,31 @@ def test_surface_retrieve_routes(api_client, is_authenticated, two_topos, handle
     response = api_client.get(reverse('manager:surface-api-list'))
     assert response.status_code == 405
 
-    response = api_client.get(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)))
+    url = reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id))
+    if with_children:
+        url += '?children=yes'
+    response = api_client.get(url)
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
+        if 'topography_set' in data:
+            for t in data['topography_set']:
+                del t['datafile']  # datafile has an S3 hash which is difficult to mock
         assert data == surface1_dict
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
 
-    response = api_client.get(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)))
+    url = reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id))
+    if with_children:
+        url += '?children=yes'
+    response = api_client.get(url)
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
+        if 'topography_set' in data:
+            for t in data['topography_set']:
+                del t['datafile']  # datafile has an S3 hash which is difficult to mock
         assert data == surface2_dict
     else:
         # Anonymous user does not have access by default
@@ -151,7 +200,20 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
                   'surface': f'http://testserver/manager/api/surface/{topo1.surface.id}/',
                   'unit': 'µm',
                   'unit_editable': False,
-                  'url': f'http://testserver/manager/api/topography/{topo1.id}/'}
+                  'url': f'http://testserver/manager/api/topography/{topo1.id}/',
+                  'tags': [],
+                  'task_progress': 0.0,
+                  'task_state': 'pe',
+                  'thumbnail': None,
+                  'squeezed_datafile': None,
+                  'post_data': None,
+                  'is_metadata_complete': True,
+                  'id': topo1.id,
+                  'error': None,
+                  'duration': None,
+                  'data_source': 0,
+                  'channel_names': [],
+                  }
     topo2_dict = {'bandwidth_lower': None,
                   'bandwidth_upper': None,
                   'creator': f'http://testserver/users/api/user/{user.id}/',
@@ -177,7 +239,20 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
                   'surface': f'http://testserver/manager/api/surface/{topo2.surface.id}/',
                   'unit': 'µm',
                   'unit_editable': False,
-                  'url': f'http://testserver/manager/api/topography/{topo2.id}/'}
+                  'url': f'http://testserver/manager/api/topography/{topo2.id}/',
+                  'tags': [],
+                  'task_progress': 0.0,
+                  'task_state': 'pe',
+                  'thumbnail': None,
+                  'squeezed_datafile': None,
+                  'post_data': None,
+                  'is_metadata_complete': True,
+                  'id': topo2.id,
+                  'error': None,
+                  'duration': None,
+                  'data_source': 0,
+                  'channel_names': [],
+                  }
 
     if is_authenticated:
         api_client.force_authenticate(user)
@@ -189,6 +264,7 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
+        del data['datafile']  # datafile has an S3 hash which is difficult to mock
         assert data == topo1_dict
     else:
         # Anonymous user does not have access by default
@@ -198,6 +274,7 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
+        del data['datafile']  # datafile has an S3 hash which is difficult to mock
         assert data == topo2_dict
     else:
         # Anonymous user does not have access by default
@@ -229,7 +306,9 @@ def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
     assert s.creator.name == user1.name
 
 
-@pytest.mark.django_db
+from topobank.analysis.models import Analysis, AnalysisSubject
+
+@pytest.mark.django_db(transaction=True)
 def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     user1, user2 = two_users
     topo1, topo2, topo3 = Topography.objects.all()
@@ -239,56 +318,55 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     surface3 = topo3.surface
 
     # Delete as anonymous user should fail
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)),
-                                 format='json')
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)))
     assert response.status_code == 403
 
     assert Surface.objects.count() == 3
 
     # Delete as user should succeed
     api_client.force_authenticate(user)
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)),
-                                 format='json')
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)))
     assert response.status_code == 204  # Success, no content
 
     assert Surface.objects.count() == 2
 
     # Delete of a surface of another user should fail
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)),
-                                 format='json')
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)))
     assert response.status_code == 404  # The user cannot see the surface, hence 404
 
     assert Surface.objects.count() == 2
 
     # Delete of a surface of another user should fail, even if shared
-    surface2.share(user1, allow_change=False)
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)),
-                                 format='json')
+    surface2.set_permissions(user1, 'view')
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)))
     assert response.status_code == 403  # The user can see the surface but not delete it, hence 403
 
     assert Surface.objects.count() == 2
 
-    # Delete of a surface of another user should faile even if shared with write permission
-    surface2.share(user1, allow_change=True)
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)),
-                                 format='json')
+    # Delete of a surface of another user should fail even if shared with write permission
+    surface2.set_permissions(user1, 'edit')
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)))
     assert response.status_code == 403  # The user can see the surface but not delete it, hence 403
     assert Surface.objects.count() == 2
 
     # Delete of a published surface should always fail
     pub = surface3.publish('cc0', 'Bob')
     assert Surface.objects.count() == 3
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)),
-                                 format='json')
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)))
     assert response.status_code == 403
     assert Surface.objects.count() == 3
 
     # Delete of a published surface should even fail for the owner
     api_client.force_authenticate(pub.surface.creator)
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)),
-                                 format='json')
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)))
     assert response.status_code == 403
     assert Surface.objects.count() == 3
+
+    # Delete of a surface of another user is possible with full access
+    surface2.set_permissions(user1, 'full')
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)))
+    assert response.status_code == 204  # The user can see the surface but not delete it, hence 403
+    assert Surface.objects.count() == 2
 
 
 @pytest.mark.django_db
@@ -380,19 +458,17 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     assert Topography.objects.count() == 3
 
     # Patch of a topography of another user should fail, even if shared
-    topo2.surface.share(user1, allow_change=False)
+    topo2.surface.set_permissions(user1, 'view')
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo2.id)),
-                                data={'name': new_name},
-                                format='json')
+                                {'name': new_name})
     assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
 
     assert Topography.objects.count() == 3
 
     # Patch of a surface of another user should succeed if shared with write permission
-    topo2.surface.share(user1, allow_change=True)
+    topo2.surface.set_permissions(user1, 'edit')
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo2.id)),
-                                data={'name': new_name},
-                                format='json')
+                                {'name': new_name})
     assert response.status_code == 200  # Success, no content
     assert Topography.objects.count() == 3
     topo1, topo2, topo3 = Topography.objects.all()
@@ -405,15 +481,13 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     topo_pub, = pub.surface.topography_set.all()
     assert Topography.objects.count() == 4
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pub.id)),
-                                data={'name': new_name},
-                                format='json')
+                                {'name': new_name})
     assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
     assert Surface.objects.count() == 4
 
     # Delete of a published surface should even fail for the owner
     api_client.force_authenticate(pub.surface.creator)
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pub.id)),
-                                data={'name': new_name},
-                                format='json')
+                                {'name': new_name})
     assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
     assert Surface.objects.count() == 4

@@ -2,13 +2,14 @@ import pytest
 import datetime
 import zipfile
 
+import django.db.models.deletion
 from django.conf import settings
 from django.shortcuts import reverse
 from guardian.shortcuts import get_perms
 
-from .utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
-from ..forms import SurfacePublishForm
-from ..views import SurfaceDetailView
+from topobank.manager.tests.utils import SurfaceFactory, UserFactory, Topography2DFactory, TagModelFactory
+from topobank.publication.forms import SurfacePublishForm
+from topobank.publication.models import Publication
 from topobank.utils import assert_in_content, assert_not_in_content
 from topobank.manager.models import Surface, NewPublicationTooFastException, PublicationsDisabledException, \
     PublicationException
@@ -66,24 +67,6 @@ def test_failing_publication(settings):
         surface.publish('cc0-1.0', [bob])
     # Check that the copy of the surface was properly deleted again
     assert len(Surface.objects.all()) == nb_surfaces
-
-@pytest.mark.parametrize("should_be_visible", [True, False])
-@pytest.mark.django_db
-def test_availability_publication_button(settings, rf, should_be_visible, handle_usage_statistics):
-    settings.PUBLICATION_ENABLED = should_be_visible
-    surface = SurfaceFactory()
-
-    request = rf.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
-    request.user = surface.creator
-    request.session = {}
-
-    response = SurfaceDetailView.as_view()(request, pk=surface.pk)
-    response.render()
-
-    if should_be_visible:
-        assert_in_content(response, 'Publish')
-    else:
-        assert_not_in_content(response, 'Publish')
 
 
 @pytest.mark.django_db
@@ -218,92 +201,6 @@ def test_surface_deepcopy():
         assert t1.instrument_parameters == t2.instrument_parameters
 
 
-@pytest.mark.django_db
-def test_switch_versions_on_properties_tab(client, settings, handle_usage_statistics):
-    settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
-
-    user = UserFactory()
-    surface = SurfaceFactory(creator=user)
-    topo1 = Topography2DFactory(surface=surface)
-    topo2 = Topography2DFactory(surface=surface)
-
-    #
-    # First: The surface is not published yet
-    #
-    client.force_login(user)
-
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
-
-    assert response.status_code == 200
-    assert_not_in_content(response, 'Version 1')
-    assert_not_in_content(response, 'Version 2')
-
-    #
-    # Now publish the first time
-    #
-    publication = surface.publish('cc0-1.0', 'Alice')
-    assert publication.version == 1
-    assert publication.license == 'cc0-1.0'
-    assert publication.original_surface == surface
-    pub_date_1 = publication.datetime.date()
-
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
-
-    assert response.status_code == 200
-    assert_in_content(response, 'Version 1 ({})'.format(pub_date_1))
-    assert_not_in_content(response, 'Version 2')
-
-    #
-    # Publish again
-    #
-    publication = surface.publish('cc0-1.0', 'Alice')
-    assert publication.version == 2
-    assert publication.original_surface == surface
-    pub_date_2 = publication.datetime.date()
-
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
-
-    assert response.status_code == 200
-    assert_in_content(response, 'Version 1 ({})'.format(pub_date_1))
-    assert_in_content(response, 'Version 2 ({})'.format(pub_date_2))
-
-
-@pytest.mark.django_db
-def test_notification_saying_new_version_exists(client, settings, handle_usage_statistics, example_authors):
-    settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = None
-
-    user = UserFactory()
-    surface = SurfaceFactory(creator=user)
-    topo1 = Topography2DFactory(surface=surface)
-    topo2 = Topography2DFactory(surface=surface)
-
-    client.force_login(user)
-
-    #
-    # Now publish two times
-    #
-    pub1 = surface.publish('cc0-1.0', example_authors)
-    pub2 = surface.publish('cc0-1.0', example_authors)
-
-    #
-    # When showing page for "Work in Progress" surface, there should be a hint there are publications
-    #
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
-    assert_in_content(response, "Published versions available")
-
-    #
-    # When showing page for first publication, there should be a hint there's a newer version
-    #
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=pub1.surface.pk)))
-    assert_in_content(response, "Newer version available")
-
-    #
-    # When showing page for second publication, there shouldn't be such a notice
-    #
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=pub2.surface.pk)))
-    assert_not_in_content(response, "Newer version available")
-
-
 @pytest.mark.parametrize("license", settings.CC_LICENSE_INFOS.keys())
 @pytest.mark.django_db
 def test_license_in_surface_download(client, license, handle_usage_statistics, example_authors):
@@ -336,29 +233,6 @@ def test_license_in_surface_download(client, license, handle_usage_statistics, e
             license_txt = license_bytes.decode('utf-8')
             # title of license should be in the text
             assert settings.CC_LICENSE_INFOS[license]['title'] in license_txt
-
-
-@pytest.mark.django_db
-def test_dont_show_published_surfaces_on_sharing_info(client, example_authors):
-    alice = UserFactory()
-    bob = UserFactory()
-    surface1 = SurfaceFactory(creator=alice, name="Shared Surface")
-    surface1.share(bob)
-    surface2 = SurfaceFactory(creator=alice, name="Published Surface")
-    surface2.publish('cc0-1.0', example_authors)
-
-    #
-    # Login as Bob, surface 1 should be listed on sharing info page
-    # and same for alice
-    #
-    for user in [alice, bob]:
-        client.force_login(user)
-
-        response = client.get(reverse('manager:sharing-info'))
-        assert_in_content(response, "Shared Surface")
-        assert_not_in_content(response, "Published Surface")
-
-        client.logout()
 
 
 @pytest.mark.django_db
@@ -472,24 +346,16 @@ def test_publishing_wrong_license(example_authors):
 
 
 @pytest.mark.django_db
-def test_show_license_and_affiliations_when_viewing_published_surface(rf, settings, example_authors):
-    license = 'cc0-1.0'
+def test_publication_original_cannot_be_deleted(example_authors):
+    user = UserFactory(name="Tom")
+    surface = SurfaceFactory(creator=user)
+    surface.publish('cc0-1.0', example_authors)
 
-    surface = SurfaceFactory()
-    pub = surface.publish(license, example_authors)
+    assert Surface.objects.filter(id=surface.id).count() == 1
+    assert Publication.objects.filter(original_surface=surface.id).count() == 1
 
-    request = rf.get(reverse('manager:surface-detail', kwargs=dict(pk=pub.surface.pk)))
-    request.user = surface.creator
-    request.session = {}
+    with pytest.raises(django.db.models.deletion.ProtectedError):
+        surface.delete()
 
-    response = SurfaceDetailView.as_view()(request, pk=pub.surface.pk)
-    response.render()
-
-    license_info = settings.CC_LICENSE_INFOS[license]
-
-    assert_in_content(response, license_info['title'])
-    assert_in_content(response, license_info['description_url'])
-    assert_in_content(response, license_info['legal_code_url'])
-    assert_in_content(response, "Authors")
-    assert_in_content(response, request.user.first_name)
-    assert_in_content(response, request.user.last_name)
+    assert Surface.objects.filter(id=surface.id).count() == 1
+    assert Publication.objects.filter(original_surface=surface.id).count() == 1

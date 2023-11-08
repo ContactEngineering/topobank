@@ -1,40 +1,17 @@
-import datetime
 import logging
 import os.path
-import traceback
 from io import BytesIO
 
-import dateutil.parser
-import django_tables2 as tables
-import numpy as np
-from bokeh.embed import components
-from bokeh.models import TapTool, OpenURL
-from bokeh.plotting import figure, ColumnDataSource
-
-from django.conf import settings
-from django.contrib.auth.mixins import UserPassesTestMixin
 from django.core.exceptions import PermissionDenied
-from django.core.files import File
-from django.core.files.storage import FileSystemStorage
 from django.core.files.storage import default_storage
 from django.db.models import Q
-from django.db import transaction
-from django.http import HttpResponse, Http404
-from django.shortcuts import redirect, render
-from django.urls import reverse, reverse_lazy
-from django.utils.decorators import method_decorator
-from django.utils.safestring import mark_safe
-from django.views.generic import DetailView, UpdateView, CreateView, DeleteView, TemplateView, ListView, FormView
-from django.views.generic.edit import FormMixin
-from django_tables2 import RequestConfig
-from django.contrib.staticfiles.storage import staticfiles_storage
-from django.contrib import messages
+from django.http import HttpResponse, Http404, HttpResponseForbidden
+from django.shortcuts import redirect
+from django.urls import reverse
 from django.utils.text import slugify
+from django.views.generic import TemplateView
 
-from guardian.decorators import permission_required_or_403
-from guardian.shortcuts import get_users_with_perms, get_objects_for_user
-from formtools.wizard.views import SessionWizardView
-from notifications.signals import notify
+from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
 
 from rest_framework import generics, mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -42,25 +19,21 @@ from rest_framework.pagination import PageNumberPagination
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.utils.urls import remove_query_param, replace_query_param
+
+from notifications.signals import notify
 from trackstats.models import Metric, Period
 
-from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
-
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
+from ..taskapp.utils import run_task
 from ..users.models import User
-from ..publication.models import Publication, MAX_LEN_AUTHORS_FIELD
-from .containers import write_surface_container
 
-from .forms import TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm
-from .forms import TopographyForm, SurfaceForm, SurfaceShareForm, SurfacePublishForm
-from .models import Topography, Surface, TagModel, NewPublicationTooFastException, LoadTopographyException, \
-    PlotTopographyException, PublicationException, _upload_path_for_datafile
+from .containers import write_surface_container
+from .models import Topography, Surface, TagModel, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
 from .serializers import SurfaceSerializer, TopographySerializer, TagSearchSerizalizer, SurfaceSearchSerializer
-from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
-    mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
+from .utils import selected_instances, tags_for_user, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    get_permission_table_data, subjects_to_base64
+    get_upload_post_request, api_to_guardian
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -87,675 +60,47 @@ DEFAULT_SELECT_TAB_STATE = {
     # and the page is loaded the first time
 }
 
-MEASUREMENT_TIME_INFO_FIELD = 'acquisition_time'
-
 DEFAULT_CONTAINER_FILENAME = "digital_surface_twin.zip"
 
 _log = logging.getLogger(__name__)
 
-surface_view_permission_required = method_decorator(
-    permission_required_or_403('manager.view_surface', ('manager.Surface', 'pk', 'pk'))
-    # translates to:
-    #
-    # In order to access, a specific permission is required. This permission
-    # is 'view_surface' for a specific surface. Which surface? This is calculated
-    # from view argument 'pk' (the last element in tuple), which is used to get a
-    # 'manager.Surface' instance (first element in tuple) with field 'pk' with same value as
-    # last element in tuple (the view argument 'pk').
-    #
-    # Or in pseudocode:
-    #
-    #  s = Surface.objects.get(pk=view.kwargs['pk'])
-    #  assert request.user.has_perm('view_surface', s)
-)
 
-surface_update_permission_required = method_decorator(
-    permission_required_or_403('manager.change_surface', ('manager.Surface', 'pk', 'pk'))
-)
-
-surface_delete_permission_required = method_decorator(
-    permission_required_or_403('manager.delete_surface', ('manager.Surface', 'pk', 'pk'))
-)
-
-surface_share_permission_required = method_decorator(
-    permission_required_or_403('manager.share_surface', ('manager.Surface', 'pk', 'pk'))
-)
-
-surface_publish_permission_required = method_decorator(
-    permission_required_or_403('manager.publish_surface', ('manager.Surface', 'pk', 'pk'))
-)
-
-
-class TopographyPermissionMixin(UserPassesTestMixin):
-    redirect_field_name = None
-
-    def has_surface_permissions(self, perms):
-        if 'pk' not in self.kwargs:
-            return True
-
-        try:
-            topo = Topography.objects.get(pk=self.kwargs['pk'])
-        except Topography.DoesNotExist:
-            raise Http404()
-
-        return all(self.request.user.has_perm(perm, topo.surface)
-                   for perm in perms)
-
-    def test_func(self):
-        return NotImplementedError()
-
-
-class TopographyViewPermissionMixin(TopographyPermissionMixin):
-    def test_func(self):
-        return self.has_surface_permissions(['view_surface'])
-
-
-class TopographyUpdatePermissionMixin(TopographyPermissionMixin):
-    def test_func(self):
-        return self.has_surface_permissions(['view_surface', 'change_surface'])
-
-
-class ORCIDUserRequiredMixin(UserPassesTestMixin):
-    def test_func(self):
-        return not self.request.user.is_anonymous
-
-
-#
-# Using a wizard because we need intermediate calculations
-#
-# There are 3 forms, used in 3 steps (0,1, then 2):
-#
-# 0: loading of the topography file
-# 1: choosing the data source, add measurement date and a description
-# 2: adding physical size and units (for data which is not available in the file, for 1D or 2D)
-#
-# Maybe an alternative would be to use AJAX calls as described here (under "GET"):
-#
-#  https://sixfeetup.com/blog/making-your-django-templates-ajax-y
-#
-class TopographyCreateWizard(ORCIDUserRequiredMixin, SessionWizardView):
-    form_list = [TopographyFileUploadForm, TopographyMetaDataForm, TopographyWizardUnitsForm]
-    template_name = 'manager/topography_wizard.html'
-    file_storage = FileSystemStorage(location=os.path.join(settings.MEDIA_ROOT, 'topographies/wizard'))
-
-    def get_form_initial(self, step):
-
-        initial = {}
-
-        if step in ['upload']:
-            #
-            # Pass surface in order to
-            # - have it later in done() method (for upload)
-            #
-            # make sure that the surface exists and belongs to the current user
-            try:
-                surface = Surface.objects.get(id=int(self.kwargs['surface_id']))
-            except Surface.DoesNotExist:
-                raise PermissionDenied()
-            if not self.request.user.has_perm('change_surface', surface):
-                raise PermissionDenied()
-
-            initial['surface'] = surface
-
-        if step in ['metadata', 'units']:
-            # provide datafile attribute from first step
-            step0_data = self.get_cleaned_data_for_step('upload')
-            datafile = step0_data['datafile']
-            channel_infos = step0_data['channel_infos']
-
-        if step == 'metadata':
-            initial['name'] = os.path.basename(datafile.name)  # the original file name
-            # Use the latest data available on all channels as initial measurement date, if any - see GH #433
-            measurement_dates = []
-            for ch in channel_infos:
-                try:
-                    measurement_time = ch.info[MEASUREMENT_TIME_INFO_FIELD]
-                    if not isinstance(measurement_time, datetime.date):
-                        try:
-                            measurement_time = measurement_time.date()
-                        except AttributeError:
-                            measurement_time = dateutil.parser.parse(measurement_time).date()
-                    measurement_dates.append(measurement_time)  # timezone is not known and not taken into account
-                except KeyError:
-                    # measurement time not available in channel
-                    pass
-                except ValueError as exc:
-                    _log.info(f'Found measurement timestamp in file {datafile.name}, but could not parse: {exc}')
-
-            initial['measurement_date'] = max(measurement_dates, default=None)
-
-        if step in ['units']:
-
-            step1_data = self.get_cleaned_data_for_step('metadata') or {'data_source': 0}
-            # in case the form doesn't validate, the first data source is chosen, workaround for GH 691
-
-            channel = int(step1_data['data_source'])
-            channel_info = channel_infos[channel]
-
-            #
-            # Set initial size
-            #
-
-            has_2_dim = channel_info.dim == 2
-            physical_sizes = channel_info.physical_sizes
-            physical_sizes_is_None = (physical_sizes is None) or (physical_sizes == (None,)) \
-                                     or (physical_sizes == (None, None))
-            # workaround for GH 299 in PyCo and GH 446 in TopoBank
-
-            if physical_sizes_is_None:
-                initial_size_x, initial_size_y = None, None
-                # both database fields are always set, also for 1D topographies
-            elif has_2_dim:
-                initial_size_x, initial_size_y = physical_sizes
-            else:
-                initial_size_x, = physical_sizes  # size is always a tuple
-                initial_size_y = None  # needed for database field
-
-            initial['size_x'] = initial_size_x
-            initial['size_y'] = initial_size_y
-
-            initial['size_editable'] = physical_sizes_is_None
-
-            initial['is_periodic'] = False  # so far, this is not returned by the readers
-
-            #
-            # Set unit
-            #
-            initial['unit'] = channel_info.unit
-            initial['unit_editable'] = initial['unit'] is None
-
-            #
-            # Set initial height scale factor
-            #
-            height_scale_factor_missing = channel_info.height_scale_factor is None  # missing in file
-            initial['height_scale_editable'] = height_scale_factor_missing
-            initial['height_scale'] = 1 if height_scale_factor_missing else channel_info.height_scale_factor
-
-            #
-            # Set initial undefined data; note that we do not know at this point if there is undefined data since
-            # the file has never been read fully. We here only read headers; the file is only fully read in Celery
-            # tasks. This is to limit memory usage of the main Django server.
-            #
-            initial['fill_undefined_data_mode'] = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
-
-            #
-            # Set initial detrend mode
-            #
-            initial['detrend_mode'] = 'center'
-
-            #
-            # Set resolution (only for having the data later in the done method)
-            #
-            # TODO Can this be passed to done() differently? Creating the reader again later e.g.?
-            #
-            if has_2_dim:
-                initial['resolution_x'], initial['resolution_y'] = channel_info.nb_grid_pts
-            else:
-                initial['resolution_x'], = channel_info.nb_grid_pts
-                initial['resolution_y'] = None
-
-        return initial
-
-    def get_form_kwargs(self, step=None):
-
-        kwargs = super().get_form_kwargs(step)
-
-        if step in ['metadata', 'units']:
-            # provide datafile attribute and reader from first step
-            step0_data = self.get_cleaned_data_for_step('upload')
-            channel_infos = step0_data['channel_infos']
-
-        if step == 'metadata':
-
-            def clean_channel_name(s):
-                """Restrict data shown in the dropdown for the channel name.
-                :param s: channel name as found in the file
-                :return: string without NULL characters, 100 chars maximum
-                """
-                if s is None:
-                    return "(unknown)"
-                return s.strip('\0')[:100]
-
-            #
-            # Set data source choices based on file contents
-            #
-            kwargs['data_source_choices'] = [(k, clean_channel_name(channel_info.name)) for k, channel_info in
-                                             enumerate(channel_infos)]
-
-            #
-            # Set surface in order to check for duplicate topography names
-            #
-            kwargs['surface'] = step0_data['surface']
-            kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
-
-        if step in ['units']:
-            step1_data = self.get_cleaned_data_for_step('metadata') or {'data_source': 0}
-            # in case the form doesn't validate, the first data source is chosen, workaround for GH 691
-            # TODO: why can this happen? handle differently?
-
-            channel = int(step1_data['data_source'])
-            channel_info = channel_infos[channel]
-
-            has_2_dim = channel_info.dim == 2
-            no_sizes_given = channel_info.physical_sizes is None
-
-            # only allow periodic topographies in case of 2 dimension
-            kwargs['allow_periodic'] = has_2_dim and no_sizes_given  # TODO simplify in 'no_sizes_given'?
-            kwargs['has_size_y'] = has_2_dim  # TODO find common term, now we have 'has_size_y' and 'has_2_dim'
-            kwargs['has_undefined_data'] = channel_info.has_undefined_data
-
-        return kwargs
-
-    def get_context_data(self, form, **kwargs):
-        context = super().get_context_data(form, **kwargs)
-        surface = Surface.objects.get(id=int(self.kwargs['surface_id']))
-        context['surface'] = surface
-
-        redirect_in_get = self.request.GET.get("redirect")
-        redirect_in_post = self.request.POST.get("redirect")
-
-        if redirect_in_get:
-            context.update({'cancel_action': redirect_in_get})
-        elif redirect_in_post:
-            context.update({'cancel_action': redirect_in_post})
-
-        #
-        # We want to display information about readers directly on upload page
-        #
-        if self.steps.current == "upload":
-            context['reader_infos'] = get_reader_infos()
-
-        #
-        # Add context needed for tabs
-        #
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Add topography",
-                'icon': "plus-square",
-                'icon_style_prefix': 'far',
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Adding a topography to surface '{surface.label}'"
-            }
-        ]
-
-        return context
-
-    def done(self, form_list, **kwargs):
-        """Finally use the form data when after finishing the wizard.
-
-        :param form_list: list of forms
-        :param kwargs:
-        :return: HTTPResponse
-        """
-        #
-        # collect all data from forms
-        #
-        d = dict((k, v) for form in form_list for k, v in form.cleaned_data.items())
-
-        #
-        # Check whether given surface can be altered by this user
-        #
-        surface = d['surface']
-        if not self.request.user.has_perm('change_surface', surface):
-            raise PermissionDenied()
-
-        #
-        # Set the topography's creator to the current user uploading the file
-        #
-        d['creator'] = self.request.user
-
-        #
-        # Remove helper data
-        #
-        del d['channel_infos']
-        del d['resolution_value']
-        del d['resolution_unit']
-        del d['tip_radius_value']
-        del d['tip_radius_unit']
-
-        datafile = d['datafile']
-        del d['datafile']
-
-        #
-        # create topography in database
-        #
-        instance = Topography(**d)
-        instance.save()
-        # we save once so the member variables like "data_source"
-        # have the correct type for the next step, and we get an id
-        # for constructing the file path
-
-        #
-        # move file to the permanent storage (wizard's files will be deleted)
-        #
-        new_path = _upload_path_for_datafile(instance, os.path.basename(datafile.name))
-        with datafile.open(mode='rb') as f:
-            instance.datafile = default_storage.save(new_path, File(f))
-        instance.save()
-
-        #
-        # Notify other others with access to the topography
-        #
-        topo = Topography.objects.get(id=instance.id)
-        other_users = get_users_with_perms(topo.surface).filter(~Q(id=self.request.user.id))
-        for u in other_users:
-            notify.send(sender=self.request.user, verb='create', target=topo, recipient=u,
-                        description=f"User '{self.request.user.name}' has created the topography '{topo.name}' " + \
-                                    f"in surface '{topo.surface.name}'.",
-                        href=reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)))
-
-        #
-        # The topography could be correctly loaded and we show a page with details
-        #
-        return redirect('manager:topography-detail', pk=topo.pk)
-
-
-class CorruptedTopographyView(TemplateView):
-    template_name = "manager/topography_corrupted.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        surface = Surface.objects.get(id=kwargs['surface_id'])
-        context['surface'] = surface
-        #
-        # Add context needed for tabs
-        #
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Corrupted File",
-                'icon': "flash",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Failure while uploading a new file"
-            }
-        ]
-        return context
-
-
-class TopographyUpdateView(TopographyUpdatePermissionMixin, UpdateView):
-    model = Topography
-    form_class = TopographyForm
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-
-        topo = self.object
-
-        kwargs['has_size_y'] = topo.size_y is not None
-        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
-
-        toporeader = get_topography_reader(topo.datafile, format=topo.datafile_format)
-
-        channel_info = toporeader.channels[topo.data_source]
-        has_2_dim = channel_info.dim == 2
-        no_sizes_given = channel_info.physical_sizes is None
-
-        kwargs['allow_periodic'] = has_2_dim and no_sizes_given
-        kwargs['has_undefined_data'] = topo.has_undefined_data
-        return kwargs
-
-    def form_valid(self, form):
-
-        topo = self.object
-        user = self.request.user
-        notification_msg = f"User {user} changed topography '{topo.name}'. Changed fields: {','.join(form.changed_data)}."
-
-        #
-        # If a significant field changes, renew squeezed datafile, all analyses, and also thumbnail
-        #
-        # changed_dict = topo.tracker.changed()  # key: field name, value: previous field value
-        changed_fields = form.changed_data
-
-        _log.debug("These fields have been changed according to form: %s", changed_fields)
-
-        significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale',
-                              'fill_undefined_data_mode', 'detrend_mode', 'datafile', 'data_source',
-                              'instrument_type',  # , 'instrument_parameters'
-                              # 'tip_radius_value', 'tip_radius_unit',
-                              }
-        significant_fields_with_changes = set(changed_fields).intersection(significant_fields)
-
-        instrument_fields = set(['instrument_type', 'instrument_parameters'])
-
-        # check instrument_parameters manually, since this is not detected properly
-        if form.cleaned_data['instrument_parameters'] != form.initial['instrument_parameters']:
-            significant_fields_with_changes.add('instrument_parameters')
-            _log.info("Instrument parameters changed:")
-            _log.info("  before: %s", form.initial['instrument_parameters'])
-            _log.info("  after:  %s", form.cleaned_data['instrument_parameters'])
-
-        #
-        # notify other users
-        #
-        other_users = get_users_with_perms(topo.surface).filter(~Q(id=user.id))
-        for u in other_users:
-            notify.send(sender=user, verb='change', target=topo,
-                        recipient=u,
-                        description=notification_msg,
-                        href=reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)))
-
-        return super().form_valid(form)
-
-    def get_success_url(self):
-        if "save-stay" in self.request.POST:
-            return reverse('manager:topography-update', kwargs=dict(pk=self.object.pk))
-        else:
-            return reverse('manager:topography-detail', kwargs=dict(pk=self.object.pk))
+class TopographyDetailView(TemplateView):
+    template_name = "manager/topography_detail.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        topo = self.object
-        try:
-            context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
-        except Topography.DoesNotExist:
-            context['topography_next'] = topo.id
-        try:
-            context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
-        except Topography.DoesNotExist:
-            context['topography_prev'] = topo.id
+        # Get surface instance
+        topography_id = self.request.GET.get('topography')
+        if topography_id is None:
+            return context
+        topography = Topography.objects.get(id=int(topography_id))
 
         #
         # Add context needed for tabs
         #
         context['extra_tabs'] = [
             {
-                'title': f"{topo.surface.label}",
+                'title': f"{topography.surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
-                'active': False,
-                'tooltip': f"Properties of surface '{topo.surface.label}'"
-            },
-            {
-                'title': f"{topo.name}",
-                'icon': "file",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-                'active': False,
-                'tooltip': f"Properties of topography '{topo.name}'"
-            },
-            {
-                'title': f"Edit Topography",
-                'icon': "pencil",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Editing topography '{topo.name}'"
-            }
-        ]
-
-        return context
-
-
-def topography_plot(request, pk):
-    """Render an HTML snippet with topography plot"""
-    try:
-        pk = int(pk)
-        topo = Topography.objects.get(pk=pk)
-        assert request.user.has_perm('view_surface', topo.surface)
-    except (ValueError, Topography.DoesNotExist, AssertionError):
-        raise PermissionDenied()  # This should be shown independent of whether the surface exists
-
-    errors = []  # list of dicts with keys 'message' and 'link'
-    context = {}
-
-    plotted = False
-
-    try:
-        plot = topo.get_plot()
-        plotted = True
-    except LoadTopographyException as exc:
-        err_message = "Topography '{}' (id: {}) cannot be loaded unexpectedly.".format(
-            topo.name, topo.id)
-        _log.error(err_message)
-        link = mailto_link_for_reporting_an_error(f"Failure loading topography (id: {topo.id})",
-                                                  "Plotting measurement",
-                                                  err_message,
-                                                  traceback.format_exc())
-
-        errors.append(dict(message=err_message, link=link))
-    except PlotTopographyException as exc:
-        err_message = "Topography '{}' (id: {}) cannot be plotted.".format(topo.name, topo.id)
-        _log.error(err_message)
-        link = mailto_link_for_reporting_an_error(f"Failure plotting measurement (id: {topo.id})",
-                                                  "Plotting measurement",
-                                                  err_message,
-                                                  traceback.format_exc())
-
-        errors.append(dict(message=err_message, link=link))
-
-    if plotted:
-        script, div = components(plot)
-        context['image_plot_script'] = script
-        context['image_plot_div'] = div
-
-    context['errors'] = errors
-
-    return render(request, 'manager/topography_plot.html', context=context)
-
-
-class TopographyDetailView(TopographyViewPermissionMixin, DetailView):
-    model = Topography
-    context_object_name = 'topography'
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        topo = self.object
-        context['subjects_b64'] = subjects_to_base64([topo])
-
-        try:
-            context['topography_next'] = topo.get_next_by_measurement_date(surface=topo.surface).id
-        except Topography.DoesNotExist:
-            context['topography_next'] = topo.id
-        try:
-            context['topography_prev'] = topo.get_previous_by_measurement_date(surface=topo.surface).id
-        except Topography.DoesNotExist:
-            context['topography_prev'] = topo.id
-
-        fac = get_unit_conversion_factor(topo.unit, 'm')
-        # context['bandwidth_lower_meter'] = topo.bandwidth_lower / fac
-        # context['bandwidth_upper_meter'] = topo.bandwidth_upper / fac
-        if topo.short_reliability_cutoff:
-            context['short_reliability_cutoff_meter'] = topo.short_reliability_cutoff / fac
-
-        #
-        # Add context needed for tabs
-        #
-        context['extra_tabs'] = [
-            {
-                'title': f"{topo.surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={topography.surface.pk}",
                 'active': False,
                 'login_required': False,
-                'tooltip': f"Properties of surface '{topo.surface.label}'"
+                'tooltip': f"Properties of surface '{topography.surface.label}'"
             },
             {
-                'title': f"{topo.name}",
+                'title': f"{topography.name}",
                 'icon': "file",
                 'icon_style_prefix': 'far',
                 'href': self.request.path,
                 'active': True,
                 'login_required': False,
-                'tooltip': f"Properties of topography '{topo.name}'"
+                'tooltip': f"Properties of topography '{topography.name}'"
             }
         ]
 
-        return context
-
-
-class TopographyDeleteView(TopographyUpdatePermissionMixin, DeleteView):
-    model = Topography
-    context_object_name = 'topography'
-    success_url = reverse_lazy('manager:select')
-
-    def get_success_url(self):
-        user = self.request.user
-        topo = self.object
-        surface = topo.surface
-
-        link = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
-        #
-        # notify other users
-        #
-        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
-        for u in other_users:
-            notify.send(sender=user, verb="delete",
-                        recipient=u,
-                        description=f"User '{user.name}' deleted topography '{topo.name}' " + \
-                                    f"from surface '{surface.name}'.",
-                        href=link)
-
-        return link
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        topo = self.object
-        surface = topo.surface
-        context['extra_tabs'] = [
-            {
-                'title': f"{topo.surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
-                'active': False,
-                'tooltip': f"Properties of surface '{topo.surface.label}'"
-            },
-            {
-                'title': f"{topo.name}",
-                'icon': "file",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
-                'active': False,
-                'tooltip': f"Properties of topography '{topo.name}'"
-            },
-            {
-                'title': f"Delete Topography?",
-                'icon': "trash",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Conforming deletion of topography '{topo.name}'"
-            }
-        ]
         return context
 
 
@@ -813,760 +158,30 @@ class SelectView(TemplateView):
         return context
 
 
-class SurfaceCreateView(ORCIDUserRequiredMixin, CreateView):
-    model = Surface
-    form_class = SurfaceForm
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
-        return kwargs
-
-    def get_initial(self, *args, **kwargs):
-        initial = super(SurfaceCreateView, self).get_initial()
-        initial = initial.copy()
-        initial['creator'] = self.request.user
-        return initial
-
-    def get_success_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
+class SurfaceDetailView(TemplateView):
+    template_name = "manager/surface_detail.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
 
-        context['extra_tabs'] = [
-            {
-                'title': f"Create surface",
-                'icon': "plus-square",
-                'icon_style_prefix': 'far',
-                'href': self.request.path,
-                'active': True,
-                'tooltip': "Creating a new surface"
-            }
-        ]
-        return context
-
-
-class SurfaceDetailView(DetailView):
-    model = Surface
-    context_object_name = 'surface'
-
-    @surface_view_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        surface = self.object
-        context['subjects_b64'] = subjects_to_base64([surface])
-
-        #
-        # Count this event for statistics
-        #
-        increase_statistics_by_date_and_object(Metric.objects.SURFACE_VIEW_COUNT,
-                                               period=Period.DAY, obj=surface)
-
-        #
-        # bandwidth data
-        #
-        bw_data = bandwidths_data(surface.topography_set.all())
-
-        # filter out all entries with errors and display error messages
-        bw_data_with_errors = [x for x in bw_data if x['error_message'] is not None]
-        bw_data_without_errors = [x for x in bw_data if x['error_message'] is None]
-
-        context['bandwidths_data_with_errors'] = bw_data_with_errors
-
-        #
-        # Plot bandwidths with bokeh
-        #
-
-        if len(bw_data_without_errors) > 0:
-
-            bar_height = 0.95
-
-            bw_left = [bw['lower_bound'] for bw in bw_data_without_errors]
-            bw_right = [bw['upper_bound'] for bw in bw_data_without_errors]
-            bw_center = np.exp((np.log(bw_left) + np.log(bw_right)) / 2)  # we want to center on log scale
-            bw_rel_cutoff = [bw['short_reliability_cutoff'] for bw in bw_data_without_errors]
-            bw_names = [bw['topography'].name for bw in bw_data_without_errors]
-            bw_topography_links = [bw['link'] for bw in bw_data_without_errors]
-            bw_thumbnail_links = [reverse('manager:topography-thumbnail',
-                                          kwargs=dict(pk=bw['topography'].pk))
-                                  for bw in bw_data_without_errors]
-            bw_has_rel_cutoff = [u is not None for u in bw_rel_cutoff]
-
-            bw_y = list(range(0, len(bw_data_without_errors)))
-
-            bw_rel_cutoff_source = ColumnDataSource(
-                dict(
-                    y=[y for y, has_rel_cutoff in zip(bw_y, bw_has_rel_cutoff) if has_rel_cutoff],
-                    left=[left for left, has_rel_cutoff in zip(bw_left, bw_has_rel_cutoff) if has_rel_cutoff],
-                    right=[right for right, has_rel_cutoff in zip(bw_rel_cutoff, bw_has_rel_cutoff) if has_rel_cutoff],
-                    name=[name for name, has_rel_cutoff in zip(bw_names, bw_has_rel_cutoff) if has_rel_cutoff]
-                )
-            )
-            bw_source = ColumnDataSource(
-                dict(
-                    y=bw_y, left=bw_left, right=bw_right, center=bw_center,
-                    name=bw_names,
-                    topography_link=bw_topography_links,
-                    thumbnail_link=bw_thumbnail_links
-                )
-            )
-
-            x_range = (min(bw_left), max(bw_right))
-
-            TOOL_TIPS = """
-            <div class="bandwidth-hover-box">
-                <img src="@thumbnail_link" height="80" width="80" alt="Thumbnail is missing, sorry">
-                <span>@name</span>
-            </div>
-            """
-
-            plot = figure(x_range=x_range,
-                          x_axis_label="Bandwidth",
-                          x_axis_type="log",
-                          sizing_mode='stretch_width',
-                          tools=["tap", "hover"],
-                          toolbar_location=None,
-                          tooltips=TOOL_TIPS)
-
-            unrel_hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#dc3545',
-                                            name='bandwidths', legend_label="Unreliable bandwidth",
-                                            source=bw_rel_cutoff_source)
-            unrel_hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
-
-            hbar_renderer = plot.hbar(y="y", left="left", right="right", height=bar_height, color='#2c90d9',
-                                      name='bandwidths', legend_label="Reliable bandwidth", source=bw_source,
-                                      level="underlay")
-            hbar_renderer.nonselection_glyph = None  # makes glyph invariant on selection
-
-            plot.hover.renderers = [hbar_renderer]
-            plot.yaxis.visible = False
-            plot.grid.visible = False
-            plot.outline_line_color = None
-            plot.legend.location = "top_left"
-            plot.legend.title = "Measurement artifacts"
-            plot.legend.title_text_font_style = "bold"
-            plot.legend.background_fill_color = "#f0f0f0"
-            plot.legend.border_line_width = 3
-            plot.legend.border_line_cap = "round"
-
-            # make that 1 single topography does not look like a block
-            if len(bw_data_without_errors) == 1:
-                plot.y_range.end = bar_height * 1.5
-
-            # make clicking a bar going opening a new page
-            taptool = plot.select(type=TapTool)
-            taptool.callback = OpenURL(url="@topography_link", same_tab=True)
-
-            # include plot into response
-            bw_plot_script, bw_plot_div = components(plot)
-            context['plot_script'] = bw_plot_script
-            context['plot_div'] = bw_plot_div
-
-        #
-        # permission data
-        #
-        ACTIONS = ['view', 'change', 'delete', 'share']  # defines the order of permissions in table
-
-        surface_perms_table = get_permission_table_data(surface, self.request.user, ACTIONS)
-
-        context['permission_table'] = {
-            'head': [''] + ACTIONS,
-            'body': surface_perms_table
-        }
-
-        #
-        # Build tab information
-        #
-        context['extra_tabs'] = [
-            {
-                'title': surface.label,
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': self.request.path,
-                'active': True,
-                'login_required': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            }
-        ]
-
-        #
-        # Build urls for version selection in dropdown
-        #
-        def version_label_from_publication(pub):
-            return f'Version {pub.version} ({pub.datetime.date()})' if pub else 'Work in progress'
-
-        if surface.is_published:
-            original_surface = surface.publication.original_surface
-            context['this_version_label'] = version_label_from_publication(surface.publication)
-            context['publication_url'] = self.request.build_absolute_uri(surface.publication.get_absolute_url())
-            context['license_info'] = settings.CC_LICENSE_INFOS[surface.publication.license]
-        else:
-            original_surface = surface
-            context['this_version_label'] = version_label_from_publication(None)
-
-        publications = Publication.objects.filter(original_surface=original_surface).order_by('version')
-        version_dropdown_items = []
-
-        if self.request.user.has_perm('view_surface', original_surface):
-            # Only add link to original surface if user is allowed to view
-            version_dropdown_items.append({
-                'label': version_label_from_publication(None),
-                'surface': original_surface,
-            })
-
-        for pub in publications:
-            version_dropdown_items.append({
-                'label': version_label_from_publication(pub),
-                'surface': pub.surface,
-            })
-        context['version_dropdown_items'] = version_dropdown_items
-
-        version_badge_text = ''
-        if surface.is_published:
-            if context['this_version_label'] != version_dropdown_items[-1]['label']:
-                version_badge_text += 'Newer version available'
-        elif len(publications) > 0:
-            version_badge_text += 'Published versions available'
-
-        context['version_badge_text'] = version_badge_text
-
-        # add formats to show citations for
-        context['citation_flavors'] = [
-            ('Text format with link', 'html', False),  # title, flavor, use <pre><code>...</code></pre>
-            ('RIS format', 'ris', True),
-            ('BibTeX format', 'bibtex', True),
-            ('BibLaTeX format', 'biblatex', True),
-        ]
-
-        # add flag whether publications are allowed by settings and permissions
-        context['publication_allowed'] = settings.PUBLICATION_ENABLED \
-                                         and self.request.user.has_perm('publish_surface', surface)
-
-        return context
-
-
-class SurfaceUpdateView(UpdateView):
-    model = Surface
-    form_class = SurfaceForm
-
-    @surface_update_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_form_kwargs(self):
-        kwargs = super().get_form_kwargs()
-        kwargs['autocomplete_tags'] = tags_for_user(self.request.user)
-        return kwargs
-
-    def form_valid(self, form):
-        surface = self.object
-        user = self.request.user
-        notification_msg = f"User {user} changed surface '{surface.name}'. Changed fields: {','.join(form.changed_data)}."
-
-        #
-        # notify other users
-        #
-        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
-        for u in other_users:
-            notify.send(sender=user, verb='change', target=surface,
-                        recipient=u,
-                        description=notification_msg,
-                        href=reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)))
-
-        return super().form_valid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        surface = self.object
+        # Get surface instance
+        surface_id = self.request.GET.get('surface')
+        if surface_id is None:
+            return context
+        surface = Surface.objects.get(id=int(surface_id))
 
         context['extra_tabs'] = [
             {
                 'title': f"{surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Edit surface",
-                'icon': "pencil",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Editing surface '{surface.label}'"
             }
         ]
 
         return context
-
-    def get_success_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
-
-
-class SurfaceDeleteView(DeleteView):
-    model = Surface
-    context_object_name = 'surface'
-    success_url = reverse_lazy('manager:select')
-
-    @surface_delete_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_success_url(self):
-        user = self.request.user
-        surface = self.object
-
-        link = reverse('manager:select')
-        #
-        # notify other users
-        #
-        other_users = get_users_with_perms(surface).filter(~Q(id=user.id))
-        for u in other_users:
-            notify.send(sender=user, verb="delete",
-                        recipient=u,
-                        description=f"User '{user.name}' deleted surface '{surface.name}'.",
-                        href=link)
-        return link
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        surface = self.object
-        #
-        # Add context needed for tabs
-        #
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Delete Surface?",
-                'icon': "trash",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Conforming deletion of surface '{surface.label}'"
-            }
-        ]
-        return context
-
-
-class SurfaceShareView(FormMixin, DetailView):
-    model = Surface
-    context_object_name = 'surface'
-    template_name = "manager/share.html"
-    form_class = SurfaceShareForm
-
-    @surface_share_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def get_success_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.object.pk))
-
-    def post(self, request, *args, **kwargs):
-        self.object = self.get_object()
-        form = self.get_form()
-        if form.is_valid():
-            return self.form_valid(form)
-        else:
-            return self.form_invalid(form)
-
-    def form_valid(self, form):
-
-        if 'save' in self.request.POST:
-            users = form.cleaned_data.get('users', [])
-            allow_change = form.cleaned_data.get('allow_change', False)
-            surface = self.object
-            for user in users:
-                _log.info("Sharing surface {} with user {} (allow change? {}).".format(
-                    surface.pk, user.username, allow_change))
-
-                surface.share(user, allow_change=allow_change)
-
-                #
-                # Notify user about the shared surface
-                #
-                notification_message = f"{self.request.user} has shared surface '{surface.name}' with you"
-                notify.send(self.request.user, recipient=user,
-                            verb="share",  # TODO Does verb follow activity stream defintions?
-                            target=surface,
-                            public=False,
-                            description=notification_message,
-                            href=surface.get_absolute_url())
-
-                if allow_change:
-                    notify.send(self.request.user, recipient=user, verb="allow change",
-                                target=surface, public=False,
-                                description=f"""
-                                You are allowed to change the surface '{surface.name}' shared by {self.request.user}
-                                """,
-                                href=surface.get_absolute_url())
-
-        return super().form_valid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        surface = self.object
-
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Share surface?",
-                'icon': "share-alt",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Sharing surface '{surface.label}'"
-            }
-        ]
-        context['surface'] = surface
-        context['instance_label'] = surface.label
-        context['instance_type_label'] = "surface"
-        context['cancel_url'] = reverse('manager:surface-detail', kwargs=dict(pk=surface.pk))
-
-        return context
-
-
-class PublicationsTable(tables.Table):
-    publication = tables.Column(linkify=True, verbose_name='Surface', order_by='surface__name')
-    num_topographies = tables.Column(verbose_name='# Measurements')
-    authors_names = tables.Column(verbose_name="Authors")
-    license = tables.Column(verbose_name="License")
-    datetime = tables.Column(verbose_name="Publication Date")
-    version = tables.Column(verbose_name="Version")
-    doi_url = tables.URLColumn(verbose_name="DOI")
-
-    def render_publication(self, value):
-        return value.surface.name
-
-    def render_datetime(self, value):
-        return value.date()
-
-    def render_license(self, value, record):
-        return mark_safe(f"""
-        <a href="{settings.CC_LICENSE_INFOS[value]['description_url']}" target="_blank">
-                {record['publication'].get_license_display()}</a>
-        """)
-
-    class Meta:
-        orderable = True
-
-
-class PublicationListView(ListView):
-    template_name = "manager/publication_list.html"
-
-    def get_queryset(self):
-        return Publication.objects.filter(publisher=self.request.user)  # TODO move to publication app?
-
-    def get_context_data(self, *args, **kwargs):
-        context = super().get_context_data(*args, **kwargs)
-
-        #
-        # Create table cells
-        #
-        data = [
-            {
-                'publication': pub,
-                'surface': pub.surface,
-                'num_topographies': pub.surface.num_topographies(),
-                'authors_names': pub.get_authors_string(),
-                'license': pub.license,
-                'datetime': pub.datetime,
-                'version': pub.version,
-                'doi_url': pub.doi_url,
-            } for pub in self.get_queryset()
-        ]
-
-        context['publication_table'] = PublicationsTable(
-            data=data,
-            empty_text="You haven't published any surfaces yet.",
-            request=self.request)
-
-        return context
-
-
-class SurfacePublishView(FormView):
-    template_name = "manager/surface_publish.html"
-    form_class = SurfacePublishForm
-
-    @surface_publish_permission_required
-    def dispatch(self, request, *args, **kwargs):
-        return super().dispatch(request, *args, *kwargs)
-
-    def _get_surface(self):
-        surface_pk = self.kwargs['pk']
-        return Surface.objects.get(pk=surface_pk)
-
-    def get_initial(self):
-        initial = super().get_initial()
-        initial['author_0'] = ''
-        initial['num_author_fields'] = 1
-        return initial
-
-    # def get_form_kwargs(self):
-    #     kwargs = super().get_form_kwargs()
-    #     if self.request.method == 'POST':
-    #         # The field 'num_author_fields' may have been increased by
-    #         # Javascript (Vuejs) on the client in order to add new authors.
-    #         # This should be sent to the form in order to know
-    #         # how many fields the form should have and how many author names
-    #         # should be combined. So this is passed here:
-    #         kwargs['num_author_fields'] = int(self.request.POST.get('num_author_fields'))
-    #     return kwargs
-
-    def get_success_url(self):
-        return reverse('manager:publications')
-
-    def form_valid(self, form):
-        license = form.cleaned_data.get('license')
-        authors = form.cleaned_data.get('authors_json')
-        surface = self._get_surface()
-        try:
-            surface.publish(license, authors)
-        except NewPublicationTooFastException as exc:
-            return redirect("manager:surface-publication-rate-too-high",
-                            pk=surface.pk)
-        except PublicationException as exc:
-            msg = f"Publication failed, reason: {exc}"
-            _log.error(msg)
-            messages.error(self.request, msg)
-            return redirect("manager:surface-publication-error",
-                            pk=surface.pk)
-
-        return super().form_valid(form)
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        surface = self._get_surface()
-
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Publish surface?",
-                'icon': "bullhorn",
-                'href': self.request.path,
-                'active': True,
-                'tooltip': f"Publishing surface '{surface.label}'"
-            }
-        ]
-        context['surface'] = surface
-        context['max_len_authors_field'] = MAX_LEN_AUTHORS_FIELD
-        user = self.request.user
-        context['user_dict'] = dict(
-            first_name=user.first_name,
-            last_name=user.last_name,
-            orcid_id=user.orcid_id
-        )
-        context['configured_for_doi_generation'] = settings.PUBLICATION_DOI_MANDATORY
-        return context
-
-
-class PublicationRateTooHighView(TemplateView):
-    template_name = "manager/publication_rate_too_high.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-        context['min_seconds'] = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
-
-        surface_pk = self.kwargs['pk']
-        surface = Surface.objects.get(pk=surface_pk)
-
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Publication rate too high",
-                'icon': "flash",
-                'href': self.request.path,
-                'active': True,
-            }
-        ]
-        return context
-
-
-class PublicationErrorView(TemplateView):
-    template_name = "manager/publication_error.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        surface_pk = self.kwargs['pk']
-        surface = Surface.objects.get(pk=surface_pk)
-
-        context['extra_tabs'] = [
-            {
-                'title': f"{surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
-                'active': False,
-                'tooltip': f"Properties of surface '{surface.label}'"
-            },
-            {
-                'title': f"Publication error",
-                'icon': "flash",
-                'href': self.request.path,
-                'active': True,
-            }
-        ]
-        return context
-
-
-class SharingInfoTable(tables.Table):
-    surface = tables.Column(linkify=lambda **kwargs: kwargs['record']['surface'].get_absolute_url(),
-                            accessor='surface__name')
-    num_topographies = tables.Column(verbose_name='# Measurements')
-    created_by = tables.Column(linkify=lambda **kwargs: kwargs['record']['created_by'].get_absolute_url(),
-                               accessor='created_by__name')
-    shared_with = tables.Column(linkify=lambda **kwargs: kwargs['record']['shared_with'].get_absolute_url(),
-                                accessor='shared_with__name')
-    allow_change = tables.BooleanColumn()
-    selected = tables.CheckBoxColumn(attrs={
-        'th__input': {'class': 'select-all-checkbox'},
-        'td__input': {'class': 'select-checkbox'},
-    })
-
-    def __init__(self, *args, **kwargs):
-        self._request = kwargs['request']
-        super().__init__(*args, **kwargs)
-
-    # def render_surface(self, value):
-    #     return value.label
-
-    # def render_created_by(self, value):
-    #     return self._render_user(value)
-
-    # def render_shared_with(self, value):
-    #    return self._render_user(value)
-
-    # def _render_user(self, user):
-    #    if self._request.user == user:
-    #        return "You"
-    #    return user.name
-
-    class Meta:
-        orderable = True
-        order_by = ('surface', 'shared_with')
-
-
-def sharing_info(request):
-    if request.user.is_anonymous:
-        raise PermissionDenied()
-
-    #
-    # Handle POST request if any
-    #
-    if (request.method == "POST") and ('selected' in request.POST):
-        # only do sth if there is a selection
-
-        unshare = 'unshare' in request.POST
-        allow_change = 'allow_change' in request.POST
-
-        for s in request.POST.getlist('selected'):
-            # decode selection string
-            surface_id, share_with_user_id = s.split(',')
-            surface_id = int(surface_id)
-            share_with_user_id = int(share_with_user_id)
-
-            surface = Surface.objects.get(id=surface_id)
-            share_with = User.objects.get(id=share_with_user_id)
-
-            if request.user not in [share_with, surface.creator]:
-                # we don't allow to change shares if the request user is not involved
-                _log.warning(f"Changing share on surface {surface.id} not allowed for user {request.user}.")
-                continue
-
-            if unshare:
-                surface.unshare(share_with)
-                notify.send(sender=request.user, recipient=share_with, verb='unshare', public=False,
-                            description=f"Surface '{surface.name}' from {request.user} is no longer shared with you",
-                            href=reverse('manager:sharing-info'))
-            elif allow_change and (request.user == surface.creator):  # only allow change for surface creator
-                surface.share(share_with, allow_change=True)
-                notify.send(sender=request.user, recipient=share_with, verb='allow change', target=surface,
-                            public=False,
-                            description=f"{request.user} has given you permissions to change surface '{surface.name}'",
-                            href=surface.get_absolute_url())
-    #
-    # Collect information to display
-    #
-    # Get all surfaces, which are visible, but exclude the published surfaces
-    surfaces = get_objects_for_user(request.user, 'view_surface', klass=Surface).filter(publication=None)
-
-    tmp = []
-    for s in surfaces:
-        surface_perms = get_users_with_perms(s, attach_perms=True)
-        # is now a dict of the form
-        #  <User: joe>: ['view_surface'], <User: dan>: ['view_surface', 'change_surface']}
-        surface_users = sorted(surface_perms.keys(), key=lambda u: u.name if u else '')
-        for u in surface_users:
-            # Leave out these shares:
-            #
-            # - share of a user with himself as creator (trivial)
-            # - ignore user if anonymous
-            # - shares where the request user is not involved
-            #
-            if (u != s.creator) and (not u.is_anonymous) and \
-                ((u == request.user) or (s.creator == request.user)):
-                allow_change = ('change_surface' in surface_perms[u])
-                tmp.append((s, u, allow_change))
-
-    #
-    # Create table cells
-    #
-    data = [
-        {
-            'surface': surface,
-            'num_topographies': surface.num_topographies(),
-            'created_by': surface.creator,
-            'shared_with': shared_with,
-            'allow_change': allow_change,
-            'selected': "{},{}".format(surface.id, shared_with.id),
-        } for surface, shared_with, allow_change in tmp
-    ]
-
-    #
-    # Build table and render result
-    #
-    sharing_info_table = SharingInfoTable(data=data,
-                                          empty_text="No surfaces shared by or with you.",
-                                          request=request)
-
-    RequestConfig(request).configure(sharing_info_table)
-    # sharing_info_table.order_by('num_topographies')
-
-    return render(request,
-                  template_name='manager/sharing_info.html',
-                  context={'sharing_info_table': sharing_info_table})
 
 
 def download_surface(request, surface_id):
@@ -1998,45 +613,6 @@ def unselect_all(request):
     return Response([])
 
 
-def thumbnail(request, pk):
-    """Returns image data for a topography thumbail
-
-    Parameters
-    ----------
-    request
-
-    Returns
-    -------
-    HTML Response with image data
-    """
-    try:
-        pk = int(pk)
-    except ValueError:
-        raise Http404()
-
-    try:
-        topo = Topography.objects.get(pk=pk)
-    except Topography.DoesNotExist:
-        raise Http404()
-
-    if not request.user.has_perm('view_surface', topo.surface):
-        raise PermissionDenied()
-
-    # okay, we have a valid topography and the user is allowed to see it
-
-    image = topo.thumbnail
-    response = HttpResponse(content_type="image/png")
-    try:
-        response.write(image.file.read())
-    except Exception as exc:
-        _log.warning(f"Cannot load thumbnail for topography {topo.id}. Reason: {exc}")
-        # return some default image so the client gets sth in any case
-        with staticfiles_storage.open('images/thumbnail_unavailable.png', mode='rb') as img_file:
-            response.write(img_file.read())
-
-    return response
-
-
 def dzi(request, pk, dzi_filename):
     """Returns deepzoom image data for a topography
 
@@ -2075,20 +651,164 @@ class SurfaceViewSet(mixins.CreateModelMixin,
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
+    def _notify(self, instance, verb):
+        user = self.request.user
+        other_users = get_users_with_perms(instance).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb=verb, recipient=u,
+                        description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.")
+
     def perform_create(self, serializer):
         # Set creator to current user when creating a new surface
-        serializer.save(creator=self.request.user)
+        instance = serializer.save(creator=self.request.user)
+
+        # We now have an id, set name if missing
+        if not 'name' in serializer.data:
+            instance.name = f'Digital surface twin #{instance.id}'
+            instance.save()
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._notify(serializer.instance, "change")
+
+    def perform_destroy(self, instance):
+        self._notify(instance, "delete")
+        super().perform_destroy(instance)
 
 
 class TopographyViewSet(mixins.CreateModelMixin,
-                        mixins.RetrieveModelMixin,
                         mixins.UpdateModelMixin,
                         mixins.DestroyModelMixin,
                         viewsets.GenericViewSet):
+    EXPIRE_UPLOAD = 10  # Presigned key for uploading expires after 10 seconds
+
     queryset = Topography.objects.all()
     serializer_class = TopographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
 
+    def _notify(self, instance, verb):
+        user = self.request.user
+        other_users = get_users_with_perms(instance.surface).filter(~Q(id=user.id))
+        for u in other_users:
+            notify.send(sender=user, verb=verb, recipient=u,
+                        description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.")
+
     def perform_create(self, serializer):
+        # File name is passed in the 'name' field on create. It is the only field that needs to be present for the
+        # create (POST) request.
+        filename = self.request.data['name']
+
+        # Check whether the user is allowed to write to the parent surface; if not, we cannot add a topography
+        parent = serializer.validated_data['surface']
+        if not self.request.user.has_perm(f'change_{parent._meta.model_name}', parent):
+            self.permission_denied(
+                self.request,
+                code=403
+            )
+
         # Set creator to current user when creating a new topography
-        serializer.save(creator=self.request.user)
+        instance = serializer.save(creator=self.request.user)
+
+        # Now we have an id, so populate update path
+        datafile_path = topography_datafile_path(instance, filename)
+
+        # Populate upload_url, the presigned key should expire quickly
+        serializer.update(instance, {
+            'post_data': get_upload_post_request(instance, datafile_path, self.EXPIRE_UPLOAD)
+        })
+
+    def perform_update(self, serializer):
+        super().perform_update(serializer)
+        self._notify(serializer.instance, "change")
+
+    def perform_destroy(self, instance):
+        self._notify(instance, "delete")
+        super().perform_destroy(instance)
+
+    # From mixins.RetrieveModelMixin
+    def retrieve(self, request, *args, **kwargs):
+        instance = self.get_object()
+        if instance.task_state == Topography.NOTRUN:
+            # The cache has never been created
+            _log.info(f"Creating cached properties of new {instance.get_subject_type()} {instance.id}...")
+            run_task(instance)
+            instance.save()  # run_task sets the initial task state to 'pe', so we need to save
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+
+@api_view(['POST'])
+def force_inspect(request, pk=None):
+    user = request.user
+    instance = Topography.objects.get(pk=pk)
+
+    # Check that user has the right to modify this measurement
+    if not user.has_perms(['change_surface'], instance.surface):
+        return HttpResponseForbidden()
+
+    # Force renewal of cache
+    run_task(instance)
+    instance.save()
+
+    # Permissions were updated successfully
+    return Response(TopographySerializer(instance, context={'request': request}).data, status=200)
+
+
+@api_view(['PATCH'])
+def set_permissions(request, pk=None):
+    user = request.user
+    obj = Surface.objects.get(pk=pk)
+
+    # Check that user has the right to modify permissions
+    if not user.has_perms(['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface'],
+                          obj):
+        return HttpResponseForbidden()
+
+    # Check that the request does not ask to revoke permissions from the current user
+    for permission in request.data:
+        if permission['user']['id'] == user.id:
+            if permission['permission'] != 'full':
+                return Response({'message': 'Permissions cannot be revoked from logged in user'},
+                                status=405)  # Not allowed
+
+    # Get all current object permissions
+    users_with_perms = {user.id: perms for user, perms in get_users_with_perms(obj, attach_perms=True).items()}
+
+    # Everything looks okay, update permissions
+    for permission in request.data:
+        user_id = permission['user']['id']
+        if user_id != user.id:
+            other_user = User.objects.get(id=user_id)
+
+            # Get current set of permissions and new permissions
+            try:
+                current_perms = set(users_with_perms[user_id])
+            except KeyError:
+                current_perms = set()
+            new_perms = set(api_to_guardian(permission['permission']))
+
+            # Assign all perms that are in the new set but not in the old
+            for perm in new_perms - current_perms:
+                assign_perm(perm, other_user, obj)
+
+            # Remove all perms that are in the old set but not in the new
+            for perm in current_perms - new_perms:
+                remove_perm(perm, other_user, obj)
+
+    # Permissions were updated successfully, return 204 No Content
+    return Response({}, status=204)
+
+
+@api_view(['POST'])
+def upload_topography(request, pk=None):
+    instance = Topography.objects.get(pk=pk)
+    _log.debug(f"Receiving uploaded file for {instance}...")
+    for filename, file in request.FILES.items():
+        instance.datafile.save(filename, file)
+        _log.debug(f"Received uploaded file and stored it at path '{instance.datafile.name}'.")
+        instance.notify_users_with_perms('create',
+                                         f"User '{instance.creator}' uploaded the measurement '{instance.name}' to "
+                                         f"digital surface twin '{instance.surface.name}'.")
+
+    # Return 204 No Content
+    return Response({}, status=204)

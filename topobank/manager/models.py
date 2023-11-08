@@ -12,6 +12,7 @@ import PIL
 import sys
 import tempfile
 
+import django.dispatch
 from django.db import models
 from django.shortcuts import reverse
 from django.utils import timezone
@@ -20,24 +21,27 @@ from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
+from django.core.validators import MinValueValidator
 from django.contrib.contenttypes.models import ContentType
 
-from guardian.shortcuts import assign_perm, remove_perm, get_users_with_perms, get_anonymous_user
 import tagulous.models as tm
-
-from bokeh.models import DataRange1d, LinearColorMapper, ColorBar
-from bokeh.plotting import figure
+from guardian.shortcuts import assign_perm, remove_perm, get_perms, get_users_with_perms, get_anonymous_user
+from notifications.signals import notify
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
-from .utils import dzi_exists, get_topography_reader, make_dzi, recursive_delete, MAX_LENGTH_SURFACE_COLLECTION_NAME
-
-from ..plots import configure_plot
 from ..publication.models import Publication, DOICreationException
+from ..taskapp.models import TaskStateModel
+from ..taskapp.utils import run_task
 from ..users.models import User
 from ..users.utils import get_default_group
 
+from .utils import api_to_guardian, guardian_to_api, dzi_exists, get_topography_reader, make_dzi, recursive_delete, \
+    MAX_LENGTH_SURFACE_COLLECTION_NAME
+
 _log = logging.getLogger(__name__)
+
+post_renew_cache = django.dispatch.Signal()
 
 MAX_LENGTH_DATAFILE_FORMAT = 15  # some more characters than currently needed, we may have sub formats in future
 MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
@@ -52,6 +56,13 @@ _IN_CELERY_WORKER_PROCESS = sys.argv and sys.argv[0].endswith('celery') and 'wor
 def user_directory_path(instance, filename):
     # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
     return 'topographies/user_{0}/{1}'.format(instance.surface.creator.id, filename)
+
+
+def _get_unit(channel):
+    if isinstance(channel.unit, tuple):
+        lateral_unit, data_unit = channel.unit
+        return data_unit
+    return channel.unit
 
 
 class PublicationException(Exception):
@@ -191,10 +202,10 @@ class Surface(models.Model, SubjectMixin):
 
     LICENSE_CHOICES = [(k, settings.CC_LICENSE_INFOS[k]['option_name']) for k in ['cc0-1.0', 'ccby-4.0', 'ccbysa-4.0']]
 
-    name = models.CharField(max_length=80)
+    name = models.CharField(max_length=80, blank=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
-    category = models.TextField(choices=CATEGORY_CHOICES, null=True, blank=False)  # TODO change in character field
+    category = models.CharField(max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False)
     tags = tm.TagField(to=TagModel)
     creation_datetime = models.DateTimeField(auto_now_add=True)
     modification_datetime = models.DateTimeField(auto_now=True)
@@ -224,7 +235,7 @@ class Surface(models.Model, SubjectMixin):
         return [self]
 
     def get_absolute_url(self):
-        return reverse('manager:surface-detail', kwargs=dict(pk=self.pk))
+        return f"{reverse('manager:surface-detail')}?surface={self.pk}"
 
     def num_topographies(self):
         return self.topography_set.count()
@@ -272,40 +283,93 @@ class Surface(models.Model, SubjectMixin):
             }
         return d
 
-    def is_shared(self, with_user, allow_change=False):
+    def get_permissions(self, with_user):
+        """
+        Return current access permissions.
+
+
+        Parameters
+        ----------
+        with_user : User object
+            User to share the surface with.
+
+        Returns
+        -------
+        permissions : str
+            Permissions string
+                'no-access': No access to the dataset
+                'view': Basic view access, corresponding to 'view_surface'
+                'edit': Edit access, corresponding to 'view_surface' and
+                    'change_surface'
+                'full': Full access (essentially transfer), corresponding to
+                    'view_surface', 'change_surface', 'delete_surface',
+                    'share_surface' and 'publish_surface':
+        """
+        return guardian_to_api(get_perms(with_user, self))
+
+    def is_shared(self, with_user):
         """Returns True, if this surface is shared with a given user.
 
         Always returns True if user is the creator.
 
         :param with_user: User to test
-        :param allow_change: If True, only return True if surface can be changed by given user
         :return: True or False
         """
-        result = with_user.has_perm('view_surface', self)
-        if result and allow_change:
-            result = with_user.has_perm('change_surface', self)
-        return result
+        return self.get_permissions(with_user) != 'no-access'
 
-    def share(self, with_user, allow_change=False):
-        """Share this surface with a given user.
+    def set_permissions(self, with_user, permissions):
+        """Set permissions for access to this surface for a given user.
+        This is equivalent to sharing the dataset.
 
-        :param with_user: user to share with
-        :param allow_change: if True, also allow changing the surface
+        Parameters
+        ----------
+        with_user : User object
+            User to share the surface with.
+        permissions : str
+            Permissions string
+                'no-access': No access to the dataset
+                'view': Basic view access, corresponding to 'view_surface'
+                'edit': Edit access, corresponding to 'view_surface' and
+                    'change_surface'
+                'full': Full access (essentially transfer), corresponding to
+                    'view_surface', 'change_surface', 'delete_surface',
+                    'share_surface' and 'publish_surface':
         """
-        assign_perm('view_surface', with_user, self)
-        if allow_change:
-            assign_perm('change_surface', with_user, self)
+        if self.is_published:
+            raise PermissionError('Permissions of a published digital surface twin cannot be changed.')
+
+        all_perms = set(api_to_guardian('full'))
+        user_perms = set(api_to_guardian(permissions))
+
+        # Revoke all permissions not in the set
+        for perm in all_perms - user_perms:
+            remove_perm(perm, with_user, self)
+
+        # Assign all permissions
+        for perm in user_perms:
+            assign_perm(perm, with_user, self)
+
+    def share(self, with_user):
+        """Set permissions for read-only access to this surface for a given
+        user. This is equivalent to sharing the dataset.
+
+        Parameters
+        ----------
+        with_user : User object
+            User to share the surface with.
+        """
+        self.set_permissions(with_user, 'view')
 
     def unshare(self, with_user):
-        """Remove share on this surface for given user.
+        """Revoke access to this surface for a given user.
+        This is equivalent to unsharing the dataset.
 
-        If the user has no permissions, nothing happens.
-
-        :param with_user: User to remove share from
+        Parameters
+        ----------
+        with_user : User object
+            User to share the surface with.
         """
-        for perm in ['view_surface', 'change_surface']:
-            if with_user.has_perm(perm, self):
-                remove_perm(perm, with_user, self)
+        self.set_permissions(with_user, 'no-access')
 
     def deepcopy(self):
         """Creates a copy of this surface with all topographies and meta data.
@@ -328,6 +392,7 @@ class Surface(models.Model, SubjectMixin):
 
         copy = Surface.objects.get(pk=self.pk)
         copy.pk = None
+        copy.task_id = None  # We need to indicate that no tasks have run
         copy.tags = self.tags.get_tag_list()
         copy.save()
 
@@ -353,7 +418,7 @@ class Surface(models.Model, SubjectMixin):
         # Remove edit, share and delete permission from everyone
         users = get_users_with_perms(self)
         for u in users:
-            for perm in ['publish_surface', 'share_surface', 'change_surface', 'delete_surface']:
+            for perm in api_to_guardian('full'):
                 remove_perm(perm, u, self)
 
         # Add read permission for everyone
@@ -488,18 +553,6 @@ class Surface(models.Model, SubjectMixin):
         return [self]
 
 
-def _upload_path_for_datafile(instance, filename):
-    return f'{instance.storage_prefix}/raw/{filename}'
-
-
-def _upload_path_for_squeezed_datafile(instance, filename):
-    return f'{instance.storage_prefix}/nc/{filename}'
-
-
-def _upload_path_for_thumbnail(instance, filename):
-    return f'{instance.storage_prefix}/thumbnail/{filename}'
-
-
 class SurfaceCollection(models.Model, SubjectMixin):
     """A collection of surfaces."""
     name = models.CharField(max_length=MAX_LENGTH_SURFACE_COLLECTION_NAME)
@@ -514,7 +567,7 @@ class SurfaceCollection(models.Model, SubjectMixin):
     def related_surfaces(self):
         return list(self.surfaces.all())
 
-    def is_shared(self, with_user, allow_change=False):
+    def is_shared(self, with_user):
         """Returns True, if this subject is shared with a given user.
 
         Always returns True if user is the creator of all related surfaces.
@@ -523,8 +576,6 @@ class SurfaceCollection(models.Model, SubjectMixin):
         ----------
         with_user: User
             User to test
-        allow_change: bool
-            If True, only return True if related surfaces can be changed by given user
 
         Returns
         -------
@@ -533,7 +584,19 @@ class SurfaceCollection(models.Model, SubjectMixin):
         return all(s.is_shared(with_user, allow_change=allow_change) for s in self.related_surfaces())
 
 
-class Topography(models.Model, SubjectMixin):
+def topography_datafile_path(instance, filename):
+    return f'{instance.storage_prefix}/raw/{filename}'
+
+
+def topography_squeezed_datafile_path(instance, filename):
+    return f'{instance.storage_prefix}/nc/{filename}'
+
+
+def topography_thumbnail_path(instance, filename):
+    return f'{instance.storage_prefix}/thumbnail/{filename}'
+
+
+class Topography(TaskStateModel, SubjectMixin):
     """Topography measurement of a surface."""
 
     # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
@@ -589,9 +652,9 @@ class Topography(models.Model, SubjectMixin):
     # Descriptive fields
     #
     surface = models.ForeignKey('Surface', on_delete=models.CASCADE)
-    name = models.CharField(max_length=80)
+    name = models.TextField(blank=True)  # This must be identical to the file name on upload
     creator = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
-    measurement_date = models.DateField()
+    measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=TagModel)
     creation_datetime = models.DateTimeField(auto_now_add=True)
@@ -601,10 +664,12 @@ class Topography(models.Model, SubjectMixin):
     # Fields related to raw data
     #
     datafile = models.FileField(max_length=250,
-                                upload_to=_upload_path_for_datafile)  # currently upload_to not used in forms
+                                upload_to=topography_datafile_path,
+                                blank=True)  # currently upload_to not used in forms
     datafile_format = models.CharField(max_length=MAX_LENGTH_DATAFILE_FORMAT,
                                        null=True, default=None, blank=True)
-    data_source = models.IntegerField()
+    channel_names = models.JSONField(default=list)
+    data_source = models.IntegerField(null=True)  # Channel index
     # Django documentation discourages the use of null=True on a CharField. I'll use it here
     # nevertheless, because I need this values as argument to a function where None has
     # a special meaning (autodetection of format). If I would use an empty string
@@ -615,20 +680,20 @@ class Topography(models.Model, SubjectMixin):
     # This is probably netCDF3. Scales and detrend has already been applied here.
     squeezed_datafile = models.FileField(
         max_length=260,
-        upload_to=_upload_path_for_squeezed_datafile,
+        upload_to=topography_squeezed_datafile_path,
         null=True)
 
     #
     # Fields with physical meta data
     #
-    size_editable = models.BooleanField(default=False)
-    size_x = models.FloatField()
-    size_y = models.FloatField(null=True)  # null for line scans
+    size_editable = models.BooleanField(default=False, editable=False)
+    size_x = models.FloatField(null=True, validators=[MinValueValidator(0.0)])
+    size_y = models.FloatField(null=True, validators=[MinValueValidator(0.0)])  # null for line scans
 
-    unit_editable = models.BooleanField(default=False)
-    unit = models.TextField(choices=LENGTH_UNIT_CHOICES)
+    unit_editable = models.BooleanField(default=False, editable=False)
+    unit = models.TextField(choices=LENGTH_UNIT_CHOICES, null=True)
 
-    height_scale_editable = models.BooleanField(default=False)
+    height_scale_editable = models.BooleanField(default=False, editable=False)
     height_scale = models.FloatField(default=1)
 
     has_undefined_data = models.BooleanField(null=True, default=None)  # default is undefined
@@ -637,12 +702,14 @@ class Topography(models.Model, SubjectMixin):
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default='center')
 
-    resolution_x = models.IntegerField(null=True)  # null for line scans TODO really?
-    resolution_y = models.IntegerField(null=True)  # null for line scans
+    resolution_x = models.IntegerField(null=True, editable=False,
+                                       validators=[MinValueValidator(0)])  # null for line scans
+    resolution_y = models.IntegerField(null=True, editable=False,
+                                       validators=[MinValueValidator(0)])  # null for line scans
 
-    bandwidth_lower = models.FloatField(null=True, default=None)  # in meters
-    bandwidth_upper = models.FloatField(null=True, default=None)  # in meters
-    short_reliability_cutoff = models.FloatField(null=True, default=None)
+    bandwidth_lower = models.FloatField(null=True, default=None, editable=False)  # in meters
+    bandwidth_upper = models.FloatField(null=True, default=None, editable=False)  # in meters
+    short_reliability_cutoff = models.FloatField(null=True, default=None, editable=False)
 
     is_periodic = models.BooleanField(default=False)
 
@@ -658,7 +725,7 @@ class Topography(models.Model, SubjectMixin):
     #
     thumbnail = models.ImageField(
         null=True,
-        upload_to=_upload_path_for_thumbnail)
+        upload_to=topography_thumbnail_path)
 
     #
     # _refresh_dependent_data indicates whether caches (thumbnail, DZI) and analyses need to be refreshed after a call
@@ -666,9 +733,9 @@ class Topography(models.Model, SubjectMixin):
     #
     _refresh_dependent_data = False
 
-    # Changes in these fields trigger a refresh
+    # Changes in these fields trigger a refresh of the topography cache and of all analyses
     _significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale', 'fill_undefined_data_mode',
-                           'detrend_mode', 'datafile', 'data_source', 'instrument_type', 'instrument_parameters'}
+                           'detrend_mode', 'data_source', 'instrument_type', 'instrument_parameters'}
 
     #
     # Methods
@@ -686,8 +753,27 @@ class Topography(models.Model, SubjectMixin):
             # Do not check for None in self.id as this breaks should we switch to UUIDs
             old_obj = Topography.objects.get(pk=self.pk)
         except self.DoesNotExist:
-            # Object is new, this means `storage_prefix` does not exists since the model instance has yet been written
-            # to the database. (The `id` only becomes available then.)
+            pass  # Do nothing, we have just created a new topography
+        else:
+            # Check which fields actually changed
+            changed_fields = [getattr(self, name) != getattr(old_obj, name)
+                              for name in self._significant_fields]
+
+            changed_fields = [name for name, changed in zip(self._significant_fields, changed_fields) if changed]
+            _log.debug(f'The following significant fields of topography {self.id} changed: ')
+            for name in changed_fields:
+                _log.debug(f"{name}: was '{getattr(old_obj, name)}', is now '{getattr(self, name)}'")
+
+            # We need to refresh if any of the significant fields changed during this save
+            self._refresh_dependent_data = any(changed_fields)
+
+        # Save to data base
+        _log.debug('Saving model...')
+        if self.id is None and (
+            self.datafile is not None or self.squeezed_datafile is not None or self.thumbnail is not None):
+            # We don't have an `id` but are trying to save a model with a data file; this does not work because the
+            # `storage_prefix`  contains the `id`. (The `id` only becomes available once the model instance has
+            # been saved.) Note that this situation is only relevant for tests.
             datafile = self.datafile
             squeezed_datafile = self.squeezed_datafile
             thumbnail = self.thumbnail
@@ -703,15 +789,12 @@ class Topography(models.Model, SubjectMixin):
             self.thumbnail = thumbnail
             kwargs.update(dict(update_fields=['datafile', 'squeezed_datafile', 'thumbnail'],
                                force_insert=False, force_update=True))  # The next save must be an update
-            # We need to refresh, because this is the creation of this dataset
-            self._refresh_dependent_data = True
-        else:
-            # Check which fields actually changed
-            changed_fields = [getattr(self, name) != getattr(old_obj, name)
-                              for name in self._significant_fields]
 
-            # We need to refresh if any of the significant fields changed during this save
-            self._refresh_dependent_data = any(changed_fields)
+        # Check if we need to run the update task
+        if self._refresh_dependent_data:
+            run_task(self)
+
+        # Save after run task, because run task may update the task state
         super().save(*args, **kwargs)
         cache.delete(self.cache_key())
 
@@ -825,13 +908,13 @@ class Topography(models.Model, SubjectMixin):
 
     def get_absolute_url(self):
         """URL of detail page for this topography."""
-        return reverse('manager:topography-detail', kwargs=dict(pk=self.pk))
+        return f"{reverse('manager:topography-detail')}?topography={self.pk}"
 
     def cache_key(self):
         """Used for caching topographies avoiding reading datafiles again when interpreted in the same way"""
         return f"topography-{self.id}-channel-{self.data_source}"
 
-    def is_shared(self, with_user, allow_change=False):
+    def is_shared(self, with_user):
         """Returns True, if this topography is shared with a given user.
 
         Just returns whether the related surface is shared with the user
@@ -841,9 +924,117 @@ class Topography(models.Model, SubjectMixin):
         :param allow_change: If True, only return True if topography can be changed by given user
         :return: True or False
         """
-        return self.surface.is_shared(with_user, allow_change=allow_change)
+        return self.surface.is_shared(with_user)
 
-    def topography(self, allow_cache=settings.DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY, allow_squeezed=True):
+    @staticmethod
+    def _clean_instrument_parameters(params):
+        # Check that resolution parameter is complete
+        try:
+            r = params['resolution']
+        except KeyError:
+            pass
+        else:
+            if not ('value' in r and 'unit' in r):
+                # Value/unit pair is incomplete
+                del params['resolution']
+            else:
+                # Make sure it is a floating-point value
+                try:
+                    params['resolution']['value'] = float(params['resolution']['value'])
+                except KeyError:
+                    # 'value' does not exist - should not happen
+                    pass
+                except TypeError:
+                    # None
+                    del params['resolution']
+                except ValueError:
+                    # Value cannot be converted to float
+                    del params['resolution']
+
+        # Check that tip radius parameter is complete
+        try:
+            r = params['tip_radius']
+        except KeyError:
+            pass
+        else:
+            if not ('value' in r and 'unit' in r):
+                # Value/unit pair is incomplete
+                del params['tip_radius']
+            else:
+                # Make sure it is a floating-point value
+                try:
+                    params['tip_radius']['value'] = float(params['tip_radius']['value'])
+                except KeyError:
+                    # 'value' does not exist - should not happen
+                    pass
+                except TypeError:
+                    # None
+                    del params['tip_radius']
+                except ValueError:
+                    # Value cannot be converted to float
+                    del params['tip_radius']
+
+        return params
+
+    @property
+    def _instrument_info(self):
+        # We need to idiot-check the parameters JSON so surface topography does not complain
+        # Would it be better to use JSON Schema for this? Or should we simply have dedicated database fields?
+        params = self._clean_instrument_parameters(self.instrument_parameters)
+
+        # Build dictionary with instrument information from database... this may override data provided by the
+        # topography reader
+        return {
+            'instrument': {
+                'name': self.instrument_name,
+                'type': self.instrument_type,
+                'parameters': params,
+            }
+        }
+
+    def _read(self, reader):
+        """Construct kwargs for reading topography given channel information"""
+        if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+            _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
+                         'process. This operation is potentially slow and may require a lot of memory - do not use '
+                         '`Topography.topography` within the main Django server!')
+
+        reader_kwargs = dict(channel_index=self.data_source,
+                             periodic=self.is_periodic)
+
+        channel = reader.channels[self.data_source]
+
+        # Set size if physical size was not given in datafile
+        # (see also  TopographyCreateWizard.get_form_initial)
+        # Physical size is always a tuple or None.
+        if channel.physical_sizes is None:
+            if self.size_y is None:
+                reader_kwargs['physical_sizes'] = self.size_x,
+            else:
+                reader_kwargs['physical_sizes'] = self.size_x, self.size_y
+
+        if channel.height_scale_factor is None and self.height_scale:
+            # Adjust height scale to value chosen by user
+            reader_kwargs['height_scale_factor'] = self.height_scale
+
+            # This is only possible and needed, if no height scale was given in the data file already.
+            # So default is to use the factor from the file.
+
+        # Set the unit, if not already given by file contents
+        if channel.unit is None:
+            reader_kwargs['unit'] = self.unit
+
+        # Populate instrument information
+        reader_kwargs['info'] = self._instrument_info
+
+        # Eventually get topography from module "SurfaceTopography" using the given keywords
+        topo = reader.topography(**reader_kwargs)
+        if self.fill_undefined_data_mode != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING:
+            topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
+        return topo.detrend(detrend_mode=self.detrend_mode)
+
+    def topography(self, allow_cache=settings.DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY, allow_squeezed=True,
+                   return_reader=False):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -874,100 +1065,48 @@ class Topography(models.Model, SubjectMixin):
             If True (default), the instance is allowed to be generated
             from a squeezed datafile which is not the original datafile.
             This is often faster than the original file format.
-        """
-        if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
-            _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
-                         'process. This operation is potentially slow and may require a lot of memory - do not use '
-                         '`Topography.topography` within the main Django server!')
 
+        return_reader: bool
+            If True, return a tuple containing the topography and the reader.
+            (Default: False)
+        """
         cache_key = self.cache_key()
 
         #
         # Try to get topography from cache if possible
         #
+        toporeader = None
         topo = cache.get(cache_key) if allow_cache else None
         if topo is None:
-            # Build dictionary with instrument information from database... this may override data provided by the
-            # topography reader
-            info = {
-                'instrument': {
-                    'name': self.instrument_name,
-                    'type': self.instrument_type,
-                    'parameters': self.instrument_parameters,
-                }
-            }
+            if allow_squeezed and self.has_squeezed_datafile:
+                if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+                    _log.warning(
+                        'You are requesting to load a (2D) topography and you are not within in a Celery worker '
+                        'process. This operation is potentially slow and may require a lot of memory - do not use '
+                        '`Topography.topography` within the main Django server!')
 
-            if allow_squeezed:
-                try:
-                    # If we are allowed to use a squeezed version, create one if not already happened
-                    # (also needed for downloads/analyses, so this is saved in the database)
-                    if not self.has_squeezed_datafile:
-                        from topobank.taskapp.tasks import renew_squeezed_datafile
-                        renew_squeezed_datafile.delay(self.id)
-                        # this is now done in background, we load the original files instead for minimal delay
-                    else:
-                        # Okay, we can use the squeezed datafile, it's already there.
-                        toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
-                        topo = toporeader.topography(info=info)
-                        # In the squeezed format, these things are already applied/included:
-                        # unit, scaling, detrending, physical sizes
-                        # so don't need to provide them to the .topography() method
-                        _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
-                except Exception as exc:
-                    _log.error(f"Could not create squeezed datafile for topography with id {self.id}. "
-                               "Using original file instead.")
-                    topo = None
+                # Okay, we can use the squeezed datafile, it's already there.
+                toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
+                topo = toporeader.topography(info=self._instrument_info)
+                # In the squeezed format, these things are already applied/included:
+                # unit, scaling, detrending, physical sizes
+                # so don't need to provide them to the .topography() method
+                _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
 
             if topo is None:
+                # Read raw file if squeezed file is unavailable
                 toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
-                topography_kwargs = dict(channel_index=self.data_source,
-                                         periodic=self.is_periodic,
-                                         info=info)
-
-                # Set size if physical size was not given in datafile
-                # (see also  TopographyCreateWizard.get_form_initial)
-                # Physical size is always a tuple or None.
-                channel_dict = toporeader.channels[self.data_source]
-                channel_physical_sizes = channel_dict.physical_sizes
-                physical_sizes_is_None = channel_physical_sizes is None \
-                                         or (channel_physical_sizes == (None,)) \
-                                         or (channel_physical_sizes == (None, None))
-                # workaround, see GH 299 in Pyco
-
-                if physical_sizes_is_None:
-                    if self.size_y is None:
-                        topography_kwargs['physical_sizes'] = self.size_x,
-                    else:
-                        topography_kwargs['physical_sizes'] = self.size_x, self.size_y
-
-                if self.height_scale_editable:
-                    # Adjust height scale to value chosen by user
-                    topography_kwargs['height_scale_factor'] = self.height_scale
-
-                    # This is only possible and needed, if no height scale was
-                    # given in the data file already.
-                    # So default is to use the factor from the file.
-
-                #
-                # Set the unit, if not already given by file contents
-                #
-                channel_unit = channel_dict.unit
-                if not channel_unit and self.unit:
-                    topography_kwargs['unit'] = self.unit
-
-                # Eventually get topography from module "SurfaceTopography" using the given keywords
-                topo = toporeader.topography(**topography_kwargs)
-                if self.fill_undefined_data_mode != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING:
-                    topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
-                topo = topo.detrend(detrend_mode=self.detrend_mode)
+                topo = self._read(toporeader)
 
             cache.set(cache_key, topo)
-            # be sure to invalidate the cache key if topography is saved again -> signals.py
 
         else:
             _log.info(f"Using topography from cache for id {self.id}.")
 
-        return topo
+        if return_reader:
+            return topo, toporeader
+        else:
+            return topo
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
@@ -1016,17 +1155,28 @@ class Topography(models.Model, SubjectMixin):
 
         copy = Topography.objects.get(pk=self.pk)
         copy.pk = None
+        copy.task_id = None  # We need to indicate that no tasks have run
         copy.surface = to_surface
 
+        # Set file names of derived data to None, otherwise they will be deleted and become unavailable to the
+        # original topography
+        copy.thumbnail = None
+        copy.squeezed_datafile = None
+
+        # Copy the actual data file
         with self.datafile.open(mode='rb') as datafile:
             copy.datafile = default_storage.save(self.datafile.name, File(datafile))
 
         copy.tags = self.tags.get_tag_list()
-        copy.save()
+
+        # Recreate cache to recreate derived files
+        _log.info(f"Creating cached properties of new {copy.get_subject_type()} {copy.id}...")
+        run_task(copy)
+        copy.save()  # run_task sets the initial task state to 'pe', so we need to save
 
         return copy
 
-    def get_thumbnail(self, width=400, height=400, cmap=None):
+    def get_thumbnail(self, width=400, height=400, cmap=None, st_topo=None):
         """
         Make thumbnail image.
 
@@ -1044,7 +1194,8 @@ class Topography(models.Model, SubjectMixin):
         image : bytes-like
             Thumbnail image.
         """
-        st_topo = self.topography()  # SurfaceTopography instance (=st)
+        if st_topo is None:
+            st_topo = self.topography()  # SurfaceTopography instance (=st)
         image_file = io.BytesIO()
         if st_topo.dim == 1:
             dpi = 100
@@ -1078,209 +1229,44 @@ class Topography(models.Model, SubjectMixin):
             raise RuntimeError(f"Don't know how to create thumbnail for topography of dimension {st_topo.dim}.")
         return image_file
 
-    def get_plot(self, thumbnail=False):
-        """Return bokeh plot.
-
-        Parameters
-        ----------
-        thumbnail
-            boolean, if True, return a reduced plot suitable for a thumbnail
-
-        Returns
-        -------
-
-        """
-        try:
-            st_topo = self.topography()  # SurfaceTopography instance (=st)
-        except Exception as exc:
-            raise LoadTopographyException("Can't load topography.") from exc
-
-        if st_topo.dim == 1:
-            try:
-                return self._get_1d_plot(st_topo, reduced=thumbnail)
-            except Exception as exc:
-                raise PlotTopographyException("Error generating 1D plot for topography.") from exc
-        elif st_topo.dim == 2:
-            try:
-                return self._get_2d_plot(st_topo, reduced=thumbnail)
-            except Exception as exc:
-                raise PlotTopographyException("Error generating 2D plot for topography.") from exc
-        else:
-            raise PlotTopographyException("Can only plot 1D or 2D topographies, this has {} dimensions.".format(
-                st_topo.dim
-            ))
-
-    def _get_1d_plot(self, st_topo, reduced=False):
-        """Calculate 1D line plot of topography (line scan).
-
-        :param st_topo: SurfaceTopography.Topography instance
-        :return: bokeh plot
-        """
-        x, y = st_topo.positions_and_heights()
-
-        x_range = DataRange1d(bounds='auto')
-        y_range = DataRange1d(bounds='auto')
-
-        TOOLTIPS = """
-            <style>
-                .bk-tooltip>div:not(:first-child) {{display:none;}}
-                td.tooltip-varname {{ text-align:right; font-weight: bold}}
-            </style>
-
-            <table>
-              <tr>
-                <td class="tooltip-varname">x</td>
-                <td>:</td>
-                <td>@x {}</td>
-              </tr>
-              <tr>
-                <td class="tooltip-varname">height</td>
-                <td>:</td>
-                <td >@y {}</td>
-              </tr>
-            </table>
-        """.format(self.unit, self.unit)
-
-        if reduced:
-            toolbar_location = None
-        else:
-            toolbar_location = 'above'
-
-        plot = figure(x_range=x_range, y_range=y_range,
-                      x_axis_label=f'Position ({self.unit})',
-                      y_axis_label=f'Height ({self.unit})',
-                      tooltips=TOOLTIPS,
-                      toolbar_location=toolbar_location)
-
-        show_symbols = y.shape[0] <= MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT
-
-        if reduced:
-            line_kwargs = dict(line_width=3)
-        else:
-            line_kwargs = dict()
-
-        plot.line(x, y, **line_kwargs)
-        if show_symbols:
-            plot.circle(x, y)
-
-        configure_plot(plot)
-        if reduced:
-            plot.xaxis.visible = False
-            plot.yaxis.visible = False
-            plot.grid.visible = False
-
-        plot.toolbar.logo = None
-
-        return plot
-
-    def _get_2d_plot(self, st_topo, reduced=False):
-        """Calculate 2D image plot of topography.
-
-        :param st_topo: SurfaceTopography.Topography instance
-        :return: bokeh plot
-        """
-        heights = st_topo.heights()
-
-        topo_size = st_topo.physical_sizes
-        # x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto')
-        # y_range = DataRange1d(start=0, end=topo_size[1], bounds='auto')
-        x_range = DataRange1d(start=0, end=topo_size[0], bounds='auto', range_padding=5)
-        y_range = DataRange1d(start=topo_size[1], end=0, flipped=True, range_padding=5)
-
-        color_mapper = LinearColorMapper(palette="Viridis256", low=heights.min(), high=heights.max())
-
-        TOOLTIPS = [
-            ("Position x", "$x " + self.unit),
-            ("Position y", "$y " + self.unit),
-            ("Height", "@image " + self.unit),
-        ]
-        colorbar_width = 50
-
-        aspect_ratio = topo_size[0] / topo_size[1]
-        frame_height = 500
-        frame_width = int(frame_height * aspect_ratio)
-
-        if frame_width > 1200:  # rule of thumb, scale down if too wide
-            frame_width = 1200
-            frame_height = int(frame_width / aspect_ratio)
-
-        if reduced:
-            toolbar_location = None
-        else:
-            toolbar_location = 'above'
-
-        plot = figure(x_range=x_range,
-                      y_range=y_range,
-                      frame_width=frame_width,
-                      frame_height=frame_height,
-                      # sizing_mode='scale_both',
-                      # aspect_ratio=aspect_ratio,
-                      match_aspect=True,
-                      x_axis_label=f'x ({self.unit})',
-                      y_axis_label=f'y ({self.unit})',
-                      # tools=[PanTool(),BoxZoomTool(match_aspect=True), "save", "reset"],
-                      tooltips=TOOLTIPS,
-                      toolbar_location=toolbar_location)
-
-        configure_plot(plot)
-        if reduced:
-            plot.xaxis.visible = False
-            plot.yaxis.visible = False
-
-        # we need to rotate the height data in order to be compatible with image in Gwyddion
-        plot.image([np.rot90(heights)], x=0, y=topo_size[1],
-                   dw=topo_size[0], dh=topo_size[1], color_mapper=color_mapper)
-        # the anchor point of (0,topo_size[1]) is needed because the y range is flipped
-        # in order to have the origin in upper left like in Gwyddion
-
-        plot.toolbar.logo = None
-
-        if not reduced:
-            colorbar = ColorBar(color_mapper=color_mapper,
-                                label_standoff=12,
-                                location=(0, 0),
-                                width=colorbar_width,
-                                title=f"height ({self.unit})")
-            plot.add_layout(colorbar, 'right')
-
-        return plot
-
-    def _renew_thumbnail(self):
+    def _renew_thumbnail(self, st_topo=None):
         """Renews thumbnail.
-
-
 
         Returns
         -------
         None
         """
-        image_file = self.get_thumbnail()
+        if st_topo is None:
+            st_topo = self.topography()
+
+        image_file = self.get_thumbnail(st_topo=st_topo)
 
         # Remove old thumbnail
         self.thumbnail.delete()
 
         # Save the contents of in-memory file in Django image field
-        self.thumbnail.save(
-            'thumbnail.png',
-            ContentFile(image_file.getvalue()),
-        )
+        self.thumbnail.save('thumbnail.png',
+                            ContentFile(image_file.getvalue()),
+                            save=False)  # Do NOT trigger a model save
 
     def _dzi_storage_prefix(self):
         """Return prefix for storing DZI images."""
         return f'{self.storage_prefix}/dzi'
 
-    def _renew_dzi(self):
+    def _renew_dzi(self, st_topo=None):
         """Renew deep zoom images.
 
         Returns
         -------
         None
         """
+        if st_topo is None:
+            st_topo = self.topography()
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            make_dzi(self.topography(), self._dzi_storage_prefix())
+            make_dzi(st_topo, self._dzi_storage_prefix())
 
-    def renew_thumbnail(self, none_on_error=True):
+    def renew_thumbnail(self, none_on_error=True, st_topo=None):
         """Renew thumbnail field.
 
         Parameters
@@ -1298,7 +1284,7 @@ class Topography(models.Model, SubjectMixin):
         ThumbnailGenerationException
         """
         try:
-            self._renew_thumbnail()
+            self._renew_thumbnail(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
                 self.thumbnail = None
@@ -1310,7 +1296,7 @@ class Topography(models.Model, SubjectMixin):
             else:
                 raise ThumbnailGenerationException(self, str(exc)) from exc
 
-    def renew_dzi(self, none_on_error=True):
+    def renew_dzi(self, none_on_error=True, st_topo=None):
         """Renew deep zoom image files.
 
         Parameters
@@ -1328,7 +1314,7 @@ class Topography(models.Model, SubjectMixin):
         DZIGenerationException
         """
         try:
-            self._renew_dzi()
+            self._renew_dzi(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
                 _log.warning(f"Problems while generating deep zoom images for topography {self.id}: {exc}.")
@@ -1337,33 +1323,29 @@ class Topography(models.Model, SubjectMixin):
             else:
                 raise DZIGenerationException(self, str(exc)) from exc
 
-    def renew_images(self, none_on_error=True):
-        """Renew thumbnail field and deep zoom image files.
+    def renew_squeezed_datafile(self, st_topo=None):
+        if st_topo is None:
+            st_topo = self.topography()
+        with tempfile.NamedTemporaryFile() as tmp:
+            # Write and upload NetCDF file
+            st_topo.to_netcdf(tmp.name)
+            # Delete old squeezed file
+            self.squeezed_datafile.delete()
+            # Upload new squeezed file
+            dirname, basename = os.path.split(self.datafile.name)
+            orig_stem, orig_ext = os.path.splitext(basename)
+            squeezed_name = f'{orig_stem}-squeezed.nc'
+            self.squeezed_datafile.save(squeezed_name,
+                                        File(open(tmp.name, mode='rb')),
+                                        save=False)  # Do NOT trigger a model save
 
-        Parameters
-        ----------
-        none_on_error: bool
-            If True (default), sets thumbnail to None if there are any errors.
-            If False, exceptions have to be caught outside.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        ThumbnailGenerationException
-        DZIGenerationException
-        """
-        self.renew_thumbnail(none_on_error=none_on_error)
-        self.renew_dzi(none_on_error=none_on_error)
-
-    def renew_bandwidth_cache(self):
+    def renew_bandwidth_cache(self, st_topo=None):
         """Renew bandwidth cache.
 
         Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
         """
-        st_topo = self.topography()
+        if st_topo is None:
+            st_topo = self.topography()
         if st_topo.unit is not None:
             bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
             fac = get_unit_conversion_factor(st_topo.unit, 'm')
@@ -1374,35 +1356,128 @@ class Topography(models.Model, SubjectMixin):
             if short_reliability_cutoff is not None:
                 short_reliability_cutoff *= fac
             self.short_reliability_cutoff = short_reliability_cutoff  # None is also saved here
-            self.save()
 
-    def renew_squeezed_datafile(self):
-        """Renew squeezed datafile file."""
-        _log.info(f"Renewing squeezed datafile for topography {self.id}..")
-        with tempfile.NamedTemporaryFile() as tmp:
-            # Reread topography from original file
-            st_topo = self.topography(allow_cache=False, allow_squeezed=False)
+    @property
+    def is_metadata_complete(self):
+        """Check whether we have all metadata to actually read the file"""
+        return self.size_x is not None and self.unit is not None and self.height_scale is not None
+
+    def notify_users_with_perms(self, verb, description):
+        other_users = get_users_with_perms(self.surface).filter(~models.Q(id=self.creator.id))
+        for u in other_users:
+            notify.send(sender=self.creator, recipient=u, verb=verb, description=description)
+
+    def renew_cache(self):
+        """
+        Inspect datafile and renew cached properties, in particular database entries on resolution, size etc. and the
+        squeezed NetCDF representation of the data.
+        """
+        # First check if we have a datafile
+        if not self.datafile:
+            # No datafile; this may mean a datafile has been uploaded to S3
+            file_path = topography_datafile_path(self, self.name)  # name and filename are identical at this point
+            if not default_storage.exists(file_path):
+                raise RuntimeError(f"Topography {self.id} does not appear to have a data file (expected at path "
+                                   f"'{file_path}').")
+            _log.info(f"Found newly uploaded file: {file_path}")
+            # Data file exists; path the datafile field to point to the correct file
+            self.datafile.name = file_path
+            # Notify users that a new file has been uploaded
+            self.notify_users_with_perms('create',
+                                         f"User '{self.creator}' uploaded the measurement '{self.name}' to "
+                                         f"digital surface twin '{self.surface.name}'.")
+
+        # Populate datafile information in the database.
+        # (We never load the topography, so we don't know this until here.
+        # Fields that are undefined are autodetected.)
+        _log.info(f"Caching properties of topography {self.id}...")
+
+        # Open topography file
+        reader = get_topography_reader(self.datafile)
+        self.datafile_format = reader.format()
+
+        # Update channel names
+        self.channel_names = [(channel.name, _get_unit(channel)) for channel in reader.channels]
+
+        # Idiot check
+        if len(self.channel_names) == 0:
+            raise RuntimeError('Datafile could be opened, but it appears to contain no valid data.')
+
+        # Check whether the user already selected a (valid) channel, if not set to default channel
+        if self.data_source is None or self.data_source < 0 or self.data_source >= len(self.channel_names):
+            self.data_source = reader.default_channel.index
+
+        # Select channel
+        channel = reader.channels[self.data_source]
+
+        # Populate resolution information in the database
+        if channel.dim == 1:
+            self.resolution_x, = channel.nb_grid_pts
+            self.resolution_y = None  # This indicates that this is a line scan
+        elif channel.dim == 2:
+            self.resolution_x, self.resolution_y = channel.nb_grid_pts
+        else:
+            raise NotImplementedError(f'Cannot handle topographies of dimension {channel.dim}.')
+
+        # Populate size information in the database
+        if channel.physical_sizes is None:
+            # Data file *does not* provide size information; the user must provide it
+            self.size_editable = True
+        else:
+            # Data file *does* provide size information; the user cannot override it
+            self.size_editable = False
+            # Reset size information here
+            if channel.dim == 1:
+                self.size_x, = channel.physical_sizes
+                self.size_y = None
+            elif channel.dim == 2:
+                self.size_x, self.size_y = channel.physical_sizes
+            else:
+                raise NotImplementedError(f'Cannot handle topographies of dimension {channel.dim}.')
+
+        # Populate unit information in the database
+        if channel.unit is None:
+            # Data file *does not* provide unit information; the user must provide it
+            self.unit_editable = True
+        else:
+            # Data file *does* provide unit information; the user cannot override it
+            self.unit_editable = False
+            # Reset unit information here
+            if isinstance(channel.unit, tuple):
+                raise NotImplementedError(f"Data channel '{channel.name}' contains information that is not height.")
+            self.unit = channel.unit
+
+        # Populate height scale information in the database
+        if channel.height_scale_factor is None:
+            # Data file *does not* provide height scale information; the user must provide it
+            self.height_scale_editable = True
+        else:
+            # Data file *does* provide height scale information; the user cannot override it
+            self.height_scale_editable = False
+            # Reset unit information here
+            self.height_scale = channel.height_scale_factor
+
+        # Read the file if metadata information is complete
+        if self.is_metadata_complete:
+            _log.info(f"Metadata of {self} is complete. Generating images.")
+            st_topo = self._read(reader)
 
             # Check whether original data file has undefined data point and update database accordingly.
-            # (We never load the topography so we don't know this until here. `has_undefined_data` can be
-            # undefined.)
-            parent_topo = st_topo
-            while hasattr(parent_topo, 'parent_topography'):
-                parent_topo = parent_topo.parent_topography
-            self.has_undefined_data = parent_topo.has_undefined_data
-            if not self.has_undefined_data:
-                self.fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+            # (`has_undefined_data` can be undefined if undetermined.)
+            self.has_undefined_data = st_topo.has_undefined_data
 
-            # Write and upload NetCDF file
-            st_topo.to_netcdf(tmp.name)
-            # Delete old squeezed file
-            self.squeezed_datafile.delete()
-            # Upload new squeezed file
-            dirname, basename = os.path.split(self.datafile.name)
-            orig_stem, orig_ext = os.path.splitext(basename)
-            squeezed_name = f'{orig_stem}-squeezed.nc'
-            self.squeezed_datafile.save(squeezed_name, File(open(tmp.name, mode='rb')))
-            self.save()
+            # Refresh other cached quantities
+            self.renew_bandwidth_cache(st_topo=st_topo)
+            self.renew_thumbnail(st_topo=st_topo)
+            self.renew_dzi(st_topo=st_topo)
+            self.renew_squeezed_datafile(st_topo=st_topo)
+
+        # Save dataset
+        self.save()
+
+        # Send signal
+        _log.debug(f'Sending `post_renew_cache` signal from {self}...')
+        post_renew_cache.send(sender=Topography, instance=self)
 
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""
@@ -1412,3 +1487,6 @@ class Topography(models.Model, SubjectMixin):
         elif self.fill_undefined_data_mode == Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC:
             s += ' Undefined/missing values are filled in with values obtained from a harmonic interpolation.'
         return s
+
+    def task_worker(self):
+        self.renew_cache()

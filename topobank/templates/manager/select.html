@@ -43,21 +43,21 @@
     let result = "";
     if (urls.hasOwnProperty('detail')) {
       result += `
-                <a href="${urls['detail']}" class="btn btn-default" type="button">
+                <a href="${urls['detail']}" class="btn btn-outline-secondary" type="button">
                     View
                 </a>
               `
     }
     if (urls.hasOwnProperty('analyze')) {
       result += `
-                <a href="${urls['analyze']}" class="btn btn-default" type="button">
+                <a href="${urls['analyze']}" class="btn btn-outline-secondary" type="button">
                     Analyze
                 </a>
               `
     }
     if (urls.hasOwnProperty('download')) {
       result += `
-                <a href="${urls['download']}" class="btn btn-default" type="button">
+                <a href="${urls['download']}" class="btn btn-outline-secondary" type="button">
                     Download
                 </a>
               `
@@ -83,7 +83,6 @@
       searchTerm: initial_select_tab_state.search_term,
       sharingStatus: initial_select_tab_state.sharing_status,
       sharingStatusFilterChoices: sharing_status_filter_choices,
-      surfaceCreateUrl: "{% url 'manager:surface-create' %}",
       treeMode: initial_select_tab_state.tree_mode
     }
   );

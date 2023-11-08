@@ -1,45 +1,187 @@
 import logging
 
-from django.shortcuts import reverse
-from guardian.shortcuts import get_perms
-from rest_framework import serializers
+from django import shortcuts
+from django.utils.translation import gettext_lazy as _
+
+from guardian.shortcuts import get_perms, get_users_with_perms
+from rest_framework import reverse, serializers
+from tagulous.contrib.drf import TagRelatedManagerField
+
+from ..publication.serializers import PublicationSerializer
+from ..taskapp.serializers import TaskStateModelSerializer
+from ..users.serializers import UserSerializer
 
 from .models import Surface, Topography, TagModel
-from .utils import get_search_term, filtered_topographies, subjects_to_base64
+from .utils import get_search_term, filtered_topographies, subjects_to_base64, guardian_to_api
 
 _log = logging.getLogger(__name__)
 
 
-class TopographySerializer(serializers.HyperlinkedModelSerializer):
+# From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
+class StrictFieldMixin:
+    """Raises error if read only fields or non-existing fields passed to input data"""
+    default_error_messages = {
+        'read_only': _('This field is read only'),
+        'does_not_exist': _('This field does not exist')
+    }
+
+    def to_internal_value(self, data):
+        field_names = set(field.field_name for field in self._writable_fields)
+        errors = {}
+
+        # check that all dictionary keys are fields
+        for key in data.keys():
+            if key not in field_names:
+                errors[key] = serializers.ErrorDetail(self.error_messages['does_not_exist'], code='does_not_exist')
+
+        if errors != {}:
+            raise serializers.ValidationError(errors)
+
+        return super().to_internal_value(data)
+
+    def validate(self, attrs):
+        attrs = super().validate(attrs)
+
+        if not hasattr(self, 'initial_data'):
+            return attrs
+
+        # collect declared read only fields and read only fields from Meta
+        read_only_fields = ({field_name for field_name, field in self.fields.items() if field.read_only} |
+                            set(getattr(self.Meta, 'read_only_fields', set())))
+
+        received_read_only_fields = set(self.initial_data) & read_only_fields
+
+        if received_read_only_fields:
+            errors = {}
+            for field_name in received_read_only_fields:
+                errors[field_name] = serializers.ErrorDetail(self.error_messages['read_only'], code='read_only')
+
+            raise serializers.ValidationError(errors)
+
+        return attrs
+
+
+class TopographySerializer(StrictFieldMixin,
+                           TaskStateModelSerializer):
     class Meta:
         model = Topography
-        fields = ['url', 'name', 'creator', 'datafile_format', 'description', 'measurement_date', 'surface',
-                  'size_editable',
-                  'size_x', 'size_y', 'unit_editable', 'unit', 'height_scale_editable', 'height_scale',
-                  'has_undefined_data', 'fill_undefined_data_mode', 'detrend_mode', 'resolution_x', 'resolution_y',
-                  'bandwidth_lower', 'bandwidth_upper', 'short_reliability_cutoff', 'is_periodic', 'instrument_name',
-                  'instrument_type', 'instrument_parameters']
+        fields = ['url',
+                  'id',
+                  'surface',
+                  'name',
+                  'creator',
+                  'datafile', 'datafile_format', 'channel_names', 'data_source',
+                  'squeezed_datafile',
+                  'description',
+                  'measurement_date',
+                  'size_editable', 'size_x', 'size_y',
+                  'unit_editable', 'unit',
+                  'height_scale_editable', 'height_scale',
+                  'has_undefined_data', 'fill_undefined_data_mode',
+                  'detrend_mode',
+                  'resolution_x', 'resolution_y',
+                  'bandwidth_lower', 'bandwidth_upper',
+                  'short_reliability_cutoff',
+                  'is_periodic',
+                  'instrument_name', 'instrument_type', 'instrument_parameters',
+                  'post_data',
+                  'is_metadata_complete',
+                  'thumbnail',
+                  'duration', 'error', 'task_progress', 'task_state', 'tags']  # TaskStateModelSerializer
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
-    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail', read_only=True)
+    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
+                                                  queryset=Surface.objects.all())
 
-class SurfaceSerializer(serializers.HyperlinkedModelSerializer):
+    tags = TagRelatedManagerField(required=False)
+
+    is_metadata_complete = serializers.SerializerMethodField()
+
+    post_data = serializers.DictField(default=None, read_only=True)  # Pre-signed upload location
+
+    def validate(self, data):
+        read_only_fields = []
+        if self.instance is not None:
+            if not self.instance.size_editable:
+                if 'size_x' in data:
+                    read_only_fields += ['size_x']
+                if 'size_y' in data:
+                    read_only_fields += ['size_y']
+            if not self.instance.unit_editable:
+                if 'unit' in data:
+                    read_only_fields += ['unit']
+            if not self.instance.height_scale_editable:
+                if 'unit' in data:
+                    read_only_fields += ['height_scale']
+            if len(read_only_fields) > 0:
+                s = ', '.join([f'`{name}`' for name in read_only_fields])
+                raise serializers.ValidationError(f'{s} is given by the data file and cannot be set')
+        return super().validate(data)
+
+    def get_is_metadata_complete(self, obj):
+        return obj.is_metadata_complete
+
+
+class SurfaceSerializer(StrictFieldMixin,
+                        serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
-        fields = ['url', 'name', 'category', 'creator', 'description', 'topography_set']
+        fields = ['url',
+                  'id',
+                  'name',
+                  'category',
+                  'creator',
+                  'description',
+                  'publication',
+                  'tags',
+                  'topography_set',
+                  'permissions']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
+    # publication = serializers.HyperlinkedRelatedField(view_name='publication:publication-api-detail', read_only=True)
+    publication = PublicationSerializer(read_only=True)
     topography_set = TopographySerializer(many=True, read_only=True)
+
+    tags = TagRelatedManagerField(required=False)
+
+    permissions = serializers.SerializerMethodField()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # We only return the topography set if requested to do so
+        children = self.context['request'].query_params.get('children')
+        with_children = children is not None and children.lower() in ['yes', 'true']
+        if not with_children:
+            self.fields.pop('topography_set')
+
+        # We only return permissions if requested to do so
+        permissions = self.context['request'].query_params.get('permissions')
+        with_permissions = permissions is not None and permissions.lower() in ['yes', 'true']
+        if not with_permissions:
+            self.fields.pop('permissions')
+
+    def get_permissions(self, obj):
+        request = self.context['request']
+        current_user = request.user
+        users = get_users_with_perms(obj, attach_perms=True)
+        return {'current_user': {'user': UserSerializer(current_user, context=self.context).data,
+                                 'permission': guardian_to_api(users[current_user])},
+                'other_users': [{'user': UserSerializer(key, context=self.context).data,
+                                 'permission': guardian_to_api(value)}
+                                for key, value in users.items() if key != current_user]}
 
 
 class TopographySearchSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topography
-        fields = ['id', 'type', 'name', 'creator', 'description', 'tags',
-                  'urls', 'selected', 'key', 'surface_key', 'title', 'folder', 'version',
-                  'publication_date', 'publication_authors', 'creator_name', 'sharing_status', 'label']
+        fields = ['id', 'type', 'name', 'creator', 'description', 'tags', 'urls', 'selected', 'key', 'surface_key',
+                  'title', 'folder', 'version', 'publication_date', 'publication_authors', 'datafile_format',
+                  'measurement_date', 'resolution_x', 'resolution_y', 'size_x', 'size_y', 'size_editable', 'unit',
+                  'unit_editable', 'height_scale', 'height_scale_editable', 'creator_name', 'sharing_status', 'label',
+                  'is_periodic', 'thumbnail', 'tags', 'instrument_name', 'instrument_type', 'instrument_parameters']
 
     creator = serializers.HyperlinkedRelatedField(
         read_only=True,
@@ -58,7 +200,7 @@ class TopographySearchSerializer(serializers.ModelSerializer):
     # `folder` is Fancytree-specific, see
     # https://wwwendt.de/tech/fancytree/doc/jsdoc/global.html#NodeData
     folder = serializers.BooleanField(default=False, read_only=True)
-    tags = serializers.SerializerMethodField()
+    tags = TagRelatedManagerField()
     # `type` should be the output of mangle_content_type(Meta.model)
     type = serializers.CharField(default='topography', read_only=True)
     version = serializers.CharField(default=None, read_only=True)
@@ -79,21 +221,13 @@ class TopographySearchSerializer(serializers.ModelSerializer):
         perms = get_perms(user, surface)  # TODO are permissions needed here?
 
         urls = {
-            'select': reverse('manager:topography-select', kwargs=dict(pk=obj.pk)),
-            'unselect': reverse('manager:topography-unselect', kwargs=dict(pk=obj.pk))
+            'select': shortcuts.reverse('manager:topography-select', kwargs=dict(pk=obj.pk)),
+            'unselect': shortcuts.reverse('manager:topography-unselect', kwargs=dict(pk=obj.pk))
         }
 
         if 'view_surface' in perms:
-            urls['detail'] = reverse('manager:topography-detail', kwargs=dict(pk=obj.pk))
-            urls['analyze'] = f"{reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
-
-        if 'change_surface' in perms:
-            urls.update({
-                'update': reverse('manager:topography-update', kwargs=dict(pk=obj.pk))
-            })
-
-        if 'delete_surface' in perms:
-            urls['delete'] = reverse('manager:topography-delete', kwargs=dict(pk=obj.pk))
+            urls['detail'] = f"{shortcuts.reverse('manager:topography-detail')}?topography={obj.pk}"
+            urls['analyze'] = f"{shortcuts.reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
 
         return urls
 
@@ -118,9 +252,6 @@ class TopographySearchSerializer(serializers.ModelSerializer):
             return "own"
         else:
             return "shared"
-
-    def get_tags(self, obj):  # TODO prove if own method needed
-        return [t.name for t in obj.tags.all()]
 
     def get_creator_name(self, obj):
         return obj.creator.name
@@ -154,7 +285,7 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
     # https://wwwendt.de/tech/fancytree/doc/jsdoc/global.html#NodeData
     folder = serializers.BooleanField(default=True, read_only=True)
     sharing_status = serializers.SerializerMethodField()
-    tags = serializers.SerializerMethodField()
+    tags = TagRelatedManagerField()
     # `type` should be the output of mangle_content_type(Meta.model)
     type = serializers.CharField(default='surface', read_only=True)
     version = serializers.SerializerMethodField()
@@ -200,33 +331,20 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
         perms = get_perms(user, obj)  # TODO are permissions needed here?
 
         urls = {
-            'select': reverse('manager:surface-select', kwargs=dict(pk=obj.pk)),
-            'unselect': reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
+            'select': shortcuts.reverse('manager:surface-select', kwargs=dict(pk=obj.pk)),
+            'unselect': shortcuts.reverse('manager:surface-unselect', kwargs=dict(pk=obj.pk))
         }
         if 'view_surface' in perms:
-            urls['detail'] = reverse('manager:surface-detail', kwargs=dict(pk=obj.pk))
+            urls['detail'] = f"{shortcuts.reverse('manager:surface-detail')}?surface={obj.pk}"
             if obj.num_topographies() > 0:
                 urls.update({
-                    'analyze': f"{reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
+                    'analyze': f"{shortcuts.reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
                 })
-            urls['download'] = reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
+            urls['download'] = shortcuts.reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
 
-        if 'change_surface' in perms:
-            urls.update({
-                'add_topography': reverse('manager:topography-create', kwargs=dict(surface_id=obj.id)),
-                'update': reverse('manager:surface-update', kwargs=dict(pk=obj.pk)),
-            })
-        if 'delete_surface' in perms:
-            urls.update({
-                'delete': reverse('manager:surface-delete', kwargs=dict(pk=obj.pk)),
-            })
-        if 'share_surface' in perms:
-            urls.update({
-                'share': reverse('manager:surface-share', kwargs=dict(pk=obj.pk)),
-            })
         if 'publish_surface' in perms:
             urls.update({
-                'publish': reverse('manager:surface-publish', kwargs=dict(pk=obj.pk)),
+                'publish': shortcuts.reverse('publication:surface-publish', kwargs=dict(pk=obj.pk)),
             })
 
         return urls
@@ -249,9 +367,6 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
             return "own"
         else:
             return "shared"
-
-    def get_tags(self, obj):
-        return [t.name for t in obj.tags.all()]
 
     def get_version(self, obj):
         return obj.publication.version if obj.is_published else None
@@ -309,8 +424,8 @@ class TagSearchSerizalizer(serializers.ModelSerializer):
 
     def get_urls(self, obj):
         urls = {
-            'select': reverse('manager:tag-select', kwargs=dict(pk=obj.pk)),
-            'unselect': reverse('manager:tag-unselect', kwargs=dict(pk=obj.pk))
+            'select': shortcuts.reverse('manager:tag-select', kwargs=dict(pk=obj.pk)),
+            'unselect': shortcuts.reverse('manager:tag-unselect', kwargs=dict(pk=obj.pk))
         }
         return urls
 

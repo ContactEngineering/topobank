@@ -12,13 +12,13 @@ export default {
     components: {
         TaskStateRow
     },
+    inject: ['csrfToken'],
     props: {
         analyses: {
             type: Object,
             default: []
         }
     },
-    inject: ['csrfToken'],
     data() {
         return {
             _analyses: this.analyses === undefined ? [] : this.analyses,

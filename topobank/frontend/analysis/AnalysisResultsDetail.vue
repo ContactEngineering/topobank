@@ -5,6 +5,7 @@ import AnalysisCards from 'config/analysis_cards';
 export default {
     name: 'analysis-results-detail',
     components: AnalysisCards,
+    inject: ['csrfToken'],
     props: {
         functionId: Number,
         functionName: String,

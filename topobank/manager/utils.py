@@ -2,19 +2,23 @@ import base64
 import functools
 import json
 import logging
+
 import markdown2
 import tempfile
 import traceback
 
-from django.shortcuts import reverse
+from storages.utils import clean_name
+
 from django.conf import settings
-from django.db.models import Q, Value, Count
+from django.db.models import Q, Value, Count, TextField
 from django.db.models.functions import Replace
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector, SearchQuery
+
+from rest_framework.reverse import reverse
 
 from guardian.core import ObjectPermissionChecker
 from guardian.shortcuts import get_objects_for_user, get_users_with_perms
@@ -92,15 +96,15 @@ def recursive_delete(prefix):
     prefix : str
         Prefix to delete.
     """
-    if default_storage.exists(prefix):
-        directories, filenames = default_storage.listdir(prefix)
-        for filename in filenames:
-            _log.info(f'Deleting file {prefix}/{filename}...')
-            default_storage.delete(f'{prefix}/{filename}')
-        for directory in directories:
-            _log.info(f'Deleting directory {prefix}/{directory}...')
-            recursive_delete(f'{prefix}/{directory}')
-            default_storage.delete(f'{prefix}/{directory}')
+    _log.info(f'Recursive delete of {prefix}')
+    directories, filenames = default_storage.listdir(prefix)
+    for filename in filenames:
+        _log.info(f'Deleting file {prefix}/{filename}...')
+        default_storage.delete(f'{prefix}/{filename}')
+    for directory in directories:
+        _log.info(f'Deleting directory {prefix}/{directory}...')
+        recursive_delete(f'{prefix}/{directory}')
+        default_storage.delete(f'{prefix}/{directory}')
 
 
 def mangle_content_type(obj, default_app_label='manager'):
@@ -261,7 +265,8 @@ def filtered_surfaces(request):
             topography_tag_names_for_search=Replace(  # same for the topographies
                 Replace('topography__tags__name', Value('.'), Value(' ')),
                 Value('/'), Value(' ')),
-            topography_name_for_search=Replace('topography__name', Value('.'), Value(' '))  # often there are filenames
+            topography_name_for_search=Replace('topography__name', Value('.'), Value(' '), output_field=TextField())
+            # often there are filenames
         ).distinct('id').order_by('id')
         qs = filter_queryset_by_search_term(qs, search_term, [
             'description', 'name', 'creator__name', 'tag_names_for_search',
@@ -295,7 +300,7 @@ def filtered_topographies(request, surfaces):
             tag_names_for_search=Replace(
                 Replace('tags__name', Value('.'), Value(' ')),  # replace . with space
                 Value('/'), Value(' ')),  # replace / with space
-            name_for_search=Replace('name', Value('.'), Value(' '))
+            name_for_search=Replace('name', Value('.'), Value(' '), output_field=TextField())
         ).distinct('id').order_by('id')
         topographies = filter_queryset_by_search_term(topographies, search_term, [
             'description', 'creator__name', 'name_for_search', 'tag_names_for_search',
@@ -1163,7 +1168,7 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
         (Default: None)
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
-        _log.debug(f"Making DZI files under path prefix {path_prefix} using temp dir {tmpdirname}..")
+        _log.debug(f"Making DZI files under path prefix {path_prefix} using temp dir {tmpdirname}...")
         try:
             # This is a Topography
             filenames = data.to_dzi('dzi', root_directory=tmpdirname, meta_format='json', quality=quality, cmap=cmap)
@@ -1180,3 +1185,64 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             target_name = f'{path_prefix}/{storage_filename}'
             # Upload to S3
             default_storage_replace(target_name, File(open(filename, mode='rb')))
+
+
+def get_upload_post_request(instance, name, expire):
+    """Generate a presigned URL for an upload direct to S3"""
+    # Preserve the trailing slash after normalizing the path.
+    if settings.USE_S3_STORAGE:
+        name = default_storage._normalize_name(clean_name(name))
+        post_data = default_storage.bucket.meta.client.generate_presigned_post(settings.AWS_STORAGE_BUCKET_NAME, name,
+                                                                               ExpiresIn=expire)
+    else:
+        post_data = {
+            'url': reverse('manager:upload-topography', kwargs=dict(pk=instance.id)),
+            'fields': {}
+        }
+    return post_data
+
+
+def api_to_guardian(api_permission):
+    """
+    Translate a REST API permissions to a list of Django guardian permissions.
+    The API exposes the following permissions:
+        'no-access': No access to the dataset
+        'view': Basic view access, corresponding to 'view_surface'
+        'edit': Edit access, corresponding to 'view_surface' and
+            'change_surface'
+        'full': Full access (essentially transfer), corresponding to
+            'view_surface', 'change_surface', 'delete_surface',
+            'share_surface' and 'publish_surface'
+    """
+    _permissions = {
+        'no-access': [],
+        'view': ['view_surface'],
+        'edit': ['view_surface', 'change_surface'],
+        'full': ['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface']
+    }
+
+    return _permissions[api_permission]
+
+
+def guardian_to_api(guardian_permissions):
+    """
+    Translate a list of Django guardian permissions to an API permission
+    keyword. The API exposes the following permissions:
+        'no-access': No access to the dataset
+        'view': Basic view access, corresponding to 'view_surface'
+        'edit': Edit access, corresponding to 'view_surface' and
+            'change_surface'
+        'full': Full access (essentially transfer), corresponding to
+            'view_surface', 'change_surface', 'delete_surface',
+            'share_surface' and 'publish_surface'
+    """
+
+    api_permission = 'no-access'
+    if 'view_surface' in guardian_permissions:
+        api_permission = 'view'
+        if 'change_surface' in guardian_permissions:
+            api_permission = 'edit'
+            if ('delete_surface' in guardian_permissions and 'share_surface' in guardian_permissions and
+                'publish_surface' in guardian_permissions):
+                api_permission = 'full'
+    return api_permission

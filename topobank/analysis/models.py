@@ -10,71 +10,15 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.utils import timezone
 
-import celery.result
-import celery.states
-
 from ..manager.models import Surface, SurfaceCollection, Topography
 from ..manager.utils import recursive_delete
+from ..taskapp.models import Configuration, TaskStateModel
 from ..users.models import User
 from ..utils import store_split_dict, load_split_dict
 
 from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry
 
 RESULT_FILE_BASENAME = 'result'
-
-
-class Dependency(models.Model):
-    """A dependency of analysis results, e.g. "SurfaceTopography", "topobank"
-    """
-    # this is used with "import":
-    import_name = models.CharField(max_length=30, unique=True)
-
-    def __str__(self):
-        return self.import_name
-
-
-class Version(models.Model):
-    """
-    A specific version of a dependency.
-    Part of a configuration.
-    """
-    dependency = models.ForeignKey(Dependency, on_delete=models.CASCADE)
-
-    major = models.SmallIntegerField()
-    minor = models.SmallIntegerField()
-    micro = models.SmallIntegerField(null=True)
-    extra = models.CharField(max_length=100, null=True)
-
-    # the following can be used to indicate that this
-    # version should not be used any more / or the analyses
-    # should be recalculated
-    # valid = models.BooleanField(default=True)
-
-    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
-    class Meta:
-        unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
-
-    def number_as_string(self):
-        x = f"{self.major}.{self.minor}"
-        if self.micro is not None:
-            x += f".{self.micro}"
-        if self.extra is not None:
-            x += self.extra
-        return x
-
-    def __str__(self):
-        return f"{self.dependency} {self.number_as_string()}"
-
-
-class Configuration(models.Model):
-    """For keeping track which versions were used for an analysis.
-    """
-    valid_since = models.DateTimeField(auto_now_add=True)
-    versions = models.ManyToManyField(Version)
-
-    def __str__(self):
-        versions = [str(v) for v in self.versions.all()]
-        return f"Valid since: {self.valid_since}, versions: {versions}"
 
 
 class AnalysisSubject(models.Model):
@@ -125,35 +69,12 @@ class AnalysisSubject(models.Model):
         super().save(*args, **kwargs)
 
 
-class Analysis(models.Model):
+class Analysis(TaskStateModel):
     """Concrete Analysis with state, function reference, arguments, and results.
 
     Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
-    PENDING = 'pe'
-    STARTED = 'st'
-    RETRY = 're'
-    FAILURE = 'fa'
-    SUCCESS = 'su'
-
-    TASK_STATE_CHOICES = (
-        (PENDING, 'pending'),
-        (STARTED, 'started'),
-        (RETRY, 'retry'),
-        (FAILURE, 'failure'),
-        (SUCCESS, 'success'),
-    )
-
-    # Mapping Celery states to our state information. Everything not in the
-    # list (e.g. custom Celery states) are interpreted as STARTED.
-    _CELERY_STATE_MAP = {
-        celery.states.SUCCESS: SUCCESS,
-        celery.states.STARTED: STARTED,
-        celery.states.PENDING: PENDING,
-        celery.states.RETRY: RETRY,
-        celery.states.FAILURE: FAILURE
-    }
 
     # Actual implementation of the analysis as a Python function
     function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
@@ -166,18 +87,6 @@ class Analysis(models.Model):
 
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
-
-    # This is the Celery task id
-    task_id = models.CharField(max_length=155, unique=True, null=True)
-
-    # This is the self-reported task state. It can differ from what Celery
-    # knows about the task.
-    task_state = models.CharField(max_length=7, choices=TASK_STATE_CHOICES)
-
-    # Time stamps
-    creation_time = models.DateTimeField(null=True)
-    start_time = models.DateTimeField(null=True)
-    end_time = models.DateTimeField(null=True)
 
     # Bibliography
     dois = models.JSONField(default=list)
@@ -198,15 +107,13 @@ class Analysis(models.Model):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
 
     def delete(self, *args, **kwargs):
-        # Cancel possibly running task
-        if self.task_id is not None:
-            r = celery.result.AsyncResult(self.task_id)
-            r.revoke()
+        # Cancel task (if running)
+        self.cancel_task()
 
         # Remove files from storage
         recursive_delete(self.storage_prefix)
 
-        # Delete dabase entry
+        # Delete database entry
         super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
@@ -223,52 +130,6 @@ class Analysis(models.Model):
     def subject(self):
         """Return the subject of the analysis, which can be a Topography, a Surface or a SurfaceCollection"""
         return self.subject_dispatch.get()
-
-    @property
-    def duration(self):
-        """Returns duration of computation or None if not finished yet.
-
-        Does not take into account the queue time.
-
-        :return: Returns datetime.timedelta or None
-        """
-        if self.end_time is None or self.start_time is None:
-            return None
-
-        return self.end_time - self.start_time
-
-    def get_celery_state(self):
-        """Return the state of the task reported by Celery"""
-        if self.task_id is None:
-            # Cannot get the state
-            return None
-        r = celery.result.AsyncResult(self.task_id)
-        try:
-            return self._CELERY_STATE_MAP[r.state]
-        except KeyError:
-            # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted as a running task
-            return Analysis.STARTED
-
-    def get_task_progress(self):
-        """Return progress of task, if running"""
-        if self.task_id is None:
-            return None
-        r = celery.result.AsyncResult(self.task_id)
-        if isinstance(r.info, Exception):
-            raise r.info  # The Celery process failed with some specific exception, reraise here
-        else:
-            return r.info
-
-    def get_error(self):
-        """Return a string representation of any error"""
-        if self.task_id is None:
-            return None
-        r = celery.result.AsyncResult(self.task_id)
-        if isinstance(r.info, Exception):
-            return (str(r.info))
-        else:
-            # No error occurred
-            return None
 
     @property
     def result(self):

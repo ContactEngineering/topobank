@@ -48,7 +48,7 @@ class Publication(models.Model):
 
     short_url = models.CharField(max_length=10, unique=True, null=True)
     surface = models.OneToOneField("manager.Surface", on_delete=models.PROTECT, related_name='publication')
-    original_surface = models.ForeignKey("manager.Surface", on_delete=models.SET_NULL,
+    original_surface = models.ForeignKey("manager.Surface", on_delete=models.PROTECT,  # original surface can no longer be deleted once published
                                          null=True, related_name='derived_publications')
     publisher = models.ForeignKey("users.User", on_delete=models.PROTECT)
     publisher_orcid_id = models.CharField(max_length=19, default='')  # 16 digits including 3 dashes
@@ -81,13 +81,13 @@ class Publication(models.Model):
         else:
             return urljoin(settings.PUBLICATION_URL_PREFIX, self.short_url)
 
-    def get_citation(self, flavor, request):
+    def get_citation(self, flavor):
         if flavor not in CITATION_FORMAT_FLAVORS:
             raise UnknownCitationFormat(flavor)
         method_name = '_get_citation_as_' + flavor
-        return getattr(self, method_name)(request)
+        return getattr(self, method_name)()
 
-    def _get_citation_as_html(self, request):
+    def _get_citation_as_html(self):
         s = '{authors}. ({year}). contact.engineering. <em>{surface.name} (Version {version})</em>.'
         s += ' <a href="{publication_url}">{publication_url}</a>'
         s = s.format(
@@ -97,9 +97,9 @@ class Publication(models.Model):
             surface=self.surface,
             publication_url=self.get_full_url(),
         )
-        return mark_safe(s)
+        return s
 
-    def _get_citation_as_ris(self, request):
+    def _get_citation_as_ris(self):
         # see http://refdb.sourceforge.net/manual-0.9.6/sect1-ris-format.html
         # or  https://en.wikipedia.org/wiki/RIS_(file_format)
         # or  https://web.archive.org/web/20120526103719/http://refman.com/support/risformat_intro.asp
@@ -138,7 +138,7 @@ class Publication(models.Model):
 
         return s.strip()
 
-    def _get_citation_as_bibtex(self, request):
+    def _get_citation_as_bibtex(self):
 
         title = f"{self.surface.name} (Version {self.version})"
         shortname = f"{self.surface.name}_v{self.version}".lower().replace(' ', '_')
@@ -167,7 +167,7 @@ class Publication(models.Model):
 
         return s.strip()
 
-    def _get_citation_as_biblatex(self, request):
+    def _get_citation_as_biblatex(self):
 
         shortname = f"{self.surface.name}_v{self.version}".lower().replace(' ', '_')
         keywords = ",".join(DEFAULT_KEYWORDS)

@@ -7,6 +7,7 @@ export default {
     components: {
         BasketElement
     },
+    inject: ['csrfToken'],
     props: {
         analysisListUrl: {
             type: String,
@@ -136,7 +137,7 @@ export default {
 </script>
 
 <template>
-    <div id="basket-container" class="container-fluid bg-light border rounded shadow-sm py-2 mb-5">
+    <div id="basket-container" class="container-fluid bg-light border rounded shadow-sm py-2 mb-2">
         <div v-if="_keys.length">
             <basket-element v-for="elem in _elements"
                             v-bind:elem="elem"
@@ -148,7 +149,7 @@ export default {
                 Analyze
             </a>
             <div v-if="hasClearButton || hasDownloadButton"
-                 class="btn-group btn-group-sm float-right"
+                 class="btn-group btn-group-sm float-end"
                  role="group"
                  aria-label="Actions on current selection">
                 <button v-if="hasClearButton"

@@ -12,10 +12,18 @@ from .utils import are_collaborating
 
 
 class UserViewSet(mixins.RetrieveModelMixin,
+                  mixins.ListModelMixin,
                   viewsets.GenericViewSet):
-    queryset = User.objects.all()
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
+
+    def get_queryset(self):
+        name = self.request.query_params.get('name')
+        max_results = int(self.request.query_params.get('max', 5))
+        if name is None:
+            return User.objects.none()
+        else:
+            return User.objects.filter(name__icontains=name)[0:max_results]
 
 
 class UserDetailView(LoginRequiredMixin, DetailView):

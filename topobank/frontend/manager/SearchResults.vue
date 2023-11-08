@@ -13,6 +13,7 @@
  */
 
 import $ from 'jquery';
+import axios from "axios";
 
 import {createTree} from 'jquery.fancytree';
 
@@ -42,7 +43,6 @@ export default {
         sharingStatus: String,
         sharingStatusFilterChoices: Object,
         searchTerm: String,
-        surfaceCreateUrl: String,
         treeMode: String
     },
     data() {
@@ -198,18 +198,18 @@ export default {
 
                     // Tags
                     if (node.data.category) {
-                        description_html += `<p class='badge badge-secondary mr-1'>${node.data.category_name}</p>`;
+                        description_html += `<p class='badge bg-secondary me-1'>${node.data.category_name}</p>`;
                     }
 
                     if (node.data.sharing_status == "own") {
-                        description_html += `<p class='badge badge-info mr-1'>Created by you</p>`;
+                        description_html += `<p class='badge bg-info me-1'>Created by you</p>`;
                     } else if (node.data.sharing_status == "shared") {
-                        description_html += `<p class='badge badge-info mr-1'>Shared by ${node.data.creator_name}</p>`;
+                        description_html += `<p class='badge bg-info me-1'>Shared by ${node.data.creator_name}</p>`;
                     }
 
                     if (node.data.tags !== undefined) {
                         node.data.tags.forEach(function (tag) {
-                            description_html += "<p class='badge badge-success mr-1'>" + tag + "</p>";
+                            description_html += "<p class='badge bg-success me-1'>" + tag + "</p>";
                         });
                     }
 
@@ -361,6 +361,11 @@ export default {
         },
         unselect(basket, keys) {
             this.setSelectedKeys(keys);
+        },
+        createSurface() {
+            axios.post('/manager/api/surface/').then(response => {
+               window.location.href = `/manager/html/surface/?surface=${response.data.id}`;
+            });
         }
     }
 }
@@ -371,39 +376,39 @@ export default {
             @unselect-successful="unselect">
     </basket>
     <form>
-        <div class="d-flex flex-row">
-            <div v-if="_searchTerm" class="form-group flex-fill mr-2">
+        <div class="d-flex flex-row mb-2">
+            <div v-if="_searchTerm" class="form-group flex-fill me-2">
                 <button class="btn btn-warning form-control" type="button"
                         id="clear-search-term-btn"
                         @click="clearSearchTerm">
                     Clear filter for <b>{{ _searchTerm }}</b>
                 </button>
             </div>
-            <div v-else class="form-group flex-fill mr-2">
+            <div v-else class="form-group flex-fill me-2">
                 <button class="btn btn-outline-info form-control disabled" type="button">
                     Not filtered for search term
                 </button>
             </div>
 
-            <div class="form-group mr-2">
+            <div class="form-group me-2">
                 <select name="category" class="form-control" v-model="_category" @change="reload">
-                    <option v-for="(choice_label, choice_val) in categoryFilterChoices"
-                            v-bind:value="choice_val" v-bind:selected="choice_val==_category">
-                        {{ choice_label }}
+                    <option v-for="(choiceLabel, choiceVal) in categoryFilterChoices"
+                            v-bind:value="choiceVal" v-bind:selected="choiceVal==_category">
+                        {{ choiceLabel }}
                     </option>
                 </select>
             </div>
 
-            <div class="form-group mr-2">
+            <div class="form-group me-2">
                 <select name="sharing_status" class="form-control" v-model="_sharingStatus" @change="reload">
-                    <option v-for="(choice_label, choice_val) in sharingStatusFilterChoices"
-                            v-bind:value="choice_val" v-bind:selected="choice_val==_sharingStatus">
-                        {{ choice_label }}
+                    <option v-for="(choiceLabel, choiceVal) in sharingStatusFilterChoices"
+                            v-bind:value="choiceVal" v-bind:selected="choiceVal==_sharingStatus">
+                        {{ choiceLabel }}
                     </option>
                 </select>
             </div>
 
-            <div id="tree-selector" class="form-group btn-group btn-group-toggle">
+            <div id="tree-selector" class="btn-group">
                 <label v-for="choice in
                      [ { label: 'Surface list',
                          value: 'surface list',
@@ -411,11 +416,13 @@ export default {
                        { label:'Tag tree',
                          value: 'tag tree',
                          icon_class: 'fas fa-tag'}]"
-                       class="btn"
                        v-bind:class="{active: _treeMode==choice.value,
+                                    'btn': true,
                                     'btn-success': _treeMode==choice.value,
-                                    'btn-default': _treeMode!=choice.value}">
-                    <input type="radio" class="btn-group-toggle" autocomplete="off"
+                                    'btn-outline-success': _treeMode!=choice.value}">
+                    <input type="radio"
+                           class="btn-check"
+                           autocomplete="off"
                            name="tree_mode"
                            v-bind:value="choice.value" v-model="_treeMode" @change="reload">
                     <span><i v-bind:class="choice.icon_class"></i> {{ choice.label }}</span>
@@ -439,16 +446,14 @@ export default {
                         <a class="page-link" v-on:click="loadPage(_currentPage+1)">Next</a>
                     </li>
 
-                    <li class="ml-2">
+                    <li class="ms-2">
                         <div class="input-group nav-item">
                             <div class="input-group-prepend">
                                 <label class="input-group-text" for="page-size-select">Page size</label>
                             </div>
                             <select name="page_size" class="custom-select" id="page-size-select" v-model="_pageSize"
                                     @change="reload()">
-                                <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==pageSize}">{{
-                                    ps
-                                    }}
+                                <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==pageSize}">{{ ps }}
                                 </option>
                             </select>
                         </div>
@@ -460,13 +465,16 @@ export default {
         <div class="col-md-4">
             <div v-if="isAnonymous" class="form-group">
                 <button class="btn btn-primary form-control disabled"
-                        title="Please sign-in to use this feature">Create digital surface twin
+                        title="Please sign-in to use this feature"
+                        disabled>
+                    Create digital surface twin
                 </button>
             </div>
             <div v-if="!isAnonymous" class="form-group" title="Create a new digital surface twin">
-                <a class="btn btn-primary form-control" :href="surfaceCreateUrl">Create digital
-                    surface
-                    twin</a>
+                <a class="btn btn-primary form-control"
+                   @click="createSurface">
+                    Create digital surface twin
+                </a>
             </div>
         </div>
     </div>
@@ -491,9 +499,7 @@ export default {
     </div>
     <div>
     <span v-if="!_isLoading">
-      Showing {{ _numItemsOnCurrentPage }} {{ _treeModeInfos[_treeMode].element_kind }} out of {{
-        _numItems
-        }}.
+      Showing {{ _numItemsOnCurrentPage }} {{ _treeModeInfos[_treeMode].element_kind }} out of {{ _numItems }}.
       {{ _treeModeInfos[_treeMode].hint }}
     </span>
     </div>

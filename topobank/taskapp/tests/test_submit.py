@@ -21,7 +21,7 @@ def test_request_analysis(mocker, test_analysis_function):
 
     # mocker.patch('topobank.analysis.models.Analysis.objects.create')
     # mocker.patch('django.db.models.QuerySet.delete') # we don't need to test with delete here
-    mocker.patch('topobank.taskapp.tasks.perform_analysis.delay')  # we don't want to calculate anything
+    mocker.patch('topobank.taskapp.utils.run_task')  # we don't want to calculate anything
 
     topo = Topography1DFactory()
 

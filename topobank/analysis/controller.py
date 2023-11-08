@@ -6,11 +6,10 @@ from django.db.models import Q
 
 from ..manager.utils import subjects_from_dict, subjects_to_dict, dict_from_base64, subjects_to_base64
 
-from ..taskapp.tasks import perform_analysis
-
 from .models import Analysis, AnalysisFunction, AnalysisSubject
 from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
 from .serializers import AnalysisResultSerializer
+from .tasks import perform_analysis
 from .utils import find_children
 
 _log = logging.getLogger(__name__)
@@ -41,7 +40,7 @@ def renew_analyses_for_subject(subject, recursive=True):
     will be deleted. Only analyses for the default parameters
     will be automatically generated at the moment.
 
-    Implementation Note:
+    Implementation note:
 
     This method cannot be easily used in a post_save signal,
     because the pre_delete signal deletes the datafile and
@@ -54,6 +53,12 @@ def renew_analyses_for_subject(subject, recursive=True):
 
     def submit_all(subj):
         """Trigger analyses for this subject for all available analyses functions."""
+        if hasattr(subj, 'subject_dispatch'):
+            if subj.subject_dispatch.topography is not None:
+                if not subj.subject_dispatch.topography.is_metadata_complete:
+                    _log.info(f"Analyses for {subj.get_subject_type()} {subj.id} was not triggered because metadata is "
+                              f"not complete.")
+                    return
         _log.info(f"Deleting all analyses for {subj.get_subject_type()} {subj.id}...")
         Analysis.objects.filter(AnalysisSubject.Q(subj)).delete()
         _log.info(f"Triggering analyses for {subj.get_content_type().name} {subj.id} and all analysis functions...")
@@ -69,12 +74,12 @@ def renew_analyses_for_subject(subject, recursive=True):
                                f"({subj.get_content_type().name} {subj.id}). Reason: {str(err)}")
 
     # Note: on_commit will not execute in tests, unless transaction=True is added to pytest.mark.django_db
-    transaction.on_commit(lambda: submit_all(subject))
+    submit_all(subject)
 
     if recursive and hasattr(subject, 'topography_set'):
         for topo in subject.topography_set.all():
             # Note: on_commit will not execute in tests, unless transaction=True is added to pytest.mark.django_db
-            transaction.on_commit(lambda: submit_all(topo))
+            submit_all(topo)
 
 
 def renew_existing_analysis(analysis, use_default_kwargs=False):
@@ -108,8 +113,7 @@ def renew_existing_analysis(analysis, use_default_kwargs=False):
               f"subject type {subject_type}, subject id {analysis.subject.id}, "
               f"kwargs: {pyfunc_kwargs}")
     analysis.delete()
-    return submit_analysis(users, func, subject=analysis.subject,
-                           pyfunc_kwargs=pyfunc_kwargs)
+    return submit_analysis(users, func, subject=analysis.subject, pyfunc_kwargs=pyfunc_kwargs)
 
 
 def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):

@@ -1,12 +1,20 @@
+// jQuery
 import jQuery from 'jquery';
 
 window.$ = window.jQuery = jQuery;
 
-// TODO: Bootstrap can be imported here but does not register event handlers globally
-//import * as bootstrap from 'bootstrap';
+// Fontawesome
+/*
+import { library, dom } from '@fortawesome/fontawesome-svg-core';
+import { far } from '@fortawesome/free-regular-svg-icons';
+import { fas } from '@fortawesome/free-solid-svg-icons';
 
+library.add(far, fas);
+dom.watch();
+*/
+
+// Vue & Bokeh
 import {createApp} from 'vue';
-
 import * as Bokeh from '@bokeh/bokehjs';
 
 window.Bokeh = Bokeh;
@@ -22,6 +30,7 @@ import 'topobank/scss/custom.scss';
  * Event bus for initiating DZI download
  */
 import mitt from 'mitt';
+import axios from "axios";
 
 const eventHub = mitt();
 
@@ -37,6 +46,7 @@ export function getEventHub() {
  */
 export function createDeepZoomImage(el, csrfToken, props) {
     let app = createApp(DeepZoomImage, props);
+    axios.defaults.headers.common['X-CSRFToken'] = csrfToken;
     app.provide('csrfToken', csrfToken);
     app.provide('eventHub', eventHub);
     app.mount(el);
@@ -48,6 +58,7 @@ export function createDeepZoomImage(el, csrfToken, props) {
  */
 export function createSearchResultsApp(el, csrfToken, props) {
     let app = createApp(SearchResults, props);
+    axios.defaults.headers.common['X-CSRFToken'] = csrfToken;
     app.provide('csrfToken', csrfToken);
     app.provide('eventHub', eventHub);
     app.mount(el);

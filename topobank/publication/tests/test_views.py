@@ -13,9 +13,11 @@ from topobank.utils import assert_in_content
 def test_go_link(client, example_pub):
     user = UserFactory()
     client.force_login(user)
-    response = client.get(reverse('publication:go', kwargs=dict(short_url=example_pub.short_url)), follow=True)
-    assert response.status_code == 200
-    assert_in_content(response, example_pub.surface.name)
+    url = reverse('publication:go', kwargs=dict(short_url=example_pub.short_url))
+    assert url == f'/go/{example_pub.short_url}/'
+    response = client.get(url, follow=False)
+    assert response.status_code == 302
+    assert response.url.endswith(f'surface={example_pub.surface.id}')
 
 
 @pytest.mark.django_db

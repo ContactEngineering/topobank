@@ -9,6 +9,7 @@ from guardian.utils import get_user_obj_perms_model
 
 from .models import Surface
 
+
 class ObjectPermissions(DjangoObjectPermissions):
     """
     Add restrictions to GET, OPTIONS and HEAD that are not present in the

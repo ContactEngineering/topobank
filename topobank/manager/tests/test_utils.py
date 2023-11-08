@@ -135,7 +135,7 @@ def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
     assert_same_surface_lists(surfaces_for_user(user1, perms=['view_surface', 'change_surface']),
                               [surface1, surface2, surface3])
 
-    surface4.share(user1, allow_change=True)
+    surface4.set_permissions(user1, 'edit')
     assert_same_surface_lists(surfaces_for_user(user1, perms=['view_surface', 'change_surface']),
                               [surface1, surface2, surface3, surface4])
 

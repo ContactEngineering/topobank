@@ -1,9 +1,13 @@
 import importlib
 
+from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+
 from watchman.decorators import check as watchman_check
 
-from topobank.analysis.models import Dependency, Version
+from .celeryapp import app
+from .models import Dependency, TaskStateModel, Version
 
 
 class ConfigurationException(Exception):
@@ -87,6 +91,7 @@ def celery_worker_check():
         'celery': _celery_worker_check(),
     }
 
+
 @watchman_check
 def _celery_worker_check():
     """Used with watchman in order to check whether celery workers are available."""
@@ -101,3 +106,26 @@ def _celery_worker_check():
     }
 
 
+@app.task(bind=True)
+def task_dispatch(celery_task, cls_id, obj_id):
+    ct = ContentType.objects.get_for_id(cls_id)
+    try:
+        obj = ct.get_object_for_this_type(id=obj_id)
+        obj.run_task(celery_task)
+    except ct.model_class().DoesNotExist:
+        # Ignore the task if the instance no longer exists
+        pass
+
+
+def run_task(model_instance, *args, **kwargs):
+    model_instance.task_state = TaskStateModel.PENDING
+    # Only submit this on_commit, once save() has finalized and everything
+    # has been flushed to the database (including a possible 'pe'nding state)
+    transaction.on_commit(
+        lambda: task_dispatch.delay(
+            ContentType.objects.get_for_model(model_instance).id,
+            model_instance.id,
+            *args,
+            **kwargs
+        )
+    )

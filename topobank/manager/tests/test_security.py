@@ -8,9 +8,9 @@ from .utils import FIXTURE_DIR
 from ..models import Surface, Topography
 from topobank.utils import assert_in_content, assert_redirects
 
-@pytest.mark.django_db
-def test_prevent_surface_access_by_other_user(client, django_user_model, handle_usage_statistics):
 
+@pytest.mark.django_db
+def test_prevent_surface_access_by_other_user(api_client, django_user_model, handle_usage_statistics):
     surface_id = 1
     username1 = 'testuser1'
     password1 = 'abcd$1234'
@@ -30,7 +30,7 @@ def test_prevent_surface_access_by_other_user(client, django_user_model, handle_
     # Login as user 2
     #
     user2 = django_user_model.objects.create_user(username=username2, password=password2)
-    assert client.login(username=username2, password=password2)
+    assert api_client.login(username=username2, password=password2)
 
     # give both user permissions to skip all terms, we want to test independently from this
     skip_perm = Permission.objects.get(codename='can_skip_terms')
@@ -42,18 +42,18 @@ def test_prevent_surface_access_by_other_user(client, django_user_model, handle_
     #
     # Each time, this should redirect to an access denied page
     #
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=surface_id)))
-    assert response.status_code == 403
+    response = api_client.get(reverse('manager:surface-api-detail', kwargs=dict(pk=surface_id)))
+    assert response.status_code == 404
 
-    response = client.get(reverse('manager:surface-update', kwargs=dict(pk=surface_id)))
-    assert response.status_code == 403
+    response = api_client.patch(reverse('manager:surface-api-detail', kwargs=dict(pk=surface_id)))
+    assert response.status_code == 404
 
-    response = client.get(reverse('manager:surface-delete', kwargs=dict(pk=surface_id)))
-    assert response.status_code == 403
+    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface_id)))
+    assert response.status_code == 404
+
 
 @pytest.mark.django_db
-def test_prevent_topography_access_by_other_user(client, django_user_model, mocker, handle_usage_statistics):
-
+def test_prevent_topography_access_by_other_user(api_client, django_user_model, mocker, handle_usage_statistics):
     surface_id = 1
     username1 = 'testuser1'
     password1 = 'abcd$1234'
@@ -72,7 +72,7 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
     #
     # Mock a topography
     #
-    input_file_path = Path(FIXTURE_DIR+'/example3.di')
+    input_file_path = Path(FIXTURE_DIR + '/example3.di')
 
     # prevent signals when creating topography
     mocker.patch('django.db.models.signals.pre_save.send')
@@ -88,46 +88,31 @@ def test_prevent_topography_access_by_other_user(client, django_user_model, mock
     # Login as user 2
     #
     django_user_model.objects.create_user(username=username2, password=password2)
-    assert client.login(username=username2, password=password2)
+    assert api_client.login(username=username2, password=password2)
 
     #
     # As user 2, try to access topography from user 1 with various views
     #
     # Each time, this should redirect to an access denied page
     #
-    response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=topography_id)))
-    assert response.status_code == 403
+    response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
+    assert response.status_code == 404
 
-    response = client.get(reverse('manager:topography-update', kwargs=dict(pk=topography_id)))
-    assert response.status_code == 403
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
+    assert response.status_code == 404
 
-    response = client.get(reverse('manager:topography-delete', kwargs=dict(pk=topography_id)))
-    assert response.status_code == 403
+    response = api_client.delete(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
+    assert response.status_code == 404
 
 
 @pytest.mark.django_db
-def test_pagenotfound__if_surface_does_not_exist(client, django_user_model, handle_usage_statistics):
-
+def test_pagenotfound_if_surface_does_not_exist(api_client, django_user_model, handle_usage_statistics):
     username = 'testuser1'
     password = 'abcd$1234'
 
     django_user_model.objects.create_user(username=username, password=password)
 
-    assert client.login(username=username, password=password)
+    assert api_client.login(username=username, password=password)
 
-    response = client.get(reverse('manager:surface-detail', kwargs=dict(pk=999)))
+    response = api_client.get(reverse('manager:surface-api-detail', kwargs=dict(pk=999)))
     assert response.status_code == 404
-
-
-@pytest.mark.django_db
-def test_pagenotfound_if_topography_does_not_exist(client, django_user_model, handle_usage_statistics):
-    username = 'testuser1'
-    password = 'abcd$1234'
-
-    django_user_model.objects.create_user(username=username, password=password)
-
-    assert client.login(username=username, password=password)
-
-    response = client.get(reverse('manager:topography-detail', kwargs=dict(pk=999)))
-    assert response.status_code == 404
-

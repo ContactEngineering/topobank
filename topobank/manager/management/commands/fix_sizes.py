@@ -82,6 +82,7 @@ class Command(BaseCommand):
                 topographies_with_differences.add(topo)
                 if not options['dry_run']:
                     topo.size_editable = size_editable
+                    topo.unit_editable = size_editable
                     do_save = True
 
             if not size_editable:  # we don't change the sizes if they're editable

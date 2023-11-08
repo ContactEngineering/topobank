@@ -54,14 +54,15 @@ class AnalysisFunctionView(viewsets.GenericViewSet, mixins.ListModelMixin, mixin
         return AnalysisFunction.objects.filter(pk__in=ids)
 
 
-class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+class AnalysisResultView(viewsets.GenericViewSet,
+                         mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
     queryset = Analysis.objects.select_related('function', 'subject_dispatch__topography', 'subject_dispatch__surface',
                                                'subject_dispatch__collection').prefetch_related('users')
     serializer_class = AnalysisResultSerializer
 
     def update(self, request, *args, **kwargs):
-        """Renew existing analysis."""
+        """Renew existing analysis (PUT)."""
         analysis = self.get_object()
         if analysis.is_visible_for_user(request.user):
             new_analysis = renew_existing_analysis(analysis)
@@ -532,7 +533,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'title': f"{topo.surface.label}",
                 'icon': "gem",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=topo.surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={topo.surface.pk}",
                 'active': False,
                 'login_required': False,
                 'tooltip': f"Properties of surface '{topo.surface.label}'",
@@ -541,7 +542,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'title': f"{topo.name}",
                 'icon': "file",
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:topography-detail', kwargs=dict(pk=topo.pk)),
+                'href': f"{reverse('manager:topography-detail')}?topography={topo.pk}",
                 'active': False,
                 'login_required': False,
                 'tooltip': f"Properties of measurement '{topo.name}'",
@@ -555,7 +556,7 @@ def extra_tabs_if_single_item_selected(topographies, surfaces):
                 'title': f"{surface.label}",
                 'icon': 'gem',
                 'icon_style_prefix': 'far',
-                'href': reverse('manager:surface-detail', kwargs=dict(pk=surface.pk)),
+                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
                 'active': False,
                 'login_required': False,
                 'tooltip': f"Properties of surface '{surface.label}'",
