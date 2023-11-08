@@ -12,7 +12,7 @@
 - MAINT: Refactor of codebase to respect hierarchy of Django apps (#1018)
 - MAINT: Cached topography properties (thumbnail, DZI, etc.) are now generated
   in a single task (#895)
-- MAINT: Updated SurfaceTopography to 1.11.1
+- MAINT: Updated SurfaceTopography to 1.11.3
 
 ## 1.3.1 (2023-09-13)
 
