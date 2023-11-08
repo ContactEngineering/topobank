@@ -207,6 +207,8 @@ class Surface(models.Model, SubjectMixin):
     description = models.TextField(blank=True)
     category = models.CharField(max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False)
     tags = tm.TagField(to=TagModel)
+    creation_datetime = models.DateTimeField(auto_now_add=True)
+    modification_datetime = models.DateTimeField(auto_now=True)
 
     objects = models.Manager()
     published = PublishedSurfaceManager()
@@ -655,6 +657,8 @@ class Topography(TaskStateModel, SubjectMixin):
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=TagModel)
+    creation_datetime = models.DateTimeField(auto_now_add=True)
+    modification_datetime = models.DateTimeField(auto_now=True)
 
     #
     # Fields related to raw data
