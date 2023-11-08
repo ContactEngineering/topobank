@@ -251,7 +251,7 @@ def filtered_surfaces(request):
                                        .filter(content_type__app_label='manager', content_type__model='surface')
                                        .exclude(user=user))  # not own permissions
             surface_ids = [x[0] for x in viewable_surfaces_perms.values_list("object_pk")]
-            qs = qs.filter(creator=user, id__in=surface_ids)  # own surfaces, shared with others
+            qs = qs.filter(creator=user, id__in=surface_ids, publication__isnull=True)  # own surfaces, shared with others, unpublished
         case 'published_egress':
             qs = qs.filter(publication__isnull=False, creator=user)
         case 'all':
