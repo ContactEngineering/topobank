@@ -41,8 +41,10 @@ CATEGORY_FILTER_CHOICES = {'all': 'All categories',
 SHARING_STATUS_FILTER_CHOICES = {
     'all': 'All accessible surfaces',
     'own': 'Only own surfaces',
-    'shared': 'Only surfaces shared with you',
-    'published': 'Only surfaces published by anyone',
+    'shared_ingress': 'Only surfaces shared with you',
+    'published_ingress': 'Only surfaces published by others',
+    'shared_egress': 'Only surfaces shared by you',
+    'published_egress': 'Only surfaces published by you'
 }
 TREE_MODE_CHOICES = ['surface list', 'tag tree']
 
