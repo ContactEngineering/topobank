@@ -412,7 +412,7 @@ def test_select_tab_state_should_be_default_after_login(client):
     # first request the site anonymously .. select tab state is set to that of
     # an anonymous user
     response = client.get(reverse('manager:select'))
-    assert response.context['select_tab_state']['sharing_status'] == 'published'
+    assert response.context['select_tab_state']['sharing_status'] == 'published_ingress'
 
     # Then login as authenticated user
     password = "abcd"

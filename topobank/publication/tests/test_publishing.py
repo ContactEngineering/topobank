@@ -246,11 +246,11 @@ def test_dont_show_published_surfaces_when_shared_filter_used(client, handle_usa
 
     client.force_login(bob)
 
-    response = client.get(reverse('manager:search') + '?sharing_status=shared')  # means "shared with you"
+    response = client.get(reverse('manager:search') + '?sharing_status=shared_ingress')  # means "shared with you"
     assert_in_content(response, "Shared Surface")
     assert_not_in_content(response, "Published Surface")
 
-    response = client.get(reverse('manager:search') + '?sharing_status=published')  # means "published by anyone"
+    response = client.get(reverse('manager:search') + '?sharing_status=published_ingress')  # means "published by others"
     assert_not_in_content(response, "Shared Surface")
     assert_in_content(response, "Published Surface")
 
