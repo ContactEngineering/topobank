@@ -5,20 +5,19 @@ import markdown2
 import tempfile
 import traceback
 
-from django.shortcuts import reverse
-from guardian.shortcuts import get_objects_for_user, get_users_with_perms
-from django.conf import settings
-from django.db.models import Q, Value, Count
-from django.db.models.functions import Replace
-from django.core.exceptions import PermissionDenied
-from django.core.files import File
-from django.core.files.storage import default_storage
-from django.contrib.contenttypes.models import ContentType
-from django.contrib.postgres.search import SearchVector, SearchQuery
-
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
+from django.conf import settings
+from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.search import SearchVector, SearchQuery
+from django.core.exceptions import PermissionDenied
+from django.core.files import File
+from django.core.files.storage import default_storage
+from django.db.models import Q, Value, Count
+from django.db.models.functions import Replace
+from django.shortcuts import reverse
+from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 
 _log = logging.getLogger(__name__)
 
@@ -975,6 +974,25 @@ def get_category(request) -> str:
     return category
 
 
+def get_sortby(request) -> str:
+    """Extract sort by from given request.
+
+    Parameters
+    ----------
+    request
+
+    Returns
+    -------
+    Sorted with requested sort by.
+
+    Raises
+    ------
+    """
+    from .views import SORT_DATASET_CHOICES
+    sortBy = request.GET.get('sortBy', default='Sort By Name')
+    return sortBy
+
+
 def get_sharing_status(request) -> str:
     """Extract a sharing status from given request.
 
@@ -1155,3 +1173,4 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             target_name = f'{path_prefix}/{storage_filename}'
             # Upload to S3
             default_storage_replace(target_name, File(open(filename, mode='rb')))
+

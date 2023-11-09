@@ -63,18 +63,25 @@ from .permissions import ObjectPermissions, ObjectPermissionsFilter, ParentObjec
 from .serializers import SurfaceSerializer, TopographySerializer, TagSerializer
 from .utils import selected_instances, bandwidths_data, get_topography_reader, tags_for_user, get_reader_infos, \
     mailto_link_for_reporting_an_error, current_selection_as_basket_items, filtered_surfaces, \
-    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
+    filtered_topographies, get_search_term, get_category, get_sortby, get_sharing_status, get_tree_mode, \
     get_permission_table_data, subjects_to_base64
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
                            **{cc[0]: cc[1] + " only" for cc in Surface.CATEGORY_CHOICES}}
+
+SORT_DATASET_CHOICES = {
+    'name': 'sort-by-name',
+    'date': 'sort-by-date',
+}
+
 SHARING_STATUS_FILTER_CHOICES = {
     'all': 'All accessible surfaces',
     'own': 'Only own surfaces',
     'shared': 'Only surfaces shared with you',
     'published': 'Only surfaces published by anyone',
 }
+
 TREE_MODE_CHOICES = ['surface list', 'tag tree']
 
 MAX_PAGE_SIZE = 100
@@ -83,6 +90,7 @@ DEFAULT_PAGE_SIZE = 10
 DEFAULT_SELECT_TAB_STATE = {
     'search_term': '',  # empty string means: no search
     'category': 'all',
+    'sort_by': '',
     'sharing_status': 'all',
     'tree_mode': 'surface list',
     'page_size': 10,
@@ -1729,6 +1737,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
 
         select_tab_state['search_term'] = get_search_term(self.request)
         select_tab_state['category'] = get_category(self.request)
+        select_tab_state['sort_by'] = get_sortby(self.request)
         select_tab_state['sharing_status'] = get_sharing_status(self.request)
         select_tab_state['tree_mode'] = get_tree_mode(self.request)
         page_size = self.get_page_size(self.request)
@@ -1747,6 +1756,7 @@ class SurfaceSearchPaginator(PageNumberPagination):
             'page_size': page_size,
             'search_term': select_tab_state['search_term'],
             'category': select_tab_state['category'],
+            'sort_by': select_tab_state['sort_by'],
             'sharing_status': select_tab_state['sharing_status'],
             'tree_mode': select_tab_state['tree_mode'],
             'page_results': data
