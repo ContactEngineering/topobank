@@ -1,7 +1,7 @@
 import pytest
 from django.urls import reverse
 
-from .utils import SurfaceFactory, UserFactory, ordereddicts_to_dicts
+from .utils import SurfaceFactory, UserFactory
 
 
 @pytest.mark.django_db
