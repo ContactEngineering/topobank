@@ -40,14 +40,14 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
     topography_id = response.data['id']
 
     # upload file
-    post_data = response.data['post_data']  # The POST request above informs us how to upload the file
-    _log.debug(f"Upload post url: {post_data['url']}")
+    upload_instructions = response.data['upload_instructions']  # The POST request above informs us how to upload the file
+    _log.debug(f"Upload post url: {upload_instructions['url']}")
     with open(fn, mode='rb') as fp:
         if settings.USE_S3_STORAGE:
             # We need to use `requests` as the upload is directly to S3, not to the Django app
-            response = requests.post(post_data['url'], data={**post_data['fields']}, files={'file': fp})
+            response = requests.post(upload_instructions['url'], data={**upload_instructions['fields']}, files={'file': fp})
         else:
-            response = api_client.post(post_data['url'], {**post_data['fields'], name: fp}, format='multipart')
+            response = api_client.post(upload_instructions['url'], {**upload_instructions['fields'], name: fp}, format='multipart')
     assert response.status_code == 204, response.data  # Created
 
     # We need to execute on commit actions, because this is where the renew_cache task is triggered
