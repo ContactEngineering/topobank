@@ -71,8 +71,8 @@ function topographyUpdated(topography) {
 
 const isUploading = computed(() => {
     return _topography.value !== null &&
-        _topography.value.post_data !== undefined &&
-        _topography.value.post_data !== null;
+        _topography.value.upload_instructions !== undefined &&
+        _topography.value.upload_instructions !== null;
 });
 
 </script>
@@ -82,7 +82,7 @@ const isUploading = computed(() => {
         v-if="_topography !== null && isUploading"
         :name="_topography.name"
         :file="_topography.file"
-        :post-data="_topography.post_data"
+        :upload-instructions="_topography.upload_instructions"
         @upload-successful="checkState">
     </topography-upload-card>
     <topography-pending-card

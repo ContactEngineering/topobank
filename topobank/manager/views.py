@@ -33,7 +33,7 @@ from .permissions import ObjectPermissions, ParentObjectPermissions
 from .serializers import SurfaceSerializer, TopographySerializer, TagSearchSerizalizer, SurfaceSearchSerializer
 from .utils import selected_instances, tags_for_user, current_selection_as_basket_items, filtered_surfaces, \
     filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    get_upload_post_request, api_to_guardian
+    get_upload_instructions, api_to_guardian
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -680,7 +680,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
                         mixins.UpdateModelMixin,
                         mixins.DestroyModelMixin,
                         viewsets.GenericViewSet):
-    EXPIRE_UPLOAD = 10  # Presigned key for uploading expires after 10 seconds
+    EXPIRE_UPLOAD = 100  # Presigned key for uploading expires after 10 seconds
 
     queryset = Topography.objects.all()
     serializer_class = TopographySerializer
@@ -714,7 +714,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
 
         # Populate upload_url, the presigned key should expire quickly
         serializer.update(instance, {
-            'post_data': get_upload_post_request(instance, datafile_path, self.EXPIRE_UPLOAD)
+            'upload_instructions': get_upload_instructions(instance, datafile_path, self.EXPIRE_UPLOAD)
         })
 
     def perform_update(self, serializer):

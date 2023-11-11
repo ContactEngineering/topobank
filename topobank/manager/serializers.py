@@ -84,7 +84,7 @@ class TopographySerializer(StrictFieldMixin,
                   'short_reliability_cutoff',
                   'is_periodic',
                   'instrument_name', 'instrument_type', 'instrument_parameters',
-                  'post_data',
+                  'upload_instructions',
                   'is_metadata_complete',
                   'thumbnail',
                   'duration', 'error', 'task_progress', 'task_state', 'tags']  # TaskStateModelSerializer
@@ -98,7 +98,7 @@ class TopographySerializer(StrictFieldMixin,
 
     is_metadata_complete = serializers.SerializerMethodField()
 
-    post_data = serializers.DictField(default=None, read_only=True)  # Pre-signed upload location
+    upload_instructions = serializers.DictField(default=None, read_only=True)  # Pre-signed upload location
 
     def validate(self, data):
         read_only_fields = []

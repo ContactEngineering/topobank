@@ -5,6 +5,7 @@ import axios from "axios";
 import {
     BProgress
 } from 'bootstrap-vue-next';
+import {concat} from "lodash";
 
 export default {
     name: 'topography-upload-card',
@@ -17,7 +18,7 @@ export default {
     props: {
         name: String,  // Used for the title of the card
         file: Object,  // File object containing the actual data
-        postData: Object,  // Target URL
+        uploadInstructions: Object,  // Target URL
     },
     data() {
         return {
@@ -26,15 +27,54 @@ export default {
         }
     },
     mounted() {
+        console.log(this.uploadInstructions);
         // Start upload
-        axios.postForm(
-            this.postData.url,
-            {...this.postData.fields, file: this.file},
-            {onUploadProgress: this.onProgress}
-        ).then(response => {
-            // Upload successfully finished
-            this.$emit('upload-successful', this.postData.url);
-        });
+        if (this.uploadInstructions.method === 'POST') {
+            axios.postForm(
+                this.uploadInstructions.url,
+                {...this.uploadInstructions.fields, file: this.file},
+                {onUploadProgress: this.onProgress}
+            ).then(response => {
+                // Upload successfully finished
+                this.$emit('upload-successful', this.uploadInstructions.url);
+            });
+        } else if (this.uploadInstructions.method === 'PUT') {
+            /*
+            axios.request({
+                method: 'put',
+                url: this.uploadInstructions.url,
+                data: this.file,
+                onUploadProgress: this.onProgress
+            }).then(response => {
+                // Upload successfully finished
+                this.$emit('upload-successful', this.uploadInstructions.url);
+            });
+             */
+
+                /*
+            fetch(this.uploadInstructions.url, {
+                method: 'PUT',
+                body: this.file
+            }).then(response => {
+                // Upload successfully finished
+                this.$emit('upload-successful', this.uploadInstructions.url);
+            });
+                 */
+
+            axios.put(
+                this.uploadInstructions.url,
+                this.file,
+                {
+                    headers: { 'Content-Type': 'binary/octet-stream' },
+                    onUploadProgress: this.onProgress
+                }
+            ).then(response => {
+                // Upload successfully finished
+                this.$emit('upload-successful', this.uploadInstructions.url);
+            });
+        } else {
+            alert(`Unknown upload method: "${this.uploadInstructions.method}`);
+        }
     },
     methods: {
         onProgress(e) {
