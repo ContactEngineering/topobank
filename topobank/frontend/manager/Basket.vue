@@ -80,7 +80,6 @@ export default {
             })
                 .then(response => response.json())
                 .then(data => {
-                    console.log(data);
                     _this.update(data);
                     _this.$emit('unselect-successful', this, this._keys);
                 })
