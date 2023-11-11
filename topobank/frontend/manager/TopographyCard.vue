@@ -51,7 +51,7 @@ const isUploading = computed(() => {
 function scheduleStateCheck() {
     if (_topography.value === null) {
         checkState();
-    } else if (_topography.value.task_state === 'pe') {
+    } else if (_topography.value.task_state === 'pe' || _topography.value.task_state === 'st') {
         setTimeout(checkState, props.pollingInterval);
     }
 }
