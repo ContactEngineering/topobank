@@ -618,3 +618,6 @@ REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC = lambda x: True
 
 # Keep records for two weeks
 REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14
+
+# Upload method
+UPLOAD_METHOD = env('TOPOBANK_UPLOAD_METHOD', default='PUT')

@@ -1190,9 +1190,12 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
 import botocore.awsrequest
 
 
-def get_upload_instructions(instance, name, expire, method='PUT'):
+def get_upload_instructions(instance, name, expire, method=None):
     """Generate a presigned URL for an upload direct to S3"""
     # Preserve the trailing slash after normalizing the path.
+    if method is None:
+        method = settings.UPLOAD_METHOD
+
     if settings.USE_S3_STORAGE:
         name = default_storage._normalize_name(clean_name(name))
         if method == 'POST':
@@ -1213,7 +1216,11 @@ def get_upload_instructions(instance, name, expire, method='PUT'):
                     },
                     ExpiresIn=expire)
             }
+        else:
+            raise RuntimeError(f'Unknown upload method: {method}')
     else:
+        if method != 'POST':
+            raise RuntimeError('Only POST uploads are supported without S3')
         upload_instructions = {
             'method': 'POST',
             'url': reverse('manager:upload-topography', kwargs=dict(pk=instance.id)),
