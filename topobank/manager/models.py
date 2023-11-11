@@ -2,6 +2,7 @@
 Basic models for the web app for handling topography data.
 """
 
+import copy
 import io
 import logging
 import math
@@ -928,6 +929,8 @@ class Topography(TaskStateModel, SubjectMixin):
 
     @staticmethod
     def _clean_instrument_parameters(params):
+        params = copy.deepcopy(params)
+
         # Check that resolution parameter is complete
         try:
             r = params['resolution']
