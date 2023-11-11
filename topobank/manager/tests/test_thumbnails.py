@@ -50,7 +50,8 @@ def test_renewal_on_topography_detrend_mode_change(api_client, mocker, settings,
 
 
 @pytest.mark.django_db
-def test_no_renewal_on_measurement_date_change(api_client, mocker, settings, django_capture_on_commit_callbacks):
+def test_no_renewal_on_measurement_date_change(api_client, mocker, settings, django_capture_on_commit_callbacks,
+                                               handle_usage_statistics):
     """Check whether thumbnail is renewed if detrend mode changes for a topography"""
     settings.CELERY_TASK_ALWAYS_EAGER = True
 
