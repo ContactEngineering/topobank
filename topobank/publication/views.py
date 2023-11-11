@@ -107,13 +107,13 @@ class SurfacePublishView(FormView):
         try:
             surface.publish(license, authors)
         except NewPublicationTooFastException as exc:
-            return redirect("manager:surface-publication-rate-too-high",
+            return redirect("publication:surface-publication-rate-too-high",
                             pk=surface.pk)
         except PublicationException as exc:
             msg = f"Publication failed, reason: {exc}"
             _log.error(msg)
             messages.error(self.request, msg)
-            return redirect("manager:surface-publication-error",
+            return redirect("publication:surface-publication-error",
                             pk=surface.pk)
 
         return super().form_valid(form)
