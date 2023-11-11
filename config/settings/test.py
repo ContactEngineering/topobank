@@ -125,3 +125,5 @@ BOKEH_OUTPUT_BACKEND = 'canvas'
 if not ENABLE_USAGE_STATS:
     ENABLE_USAGE_STATS = True
     MIDDLEWARE += ['topobank.usage_stats.middleware.count_request_middleware']
+
+UPLOAD_METHOD = 'POST'
