@@ -2,7 +2,6 @@
 Basic models for the web app for handling topography data.
 """
 
-import copy
 import io
 import logging
 import math
@@ -936,55 +935,39 @@ class Topography(TaskStateModel, SubjectMixin):
 
     @staticmethod
     def _clean_instrument_parameters(params):
-        params = copy.deepcopy(params)
+        cleaned_params = {}
 
-        # Check that resolution parameter is complete
-        try:
-            r = params['resolution']
-        except KeyError:
-            pass
-        else:
-            if not ('value' in r and 'unit' in r):
-                # Value/unit pair is incomplete
-                del params['resolution']
-            else:
-                # Make sure it is a floating-point value
+        def _clean_value_unit_pair(r):
+            cleaned_r = None
+            if 'value' in r and 'unit' in r:
+                # Value/unit pair is complete
                 try:
-                    params['resolution']['value'] = float(params['resolution']['value'])
+                    cleaned_r = {
+                        'value': float(r['value']),
+                        'unit': r['unit']
+                    }
                 except KeyError:
-                    # 'value' does not exist - should not happen
+                    # 'value' or 'unit' does not exist - should not happen
                     pass
                 except TypeError:
-                    # None
-                    del params['resolution']
-                except ValueError:
-                    # Value cannot be converted to float
-                    del params['resolution']
-
-        # Check that tip radius parameter is complete
-        try:
-            r = params['tip_radius']
-        except KeyError:
-            pass
-        else:
-            if not ('value' in r and 'unit' in r):
-                # Value/unit pair is incomplete
-                del params['tip_radius']
-            else:
-                # Make sure it is a floating-point value
-                try:
-                    params['tip_radius']['value'] = float(params['tip_radius']['value'])
-                except KeyError:
-                    # 'value' does not exist - should not happen
+                    # Value is None
                     pass
-                except TypeError:
-                    # None
-                    del params['tip_radius']
                 except ValueError:
                     # Value cannot be converted to float
-                    del params['tip_radius']
+                    pass
+            return cleaned_r
 
-        return params
+        # Check completeness of resolution parameters
+        for key in ['resolution', 'tip_radius']:
+            try:
+                r = _clean_value_unit_pair(params[key])
+            except KeyError:
+                pass
+            else:
+                if r is not None:
+                    cleaned_params[key] = r
+
+        return cleaned_params
 
     @property
     def _instrument_info(self):
