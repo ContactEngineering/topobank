@@ -265,7 +265,8 @@ export default {
                    :href="_topography.datafile">
                     <i class="fa fa-download"></i>
                 </a>
-                <button class="btn btn-outline-secondary">
+                <button class="btn btn-outline-secondary"
+                        :disabled="disabled">
                     <i class="fa fa-refresh"
                        @click="forceInspect"></i>
                 </button>

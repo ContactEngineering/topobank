@@ -36,6 +36,7 @@ export default {
     },
     data() {
         return {
+            _disabled: false,
             _showDeleteModal: false,
             _topography: null
         }
@@ -46,8 +47,9 @@ export default {
     methods: {
         updateCard() {
             /* Fetch JSON describing the card */
-            axios.get(this.topographyUrl).then(response => {
+            axios.get(`${this.topographyUrl}?permissions=yes`).then(response => {
                 this._topography = response.data;
+                this._disabled = this._topography === null || this._topography.permissions.current_user.permission === 'view';
             });
         },
         deleteTopography() {
@@ -94,7 +96,8 @@ export default {
                     </b-tab>
                     <b-tab title="Properties">
                         <topography-card :topography="_topography"
-                                         :enlarged="true">
+                                         :enlarged="true"
+                                         :disabled="_disabled">
                         </topography-card>
                     </b-tab>
                     <template #tabs-end>

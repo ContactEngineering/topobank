@@ -87,7 +87,8 @@ class TopographySerializer(StrictFieldMixin,
                   'upload_instructions',
                   'is_metadata_complete',
                   'thumbnail',
-                  'duration', 'error', 'task_progress', 'task_state', 'tags']  # TaskStateModelSerializer
+                  'duration', 'error', 'task_progress', 'task_state', 'tags',  # TaskStateModelSerializer
+                  'permissions']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
@@ -99,6 +100,19 @@ class TopographySerializer(StrictFieldMixin,
     is_metadata_complete = serializers.SerializerMethodField()
 
     upload_instructions = serializers.DictField(default=None, read_only=True)  # Pre-signed upload location
+
+    permissions = serializers.SerializerMethodField()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        # We only return permissions if requested to do so
+        with_permissions = False
+        if 'request' in self.context:
+            permissions = self.context['request'].query_params.get('permissions')
+            with_permissions = permissions is not None and permissions.lower() in ['yes', 'true']
+        if not with_permissions:
+            self.fields.pop('permissions')
 
     def validate(self, data):
         read_only_fields = []
@@ -121,6 +135,16 @@ class TopographySerializer(StrictFieldMixin,
 
     def get_is_metadata_complete(self, obj):
         return obj.is_metadata_complete
+
+    def get_permissions(self, obj):
+        request = self.context['request']
+        current_user = request.user
+        users = get_users_with_perms(obj.surface, attach_perms=True)
+        return {'current_user': {'user': UserSerializer(current_user, context=self.context).data,
+                                 'permission': guardian_to_api(users[current_user])},
+                'other_users': [{'user': UserSerializer(key, context=self.context).data,
+                                 'permission': guardian_to_api(value)}
+                                for key, value in users.items() if key != current_user]}
 
 
 class SurfaceSerializer(StrictFieldMixin,
