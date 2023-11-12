@@ -6,6 +6,7 @@
 - ENH: Button to regenerate cached properties (thumbnail, DZI, etc., #895)
 - ENH: Added creation and last modified datetime to surfaces and topographies (#1010)
 - BUG: Fixes related to uploading files (#223, #261, #667)
+- MAINT: Bokehjs is now used plotting line scans (#972)
 - MAINT: Surface view is now largely a single-page application
 - MAINT: REST API for topography handling (#173)
 - MAINT: Major refactor of task handling code
