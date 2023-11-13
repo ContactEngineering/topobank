@@ -294,7 +294,8 @@ const isPublication = computed(() => {
                                             class="mt-2"
                                             variant="info"
                                             :text="versionString">
-                                    <b-dropdown-item :href="hrefOriginalSurface"
+                                    <b-dropdown-item v-if="_data.publication === null || _data.publication.has_access_to_original_surface"
+                                                     :href="hrefOriginalSurface"
                                                      :disabled="_data.publication === null">
                                         Work in progress
                                     </b-dropdown-item>
