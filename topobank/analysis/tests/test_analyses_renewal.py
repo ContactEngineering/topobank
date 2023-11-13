@@ -112,8 +112,7 @@ def test_renewal_on_topography_change(api_client, mocker, settings, django_captu
 
 @pytest.mark.django_db
 def test_analysis_removal_on_topography_deletion(api_client, test_analysis_function, handle_usage_statistics):
-    """Check whether surface analyses are deleted if topography is deleted.
-    """
+    """Check whether surface analyses are deleted if topography is deleted."""
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
