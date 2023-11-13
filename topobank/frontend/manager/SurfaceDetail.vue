@@ -18,6 +18,7 @@ import {
 } from 'bootstrap-vue-next';
 
 import {getIdFromUrl, subjectsToBase64} from "../utils/api";
+import {ccLicenseInfo} from "../utils/data";
 
 import BandwidthPlot from './BandwidthPlot.vue';
 import DropZone from '../components/DropZone.vue';
@@ -234,10 +235,15 @@ const isPublication = computed(() => {
                             </template>
                             <b-card-body>
                                 <p class="mb-5">
-                                    <img :src="`/static/images/cc/${_data.publication.license}.svg`"
-                                         title="Dataset can be reused under the terms of a Creative Commons license."
-                                         style="float:right"/>
-                                    This dataset can be reused under the terms of a Creative Commons license.
+                                    <a :href="ccLicenseInfo[_data.publication.license].descriptionUrl">
+                                        <img :src="`/static/images/cc/${_data.publication.license}.svg`"
+                                             :title="`Dataset can be reused under the terms of the ${ccLicenseInfo[_data.publication.license].title}.`"
+                                             style="float:right; margin-left: 0.25rem;"/>
+                                    </a>
+                                    This dataset can be reused under the terms of the
+                                    <a :href="ccLicenseInfo[_data.publication.license].descriptionUrl">
+                                        {{ ccLicenseInfo[_data.publication.license].title }}
+                                    </a>.
                                     When reusing this dataset, please cite the original source.
                                 </p>
                                 <b-accordion>
