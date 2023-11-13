@@ -1199,19 +1199,46 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             default_storage_replace(target_name, File(open(filename, mode='rb')))
 
 
-def get_upload_post_request(instance, name, expire):
+import botocore.awsrequest
+
+
+def get_upload_instructions(instance, name, expire, method=None):
     """Generate a presigned URL for an upload direct to S3"""
     # Preserve the trailing slash after normalizing the path.
+    if method is None:
+        method = settings.UPLOAD_METHOD
+
     if settings.USE_S3_STORAGE:
         name = default_storage._normalize_name(clean_name(name))
-        post_data = default_storage.bucket.meta.client.generate_presigned_post(settings.AWS_STORAGE_BUCKET_NAME, name,
-                                                                               ExpiresIn=expire)
+        if method == 'POST':
+            upload_instructions = default_storage.bucket.meta.client.generate_presigned_post(
+                Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                Key=name,
+                ExpiresIn=expire)
+            upload_instructions['method'] = 'POST'
+        elif method == 'PUT':
+            upload_instructions = {
+                'method': 'PUT',
+                'url': default_storage.bucket.meta.client.generate_presigned_url(
+                    ClientMethod='put_object',
+                    Params={
+                        'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
+                        'Key': name,
+                        'ContentType': 'binary/octet-stream'  # must match content type of put request
+                    },
+                    ExpiresIn=expire)
+            }
+        else:
+            raise RuntimeError(f'Unknown upload method: {method}')
     else:
-        post_data = {
+        if method != 'POST':
+            raise RuntimeError('Only POST uploads are supported without S3')
+        upload_instructions = {
+            'method': 'POST',
             'url': reverse('manager:upload-topography', kwargs=dict(pk=instance.id)),
             'fields': {}
         }
-    return post_data
+    return upload_instructions
 
 
 def api_to_guardian(api_permission):

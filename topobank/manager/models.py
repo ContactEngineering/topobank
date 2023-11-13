@@ -735,7 +735,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
     # Changes in these fields trigger a refresh of the topography cache and of all analyses
     _significant_fields = {'size_x', 'size_y', 'unit', 'is_periodic', 'height_scale', 'fill_undefined_data_mode',
-                           'detrend_mode', 'data_source', 'instrument_type', 'instrument_parameters'}
+                           'detrend_mode', 'data_source', 'instrument_type'}  # + 'instrument_parameters'
 
     #
     # Methods
@@ -760,12 +760,19 @@ class Topography(TaskStateModel, SubjectMixin):
                               for name in self._significant_fields]
 
             changed_fields = [name for name, changed in zip(self._significant_fields, changed_fields) if changed]
-            _log.debug(f'The following significant fields of topography {self.id} changed: ')
-            for name in changed_fields:
-                _log.debug(f"{name}: was '{getattr(old_obj, name)}', is now '{getattr(self, name)}'")
+
+            # `instrument_parameters` is special as it can contain non-significant entries
+            if (self._clean_instrument_parameters(self.instrument_parameters) !=
+                self._clean_instrument_parameters(old_obj.instrument_parameters)):
+                changed_fields += ['instrument_parameters']
 
             # We need to refresh if any of the significant fields changed during this save
             self._refresh_dependent_data = any(changed_fields)
+
+            if self._refresh_dependent_data:
+                _log.debug(f'The following significant fields of topography {self.id} changed: ')
+                for name in changed_fields:
+                    _log.debug(f"{name}: was '{getattr(old_obj, name)}', is now '{getattr(self, name)}'")
 
         # Save to data base
         _log.debug('Saving model...')
@@ -928,53 +935,39 @@ class Topography(TaskStateModel, SubjectMixin):
 
     @staticmethod
     def _clean_instrument_parameters(params):
-        # Check that resolution parameter is complete
-        try:
-            r = params['resolution']
-        except KeyError:
-            pass
-        else:
-            if not ('value' in r and 'unit' in r):
-                # Value/unit pair is incomplete
-                del params['resolution']
-            else:
-                # Make sure it is a floating-point value
+        cleaned_params = {}
+
+        def _clean_value_unit_pair(r):
+            cleaned_r = None
+            if 'value' in r and 'unit' in r:
+                # Value/unit pair is complete
                 try:
-                    params['resolution']['value'] = float(params['resolution']['value'])
+                    cleaned_r = {
+                        'value': float(r['value']),
+                        'unit': r['unit']
+                    }
                 except KeyError:
-                    # 'value' does not exist - should not happen
+                    # 'value' or 'unit' does not exist - should not happen
                     pass
                 except TypeError:
-                    # None
-                    del params['resolution']
-                except ValueError:
-                    # Value cannot be converted to float
-                    del params['resolution']
-
-        # Check that tip radius parameter is complete
-        try:
-            r = params['tip_radius']
-        except KeyError:
-            pass
-        else:
-            if not ('value' in r and 'unit' in r):
-                # Value/unit pair is incomplete
-                del params['tip_radius']
-            else:
-                # Make sure it is a floating-point value
-                try:
-                    params['tip_radius']['value'] = float(params['tip_radius']['value'])
-                except KeyError:
-                    # 'value' does not exist - should not happen
+                    # Value is None
                     pass
-                except TypeError:
-                    # None
-                    del params['tip_radius']
                 except ValueError:
                     # Value cannot be converted to float
-                    del params['tip_radius']
+                    pass
+            return cleaned_r
 
-        return params
+        # Check completeness of resolution parameters
+        for key in ['resolution', 'tip_radius']:
+            try:
+                r = _clean_value_unit_pair(params[key])
+            except KeyError:
+                pass
+            else:
+                if r is not None:
+                    cleaned_params[key] = r
+
+        return cleaned_params
 
     @property
     def _instrument_info(self):

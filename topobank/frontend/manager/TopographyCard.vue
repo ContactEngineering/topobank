@@ -42,10 +42,16 @@ onMounted(() => {
     scheduleStateCheck();
 });
 
+const isUploading = computed(() => {
+    return _topography.value !== null &&
+        _topography.value.upload_instructions !== undefined &&
+        _topography.value.upload_instructions !== null;
+});
+
 function scheduleStateCheck() {
     if (_topography.value === null) {
         checkState();
-    } else if (_topography.value.task_state !== 'su' && _topography.value.task_state !== 'fa') {
+    } else if (_topography.value.task_state === 'pe' || _topography.value.task_state === 'st') {
         setTimeout(checkState, props.pollingInterval);
     }
 }
@@ -59,6 +65,10 @@ function checkState() {
     });
 }
 
+function uploadSuccessful() {
+    checkState();
+}
+
 function topographyDeleted(url) {
     emit('delete:topography', url);
 }
@@ -69,12 +79,6 @@ function topographyUpdated(topography) {
     scheduleStateCheck();
 }
 
-const isUploading = computed(() => {
-    return _topography.value !== null &&
-        _topography.value.post_data !== undefined &&
-        _topography.value.post_data !== null;
-});
-
 </script>
 
 <template>
@@ -82,8 +86,8 @@ const isUploading = computed(() => {
         v-if="_topography !== null && isUploading"
         :name="_topography.name"
         :file="_topography.file"
-        :post-data="_topography.post_data"
-        @upload-successful="checkState">
+        :upload-instructions="_topography.upload_instructions"
+        @upload-successful="uploadSuccessful">
     </topography-upload-card>
     <topography-pending-card
         v-if="_topography !== null && !isUploading && _topography.task_state !== 'su' && _topography.task_state !== 'fa'"

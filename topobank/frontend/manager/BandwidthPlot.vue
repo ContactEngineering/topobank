@@ -125,7 +125,6 @@ onMounted(() => {
 });
 
 watch(props.topographies, (newValue, oldValue) => {
-    console.log('topographies changed');
     setPlotData(newValue);
 });
 
