@@ -4,7 +4,7 @@ from django.conf import settings
 
 register = template.Library()
 
-@register.inclusion_tag('manager/license_urls.html')
+@register.inclusion_tag('publication/license_urls.html')
 def render_license_urls(license_choice):
     """Returns a HMTL snippet which can be inserted for the license links.
     """

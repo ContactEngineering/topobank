@@ -41,12 +41,12 @@ class SurfacePublishForm(forms.Form):
     helper.layout = Layout(
         Div(
             HTML('<h2 class="alert-heading">Please enter the authors</h2>'),
-            Field('authors_json', template="manager/multi_author_field.html"),
+            Field('authors_json', template="publication/multi_author_field.html"),
             css_class="alert alert-primary"
         ),
         Div(
             HTML('<h2 class="alert-heading">Please choose a license</h2>'),
-            Field('license', template="manager/license_radioselect.html"),
+            Field('license', template="publication/license_radioselect.html"),
             css_class="alert alert-primary"
         ),
         Div(

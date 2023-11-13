@@ -69,7 +69,7 @@ def download(request, short_url):
 
 
 class SurfacePublishView(FormView):
-    template_name = "manager/surface_publish.html"
+    template_name = "publication/surface_publish.html"
     form_class = SurfacePublishForm
 
     @surface_publish_permission_required
@@ -153,7 +153,7 @@ class SurfacePublishView(FormView):
 
 
 class PublicationRateTooHighView(TemplateView):
-    template_name = "manager/publication_rate_too_high.html"
+    template_name = "publication/publication_rate_too_high.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
@@ -182,7 +182,7 @@ class PublicationRateTooHighView(TemplateView):
 
 
 class PublicationErrorView(TemplateView):
-    template_name = "manager/publication_error.html"
+    template_name = "publication/publication_error.html"
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
