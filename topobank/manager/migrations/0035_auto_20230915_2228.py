@@ -3,8 +3,15 @@
 from django.db import migrations, models
 
 
-class Migration(migrations.Migration):
+def set_default_task_state(apps, schema_editor):
+    Topography = apps.get_model('manager', 'Topography')
+    for t in Topography.objects.all():
+        # We set to success after migrations because all products of the task should be in S3 already
+        t.task_state = 'su'
+        t.save()
 
+
+class Migration(migrations.Migration):
     dependencies = [
         ('manager', '0034_auto_20230912_2052'),
     ]
@@ -38,6 +45,9 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='topography',
             name='task_state',
-            field=models.CharField(choices=[('pe', 'pending'), ('st', 'started'), ('re', 'retry'), ('fa', 'failure'), ('su', 'success')], max_length=7, null=True),
+            field=models.CharField(
+                choices=[('pe', 'pending'), ('st', 'started'), ('re', 'retry'), ('fa', 'failure'), ('su', 'success')],
+                max_length=7, null=True),
         ),
+        migrations.RunPython(set_default_task_state),
     ]
