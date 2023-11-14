@@ -2,6 +2,7 @@
 
 ## 1.4.0 (not yet released)
 
+- MAINT: Removing 'DATABASE_URL' environment-var from entrypoint (#1037)
 - ENH: Batch upload (#173, #877, #906)
 - ENH: Button to regenerate cached properties (thumbnail, DZI, etc., #895)
 - ENH: Added creation and last modified datetime to surfaces and topographies (#1010)
