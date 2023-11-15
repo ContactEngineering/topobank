@@ -35,6 +35,10 @@ const props = defineProps({
         type: Boolean,
         default: false
     },
+    selectable: {
+        type: Boolean,
+        default: false
+    },
     topography: {
         type: Object,
         default: null
@@ -61,10 +65,12 @@ const _instrument_parameters_tip_radius_value = ref(null);
 const _instrument_parameters_tip_radius_unit = ref(null);
 const _instrumentVisible = ref(props.enlarged);
 const _saving = ref(false);
+const _selected = ref(false);
 const _topographyUrl = ref(props.topographyUrl === null ? props.topography.url : props.topographyUrl);
 const _savedTopography = ref(null);
 const _showDeleteModal = ref(false);
-const _units = ref([
+
+const _units = [
     {value: "km", text: 'km'},
     {value: "m", text: 'm'},
     {value: "mm", text: 'mm'},
@@ -72,21 +78,21 @@ const _units = ref([
     {value: "nm", text: 'nm'},
     {value: "Å", text: 'Å'},
     {value: "pm", text: 'pm'}
-]);
-const _instrumentChoices = ref([
+];
+const _instrumentChoices = [
     {value: 'undefined', text: 'Instrument of unknown type - all data considered as reliable'},
     {value: 'microscope-based', text: 'Microscope-based instrument with known resolution'},
     {value: 'contact-based', text: 'Contact-based instrument with known tip radius'}
-]);
-const _detrendChoices = ref([
+];
+const _detrendChoices = [
     {value: 'center', text: 'No detrending, but subtract mean height'},
     {value: 'height', text: 'Remove tilt'},
     {value: 'curvature', text: 'Remove curvature and tilt'}
-]);
-const _undefinedDataChoices = ref([
+];
+const _undefinedDataChoices = [
     {value: 'do-not-fill', text: 'Do not fill undefined data points'},
     {value: 'harmonic', text: 'Interpolate undefined data points with harmonic functions'}
-]);
+];
 
 onMounted(() => {
     if (props.topography !== null) {
@@ -222,13 +228,18 @@ const channelOptions = computed(() => {
 <template>
     <div class="card mb-1" :class="{ 'bg-danger-subtle': isMetadataIncomplete }">
         <div class="card-header">
-            <div v-if="_topography !== null && _topography.channel_names.length > 0"
-                 class="input-group-sm float-start">
+            <b-form-group v-if="_topography !== null && _topography.channel_names.length > 0"
+                          label-size="sm"
+                          class="d-flex float-start">
+                <b-form-checkbox v-if="selectable" v-model="_selected"
+                                 size="sm">
+                </b-form-checkbox>
                 <b-form-select :options="channelOptions"
                                v-model="_topography.data_source"
-                               :disabled="!_editing">
+                               :disabled="!_editing"
+                               size="sm">
                 </b-form-select>
-            </div>
+            </b-form-group>
             <div v-if="_topography !== null && !_editing && !_saving && !enlarged"
                  class="btn-group btn-group-sm float-end">
                 <a class="btn btn-outline-secondary float-end ms-2"

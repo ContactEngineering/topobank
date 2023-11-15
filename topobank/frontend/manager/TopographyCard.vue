@@ -17,6 +17,10 @@ const props = defineProps({
         type: Boolean,
         default: false
     },
+    selectable: {
+        type: Boolean,
+        default: false
+    },
     topography: {
         type: Object,
         default: null
@@ -104,6 +108,7 @@ function topographyUpdated(topography) {
     </topography-error-card>
     <topography-properties-card
         v-if="_topography !== null && !isUploading && _topography.task_state === 'su'"
+        :selectable="selectable"
         :topography="_topography"
         :enlarged="enlarged"
         :disabled="disabled"

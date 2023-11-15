@@ -172,6 +172,7 @@ const isPublication = computed(() => {
                                    @files-dropped="filesDropped"></drop-zone>
                         <div v-for="(topography, index) in _topographies">
                             <topography-card v-if="topography !== null"
+                                             :selectable="true"
                                              :topography="topography"
                                              :disabled="!isEditable"
                                              @delete:topography="url => topographyDeleted(index)"
