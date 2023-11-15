@@ -506,6 +506,7 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
     else:
         assert clean_instrument_parameters == {}
 
+
 @pytest.mark.django_db
 def test_upload_topography_and_name_like_an_existing_for_same_surface(api_client, settings,
                                                                       django_capture_on_commit_callbacks):
@@ -1213,7 +1214,8 @@ def test_download_of_unpublished_surface(client, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_automatic_extraction_of_measurement_date(api_client, settings, handle_usage_statistics, django_capture_on_commit_callbacks):
+def test_automatic_extraction_of_measurement_date(api_client, settings, handle_usage_statistics,
+                                                  django_capture_on_commit_callbacks):
     settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
 
     name = 'plux-1.plux'
@@ -1246,7 +1248,60 @@ def test_automatic_extraction_of_measurement_date(api_client, settings, handle_u
         assert response.status_code == 200, response.reason
     assert len(callbacks) == 1
 
-    # Check that measurement date was not override
+    # Check that measurement date was not overriden
     response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
     assert response.status_code == 200, response.reason
     assert response.data['measurement_date'] == '2018-06-21'
+
+
+@pytest.mark.django_db
+def test_automatic_extraction_of_instrument_parameters(api_client, settings, handle_usage_statistics,
+                                                       django_capture_on_commit_callbacks):
+    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
+
+    name = 'dektak-1.csv'
+    input_file_path = Path(f'{FIXTURE_DIR}/{name}')  # maybe use package 'pytest-datafiles' here instead
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+
+    api_client.force_login(user)
+
+    # Upload file
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
+
+    # Check that the instrument parameters were populated automatically
+    assert response.data['name'] == 'dektak-1.csv'
+    assert response.data['instrument_parameters'] == {
+        'tip_radius': {
+            'value': 2.5,
+            'unit': 'µm',
+        }
+    }
+
+    # Update tip radius
+    new_instrument_parameters = {'tip_radius':
+        {
+            'value': 3,
+            'unit': 'm',
+        }
+    }
+
+    topography_id = response.data['id']
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)),
+                                {
+                                    'instrument_parameters': new_instrument_parameters
+                                })
+    assert response.status_code == 200, response.reason
+    assert response.data['instrument_parameters'] == new_instrument_parameters
+
+    # Force reparsing the data file
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.post(reverse('manager:force-inspect', kwargs=dict(pk=topography_id)))
+        assert response.status_code == 200, response.reason
+    assert len(callbacks) == 1
+
+    # Check that instrument parameters were not overriden
+    response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
+    assert response.status_code == 200, response.reason
+    assert response.data['instrument_parameters'] == new_instrument_parameters

@@ -937,6 +937,8 @@ class Topography(TaskStateModel, SubjectMixin):
     @staticmethod
     def _clean_instrument_parameters(params):
         cleaned_params = {}
+        if params is None:
+            return cleaned_params
 
         def _clean_value_unit_pair(r):
             cleaned_r = None
@@ -1461,8 +1463,6 @@ class Topography(TaskStateModel, SubjectMixin):
         # what the user has painfully adjusted when refreshing the cache.
         #
 
-        _log.debug(str(channel.info))
-
         if self.measurement_date is None:
             # Check if we can get this from the info dictionary
             try:
@@ -1477,7 +1477,7 @@ class Topography(TaskStateModel, SubjectMixin):
             except:
                 pass
 
-        if self.instrument_parameters is None:
+        if self.instrument_parameters == {}:
             # Check if we can get this from the info dictionary
             try:
                 self.instrument_parameters = channel.info['instrument']['parameters']
