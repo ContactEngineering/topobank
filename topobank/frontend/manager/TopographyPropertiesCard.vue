@@ -1,239 +1,222 @@
-<script>
+<script setup>
 
 import axios from "axios";
 import {cloneDeep} from "lodash";
+import {computed, onMounted, ref, watch} from "vue";
 
 import {
     BAlert, BFormCheckbox, BFormInput, BFormSelect, BFormTags, BFormTextarea, BModal, BSpinner
 } from 'bootstrap-vue-next';
 
-import TopographyBadges from "topobank/manager/TopographyBadges.vue";
+import TopographyBadges from "./TopographyBadges.vue";
 
-export default {
-    name: 'topography-properties-card',
-    components: {
-        BAlert,
-        BFormCheckbox,
-        BFormInput,
-        BFormSelect,
-        BFormTags,
-        BFormTextarea,
-        BModal,
-        BSpinner,
-        TopographyBadges
+const props = defineProps({
+    defaultResolutionUnit: {
+        type: String,
+        default: 'nm'
     },
-    emits: [
-        'delete:topography',
-        'update:topography'
-    ],
-    props: {
-        defaultResolutionUnit: {
-            type: String,
-            default: 'nm'
-        },
-        defaultResolutionValue: {
-            type: Number,
-            value: 300
-        },
-        defaultTipRadiusUnit: {
-            type: String,
-            default: 'nm'
-        },
-        defaultTipRadiusValue: {
-            type: Number,
-            value: 30
-        },
-        disabled: {
-            type: Boolean,
-            default: false
-        },
-        enlarged: {
-            type: Boolean,
-            default: false
-        },
-        topography: {
-            type: Object,
-            default: null
-        },
-        topographyUrl: {
-            type: String,
-            default: null
-        }
+    defaultResolutionValue: {
+        type: Number,
+        value: 300
     },
-    data() {
-        return {
-            _topography: null,
-            _descriptionVisible: this.enlarged,
-            _editing: false,
-            _error: null,
-            _filtersVisible: this.enlarged,
-            _instrument_parameters_resolution_value: null,
-            _instrument_parameters_resolution_unit: null,
-            _instrument_parameters_tip_radius_value: null,
-            _instrument_parameters_tip_radius_unit: null,
-            _instrumentVisible: this.enlarged,
-            _saving: false,
-            _topographyUrl: this.topographyUrl === null ? this.topography.url : this.topographyUrl,
-            _savedTopography: null,
-            _showDeleteModal: false,
-            _units: [
-                {value: "km", text: 'km'},
-                {value: "m", text: 'm'},
-                {value: "mm", text: 'mm'},
-                {value: "µm", text: 'µm'},
-                {value: "nm", text: 'nm'},
-                {value: "Å", text: 'Å'},
-                {value: "pm", text: 'pm'}
-            ],
-            _instrumentChoices: [
-                {value: 'undefined', text: 'Instrument of unknown type - all data considered as reliable'},
-                {value: 'microscope-based', text: 'Microscope-based instrument with known resolution'},
-                {value: 'contact-based', text: 'Contact-based instrument with known tip radius'}
-            ],
-            _detrendChoices: [
-                {value: 'center', text: 'No detrending, but subtract mean height'},
-                {value: 'height', text: 'Remove tilt'},
-                {value: 'curvature', text: 'Remove curvature and tilt'}
-            ],
-            _undefinedDataChoices: [
-                {value: 'do-not-fill', text: 'Do not fill undefined data points'},
-                {value: 'harmonic', text: 'Interpolate undefined data points with harmonic functions'}
-            ]
-        }
+    defaultTipRadiusUnit: {
+        type: String,
+        default: 'nm'
     },
-    mounted() {
-        if (this.topography !== null) {
-            this.mogrifyDataFromGETRequest(this.topography);
+    defaultTipRadiusValue: {
+        type: Number,
+        value: 30
+    },
+    disabled: {
+        type: Boolean,
+        default: false
+    },
+    enlarged: {
+        type: Boolean,
+        default: false
+    },
+    topography: {
+        type: Object,
+        default: null
+    },
+    topographyUrl: {
+        type: String,
+        default: null
+    }
+});
+
+const emit = defineEmits([
+    'delete:topography',
+    'update:topography'
+]);
+
+const _topography = ref(null);
+const _descriptionVisible = ref(props.enlarged);
+const _editing = ref(false);
+const _error = ref(null);
+const _filtersVisible = ref(props.enlarged);
+const _instrument_parameters_resolution_value = ref(null);
+const _instrument_parameters_resolution_unit = ref(null);
+const _instrument_parameters_tip_radius_value = ref(null);
+const _instrument_parameters_tip_radius_unit = ref(null);
+const _instrumentVisible = ref(props.enlarged);
+const _saving = ref(false);
+const _topographyUrl = ref(props.topographyUrl === null ? props.topography.url : props.topographyUrl);
+const _savedTopography = ref(null);
+const _showDeleteModal = ref(false);
+const _units = ref([
+    {value: "km", text: 'km'},
+    {value: "m", text: 'm'},
+    {value: "mm", text: 'mm'},
+    {value: "µm", text: 'µm'},
+    {value: "nm", text: 'nm'},
+    {value: "Å", text: 'Å'},
+    {value: "pm", text: 'pm'}
+]);
+const _instrumentChoices = ref([
+    {value: 'undefined', text: 'Instrument of unknown type - all data considered as reliable'},
+    {value: 'microscope-based', text: 'Microscope-based instrument with known resolution'},
+    {value: 'contact-based', text: 'Contact-based instrument with known tip radius'}
+]);
+const _detrendChoices = ref([
+    {value: 'center', text: 'No detrending, but subtract mean height'},
+    {value: 'height', text: 'Remove tilt'},
+    {value: 'curvature', text: 'Remove curvature and tilt'}
+]);
+const _undefinedDataChoices = ref([
+    {value: 'do-not-fill', text: 'Do not fill undefined data points'},
+    {value: 'harmonic', text: 'Interpolate undefined data points with harmonic functions'}
+]);
+
+onMounted(() => {
+    if (props.topography !== null) {
+        mogrifyDataFromGETRequest(props.topography);
+    } else {
+        updateCard();
+    }
+});
+
+function updateCard() {
+    /* Fetch JSON describing the card */
+    axios.get(_topographyUrl).then(response => {
+        _topography.value = response.data;
+        _topographyUrl.value = response.data.url;
+    });
+}
+
+function mogrifyDataFromGETRequest(data) {
+    // Get data object
+    _topography.value = data;
+    _topographyUrl.value = data.url;
+
+    // Flatten instrument parameters
+    if (data.instrument_parameters.resolution !== undefined) {
+        _instrument_parameters_resolution_value.value = data.instrument_parameters.resolution.value;
+        _instrument_parameters_resolution_unit.value = data.instrument_parameters.resolution.unit;
+    } else {
+        _instrument_parameters_resolution_value.value = props.defaultResolutionValue;
+        _instrument_parameters_resolution_unit.value = props.defaultResolutionUnit;
+    }
+
+    if (data.instrument_parameters.tip_radius !== undefined) {
+        _instrument_parameters_tip_radius_value.value = data.instrument_parameters.tip_radius.value;
+        _instrument_parameters_tip_radius_unit.value = data.instrument_parameters.tip_radius.unit;
+    } else {
+        _instrument_parameters_tip_radius_value.value = props.defaultTipRadiusValue;
+        _instrument_parameters_tip_radius_unit.value = props.defaultTipRadiusUnit;
+    }
+}
+
+function mogrifyDataForPATCHRequest() {
+    // Copy writable entries
+    let writeableEntries = [
+        'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'is_periodic',
+        'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_data_mode', 'data_source'
+    ];
+    if (_topography.value.size_editable) {
+        writeableEntries.push('size_x', 'size_y');
+    }
+    if (_topography.value.unit_editable) {
+        writeableEntries.push('unit');
+    }
+    if (_topography.value.height_scale_editable) {
+        writeableEntries.push('height_scale');
+    }
+
+    let returnDict = {};
+    for (const e of writeableEntries) {
+        returnDict[e] = _topography.value[e];
+    }
+
+    // Unflatten instrument parameters
+    returnDict.instrument_parameters = {
+        resolution: {
+            value: _instrument_parameters_resolution_value.value,
+            unit: _instrument_parameters_resolution_unit.value
+        },
+        tip_radius: {
+            value: _instrument_parameters_tip_radius_value.value,
+            unit: _instrument_parameters_tip_radius_unit.value
+        },
+    }
+
+    // Uncomment to simulate error on PATCH
+    // returnDict['thumbnail'] = 'def';
+
+    return returnDict;
+}
+
+function saveCard() {
+    _editing.value = false;
+    _saving.value = true;
+    axios.patch(_topographyUrl.value, mogrifyDataForPATCHRequest()).then(response => {
+        _error.value = null;
+        emit('update:topography', response.data);
+        mogrifyDataFromGETRequest(response.data);
+    }).catch(error => {
+        _error.value = error;
+        _topography.value = _savedTopography.value;
+    }).finally(() => {
+        _saving.value = false;
+    });
+}
+
+function deleteTopography() {
+    axios.delete(_topographyUrl.value);
+    emit('delete:topography', _topographyUrl.value);
+}
+
+function forceInspect() {
+    axios.post(`${_topographyUrl.value}force-inspect/`).then(response => {
+        emit('update:topography', response.data);
+    });
+}
+
+const isMetadataIncomplete = computed(() => {
+    if (_topography.value !== null && _topography.value.is_metadata_complete !== undefined) {
+        return !_topography.value.is_metadata_complete;
+    } else {
+        return true;
+    }
+});
+
+const channelOptions = computed(() => {
+    if (_topography.value === null) {
+        return [];
+    }
+
+    let options = [];
+    for (const [channelIndex, channelName] of _topography.value.channel_names.entries()) {
+        const [name, unit] = channelName;
+        if (unit === null) {
+            options.push({value: channelIndex, text: name});
         } else {
-            this.updateCard();
-        }
-    },
-    methods: {
-        cloneDeep,
-        updateCard() {
-            /* Fetch JSON describing the card */
-            axios.get(this._topographyUrl).then(response => {
-                this._topography = response.data;
-                this._topographyUrl = response.data.url;
-            });
-        },
-        mogrifyDataFromGETRequest(data) {
-            // Get data object
-            this._topography = data;
-            this._topographyUrl = data.url;
-
-            // Flatten instrument parameters
-            if (data.instrument_parameters.resolution !== undefined) {
-                this._instrument_parameters_resolution_value = data.instrument_parameters.resolution.value;
-                this._instrument_parameters_resolution_unit = data.instrument_parameters.resolution.unit;
-            } else {
-                this._instrument_parameters_resolution_value = this.defaultResolutionValue;
-                this._instrument_parameters_resolution_unit = this.defaultResolutionUnit;
-            }
-
-            if (data.instrument_parameters.tip_radius !== undefined) {
-                this._instrument_parameters_tip_radius_value = data.instrument_parameters.tip_radius.value;
-                this._instrument_parameters_tip_radius_unit = data.instrument_parameters.tip_radius.unit;
-            } else {
-                this._instrument_parameters_tip_radius_value = this.defaultTipRadiusValue;
-                this._instrument_parameters_tip_radius_unit = this.defaultTipRadiusUnit;
-            }
-        },
-        mogrifyDataForPATCHRequest() {
-            // Copy writable entries
-            let writeableEntries = [
-                'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'is_periodic',
-                'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_data_mode', 'data_source'
-            ];
-            if (this._topography.size_editable) {
-                writeableEntries.push('size_x', 'size_y');
-            }
-            if (this._topography.unit_editable) {
-                writeableEntries.push('unit');
-            }
-            if (this._topography.height_scale_editable) {
-                writeableEntries.push('height_scale');
-            }
-
-            let returnDict = {};
-            for (const e of writeableEntries) {
-                returnDict[e] = this._topography[e];
-            }
-
-            // Unflatten instrument parameters
-            returnDict.instrument_parameters = {
-                resolution: {
-                    value: this._instrument_parameters_resolution_value,
-                    unit: this._instrument_parameters_resolution_unit
-                },
-                tip_radius: {
-                    value: this._instrument_parameters_tip_radius_value,
-                    unit: this._instrument_parameters_tip_radius_unit
-                },
-            }
-
-            // Uncomment to simulate error on PATCH
-            // returnDict['thumbnail'] = 'def';
-
-            return returnDict;
-        },
-        saveCard() {
-            this._editing = false;
-            this._saving = true;
-            axios.patch(this._topographyUrl, this.mogrifyDataForPATCHRequest()).then(response => {
-                this._error = null;
-                console.log('saveCard');
-                console.log(response.data);
-                this.$emit('update:topography', response.data);
-                this.mogrifyDataFromGETRequest(response.data);
-            }).catch(error => {
-                this._error = error;
-                this._topography = this._savedTopography;
-            }).finally(() => {
-                this._saving = false;
-            });
-        },
-        deleteTopography() {
-            axios.delete(this._topographyUrl);
-            this.$emit('delete:topography', this._topographyUrl);
-        },
-        forceInspect() {
-            axios.post(`${this._topographyUrl}force-inspect/`).then(response => {
-                this.$emit('update:topography', response.data);
-            });
-        }
-    },
-    watch: {
-        data(newValue, oldValue) {
-            this.mogrifyDataFromGETRequest(newValue);
-        }
-    },
-    computed: {
-        isMetadataIncomplete() {
-            if (this._topography !== null && this._topography.is_metadata_complete !== undefined) {
-                return !this._topography.is_metadata_complete;
-            } else {
-                return true;
-            }
-        },
-        channelOptions() {
-            if (this._topography === null) {
-                return [];
-            }
-
-            let options = [];
-            for (const [channelIndex, channelName] of this._topography.channel_names.entries()) {
-                const [name, unit] = channelName;
-                if (unit === null) {
-                    options.push({value: channelIndex, text: name});
-                } else {
-                    options.push({value: channelIndex, text: `${name} (${unit})`});
-                }
-            }
-            return options;
+            options.push({value: channelIndex, text: `${name} (${unit})`});
         }
     }
-};
+    return options;
+});
+
 </script>
 
 <template>
@@ -249,7 +232,7 @@ export default {
             <div v-if="_topography !== null && !_editing && !_saving && !enlarged"
                  class="btn-group btn-group-sm float-end">
                 <a class="btn btn-outline-secondary float-end ms-2"
-                   :href="`/manager/html/topography/?topography=${this._topography.id}`">
+                   :href="`/manager/html/topography/?topography=${_topography.id}`">
                     <i class="fa fa-expand"></i>
                 </a>
             </div>
@@ -325,7 +308,7 @@ export default {
                  class="container">
                 <div class="row">
                     <div class="col-2">
-                        <a :href="`/manager/html/topography/?topography=${this._topography.id}`">
+                        <a :href="`/manager/html/topography/?topography=${_topography.id}`">
                             <img class="img-thumbnail mw-100"
                                  :src="_topography.thumbnail">
                         </a>
