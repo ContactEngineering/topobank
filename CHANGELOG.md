@@ -9,6 +9,7 @@
 - ENH: Simplified sharing, now includes ownership transfer (#706)
 - BUG: Fixes related to uploading files (#223, #261, #667)
 - BUG: Fixed automatic extraction of instrument parameters for some file formats
+- MAINT: Removing 'DATABASE_URL' environment-var from entrypoint (#1037)
 - MAINT: Bokehjs is now used plotting line scans (#972)
 - MAINT: Surface view is now largely a single-page application
 - MAINT: REST API for topography handling (#173)
