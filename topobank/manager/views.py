@@ -746,6 +746,8 @@ def force_inspect(request, pk=None):
     if not user.has_perms(['change_surface'], instance.surface):
         return HttpResponseForbidden()
 
+    _log.debug(f'Forcing renewal of cache for {instance}...')
+
     # Force renewal of cache
     run_task(instance)
     instance.save()

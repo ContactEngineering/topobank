@@ -2,6 +2,7 @@
 Basic models for the web app for handling topography data.
 """
 
+import dateutil.parser
 import io
 import logging
 import math
@@ -1403,6 +1404,11 @@ class Topography(TaskStateModel, SubjectMixin):
         # Select channel
         channel = reader.channels[self.data_source]
 
+        #
+        # Look for necessary metadata. We override values in the database. This may be necessary if the underlying
+        # reader changes (e.g. through bug fixes).
+        #
+
         # Populate resolution information in the database
         if channel.dim == 1:
             self.resolution_x, = channel.nb_grid_pts
@@ -1449,6 +1455,34 @@ class Topography(TaskStateModel, SubjectMixin):
             self.height_scale_editable = False
             # Reset unit information here
             self.height_scale = channel.height_scale_factor
+
+        #
+        # We now look for optional metadata. Only import it from the file on first read, otherwise we may override
+        # what the user has painfully adjusted when refreshing the cache.
+        #
+
+        _log.debug(str(channel.info))
+
+        if self.measurement_date is None:
+            # Check if we can get this from the info dictionary
+            try:
+                self.measurement_date = dateutil.parser.parse(channel.info['acquisition_time'])
+            except:
+                pass
+
+        if self.instrument_name is None:
+            # Check if we can get this from the info dictionary
+            try:
+                self.instrument_name = channel.info['instrument']['name']
+            except:
+                pass
+
+        if self.instrument_parameters is None:
+            # Check if we can get this from the info dictionary
+            try:
+                self.instrument_parameters = channel.info['instrument']['parameters']
+            except:
+                pass
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:
