@@ -1481,6 +1481,10 @@ class Topography(TaskStateModel, SubjectMixin):
             # Check if we can get this from the info dictionary
             try:
                 self.instrument_parameters = channel.info['instrument']['parameters']
+                if 'tip_radius' in self.instrument_parameters:
+                    self.instrument_type = self.INSTRUMENT_TYPE_CONTACT_BASED
+                elif 'resolution' in self.instrument_parameters:
+                    self.instrument_type = self.INSTRUMENT_TYPE_MICROSCOPE_BASED
             except:
                 pass
 

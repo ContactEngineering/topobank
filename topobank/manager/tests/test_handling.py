@@ -1294,6 +1294,7 @@ def test_automatic_extraction_of_instrument_parameters(api_client, settings, han
                                 })
     assert response.status_code == 200, response.reason
     assert response.data['instrument_parameters'] == new_instrument_parameters
+    assert response.data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED
 
     # Force reparsing the data file
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
@@ -1305,3 +1306,4 @@ def test_automatic_extraction_of_instrument_parameters(api_client, settings, han
     response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
     assert response.status_code == 200, response.reason
     assert response.data['instrument_parameters'] == new_instrument_parameters
+    assert response.data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED
