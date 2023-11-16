@@ -226,12 +226,13 @@ const channelOptions = computed(() => {
 </script>
 
 <template>
-    <div class="card mb-1" :class="{ 'bg-danger-subtle': isMetadataIncomplete }">
+    <div class="card mb-1" :class="{ 'bg-danger-subtle': isMetadataIncomplete, 'bg-secondary-subtle': _selected }">
         <div class="card-header">
             <b-form-group v-if="_topography !== null && _topography.channel_names.length > 0"
                           label-size="sm"
                           class="d-flex float-start">
                 <b-form-checkbox v-if="selectable" v-model="_selected"
+                                 :disabled="_editing"
                                  size="sm">
                 </b-form-checkbox>
                 <b-form-select :options="channelOptions"
@@ -242,30 +243,41 @@ const channelOptions = computed(() => {
             </b-form-group>
             <div v-if="_topography !== null && !_editing && !_saving && !enlarged"
                  class="btn-group btn-group-sm float-end">
-                <a class="btn btn-outline-secondary float-end ms-2"
+                <a v-if="!_selected"
+                   class="btn btn-outline-secondary float-end ms-2"
                    :href="`/manager/html/topography/?topography=${_topography.id}`">
                     <i class="fa fa-expand"></i>
                 </a>
+                <button v-if="_selected"
+                        class="btn btn-outline-secondary float-end ms-2"
+                        disabled>
+                    <i class="fa fa-expand"></i>
+                </button>
             </div>
             <div v-if="_topography !== null && !_editing && !_saving"
                  class="btn-group btn-group-sm float-end">
                 <button class="btn btn-outline-secondary"
-                        :disabled="disabled"
+                        :disabled="disabled || _selected"
                         @click="_savedTopography = cloneDeep(_topography); _editing = true">
                     <i class="fa fa-pen"></i>
                 </button>
-                <a v-if="!enlarged"
+                <a v-if="!enlarged && !_selected"
                    class="btn btn-outline-secondary"
                    :href="_topography.datafile">
                     <i class="fa fa-download"></i>
                 </a>
+                <button v-if="_selected"
+                        class="btn btn-outline-secondary"
+                        disabled>
+                    <i class="fa fa-download"></i>
+                </button>
                 <button class="btn btn-outline-secondary"
-                        :disabled="disabled">
+                        :disabled="disabled || _selected">
                     <i class="fa fa-refresh"
                        @click="forceInspect"></i>
                 </button>
                 <button v-if="!enlarged"
-                        :disabled="disabled"
+                        :disabled="disabled || _selected"
                         class="btn btn-outline-secondary"
                         @click="_showDeleteModal = true">
                     <i class="fa fa-trash"></i>
