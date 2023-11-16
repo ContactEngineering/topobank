@@ -164,6 +164,7 @@ function saveEdits() {
         _saving.value = true;
         axios.patch(props.topographyUrl, dataForPatchRequest()).then(response => {
             _error.value = null;
+            emit('update:topography', response.data);
         }).catch(error => {
             _error.value = error;
             emit('update:topography', _savedTopography);
