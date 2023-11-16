@@ -11,6 +11,7 @@ import {
     BCardBody,
     BDropdown,
     BDropdownItem,
+    BFormCheckbox,
     BModal,
     BSpinner,
     BTab,
@@ -25,6 +26,7 @@ import DropZone from '../components/DropZone.vue';
 import SurfaceProperties from './SurfaceProperties.vue';
 import SurfacePermissions from './SurfacePermissions.vue';
 import TopographyCard from "./TopographyCard.vue";
+import TopographyPropertiesCard from "./TopographyPropertiesCard.vue";
 
 const props = defineProps({
     surfaceUrl: String,
@@ -46,11 +48,42 @@ const emit = defineEmits([
     'delete:surface'
 ])
 
-const _data = ref(null);
-const _showDeleteModal = ref(false);
-const _selection = ref(new Set());
+// Data that is displayed or can be edited
+const _data = ref(null);  // Surface data
 const _topographies = ref([]);  // Topographies contained in this surface
-const _versions = ref(null);  // Published versions of this topography
+const _versions = ref(null);  // Published versions of this surface
+
+// GUI logic
+const _showDeleteModal = ref(false);  // Triggers delete modal
+const _selected = ref([]);  // Selected topographies (for batch editing)
+
+function emptyTopography() {
+    return {
+        url: null,  // There is not representation of this topography on the server side
+        name: null,
+        channel_names: null,
+        description: null,
+        measurement_date: null,
+        size_editable: true,
+        size_x: null,
+        size_y: null,
+        unit_editable: true,
+        unit: null,
+        height_scale_editable: true,
+        height_scale: null,
+        fill_undefined_data_mode: null,
+        detrend_mode: null,
+        is_periodic: null,
+        instrument_name: null,
+        instrument_type: null,
+        instrument_parameters: null,
+        thumbnail: null,
+        tags: []
+    };
+}
+
+// Batch edit data
+const _batchEditTopography = ref(emptyTopography());
 
 onMounted(() => {
     if (_data.value === null) {
@@ -75,6 +108,7 @@ function updateCard() {
     axios.get(`${props.surfaceUrl}?children=yes&permissions=yes`).then(response => {
         _data.value = response.data;
         _topographies.value = response.data.topography_set;
+        _selected.value = new Array(_topographies.value.length).fill(false);  // Nothing is selected
         updateVersions();
     });
 }
@@ -99,24 +133,25 @@ function uploadNewTopography(file) {
     });
 }
 
-function topographyDeleted(index) {
+function deleteTopography(index) {
     _topographies.value[index] = null;
 }
 
-function topographyUpdated(index, topography) {
+function updateTopography(index, topography) {
     _topographies.value[index] = topography;
 }
 
-function topographySelected(index, isSelected) {
-    if (isSelected) {
-        _selection.value.add(index);
-    } else {
-        _selection.value.delete(index);
-    }
+function saveBatchEdit(topography) {
+    console.log(topography);
+}
+
+function discardBatchEdit() {
+    _selected.value = new Array(_topographies.value.length).fill(false);  // Nothing is selected
+    _batchEditTopography.value = emptyTopography();
 }
 
 function surfaceHrefForVersion(version) {
-    return `http://localhost:8000/manager/html/surface/?surface=${getIdFromUrl(version.surface)}`;
+    return `/manager/html/surface/?surface=${getIdFromUrl(version.surface)}`;
 }
 
 function deleteSurface() {
@@ -165,6 +200,25 @@ const isPublication = computed(() => {
     return _data.value !== null && _data.value.publication !== null;
 });
 
+const anySelected = computed(() => {
+    return _selected.value.reduce((x, y) => x || y, false);
+});
+
+const someSelected = computed(() => {
+    const nbSelected = _selected.value.reduce((x, y) => x + y ? 1 : 0, 0);
+    console.log(nbSelected);
+    return nbSelected > 0 && nbSelected < _selected.value.length;
+});
+
+const allSelected = computed({
+    get() {
+        return _selected.value.reduce((x, y) => x && y, true);
+    },
+    set(value) {
+        _selected.value = new Array(_topographies.value.length).fill(value);
+    }
+});
+
 </script>
 
 <template>
@@ -177,17 +231,32 @@ const isPublication = computed(() => {
                         pills
                         vertical>
                     <b-tab title="Measurements">
-                        <drop-zone v-if="isEditable && _selection.size === 0"
+                        <drop-zone v-if="isEditable && !anySelected"
                                    @files-dropped="filesDropped">
                         </drop-zone>
+                        <topography-properties-card v-if="anySelected"
+                                                    :batch-edit="true"
+                                                    :topography="_batchEditTopography"
+                                                    @save:batch-edit="saveBatchEdit"
+                                                    @discard:batch-edit="discardBatchEdit">
+                        </topography-properties-card>
+                        <div class="d-flex mb-1">
+                            <b-card>
+                                <b-form-checkbox size="sm"
+                                                 :indeterminate="someSelected"
+                                                 v-model="allSelected">
+                                    Select all
+                                </b-form-checkbox>
+                            </b-card>
+                        </div>
                         <div v-for="(topography, index) in _topographies">
                             <topography-card v-if="topography !== null"
                                              :selectable="true"
                                              :topography="topography"
                                              :disabled="!isEditable"
-                                             @delete:topography="url => topographyDeleted(index)"
-                                             @update:topography="newTopography => topographyUpdated(index, newTopography)"
-                                             @select:topography="(topography, isSelected) => topographySelected(index, isSelected)">
+                                             @delete:topography="url => deleteTopography(index)"
+                                             @update:topography="newTopography => updateTopography(index, newTopography)"
+                                             v-model:selected="_selected[index]">
                             </topography-card>
                         </div>
                     </b-tab>

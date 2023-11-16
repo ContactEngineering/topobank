@@ -11,6 +11,10 @@ import {
 import TopographyBadges from "./TopographyBadges.vue";
 
 const props = defineProps({
+    batchEdit: {
+        type: Boolean,
+        default: false
+    },
     defaultResolutionUnit: {
         type: String,
         default: 'nm'
@@ -39,6 +43,10 @@ const props = defineProps({
         type: Boolean,
         default: false
     },
+    selected: {
+        type: Boolean,
+        default: false
+    },
     topography: {
         type: Object,
         default: null
@@ -52,25 +60,47 @@ const props = defineProps({
 const emit = defineEmits([
     'delete:topography',
     'update:topography',
-    'select:topography'
+    'update:selected',
+    'save:batch-edit',
+    'discard:batch-edit'
 ]);
 
+const selectedModel = computed({
+    get() {
+        return props.selected;
+    },
+    set(value) {
+        emit('update:selected', value);
+    }
+});
+
+// Try to understand whether we have a dataset linked to this properties card. This is not the case when batch editing.
+let _topographyUrl = props.topographyUrl === null ?
+    (props.topography === null ? null : props.topography.url) : props.topographyUrl;
+
+// The actual topography data
 const _topography = ref(null);
-const _descriptionVisible = ref(props.enlarged);
-const _editing = ref(false);
-const _error = ref(null);
-const _filtersVisible = ref(props.enlarged);
+
+// Data (that is a copy of an entry of _topography)
 const _instrument_parameters_resolution_value = ref(null);
 const _instrument_parameters_resolution_unit = ref(null);
 const _instrument_parameters_tip_radius_value = ref(null);
 const _instrument_parameters_tip_radius_unit = ref(null);
+
+// Switches controlling visibility
+const _descriptionVisible = ref(props.enlarged);
+const _filtersVisible = ref(props.enlarged);
 const _instrumentVisible = ref(props.enlarged);
+
+// GUI logic
+let _savedTopography = null;
+
+const _editing = ref(props.batchEdit);
+const _error = ref(null);
 const _saving = ref(false);
-const _selected = ref(false);
-const _topographyUrl = ref(props.topographyUrl === null ? props.topography.url : props.topographyUrl);
-const _savedTopography = ref(null);
 const _showDeleteModal = ref(false);
 
+// Choices for select form components
 const _units = [
     {value: "km", text: 'km'},
     {value: "m", text: 'm'},
@@ -107,30 +137,37 @@ function updateCard() {
     /* Fetch JSON describing the card */
     axios.get(_topographyUrl).then(response => {
         _topography.value = response.data;
-        _topographyUrl.value = response.data.url;
+        _topographyUrl = response.data.url;
     });
 }
 
 function mogrifyDataFromGETRequest(data) {
     // Get data object
     _topography.value = data;
-    _topographyUrl.value = data.url;
+    _topographyUrl = data.url;
 
     // Flatten instrument parameters
-    if (data.instrument_parameters.resolution !== undefined) {
-        _instrument_parameters_resolution_value.value = data.instrument_parameters.resolution.value;
-        _instrument_parameters_resolution_unit.value = data.instrument_parameters.resolution.unit;
-    } else {
-        _instrument_parameters_resolution_value.value = props.defaultResolutionValue;
-        _instrument_parameters_resolution_unit.value = props.defaultResolutionUnit;
-    }
+    if (data.instrument_parameters !== null) {
+        if (data.instrument_parameters.resolution !== undefined) {
+            _instrument_parameters_resolution_value.value = data.instrument_parameters.resolution.value;
+            _instrument_parameters_resolution_unit.value = data.instrument_parameters.resolution.unit;
+        } else {
+            _instrument_parameters_resolution_value.value = props.defaultResolutionValue;
+            _instrument_parameters_resolution_unit.value = props.defaultResolutionUnit;
+        }
 
-    if (data.instrument_parameters.tip_radius !== undefined) {
-        _instrument_parameters_tip_radius_value.value = data.instrument_parameters.tip_radius.value;
-        _instrument_parameters_tip_radius_unit.value = data.instrument_parameters.tip_radius.unit;
+        if (data.instrument_parameters.tip_radius !== undefined) {
+            _instrument_parameters_tip_radius_value.value = data.instrument_parameters.tip_radius.value;
+            _instrument_parameters_tip_radius_unit.value = data.instrument_parameters.tip_radius.unit;
+        } else {
+            _instrument_parameters_tip_radius_value.value = props.defaultTipRadiusValue;
+            _instrument_parameters_tip_radius_unit.value = props.defaultTipRadiusUnit;
+        }
     } else {
-        _instrument_parameters_tip_radius_value.value = props.defaultTipRadiusValue;
-        _instrument_parameters_tip_radius_unit.value = props.defaultTipRadiusUnit;
+        _instrument_parameters_resolution_value.value = null;
+        _instrument_parameters_resolution_unit.value = null;
+        _instrument_parameters_tip_radius_value.value = null;
+        _instrument_parameters_tip_radius_unit.value = null;
     }
 }
 
@@ -173,28 +210,43 @@ function mogrifyDataForPATCHRequest() {
     return returnDict;
 }
 
-function saveCard() {
-    _editing.value = false;
-    _saving.value = true;
-    axios.patch(_topographyUrl.value, mogrifyDataForPATCHRequest()).then(response => {
-        _error.value = null;
-        emit('update:topography', response.data);
-        mogrifyDataFromGETRequest(response.data);
-    }).catch(error => {
-        _error.value = error;
-        _topography.value = _savedTopography.value;
-    }).finally(() => {
-        _saving.value = false;
-    });
+function saveEdits() {
+    if (props.batchEdit) {
+        emit('save:batch-edit', _topography.value);
+    } else {
+        _editing.value = false;
+        _saving.value = true;
+        axios.patch(_topographyUrl, mogrifyDataForPATCHRequest()).then(response => {
+            _error.value = null;
+            emit('update:topography', response.data);
+            mogrifyDataFromGETRequest(response.data);
+        }).catch(error => {
+            _error.value = error;
+            _topography.value = _savedTopography;
+        }).finally(() => {
+            _saving.value = false;
+        });
+    }
+}
+
+function discardEdits() {
+    if (props.batchEdit) {
+        // Tell upstream components that discard was click
+        emit('discard:batch-edit');
+    } else {
+        // Turn off editing and restore prior state
+        _editing.value = false;
+        _topography.value = _savedTopography;
+    }
 }
 
 function deleteTopography() {
-    axios.delete(_topographyUrl.value);
-    emit('delete:topography', _topographyUrl.value);
+    axios.delete(_topographyUrl);
+    emit('delete:topography', _topographyUrl);
 }
 
 function forceInspect() {
-    axios.post(`${_topographyUrl.value}force-inspect/`).then(response => {
+    axios.post(`${_topographyUrl}force-inspect/`).then(response => {
         emit('update:topography', response.data);
     });
 }
@@ -224,19 +276,16 @@ const channelOptions = computed(() => {
     return options;
 });
 
-watch(_selected, (newValue, oldValue) => {
-    emit('select:topography', newValue);
-});
-
 </script>
 
 <template>
-    <div class="card mb-1" :class="{ 'bg-danger-subtle': isMetadataIncomplete, 'bg-secondary-subtle': _selected }">
+    <div class="card mb-1"
+         :class="{ 'bg-danger-subtle': !batchEdit && isMetadataIncomplete, 'bg-secondary-subtle': selected, 'bg-warning-subtle': batchEdit }">
         <div class="card-header">
-            <b-form-group v-if="_topography !== null && _topography.channel_names.length > 0"
-                          label-size="sm"
-                          class="d-flex float-start">
-                <b-form-checkbox v-if="selectable" v-model="_selected"
+            <div
+                v-if="!batchEdit && _topography !== null && _topography.channel_names !== null && _topography.channel_names.length > 0"
+                class="d-flex float-start">
+                <b-form-checkbox v-if="selectable" v-model="selectedModel"
                                  :disabled="_editing"
                                  size="sm">
                 </b-form-checkbox>
@@ -245,44 +294,48 @@ watch(_selected, (newValue, oldValue) => {
                                :disabled="!_editing"
                                size="sm">
                 </b-form-select>
-            </b-form-group>
-            <div v-if="_topography !== null && !_editing && !_saving && !enlarged"
+            </div>
+            <div v-if="batchEdit"
+                 class="float-start fs-5 fw-bold">
+                Batch edit
+            </div>
+            <div v-if="!batchEdit && _topography !== null && !_editing && !_saving && !enlarged"
                  class="btn-group btn-group-sm float-end">
-                <a v-if="!_selected"
+                <a v-if="!selected"
                    class="btn btn-outline-secondary float-end ms-2"
                    :href="`/manager/html/topography/?topography=${_topography.id}`">
                     <i class="fa fa-expand"></i>
                 </a>
-                <button v-if="_selected"
+                <button v-if="selected"
                         class="btn btn-outline-secondary float-end ms-2"
                         disabled>
                     <i class="fa fa-expand"></i>
                 </button>
             </div>
-            <div v-if="_topography !== null && !_editing && !_saving"
+            <div v-if="!batchEdit && _topography !== null && !_editing && !_saving"
                  class="btn-group btn-group-sm float-end">
                 <button class="btn btn-outline-secondary"
-                        :disabled="disabled || _selected"
+                        :disabled="disabled || selected"
                         @click="_savedTopography = cloneDeep(_topography); _editing = true">
                     <i class="fa fa-pen"></i>
                 </button>
-                <a v-if="!enlarged && !_selected"
+                <a v-if="!enlarged && !selected"
                    class="btn btn-outline-secondary"
                    :href="_topography.datafile">
                     <i class="fa fa-download"></i>
                 </a>
-                <button v-if="_selected"
+                <button v-if="selected"
                         class="btn btn-outline-secondary"
                         disabled>
                     <i class="fa fa-download"></i>
                 </button>
                 <button class="btn btn-outline-secondary"
-                        :disabled="disabled || _selected">
+                        :disabled="disabled || selected">
                     <i class="fa fa-refresh"
                        @click="forceInspect"></i>
                 </button>
                 <button v-if="!enlarged"
-                        :disabled="disabled || _selected"
+                        :disabled="disabled || selected"
                         class="btn btn-outline-secondary"
                         @click="_showDeleteModal = true">
                     <i class="fa fa-trash"></i>
@@ -292,11 +345,11 @@ watch(_selected, (newValue, oldValue) => {
                  class="btn-group btn-group-sm float-end">
                 <button v-if="_editing"
                         class="btn btn-danger"
-                        @click="_editing = false; _topography = _savedTopography">
+                        @click="discardEdits">
                     Discard
                 </button>
                 <button class="btn btn-success"
-                        @click="saveCard">
+                        @click="saveEdits">
                     <b-spinner small v-if="_saving"></b-spinner>
                     SAVE
                 </button>
@@ -306,7 +359,7 @@ watch(_selected, (newValue, oldValue) => {
                         class="btn btn-outline-secondary"
                         :class="{ active: _descriptionVisible }"
                         @click="_descriptionVisible = !_descriptionVisible">
-                    Properties
+                    Description
                 </button>
                 <button v-if="!enlarged"
                         class="btn btn-outline-secondary"
@@ -335,13 +388,15 @@ watch(_selected, (newValue, oldValue) => {
             <div v-if="_topography !== null"
                  class="container">
                 <div class="row">
-                    <div class="col-2">
+                    <div v-if="_topography.thumbnail !== null"
+                         class="col-2">
                         <a :href="`/manager/html/topography/?topography=${_topography.id}`">
                             <img class="img-thumbnail mw-100"
                                  :src="_topography.thumbnail">
                         </a>
                     </div>
-                    <div class="col-10">
+                    <div
+                        :class="{ 'col-10': _topography.thumbnail !== null, 'col-12': _topography.thumbnail === null }">
                         <div class="container">
                             <div class="row">
                                 <div class="col-6">
@@ -375,7 +430,7 @@ watch(_selected, (newValue, oldValue) => {
                                         <b-form-input id="input-physical-size"
                                                       type="number"
                                                       step="any"
-                                                      :class="{ 'border-danger': _topography.size_x === null }"
+                                                      :class="{ 'border-danger': !batchEdit && _topography.size_x === null }"
                                                       v-model="_topography.size_x"
                                                       :disabled="!_editing || !_topography.size_editable">
                                         </b-form-input>
@@ -386,14 +441,14 @@ watch(_selected, (newValue, oldValue) => {
                                         <b-form-input v-if="_topography.resolution_y !== null"
                                                       type="number"
                                                       step="any"
-                                                      :class="{ 'border-danger': _topography.size_y === null }"
+                                                      :class="{ 'border-danger': !batchEdit && _topography.size_y === null }"
                                                       v-model="_topography.size_y"
                                                       :disabled="!_editing || !_topography.size_editable">
                                         </b-form-input>
                                         <b-form-select class="unit-select"
                                                        :options="_units"
                                                        v-model="_topography.unit"
-                                                       :class="{ 'border-danger': _topography.unit === null }"
+                                                       :class="{ 'border-danger': !batchEdit && _topography.unit === null }"
                                                        :disabled="!_editing || !_topography.unit_editable">
                                         </b-form-select>
                                     </div>
@@ -403,7 +458,7 @@ watch(_selected, (newValue, oldValue) => {
                                     <b-form-input id="input-physical-size"
                                                   type="number"
                                                   step="any"
-                                                  :class="{ 'border-danger': _topography.height_scale === null }"
+                                                  :class="{ 'border-danger': !batchEdit && _topography.height_scale === null }"
                                                   v-model="_topography.height_scale"
                                                   :disabled="!_editing || !_topography.height_scale_editable">
                                     </b-form-input>
@@ -520,7 +575,7 @@ watch(_selected, (newValue, oldValue) => {
                 </div>
             </div>
         </div>
-        <div v-if="!enlarged"
+        <div v-if="!batchEdit && !enlarged"
              class="card-footer">
             <topography-badges :topography="_topography"></topography-badges>
         </div>

@@ -21,6 +21,10 @@ const props = defineProps({
         type: Boolean,
         default: false
     },
+    selected: {
+        type: Boolean,
+        default: false
+    },
     topography: {
         type: Object,
         default: null
@@ -38,7 +42,7 @@ const props = defineProps({
 const emit = defineEmits([
     'delete:topography',
     'update:topography',
-    'select:topography'
+    'update:selected'
 ]);
 
 const _topography = ref(props.topography);
@@ -88,6 +92,15 @@ function topographySelected(isSelected) {
     emit('select:topography', _topography, isSelected);
 }
 
+const selectedModel = computed({
+   get() {
+       return props.selected;
+   },
+    set(value) {
+       emit('update:selected', value);
+    }
+});
+
 </script>
 
 <template>
@@ -119,6 +132,6 @@ function topographySelected(isSelected) {
         :disabled="disabled"
         @delete:topography="topographyDeleted"
         @update:topography="topographyUpdated"
-        @select:topography="topographySelected">
+        v-model:selected="selectedModel">
     </topography-properties-card>
 </template>
