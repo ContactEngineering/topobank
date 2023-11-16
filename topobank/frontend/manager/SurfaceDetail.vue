@@ -48,6 +48,7 @@ const emit = defineEmits([
 
 const _data = ref(null);
 const _showDeleteModal = ref(false);
+const _selection = ref(new Set());
 const _topographies = ref([]);  // Topographies contained in this surface
 const _versions = ref(null);  // Published versions of this topography
 
@@ -104,6 +105,14 @@ function topographyDeleted(index) {
 
 function topographyUpdated(index, topography) {
     _topographies.value[index] = topography;
+}
+
+function topographySelected(index, isSelected) {
+    if (isSelected) {
+        _selection.value.add(index);
+    } else {
+        _selection.value.delete(index);
+    }
 }
 
 function surfaceHrefForVersion(version) {
@@ -168,15 +177,17 @@ const isPublication = computed(() => {
                         pills
                         vertical>
                     <b-tab title="Measurements">
-                        <drop-zone v-if="isEditable"
-                                   @files-dropped="filesDropped"></drop-zone>
+                        <drop-zone v-if="isEditable && _selection.size === 0"
+                                   @files-dropped="filesDropped">
+                        </drop-zone>
                         <div v-for="(topography, index) in _topographies">
                             <topography-card v-if="topography !== null"
                                              :selectable="true"
                                              :topography="topography"
                                              :disabled="!isEditable"
                                              @delete:topography="url => topographyDeleted(index)"
-                                             @update:topography="newTopography => topographyUpdated(index, newTopography)">
+                                             @update:topography="newTopography => topographyUpdated(index, newTopography)"
+                                             @select:topography="(topography, isSelected) => topographySelected(index, isSelected)">
                             </topography-card>
                         </div>
                     </b-tab>
@@ -295,9 +306,10 @@ const isPublication = computed(() => {
                                             class="mt-2"
                                             variant="info"
                                             :text="versionString">
-                                    <b-dropdown-item v-if="_data.publication === null || _data.publication.has_access_to_original_surface"
-                                                     :href="hrefOriginalSurface"
-                                                     :disabled="_data.publication === null">
+                                    <b-dropdown-item
+                                        v-if="_data.publication === null || _data.publication.has_access_to_original_surface"
+                                        :href="hrefOriginalSurface"
+                                        :disabled="_data.publication === null">
                                         Work in progress
                                     </b-dropdown-item>
                                     <b-dropdown-item v-if="_versions === null">

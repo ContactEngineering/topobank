@@ -38,6 +38,7 @@ const props = defineProps({
 const emit = defineEmits([
     'delete:topography',
     'update:topography',
+    'select:topography'
 ]);
 
 const _topography = ref(props.topography);
@@ -83,6 +84,10 @@ function topographyUpdated(topography) {
     scheduleStateCheck();
 }
 
+function topographySelected(isSelected) {
+    emit('select:topography', _topography, isSelected);
+}
+
 </script>
 
 <template>
@@ -113,6 +118,7 @@ function topographyUpdated(topography) {
         :enlarged="enlarged"
         :disabled="disabled"
         @delete:topography="topographyDeleted"
-        @update:topography="topographyUpdated">
+        @update:topography="topographyUpdated"
+        @select:topography="topographySelected">
     </topography-properties-card>
 </template>

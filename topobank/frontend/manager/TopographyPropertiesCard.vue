@@ -51,7 +51,8 @@ const props = defineProps({
 
 const emit = defineEmits([
     'delete:topography',
-    'update:topography'
+    'update:topography',
+    'select:topography'
 ]);
 
 const _topography = ref(null);
@@ -221,6 +222,10 @@ const channelOptions = computed(() => {
         }
     }
     return options;
+});
+
+watch(_selected, (newValue, oldValue) => {
+    emit('select:topography', newValue);
 });
 
 </script>
