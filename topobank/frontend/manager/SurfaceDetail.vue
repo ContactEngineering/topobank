@@ -129,7 +129,7 @@ function uploadNewTopography(file) {
     axios.post(props.newTopographyUrl, {surface: props.surfaceUrl, name: file.name}).then(response => {
         let upload = response.data;
         upload.file = file;  // need to know which file to upload
-        _topographies.value.push(upload);
+        _topographies.value.push(upload);  // this will trigger showing a topography-upload-card
     });
 }
 
@@ -206,7 +206,6 @@ const anySelected = computed(() => {
 
 const someSelected = computed(() => {
     const nbSelected = _selected.value.reduce((x, y) => x + y ? 1 : 0, 0);
-    console.log(nbSelected);
     return nbSelected > 0 && nbSelected < _selected.value.length;
 });
 
@@ -237,10 +236,11 @@ const allSelected = computed({
                         <topography-properties-card v-if="anySelected"
                                                     :batch-edit="true"
                                                     :topography="_batchEditTopography"
-                                                    @save:batch-edit="saveBatchEdit"
-                                                    @discard:batch-edit="discardBatchEdit">
+                                                    @save:edit="saveBatchEdit"
+                                                    @discard:edit="discardBatchEdit">
                         </topography-properties-card>
-                        <div class="d-flex mb-1">
+                        <div v-if="_topographies.length > 0"
+                             class="d-flex mb-1">
                             <b-card>
                                 <b-form-checkbox size="sm"
                                                  :indeterminate="someSelected"
@@ -252,10 +252,11 @@ const allSelected = computed({
                         <div v-for="(topography, index) in _topographies">
                             <topography-card v-if="topography !== null"
                                              :selectable="true"
+                                             :topography-url="topography.url"
                                              :topography="topography"
                                              :disabled="!isEditable"
-                                             @delete:topography="url => deleteTopography(index)"
-                                             @update:topography="newTopography => updateTopography(index, newTopography)"
+                                             @delete:topography="() => deleteTopography(index)"
+                                             v-model:topography="_topographies[index]"
                                              v-model:selected="_selected[index]">
                             </topography-card>
                         </div>

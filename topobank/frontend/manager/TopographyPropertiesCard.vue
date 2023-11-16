@@ -61,8 +61,8 @@ const emit = defineEmits([
     'delete:topography',
     'update:topography',
     'update:selected',
-    'save:batch-edit',
-    'discard:batch-edit'
+    'save:edit',
+    'discard:edit'
 ]);
 
 const selectedModel = computed({
@@ -73,19 +73,6 @@ const selectedModel = computed({
         emit('update:selected', value);
     }
 });
-
-// Try to understand whether we have a dataset linked to this properties card. This is not the case when batch editing.
-let _topographyUrl = props.topographyUrl === null ?
-    (props.topography === null ? null : props.topography.url) : props.topographyUrl;
-
-// The actual topography data
-const _topography = ref(null);
-
-// Data (that is a copy of an entry of _topography)
-const _instrument_parameters_resolution_value = ref(null);
-const _instrument_parameters_resolution_unit = ref(null);
-const _instrument_parameters_tip_radius_value = ref(null);
-const _instrument_parameters_tip_radius_unit = ref(null);
 
 // Switches controlling visibility
 const _descriptionVisible = ref(props.enlarged);
@@ -125,6 +112,7 @@ const _undefinedDataChoices = [
     {value: 'harmonic', text: 'Interpolate undefined data points with harmonic functions'}
 ];
 
+/*
 onMounted(() => {
     if (props.topography !== null) {
         mogrifyDataFromGETRequest(props.topography);
@@ -132,76 +120,34 @@ onMounted(() => {
         updateCard();
     }
 });
+*/
 
 function updateCard() {
     /* Fetch JSON describing the card */
-    axios.get(_topographyUrl).then(response => {
-        _topography.value = response.data;
-        _topographyUrl = response.data.url;
+    axios.get(props.topographyUrl).then(response => {
+        emit('update:topography', response.data);
     });
 }
 
-function mogrifyDataFromGETRequest(data) {
-    // Get data object
-    _topography.value = data;
-    _topographyUrl = data.url;
-
-    // Flatten instrument parameters
-    if (data.instrument_parameters !== null) {
-        if (data.instrument_parameters.resolution !== undefined) {
-            _instrument_parameters_resolution_value.value = data.instrument_parameters.resolution.value;
-            _instrument_parameters_resolution_unit.value = data.instrument_parameters.resolution.unit;
-        } else {
-            _instrument_parameters_resolution_value.value = props.defaultResolutionValue;
-            _instrument_parameters_resolution_unit.value = props.defaultResolutionUnit;
-        }
-
-        if (data.instrument_parameters.tip_radius !== undefined) {
-            _instrument_parameters_tip_radius_value.value = data.instrument_parameters.tip_radius.value;
-            _instrument_parameters_tip_radius_unit.value = data.instrument_parameters.tip_radius.unit;
-        } else {
-            _instrument_parameters_tip_radius_value.value = props.defaultTipRadiusValue;
-            _instrument_parameters_tip_radius_unit.value = props.defaultTipRadiusUnit;
-        }
-    } else {
-        _instrument_parameters_resolution_value.value = null;
-        _instrument_parameters_resolution_unit.value = null;
-        _instrument_parameters_tip_radius_value.value = null;
-        _instrument_parameters_tip_radius_unit.value = null;
-    }
-}
-
-function mogrifyDataForPATCHRequest() {
+function dataForPatchRequest() {
     // Copy writable entries
     let writeableEntries = [
         'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'is_periodic',
         'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_data_mode', 'data_source'
     ];
-    if (_topography.value.size_editable) {
+    if (props.topography.size_editable) {
         writeableEntries.push('size_x', 'size_y');
     }
-    if (_topography.value.unit_editable) {
+    if (props.topography.unit_editable) {
         writeableEntries.push('unit');
     }
-    if (_topography.value.height_scale_editable) {
+    if (props.topography.height_scale_editable) {
         writeableEntries.push('height_scale');
     }
 
     let returnDict = {};
     for (const e of writeableEntries) {
-        returnDict[e] = _topography.value[e];
-    }
-
-    // Unflatten instrument parameters
-    returnDict.instrument_parameters = {
-        resolution: {
-            value: _instrument_parameters_resolution_value.value,
-            unit: _instrument_parameters_resolution_unit.value
-        },
-        tip_radius: {
-            value: _instrument_parameters_tip_radius_value.value,
-            unit: _instrument_parameters_tip_radius_unit.value
-        },
+        returnDict[e] = props.topography[e];
     }
 
     // Uncomment to simulate error on PATCH
@@ -212,17 +158,15 @@ function mogrifyDataForPATCHRequest() {
 
 function saveEdits() {
     if (props.batchEdit) {
-        emit('save:batch-edit', _topography.value);
+        emit('save:edit', props.topography);
     } else {
         _editing.value = false;
         _saving.value = true;
-        axios.patch(_topographyUrl, mogrifyDataForPATCHRequest()).then(response => {
+        axios.patch(props.topographyUrl, dataForPatchRequest()).then(response => {
             _error.value = null;
-            emit('update:topography', response.data);
-            mogrifyDataFromGETRequest(response.data);
         }).catch(error => {
             _error.value = error;
-            _topography.value = _savedTopography;
+            emit('update:topography', _savedTopography);
         }).finally(() => {
             _saving.value = false;
         });
@@ -232,40 +176,45 @@ function saveEdits() {
 function discardEdits() {
     if (props.batchEdit) {
         // Tell upstream components that discard was click
-        emit('discard:batch-edit');
+        emit('discard:edit');
     } else {
         // Turn off editing and restore prior state
         _editing.value = false;
-        _topography.value = _savedTopography;
+        emit('update:topography', _savedTopography);
     }
 }
 
 function deleteTopography() {
-    axios.delete(_topographyUrl);
-    emit('delete:topography', _topographyUrl);
+    axios.delete(props.topographyUrl).then(response => {
+        emit('delete:topography', props.topographyUrl);
+    }).catch(error => {
+        _error.value = error;
+    });
 }
 
 function forceInspect() {
-    axios.post(`${_topographyUrl}force-inspect/`).then(response => {
+    axios.post(`${props.topographyUrl}force-inspect/`).then(response => {
         emit('update:topography', response.data);
+    }).catch(error => {
+        _error.value = error;
     });
 }
 
 const isMetadataIncomplete = computed(() => {
-    if (_topography.value !== null && _topography.value.is_metadata_complete !== undefined) {
-        return !_topography.value.is_metadata_complete;
+    if (props.topography !== null && props.topography.is_metadata_complete !== undefined) {
+        return !props.topography.is_metadata_complete;
     } else {
         return true;
     }
 });
 
 const channelOptions = computed(() => {
-    if (_topography.value === null) {
+    if (props.topography === null) {
         return [];
     }
 
     let options = [];
-    for (const [channelIndex, channelName] of _topography.value.channel_names.entries()) {
+    for (const [channelIndex, channelName] of props.topography.channel_names.entries()) {
         const [name, unit] = channelName;
         if (unit === null) {
             options.push({value: channelIndex, text: name});
@@ -276,6 +225,36 @@ const channelOptions = computed(() => {
     return options;
 });
 
+// Transform instrument parameters to a model
+function instrumentParameterModel(key1, key2) {
+    return computed({
+        get() {
+            if (props.topography.instrument_parameters != null) {
+                if (props.topography.instrument_parameters[key1] != null) {
+                    return props.topography.instrument_parameters[key1][key2];
+                }
+            }
+            return null;
+        },
+        set(v) {
+            let t = cloneDeep(props.topography);
+            if (t.instrument_parameters == null) {
+                t.instrument_parameters = {[key1]: {[key2]: v}};
+            } else if (t.instrument_parameters[key1] == null) {
+                t.instrument_parameters[key1] = {[key2]: v};
+            } else {
+                t.instrument_parameters[key1][key2] = v;
+            }
+            emit('update:topography', t);
+        }
+    });
+}
+
+const instrumentParametersResolutionValue = instrumentParameterModel('resolution', 'value');
+const instrumentParametersResolutionUnit = instrumentParameterModel('resolution', 'unit');
+const instrumentParametersTipRadiusValue = instrumentParameterModel('tip_radius', 'value');
+const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius', 'unit');
+
 </script>
 
 <template>
@@ -283,14 +262,14 @@ const channelOptions = computed(() => {
          :class="{ 'bg-danger-subtle': !batchEdit && isMetadataIncomplete, 'bg-secondary-subtle': selected, 'bg-warning-subtle': batchEdit }">
         <div class="card-header">
             <div
-                v-if="!batchEdit && _topography !== null && _topography.channel_names !== null && _topography.channel_names.length > 0"
+                v-if="!batchEdit && topography !== null && topography.channel_names !== null && topography.channel_names.length > 0"
                 class="d-flex float-start">
                 <b-form-checkbox v-if="selectable" v-model="selectedModel"
                                  :disabled="_editing"
                                  size="sm">
                 </b-form-checkbox>
                 <b-form-select :options="channelOptions"
-                               v-model="_topography.data_source"
+                               v-model="topography.data_source"
                                :disabled="!_editing"
                                size="sm">
                 </b-form-select>
@@ -299,11 +278,11 @@ const channelOptions = computed(() => {
                  class="float-start fs-5 fw-bold">
                 Batch edit
             </div>
-            <div v-if="!batchEdit && _topography !== null && !_editing && !_saving && !enlarged"
+            <div v-if="!batchEdit && topography !== null && !_editing && !_saving && !enlarged"
                  class="btn-group btn-group-sm float-end">
                 <a v-if="!selected"
                    class="btn btn-outline-secondary float-end ms-2"
-                   :href="`/manager/html/topography/?topography=${_topography.id}`">
+                   :href="`/manager/html/topography/?topography=${topography.id}`">
                     <i class="fa fa-expand"></i>
                 </a>
                 <button v-if="selected"
@@ -312,16 +291,16 @@ const channelOptions = computed(() => {
                     <i class="fa fa-expand"></i>
                 </button>
             </div>
-            <div v-if="!batchEdit && _topography !== null && !_editing && !_saving"
+            <div v-if="!batchEdit && topography !== null && !_editing && !_saving"
                  class="btn-group btn-group-sm float-end">
                 <button class="btn btn-outline-secondary"
                         :disabled="disabled || selected"
-                        @click="_savedTopography = cloneDeep(_topography); _editing = true">
+                        @click="_savedTopography = cloneDeep(topography); _editing = true">
                     <i class="fa fa-pen"></i>
                 </button>
                 <a v-if="!enlarged && !selected"
                    class="btn btn-outline-secondary"
-                   :href="_topography.datafile">
+                   :href="topography.datafile">
                     <i class="fa fa-download"></i>
                 </a>
                 <button v-if="selected"
@@ -380,29 +359,29 @@ const channelOptions = computed(() => {
                      variant="danger">
                 {{ _error }}
             </b-alert>
-            <div v-if="_topography === null"
+            <div v-if="topography === null"
                  class="tab-content">
                 <b-spinner small></b-spinner>
                 Please wait...
             </div>
-            <div v-if="_topography !== null"
+            <div v-if="topography !== null"
                  class="container">
                 <div class="row">
-                    <div v-if="_topography.thumbnail !== null"
+                    <div v-if="topography.thumbnail !== null"
                          class="col-2">
-                        <a :href="`/manager/html/topography/?topography=${_topography.id}`">
+                        <a :href="`/manager/html/topography/?topography=${topography.id}`">
                             <img class="img-thumbnail mw-100"
-                                 :src="_topography.thumbnail">
+                                 :src="topography.thumbnail">
                         </a>
                     </div>
                     <div
-                        :class="{ 'col-10': _topography.thumbnail !== null, 'col-12': _topography.thumbnail === null }">
+                        :class="{ 'col-10': topography.thumbnail !== null, 'col-12': topography.thumbnail === null }">
                         <div class="container">
                             <div class="row">
                                 <div class="col-6">
                                     <label for="input-name">Name</label>
                                     <b-form-input id="input-name"
-                                                  v-model="_topography.name"
+                                                  v-model="topography.name"
                                                   :disabled="!_editing">
                                     </b-form-input>
                                 </div>
@@ -410,14 +389,14 @@ const channelOptions = computed(() => {
                                     <label for="input-measurement-date">Date</label>
                                     <b-form-input id="input-measurement-date"
                                                   type="date"
-                                                  v-model="_topography.measurement_date"
+                                                  v-model="topography.measurement_date"
                                                   :disabled="!_editing">
                                     </b-form-input>
                                 </div>
                                 <div class="col-3">
                                     <label for="input-periodic">Flags</label>
                                     <b-form-checkbox id="input-periodic"
-                                                     v-model="_topography.is_periodic"
+                                                     v-model="topography.is_periodic"
                                                      :disabled="!_editing">
                                         Data is periodic
                                     </b-form-checkbox>
@@ -430,26 +409,26 @@ const channelOptions = computed(() => {
                                         <b-form-input id="input-physical-size"
                                                       type="number"
                                                       step="any"
-                                                      :class="{ 'border-danger': !batchEdit && _topography.size_x === null }"
-                                                      v-model="_topography.size_x"
-                                                      :disabled="!_editing || !_topography.size_editable">
+                                                      :class="{ 'border-danger': !batchEdit && topography.size_x === null }"
+                                                      v-model="topography.size_x"
+                                                      :disabled="!_editing || !topography.size_editable">
                                         </b-form-input>
-                                        <span v-if="_topography.resolution_y !== null"
+                                        <span v-if="topography.resolution_y !== null"
                                               class="input-group-text">
                                             &times;
                                         </span>
-                                        <b-form-input v-if="_topography.resolution_y !== null"
+                                        <b-form-input v-if="topography.resolution_y !== null"
                                                       type="number"
                                                       step="any"
-                                                      :class="{ 'border-danger': !batchEdit && _topography.size_y === null }"
-                                                      v-model="_topography.size_y"
-                                                      :disabled="!_editing || !_topography.size_editable">
+                                                      :class="{ 'border-danger': !batchEdit && topography.size_y === null }"
+                                                      v-model="topography.size_y"
+                                                      :disabled="!_editing || !topography.size_editable">
                                         </b-form-input>
                                         <b-form-select class="unit-select"
                                                        :options="_units"
-                                                       v-model="_topography.unit"
-                                                       :class="{ 'border-danger': !batchEdit && _topography.unit === null }"
-                                                       :disabled="!_editing || !_topography.unit_editable">
+                                                       v-model="topography.unit"
+                                                       :class="{ 'border-danger': !batchEdit && topography.unit === null }"
+                                                       :disabled="!_editing || !topography.unit_editable">
                                         </b-form-select>
                                     </div>
                                 </div>
@@ -458,9 +437,9 @@ const channelOptions = computed(() => {
                                     <b-form-input id="input-physical-size"
                                                   type="number"
                                                   step="any"
-                                                  :class="{ 'border-danger': !batchEdit && _topography.height_scale === null }"
-                                                  v-model="_topography.height_scale"
-                                                  :disabled="!_editing || !_topography.height_scale_editable">
+                                                  :class="{ 'border-danger': !batchEdit && topography.height_scale === null }"
+                                                  v-model="topography.height_scale"
+                                                  :disabled="!_editing || !topography.height_scale_editable">
                                     </b-form-input>
                                 </div>
                             </div>
@@ -475,7 +454,7 @@ const channelOptions = computed(() => {
                                     <label for="input-descriptions">Description</label>
                                     <b-form-textarea id="input-description"
                                                      placeholder="Please provide a short description of this measurement"
-                                                     v-model="_topography.description"
+                                                     v-model="topography.description"
                                                      :disabled="!_editing"
                                                      rows="5">
                                     </b-form-textarea>
@@ -486,7 +465,7 @@ const channelOptions = computed(() => {
                                     <label for="input-tags">Tags</label>
                                     <b-form-tags id="input-tags"
                                                  tag-pills
-                                                 v-model="_topography.tags"
+                                                 v-model="topography.tags"
                                                  :disabled="!_editing">
                                     </b-form-tags>
                                 </div>
@@ -497,7 +476,7 @@ const channelOptions = computed(() => {
                                 <div class="col-6">
                                     <label for="input-instrument-name">Instrument name</label>
                                     <b-form-input id="input-instrument-name"
-                                                  v-model="_topography.instrument_name"
+                                                  v-model="topography.instrument_name"
                                                   :disabled="!_editing">
                                     </b-form-input>
                                 </div>
@@ -505,44 +484,44 @@ const channelOptions = computed(() => {
                                     <label for="input-instrument-type">Instrument type</label>
                                     <b-form-select id="input-instrument-type"
                                                    :options="_instrumentChoices"
-                                                   v-model="_topography.instrument_type"
+                                                   v-model="topography.instrument_type"
                                                    :disabled="!_editing">
                                     </b-form-select>
                                 </div>
                             </div>
-                            <div v-if="_topography.instrument_type == 'microscope-based'" class="row">
+                            <div v-if="topography.instrument_type == 'microscope-based'" class="row">
                                 <div class="col-12 mt-1">
                                     <label for="input-instrument-resolution">Instrument resolution</label>
                                     <div id="input-instrument-resolution" class="input-group mb-1">
                                         <b-form-input type="number"
                                                       step="any"
                                                       :placeholder="defaultResolutionValue"
-                                                      v-model="_instrument_parameters_resolution_value"
+                                                      v-model="instrumentParametersResolutionValue"
                                                       :disabled="!_editing">
                                         </b-form-input>
                                         <b-form-select style="width: 100px;"
                                                        :options="_units"
                                                        :placeholder="defaultResolutionUnit"
-                                                       v-model="_instrument_parameters_resolution_unit"
+                                                       v-model="instrumentParametersResolutionUnit"
                                                        :disabled="!_editing">
                                         </b-form-select>
                                     </div>
                                 </div>
                             </div>
-                            <div v-if="_topography.instrument_type == 'contact-based'" class="row">
+                            <div v-if="topography.instrument_type == 'contact-based'" class="row">
                                 <div class="col-12 mt-1">
                                     <label for="input-instrument-tip-radius">Probe tip radius</label>
                                     <div id="input-instrument-tip-radius" class="input-group mb-1">
                                         <b-form-input type="number"
                                                       step="any"
                                                       :placeholder="defaultTipRadiusValue"
-                                                      v-model="_instrument_parameters_tip_radius_value"
+                                                      v-model="instrumentParametersTipRadiusValue"
                                                       :disabled="!_editing">
                                         </b-form-input>
                                         <b-form-select style="width: 100px;"
                                                        :options="_units"
                                                        :placeholder="defaultTipRadiusUnit"
-                                                       v-model="_instrument_parameters_tip_radius_unit"
+                                                       v-model="instrumentParametersTipRadiusUnit"
                                                        :disabled="!_editing">
                                         </b-form-select>
                                     </div>
@@ -555,7 +534,7 @@ const channelOptions = computed(() => {
                                     <label for="input-detrending">Detrending</label>
                                     <div id="input-detrending" class="input-group mb-1">
                                         <b-form-select :options="_detrendChoices"
-                                                       v-model="_topography.detrend_mode"
+                                                       v-model="topography.detrend_mode"
                                                        :disabled="!_editing">
                                         </b-form-select>
                                     </div>
@@ -564,7 +543,7 @@ const channelOptions = computed(() => {
                                     <label for="input-undefined-data">Undefined/missing data</label>
                                     <div id="input-undefined-data" class="input-group mb-1">
                                         <b-form-select :options="_undefinedDataChoices"
-                                                       v-model="_topography.fill_undefined_data_mode"
+                                                       v-model="topography.fill_undefined_data_mode"
                                                        :disabled="!_editing">
                                         </b-form-select>
                                     </div>
@@ -577,14 +556,14 @@ const channelOptions = computed(() => {
         </div>
         <div v-if="!batchEdit && !enlarged"
              class="card-footer">
-            <topography-badges :topography="_topography"></topography-badges>
+            <topography-badges :topography="topography"></topography-badges>
         </div>
     </div>
-    <b-modal v-if="_topography !== null"
+    <b-modal v-if="topography !== null"
              v-model="_showDeleteModal"
              @ok="deleteTopography"
              title="Delete measurement">
-        You are about to delete the measurement with name <b>{{ _topography.name }}</b>.
+        You are about to delete the measurement with name <b>{{ topography.name }}</b>.
         Are you sure you want to proceed?
     </b-modal>
 </template>

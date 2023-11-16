@@ -1,6 +1,7 @@
 <script setup>
 
 import axios from "axios";
+import {cloneDeep} from "lodash";
 import {onMounted, ref} from "vue";
 
 import {
@@ -8,13 +9,11 @@ import {
 } from 'bootstrap-vue-next';
 
 const emit = defineEmits([
-    'upload-successful'
+    'update:topography'
 ]);
 
 const props = defineProps({
-    name: String,  // Used for the title of the card
-    file: Object,  // File object containing the actual data
-    uploadInstructions: Object  // Target URL
+    topography: Object
 });
 
 const _loaded = ref(0);
@@ -25,31 +24,41 @@ function onProgress(e) {
     _total.value = e.total;
 }
 
+function emitUpdateTopography() {
+    let t = cloneDeep(props.topography);
+    // Remove upload instructions
+    delete t.file;
+    delete t.upload_instructions;
+    // Notify that topography has changed
+    emit('update:topography', t);
+}
+
 onMounted(() => {
     // Start upload
-    if (props.uploadInstructions.method === 'POST') {
+    if (props.topography.upload_instructions.method === 'POST') {
         axios.postForm(
-            props.uploadInstructions.url,
-            {...props.uploadInstructions.fields, file: props.file},
+            props.topography.upload_instructions.url,
+            {...props.topography.upload_instructions.fields, file: props.topography.file},
             {onUploadProgress: onProgress}
         ).then(response => {
             // Upload successfully finished
-            emit('upload-successful', props.uploadInstructions.url);
+            emitUpdateTopography();
         });
-    } else if (props.uploadInstructions.method === 'PUT') {
+    } else if (props.topography.upload_instructions.method === 'PUT') {
         axios.put(
-            props.uploadInstructions.url,
-            props.file,
+            props.topography.upload_instructions.url,
+            props.topography.file,
             {
                 headers: {'Content-Type': 'binary/octet-stream'},
                 onUploadProgress: onProgress
             }
         ).then(response => {
             // Upload successfully finished
-            emit('upload-successful', props.uploadInstructions.url);
+            emitUpdateTopography();
+            a
         });
     } else {
-        alert(`Unknown upload method: "${props.uploadInstructions.method}`);
+        alert(`Unknown upload method: "${props.topography.upload_instructions.method}`);
     }
 });
 
@@ -59,7 +68,7 @@ onMounted(() => {
     <div class="card mb-1">
         <div class="card-header">
             <div>
-                <h5 class="d-inline">{{ name }}</h5>
+                <h5 class="d-inline">{{ topography.name }}</h5>
             </div>
         </div>
         <div class="card-body">
