@@ -112,23 +112,6 @@ const _undefinedDataChoices = [
     {value: 'harmonic', text: 'Interpolate undefined data points with harmonic functions'}
 ];
 
-/*
-onMounted(() => {
-    if (props.topography !== null) {
-        mogrifyDataFromGETRequest(props.topography);
-    } else {
-        updateCard();
-    }
-});
-*/
-
-function updateCard() {
-    /* Fetch JSON describing the card */
-    axios.get(props.topographyUrl).then(response => {
-        emit('update:topography', response.data);
-    });
-}
-
 function dataForPatchRequest() {
     // Copy writable entries
     let writeableEntries = [
