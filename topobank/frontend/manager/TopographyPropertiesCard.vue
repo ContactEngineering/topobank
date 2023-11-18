@@ -164,7 +164,7 @@ function highlightInput(key) {
     }
     return {
         ...highlightMandatoryInput,
-        'border-success': props.batchEdit && props.topography[key] != null
+        'bg-success-subtle': props.batchEdit && props.topography[key] != null
     };
 }
 
