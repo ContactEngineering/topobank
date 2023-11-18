@@ -129,7 +129,7 @@ function forceInspect() {
 }
 
 const isMetadataIncomplete = computed(() => {
-    if (props.topography !== null && props.topography.is_metadata_complete !== undefined) {
+    if (props.topography != null && props.topography.is_metadata_complete !== undefined) {
         return !props.topography.is_metadata_complete;
     } else {
         return true;
@@ -137,14 +137,14 @@ const isMetadataIncomplete = computed(() => {
 });
 
 const channelOptions = computed(() => {
-    if (props.topography === null) {
+    if (props.topography == null) {
         return [];
     }
 
     let options = [];
     for (const [channelIndex, channelName] of props.topography.channel_names.entries()) {
         const [name, unit] = channelName;
-        if (unit === null) {
+        if (unit == null) {
             options.push({value: channelIndex, text: name});
         } else {
             options.push({value: channelIndex, text: `${name} (${unit})`});
@@ -152,6 +152,21 @@ const channelOptions = computed(() => {
     }
     return options;
 });
+
+// Select class for highlighting input fields. Field are highlighted
+// * danger/red if they are necessary for metadata to be complete
+// * success/green if they have value during batch editing, i.e. if that value will be updated for all selected
+//   topographies
+function highlightInput(key) {
+    let highlightMandatoryInput = {};
+    if (['size_x', 'size_y', 'unit', 'height_scale'].includes(key)) {
+        highlightMandatoryInput = {'border-danger': !props.batchEdit && props.topography[key] == null};
+    }
+    return {
+        ...highlightMandatoryInput,
+        'border-success': props.batchEdit && props.topography[key] != null
+    };
+}
 
 // Transform instrument parameters to a model
 function instrumentParameterModel(key1, key2) {
@@ -190,7 +205,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
          :class="{ 'bg-danger-subtle': !batchEdit && isMetadataIncomplete, 'bg-secondary-subtle': selected, 'bg-warning-subtle': batchEdit }">
         <div class="card-header">
             <div
-                v-if="!batchEdit && topography !== null && topography.channel_names !== null && topography.channel_names.length > 0"
+                v-if="!batchEdit && topography != null && topography.channel_names != null && topography.channel_names.length > 0"
                 class="d-flex float-start">
                 <b-form-checkbox v-if="selectable" v-model="selectedModel"
                                  :disabled="_editing"
@@ -206,7 +221,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                  class="float-start fs-5 fw-bold">
                 Batch edit
             </div>
-            <div v-if="!batchEdit && topography !== null && !_editing && !_saving && !saving && !enlarged"
+            <div v-if="!batchEdit && topography != null && !_editing && !_saving && !saving && !enlarged"
                  class="btn-group btn-group-sm float-end">
                 <a v-if="!selected"
                    class="btn btn-outline-secondary float-end ms-2"
@@ -219,7 +234,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                     <i class="fa fa-expand"></i>
                 </button>
             </div>
-            <div v-if="!batchEdit && topography !== null && !_editing && !_saving && !saving"
+            <div v-if="!batchEdit && topography != null && !_editing && !_saving && !saving"
                  class="btn-group btn-group-sm float-end">
                 <button class="btn btn-outline-secondary"
                         :disabled="disabled || selected"
@@ -283,19 +298,19 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
             </div>
         </div>
         <div class="card-body">
-            <b-alert :model-value="_error !== null"
+            <b-alert :model-value="_error != null"
                      variant="danger">
                 {{ _error }}
             </b-alert>
-            <div v-if="topography === null"
+            <div v-if="topography == null"
                  class="tab-content">
                 <b-spinner small></b-spinner>
                 Please wait...
             </div>
-            <div v-if="topography !== null"
+            <div v-if="topography != null"
                  class="container">
                 <div class="row">
-                    <div v-if="topography.thumbnail !== null"
+                    <div v-if="topography.thumbnail != null"
                          class="col-2">
                         <a :href="`/manager/html/topography/?topography=${topography.id}`">
                             <img class="img-thumbnail mw-100"
@@ -303,13 +318,14 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                         </a>
                     </div>
                     <div
-                        :class="{ 'col-10': topography.thumbnail !== null, 'col-12': topography.thumbnail === null }">
+                        :class="{ 'col-10': topography.thumbnail != null, 'col-12': topography.thumbnail == null }">
                         <div class="container">
                             <div class="row">
                                 <div class="col-6">
                                     <label for="input-name">Name</label>
                                     <b-form-input id="input-name"
                                                   v-model="topography.name"
+                                                  :class="highlightInput('name')"
                                                   :disabled="!_editing">
                                     </b-form-input>
                                 </div>
@@ -318,6 +334,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <b-form-input id="input-measurement-date"
                                                   type="date"
                                                   v-model="topography.measurement_date"
+                                                  :class="highlightInput('measurement_date')"
                                                   :disabled="!_editing">
                                     </b-form-input>
                                 </div>
@@ -325,6 +342,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <label for="input-periodic">Flags</label>
                                     <b-form-checkbox id="input-periodic"
                                                      v-model="topography.is_periodic"
+                                                     :class="highlightInput('is_periodic')"
                                                      :disabled="!_editing">
                                         Data is periodic
                                     </b-form-checkbox>
@@ -337,25 +355,25 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                         <b-form-input id="input-physical-size"
                                                       type="number"
                                                       step="any"
-                                                      :class="{ 'border-danger': !batchEdit && topography.size_x === null }"
+                                                      :class="highlightInput('size_x')"
                                                       v-model="topography.size_x"
                                                       :disabled="!_editing || !topography.size_editable">
                                         </b-form-input>
-                                        <span v-if="topography.resolution_y !== null"
+                                        <span v-if="batchEdit || topography.resolution_y != null"
                                               class="input-group-text">
                                             &times;
                                         </span>
-                                        <b-form-input v-if="topography.resolution_y !== null"
+                                        <b-form-input v-if="batchEdit || topography.resolution_y != null"
                                                       type="number"
                                                       step="any"
-                                                      :class="{ 'border-danger': !batchEdit && topography.size_y === null }"
+                                                      :class="highlightInput('size_y')"
                                                       v-model="topography.size_y"
                                                       :disabled="!_editing || !topography.size_editable">
                                         </b-form-input>
                                         <b-form-select class="unit-select"
                                                        :options="_units"
                                                        v-model="topography.unit"
-                                                       :class="{ 'border-danger': !batchEdit && topography.unit === null }"
+                                                       :class="highlightInput('unit')"
                                                        :disabled="!_editing || !topography.unit_editable">
                                         </b-form-select>
                                     </div>
@@ -365,7 +383,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <b-form-input id="input-physical-size"
                                                   type="number"
                                                   step="any"
-                                                  :class="{ 'border-danger': !batchEdit && topography.height_scale === null }"
+                                                  :class="highlightInput('height_scale')"
                                                   v-model="topography.height_scale"
                                                   :disabled="!_editing || !topography.height_scale_editable">
                                     </b-form-input>
@@ -383,6 +401,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <b-form-textarea id="input-description"
                                                      placeholder="Please provide a short description of this measurement"
                                                      v-model="topography.description"
+                                                     :class="highlightInput('description')"
                                                      :disabled="!_editing"
                                                      rows="5">
                                     </b-form-textarea>
@@ -393,6 +412,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <label for="input-tags">Tags</label>
                                     <b-form-tags id="input-tags"
                                                  tag-pills
+                                                 :class="highlightInput('tags')"
                                                  v-model="topography.tags"
                                                  :disabled="!_editing">
                                     </b-form-tags>
@@ -404,6 +424,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                 <div class="col-6">
                                     <label for="input-instrument-name">Instrument name</label>
                                     <b-form-input id="input-instrument-name"
+                                                  :class="highlightInput('instrument_name')"
                                                   v-model="topography.instrument_name"
                                                   :disabled="!_editing">
                                     </b-form-input>
@@ -412,6 +433,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <label for="input-instrument-type">Instrument type</label>
                                     <b-form-select id="input-instrument-type"
                                                    :options="_instrumentChoices"
+                                                   :class="highlightInput('instrument_type')"
                                                    v-model="topography.instrument_type"
                                                    :disabled="!_editing">
                                     </b-form-select>
@@ -424,12 +446,14 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                         <b-form-input type="number"
                                                       step="any"
                                                       :placeholder="defaultResolutionValue"
+                                                      :class="highlightInput('instrument_parameters')"
                                                       v-model="instrumentParametersResolutionValue"
                                                       :disabled="!_editing">
                                         </b-form-input>
                                         <b-form-select style="width: 100px;"
                                                        :options="_units"
                                                        :placeholder="defaultResolutionUnit"
+                                                       :class="highlightInput('instrument_parameters')"
                                                        v-model="instrumentParametersResolutionUnit"
                                                        :disabled="!_editing">
                                         </b-form-select>
@@ -443,12 +467,14 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                         <b-form-input type="number"
                                                       step="any"
                                                       :placeholder="defaultTipRadiusValue"
+                                                      :class="highlightInput('instrument_parameters')"
                                                       v-model="instrumentParametersTipRadiusValue"
                                                       :disabled="!_editing">
                                         </b-form-input>
                                         <b-form-select style="width: 100px;"
                                                        :options="_units"
                                                        :placeholder="defaultTipRadiusUnit"
+                                                       :class="highlightInput('instrument_parameters')"
                                                        v-model="instrumentParametersTipRadiusUnit"
                                                        :disabled="!_editing">
                                         </b-form-select>
@@ -463,6 +489,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <div id="input-detrending" class="input-group mb-1">
                                         <b-form-select :options="_detrendChoices"
                                                        v-model="topography.detrend_mode"
+                                                       :class="highlightInput('detrend_mode')"
                                                        :disabled="!_editing">
                                         </b-form-select>
                                     </div>
@@ -472,6 +499,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <div id="input-undefined-data" class="input-group mb-1">
                                         <b-form-select :options="_undefinedDataChoices"
                                                        v-model="topography.fill_undefined_data_mode"
+                                                       :class="highlightInput('fill_undefined_data_mode')"
                                                        :disabled="!_editing">
                                         </b-form-select>
                                     </div>
@@ -487,7 +515,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
             <topography-badges :topography="topography"></topography-badges>
         </div>
     </div>
-    <b-modal v-if="topography !== null"
+    <b-modal v-if="topography != null"
              v-model="_showDeleteModal"
              @ok="deleteTopography"
              title="Delete measurement">

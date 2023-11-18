@@ -159,9 +159,10 @@ function saveBatchEdit(topography) {
             }
 
             axios.patch(t.url, filterTopographyForPatchRequest(t)).then(response => {
-                _topographies.value[i] = t;
+                _topographies.value[i] = response.data;
             }).catch(error => {
-                _error.value = error;
+                _errors.value.push(error);
+                console.log(_errors);
             });
         }
     }
@@ -257,12 +258,10 @@ const allSelected = computed({
 
 <template>
     <div class="container">
-        <div v-for="error in _errors"
-             class="row">
-            <b-alert variant="danger">
-                {{ error }}
-            </b-alert>
-        </div>
+        <b-alert v-for="error in _errors"
+                 variant="danger">
+            {{ error }}
+        </b-alert>
         <div class="row">
             <div class="col-12">
                 <b-tabs class="nav-pills-custom"
