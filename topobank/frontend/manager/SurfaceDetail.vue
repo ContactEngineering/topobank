@@ -260,7 +260,7 @@ const allSelected = computed({
     <div class="container">
         <b-alert v-for="error in _errors"
                  variant="danger">
-            {{ error }}
+            {{ error.message }}
         </b-alert>
         <div class="row">
             <div class="col-12">

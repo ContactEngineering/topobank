@@ -300,7 +300,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
         <div class="card-body">
             <b-alert :model-value="_error != null"
                      variant="danger">
-                {{ _error }}
+                {{ _error.message }}
             </b-alert>
             <div v-if="topography == null"
                  class="tab-content">
@@ -343,7 +343,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <b-form-checkbox id="input-periodic"
                                                      v-model="topography.is_periodic"
                                                      :class="highlightInput('is_periodic')"
-                                                     :disabled="!_editing">
+                                                     :disabled="!_editing || !topography.is_periodic_editable">
                                         Data is periodic
                                     </b-form-checkbox>
                                 </div>
