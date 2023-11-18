@@ -128,6 +128,9 @@ class TopographySerializer(StrictFieldMixin,
             if not self.instance.height_scale_editable:
                 if 'unit' in data:
                     read_only_fields += ['height_scale']
+            if not self.instance.is_periodic_editable:
+                if 'is_periodic' in data:
+                    read_only_fields += ['is_periodic']
             if len(read_only_fields) > 0:
                 s = ', '.join([f'`{name}`' for name in read_only_fields])
                 raise serializers.ValidationError(f'{s} is given by the data file and cannot be set')

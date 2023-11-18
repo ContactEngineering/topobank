@@ -712,6 +712,7 @@ class Topography(TaskStateModel, SubjectMixin):
     bandwidth_upper = models.FloatField(null=True, default=None, editable=False)  # in meters
     short_reliability_cutoff = models.FloatField(null=True, default=None, editable=False)
 
+    is_periodic_editable = models.BooleanField(default=True, editable=False)
     is_periodic = models.BooleanField(default=False)
 
     #
@@ -1462,6 +1463,15 @@ class Topography(TaskStateModel, SubjectMixin):
         # We now look for optional metadata. Only import it from the file on first read, otherwise we may override
         # what the user has painfully adjusted when refreshing the cache.
         #
+
+        if not channel.is_uniform:
+            # This is a nonuniform line scan that does not support periodicity
+            self.is_periodic_editable = False
+            self.is_periodic = False
+        elif self.is_periodic is None:
+            # This is a uniform line scan or map, periodicity is supported
+            self.is_periodic_editable = True
+            self.is_periodic = channel.is_periodic
 
         if self.measurement_date is None:
             # Check if we can get this from the info dictionary
