@@ -18,7 +18,7 @@ import {
     BTabs,
 } from 'bootstrap-vue-next';
 
-import {getIdFromUrl, subjectsToBase64} from "../utils/api";
+import {filterTopographyForPatchRequest, getIdFromUrl, subjectsToBase64} from "../utils/api";
 import {ccLicenseInfo} from "../utils/data";
 
 import BandwidthPlot from './BandwidthPlot.vue';
@@ -54,8 +54,13 @@ const _topographies = ref([]);  // Topographies contained in this surface
 const _versions = ref(null);  // Published versions of this surface
 
 // GUI logic
+const _errors = ref([]);   // Errors from saving batch edits
+const _saving = ref(false);  // Saving batch edits
 const _showDeleteModal = ref(false);  // Triggers delete modal
 const _selected = ref([]);  // Selected topographies (for batch editing)
+
+// Batch edit data
+const _batchEditTopography = ref(emptyTopography());
 
 function emptyTopography() {
     return {
@@ -81,9 +86,6 @@ function emptyTopography() {
         tags: []
     };
 }
-
-// Batch edit data
-const _batchEditTopography = ref(emptyTopography());
 
 onMounted(() => {
     if (_data.value === null) {
@@ -130,6 +132,7 @@ function uploadNewTopography(file) {
         let upload = response.data;
         upload.file = file;  // need to know which file to upload
         _topographies.value.push(upload);  // this will trigger showing a topography-upload-card
+        _selected.value.push(false);  // initially unselected
     });
 }
 
@@ -137,16 +140,47 @@ function deleteTopography(index) {
     _topographies.value[index] = null;
 }
 
-function updateTopography(index, topography) {
-    _topographies.value[index] = topography;
-}
-
 function saveBatchEdit(topography) {
-    console.log(topography);
+    // Trigger saving spinner
+    _saving.value = true;
+
+    // Clear all null fields
+    const cleanedBatchEditTopography = filterTopographyForPatchRequest(topography);
+
+    // Clear possible errors
+    _errors.value = [];
+
+    // Update all topographies and issue patch request
+    for (const i in _topographies.value) {
+        if (_selected.value[i]) {
+            const t = {
+                ..._topographies.value[i],
+                ...cleanedBatchEditTopography
+            }
+
+            axios.patch(t.url, filterTopographyForPatchRequest(t)).then(response => {
+                _topographies.value[i] = t;
+            }).catch(error => {
+                _error.value = error;
+            });
+        }
+    }
+
+    // Reset selection
+    _selected.value.fill(false);
+
+    // Reset the batch edit topography template
+    _batchEditTopography.value = emptyTopography();
+
+    // Saving is done
+    _saving.value = false;
 }
 
 function discardBatchEdit() {
-    _selected.value = new Array(_topographies.value.length).fill(false);  // Nothing is selected
+    // Reset selection
+    _selected.value.fill(false);
+
+    // Reset the batch edit topography template
     _batchEditTopography.value = emptyTopography();
 }
 
@@ -205,8 +239,9 @@ const anySelected = computed(() => {
 });
 
 const someSelected = computed(() => {
-    const nbSelected = _selected.value.reduce((x, y) => x + y ? 1 : 0, 0);
-    return nbSelected > 0 && nbSelected < _selected.value.length;
+    const nbSelected = _selected.value.reduce((x, y) => x + (y ? 1 : 0), 0);
+    const nbTopographies = _topographies.value.reduce((x, y) => x + (y != null ? 1 : 0), 0);
+    return nbSelected > 0 && nbSelected < nbTopographies;
 });
 
 const allSelected = computed({
@@ -214,7 +249,7 @@ const allSelected = computed({
         return _selected.value.reduce((x, y) => x && y, true);
     },
     set(value) {
-        _selected.value = new Array(_topographies.value.length).fill(value);
+        _selected.value.fill(value);
     }
 });
 
@@ -222,6 +257,12 @@ const allSelected = computed({
 
 <template>
     <div class="container">
+        <div v-for="error in _errors"
+             class="row">
+            <b-alert variant="danger">
+                {{ error }}
+            </b-alert>
+        </div>
         <div class="row">
             <div class="col-12">
                 <b-tabs class="nav-pills-custom"
@@ -235,6 +276,7 @@ const allSelected = computed({
                         </drop-zone>
                         <topography-properties-card v-if="anySelected"
                                                     :batch-edit="true"
+                                                    :saving="_saving"
                                                     :topography="_batchEditTopography"
                                                     @save:edit="saveBatchEdit"
                                                     @discard:edit="discardBatchEdit">

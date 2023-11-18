@@ -2,59 +2,29 @@
 
 import axios from "axios";
 import {cloneDeep} from "lodash";
-import {computed, onMounted, ref, watch} from "vue";
+import {computed, ref, watch} from "vue";
 
 import {
     BAlert, BFormCheckbox, BFormInput, BFormSelect, BFormTags, BFormTextarea, BModal, BSpinner
 } from 'bootstrap-vue-next';
 
+import {filterTopographyForPatchRequest} from "../utils/api";
+
 import TopographyBadges from "./TopographyBadges.vue";
 
 const props = defineProps({
-    batchEdit: {
-        type: Boolean,
-        default: false
-    },
-    defaultResolutionUnit: {
-        type: String,
-        default: 'nm'
-    },
-    defaultResolutionValue: {
-        type: Number,
-        value: 300
-    },
-    defaultTipRadiusUnit: {
-        type: String,
-        default: 'nm'
-    },
-    defaultTipRadiusValue: {
-        type: Number,
-        value: 30
-    },
-    disabled: {
-        type: Boolean,
-        default: false
-    },
-    enlarged: {
-        type: Boolean,
-        default: false
-    },
-    selectable: {
-        type: Boolean,
-        default: false
-    },
-    selected: {
-        type: Boolean,
-        default: false
-    },
-    topography: {
-        type: Object,
-        default: null
-    },
-    topographyUrl: {
-        type: String,
-        default: null
-    }
+    batchEdit: {type: Boolean, default: false},
+    defaultResolutionUnit: {type: String, default: 'nm'},
+    defaultResolutionValue: {type: Number, value: 300},
+    defaultTipRadiusUnit: {type: String, default: 'nm'},
+    defaultTipRadiusValue: {type: Number, value: 30},
+    disabled: {type: Boolean, default: false},
+    enlarged: {type: Boolean, default: false},
+    saving: {type: Boolean, default: false},
+    selectable: {type: Boolean, default: false},
+    selected: {type: Boolean, default: false},
+    topography: {type: Object, default: null},
+    topographyUrl: {type: String, default: null}
 });
 
 const emit = defineEmits([
@@ -80,12 +50,13 @@ const _filtersVisible = ref(props.enlarged);
 const _instrumentVisible = ref(props.enlarged);
 
 // GUI logic
-let _savedTopography = null;
-
 const _editing = ref(props.batchEdit);
 const _error = ref(null);
 const _saving = ref(false);
 const _showDeleteModal = ref(false);
+
+// Old topography data (used to restore data when "Discard" is clicked)
+let _savedTopography = null;
 
 // Choices for select form components
 const _units = [
@@ -112,40 +83,13 @@ const _undefinedDataChoices = [
     {value: 'harmonic', text: 'Interpolate undefined data points with harmonic functions'}
 ];
 
-function dataForPatchRequest() {
-    // Copy writable entries
-    let writeableEntries = [
-        'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'is_periodic',
-        'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_data_mode', 'data_source'
-    ];
-    if (props.topography.size_editable) {
-        writeableEntries.push('size_x', 'size_y');
-    }
-    if (props.topography.unit_editable) {
-        writeableEntries.push('unit');
-    }
-    if (props.topography.height_scale_editable) {
-        writeableEntries.push('height_scale');
-    }
-
-    let returnDict = {};
-    for (const e of writeableEntries) {
-        returnDict[e] = props.topography[e];
-    }
-
-    // Uncomment to simulate error on PATCH
-    // returnDict['thumbnail'] = 'def';
-
-    return returnDict;
-}
-
 function saveEdits() {
     if (props.batchEdit) {
         emit('save:edit', props.topography);
     } else {
         _editing.value = false;
         _saving.value = true;
-        axios.patch(props.topographyUrl, dataForPatchRequest()).then(response => {
+        axios.patch(props.topographyUrl, filterTopographyForPatchRequest(props.topography)).then(response => {
             _error.value = null;
             emit('update:topography', response.data);
         }).catch(error => {
@@ -262,7 +206,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                  class="float-start fs-5 fw-bold">
                 Batch edit
             </div>
-            <div v-if="!batchEdit && topography !== null && !_editing && !_saving && !enlarged"
+            <div v-if="!batchEdit && topography !== null && !_editing && !_saving && !saving && !enlarged"
                  class="btn-group btn-group-sm float-end">
                 <a v-if="!selected"
                    class="btn btn-outline-secondary float-end ms-2"
@@ -275,7 +219,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                     <i class="fa fa-expand"></i>
                 </button>
             </div>
-            <div v-if="!batchEdit && topography !== null && !_editing && !_saving"
+            <div v-if="!batchEdit && topography !== null && !_editing && !_saving && !saving"
                  class="btn-group btn-group-sm float-end">
                 <button class="btn btn-outline-secondary"
                         :disabled="disabled || selected"
@@ -304,7 +248,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                     <i class="fa fa-trash"></i>
                 </button>
             </div>
-            <div v-if="_editing || _saving"
+            <div v-if="_editing || _saving || saving"
                  class="btn-group btn-group-sm float-end">
                 <button v-if="_editing"
                         class="btn btn-danger"
@@ -313,7 +257,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                 </button>
                 <button class="btn btn-success"
                         @click="saveEdits">
-                    <b-spinner small v-if="_saving"></b-spinner>
+                    <b-spinner small v-if="_saving || saving"></b-spinner>
                     SAVE
                 </button>
             </div>
@@ -475,7 +419,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                             </div>
                             <div v-if="topography.instrument_type == 'microscope-based'" class="row">
                                 <div class="col-12 mt-1">
-                                    <label for="input-instrument-resolution">Instrument resolution</label>
+                                    <label for="input-instrument-resolution">Lateral instrument resolution</label>
                                     <div id="input-instrument-resolution" class="input-group mb-1">
                                         <b-form-input type="number"
                                                       step="any"
