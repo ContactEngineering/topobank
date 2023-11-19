@@ -36,7 +36,7 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
                                    'name': name,
                                    **kwargs
                                })
-    assert response.status_code == 201, response.data  # Created
+    assert response.status_code == 201, response.reason  # Created
     topography_id = response.data['id']
 
     # upload file
@@ -48,7 +48,7 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
             response = requests.post(upload_instructions['url'], data={**upload_instructions['fields']}, files={'file': fp})
         else:
             response = api_client.post(upload_instructions['url'], {**upload_instructions['fields'], name: fp}, format='multipart')
-    assert response.status_code == 204, response.data  # Created
+    assert response.status_code == 204, response.reason  # Created
 
     # We need to execute on commit actions, because this is where the renew_cache task is triggered
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
@@ -56,14 +56,14 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
         # background (Celery) task and always returns a 'pe'nding state. In this testing environment, this is run
         # immediately after the `save` but not yet reflected in the returned dictionary.
         response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
-        assert response.status_code == 200, response.data
+        assert response.status_code == 200, response.reason
         assert response.data['task_state'] == 'pe'
         # We need to close the commit capture here because the file inspection runs on commit
 
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         # Get info on file again, this should not report a successful file inspection.
         response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
-        assert response.status_code == 200, response.data
+        assert response.status_code == 200, response.reason
         assert response.data['task_state'] == final_task_state
 
     return response
