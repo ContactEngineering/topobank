@@ -64,7 +64,7 @@ const _batchEditTopography = ref(emptyTopography());
 
 function emptyTopography() {
     return {
-        url: null,  // There is not representation of this topography on the server side
+        url: null,  // There is no representation of this topography on the server side
         name: null,
         channel_names: null,
         description: null,
@@ -276,7 +276,7 @@ const allSelected = computed({
                         <topography-properties-card v-if="anySelected"
                                                     :batch-edit="true"
                                                     :saving="_saving"
-                                                    :topography="_batchEditTopography"
+                                                    v-model:topography="_batchEditTopography"
                                                     @save:edit="saveBatchEdit"
                                                     @discard:edit="discardBatchEdit">
                         </topography-properties-card>

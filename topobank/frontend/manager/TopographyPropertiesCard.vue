@@ -164,7 +164,9 @@ function highlightInput(key) {
     }
     return {
         ...highlightMandatoryInput,
-        'bg-success-subtle': props.batchEdit && props.topography[key] != null
+        'bg-success-subtle': props.batchEdit
+            && props.topography[key] != null
+            && (props.topography[key].length === undefined || props.topography[key].length > 0)  // tags cannot be null
     };
 }
 
