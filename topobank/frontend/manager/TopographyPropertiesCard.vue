@@ -160,7 +160,7 @@ const channelOptions = computed(() => {
 function highlightInput(key) {
     let highlightMandatoryInput = {};
     if (['size_x', 'size_y', 'unit', 'height_scale'].includes(key)) {
-        highlightMandatoryInput = {'border-danger': !props.batchEdit && props.topography[key] == null};
+        highlightMandatoryInput = {'bg-danger-subtle': !props.batchEdit && props.topography[key] == null};
     }
     return {
         ...highlightMandatoryInput,
@@ -204,7 +204,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
 
 <template>
     <div class="card mb-1"
-         :class="{ 'bg-danger-subtle': !batchEdit && isMetadataIncomplete, 'bg-secondary-subtle': selected, 'bg-warning-subtle': batchEdit }">
+         :class="{ 'border-danger': !batchEdit && isMetadataIncomplete, 'bg-secondary-subtle': selected, 'bg-warning-subtle': batchEdit }">
         <div class="card-header">
             <div
                 v-if="!batchEdit && topography != null && topography.channel_names != null && topography.channel_names.length > 0"
