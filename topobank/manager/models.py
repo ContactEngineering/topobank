@@ -721,7 +721,7 @@ class Topography(TaskStateModel, SubjectMixin):
     #
     instrument_name = models.CharField(max_length=200, blank=True)
     instrument_type = models.TextField(choices=INSTRUMENT_TYPE_CHOICES, default=INSTRUMENT_TYPE_UNDEFINED)
-    instrument_parameters = models.JSONField(default=dict, blank=True)
+    instrument_parameters = models.JSONField(default=dict)
 
     #
     # Other fields
@@ -1492,7 +1492,7 @@ class Topography(TaskStateModel, SubjectMixin):
             except:
                 pass
 
-        if self.instrument_type is None:
+        if self.instrument_type == self.INSTRUMENT_TYPE_UNDEFINED and self.instrument_parameters == {}:
             # Check if we can get this from the info dictionary
             try:
                 self.instrument_parameters = channel.info['instrument']['parameters']
@@ -1501,7 +1501,7 @@ class Topography(TaskStateModel, SubjectMixin):
                 elif 'resolution' in self.instrument_parameters:
                     self.instrument_type = self.INSTRUMENT_TYPE_MICROSCOPE_BASED
             except:
-                pass
+                self.instrument_type = self.INSTRUMENT_TYPE_UNDEFINED
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:
