@@ -1375,7 +1375,6 @@ class Topography(TaskStateModel, SubjectMixin):
         squeezed NetCDF representation of the data.
         """
         # First check if we have a datafile
-        populate_initial_metadata = False
         if not self.datafile:
             # No datafile; this may mean a datafile has been uploaded to S3
             file_path = topography_datafile_path(self, self.name)  # name and filename are identical at this point
@@ -1389,8 +1388,9 @@ class Topography(TaskStateModel, SubjectMixin):
             self.notify_users_with_perms('create',
                                          f"User '{self.creator}' uploaded the measurement '{self.name}' to "
                                          f"digital surface twin '{self.surface.name}'.")
-            # This is the first time we are opening this file...
-            populate_initial_metadata = True
+
+        # Check if this is the first time we are opening this file...
+        populate_initial_metadata = self.data_source is None
 
         # Populate datafile information in the database.
         # (We never load the topography, so we don't know this until here.
