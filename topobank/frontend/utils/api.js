@@ -4,15 +4,15 @@ export function subjectsToBase64(subjects) {
 
 export function getIdFromUrl(url) {
     const s = url.split('/');
-    return Number(s[s.length-2]);
+    return Number(s[s.length - 2]);
 }
 
 
 export function filterTopographyForPatchRequest(topography) {
     // Copy writable entries
     let writeableEntries = [
-        'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'is_periodic',
-        'measurement_date', 'name', 'tags', 'detrend_mode', 'fill_undefined_data_mode', 'data_source'
+        'description', 'instrument_name', 'instrument_parameters', 'instrument_type', 'measurement_date', 'name',
+        'tags', 'detrend_mode', 'fill_undefined_data_mode', 'data_source'
     ];
     if (topography.size_editable) {
         writeableEntries.push('size_x', 'size_y');
@@ -22,6 +22,9 @@ export function filterTopographyForPatchRequest(topography) {
     }
     if (topography.height_scale_editable) {
         writeableEntries.push('height_scale');
+    }
+    if (topography.is_periodic_editable) {
+        writeableEntries.push('is_periodic');
     }
 
     let returnDict = {};
