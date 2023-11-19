@@ -45,6 +45,8 @@ const emit = defineEmits([
     'update:selected'
 ]);
 
+let _currentTimeout = null;
+
 onMounted(() => {
     scheduleStateCheck(props.topography);
 });
@@ -57,7 +59,10 @@ function scheduleStateCheck(topography) {
     if (topography === null) {
         checkState();
     } else if (topography.upload_instructions == null && ['no', 'pe', 'st'].includes(topography.task_state)) {
-        setTimeout(checkState, props.pollingInterval);
+        if (_currentTimeout != null) {
+            clearTimeout(_currentTimeout);
+        }
+        _currentTimeout = setTimeout(checkState, props.pollingInterval);
     }
 }
 
@@ -74,6 +79,7 @@ function topographyDeleted(url) {
 
 const topographyModel = computed({
     get() {
+        scheduleStateCheck(props.topography);
         return props.topography;
     },
     set(value) {
