@@ -4,6 +4,7 @@ from io import BytesIO
 
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, Http404, HttpResponseForbidden
 from django.shortcuts import redirect
@@ -752,8 +753,10 @@ def force_inspect(request, pk=None):
     run_task(instance)
     instance.save()
 
-    # Permissions were updated successfully
-    return Response(TopographySerializer(instance, context={'request': request}).data, status=200)
+    # Return current state of object
+    data = TopographySerializer(instance, context={'request': request}).data
+    data['task_state'] = 'pe'  # Task state will be wrong as Celery task has not yet started by the on_commit hook
+    return Response(data, status=200)
 
 
 @api_view(['PATCH'])
