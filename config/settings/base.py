@@ -54,17 +54,21 @@ USE_TZ = True
 # DATABASES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
-DATABASES = {}
-if 'DATABASE_URL' in os.environ:
-    DATABASES['default'] = env.db('DATABASE_URL')
+postgres_db = env('POSTGRES_DB', default=None)
+if postgres_db is None:
+    DATABASES = {
+        'default': env.db('DATABASE_URL', default=f'postgres:///{random_string()}')
+    }
 else:
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('POSTGRES_DB'),
-        'USER': env('POSTGRES_USER'),
-        'PASSWORD': env('POSTGRES_PASSWORD'),
-        'HOST': env('POSTGRES_HOST'),
-        'PORT': env('POSTGRES_PORT')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': postgres_db,
+            'USER': env('POSTGRES_USER'),
+            'PASSWORD': env('POSTGRES_PASSWORD'),
+            'HOST': env('POSTGRES_HOST'),
+            'PORT': env('POSTGRES_PORT')
+        }
     }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
