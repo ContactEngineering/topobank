@@ -755,7 +755,6 @@ def force_inspect(request, pk=None):
 
     # Return current state of object
     data = TopographySerializer(instance, context={'request': request}).data
-    data['task_state'] = 'pe'  # Task state will be wrong as Celery task has not yet started by the on_commit hook
     return Response(data, status=200)
 
 

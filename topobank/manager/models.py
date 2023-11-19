@@ -1492,7 +1492,7 @@ class Topography(TaskStateModel, SubjectMixin):
             except:
                 pass
 
-        if self.instrument_parameters == {}:
+        if self.instrument_type is None:
             # Check if we can get this from the info dictionary
             try:
                 self.instrument_parameters = channel.info['instrument']['parameters']

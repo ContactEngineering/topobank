@@ -24,6 +24,14 @@ from ..views import DEFAULT_CONTAINER_FILENAME
 from topobank.utils import assert_in_content, \
     assert_redirects, assert_no_form_errors, assert_form_error
 
+filelist = [
+    "10x10.txt",
+    "example.opd",
+    "example3.di",
+    "plux-1.plux",  # has undefined data
+    "dektak-1.csv"  # nonuniform line scan
+]
+
 
 #######################################################################
 # Selections
@@ -383,24 +391,25 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
     assert st_topo.physical_sizes == exp_physical_sizes
 
 
-@pytest.mark.parametrize("instrument_type,resolution_value,resolution_unit,tip_radius_value,tip_radius_unit",
-                         [
-                             (Topography.INSTRUMENT_TYPE_UNDEFINED, '', '', '', ''),  # empty instrument params
-                             (Topography.INSTRUMENT_TYPE_UNDEFINED, 10.0, 'km', 2.0, 'nm'),  # also empty params
-                             (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, 10.0, 'nm', '', ''),
-                             (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, '', 'nm', '', ''),  # no value! -> also empty
-                             (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', 1.0, 'mm'),
-                             (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', '', 'mm'),  # no value! -> also empty
-                         ])
+@pytest.mark.parametrize("input_filename", filelist)
+@pytest.mark.parametrize("instrument_type,resolution_value,resolution_unit,tip_radius_value,tip_radius_unit", [
+    (Topography.INSTRUMENT_TYPE_UNDEFINED, '', '', '', ''),  # empty instrument params
+    (Topography.INSTRUMENT_TYPE_UNDEFINED, 10.0, 'km', 2.0, 'nm'),  # also empty params
+    (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, 10.0, 'nm', '', ''),
+    (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, '', 'nm', '', ''),  # no value! -> also empty
+    (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', 1.0, 'mm'),
+    (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', '', 'mm'),  # no value! -> also empty
+])
 @pytest.mark.django_db
 def test_upload_topography_instrument_parameters(api_client, settings, django_capture_on_commit_callbacks,
                                                  django_user_model,
+                                                 input_filename,
                                                  instrument_type, resolution_value,
                                                  resolution_unit, tip_radius_value, tip_radius_unit,
                                                  handle_usage_statistics):
     settings.CELERY_TASK_ALWAYS_EAGER = True
 
-    input_file_path = Path(FIXTURE_DIR + "/10x10.txt")
+    input_file_path = Path(f'{FIXTURE_DIR}/{input_filename}')
     expected_toponame = input_file_path.name
 
     description = "test description"
@@ -440,25 +449,41 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
             'unit': tip_radius_unit
         }
 
+    # Metadata dictionary
+    data = {
+        'name': 'topo1',
+        'measurement_date': '2018-06-21',
+        'data_source': 0,
+        'description': description,
+        'detrend_mode': 'height',
+        'instrument_name': instrument_name,
+        'instrument_type': instrument_type,
+        'instrument_parameters': instrument_parameters,
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+    }
+
+    if response.data['size_editable']:
+        data['size_x'] = 1
+        data['size_y'] = 1
+    if response.data['unit_editable']:
+        data['unit'] = 'nm'
+    if response.data['height_scale_editable']:
+        data['height_scale'] = 1
+
     # Update metadata
-    response = api_client.patch(reverse('manager:topography-api-detail',
-                                        kwargs=dict(pk=response.data['id'])),
-                                {
-                                    'name': 'topo1',
-                                    'measurement_date': '2018-06-21',
-                                    'data_source': 0,
-                                    'description': description,
-                                    'size_x': 1,
-                                    'size_y': 1,
-                                    'unit': 'nm',
-                                    'height_scale': 1,
-                                    'detrend_mode': 'height',
-                                    'instrument_name': instrument_name,
-                                    'instrument_type': instrument_type,
-                                    'instrument_parameters': instrument_parameters,
-                                    'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-                                })
-    assert response.status_code == 200, response.data
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.patch(reverse('manager:topography-api-detail',
+                                            kwargs=dict(pk=response.data['id'])),
+                                    data)
+        assert response.status_code == 200, response.message
+        assert response.data['task_state'] == 'pe'  # This is always pending
+
+    # Get metadata
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.get(reverse('manager:topography-api-detail',
+                                          kwargs=dict(pk=response.data['id'])))
+        assert response.status_code == 200, response.message
+        assert response.data['task_state'] == 'su'  # This should be a success
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
@@ -505,6 +530,67 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
         assert t._instrument_info['instrument']['parameters'] == clean_instrument_parameters
     else:
         assert clean_instrument_parameters == {}
+
+
+@pytest.mark.parametrize("input_filename", filelist)
+@pytest.mark.parametrize("fill_undefined_data_mode", [
+    Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+    Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC
+])
+@pytest.mark.django_db
+def test_upload_topography_fill_undefined_data(api_client, settings, django_capture_on_commit_callbacks,
+                                               django_user_model,
+                                               input_filename,
+                                               fill_undefined_data_mode,
+                                               handle_usage_statistics):
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+
+    input_file_path = Path(f'{FIXTURE_DIR}/{input_filename}')
+    expected_toponame = input_file_path.name
+
+    description = "test description"
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert api_client.login(username=username, password=password)
+
+    # first create a surface
+    response = api_client.post(reverse('manager:surface-api-list'),
+                               {
+                                   'name': 'surface1',
+                                   'category': 'sim'
+                               })
+    assert response.status_code == 201
+
+    surface = Surface.objects.get(name='surface1')
+
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
+    assert response.data['name'] == expected_toponame
+
+    # Update metadata
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.patch(reverse('manager:topography-api-detail',
+                                            kwargs=dict(pk=response.data['id'])),
+                                    {
+                                        'description': description,
+                                        'fill_undefined_data_mode': fill_undefined_data_mode
+                                    })
+        assert response.status_code == 200, response.data
+        assert response.data['task_state'] in ['su', 'pe']
+
+    surface = Surface.objects.get(name='surface1')
+    topos = surface.topography_set.all()
+
+    assert len(topos) == 1
+
+    t = topos[0]
+
+    assert t.description == description
+    assert t.fill_undefined_data_mode == fill_undefined_data_mode
+    assert t.task_state == 'su'
 
 
 @pytest.mark.django_db
