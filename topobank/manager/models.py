@@ -1375,6 +1375,7 @@ class Topography(TaskStateModel, SubjectMixin):
         squeezed NetCDF representation of the data.
         """
         # First check if we have a datafile
+        populate_initial_metadata = False
         if not self.datafile:
             # No datafile; this may mean a datafile has been uploaded to S3
             file_path = topography_datafile_path(self, self.name)  # name and filename are identical at this point
@@ -1388,6 +1389,8 @@ class Topography(TaskStateModel, SubjectMixin):
             self.notify_users_with_perms('create',
                                          f"User '{self.creator}' uploaded the measurement '{self.name}' to "
                                          f"digital surface twin '{self.surface.name}'.")
+            # This is the first time we are opening this file...
+            populate_initial_metadata = True
 
         # Populate datafile information in the database.
         # (We never load the topography, so we don't know this until here.
@@ -1464,11 +1467,7 @@ class Topography(TaskStateModel, SubjectMixin):
             # Reset unit information here
             self.height_scale = channel.height_scale_factor
 
-        #
-        # We now look for optional metadata. Only import it from the file on first read, otherwise we may override
-        # what the user has painfully adjusted when refreshing the cache.
-        #
-
+        # Populate information on periodicity
         if not channel.is_uniform:
             # This is a nonuniform line scan that does not support periodicity
             self.is_periodic_editable = False
@@ -1478,22 +1477,25 @@ class Topography(TaskStateModel, SubjectMixin):
             self.is_periodic_editable = True
             self.is_periodic = channel.is_periodic
 
-        if self.measurement_date is None:
-            # Check if we can get this from the info dictionary
+        #
+        # We now look for optional metadata. Only import it from the file on first read, otherwise we may override
+        # what the user has painfully adjusted when refreshing the cache.
+        #
+
+        if populate_initial_metadata:
+            # Measurement time
             try:
                 self.measurement_date = dateutil.parser.parse(channel.info['acquisition_time'])
             except:
                 pass
 
-        if self.instrument_name is None:
-            # Check if we can get this from the info dictionary
+            # Instrument name
             try:
                 self.instrument_name = channel.info['instrument']['name']
             except:
                 pass
 
-        if self.instrument_type == self.INSTRUMENT_TYPE_UNDEFINED and self.instrument_parameters == {}:
-            # Check if we can get this from the info dictionary
+            # Instrument parameters
             try:
                 self.instrument_parameters = channel.info['instrument']['parameters']
                 if 'tip_radius' in self.instrument_parameters:
