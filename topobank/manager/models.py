@@ -1354,7 +1354,7 @@ class Topography(TaskStateModel, SubjectMixin):
                 short_reliability_cutoff = st_topo.short_reliability_cutoff()  # Return float or None
             except UndefinedDataError:
                 # Short reliability cutoff can only be computed on topographies without undefined data
-                short_reliability_cutoff = Nonw
+                short_reliability_cutoff = None
             if short_reliability_cutoff is not None:
                 short_reliability_cutoff *= fac
             self.short_reliability_cutoff = short_reliability_cutoff  # None is also saved here

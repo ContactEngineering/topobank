@@ -131,6 +131,7 @@ class TaskStateModel(models.Model):
         try:
             self.task_worker()
             self.task_state = TaskStateModel.SUCCESS
+            self.task_error = None
         except CannotDetectFileFormat as exc:
             self.task_state = TaskStateModel.FAILURE
             self.task_error = 'The data file is of an unknown or unsupported format.'
