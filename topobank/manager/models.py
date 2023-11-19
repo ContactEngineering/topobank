@@ -1027,7 +1027,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Eventually get topography from module "SurfaceTopography" using the given keywords
         topo = reader.topography(**reader_kwargs)
-        if self.fill_undefined_data_mode != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING:
+        if self.fill_undefined_data_mode != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING and topo.is_uniform:
             topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
         return topo.detrend(detrend_mode=self.detrend_mode)
 
