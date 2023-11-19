@@ -30,6 +30,7 @@ from guardian.shortcuts import assign_perm, remove_perm, get_perms, get_users_wi
 from notifications.signals import notify
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
+from SurfaceTopography.Exceptions import UndefinedDataError
 
 from ..publication.models import Publication, DOICreationException
 from ..taskapp.models import TaskStateModel
@@ -1349,7 +1350,11 @@ class Topography(TaskStateModel, SubjectMixin):
             self.bandwidth_lower = fac * bandwidth_lower
             self.bandwidth_upper = fac * bandwidth_upper
 
-            short_reliability_cutoff = st_topo.short_reliability_cutoff()  # Return float or None
+            try:
+                short_reliability_cutoff = st_topo.short_reliability_cutoff()  # Return float or None
+            except UndefinedDataError:
+                # Short reliability cutoff can only be computed on topographies without undefined data
+                short_reliability_cutoff = Nonw
             if short_reliability_cutoff is not None:
                 short_reliability_cutoff *= fac
             self.short_reliability_cutoff = short_reliability_cutoff  # None is also saved here
