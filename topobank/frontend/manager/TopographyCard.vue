@@ -108,6 +108,7 @@ const selectedModel = computed({
         v-if="topography !== null && !isUploading && topography.task_state !== 'su' && topography.task_state !== 'fa'"
         :url="topographyUrl"
         :name="topography.name"
+        :task-state="topography.task_state"
         @delete:topography="topographyDeleted"
         v-model:topography="topographyModel">
     </topography-pending-card>
