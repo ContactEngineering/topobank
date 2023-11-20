@@ -96,7 +96,7 @@ function updateCard() {
 }
 
 function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
-    if (nbRunningOrPending == 0 && _nbRunningOrPending > 0) {
+    if (nbRunningOrPending === 0 && _nbRunningOrPending > 0) {
         // All tasks finished, reload card
         this.updateCard();
     }
@@ -132,7 +132,7 @@ function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
                 {{ _title }}
             </h5>
             <a v-if="_analyses !== null && _analyses.length > 0"
-               class="text-dark"
+               class="text-dark text-decoration-none"
                href="#"
                @click="_sidebarVisible=true">
                 <h5><i class="fa fa-bars"></i> {{ _title }}</h5>
