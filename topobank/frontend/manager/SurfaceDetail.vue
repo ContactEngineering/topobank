@@ -258,13 +258,21 @@ const allSelected = computed({
 
 <template>
     <div class="container">
-        <b-alert v-for="error in _errors"
-                 variant="danger">
-            {{ error.message }}
-        </b-alert>
         <div class="row">
             <div class="col-12">
-                <b-tabs class="nav-pills-custom"
+                <b-alert v-for="error in _errors"
+                         variant="danger">
+                    {{ error.message }}
+                </b-alert>
+                <div v-if="_data === null"
+                     class="card mb-1">
+                    <div class="card-body">
+                        <b-spinner small></b-spinner>
+                        Querying digital surface twin data, please wait...
+                    </div>
+                </div>
+                <b-tabs v-if="_data !== null"
+                        class="nav-pills-custom"
                         content-class="w-100"
                         fill
                         pills

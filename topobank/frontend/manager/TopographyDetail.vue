@@ -76,7 +76,7 @@ export default {
                      class="card mb-1">
                     <div class="card-body">
                         <b-spinner small></b-spinner>
-                        Querying topography data, please wait...
+                        Querying measurement data, please wait...
                     </div>
                 </div>
                 <b-tabs v-if="_topography !== null"
