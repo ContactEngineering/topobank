@@ -1,4 +1,4 @@
-<script>
+<script setup>
 
 import {v4 as uuid4} from 'uuid';
 import axios from "axios";
@@ -7,101 +7,104 @@ import BokehPlot from '../components/BokehPlot.vue';
 import BibliographyModal from './BibliographyModal.vue';
 import CardExpandButton from './CardExpandButton.vue';
 import TasksButton from './TasksButton.vue';
+import {computed, onMounted, ref, watch} from "vue";
 
-export default {
-    name: 'series-card',
-    components: {
-        BibliographyModal,
-        BokehPlot,
-        CardExpandButton,
-        TasksButton
+const props = defineProps({
+    apiUrl: {
+        type: String,
+        default: '/analysis/api/card/series'
     },
-    props: {
-        apiUrl: {
-            type: String,
-            default: '/analysis/api/card/series'
-        },
-        detailUrl: {
-            type: String,
-            default: '/analysis/html/detail/'
-        },
-        enlarged: {
-            type: Boolean,
-            default: true
-        },
-        functionId: Number,
-        functionName: String,
-        subjects: String,
-        uid: {
-            type: String,
-            default() {
-                return uuid4();
-            }
-        }
+    detailUrl: {
+        type: String,
+        default: '/analysis/html/detail/'
     },
-    data() {
-        return {
-            _analyses: null,
-            _categories: undefined,
-            _dataSources: undefined,
-            _dois: [],
-            _messages: [],
-            _nbFailed: 0,
-            _nbRunningOrPending: 0,
-            _nbSuccess: 0,
-            _outputBackend: "svg",
-            _plots: undefined,
-            _sidebarVisible: false,
-            _title: this.functionName
-        }
+    enlarged: {
+        type: Boolean,
+        default: true
     },
-    mounted() {
-        this.updateCard();
-    },
-    watch: {
-        functionId(newValue, oldValue) {
-            // Function id may update when the user selects or deselects an analysis to show.
-            // The subject do not update in that case.
-            this.updateCard();
-        }
-    },
-    computed: {
-        analysisIds() {
-            return this._analyses.map(a => a.id).join();
-        }
-    },
-    methods: {
-        updateCard() {
-            /* Fetch JSON describing the card */
-            axios.get(`${this.apiUrl}/${this.functionId}?subjects=${this.subjects}`)
-                .then(response => {
-                    this._analyses = response.data.analyses;
-                    this._title = response.data.plotConfiguration.title;
-                    this._plots = [{
-                        title: "default",
-                        xAxisLabel: response.data.plotConfiguration.xAxisLabel,
-                        yAxisLabel: response.data.plotConfiguration.yAxisLabel,
-                        xAxisType: response.data.plotConfiguration.xAxisType,
-                        yAxisType: response.data.plotConfiguration.yAxisType
-                    }];
-                    this._dataSources = response.data.plotConfiguration.dataSources;
-                    this._categories = response.data.plotConfiguration.categories;
-                    this._outputBackend = response.data.plotConfiguration.outputBackend;
-                    this._dois = response.data.dois;
-                    this._messages = response.data.messages;
-                });
-        },
-        taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
-            if (nbRunningOrPending == 0 && this._nbRunningOrPending > 0) {
-                // All tasks finished, reload card
-                this.updateCard();
-            }
-            this._nbRunningOrPending = nbRunningOrPending;
-            this._nbSuccess = nbSuccess;
-            this._nbFailed = nbFailed;
+    functionId: Number,
+    functionName: String,
+    subjects: String,
+    uid: {
+        type: String,
+        default() {
+            return uuid4();
         }
     }
-};
+});
+
+// Information about analyses that this card display
+const _title = ref(props.functionName);
+const _analyses = ref(null);
+
+// Plot configuration
+const _categories = ref(null);
+const _dataSources = ref(null);
+const _outputBackend = ref("svg");
+const _plots = ref(null);
+
+// GUI logic
+const _sidebarVisible = ref(false);
+
+// Auxiliary information
+const _dois = ref([]);
+const _messages = ref([]);
+
+// Current task status
+let _nbFailed = 0;
+let _nbRunningOrPending = 0;
+let _nbSuccess = 0;
+
+
+onMounted(() => {
+    updateCard();
+});
+
+watch(props.functionId, (newValue, oldValue) => {
+    // Function id may update when the user selects or deselects an analysis to show.
+    // The subject do not update in that case.
+    updateCard();
+});
+
+const analysisIds = computed(() => {
+    if (_analyses == null) {
+        return [];
+    } else {
+        return _analyses.value.map(a => a.id).join();
+    }
+});
+
+function updateCard() {
+    /* Fetch JSON describing the card */
+    axios.get(`${props.apiUrl}/${props.functionId}?subjects=${props.subjects}`)
+        .then(response => {
+            _analyses.value = response.data.analyses;
+            _title.value = response.data.plotConfiguration.title;
+            _plots.value = [{
+                title: "default",
+                xAxisLabel: response.data.plotConfiguration.xAxisLabel,
+                yAxisLabel: response.data.plotConfiguration.yAxisLabel,
+                xAxisType: response.data.plotConfiguration.xAxisType,
+                yAxisType: response.data.plotConfiguration.yAxisType
+            }];
+            _dataSources.value = response.data.plotConfiguration.dataSources;
+            _categories.value = response.data.plotConfiguration.categories;
+            _outputBackend.value = response.data.plotConfiguration.outputBackend;
+            _dois.value = response.data.dois;
+            _messages.value = response.data.messages;
+        });
+}
+
+function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
+    if (nbRunningOrPending == 0 && _nbRunningOrPending > 0) {
+        // All tasks finished, reload card
+        this.updateCard();
+    }
+    _nbRunningOrPending = nbRunningOrPending;
+    _nbSuccess = nbSuccess;
+    _nbFailed = nbFailed;
+}
+
 </script>
 
 <template>
