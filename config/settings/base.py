@@ -634,3 +634,7 @@ REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14
 
 # Upload method
 UPLOAD_METHOD = env('TOPOBANK_UPLOAD_METHOD', default='POST')
+
+# Automatically renew analyses when the topography is upload are changes?
+# (If disabled, analyses will run when requested, i.e. viewed.)
+AUTOMATICALLY_RENEW_ANALYSES = env('TOPOBANK_AUTOMATICALLY_RENEW_ANALYSES', default=False)

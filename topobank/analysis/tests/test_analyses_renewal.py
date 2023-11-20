@@ -15,6 +15,7 @@ from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFuncti
 from topobank.utils import assert_in_content, assert_no_form_errors
 
 
+@pytest.mark.parametrize("auto_renew", [True, False])
 @pytest.mark.parametrize("changed_values_dict",
                          [  # would should be changed in POST request (->str values!)
                              ({
@@ -38,10 +39,11 @@ from topobank.utils import assert_in_content, assert_no_form_errors
                          ])
 @pytest.mark.django_db
 def test_renewal_on_topography_change(api_client, mocker, settings, django_capture_on_commit_callbacks,
-                                      handle_usage_statistics, changed_values_dict, ):
+                                      handle_usage_statistics, changed_values_dict, auto_renew):
     """Check whether methods for renewal are called on significant topography change.
     """
     settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
+    settings.AUTOMATICALLY_RENEW_ANALYSES = auto_renew
 
     renew_topo_analyses_mock = mocker.patch('topobank.analysis.controller.submit_analysis')
 
@@ -106,8 +108,12 @@ def test_renewal_on_topography_change(api_client, mocker, settings, django_captu
     # one callbacks on commit expected:
     #   Renewing topography cache (thumbnail, DZI, etc.)
 
-    renew_topo_analyses_mock.assert_called()
-    assert renew_topo_analyses_mock.call_count == AnalysisFunction.objects.count()  # Called once each
+    if auto_renew:
+        renew_topo_analyses_mock.assert_called()
+        assert renew_topo_analyses_mock.call_count == AnalysisFunction.objects.count()  # Called once each
+    else:
+        renew_topo_analyses_mock.assert_not_called()
+        assert renew_topo_analyses_mock.call_count == 0  # Never called
 
 
 @pytest.mark.django_db
@@ -144,10 +150,13 @@ def test_analysis_removal_on_topography_deletion(api_client, test_analysis_funct
     # assert Analysis.objects.filter(subject_dispatch__surface=surface).count() == 0
 
 
+
+@pytest.mark.parametrize("auto_renew", [True, False])
 @pytest.mark.django_db
 def test_renewal_on_topography_creation(api_client, mocker, settings, handle_usage_statistics,
-                                        django_capture_on_commit_callbacks):
+                                        django_capture_on_commit_callbacks, auto_renew):
     settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
+    settings.AUTOMATICALLY_RENEW_ANALYSES = auto_renew
 
     renew_topo_analyses_mock = mocker.patch('topobank.analysis.controller.submit_analysis')
 
@@ -172,5 +181,10 @@ def test_renewal_on_topography_creation(api_client, mocker, settings, handle_usa
                                detrend_mode='height')
         assert response.data['name'] == 'topo1'
     assert len(callbacks) == 1  # renewing cached quantities
-    renew_topo_analyses_mock.assert_called()
-    assert renew_topo_analyses_mock.call_count == 2 * AnalysisFunction.objects.count()
+
+    if auto_renew:
+        renew_topo_analyses_mock.assert_called()
+        assert renew_topo_analyses_mock.call_count == 2 * AnalysisFunction.objects.count()
+    else:
+        renew_topo_analyses_mock.assert_not_called()
+        assert renew_topo_analyses_mock.call_count == 0
