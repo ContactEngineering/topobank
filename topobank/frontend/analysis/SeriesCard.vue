@@ -1,6 +1,7 @@
 <script>
 
 import {v4 as uuid4} from 'uuid';
+import axios from "axios";
 
 import BokehPlot from '../components/BokehPlot.vue';
 import BibliographyModal from './BibliographyModal.vue';
@@ -15,7 +16,6 @@ export default {
         CardExpandButton,
         TasksButton
     },
-    inject: ['csrfToken'],
     props: {
         apiUrl: {
             type: String,
@@ -39,7 +39,6 @@ export default {
             }
         }
     },
-    inject: ['csrfToken'],
     data() {
         return {
             _analyses: null,
@@ -74,29 +73,22 @@ export default {
     methods: {
         updateCard() {
             /* Fetch JSON describing the card */
-            fetch(`${this.apiUrl}/${this.functionId}?subjects=${this.subjects}`, {
-                method: 'GET',
-                headers: {
-                    'Accept': 'application/json',
-                    'X-CSRFToken': this.csrfToken
-                }
-            })
-                .then(response => response.json())
-                .then(data => {
-                    this._analyses = data.analyses;
-                    this._title = data.plotConfiguration.title;
+            axios.get(`${this.apiUrl}/${this.functionId}?subjects=${this.subjects}`)
+                .then(response => {
+                    this._analyses = response.data.analyses;
+                    this._title = response.data.plotConfiguration.title;
                     this._plots = [{
                         title: "default",
-                        xAxisLabel: data.plotConfiguration.xAxisLabel,
-                        yAxisLabel: data.plotConfiguration.yAxisLabel,
-                        xAxisType: data.plotConfiguration.xAxisType,
-                        yAxisType: data.plotConfiguration.yAxisType
+                        xAxisLabel: response.data.plotConfiguration.xAxisLabel,
+                        yAxisLabel: response.data.plotConfiguration.yAxisLabel,
+                        xAxisType: response.data.plotConfiguration.xAxisType,
+                        yAxisType: response.data.plotConfiguration.yAxisType
                     }];
-                    this._dataSources = data.plotConfiguration.dataSources;
-                    this._categories = data.plotConfiguration.categories;
-                    this._outputBackend = data.plotConfiguration.outputBackend;
-                    this._dois = data.dois;
-                    this._messages = data.messages;
+                    this._dataSources = response.data.plotConfiguration.dataSources;
+                    this._categories = response.data.plotConfiguration.categories;
+                    this._outputBackend = response.data.plotConfiguration.outputBackend;
+                    this._dois = response.data.dois;
+                    this._messages = response.data.messages;
                 });
         },
         taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
