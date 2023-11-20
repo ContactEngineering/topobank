@@ -9,6 +9,8 @@
 /* jshint strict:true */
 /* globals Vue:false, Bokeh:false */
 
+import {v4 as uuid4} from 'uuid';
+
 import {
     AjaxDataSource,
     Circle,
@@ -21,6 +23,7 @@ import {
     SaveTool,
     TapTool
 } from '@bokeh/bokehjs';
+
 import {
     BAccordion,
     BAccordionItem,
@@ -45,7 +48,8 @@ export default {
         BFormInput,
         BFormSelect,
         BFormSelectOption
-    },    emits: [
+    },
+    emits: [
         'selected'
     ],
     props: {
@@ -58,28 +62,31 @@ export default {
             //        Typical categories: "subject_name" for name of a measurement, "series_name" for name of a data series
             //        like "1D PSD along x"
             //   title: Title of this category, a header put in front of the category elements e.g. "Data Series"
-            type: Array, default: function () {
+            type: Array, default() {
                 return [];
             }
         },
         plots: {
             // Define the plots to show. Each plot will display in its own tab if there is more than one.
-            type: Array,
-            default: [{
-                title: "default",  // Title will be used to distinguish between multiple plots. Can be omitted for single plot.
-                xData: "data.x",  // JS code that yields x data
-                yData: "data.y",  // JS code that yields y data
-                auxiliaryDataColumns: undefined,  // Auxiliary data columns
-                alphaData: undefined,  // JS code that yields alpha information
-                xAxisType: "linear",  // "log" or "linear"
-                yAxisType: "linear",  // "log" or "linear"
-                xAxisLabel: "x", // Label for the x-axis.
-                yAxisLabel: "y" // Label for the y-axis.
-            }]
+            type: Array, default() {
+                return [{
+                    title: "default",  // Title will be used to distinguish between multiple plots. Can be omitted for single plot.
+                    xData: "data.x",  // JS code that yields x data
+                    yData: "data.y",  // JS code that yields y data
+                    auxiliaryDataColumns: undefined,  // Auxiliary data columns
+                    alphaData: undefined,  // JS code that yields alpha information
+                    xAxisType: "linear",  // "log" or "linear"
+                    yAxisType: "linear",  // "log" or "linear"
+                    xAxisLabel: "x", // Label for the x-axis.
+                    yAxisLabel: "y" // Label for the y-axis.
+                }]
+            }
         },
         dataSources: {
             // Define the data sources.
-            type: Array, default: []
+            type: Array, default() {
+                return [];
+            }
             // Array of dictionaries with keys:
             //   url: URL to JSON that contains the data.
             //   [category-name] (optional): Display value of the specific category. For each category,
@@ -95,33 +102,25 @@ export default {
             // property specifies for each plot, which JSON keys should be used to get x and y data.
         },
         outputBackend: String,
-        height: {
-            type: Number, default: 300
+        height: {type: Number, default: 300},
+        width: {type: Number, default: null},
+        sizingMode: {type: String, default: "scale_width"},
+        aspectRatio: {type: Number, default: 2},
+        uid: {
+            type: String, default() {
+                return uuid4();
+            }
         },
-        width: {
-            type: Number, default: null
-        },
-        sizingMode: {
-            type: String, default: "scale_width"
-        },
-        aspectRatio: {
-            type: Number, default: 2
-        },
-        selectable: {
-            type: Boolean, default: false
-        },
+        selectable: {type: Boolean, default: false},
         optionsWidgets: {
             type: Array, default: function () {
                 return ["layout", "legend", "lineWidth", "symbolSize", "opacity"];
             }
         },
-        functionTitle: {
-          type: String, default: "bokeh_plot"
-        }
+        functionTitle: {type: String, default: "bokeh_plot"}
     },
-    data: function () {
+    data() {
         return {
-            uuid: null,  // Unique identifier that is embedded in the HTML ids
             layout: "web",
             legendLocation: "off",
             symbolSize: 10,
@@ -131,10 +130,7 @@ export default {
             bokehPlots: [],  // Stores Bokeh figure, line and symbol objects
         };
     },
-    created: function () {
-        /* Create unique ID */
-        this.uuid = crypto.randomUUID();
-
+    created() {
         /* For each category, create a list of unique entries */
         for (const [categoryIdx, category] of this.categories.entries()) {
             let titles = new Set();
@@ -202,7 +198,7 @@ export default {
             });
         }
     },
-    mounted: function () {
+    mounted() {
         this.buildPlot();
     },
     watch: {
@@ -344,7 +340,7 @@ export default {
                             })
                         }));
                     }
-                    const saveTool = new SaveTool({filename: this.functionTitle.replace(" ","_").toLowerCase()});
+                    const saveTool = new SaveTool({filename: this.functionTitle.replace(" ", "_").toLowerCase()});
                     tools.push(saveTool);
 
                     /* Determine type of x and y-axis */
@@ -362,7 +358,7 @@ export default {
                         y_axis_type: yAxisType,
                         tools: tools,
                         output_backend: this.outputBackend,
-                        title: this.functionTitle
+                        //title: this.functionTitle
                     });
 
                     /* Change formatters for linear axes */
@@ -533,7 +529,7 @@ export default {
                 for (const [index, bokehPlot] of this.bokehPlots.entries()) {
                     bokehPlot.legend = new Legend({items: bokehPlot.legendItems, visible: false});
                     bokehPlot.figure.add_layout(bokehPlot.legend);
-                    Plotting.show(bokehPlot.figure, "#bokeh-plot-" + this.uuid + "-" + index);
+                    Plotting.show(bokehPlot.figure, `#bokeh-plot-${this.uid}-${index}`);
                 }
             }
         },
@@ -610,8 +606,8 @@ export default {
 <template>
     <div class="tab-content">
         <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'"
-             :id="'plot-'+uuid+'-'+index" role="tabpanel" :aria-labelledby="'plot-tab-'+uuid+'-'+index">
-            <div :id='"bokeh-plot-"+uuid+"-"+index' ref="plot"></div>
+             :id="`plot-${uid}-${index}`" role="tabpanel" :aria-labelledby="`plot-tab-${uid}-${index}`">
+            <div :id="`bokeh-plot-${uid}-${index}`" ref="plot"></div>
         </div>
     </div>
     <div v-if="plots.length > 1" class="card mb-2">
@@ -620,9 +616,9 @@ export default {
                 <!-- Navigation pills for each individual plot, but only if there is more than one -->
                 <ul v-if="plots.length > 1" class="nav nav-pills">
                     <li v-for="(plot, index) in plots" class="nav-item">
-                        <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uuid+'-'+index"
-                           :href="'#plot-'+uuid+'-'+index" data-toggle="tab" role="tab"
-                           :aria-controls="'plot-'+uuid+'-'+index"
+                        <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uid+'-'+index"
+                           :href="`#plot-${uid}-${index}`" data-toggle="tab" role="tab"
+                           :aria-controls="`plot-${uid}-${index}`"
                            :aria-selected="index == 0">{{
                                 plot.title
                             }}</a>
