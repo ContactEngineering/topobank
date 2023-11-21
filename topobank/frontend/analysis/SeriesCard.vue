@@ -98,7 +98,7 @@ function updateCard() {
 function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
     if (nbRunningOrPending === 0 && _nbRunningOrPending > 0) {
         // All tasks finished, reload card
-        this.updateCard();
+        updateCard();
     }
     _nbRunningOrPending = nbRunningOrPending;
     _nbSuccess = nbSuccess;
