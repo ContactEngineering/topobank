@@ -1,13 +1,13 @@
 <script setup>
 
-import {v4 as uuid4} from 'uuid';
 import axios from "axios";
+import {v4 as uuid4} from 'uuid';
+import {computed, onMounted, ref, watch} from "vue";
 
 import BokehPlot from '../components/BokehPlot.vue';
 import BibliographyModal from './BibliographyModal.vue';
 import CardExpandButton from './CardExpandButton.vue';
 import TasksButton from './TasksButton.vue';
-import {computed, onMounted, ref, watch} from "vue";
 
 const props = defineProps({
     apiUrl: {
@@ -60,11 +60,13 @@ onMounted(() => {
     updateCard();
 });
 
+/*
 watch(props.functionId, (newValue, oldValue) => {
     // Function id may update when the user selects or deselects an analysis to show.
     // The subject do not update in that case.
     updateCard();
 });
+ */
 
 const analysisIds = computed(() => {
     if (_analyses == null) {

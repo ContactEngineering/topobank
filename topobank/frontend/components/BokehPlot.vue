@@ -130,84 +130,12 @@ export default {
             bokehPlots: [],  // Stores Bokeh figure, line and symbol objects
         };
     },
-    created() {
-        /* For each category, create a list of unique entries */
-        for (const [categoryIdx, category] of this.categories.entries()) {
-            let titles = new Set();
-            let elements = [];
-            let selection = [];
-
-            // console.log(`Category ${categoryIdx}: ${category.title} (key: ${category.key})`);
-            // console.log("===============================================================");
-
-            for (const dataSource of this.dataSources) {
-                // console.table(dataSource);
-                if (!(category.key in dataSource)) {
-                    throw new Error("Key '" + category.key + "' not found in data source '" + dataSource.name + "'.");
-                }
-
-                const title = dataSource[category.key];
-                if (!(titles.has(title))) {
-                    let elementIndex = dataSource[category.key + 'Index'];
-                    let color = categoryIdx === 0 ? dataSource.color : null;  // The first category defines the color
-                    let dash = categoryIdx === 1 ? dataSource.dash : null;     // The first category defines the line type
-                    let hasParent = dataSource[category.key + 'HasParent'];
-                    titles.add(title);
-
-                    // need to have the same order as index of category
-                    elements[elementIndex] = {
-                        title: title, color: color, dash: dash,
-                        hasParent: hasParent === undefined ? false : hasParent
-                    };
-                    // Defaults to showing a data source if it has no 'visible' attribute
-                    if (dataSource.visible === undefined || dataSource.visible) {
-                        selection.push(elementIndex);
-                    }
-                }
-            }
-
-            const elementHtml = function (e) {
-                let s = "";
-                if (e.color !== null) {
-                    s += `<span class="dot" style="background-color: ${e.color};"></span>`;
-                }
-                if (e.hasParent) {
-                    s += "└─ ";
-                }
-                s += e.title;
-                return s;
-            };
-
-            // Removed undefined entries from elements array
-            elements = elements.filter(e => e !== undefined).map((e, index) => {
-                return {
-                    ...e,
-                    value: index,
-                    html: elementHtml(e)
-                }
-            });
-
-            // Add to category information
-            this.categoryElements.push({
-                key: category.key,
-                title: category.title,
-                elements: elements,
-                selection: selection,
-                isAllSelected: this.isAllSelected(elements, selection),
-                isIndeterminate: this.isIndeterminate(elements, selection)
-            });
-        }
-    },
     mounted() {
+        this.updateCategoryElements();
         this.createFigures();
         this.createPlots();
     },
     watch: {
-        categoryElements: {
-            handler() {
-                this.refreshPlots();
-            }, deep: true
-        },
         layout(layout) {
             /* Predefined layouts */
             switch (layout) {
@@ -268,6 +196,7 @@ export default {
             }
             // We need to completely rebuild the plot if `dataSources` changes
             if (hasChanged) {
+                this.updateCategoryElements();
                 this.createPlots();
             }
         }
@@ -306,6 +235,77 @@ export default {
             // console.log("this.categoryElements[1].selection: " + this.categoryElements[1].selection);
             // console.log(secondCategoryInLegendLabels, legendLabel);
             return legendLabel;
+        },
+        updateCategoryElements() {
+            // Reset the category elements array
+            this.categoryElements.length = 0;
+
+            /* For each category, create a list of unique entries */
+            for (const [categoryIdx, category] of this.categories.entries()) {
+                let titles = new Set();
+                let elements = [];
+                let selection = [];
+
+                // console.log(`Category ${categoryIdx}: ${category.title} (key: ${category.key})`);
+                // console.log("===============================================================");
+
+                for (const dataSource of this.dataSources) {
+                    // console.table(dataSource);
+                    if (!(category.key in dataSource)) {
+                        throw new Error("Key '" + category.key + "' not found in data source '" + dataSource.name + "'.");
+                    }
+
+                    const title = dataSource[category.key];
+                    if (!(titles.has(title))) {
+                        let elementIndex = dataSource[category.key + 'Index'];
+                        let color = categoryIdx === 0 ? dataSource.color : null;  // The first category defines the color
+                        let dash = categoryIdx === 1 ? dataSource.dash : null;     // The first category defines the line type
+                        let hasParent = dataSource[category.key + 'HasParent'];
+                        titles.add(title);
+
+                        // need to have the same order as index of category
+                        elements[elementIndex] = {
+                            title: title, color: color, dash: dash,
+                            hasParent: hasParent === undefined ? false : hasParent
+                        };
+                        // Defaults to showing a data source if it has no 'visible' attribute
+                        if (dataSource.visible === undefined || dataSource.visible) {
+                            selection.push(elementIndex);
+                        }
+                    }
+                }
+
+                const elementHtml = function (e) {
+                    let s = "";
+                    if (e.color !== null) {
+                        s += `<span class="dot" style="background-color: ${e.color};"></span>`;
+                    }
+                    if (e.hasParent) {
+                        s += "└─ ";
+                    }
+                    s += e.title;
+                    return s;
+                };
+
+                // Removed undefined entries from elements array
+                elements = elements.filter(e => e !== undefined).map((e, index) => {
+                    return {
+                        ...e,
+                        value: index,
+                        html: elementHtml(e)
+                    }
+                });
+
+                // Add to category information
+                this.categoryElements.push({
+                    key: category.key,
+                    title: category.title,
+                    elements: elements,
+                    selection: selection,
+                    isAllSelected: this.isAllSelected(elements, selection),
+                    isIndeterminate: this.isIndeterminate(elements, selection)
+                });
+            }
         },
         createFigures() {
             /* Create figures */
