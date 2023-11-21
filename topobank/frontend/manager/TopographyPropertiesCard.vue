@@ -8,7 +8,7 @@ import {
     BAlert, BFormCheckbox, BFormInput, BFormSelect, BFormTags, BFormTextarea, BModal, BSpinner
 } from 'bootstrap-vue-next';
 
-import {filterTopographyForPatchRequest} from "../utils/api";
+import {filterTopographyForPatchRequest, subjectsToBase64} from "../utils/api";
 
 import TopographyBadges from "./TopographyBadges.vue";
 
@@ -277,6 +277,12 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                     <b-spinner small v-if="_saving || saving"></b-spinner>
                     SAVE
                 </button>
+            </div>
+            <div class="btn-group btn-group-sm float-end me-2">
+                <a class="btn btn-outline-secondary"
+                   :href="`/analysis/html/list/?subjects=${subjectsToBase64({topography: [topography.id]})}`">
+                    Analyze
+                </a>
             </div>
             <div class="btn-group btn-group-sm float-end me-2">
                 <button v-if="!enlarged"
