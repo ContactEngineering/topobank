@@ -36,6 +36,7 @@ import {
 } from "bootstrap-vue-next";
 
 import {formatExponential} from "topobank/utils/formatting";
+import {applyDefaultBokehStyle} from "topobank/utils/bokeh";
 
 export default {
     name: 'bokeh-plot',
@@ -127,20 +128,22 @@ export default {
             opacity: 0.4,
             lineWidth: 1,
             categoryElements: [],
-            bokehPlots: [],  // Stores Bokeh figure, line and symbol objects
+            bokehFigures: [],  // Stores Bokeh figure, line and symbol objects
         };
     },
     mounted() {
-        this.updateCategoryElements();
-        this.createFigures();
-        this.createPlots();
+        if (this.dataSources.length > 0) {
+            this.updateCategoryElements();
+            this.createFigures();
+            this.createPlots();
+        }
     },
     watch: {
         layout(layout) {
             /* Predefined layouts */
             switch (layout) {
                 case 'web':
-                    for (const plot of this.bokehPlots) {
+                    for (const plot of this.bokehFigures) {
                         plot.figure.sizing_mode = this.sizingMode;
                         plot.figure.aspect_ratio = this.aspectRatio;
                         plot.figure.height = this.height;
@@ -148,7 +151,7 @@ export default {
                     this.symbolSize = 10;
                     break;
                 case 'print-single':
-                    for (const plot of this.bokehPlots) {
+                    for (const plot of this.bokehFigures) {
                         plot.figure.sizing_mode = "fixed";
                         plot.figure.width = 600;
                         plot.figure.height = 300;
@@ -156,7 +159,7 @@ export default {
                     this.symbolSize = 5;
                     break;
                 case 'print-double':
-                    for (const plot of this.bokehPlots) {
+                    for (const plot of this.bokehFigures) {
                         plot.figure.sizing_mode = "fixed";
                         plot.figure.width = 400;
                         plot.figure.height = 250;
@@ -178,7 +181,7 @@ export default {
         },
         legendLocation(newVal) {
             const visible = newVal !== "off";
-            for (const bokehPlot of this.bokehPlots) {
+            for (const bokehPlot of this.bokehFigures) {
                 bokehPlot.legend.visible = visible;
                 if (visible) {
                     bokehPlot.legend.location = newVal;
@@ -197,6 +200,11 @@ export default {
             // We need to completely rebuild the plot if `dataSources` changes
             if (hasChanged) {
                 this.updateCategoryElements();
+                if (this.bokehFigures.length === 0) {
+                    // Figures have not yet been created on mount because not data source was available, do it now.
+                    // We don't create empty figures because this screws up log scaling.
+                    this.createFigures();
+                }
                 this.createPlots();
             }
         }
@@ -340,7 +348,7 @@ export default {
                 const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
 
                 /* Create and style figure */
-                const bokehPlotFigure = new Plotting.Figure({
+                const bokehFigure = new Plotting.Figure({
                     height: this.height,
                     sizing_mode: this.sizingMode,
                     aspect_ratio: this.aspectRatio,
@@ -354,7 +362,7 @@ export default {
 
                 /* Change formatters for linear axes */
                 if (xAxisType === "linear") {
-                    bokehPlotFigure.xaxis.formatter = new CustomJSTickFormatter({
+                    bokehFigure.xaxis.formatter = new CustomJSTickFormatter({
                         code: "return formatExponential(tick);",
                         args: {
                             formatExponential: formatExponential  // inject formatting function into local scope
@@ -362,7 +370,7 @@ export default {
                     });
                 }
                 if (yAxisType === "linear") {
-                    bokehPlotFigure.yaxis.formatter = new CustomJSTickFormatter({
+                    bokehFigure.yaxis.formatter = new CustomJSTickFormatter({
                         code: "return formatExponential(tick);",
                         args: {
                             formatExponential: formatExponential  // inject formatting function into local scope
@@ -371,15 +379,10 @@ export default {
                 }
 
                 /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-                bokehPlotFigure.xaxis.axis_label_text_font_style = "normal";
-                bokehPlotFigure.yaxis.axis_label_text_font_style = "normal";
-                bokehPlotFigure.xaxis.major_label_text_font_size = "16px";
-                bokehPlotFigure.yaxis.major_label_text_font_size = "16px";
-                bokehPlotFigure.xaxis.axis_label_text_font_size = "16px";
-                bokehPlotFigure.yaxis.axis_label_text_font_size = "16px";
+                applyDefaultBokehStyle(bokehFigure);
 
-                this.bokehPlots.push({
-                    figure: bokehPlotFigure,
+                this.bokehFigures.push({
+                    figure: bokehFigure,
                     save: saveTool,
                     lines: [],
                     symbols: [],
@@ -388,25 +391,25 @@ export default {
                 });
             }
 
-            for (const [index, bokehPlot] of this.bokehPlots.entries()) {
-                bokehPlot.legend = new Legend({items: bokehPlot.legendItems, visible: false});
-                bokehPlot.figure.add_layout(bokehPlot.legend);
-                Plotting.show(bokehPlot.figure, `#bokeh-plot-${this.uid}-${index}`);
+            for (const [index, bokehFigure] of this.bokehFigures.entries()) {
+                bokehFigure.legend = new Legend({items: bokehFigure.legendItems, visible: false});
+                bokehFigure.figure.add_layout(bokehFigure.legend);
+                Plotting.show(bokehFigure.figure, `#bokeh-figure-${this.uid}-${index}`);
             }
         },
         createPlots() {
             /* Destroy all lines */
-            for (const bokehPlot of this.bokehPlots) {
-                bokehPlot.lines.length = 0;
-                bokehPlot.symbols.length = 0;
-                bokehPlot.figure.renderers.length = 0;
+            for (const bokehFigure of this.bokehFigures) {
+                bokehFigure.lines.length = 0;
+                bokehFigure.symbols.length = 0;
+                bokehFigure.figure.renderers.length = 0;
             }
 
             /* We iterate in reverse order because we want to the first element to appear on top of the plot */
             for (const dataSource of [...this.dataSources].reverse()) {
                 for (const [index, plot] of this.plots.entries()) {
                     /* Get bokeh plot object */
-                    const bokehPlot = this.bokehPlots[index];
+                    const bokehPlot = this.bokehFigures[index];
                     let legendLabels = new Set();
 
                     /* Common attributes of lines and symbols */
@@ -540,7 +543,7 @@ export default {
                     dataSource.legendItem.label = this.legendLabel(dataSource);
                 }
 
-                for (const bokehPlot of this.bokehPlots) {
+                for (const bokehPlot of this.bokehFigures) {
                     const line = bokehPlot.lines[dataSourceIdx];
                     line.visible = visible;
                     line.glyph.line_width = Number(this.lineWidth) * dataSource.width;
@@ -580,7 +583,7 @@ export default {
                and deselect all others */
             const name = data.source.name;
             const index = data.source.selected.indices[0];
-            for (const bokehPlot of this.bokehPlots) {
+            for (const bokehPlot of this.bokehFigures) {
                 for (const source of bokehPlot.sources) {
                     if (source.name === name) {
                         source.selected.indices = [index];
@@ -592,7 +595,7 @@ export default {
             this.$emit("selected", obj, data);
         },
         download: function () {
-            this.bokehPlots[0].save.do.emit();
+            this.bokehFigures[0].save.do.emit();
         }
     }
 }
@@ -602,7 +605,7 @@ export default {
     <div class="tab-content">
         <div v-for="(plot, index) in plots" :class="(index == 0)?'tab-pane fade show active':'tab-pane fade'"
              :id="`plot-${uid}-${index}`" role="tabpanel" :aria-labelledby="`plot-tab-${uid}-${index}`">
-            <div :id="`bokeh-plot-${uid}-${index}`" ref="plot"></div>
+            <div :id="`bokeh-figure-${uid}-${index}`" ref="plot"></div>
         </div>
     </div>
     <div v-if="plots.length > 1" class="card mb-2">

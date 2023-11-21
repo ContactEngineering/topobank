@@ -141,16 +141,18 @@ function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
             </a>
         </div>
         <div class="card-body">
-            <div v-if="_analyses === null" class="tab-content">
+            <div v-if="_analyses === null || _dataSources === null || _dataSources.length === 0" class="tab-content">
                 <span class="spinner"></span>
-                <div>Please wait...</div>
+                <div>
+                    Analyses are not yet available, but tasks are scheduled or running. Please wait...
+                </div>
             </div>
 
-            <div v-if="_analyses !== null && _analyses.length == 0" class="tab-content">
+            <div v-if="_analyses !== null && _analyses.length === 0" class="tab-content">
                 This analysis reported no results for the selected datasets.
             </div>
 
-            <div v-if="_analyses !== null && _analyses.length > 0" class="tab-content">
+            <div v-if="_analyses !== null && _dataSources !== null && _analyses.length > 0 && _dataSources.length > 0" class="tab-content">
                 <div class="tab-pane show active" role="tabpanel" aria-label="Tab showing a plot">
                     <div :class="['alert', message.alertClass]" v-for="message in _messages">
                         {{ message.message }}
