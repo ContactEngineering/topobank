@@ -199,12 +199,13 @@ export default {
         }
     },
     mounted() {
-        this.buildPlot();
+        this.createFigures();
+        this.createPlots();
     },
     watch: {
         categoryElements: {
             handler() {
-                this.refreshPlot();
+                this.refreshPlots();
             }, deep: true
         },
         layout(layout) {
@@ -236,16 +237,16 @@ export default {
                     break;
             }
 
-            this.refreshPlot();
+            this.refreshPlots();
         },
         opacity() {
-            this.refreshPlot();
+            this.refreshPlots();
         },
         symbolSize() {
-            this.refreshPlot();
+            this.refreshPlots();
         },
         lineWidth() {
-            this.refreshPlot();
+            this.refreshPlots();
         },
         legendLocation(newVal) {
             const visible = newVal !== "off";
@@ -267,7 +268,7 @@ export default {
             }
             // We need to completely rebuild the plot if `dataSources` changes
             if (hasChanged) {
-                this.buildPlot();
+                this.createPlots();
             }
         }
     },
@@ -306,96 +307,99 @@ export default {
             // console.log(secondCategoryInLegendLabels, legendLabel);
             return legendLabel;
         },
-        buildPlot() {
+        createFigures() {
+            /* Create figures */
+            for (const plot of this.plots) {
+                /* Callback for selection of data points */
+                let tools = ["pan", "reset", "wheel_zoom", "box_zoom",
+                    new HoverTool({
+                        'tooltips': [
+                            ['index', '$index'],
+                            ['(x,y)', '($x,$y)'],
+                            ['subject', '@subjectName'],
+                            ['series', '@seriesName'],
+                        ]
+                    })
+                ];
+                // let tools = [...this.tools];  // Copy array (= would just be a reference)
+                if (this.selectable) {
+                    const code = "on_tap(cb_obj, cb_data);";
+                    tools.push(new TapTool({
+                        behavior: "select",
+                        callback: new CustomJS({
+                            args: {on_tap: this.onTap},
+                            code: code
+                        })
+                    }));
+                }
+                const saveTool = new SaveTool({filename: this.functionTitle.replace(" ", "_").toLowerCase()});
+                tools.push(saveTool);
+
+                /* Determine type of x and y-axis */
+                const xAxisType = plot.xAxisType === undefined ? "linear" : plot.xAxisType;
+                const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
+
+                /* Create and style figure */
+                const bokehPlotFigure = new Plotting.Figure({
+                    height: this.height,
+                    sizing_mode: this.sizingMode,
+                    aspect_ratio: this.aspectRatio,
+                    x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
+                    y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
+                    x_axis_type: xAxisType,
+                    y_axis_type: yAxisType,
+                    tools: tools,
+                    output_backend: this.outputBackend
+                });
+
+                /* Change formatters for linear axes */
+                if (xAxisType === "linear") {
+                    bokehPlotFigure.xaxis.formatter = new CustomJSTickFormatter({
+                        code: "return formatExponential(tick);",
+                        args: {
+                            formatExponential: formatExponential  // inject formatting function into local scope
+                        }
+                    });
+                }
+                if (yAxisType === "linear") {
+                    bokehPlotFigure.yaxis.formatter = new CustomJSTickFormatter({
+                        code: "return formatExponential(tick);",
+                        args: {
+                            formatExponential: formatExponential  // inject formatting function into local scope
+                        }
+                    });
+                }
+
+                /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
+                bokehPlotFigure.xaxis.axis_label_text_font_style = "normal";
+                bokehPlotFigure.yaxis.axis_label_text_font_style = "normal";
+                bokehPlotFigure.xaxis.major_label_text_font_size = "16px";
+                bokehPlotFigure.yaxis.major_label_text_font_size = "16px";
+                bokehPlotFigure.xaxis.axis_label_text_font_size = "16px";
+                bokehPlotFigure.yaxis.axis_label_text_font_size = "16px";
+
+                this.bokehPlots.push({
+                    figure: bokehPlotFigure,
+                    save: saveTool,
+                    lines: [],
+                    symbols: [],
+                    sources: [],
+                    legendItems: []
+                });
+            }
+
+            for (const [index, bokehPlot] of this.bokehPlots.entries()) {
+                bokehPlot.legend = new Legend({items: bokehPlot.legendItems, visible: false});
+                bokehPlot.figure.add_layout(bokehPlot.legend);
+                Plotting.show(bokehPlot.figure, `#bokeh-plot-${this.uid}-${index}`);
+            }
+        },
+        createPlots() {
             /* Destroy all lines */
             for (const bokehPlot of this.bokehPlots) {
                 bokehPlot.lines.length = 0;
                 bokehPlot.symbols.length = 0;
                 bokehPlot.figure.renderers.length = 0;
-            }
-
-            const isNewPlot = this.bokehPlots.length === 0;
-            if (isNewPlot) {
-                /* Create figures */
-                for (const plot of this.plots) {
-                    /* Callback for selection of data points */
-                    let tools = ["pan", "reset", "wheel_zoom", "box_zoom",
-                        new HoverTool({
-                            'tooltips': [
-                                ['index', '$index'],
-                                ['(x,y)', '($x,$y)'],
-                                ['subject', '@subjectName'],
-                                ['series', '@seriesName'],
-                            ]
-                        })
-                    ];
-                    // let tools = [...this.tools];  // Copy array (= would just be a reference)
-                    if (this.selectable) {
-                        const code = "on_tap(cb_obj, cb_data);";
-                        tools.push(new TapTool({
-                            behavior: "select",
-                            callback: new CustomJS({
-                                args: {on_tap: this.onTap},
-                                code: code
-                            })
-                        }));
-                    }
-                    const saveTool = new SaveTool({filename: this.functionTitle.replace(" ", "_").toLowerCase()});
-                    tools.push(saveTool);
-
-                    /* Determine type of x and y-axis */
-                    const xAxisType = plot.xAxisType === undefined ? "linear" : plot.xAxisType;
-                    const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
-
-                    /* Create and style figure */
-                    const bokehPlotFigure = new Plotting.Figure({
-                        height: this.height,
-                        sizing_mode: this.sizingMode,
-                        aspect_ratio: this.aspectRatio,
-                        x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
-                        y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
-                        x_axis_type: xAxisType,
-                        y_axis_type: yAxisType,
-                        tools: tools,
-                        output_backend: this.outputBackend,
-                        //title: this.functionTitle
-                    });
-
-                    /* Change formatters for linear axes */
-                    if (xAxisType === "linear") {
-                        bokehPlotFigure.xaxis.formatter = new CustomJSTickFormatter({
-                            code: "return formatExponential(tick);",
-                            args: {
-                                formatExponential: formatExponential  // inject formatting function into local scope
-                            }
-                        });
-                    }
-                    if (yAxisType === "linear") {
-                        bokehPlotFigure.yaxis.formatter = new CustomJSTickFormatter({
-                            code: "return formatExponential(tick);",
-                            args: {
-                                formatExponential: formatExponential  // inject formatting function into local scope
-                            }
-                        });
-                    }
-
-                    /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-                    bokehPlotFigure.xaxis.axis_label_text_font_style = "normal";
-                    bokehPlotFigure.yaxis.axis_label_text_font_style = "normal";
-                    bokehPlotFigure.xaxis.major_label_text_font_size = "16px";
-                    bokehPlotFigure.yaxis.major_label_text_font_size = "16px";
-                    bokehPlotFigure.xaxis.axis_label_text_font_size = "16px";
-                    bokehPlotFigure.yaxis.axis_label_text_font_size = "16px";
-
-                    this.bokehPlots.push({
-                        figure: bokehPlotFigure,
-                        save: saveTool,
-                        lines: [],
-                        symbols: [],
-                        sources: [],
-                        legendItems: []
-                    });
-                }
             }
 
             /* We iterate in reverse order because we want to the first element to appear on top of the plot */
@@ -523,17 +527,8 @@ export default {
                     }
                 }
             }
-
-            /* Render figure(s) to HTML div */
-            if (isNewPlot) {
-                for (const [index, bokehPlot] of this.bokehPlots.entries()) {
-                    bokehPlot.legend = new Legend({items: bokehPlot.legendItems, visible: false});
-                    bokehPlot.figure.add_layout(bokehPlot.legend);
-                    Plotting.show(bokehPlot.figure, `#bokeh-plot-${this.uid}-${index}`);
-                }
-            }
         },
-        refreshPlot() {
+        refreshPlots() {
             for (const [dataSourceIdx, dataSource] of this.dataSources.entries()) {
                 let visible = true;
                 for (const categoryElem of this.categoryElements) {
