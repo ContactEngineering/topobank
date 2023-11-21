@@ -302,7 +302,6 @@ const allSelected = computed({
                             <topography-card v-if="topography !== null"
                                              :selectable="true"
                                              :topography-url="topography.url"
-                                             :topography="topography"
                                              :disabled="!isEditable"
                                              @delete:topography="() => deleteTopography(index)"
                                              v-model:topography="_topographies[index]"
