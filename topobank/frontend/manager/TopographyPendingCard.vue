@@ -53,7 +53,7 @@ export default {
         </div>
         <div v-if="taskState === 'pe'"
              class="card-body">
-            <b-spinner small></b-spinner>
+            <b-spinner small  type="grow"></b-spinner>
             Waiting for data file inspection to start...
         </div>
         <div v-if="taskState !== 'pe'"
