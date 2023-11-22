@@ -130,7 +130,7 @@ watch(layout, (layout) => {
     /* Predefined layouts */
     switch (layout) {
         case 'web':
-            for (const plot of bokehFigures) {
+            for (const plot of bokehFigures.value) {
                 plot.figure.sizing_mode = props.sizingMode;
                 plot.figure.aspect_ratio = props.aspectRatio;
                 plot.figure.height = props.height;
@@ -138,7 +138,7 @@ watch(layout, (layout) => {
             symbolSize.value = 10;
             break;
         case 'print-single':
-            for (const plot of bokehFigures) {
+            for (const plot of bokehFigures.value) {
                 plot.figure.sizing_mode = "fixed";
                 plot.figure.width = 600;
                 plot.figure.height = 300;
@@ -146,7 +146,7 @@ watch(layout, (layout) => {
             symbolSize.value = 5;
             break;
         case 'print-double':
-            for (const plot of bokehFigures) {
+            for (const plot of bokehFigures.value) {
                 plot.figure.sizing_mode = "fixed";
                 plot.figure.width = 400;
                 plot.figure.height = 250;
@@ -172,7 +172,7 @@ watch(lineWidth, () => {
 
 watch(legendLocation, (newVal) => {
     const visible = newVal !== "off";
-    for (const bokehPlot of bokehFigures) {
+    for (const bokehPlot of bokehFigures.value) {
         bokehPlot.legend.visible = visible;
         if (visible) {
             bokehPlot.legend.location = newVal;
