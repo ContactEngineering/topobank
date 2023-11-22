@@ -1,15 +1,13 @@
-<script>
+<script setup>
 /*
  * Vue component that wraps a Bokeh plot and adds elements for controlling that plots appearance.
  * - Categories: Each dataset can be assigned multiple *categories*. Each category receives an accordion that allows to
  *   show/hide all datasets belonging to a specific value of this category. These categories are for example the names
  *   of a measurement and the data series (1D PSD, 2D PSD, etc.).
  */
-/* jshint esversion: 9 */
-/* jshint strict:true */
-/* globals Vue:false, Bokeh:false */
 
 import {v4 as uuid4} from 'uuid';
+import {onMounted, ref, watch} from "vue";
 
 import {
     AjaxDataSource,
@@ -27,7 +25,6 @@ import {
 import {
     BAccordion,
     BAccordionItem,
-    BFormCheckbox,
     BFormCheckboxGroup,
     BFormGroup,
     BFormInput,
@@ -38,567 +35,569 @@ import {
 import {formatExponential} from "topobank/utils/formatting";
 import {applyDefaultBokehStyle} from "topobank/utils/bokeh";
 
-export default {
-    name: 'bokeh-plot',
-    components: {
-        BAccordion,
-        BAccordionItem,
-        BFormCheckbox,
-        BFormCheckboxGroup,
-        BFormGroup,
-        BFormInput,
-        BFormSelect,
-        BFormSelectOption
-    },
-    emits: [
-        'selected'
-    ],
-    props: {
-        categories: {
-            // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide
-            // all curves that correspond to a specific value of that category.
-            // Array of dictionaries with keys:
-            //   key: Name of dataset key that defines this category, i.e. if we have added a category with key "series_name",
-            //        the code will expect a "series_name" key in a dataSource, that specifies the value for this category.
-            //        Typical categories: "subject_name" for name of a measurement, "series_name" for name of a data series
-            //        like "1D PSD along x"
-            //   title: Title of this category, a header put in front of the category elements e.g. "Data Series"
-            type: Array, default() {
-                return [];
-            }
-        },
-        plots: {
-            // Define the plots to show. Each plot will display in its own tab if there is more than one.
-            type: Array, default() {
-                return [{
-                    title: "default",  // Title will be used to distinguish between multiple plots. Can be omitted for single plot.
-                    xData: "data.x",  // JS code that yields x data
-                    yData: "data.y",  // JS code that yields y data
-                    auxiliaryDataColumns: undefined,  // Auxiliary data columns
-                    alphaData: undefined,  // JS code that yields alpha information
-                    xAxisType: "linear",  // "log" or "linear"
-                    yAxisType: "linear",  // "log" or "linear"
-                    xAxisLabel: "x", // Label for the x-axis.
-                    yAxisLabel: "y" // Label for the y-axis.
-                }]
-            }
-        },
-        dataSources: {
-            // Define the data sources.
-            type: Array, default() {
-                return [];
-            }
-            // Array of dictionaries with keys:
-            //   url: URL to JSON that contains the data.
-            //   [category-name] (optional): Display value of the specific category. For each category,
-            //                               there must be a key-value pair. Example: "series_name": "1D PSD along x"
-            //   [category-name]_index (optional): Zero-based index of [category_name] in an ordered list.
-            //   color (optional): Line and symbol color.
-            //   dash (optional): Line style, one of "solid", "dashed", "dotted", "dotdash", "dashdot".
-            //   xScaleFactor: Additional scale factor for x-values from this source
-            //   yScaleFactor: Additional scale factor for y-values from this source
-            //   showSymbols (optional): Show symbols for this data source?
-            //   visible (optional): Initial visibility (can be triggered by user).
-            // Each data source is a JSON that is loaded from the given URL with via an AJAX request. The "plots"
-            // property specifies for each plot, which JSON keys should be used to get x and y data.
-        },
-        outputBackend: String,
-        height: {type: Number, default: 300},
-        width: {type: Number, default: null},
-        sizingMode: {type: String, default: "scale_width"},
-        aspectRatio: {type: Number, default: 2},
-        uid: {
-            type: String, default() {
-                return uuid4();
-            }
-        },
-        selectable: {type: Boolean, default: false},
-        optionsWidgets: {
-            type: Array, default: function () {
-                return ["layout", "legend", "lineWidth", "symbolSize", "opacity"];
-            }
-        },
-        functionTitle: {type: String, default: "bokeh_plot"}
-    },
-    data() {
-        return {
-            layout: "web",
-            legendLocation: "off",
-            symbolSize: 10,
-            opacity: 0.4,
-            lineWidth: 1,
-            categoryElements: [],
-            bokehFigures: [],  // Stores Bokeh figure, line and symbol objects
-        };
-    },
-    mounted() {
-        if (this.dataSources.length > 0) {
-            this.updateCategoryElements();
-            this.createFigures();
-            this.createPlots();
+const emit = defineEmits([
+    'selected'
+]);
+
+const props = defineProps({
+    categories: {
+        // Defining selection categories. For each category, there will be an accordion with the possibility to show/hide
+        // all curves that correspond to a specific value of that category.
+        // Array of dictionaries with keys:
+        //   key: Name of dataset key that defines this category, i.e. if we have added a category with key "series_name",
+        //        the code will expect a "series_name" key in a dataSource, that specifies the value for this category.
+        //        Typical categories: "subject_name" for name of a measurement, "series_name" for name of a data series
+        //        like "1D PSD along x"
+        //   title: Title of this category, a header put in front of the category elements e.g. "Data Series"
+        type: Array, default() {
+            return [];
         }
     },
-    watch: {
-        layout(layout) {
-            /* Predefined layouts */
-            switch (layout) {
-                case 'web':
-                    for (const plot of this.bokehFigures) {
-                        plot.figure.sizing_mode = this.sizingMode;
-                        plot.figure.aspect_ratio = this.aspectRatio;
-                        plot.figure.height = this.height;
-                    }
-                    this.symbolSize = 10;
-                    break;
-                case 'print-single':
-                    for (const plot of this.bokehFigures) {
-                        plot.figure.sizing_mode = "fixed";
-                        plot.figure.width = 600;
-                        plot.figure.height = 300;
-                    }
-                    this.symbolSize = 5;
-                    break;
-                case 'print-double':
-                    for (const plot of this.bokehFigures) {
-                        plot.figure.sizing_mode = "fixed";
-                        plot.figure.width = 400;
-                        plot.figure.height = 250;
-                    }
-                    this.symbolSize = 5;
-                    break;
-            }
-
-            this.refreshPlots();
-        },
-        opacity() {
-            this.refreshPlots();
-        },
-        symbolSize() {
-            this.refreshPlots();
-        },
-        lineWidth() {
-            this.refreshPlots();
-        },
-        legendLocation(newVal) {
-            const visible = newVal !== "off";
-            for (const bokehPlot of this.bokehFigures) {
-                bokehPlot.legend.visible = visible;
-                if (visible) {
-                    bokehPlot.legend.location = newVal;
-                }
-            }
-        },
-        dataSources(newVal, oldVal) {
-            // For some unknown reason, the dataSource watch is triggered even though it is not updated. We have to check
-            // manually that the URL has changed.
-            let hasChanged = newVal.length !== oldVal.length;
-            if (!hasChanged) {
-                for (const [index, val] of newVal.entries()) {
-                    hasChanged = hasChanged || (val.url !== oldVal[index].url);
-                }
-            }
-            // We need to completely rebuild the plot if `dataSources` changes
-            if (hasChanged) {
-                this.updateCategoryElements();
-                if (this.bokehFigures.length === 0) {
-                    // Figures have not yet been created on mount because not data source was available, do it now.
-                    // We don't create empty figures because this screws up log scaling.
-                    this.createFigures();
-                }
-                this.createPlots();
-            }
+    plots: {
+        // Define the plots to show. Each plot will display in its own tab if there is more than one.
+        type: Array, default() {
+            return [{
+                title: "default",  // Title will be used to distinguish between multiple plots. Can be omitted for single plot.
+                xData: "data.x",  // JS code that yields x data
+                yData: "data.y",  // JS code that yields y data
+                auxiliaryDataColumns: undefined,  // Auxiliary data columns
+                alphaData: undefined,  // JS code that yields alpha information
+                xAxisType: "linear",  // "log" or "linear"
+                yAxisType: "linear",  // "log" or "linear"
+                xAxisLabel: "x", // Label for the x-axis.
+                yAxisLabel: "y" // Label for the y-axis.
+            }]
         }
     },
-    methods: {
-        legendLabel(dataSource) {
-            /* Find number of selected items in second category (e.g. "series_name") */
-            let secondCategoryInLegendLabels = false;
-            if ((this.categoryElements.length > 1) && (this.categoryElements[1].selection.length > 1)) {
-                secondCategoryInLegendLabels = true;
+    dataSources: {
+        // Define the data sources.
+        type: Array, default() {
+            return [];
+        }
+        // Array of dictionaries with keys:
+        //   url: URL to JSON that contains the data.
+        //   [category-name] (optional): Display value of the specific category. For each category,
+        //                               there must be a key-value pair. Example: "series_name": "1D PSD along x"
+        //   [category-name]_index (optional): Zero-based index of [category_name] in an ordered list.
+        //   color (optional): Line and symbol color.
+        //   dash (optional): Line style, one of "solid", "dashed", "dotted", "dotdash", "dashdot".
+        //   xScaleFactor: Additional scale factor for x-values from this source
+        //   yScaleFactor: Additional scale factor for y-values from this source
+        //   showSymbols (optional): Show symbols for this data source?
+        //   visible (optional): Initial visibility (can be triggered by user).
+        // Each data source is a JSON that is loaded from the given URL with via an AJAX request. The "plots"
+        // property specifies for each plot, which JSON keys should be used to get x and y data.
+    },
+    outputBackend: String,
+    height: {type: Number, default: 300},
+    width: {type: Number, default: null},
+    sizingMode: {type: String, default: "scale_width"},
+    aspectRatio: {type: Number, default: 2},
+    uid: {
+        type: String, default() {
+            return uuid4();
+        }
+    },
+    selectable: {type: Boolean, default: false},
+    optionsWidgets: {
+        type: Array, default: function () {
+            return ["layout", "legend", "lineWidth", "symbolSize", "opacity"];
+        }
+    },
+    functionTitle: {type: String, default: "bokeh_plot"}
+});
+
+// GUI logic
+const layout = ref("web");
+const legendLocation = ref("off");
+const symbolSize = ref(10);
+const opacity = ref(0.4);
+const lineWidth = ref(1);
+
+// Reorganized plot information
+const categoryElements = ref([]);
+const bokehFigures = ref([]);  // Stores Bokeh figure, line and symbol objects
+
+onMounted(() => {
+    if (props.dataSources.length > 0) {
+        updateCategoryElements();
+        createFigures();
+        createPlots();
+    }
+});
+
+watch(layout, (layout) => {
+    /* Predefined layouts */
+    switch (layout) {
+        case 'web':
+            for (const plot of bokehFigures) {
+                plot.figure.sizing_mode = props.sizingMode;
+                plot.figure.aspect_ratio = props.aspectRatio;
+                plot.figure.height = props.height;
+            }
+            symbolSize.value = 10;
+            break;
+        case 'print-single':
+            for (const plot of bokehFigures) {
+                plot.figure.sizing_mode = "fixed";
+                plot.figure.width = 600;
+                plot.figure.height = 300;
+            }
+            symbolSize.value = 5;
+            break;
+        case 'print-double':
+            for (const plot of bokehFigures) {
+                plot.figure.sizing_mode = "fixed";
+                plot.figure.width = 400;
+                plot.figure.height = 250;
+            }
+            symbolSize.value = 5;
+            break;
+    }
+
+    refreshPlots();
+});
+
+watch(opacity, () => {
+    refreshPlots();
+});
+
+watch(symbolSize, () => {
+    refreshPlots();
+});
+
+watch(lineWidth, () => {
+    refreshPlots();
+});
+
+watch(legendLocation, (newVal) => {
+    const visible = newVal !== "off";
+    for (const bokehPlot of bokehFigures) {
+        bokehPlot.legend.visible = visible;
+        if (visible) {
+            bokehPlot.legend.location = newVal;
+        }
+    }
+});
+
+watch(props.dataSources, (newVal, oldVal) => {
+    // For some unknown reason, the dataSource watch is triggered even though it is not updated. We have to check
+    // manually that the URL has changed.
+    let hasChanged = newVal.length !== oldVal.length;
+    if (!hasChanged) {
+        for (const [index, val] of newVal.entries()) {
+            hasChanged = hasChanged || (val.url !== oldVal[index].url);
+        }
+    }
+    // We need to completely rebuild the plot if `dataSources` changes
+    if (hasChanged) {
+        updateCategoryElements();
+        if (bokehFigures.value.length === 0) {
+            // Figures have not yet been created on mount because not data source was available, do it now.
+            // We don't create empty figures because this screws up log scaling.
+            createFigures();
+        }
+        createPlots();
+    }
+});
+
+function legendLabel(dataSource) {
+    /* Find number of selected items in second category (e.g. "series_name") */
+    let secondCategoryInLegendLabels = false;
+    if ((categoryElements.value.length > 1) && (categoryElements.value[1].selection.length > 1)) {
+        secondCategoryInLegendLabels = true;
+    }
+
+    /* Find a label for the legend */
+    let legendLabel = dataSource.source_name;
+    if (dataSource.legendLabel !== undefined) {
+        legendLabel = dataSource.legendLabel;
+    } else if (props.categories.length > 0) {
+        legendLabel = dataSource[props.categories[0].key];
+        const hasParentKey = "hasParent";
+        if ((dataSource[hasParentKey] !== undefined) && (dataSource[hasParentKey] === true) && !secondCategoryInLegendLabels) {
+            legendLabel = "└─ " + legendLabel;
+            /* It is not solved yet to get the legend items in the correct order
+               to display sublevels only for the correct data series and not for others,
+               and at the same time have the same colors and dashed for same subjects
+               over different analysis functions. So we decided to remove the sublevels
+               in legend if a second data series has been selected
+               (here: More than one element selected in second category).
+            */
+
+        }
+        if (secondCategoryInLegendLabels) {
+            legendLabel += ": " + dataSource[props.categories[1].key];
+        }
+    }
+
+    // console.log("this.categoryElements[1].selection: " + this.categoryElements[1].selection);
+    // console.log(secondCategoryInLegendLabels, legendLabel);
+    return legendLabel;
+}
+
+function updateCategoryElements() {
+    // Reset the category elements array
+    categoryElements.value.length = 0;
+
+    /* For each category, create a list of unique entries */
+    for (const [categoryIdx, category] of props.categories.entries()) {
+        let titles = new Set();
+        let elements = [];
+        let selection = [];
+
+        // console.log(`Category ${categoryIdx}: ${category.title} (key: ${category.key})`);
+        // console.log("===============================================================");
+
+        for (const dataSource of props.dataSources) {
+            // console.table(dataSource);
+            if (!(category.key in dataSource)) {
+                throw new Error("Key '" + category.key + "' not found in data source '" + dataSource.name + "'.");
             }
 
-            /* Find a label for the legend */
-            let legendLabel = dataSource.source_name;
-            if (dataSource.legendLabel !== undefined) {
-                legendLabel = dataSource.legendLabel;
-            } else if (this.categories.length > 0) {
-                legendLabel = dataSource[this.categories[0].key];
-                const hasParentKey = "hasParent";
-                if ((dataSource[hasParentKey] !== undefined) && (dataSource[hasParentKey] === true) && !secondCategoryInLegendLabels) {
-                    legendLabel = "└─ " + legendLabel;
-                    /* It is not solved yet to get the legend items in the correct order
-                       to display sublevels only for the correct data series and not for others,
-                       and at the same time have the same colors and dashed for same subjects
-                       over different analysis functions. So we decided to remove the sublevels
-                       in legend if a second data series has been selected
-                       (here: More than one element selected in second category).
-                    */
+            const title = dataSource[category.key];
+            if (!(titles.has(title))) {
+                let elementIndex = dataSource[category.key + 'Index'];
+                let color = categoryIdx === 0 ? dataSource.color : null;  // The first category defines the color
+                let dash = categoryIdx === 1 ? dataSource.dash : null;     // The first category defines the line type
+                let hasParent = dataSource[category.key + 'HasParent'];
+                titles.add(title);
 
-                }
-                if (secondCategoryInLegendLabels) {
-                    legendLabel += ": " + dataSource[this.categories[1].key];
-                }
-            }
-
-            // console.log("this.categoryElements[1].selection: " + this.categoryElements[1].selection);
-            // console.log(secondCategoryInLegendLabels, legendLabel);
-            return legendLabel;
-        },
-        updateCategoryElements() {
-            // Reset the category elements array
-            this.categoryElements.length = 0;
-
-            /* For each category, create a list of unique entries */
-            for (const [categoryIdx, category] of this.categories.entries()) {
-                let titles = new Set();
-                let elements = [];
-                let selection = [];
-
-                // console.log(`Category ${categoryIdx}: ${category.title} (key: ${category.key})`);
-                // console.log("===============================================================");
-
-                for (const dataSource of this.dataSources) {
-                    // console.table(dataSource);
-                    if (!(category.key in dataSource)) {
-                        throw new Error("Key '" + category.key + "' not found in data source '" + dataSource.name + "'.");
-                    }
-
-                    const title = dataSource[category.key];
-                    if (!(titles.has(title))) {
-                        let elementIndex = dataSource[category.key + 'Index'];
-                        let color = categoryIdx === 0 ? dataSource.color : null;  // The first category defines the color
-                        let dash = categoryIdx === 1 ? dataSource.dash : null;     // The first category defines the line type
-                        let hasParent = dataSource[category.key + 'HasParent'];
-                        titles.add(title);
-
-                        // need to have the same order as index of category
-                        elements[elementIndex] = {
-                            title: title, color: color, dash: dash,
-                            hasParent: hasParent === undefined ? false : hasParent
-                        };
-                        // Defaults to showing a data source if it has no 'visible' attribute
-                        if (dataSource.visible === undefined || dataSource.visible) {
-                            selection.push(elementIndex);
-                        }
-                    }
-                }
-
-                const elementHtml = function (e) {
-                    let s = "";
-                    if (e.color !== null) {
-                        s += `<span class="dot" style="background-color: ${e.color};"></span>`;
-                    }
-                    if (e.hasParent) {
-                        s += "└─ ";
-                    }
-                    s += e.title;
-                    return s;
+                // need to have the same order as index of category
+                elements[elementIndex] = {
+                    title: title, color: color, dash: dash,
+                    hasParent: hasParent === undefined ? false : hasParent
                 };
+                // Defaults to showing a data source if it has no 'visible' attribute
+                if (dataSource.visible === undefined || dataSource.visible) {
+                    selection.push(elementIndex);
+                }
+            }
+        }
 
-                // Removed undefined entries from elements array
-                elements = elements.filter(e => e !== undefined).map((e, index) => {
-                    return {
-                        ...e,
-                        value: index,
-                        html: elementHtml(e)
+        const elementHtml = function (e) {
+            let s = "";
+            if (e.color !== null) {
+                s += `<span class="dot" style="background-color: ${e.color};"></span>`;
+            }
+            if (e.hasParent) {
+                s += "└─ ";
+            }
+            s += e.title;
+            return s;
+        };
+
+        // Removed undefined entries from elements array
+        elements = elements.filter(e => e !== undefined).map((e, index) => {
+            return {
+                ...e,
+                value: index,
+                html: elementHtml(e)
+            }
+        });
+
+        // Add to category information
+        categoryElements.value.push({
+            key: category.key,
+            title: category.title,
+            elements: elements,
+            selection: selection,
+            isAllSelected: isAllSelected(elements, selection),
+            isIndeterminate: isIndeterminate(elements, selection)
+        });
+    }
+}
+
+function createFigures() {
+    /* Create figures */
+    for (const plot of props.plots) {
+        /* Callback for selection of data points */
+        let tools = ["pan", "reset", "wheel_zoom", "box_zoom",
+            new HoverTool({
+                'tooltips': [
+                    ['index', '$index'],
+                    ['(x,y)', '($x,$y)'],
+                    ['subject', '@subjectName'],
+                    ['series', '@seriesName'],
+                ]
+            })
+        ];
+        // let tools = [...this.tools];  // Copy array (= would just be a reference)
+        if (props.selectable) {
+            const code = "on_tap(cb_obj, cb_data);";
+            tools.push(new TapTool({
+                behavior: "select",
+                callback: new CustomJS({
+                    args: {on_tap: onTap},
+                    code: code
+                })
+            }));
+        }
+        const saveTool = new SaveTool({filename: props.functionTitle.replace(" ", "_").toLowerCase()});
+        tools.push(saveTool);
+
+        /* Determine type of x and y-axis */
+        const xAxisType = plot.xAxisType === undefined ? "linear" : plot.xAxisType;
+        const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
+
+        /* Create and style figure */
+        const bokehFigure = new Plotting.Figure({
+            height: props.height,
+            sizing_mode: props.sizingMode,
+            aspect_ratio: props.aspectRatio,
+            x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
+            y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
+            x_axis_type: xAxisType,
+            y_axis_type: yAxisType,
+            tools: tools,
+            output_backend: props.outputBackend
+        });
+
+        /* Change formatters for linear axes */
+        if (xAxisType === "linear") {
+            bokehFigure.xaxis.formatter = new CustomJSTickFormatter({
+                code: "return formatExponential(tick);",
+                args: {
+                    formatExponential: formatExponential  // inject formatting function into local scope
+                }
+            });
+        }
+        if (yAxisType === "linear") {
+            bokehFigure.yaxis.formatter = new CustomJSTickFormatter({
+                code: "return formatExponential(tick);",
+                args: {
+                    formatExponential: formatExponential  // inject formatting function into local scope
+                }
+            });
+        }
+
+        /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
+        applyDefaultBokehStyle(bokehFigure);
+
+        bokehFigures.value.push({
+            figure: bokehFigure,
+            save: saveTool,
+            lines: [],
+            symbols: [],
+            sources: [],
+            legendItems: []
+        });
+    }
+
+    for (const [index, bokehFigure] of bokehFigures.value.entries()) {
+        bokehFigure.legend = new Legend({items: bokehFigure.legendItems, visible: false});
+        bokehFigure.figure.add_layout(bokehFigure.legend);
+        Plotting.show(bokehFigure.figure, `#bokeh-figure-${props.uid}-${index}`);
+    }
+}
+
+function createPlots() {
+    /* Destroy all lines */
+    for (const bokehFigure of bokehFigures.value) {
+        bokehFigure.lines.length = 0;
+        bokehFigure.symbols.length = 0;
+        bokehFigure.figure.renderers.length = 0;
+    }
+
+    /* We iterate in reverse order because we want to the first element to appear on top of the plot */
+    for (const dataSource of [...props.dataSources].reverse()) {
+        for (const [index, plot] of props.plots.entries()) {
+            /* Get bokeh plot object */
+            const bokehPlot = bokehFigures.value[index];
+            let legendLabels = new Set();
+
+            /* Common attributes of lines and symbols */
+            let attrs = {
+                visible: dataSource.visible,
+                color: dataSource.color,
+                alpha: dataSource.isTopographyAnalysis ? Number(opacity.value) : dataSource.alpha
+            };
+
+            /* Default is x and y */
+            let xData = plot.xData === undefined ? "data.x" : plot.xData;
+            let yData = plot.yData === undefined ? "data.y" : plot.yData;
+
+            /* Scale data if scale factor is given */
+            if (dataSource.xScaleFactor !== undefined) {
+                xData += ".map((value) => " + dataSource.xScaleFactor + " * value)";
+            }
+            if (dataSource.yScaleFactor !== undefined) {
+                yData += ".map((value) => " + dataSource.yScaleFactor + " * value)";
+            }
+
+            /* Construct conversion function */
+            let code = "const data = cb_data.response; return { x: " + xData + ", y: " + yData;
+            if (plot.auxiliaryDataColumns !== undefined) {
+                for (const [columnName, auxData] of Object.entries(plot.auxiliaryDataColumns)) {
+                    code += ", " + columnName + ": " + auxData;
+                }
+            }
+            if (plot.alphaData !== undefined) {
+                code += ", alpha: " + plot.alphaData;
+                attrs.alpha = {field: "alpha"};
+            }
+            if (dataSource.subjectName !== undefined) {
+                // For each data point, add the same subject_name
+                code += ", subjectName: " + xData + ".map((value) => '" + dataSource.subjectName + "')";
+            }
+            let seriesName = "-";
+            if (dataSource.seriesName !== undefined) {
+                seriesName = dataSource.seriesName;
+            }
+            // For each data point, add the same seriesName
+            code += ", seriesName: " + xData + ".map((value) => '" + seriesName + "')";
+            code += " }";
+
+            /* Data source: AJAX GET request to storage system retrieving a JSON */
+            const source = new AjaxDataSource({
+                name: dataSource.sourceName,
+                data_url: dataSource.url,
+                method: "GET",
+                content_type: "",
+                syncable: false,
+                adapter: new CustomJS({code})
+            });
+            bokehPlot.sources.unshift(source);
+
+            /* Add data source */
+            attrs = {
+                ...attrs,
+                source: source,
+            };
+
+            /* Create lines and symbols */
+            const line = bokehPlot.figure.line(
+                {field: "x"},
+                {field: "y"},
+                {
+                    ...attrs,
+                    ...{
+                        dash: dataSource.dash,
+                        width: Number(lineWidth.value) * dataSource.width
                     }
                 });
-
-                // Add to category information
-                this.categoryElements.push({
-                    key: category.key,
-                    title: category.title,
-                    elements: elements,
-                    selection: selection,
-                    isAllSelected: this.isAllSelected(elements, selection),
-                    isIndeterminate: this.isIndeterminate(elements, selection)
+            bokehPlot.lines.unshift(line);
+            const circle = bokehPlot.figure.circle(
+                {field: "x"},
+                {field: "y"},
+                {
+                    ...attrs,
+                    ...{
+                        size: Number(symbolSize.value),
+                        visible: (dataSource.visible === undefined || dataSource.visible) &&
+                            (dataSource.showSymbols === undefined || dataSource.showSymbols)
+                    }
                 });
+            const alphaAttrs = {};
+            if (plot.alphaData !== undefined) {
+                alphaAttrs.fill_alpha = {field: "alpha"};
             }
-        },
-        createFigures() {
-            /* Create figures */
-            for (const plot of this.plots) {
-                /* Callback for selection of data points */
-                let tools = ["pan", "reset", "wheel_zoom", "box_zoom",
-                    new HoverTool({
-                        'tooltips': [
-                            ['index', '$index'],
-                            ['(x,y)', '($x,$y)'],
-                            ['subject', '@subjectName'],
-                            ['series', '@seriesName'],
-                        ]
-                    })
-                ];
-                // let tools = [...this.tools];  // Copy array (= would just be a reference)
-                if (this.selectable) {
-                    const code = "on_tap(cb_obj, cb_data);";
-                    tools.push(new TapTool({
-                        behavior: "select",
-                        callback: new CustomJS({
-                            args: {on_tap: this.onTap},
-                            code: code
-                        })
-                    }));
+            circle.selection_glyph = new Circle({
+                ...alphaAttrs,
+                ...{
+                    fill_color: attrs.color,
+                    line_color: "black",
+                    line_width: 4
                 }
-                const saveTool = new SaveTool({filename: this.functionTitle.replace(" ", "_").toLowerCase()});
-                tools.push(saveTool);
+            });
+            circle.nonselection_glyph = new Circle({
+                ...alphaAttrs,
+                ...{
+                    fill_color: attrs.color,
+                    line_color: null
+                }
+            });
+            bokehPlot.symbols.unshift(circle);
 
-                /* Determine type of x and y-axis */
-                const xAxisType = plot.xAxisType === undefined ? "linear" : plot.xAxisType;
-                const yAxisType = plot.yAxisType === undefined ? "linear" : plot.yAxisType;
+            let label = legendLabel(dataSource);
 
-                /* Create and style figure */
-                const bokehFigure = new Plotting.Figure({
-                    height: this.height,
-                    sizing_mode: this.sizingMode,
-                    aspect_ratio: this.aspectRatio,
-                    x_axis_label: plot.xAxisLabel === undefined ? "x" : plot.xAxisLabel,
-                    y_axis_label: plot.yAxisLabel === undefined ? "y" : plot.yAxisLabel,
-                    x_axis_type: xAxisType,
-                    y_axis_type: yAxisType,
-                    tools: tools,
-                    output_backend: this.outputBackend
+            /* Create legend */
+            if (!legendLabels.has(label)) {
+                legendLabels.add(label);
+                const item = new LegendItem({
+                    label: label,
+                    renderers: dataSource.showSymbols ? [circle, line] : [line],
+                    visible: dataSource.visible
                 });
-
-                /* Change formatters for linear axes */
-                if (xAxisType === "linear") {
-                    bokehFigure.xaxis.formatter = new CustomJSTickFormatter({
-                        code: "return formatExponential(tick);",
-                        args: {
-                            formatExponential: formatExponential  // inject formatting function into local scope
-                        }
-                    });
-                }
-                if (yAxisType === "linear") {
-                    bokehFigure.yaxis.formatter = new CustomJSTickFormatter({
-                        code: "return formatExponential(tick);",
-                        args: {
-                            formatExponential: formatExponential  // inject formatting function into local scope
-                        }
-                    });
-                }
-
-                /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
-                applyDefaultBokehStyle(bokehFigure);
-
-                this.bokehFigures.push({
-                    figure: bokehFigure,
-                    save: saveTool,
-                    lines: [],
-                    symbols: [],
-                    sources: [],
-                    legendItems: []
-                });
+                bokehPlot.legendItems.unshift(item);
+                dataSource.legendItem = item;  // for toggling visibility
             }
-
-            for (const [index, bokehFigure] of this.bokehFigures.entries()) {
-                bokehFigure.legend = new Legend({items: bokehFigure.legendItems, visible: false});
-                bokehFigure.figure.add_layout(bokehFigure.legend);
-                Plotting.show(bokehFigure.figure, `#bokeh-figure-${this.uid}-${index}`);
-            }
-        },
-        createPlots() {
-            /* Destroy all lines */
-            for (const bokehFigure of this.bokehFigures) {
-                bokehFigure.lines.length = 0;
-                bokehFigure.symbols.length = 0;
-                bokehFigure.figure.renderers.length = 0;
-            }
-
-            /* We iterate in reverse order because we want to the first element to appear on top of the plot */
-            for (const dataSource of [...this.dataSources].reverse()) {
-                for (const [index, plot] of this.plots.entries()) {
-                    /* Get bokeh plot object */
-                    const bokehPlot = this.bokehFigures[index];
-                    let legendLabels = new Set();
-
-                    /* Common attributes of lines and symbols */
-                    let attrs = {
-                        visible: dataSource.visible,
-                        color: dataSource.color,
-                        alpha: dataSource.isTopographyAnalysis ? Number(this.opacity) : dataSource.alpha
-                    };
-
-                    /* Default is x and y */
-                    let xData = plot.xData === undefined ? "data.x" : plot.xData;
-                    let yData = plot.yData === undefined ? "data.y" : plot.yData;
-
-                    /* Scale data if scale factor is given */
-                    if (dataSource.xScaleFactor !== undefined) {
-                        xData += ".map((value) => " + dataSource.xScaleFactor + " * value)";
-                    }
-                    if (dataSource.yScaleFactor !== undefined) {
-                        yData += ".map((value) => " + dataSource.yScaleFactor + " * value)";
-                    }
-
-                    /* Construct conversion function */
-                    let code = "const data = cb_data.response; return { x: " + xData + ", y: " + yData;
-                    if (plot.auxiliaryDataColumns !== undefined) {
-                        for (const [columnName, auxData] of Object.entries(plot.auxiliaryDataColumns)) {
-                            code += ", " + columnName + ": " + auxData;
-                        }
-                    }
-                    if (plot.alphaData !== undefined) {
-                        code += ", alpha: " + plot.alphaData;
-                        attrs.alpha = {field: "alpha"};
-                    }
-                    if (dataSource.subjectName !== undefined) {
-                        // For each data point, add the same subject_name
-                        code += ", subjectName: " + xData + ".map((value) => '" + dataSource.subjectName + "')";
-                    }
-                    let seriesName = "-";
-                    if (dataSource.seriesName !== undefined) {
-                        seriesName = dataSource.seriesName;
-                    }
-                    // For each data point, add the same seriesName
-                    code += ", seriesName: " + xData + ".map((value) => '" + seriesName + "')";
-                    code += " }";
-
-                    /* Data source: AJAX GET request to storage system retrieving a JSON */
-                    const source = new AjaxDataSource({
-                        name: dataSource.sourceName,
-                        data_url: dataSource.url,
-                        method: "GET",
-                        content_type: "",
-                        syncable: false,
-                        adapter: new CustomJS({code})
-                    });
-                    bokehPlot.sources.unshift(source);
-
-                    /* Add data source */
-                    attrs = {
-                        ...attrs,
-                        source: source,
-                    };
-
-                    /* Create lines and symbols */
-                    const line = bokehPlot.figure.line(
-                        {field: "x"},
-                        {field: "y"},
-                        {
-                            ...attrs,
-                            ...{
-                                dash: dataSource.dash,
-                                width: Number(this.lineWidth) * dataSource.width
-                            }
-                        });
-                    bokehPlot.lines.unshift(line);
-                    const circle = bokehPlot.figure.circle(
-                        {field: "x"},
-                        {field: "y"},
-                        {
-                            ...attrs,
-                            ...{
-                                size: Number(this.symbolSize),
-                                visible: (dataSource.visible === undefined || dataSource.visible) &&
-                                    (dataSource.showSymbols === undefined || dataSource.showSymbols)
-                            }
-                        });
-                    const alphaAttrs = {};
-                    if (plot.alphaData !== undefined) {
-                        alphaAttrs.fill_alpha = {field: "alpha"};
-                    }
-                    circle.selection_glyph = new Circle({
-                        ...alphaAttrs,
-                        ...{
-                            fill_color: attrs.color,
-                            line_color: "black",
-                            line_width: 4
-                        }
-                    });
-                    circle.nonselection_glyph = new Circle({
-                        ...alphaAttrs,
-                        ...{
-                            fill_color: attrs.color,
-                            line_color: null
-                        }
-                    });
-                    bokehPlot.symbols.unshift(circle);
-
-                    let legendLabel = this.legendLabel(dataSource);
-
-                    /* Create legend */
-                    if (!legendLabels.has(legendLabel)) {
-                        legendLabels.add(legendLabel);
-                        const item = new LegendItem({
-                            label: legendLabel,
-                            renderers: dataSource.showSymbols ? [circle, line] : [line],
-                            visible: dataSource.visible
-                        });
-                        bokehPlot.legendItems.unshift(item);
-                        dataSource.legendItem = item;  // for toggling visibility
-                    }
-                }
-            }
-        },
-        refreshPlots() {
-            for (const [dataSourceIdx, dataSource] of this.dataSources.entries()) {
-                let visible = true;
-                for (const categoryElem of this.categoryElements) {
-                    visible = visible && categoryElem.selection.includes(dataSource[categoryElem.key + 'Index']);
-                }
-
-                if (dataSource.hasOwnProperty('legendItem')) {
-                    dataSource.legendItem.visible = visible;
-                    dataSource.legendItem.label = this.legendLabel(dataSource);
-                }
-
-                for (const bokehPlot of this.bokehFigures) {
-                    const line = bokehPlot.lines[dataSourceIdx];
-                    line.visible = visible;
-                    line.glyph.line_width = Number(this.lineWidth) * dataSource.width;
-                    if (dataSource.isTopographyAnalysis) {
-                        line.glyph.line_alpha = Number(this.opacity);
-                    }
-
-                    const symbol = bokehPlot.symbols[dataSourceIdx];
-                    symbol.visible = visible && (dataSource.showSymbols === undefined || dataSource.showSymbols);
-                    symbol.glyph.size = Number(this.symbolSize);
-                    if (dataSource.isTopographyAnalysis) {
-                        symbol.glyph.line_alpha = Number(this.opacity);
-                        symbol.glyph.fill_alpha = Number(this.opacity);
-                    }
-                }
-            }
-            for (const categoryElem of this.categoryElements) {
-                categoryElem.isAllSelected = this.isAllSelected(categoryElem.elements, categoryElem.selection);
-                categoryElem.isIndeterminate = this.isIndeterminate(categoryElem.elements, categoryElem.selection);
-            }
-        },
-        isAllSelected(elements, selection) {
-            return elements.length === selection.length;
-        },
-        isIndeterminate(elements, selection) {
-            return selection.length !== elements.length && selection.length !== 0;
-        },
-        selectAll(category) {
-            if (category.isAllSelected) {
-                category.selection = [...Array(category.elements.length).keys()];
-            } else {
-                category.selection = [];
-            }
-        },
-        onTap(obj, data) {
-            /* Make sure only the selection for one topography is active
-               and deselect all others */
-            const name = data.source.name;
-            const index = data.source.selected.indices[0];
-            for (const bokehPlot of this.bokehFigures) {
-                for (const source of bokehPlot.sources) {
-                    if (source.name === name) {
-                        source.selected.indices = [index];
-                    }
-                }
-            }
-
-            /* Emit event */
-            this.$emit("selected", obj, data);
-        },
-        download: function () {
-            this.bokehFigures[0].save.do.emit();
         }
     }
 }
+
+function refreshPlots() {
+    for (const [dataSourceIdx, dataSource] of props.dataSources.entries()) {
+        let visible = true;
+        for (const categoryElem of categoryElements.value) {
+            visible = visible && categoryElem.selection.includes(dataSource[categoryElem.key + 'Index']);
+        }
+
+        if (dataSource.hasOwnProperty('legendItem')) {
+            dataSource.legendItem.visible = visible;
+            dataSource.legendItem.label = legendLabel(dataSource);
+        }
+
+        for (const bokehPlot of bokehFigures.value) {
+            const line = bokehPlot.lines[dataSourceIdx];
+            line.visible = visible;
+            line.glyph.line_width = Number(lineWidth.value) * dataSource.width;
+            if (dataSource.isTopographyAnalysis) {
+                line.glyph.line_alpha = Number(opacity.value);
+            }
+
+            const symbol = bokehPlot.symbols[dataSourceIdx];
+            symbol.visible = visible && (dataSource.showSymbols === undefined || dataSource.showSymbols);
+            symbol.glyph.size = Number(symbolSize.value);
+            if (dataSource.isTopographyAnalysis) {
+                symbol.glyph.line_alpha = Number(opacity.value);
+                symbol.glyph.fill_alpha = Number(opacity.value);
+            }
+        }
+    }
+    for (const categoryElem of categoryElements.value) {
+        categoryElem.isAllSelected = isAllSelected(categoryElem.elements, categoryElem.selection);
+        categoryElem.isIndeterminate = isIndeterminate(categoryElem.elements, categoryElem.selection);
+    }
+}
+
+function isAllSelected(elements, selection) {
+    return elements.length === selection.length;
+}
+
+function isIndeterminate(elements, selection) {
+    return selection.length !== elements.length && selection.length !== 0;
+}
+
+function selectAll(category) {
+    if (category.isAllSelected) {
+        category.selection = [...Array(category.elements.length).keys()];
+    } else {
+        category.selection = [];
+    }
+}
+
+function onTap(obj, data) {
+    /* Make sure only the selection for one topography is active
+       and deselect all others */
+    const name = data.source.name;
+    const index = data.source.selected.indices[0];
+    for (const bokehPlot of bokehFigures.value) {
+        for (const source of bokehPlot.sources) {
+            if (source.name === name) {
+                source.selected.indices = [index];
+            }
+        }
+    }
+
+    /* Emit event */
+    emit("selected", obj, data);
+}
+
+function download() {
+    bokehFigures.value[0].save.do.emit();
+}
+
 </script>
 
 <template>
