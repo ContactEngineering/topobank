@@ -278,7 +278,8 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                     SAVE
                 </button>
             </div>
-            <div class="btn-group btn-group-sm float-end me-2">
+            <div v-if="!batchEdit"
+                 class="btn-group btn-group-sm float-end me-2">
                 <a class="btn btn-outline-secondary"
                    :href="`/analysis/html/list/?subjects=${subjectsToBase64({topography: [topography.id]})}`">
                     Analyze
@@ -325,8 +326,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                  :src="topography.thumbnail">
                         </a>
                     </div>
-                    <div
-                        :class="{ 'col-10': topography.thumbnail != null, 'col-12': topography.thumbnail == null }">
+                    <div :class="{ 'col-10': topography.thumbnail != null, 'col-12': topography.thumbnail == null }">
                         <div class="container">
                             <div class="row">
                                 <div class="col-6">
@@ -334,7 +334,7 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                     <b-form-input id="input-name"
                                                   v-model="topography.name"
                                                   :class="highlightInput('name')"
-                                                  :disabled="!_editing">
+                                                  :disabled="!_editing || batchEdit">
                                     </b-form-input>
                                 </div>
                                 <div class="col-3">
@@ -385,6 +385,8 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                                        :disabled="!_editing || !topography.unit_editable">
                                         </b-form-select>
                                     </div>
+                                    <small>When batch editing line scans, only the first entry of the physical size
+                                        will be used to set the overall length of the line scan.</small>
                                 </div>
                                 <div class="col-4">
                                     <label for="input-physical-size">Height scale</label>
@@ -521,6 +523,13 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
         <div v-if="!batchEdit && !enlarged"
              class="card-footer">
             <topography-badges :topography="topography"></topography-badges>
+        </div>
+        <div v-if="batchEdit"
+             class="card-footer">
+            <small>You are about to change the metadata of multiple measurements. Note that batch editing will only
+                update entries that are editable, i.e. that are not fixed by the contents of the data file. This
+                includes physical sizes, unit or the height scale and may differ between the measurements you are
+                updating.</small>
         </div>
     </div>
     <b-modal v-if="topography != null"
