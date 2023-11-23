@@ -606,15 +606,13 @@ function onTap(obj, data) {
     <b-accordion>
         <b-accordion-item v-for="[categoryIndex, category] in categoryElements.entries()"
                           :title="category.title">
-            <b-form-checkbox-group stacked>
-                <b-form-checkbox v-for="element in category.elements"
-                                 v-model="element.selected">
+            <b-form-checkbox v-for="element in category.elements"
+                             v-model="element.selected">
                     <span v-if="categoryIndex === 0"
                           class="dot" :style="`background-color: ${element.color}`"></span>
-                    <span v-if="element.hasParent">└─</span>
-                    {{ element.title }}
-                </b-form-checkbox>
-            </b-form-checkbox-group>
+                <span v-if="element.hasParent">└─</span>
+                {{ element.title }}
+            </b-form-checkbox>
         </b-accordion-item>
         <b-accordion-item title="Plot options">
             <b-form-group v-if="optionsWidgets.includes('layout')"
