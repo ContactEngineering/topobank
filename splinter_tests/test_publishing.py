@@ -225,7 +225,7 @@ def test_see_published_by_others(user_alice_logged_in, user_bob, handle_usage_st
 
     assert num_items_in_result_table(browser) == 2  # both surfaces are visible by default
 
-    select_sharing_status(browser, 'published')
+    select_sharing_status(browser, 'published_ingress')
     assert num_items_in_result_table(browser) == 1  # only published is visible
 
     # Bobs surface is visible as only surface.
@@ -372,7 +372,7 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
 
     assert num_items_in_result_table(browser) == 2  # both surfaces are visible by default
 
-    select_sharing_status(browser, 'published')
+    select_sharing_status(browser, 'published_ingress')
     assert num_items_in_result_table(browser) == 1  # only published is visible
 
     data = data_of_item_by_name(browser, surface_name)

@@ -41,8 +41,10 @@ CATEGORY_FILTER_CHOICES = {'all': 'All categories',
 SHARING_STATUS_FILTER_CHOICES = {
     'all': 'All accessible surfaces',
     'own': 'Only own surfaces',
-    'shared': 'Only surfaces shared with you',
-    'published': 'Only surfaces published by anyone',
+    'shared_ingress': 'Only surfaces shared with you',
+    'published_ingress': 'Only surfaces published by others',
+    'shared_egress': 'Only surfaces shared by you',
+    'published_egress': 'Only surfaces published by you'
 }
 TREE_MODE_CHOICES = ['surface list', 'tag tree']
 
@@ -144,9 +146,9 @@ class SelectView(TemplateView):
         if self.request.user.is_anonymous:
             # Anonymous user have only one choice
             context['sharing_status_filter_choices'] = {
-                'published': SHARING_STATUS_FILTER_CHOICES['published']
+                'published_ingress': SHARING_STATUS_FILTER_CHOICES['published_ingress']
             }
-            select_tab_state['sharing_status'] = 'published'  # this only choice should be selected
+            select_tab_state['sharing_status'] = 'published_ingress'  # this only choice should be selected
         else:
             context['sharing_status_filter_choices'] = SHARING_STATUS_FILTER_CHOICES.copy()
 

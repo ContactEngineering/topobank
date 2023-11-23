@@ -21,7 +21,7 @@ from django.contrib.postgres.search import SearchVector, SearchQuery
 from rest_framework.reverse import reverse
 
 from guardian.core import ObjectPermissionChecker
-from guardian.shortcuts import get_objects_for_user, get_users_with_perms
+from guardian.shortcuts import get_objects_for_user, get_users_with_perms, UserObjectPermission
 
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
@@ -237,13 +237,25 @@ def filtered_surfaces(request):
         qs = qs.filter(category=category)
 
     sharing_status = get_sharing_status(request)
-    if sharing_status == 'own':
-        qs = qs.filter(creator=user)
-    elif sharing_status == 'shared':
-        qs = qs.filter(~Q(creator=user)).exclude(publication__isnull=False)  # exclude published and own surfaces
-    elif sharing_status == 'published':
-        qs = qs.exclude(publication__isnull=True)
 
+    match sharing_status:
+        case 'own':
+            qs = qs.filter(creator=user)
+        case 'shared_ingress':
+            qs = qs.filter(~Q(creator=user)).exclude(publication__isnull=False)  # exclude published and own surfaces
+        case 'published_ingress':
+            qs = qs.exclude(publication__isnull=True).exclude(creator=user)  # exclude unpublished and own surfaces
+        case 'shared_egress':
+            viewable_surfaces_perms = (UserObjectPermission.objects
+                                       .filter(permission__codename='view_surface')     # only view permissions
+                                       .filter(content_type__app_label='manager', content_type__model='surface')
+                                       .exclude(user=user))  # not own permissions
+            surface_ids = [x[0] for x in viewable_surfaces_perms.values_list("object_pk")]
+            qs = qs.filter(creator=user, id__in=surface_ids, publication__isnull=True)  # own surfaces, shared with others, unpublished
+        case 'published_egress':
+            qs = qs.filter(publication__isnull=False, creator=user)
+        case 'all':
+            pass
     #
     # Filter by search term
     #
