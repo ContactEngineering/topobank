@@ -7,7 +7,7 @@
  */
 
 import {v4 as uuid4} from 'uuid';
-import {onMounted, ref, watch} from "vue";
+import {computed, onMounted, ref, watch} from "vue";
 
 import {
     AjaxDataSource,
@@ -25,6 +25,7 @@ import {
 import {
     BAccordion,
     BAccordionItem,
+    BFormCheckbox,
     BFormCheckboxGroup,
     BFormGroup,
     BFormInput,
@@ -115,13 +116,18 @@ const opacity = ref(0.4);
 const lineWidth = ref(1);
 
 // Reorganized plot information
-const categoryElements = ref([]);
-const bokehFigures = ref([]);  // Stores Bokeh figure, line and symbol objects
+let bokehFigures = [];  // Stores Bokeh figure, line and symbol objects
+let categoryElements = ref([]);  // Sorted categories with selectable elements
+let categoryElementSelections = [];  // Flags which categories are selected
 
 onMounted(() => {
     if (props.dataSources.length > 0) {
-        updateCategoryElements();
+        /* We only create figures if data sources are present. If they are not present, we defer creation of the figure
+           to that point. The reason is that if we create an empty plot, the log-scaled axes do not work. */
         createFigures();
+        /* Create a matrix of categories/elements and assign colors and line styles */
+        updateCategoryElements();
+        /* Create plots */
         createPlots();
     }
 });
@@ -130,7 +136,7 @@ watch(layout, (layout) => {
     /* Predefined layouts */
     switch (layout) {
         case 'web':
-            for (const plot of bokehFigures.value) {
+            for (const plot of bokehFigures) {
                 plot.figure.sizing_mode = props.sizingMode;
                 plot.figure.aspect_ratio = props.aspectRatio;
                 plot.figure.height = props.height;
@@ -138,7 +144,7 @@ watch(layout, (layout) => {
             symbolSize.value = 10;
             break;
         case 'print-single':
-            for (const plot of bokehFigures.value) {
+            for (const plot of bokehFigures) {
                 plot.figure.sizing_mode = "fixed";
                 plot.figure.width = 600;
                 plot.figure.height = 300;
@@ -146,7 +152,7 @@ watch(layout, (layout) => {
             symbolSize.value = 5;
             break;
         case 'print-double':
-            for (const plot of bokehFigures.value) {
+            for (const plot of bokehFigures) {
                 plot.figure.sizing_mode = "fixed";
                 plot.figure.width = 400;
                 plot.figure.height = 250;
@@ -172,7 +178,7 @@ watch(lineWidth, () => {
 
 watch(legendLocation, (newVal) => {
     const visible = newVal !== "off";
-    for (const bokehPlot of bokehFigures.value) {
+    for (const bokehPlot of bokehFigures) {
         bokehPlot.legend.visible = visible;
         if (visible) {
             bokehPlot.legend.location = newVal;
@@ -191,12 +197,14 @@ watch(props.dataSources, (newVal, oldVal) => {
     }
     // We need to completely rebuild the plot if `dataSources` changes
     if (hasChanged) {
-        updateCategoryElements();
-        if (bokehFigures.value.length === 0) {
-            // Figures have not yet been created on mount because not data source was available, do it now.
-            // We don't create empty figures because this screws up log scaling.
+        if (bokehFigures.length === 0) {
+            /* Figures have not yet been created on mount because not data source was available, do it now.
+               We don't create empty figures because this screws up log scaling. */
             createFigures();
         }
+        /* Create a matrix of categories/elements and assign colors and line styles */
+        updateCategoryElements();
+        /* Update all plots */
         createPlots();
     }
 });
@@ -204,9 +212,11 @@ watch(props.dataSources, (newVal, oldVal) => {
 function legendLabel(dataSource) {
     /* Find number of selected items in second category (e.g. "series_name") */
     let secondCategoryInLegendLabels = false;
+    /*
     if ((categoryElements.value.length > 1) && (categoryElements.value[1].selection.length > 1)) {
         secondCategoryInLegendLabels = true;
     }
+     */
 
     /* Find a label for the legend */
     let legendLabel = dataSource.source_name;
@@ -224,7 +234,6 @@ function legendLabel(dataSource) {
                in legend if a second data series has been selected
                (here: More than one element selected in second category).
             */
-
         }
         if (secondCategoryInLegendLabels) {
             legendLabel += ": " + dataSource[props.categories[1].key];
@@ -237,73 +246,58 @@ function legendLabel(dataSource) {
 }
 
 function updateCategoryElements() {
+    // Reset selection array
+    categoryElementSelections = [];
+
     // Reset the category elements array
     categoryElements.value.length = 0;
 
     /* For each category, create a list of unique entries */
-    for (const [categoryIdx, category] of props.categories.entries()) {
-        let titles = new Set();
+    for (const [categoryIndex, category] of props.categories.entries()) {
         let elements = [];
-        let selection = [];
-
-        // console.log(`Category ${categoryIdx}: ${category.title} (key: ${category.key})`);
-        // console.log("===============================================================");
+        let selections = [];
 
         for (const dataSource of props.dataSources) {
-            // console.table(dataSource);
             if (!(category.key in dataSource)) {
                 throw new Error("Key '" + category.key + "' not found in data source '" + dataSource.name + "'.");
             }
 
             const title = dataSource[category.key];
-            if (!(titles.has(title))) {
-                let elementIndex = dataSource[category.key + 'Index'];
-                let color = categoryIdx === 0 ? dataSource.color : null;  // The first category defines the color
-                let dash = categoryIdx === 1 ? dataSource.dash : null;     // The first category defines the line type
-                let hasParent = dataSource[category.key + 'HasParent'];
-                titles.add(title);
+            let elementIndex = dataSource[category.key + 'Index'];
+            let color = categoryIndex === 0 ? dataSource.color : null;  // The first category defines the color
+            let dash = categoryIndex === 1 ? dataSource.dash : null;  // The first category defines the line type
+            let hasParent = dataSource[category.key + 'HasParent'];
 
-                // need to have the same order as index of category
-                elements[elementIndex] = {
-                    title: title, color: color, dash: dash,
-                    hasParent: hasParent === undefined ? false : hasParent
-                };
-                // Defaults to showing a data source if it has no 'visible' attribute
-                if (dataSource.visible === undefined || dataSource.visible) {
-                    selection.push(elementIndex);
-                }
-            }
+            // Skip filling the arrays if they are already filled
+            if (elements[elementIndex] != null) continue;
+
+            // Need to have the same order as index of category
+            elements[elementIndex] = {
+                title: title, color: color, dash: dash,
+                hasParent: hasParent === undefined ? false : hasParent,
+                selected: computed({
+                    get() {
+                        return categoryElementSelections[categoryIndex][elementIndex].value;
+                    },
+                    set(value) {
+                        setPlotVisibility(categoryIndex, elementIndex, value);
+                        categoryElementSelections[categoryIndex][elementIndex].value = value;
+                    }
+                })
+            };
+
+            // Defaults to showing a data source if it has no 'visible' attribute
+            selections[elementIndex] = ref(dataSource.visible == null || dataSource.visible);
         }
 
-        const elementHtml = function (e) {
-            let s = "";
-            if (e.color !== null) {
-                s += `<span class="dot" style="background-color: ${e.color};"></span>`;
-            }
-            if (e.hasParent) {
-                s += "└─ ";
-            }
-            s += e.title;
-            return s;
-        };
-
-        // Removed undefined entries from elements array
-        elements = elements.filter(e => e !== undefined).map((e, index) => {
-            return {
-                ...e,
-                value: index,
-                html: elementHtml(e)
-            }
-        });
+        // Add empty selection array
+        categoryElementSelections.push(selections);
 
         // Add to category information
         categoryElements.value.push({
             key: category.key,
             title: category.title,
-            elements: elements,
-            selection: selection,
-            isAllSelected: isAllSelected(elements, selection),
-            isIndeterminate: isIndeterminate(elements, selection)
+            elements: elements
         });
     }
 }
@@ -374,7 +368,7 @@ function createFigures() {
         /* This should become a Bokeh theme (supported in BokehJS with 3.0 - but I cannot find the `use_theme` method) */
         applyDefaultBokehStyle(bokehFigure);
 
-        bokehFigures.value.push({
+        bokehFigures.push({
             figure: bokehFigure,
             save: saveTool,
             lines: [],
@@ -384,26 +378,26 @@ function createFigures() {
         });
     }
 
-    for (const [index, bokehFigure] of bokehFigures.value.entries()) {
-        bokehFigure.legend = new Legend({items: bokehFigure.legendItems, visible: false});
-        bokehFigure.figure.add_layout(bokehFigure.legend);
-        Plotting.show(bokehFigure.figure, `#bokeh-figure-${props.uid}-${index}`);
+    for (const [index, figure] of bokehFigures.entries()) {
+        figure.legend = new Legend({items: figure.legendItems, visible: false});
+        figure.figure.add_layout(figure.legend);
+        Plotting.show(figure.figure, `#bokeh-figure-${props.uid}-${index}`);
     }
 }
 
 function createPlots() {
     /* Destroy all lines */
-    for (const bokehFigure of bokehFigures.value) {
-        bokehFigure.lines.length = 0;
-        bokehFigure.symbols.length = 0;
-        bokehFigure.figure.renderers.length = 0;
+    for (const figure of bokehFigures) {
+        figure.lines.length = 0;
+        figure.symbols.length = 0;
+        figure.figure.renderers.length = 0;
     }
 
     /* We iterate in reverse order because we want to the first element to appear on top of the plot */
     for (const dataSource of [...props.dataSources].reverse()) {
-        for (const [index, plot] of props.plots.entries()) {
-            /* Get bokeh plot object */
-            const bokehPlot = bokehFigures.value[index];
+        for (const [plotIndex, plot] of props.plots.entries()) {
+            /* Get Bokeh plot object */
+            const figure = bokehFigures[plotIndex];
             let legendLabels = new Set();
 
             /* Common attributes of lines and symbols */
@@ -413,7 +407,7 @@ function createPlots() {
                 alpha: dataSource.isTopographyAnalysis ? Number(opacity.value) : dataSource.alpha
             };
 
-            /* Default is x and y */
+            /* Default is x and y as columns for the scatter plot */
             let xData = plot.xData === undefined ? "data.x" : plot.xData;
             let yData = plot.yData === undefined ? "data.y" : plot.yData;
 
@@ -457,7 +451,7 @@ function createPlots() {
                 syncable: false,
                 adapter: new CustomJS({code})
             });
-            bokehPlot.sources.unshift(source);
+            figure.sources.unshift(source);
 
             /* Add data source */
             attrs = {
@@ -466,7 +460,7 @@ function createPlots() {
             };
 
             /* Create lines and symbols */
-            const line = bokehPlot.figure.line(
+            const line = figure.figure.line(
                 {field: "x"},
                 {field: "y"},
                 {
@@ -476,8 +470,8 @@ function createPlots() {
                         width: Number(lineWidth.value) * dataSource.width
                     }
                 });
-            bokehPlot.lines.unshift(line);
-            const circle = bokehPlot.figure.circle(
+            figure.lines.unshift(line);
+            const circle = figure.figure.circle(
                 {field: "x"},
                 {field: "y"},
                 {
@@ -507,7 +501,7 @@ function createPlots() {
                     line_color: null
                 }
             });
-            bokehPlot.symbols.unshift(circle);
+            figure.symbols.unshift(circle);
 
             let label = legendLabel(dataSource);
 
@@ -519,7 +513,7 @@ function createPlots() {
                     renderers: dataSource.showSymbols ? [circle, line] : [line],
                     visible: dataSource.visible
                 });
-                bokehPlot.legendItems.unshift(item);
+                figure.legendItems.unshift(item);
                 dataSource.legendItem = item;  // for toggling visibility
             }
         }
@@ -527,27 +521,15 @@ function createPlots() {
 }
 
 function refreshPlots() {
-    for (const [dataSourceIdx, dataSource] of props.dataSources.entries()) {
-        let visible = true;
-        for (const categoryElem of categoryElements.value) {
-            visible = visible && categoryElem.selection.includes(dataSource[categoryElem.key + 'Index']);
-        }
-
-        if (dataSource.hasOwnProperty('legendItem')) {
-            dataSource.legendItem.visible = visible;
-            dataSource.legendItem.label = legendLabel(dataSource);
-        }
-
-        for (const bokehPlot of bokehFigures.value) {
-            const line = bokehPlot.lines[dataSourceIdx];
-            line.visible = visible;
+    for (const [dataSourceIndex, dataSource] of props.dataSources.entries()) {
+        for (const figure of bokehFigures) {
+            const line = figure.lines[dataSourceIndex];
             line.glyph.line_width = Number(lineWidth.value) * dataSource.width;
             if (dataSource.isTopographyAnalysis) {
                 line.glyph.line_alpha = Number(opacity.value);
             }
 
-            const symbol = bokehPlot.symbols[dataSourceIdx];
-            symbol.visible = visible && (dataSource.showSymbols === undefined || dataSource.showSymbols);
+            const symbol = figure.symbols[dataSourceIndex];
             symbol.glyph.size = Number(symbolSize.value);
             if (dataSource.isTopographyAnalysis) {
                 symbol.glyph.line_alpha = Number(opacity.value);
@@ -555,25 +537,26 @@ function refreshPlots() {
             }
         }
     }
-    for (const categoryElem of categoryElements.value) {
-        categoryElem.isAllSelected = isAllSelected(categoryElem.elements, categoryElem.selection);
-        categoryElem.isIndeterminate = isIndeterminate(categoryElem.elements, categoryElem.selection);
-    }
 }
 
-function isAllSelected(elements, selection) {
-    return elements.length === selection.length;
-}
-
-function isIndeterminate(elements, selection) {
-    return selection.length !== elements.length && selection.length !== 0;
-}
-
-function selectAll(category) {
-    if (category.isAllSelected) {
-        category.selection = [...Array(category.elements.length).keys()];
-    } else {
-        category.selection = [];
+function setPlotVisibility(categoryIndex, elementIndex, visible) {
+    const category = props.categories[categoryIndex];
+    const categoryKey = category.key + 'Index';
+    for (const [dataSourceIndex, dataSource] of props.dataSources.entries()) {
+        if (dataSource[categoryKey] === elementIndex) {
+            let dataSourceVisible = visible;
+            for (const [i, category] of props.categories.entries()) {
+                if (i !== categoryIndex) {
+                    const k = category.key + 'Index';
+                    dataSourceVisible &&= categoryElementSelections[i][dataSource[k]].value;
+                }
+            }
+            for (const figure of bokehFigures) {
+                figure.lines[dataSourceIndex].visible = dataSourceVisible;
+                figure.symbols[dataSourceIndex].visible = dataSourceVisible;
+                figure.legendItems[dataSourceIndex].visible = dataSourceVisible;
+            }
+        }
     }
 }
 
@@ -582,7 +565,7 @@ function onTap(obj, data) {
        and deselect all others */
     const name = data.source.name;
     const index = data.source.selected.indices[0];
-    for (const bokehPlot of bokehFigures.value) {
+    for (const bokehPlot of bokehFigures) {
         for (const source of bokehPlot.sources) {
             if (source.name === name) {
                 source.selected.indices = [index];
@@ -592,10 +575,6 @@ function onTap(obj, data) {
 
     /* Emit event */
     emit("selected", obj, data);
-}
-
-function download() {
-    bokehFigures.value[0].save.do.emit();
 }
 
 </script>
@@ -616,20 +595,26 @@ function download() {
                         <a :class="(index == 0)?'nav-link active':'nav-link'" :id="'plot-tab-'+uid+'-'+index"
                            :href="`#plot-${uid}-${index}`" data-toggle="tab" role="tab"
                            :aria-controls="`plot-${uid}-${index}`"
-                           :aria-selected="index == 0">{{
-                                plot.title
-                            }}</a>
+                           :aria-selected="index == 0">
+                            {{ plot.title }}
+                        </a>
                     </li>
                 </ul>
             </h6>
         </div>
     </div>
     <b-accordion>
-        <b-accordion-item v-for="category in categoryElements"
+        <b-accordion-item v-for="[categoryIndex, category] in categoryElements.entries()"
                           :title="category.title">
-            <b-form-checkbox-group v-model="category.selection"
-                                   :options="category.elements"
-                                   stacked/>
+            <b-form-checkbox-group stacked>
+                <b-form-checkbox v-for="element in category.elements"
+                                 v-model="element.selected">
+                    <span v-if="categoryIndex === 0"
+                          class="dot" :style="`background-color: ${element.color}`"></span>
+                    <span v-if="element.hasParent">└─</span>
+                    {{ element.title }}
+                </b-form-checkbox>
+            </b-form-checkbox-group>
         </b-accordion-item>
         <b-accordion-item title="Plot options">
             <b-form-group v-if="optionsWidgets.includes('layout')"
