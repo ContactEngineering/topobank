@@ -5,6 +5,7 @@
 - ENH: Batch upload (#173, #877, #905, #906, #967)
 - ENH: File errors are properly reported to the user (#207)
 - ENH: Button to regenerate cached properties (thumbnail, DZI, etc., #207, #789, #895)
+- ENH: Added select filter options: '(shared|published) by you' (#750)
 - ENH: Added creation and last modified datetime to surfaces and topographies (#1010)
 - ENH: Simplified sharing, now includes ownership transfer (#706)
 - BUG: Fixes related to uploading files (#223, #261, #667)

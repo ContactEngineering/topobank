@@ -1021,7 +1021,7 @@ def test_tag_search_with_request_factory(user_three_surfaces_four_topographies):
     shared_prefix = f"/manager/html/tag/{shared_pk}/"
     surface4_prefix = f"/manager/html/surface/{surface4.pk}/"
 
-    request = factory.get(reverse('manager:tag-list') + "?sharing_status=shared")
+    request = factory.get(reverse('manager:tag-list') + "?sharing_status=shared_ingress")
     request.user = user
     request.session = session
 
