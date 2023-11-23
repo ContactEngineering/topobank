@@ -54,17 +54,21 @@ USE_TZ = True
 # DATABASES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
-DATABASES = {}
-if 'DATABASE_URL' in os.environ:
-    DATABASES['default'] = env.db('DATABASE_URL')
+postgres_db = env('POSTGRES_DB', default=None)
+if postgres_db is None:
+    DATABASES = {
+        'default': env.db('DATABASE_URL', default=f'postgres:///{random_string()}')
+    }
 else:
-    DATABASES['default'] = {
-        'ENGINE': 'django.db.backends.postgresql',
-        'NAME': env('POSTGRES_DB'),
-        'USER': env('POSTGRES_USER'),
-        'PASSWORD': env('POSTGRES_PASSWORD'),
-        'HOST': env('POSTGRES_HOST'),
-        'PORT': env('POSTGRES_PORT')
+    DATABASES = {
+        'default': {
+            'ENGINE': 'django.db.backends.postgresql',
+            'NAME': postgres_db,
+            'USER': env('POSTGRES_USER'),
+            'PASSWORD': env('POSTGRES_PASSWORD'),
+            'HOST': env('POSTGRES_HOST'),
+            'PORT': env('POSTGRES_PORT')
+        }
     }
 DATABASES['default']['ATOMIC_REQUESTS'] = True
 
@@ -630,3 +634,7 @@ REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14
 
 # Upload method
 UPLOAD_METHOD = env('TOPOBANK_UPLOAD_METHOD', default='POST')
+
+# Automatically renew analyses when the topography is upload are changes?
+# (If disabled, analyses will run when requested, i.e. viewed.)
+AUTOMATICALLY_RENEW_ANALYSES = env('TOPOBANK_AUTOMATICALLY_RENEW_ANALYSES', default=False)

@@ -4,9 +4,9 @@ build-backend = 'setuptools.build_meta:__legacy__'
 
 [project]
 name = 'topobank'
-dynamic = ['version']
-description = 'Web-based management tool for topography data'
+description = 'Web-based management tool for surface topography data'
 requires-python = '>=3.8.0'
+dynamic = ['dependencies', 'entry-points', 'optional-dependencies', 'version']
 readme = 'README.rst'
 license = { file = 'LICENSE' }
 authors = [

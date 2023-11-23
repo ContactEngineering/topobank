@@ -24,6 +24,14 @@ from ..views import DEFAULT_CONTAINER_FILENAME
 from topobank.utils import assert_in_content, \
     assert_redirects, assert_no_form_errors, assert_form_error
 
+filelist = [
+    "10x10.txt",
+    "example.opd",
+    "example3.di",
+    "plux-1.plux",  # has undefined data
+    "dektak-1.csv"  # nonuniform line scan
+]
+
 
 #######################################################################
 # Selections
@@ -68,7 +76,7 @@ def test_download_selection(client, mocker, handle_usage_statistics):
     }
     from ..views import download_selection_as_surfaces
     response = download_selection_as_surfaces(request)
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
     assert response['Content-Disposition'] == f'attachment; filename="{DEFAULT_CONTAINER_FILENAME}"'
 
     # open zip file and look into meta file, there should be two surfaces and three topographies
@@ -114,7 +122,7 @@ def test_upload_topography_di(api_client, settings, handle_usage_statistics, dja
 
     # first create a surface
     response = api_client.post(reverse('manager:surface-api-list'))
-    assert response.status_code == 201, response.data  # Created
+    assert response.status_code == 201, response.reason  # Created
     surface_id = response.data['id']
 
     # populate surface with some info
@@ -124,7 +132,7 @@ def test_upload_topography_di(api_client, settings, handle_usage_statistics, dja
                                     'category': category,
                                     'description': description
                                 })
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
     response = upload_file(str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks)
 
@@ -141,7 +149,7 @@ def test_upload_topography_di(api_client, settings, handle_usage_statistics, dja
                                     'data_source': 0,
                                     'description': description,
                                 })
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
     assert response.data['measurement_date'] == '2018-06-21'
     assert response.data['description'] == description
 
@@ -158,27 +166,27 @@ def test_upload_topography_di(api_client, settings, handle_usage_statistics, dja
                                     'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                     'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                 })
-    assert response.status_code == 400, response.data
+    assert response.status_code == 400, response.reason
 
     # Check that updating fixed metadata leads to an error
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)),
                                 {
                                     'size_x': '1.0',
                                 })
-    assert response.status_code == 400, response.data
+    assert response.status_code == 400, response.reason
 
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)),
                                 {
                                     'unit': 'm',
                                     'height_scale': 1.3,
                                 })
-    assert response.status_code == 400, response.data
+    assert response.status_code == 400, response.reason
 
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)),
                                 {
                                     'resolution_x': 300,
                                 })
-    assert response.status_code == 400, response.data  # resolution_x is read only
+    assert response.status_code == 400, response.reason  # resolution_x is read only
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
@@ -221,7 +229,7 @@ def test_upload_topography_npy(api_client, settings, handle_usage_statistics, dj
                                     'data_source': 0,
                                     'description': description,
                                 })
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
     assert response.data['measurement_date'] == '2020-10-21'
     assert response.data['description'] == description
 
@@ -238,7 +246,7 @@ def test_upload_topography_npy(api_client, settings, handle_usage_statistics, dj
                                     'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                     'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                 })
-    assert response.status_code == 400, response.data  # resolution_x and resolution_y are read only
+    assert response.status_code == 400, response.reason  # resolution_x and resolution_y are read only
 
     # Update more metadata
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)),
@@ -251,7 +259,7 @@ def test_upload_topography_npy(api_client, settings, handle_usage_statistics, dj
                                     'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                     'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                 })
-    assert response.status_code == 200, response.data  # without resolution_x and resolution_y
+    assert response.status_code == 200, response.reason  # without resolution_x and resolution_y
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
@@ -304,7 +312,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                    'name': 'surface1',
                                    'category': 'sim'
                                })
-    assert response.status_code == 201, response.data
+    assert response.status_code == 201, response.reason
 
     # populate surface with some info
     surface_id = response.data['id']
@@ -313,7 +321,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                     'category': 'exp',
                                     'description': description
                                 })
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
     response = upload_file(str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks)
     assert response.data['name'] == expected_toponame
@@ -326,7 +334,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                     'data_source': 0,
                                     'description': description,
                                 })
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
     assert response.data['measurement_date'] == '2018-06-21'
     assert response.data['description'] == description
 
@@ -358,7 +366,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                         'instrument_type': Topography.INSTRUMENT_TYPE_UNDEFINED,
                                         'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                     })
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
@@ -383,24 +391,25 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
     assert st_topo.physical_sizes == exp_physical_sizes
 
 
-@pytest.mark.parametrize("instrument_type,resolution_value,resolution_unit,tip_radius_value,tip_radius_unit",
-                         [
-                             (Topography.INSTRUMENT_TYPE_UNDEFINED, '', '', '', ''),  # empty instrument params
-                             (Topography.INSTRUMENT_TYPE_UNDEFINED, 10.0, 'km', 2.0, 'nm'),  # also empty params
-                             (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, 10.0, 'nm', '', ''),
-                             (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, '', 'nm', '', ''),  # no value! -> also empty
-                             (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', 1.0, 'mm'),
-                             (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', '', 'mm'),  # no value! -> also empty
-                         ])
+@pytest.mark.parametrize("input_filename", filelist)
+@pytest.mark.parametrize("instrument_type,resolution_value,resolution_unit,tip_radius_value,tip_radius_unit", [
+    (Topography.INSTRUMENT_TYPE_UNDEFINED, '', '', '', ''),  # empty instrument params
+    (Topography.INSTRUMENT_TYPE_UNDEFINED, 10.0, 'km', 2.0, 'nm'),  # also empty params
+    (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, 10.0, 'nm', '', ''),
+    (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, '', 'nm', '', ''),  # no value! -> also empty
+    (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', 1.0, 'mm'),
+    (Topography.INSTRUMENT_TYPE_CONTACT_BASED, '', '', '', 'mm'),  # no value! -> also empty
+])
 @pytest.mark.django_db
 def test_upload_topography_instrument_parameters(api_client, settings, django_capture_on_commit_callbacks,
                                                  django_user_model,
+                                                 input_filename,
                                                  instrument_type, resolution_value,
                                                  resolution_unit, tip_radius_value, tip_radius_unit,
                                                  handle_usage_statistics):
     settings.CELERY_TASK_ALWAYS_EAGER = True
 
-    input_file_path = Path(FIXTURE_DIR + "/10x10.txt")
+    input_file_path = Path(f'{FIXTURE_DIR}/{input_filename}')
     expected_toponame = input_file_path.name
 
     description = "test description"
@@ -440,25 +449,41 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
             'unit': tip_radius_unit
         }
 
+    # Metadata dictionary
+    data = {
+        'name': 'topo1',
+        'measurement_date': '2018-06-21',
+        'data_source': 0,
+        'description': description,
+        'detrend_mode': 'height',
+        'instrument_name': instrument_name,
+        'instrument_type': instrument_type,
+        'instrument_parameters': instrument_parameters,
+        'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+    }
+
+    if response.data['size_editable']:
+        data['size_x'] = 1
+        data['size_y'] = 1
+    if response.data['unit_editable']:
+        data['unit'] = 'nm'
+    if response.data['height_scale_editable']:
+        data['height_scale'] = 1
+
     # Update metadata
-    response = api_client.patch(reverse('manager:topography-api-detail',
-                                        kwargs=dict(pk=response.data['id'])),
-                                {
-                                    'name': 'topo1',
-                                    'measurement_date': '2018-06-21',
-                                    'data_source': 0,
-                                    'description': description,
-                                    'size_x': 1,
-                                    'size_y': 1,
-                                    'unit': 'nm',
-                                    'height_scale': 1,
-                                    'detrend_mode': 'height',
-                                    'instrument_name': instrument_name,
-                                    'instrument_type': instrument_type,
-                                    'instrument_parameters': instrument_parameters,
-                                    'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-                                })
-    assert response.status_code == 200, response.data
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.patch(reverse('manager:topography-api-detail',
+                                            kwargs=dict(pk=response.data['id'])),
+                                    data)
+        assert response.status_code == 200, response.message
+        assert response.data['task_state'] == 'pe'  # This is always pending
+
+    # Get metadata
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.get(reverse('manager:topography-api-detail',
+                                          kwargs=dict(pk=response.data['id'])))
+        assert response.status_code == 200, response.message
+        assert response.data['task_state'] == 'su'  # This should be a success
 
     surface = Surface.objects.get(name='surface1')
     topos = surface.topography_set.all()
@@ -506,6 +531,68 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
     else:
         assert clean_instrument_parameters == {}
 
+
+@pytest.mark.parametrize("input_filename", filelist)
+@pytest.mark.parametrize("fill_undefined_data_mode", [
+    Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+    Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC
+])
+@pytest.mark.django_db
+def test_upload_topography_fill_undefined_data(api_client, settings, django_capture_on_commit_callbacks,
+                                               django_user_model,
+                                               input_filename,
+                                               fill_undefined_data_mode,
+                                               handle_usage_statistics):
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+
+    input_file_path = Path(f'{FIXTURE_DIR}/{input_filename}')
+    expected_toponame = input_file_path.name
+
+    description = "test description"
+
+    username = 'testuser'
+    password = 'abcd$1234'
+
+    user = django_user_model.objects.create_user(username=username, password=password)
+
+    assert api_client.login(username=username, password=password)
+
+    # first create a surface
+    response = api_client.post(reverse('manager:surface-api-list'),
+                               {
+                                   'name': 'surface1',
+                                   'category': 'sim'
+                               })
+    assert response.status_code == 201
+
+    surface = Surface.objects.get(name='surface1')
+
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
+    assert response.data['name'] == expected_toponame
+
+    # Update metadata
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.patch(reverse('manager:topography-api-detail',
+                                            kwargs=dict(pk=response.data['id'])),
+                                    {
+                                        'description': description,
+                                        'fill_undefined_data_mode': fill_undefined_data_mode
+                                    })
+        assert response.status_code == 200, response.reason
+        assert response.data['task_state'] in ['su', 'pe']
+
+    surface = Surface.objects.get(name='surface1')
+    topos = surface.topography_set.all()
+
+    assert len(topos) == 1
+
+    t = topos[0]
+
+    assert t.description == description
+    assert t.fill_undefined_data_mode == fill_undefined_data_mode
+    assert t.task_state == 'su'
+
+
 @pytest.mark.django_db
 def test_upload_topography_and_name_like_an_existing_for_same_surface(api_client, settings,
                                                                       django_capture_on_commit_callbacks):
@@ -527,7 +614,7 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(api_client
 
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=response.data['id'])),
                                 {'name': 'TOPO'})
-    assert response.status_code == 400, response.data  # There can only be one topography with the same name
+    assert response.status_code == 400, response.reason  # There can only be one topography with the same name
 
     # topo2 = Topography.objects.get(pk=response.data['id'])
     # Both can have same name
@@ -555,7 +642,7 @@ def test_trying_upload_of_topography_file_with_unknown_format(api_client, settin
                                    'name': 'surface1',
                                    'category': 'dum',
                                })
-    assert response.status_code == 201, response.data
+    assert response.status_code == 201, response.reason
 
     surface = Surface.objects.get(name='surface1')
 
@@ -592,7 +679,7 @@ def test_trying_upload_of_topography_file_with_too_long_format_name(api_client, 
     surface = SurfaceFactory(creator=user)
 
     response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
 
 @pytest.mark.django_db
@@ -622,7 +709,7 @@ def test_trying_upload_of_corrupted_topography_file(api_client, settings, django
                                    'name': 'surface1',
                                    'category': category,
                                })
-    assert response.status_code == 201, response.data
+    assert response.status_code == 201, response.reason
 
     surface = Surface.objects.get(name='surface1')
 
@@ -707,7 +794,7 @@ def test_topography_list(api_client, two_topos, django_user_model, handle_usage_
 
     url = reverse('manager:surface-api-detail', kwargs=dict(pk=surface.pk))
     response = api_client.get(f'{url}?children=yes')  # We need children=yes to get the topography set
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
     topo_names = [t['name'] for t in response.data['topography_set']]
     topo_urls = [t['url'] for t in response.data['topography_set']]
@@ -745,7 +832,7 @@ def test_edit_topography(api_client, django_user_model, topo_example3, handle_us
     # First get the form and look whether all the expected data is in there
     #
     response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_example3.pk)))
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
     assert response.data['name'] == topo_example3.name
     assert response.data['measurement_date'] == str(datetime.date(2018, 1, 1))
@@ -772,7 +859,7 @@ def test_edit_topography(api_client, django_user_model, topo_example3, handle_us
                                     'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                     'has_undefined_data': False,
                                 })
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
     #
     # let's check whether it has been changed
@@ -815,7 +902,7 @@ def test_edit_line_scan(api_client, one_line_scan, django_user_model, handle_usa
     # First get the form and look whether all the expected data is in there
     #
     response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_id)))
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
     assert response.data['name'] == 'Simple Line Scan'
     assert response.data['measurement_date'] == str(datetime.date(2018, 1, 1))
@@ -842,7 +929,7 @@ def test_edit_line_scan(api_client, one_line_scan, django_user_model, handle_usa
                                     'fill_undefined_data_mode': Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
                                     'has_undefined_data': False,
                                 })
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
     # due to the changed topography editing, we should stay on update page
     url = reverse('manager:topography-api-detail', kwargs=dict(pk=topo_id))
@@ -980,7 +1067,7 @@ def test_topography_detail(api_client, two_topos, django_user_model, topo_exampl
     assert api_client.login(username=username, password=password)
 
     response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pk)))
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.reason
 
     # resolution should be written somewhere
     assert response.data['resolution_x'] == 305
@@ -1106,7 +1193,7 @@ def test_only_positive_size_values_on_edit(api_client, handle_usage_statistics):
                                     'instrument_parameters': {},
                                     'instrument_name': '',
                                 })
-    assert response.status_code == 400, response.data
+    assert response.status_code == 400, response.reason
     assert response.data['size_x'][0].title() == 'Ensure This Value Is Greater Than Or Equal To 0.0.'
 
 
@@ -1152,7 +1239,7 @@ def test_delete_surface(api_client, handle_usage_statistics):
     assert Surface.objects.all().count() == 1
 
     response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface.id)))
-    assert response.status_code == 204, response.data
+    assert response.status_code == 204, response.reason
 
     assert Surface.objects.all().count() == 0
 
@@ -1210,3 +1297,99 @@ def test_download_of_unpublished_surface(client, handle_usage_statistics):
                           follow=True)
     assert response.status_code == 200
     assert response['Content-Disposition'] == f'attachment; filename="{slugify(surface.name) + ".zip"}"'
+
+
+@pytest.mark.django_db
+def test_automatic_extraction_of_measurement_date(api_client, settings, handle_usage_statistics,
+                                                  django_capture_on_commit_callbacks):
+    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
+
+    name = 'plux-1.plux'
+    input_file_path = Path(f'{FIXTURE_DIR}/{name}')  # maybe use package 'pytest-datafiles' here instead
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+
+    api_client.force_login(user)
+
+    # Upload file
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
+
+    # Check that the measurement date was populated automatically
+    assert response.data['name'] == 'plux-1.plux'
+    assert response.data['measurement_date'] == '2022-05-16'
+
+    # Update measurement date
+    topography_id = response.data['id']
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)),
+                                {
+                                    'measurement_date': '2018-06-21'
+                                })
+    assert response.status_code == 200, response.reason
+    assert response.data['measurement_date'] == '2018-06-21'
+
+    # Force reparsing the data file
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.post(reverse('manager:force-inspect', kwargs=dict(pk=topography_id)))
+        assert response.status_code == 200, response.reason
+    assert len(callbacks) == 1
+
+    # Check that measurement date was not overriden
+    response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
+    assert response.status_code == 200, response.reason
+    assert response.data['measurement_date'] == '2018-06-21'
+
+
+@pytest.mark.django_db
+def test_automatic_extraction_of_instrument_parameters(api_client, settings, handle_usage_statistics,
+                                                       django_capture_on_commit_callbacks):
+    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
+
+    name = 'dektak-1.csv'
+    input_file_path = Path(f'{FIXTURE_DIR}/{name}')  # maybe use package 'pytest-datafiles' here instead
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+
+    api_client.force_login(user)
+
+    # Upload file
+    response = upload_file(str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks)
+
+    # Check that the instrument parameters were populated automatically
+    assert response.data['name'] == 'dektak-1.csv'
+    assert response.data['instrument_parameters'] == {
+        'tip_radius': {
+            'value': 2.5,
+            'unit': 'µm',
+        }
+    }
+
+    # Update tip radius
+    new_instrument_parameters = {'tip_radius':
+        {
+            'value': 3,
+            'unit': 'm',
+        }
+    }
+
+    topography_id = response.data['id']
+    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)),
+                                {
+                                    'instrument_parameters': new_instrument_parameters
+                                })
+    assert response.status_code == 200, response.reason
+    assert response.data['instrument_parameters'] == new_instrument_parameters
+    assert response.data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED
+
+    # Force reparsing the data file
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.post(reverse('manager:force-inspect', kwargs=dict(pk=topography_id)))
+        assert response.status_code == 200, response.reason
+    assert len(callbacks) == 1
+
+    # Check that instrument parameters were not overriden
+    response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
+    assert response.status_code == 200, response.reason
+    assert response.data['instrument_parameters'] == new_instrument_parameters
+    assert response.data['instrument_type'] == Topography.INSTRUMENT_TYPE_CONTACT_BASED

@@ -33,7 +33,7 @@ def _sanitize_kwargs(sig, **kwargs):
 
 
 # This used only in the `trigger_analyses` management command
-def renew_analyses_for_subject(subject, recursive=True):
+def renew_analyses_for_subject(subject, recursive=True, run_analyses=True):
     """Renew all analyses for the given subject.
 
     At first all existing analyses for the given subject
@@ -45,6 +45,16 @@ def renew_analyses_for_subject(subject, recursive=True):
     This method cannot be easily used in a post_save signal,
     because the pre_delete signal deletes the datafile and
     this also then triggers "renew_analyses".
+
+    Parameters
+    ----------
+    subject : Surface or Topography
+        Subject for which to renew all analyses.
+    recursive : bool, optional
+        Also renew analyses for children if enabled. (Default: True)
+    run_analyses : bool, optional
+        Actually trigger running the analyses. If not enabled, this function
+        will only clear old/stale analyses results (Default: True)
     """
     analysis_funcs = AnalysisFunction.objects.all()
 
@@ -61,24 +71,25 @@ def renew_analyses_for_subject(subject, recursive=True):
                     return
         _log.info(f"Deleting all analyses for {subj.get_subject_type()} {subj.id}...")
         Analysis.objects.filter(AnalysisSubject.Q(subj)).delete()
-        _log.info(f"Triggering analyses for {subj.get_content_type().name} {subj.id} and all analysis functions...")
-        for af in analysis_funcs:
-            subject_type = subj.get_content_type()
-            if af.is_implemented_for_type(subject_type):
-                # filter also for users who are allowed to use the function
-                users = [u for u in users_for_subject if af.get_implementation(subject_type).is_available_for_user(u)]
-                try:
-                    submit_analysis(users, af, subject=subj)
-                except Exception as err:
-                    _log.error(f"Cannot submit analysis for function '{af.name}' and subject '{subj}' "
-                               f"({subj.get_content_type().name} {subj.id}). Reason: {str(err)}")
+        if run_analyses:
+            _log.info(f"Triggering analyses for {subj.get_content_type().name} {subj.id} and all analysis functions...")
+            for af in analysis_funcs:
+                subject_type = subj.get_content_type()
+                if af.is_implemented_for_type(subject_type):
+                    # filter also for users who are allowed to use the function
+                    users = [u for u in users_for_subject if af.get_implementation(subject_type).is_available_for_user(u)]
+                    try:
+                        submit_analysis(users, af, subject=subj)
+                    except Exception as err:
+                        _log.error(f"Cannot submit analysis for function '{af.name}' and subject '{subj}' "
+                                   f"({subj.get_content_type().name} {subj.id}). Reason: {str(err)}")
 
-    # Note: on_commit will not execute in tests, unless transaction=True is added to pytest.mark.django_db
+    # Submit analyses for current subject
     submit_all(subject)
 
+    # Also submit analyses for children if this has any and recursion is requested
     if recursive and hasattr(subject, 'topography_set'):
         for topo in subject.topography_set.all():
-            # Note: on_commit will not execute in tests, unless transaction=True is added to pytest.mark.django_db
             submit_all(topo)
 
 

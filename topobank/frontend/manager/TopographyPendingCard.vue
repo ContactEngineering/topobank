@@ -18,6 +18,7 @@ export default {
     props: {
         url: String,  // API url
         name: String,  // Used for the title of the card
+        taskState: String  // State of task, 'pe', 'st', etc
     },
     methods: {
         deleteTopography() {
@@ -50,7 +51,13 @@ export default {
                 <h5 class="d-inline">{{ name }}</h5>
             </div>
         </div>
-        <div class="card-body">
+        <div v-if="taskState === 'pe'"
+             class="card-body">
+            <b-spinner small  type="grow"></b-spinner>
+            Waiting for data file inspection to start...
+        </div>
+        <div v-if="taskState !== 'pe'"
+             class="card-body">
             <b-spinner small></b-spinner>
             Inspecting data file and applying filters...
         </div>

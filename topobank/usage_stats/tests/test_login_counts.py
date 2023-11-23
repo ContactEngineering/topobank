@@ -23,7 +23,7 @@ def test_login_statistics(client):
     client.logout()
 
     # Signal is not called for some reason - calling signal handler manually
-    track_user_login(sender=user2.__class__)
+    track_user_login(sender=user2.__class__, today=today)
 
     #
     # There should be two logins for two users now for today

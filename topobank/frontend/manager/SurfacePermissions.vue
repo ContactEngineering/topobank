@@ -103,7 +103,7 @@ export default {
         <b-card-body>
             <b-alert :model-value="_error !== null"
                      variant="danger">
-                {{ _error }}
+                {{ _error.message }}
             </b-alert>
             <div class="row mb-2">
                 <div class="col-4 my-auto">

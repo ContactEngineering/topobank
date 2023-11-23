@@ -1,0 +1,10 @@
+{# Just render the URLs appended to a license #}
+{% load icon_tags %}
+<span>
+ <a class="alert-link" href="{{ description_url }}" target="_blank">
+   {% fa5_icon 'external-link-alt' %} Description
+ </a>
+ <a class="alert-link" href="{{ legal_code_url }}" target="_blank">
+   {% fa5_icon 'external-link-alt' %} Legal code
+ </a>
+</span>

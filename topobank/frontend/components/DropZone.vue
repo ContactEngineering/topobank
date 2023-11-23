@@ -1,43 +1,42 @@
-<script>
+<script setup>
 /*
  * Inspired by https://www.smashingmagazine.com/2022/03/drag-drop-file-uploader-vuejs-3/
  */
+
+import {onMounted, onUnmounted, ref} from "vue";
+
+const emit = defineEmits([
+    'files-dropped'
+]);
+
+const _events = ['dragenter', 'dragover', 'dragleave', 'drop'];
+
+const _active = ref(false);
+
+onMounted(() => {
+    _events.forEach((eventName) => {
+        document.body.addEventListener(eventName, preventDefaults);
+    });
+});
+
+onUnmounted(() => {
+    _events.forEach((eventName) => {
+        document.body.removeEventListener(eventName, preventDefaults);
+    })
+});
 
 function preventDefaults(e) {
     e.preventDefault();
 }
 
-export default {
-    name: 'drop-zone',
-    emits: [
-        'files-dropped'
-    ],
-    data() {
-        return {
-            _active: false,
-            _events: ['dragenter', 'dragover', 'dragleave', 'drop']
-        }
-    },
-    mounted() {
-        this._events.forEach((eventName) => {
-            document.body.addEventListener(eventName, preventDefaults);
-        });
-    },
-    unmounted() {
-        this.events.forEach((eventName) => {
-            document.body.removeEventListener(eventName, preventDefaults);
-        })
-    },
-    methods: {
-        onDrop(e) {
-            this._active = false;
-            this.$emit('files-dropped', [...e.dataTransfer.files]);
-        },
-        onSelect(e) {
-            this.$emit('files-dropped', e.target.files);
-        }
-    }
-};
+function onDrop(e) {
+    _active.value = false;
+    emit('files-dropped', [...e.dataTransfer.files]);
+}
+
+function onSelect(e) {
+    emit('files-dropped', e.target.files);
+}
 
 </script>
 

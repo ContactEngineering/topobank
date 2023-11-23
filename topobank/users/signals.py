@@ -16,11 +16,12 @@ def add_to_default_group(sender, instance, created, **kwargs):
 
 
 @receiver(user_logged_in)
-def track_user_login(sender, **kwargs):
+def track_user_login(sender, today=None, **kwargs):
 
     from topobank.users.models import User
 
-    today = now().date()
+    if today is None:
+        today = now().date()
     num_users_today = User.objects.filter(
        last_login__year=today.year,
        last_login__month=today.month,

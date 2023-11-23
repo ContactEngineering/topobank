@@ -11,19 +11,22 @@ import {
     BCardBody,
     BDropdown,
     BDropdownItem,
+    BFormCheckbox,
     BModal,
     BSpinner,
     BTab,
     BTabs,
 } from 'bootstrap-vue-next';
 
-import {getIdFromUrl, subjectsToBase64} from "../utils/api";
+import {filterTopographyForPatchRequest, getIdFromUrl, subjectsToBase64} from "../utils/api";
+import {ccLicenseInfo} from "../utils/data";
 
 import BandwidthPlot from './BandwidthPlot.vue';
 import DropZone from '../components/DropZone.vue';
 import SurfaceProperties from './SurfaceProperties.vue';
 import SurfacePermissions from './SurfacePermissions.vue';
 import TopographyCard from "./TopographyCard.vue";
+import TopographyPropertiesCard from "./TopographyPropertiesCard.vue";
 
 const props = defineProps({
     surfaceUrl: String,
@@ -45,10 +48,44 @@ const emit = defineEmits([
     'delete:surface'
 ])
 
-const _data = ref(null);
-const _showDeleteModal = ref(false);
+// Data that is displayed or can be edited
+const _data = ref(null);  // Surface data
 const _topographies = ref([]);  // Topographies contained in this surface
-const _versions = ref(null);  // Published versions of this topography
+const _versions = ref(null);  // Published versions of this surface
+
+// GUI logic
+const _errors = ref([]);   // Errors from saving batch edits
+const _saving = ref(false);  // Saving batch edits
+const _showDeleteModal = ref(false);  // Triggers delete modal
+const _selected = ref([]);  // Selected topographies (for batch editing)
+
+// Batch edit data
+const _batchEditTopography = ref(emptyTopography());
+
+function emptyTopography() {
+    return {
+        url: null,  // There is no representation of this topography on the server side
+        name: null,
+        channel_names: null,
+        description: null,
+        measurement_date: null,
+        size_editable: true,
+        size_x: null,
+        size_y: null,
+        unit_editable: true,
+        unit: null,
+        height_scale_editable: true,
+        height_scale: null,
+        fill_undefined_data_mode: null,
+        detrend_mode: null,
+        is_periodic: null,
+        instrument_name: null,
+        instrument_type: null,
+        instrument_parameters: null,
+        thumbnail: null,
+        tags: []
+    };
+}
 
 onMounted(() => {
     if (_data.value === null) {
@@ -73,6 +110,7 @@ function updateCard() {
     axios.get(`${props.surfaceUrl}?children=yes&permissions=yes`).then(response => {
         _data.value = response.data;
         _topographies.value = response.data.topography_set;
+        _selected.value = new Array(_topographies.value.length).fill(false);  // Nothing is selected
         updateVersions();
     });
 }
@@ -93,20 +131,62 @@ function uploadNewTopography(file) {
     axios.post(props.newTopographyUrl, {surface: props.surfaceUrl, name: file.name}).then(response => {
         let upload = response.data;
         upload.file = file;  // need to know which file to upload
-        _topographies.value.push(upload);
+        _topographies.value.push(upload);  // this will trigger showing a topography-upload-card
+        _selected.value.push(false);  // initially unselected
     });
 }
 
-function topographyDeleted(index) {
+function deleteTopography(index) {
     _topographies.value[index] = null;
 }
 
-function topographyUpdated(index, topography) {
-    _topographies.value[index] = topography;
+function saveBatchEdit(topography) {
+    // Trigger saving spinner
+    _saving.value = true;
+
+    // Clear all null fields
+    const cleanedBatchEditTopography = filterTopographyForPatchRequest(topography);
+
+    // Clear possible errors
+    _errors.value = [];
+
+    // Update all topographies and issue patch request
+    for (const i in _topographies.value) {
+        if (_selected.value[i]) {
+            const t = {
+                ..._topographies.value[i],
+                ...cleanedBatchEditTopography
+            }
+
+            axios.patch(t.url, filterTopographyForPatchRequest(t)).then(response => {
+                _topographies.value[i] = response.data;
+            }).catch(error => {
+                _errors.value.push(error);
+                console.log(_errors);
+            });
+        }
+    }
+
+    // Reset selection
+    _selected.value.fill(false);
+
+    // Reset the batch edit topography template
+    _batchEditTopography.value = emptyTopography();
+
+    // Saving is done
+    _saving.value = false;
+}
+
+function discardBatchEdit() {
+    // Reset selection
+    _selected.value.fill(false);
+
+    // Reset the batch edit topography template
+    _batchEditTopography.value = emptyTopography();
 }
 
 function surfaceHrefForVersion(version) {
-    return `http://localhost:8000/manager/html/surface/?surface=${getIdFromUrl(version.surface)}`;
+    return `/manager/html/surface/?surface=${getIdFromUrl(version.surface)}`;
 }
 
 function deleteSurface() {
@@ -155,26 +235,77 @@ const isPublication = computed(() => {
     return _data.value !== null && _data.value.publication !== null;
 });
 
+const anySelected = computed(() => {
+    return _selected.value.reduce((x, y) => x || y, false);
+});
+
+const someSelected = computed(() => {
+    const nbSelected = _selected.value.reduce((x, y) => x + (y ? 1 : 0), 0);
+    const nbTopographies = _topographies.value.reduce((x, y) => x + (y != null ? 1 : 0), 0);
+    return nbSelected > 0 && nbSelected < nbTopographies;
+});
+
+const allSelected = computed({
+    get() {
+        return _selected.value.reduce((x, y) => x && y, true);
+    },
+    set(value) {
+        _selected.value.fill(value);
+    }
+});
+
 </script>
 
 <template>
     <div class="container">
         <div class="row">
             <div class="col-12">
-                <b-tabs class="nav-pills-custom"
+                <b-alert v-for="error in _errors"
+                         variant="danger">
+                    {{ error.message }}
+                </b-alert>
+                <div v-if="_data === null"
+                     class="card mb-1">
+                    <div class="card-body">
+                        <b-spinner small></b-spinner>
+                        Querying digital surface twin data, please wait...
+                    </div>
+                </div>
+                <b-tabs v-if="_data !== null"
+                        class="nav-pills-custom"
                         content-class="w-100"
                         fill
                         pills
                         vertical>
                     <b-tab title="Measurements">
-                        <drop-zone v-if="isEditable"
-                                   @files-dropped="filesDropped"></drop-zone>
+                        <drop-zone v-if="isEditable && !anySelected"
+                                   @files-dropped="filesDropped">
+                        </drop-zone>
+                        <topography-properties-card v-if="anySelected"
+                                                    :batch-edit="true"
+                                                    :saving="_saving"
+                                                    v-model:topography="_batchEditTopography"
+                                                    @save:edit="saveBatchEdit"
+                                                    @discard:edit="discardBatchEdit">
+                        </topography-properties-card>
+                        <div v-if="_topographies.length > 0"
+                             class="d-flex mb-1">
+                            <b-card>
+                                <b-form-checkbox size="sm"
+                                                 :indeterminate="someSelected"
+                                                 v-model="allSelected">
+                                    Select all
+                                </b-form-checkbox>
+                            </b-card>
+                        </div>
                         <div v-for="(topography, index) in _topographies">
                             <topography-card v-if="topography !== null"
-                                             :topography="topography"
+                                             :selectable="true"
+                                             :topography-url="topography.url"
                                              :disabled="!isEditable"
-                                             @delete:topography="url => topographyDeleted(index)"
-                                             @update:topography="newTopography => topographyUpdated(index, newTopography)">
+                                             @delete:topography="() => deleteTopography(index)"
+                                             v-model:topography="_topographies[index]"
+                                             v-model:selected="_selected[index]">
                             </topography-card>
                         </div>
                     </b-tab>
@@ -234,10 +365,15 @@ const isPublication = computed(() => {
                             </template>
                             <b-card-body>
                                 <p class="mb-5">
-                                    <img :src="`/static/images/cc/${_data.publication.license}.svg`"
-                                         title="Dataset can be reused under the terms of a Creative Commons license."
-                                         style="float:right"/>
-                                    This dataset can be reused under the terms of a Creative Commons license.
+                                    <a :href="ccLicenseInfo[_data.publication.license].descriptionUrl">
+                                        <img :src="`/static/images/cc/${_data.publication.license}.svg`"
+                                             :title="`Dataset can be reused under the terms of the ${ccLicenseInfo[_data.publication.license].title}.`"
+                                             style="float:right; margin-left: 0.25rem;"/>
+                                    </a>
+                                    This dataset can be reused under the terms of the
+                                    <a :href="ccLicenseInfo[_data.publication.license].descriptionUrl">
+                                        {{ ccLicenseInfo[_data.publication.license].title }}
+                                    </a>.
                                     When reusing this dataset, please cite the original source.
                                 </p>
                                 <b-accordion>
@@ -288,8 +424,10 @@ const isPublication = computed(() => {
                                             class="mt-2"
                                             variant="info"
                                             :text="versionString">
-                                    <b-dropdown-item :href="hrefOriginalSurface"
-                                                     :disabled="_data.publication === null">
+                                    <b-dropdown-item
+                                        v-if="_data.publication === null || _data.publication.has_access_to_original_surface"
+                                        :href="hrefOriginalSurface"
+                                        :disabled="_data.publication === null">
                                         Work in progress
                                     </b-dropdown-item>
                                     <b-dropdown-item v-if="_versions === null">

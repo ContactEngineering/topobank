@@ -1,6 +1,7 @@
 import logging
 import sys
 
+from django.conf import settings
 from django.db import transaction
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
@@ -19,7 +20,7 @@ _IN_CELERY_WORKER_PROCESS = sys.argv and sys.argv[0].endswith('celery') and 'wor
 def cache_renewed(sender, instance, **kwargs):
     # Cache is renewed, this means something significant changed and we need to renew the analyses
     _log.debug(f'Received `post_renew_cache` signal on {instance}')
-    renew_analyses_for_subject(instance)
+    renew_analyses_for_subject(instance, run_analyses=settings.AUTOMATICALLY_RENEW_ANALYSES)
 
 
 @receiver(post_delete, sender=Topography)
@@ -27,7 +28,7 @@ def post_topography_delete(sender, instance, **kwargs):
     def do_renew(id):
         try:
             surface_instance = Surface.objects.get(pk=id)
-            renew_analyses_for_subject(surface_instance)
+            renew_analyses_for_subject(surface_instance, run_analyses=settings.AUTOMATICALLY_RENEW_ANALYSES)
         except Surface.DoesNotExist:
             # The surface may no longer exist if this delete was called on a cascade from the deletion of a surface
             pass

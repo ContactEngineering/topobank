@@ -1,69 +1,53 @@
-<script>
+<script setup>
 
 import axios from "axios";
 
+import {computed, onMounted, ref, watch} from "vue";
 import {BModal, BSpinner, BTab, BTabs} from "bootstrap-vue-next";
 
-import DeepZoomImage from "../components/DeepZoomImage.vue";
-import DropZone from "../components/DropZone.vue";
-import LineScanPlot from "../components/LineScanPlot.vue";
-
-import BandwidthPlot from "./BandwidthPlot.vue";
-import SurfaceDescription from "./SurfaceProperties.vue";
-import SurfacePermissions from "./SurfacePermissions.vue";
-import TopographyBadges from "./TopographyBadges.vue";
-import TopographyCard from "./TopographyCard.vue";
 import {getIdFromUrl, subjectsToBase64} from "topobank/utils/api.js";
 
-export default {
-    name: 'topography-detail',
-    components: {
-        BandwidthPlot,
-        BModal,
-        BSpinner,
-        BTab,
-        BTabs,
-        DeepZoomImage,
-        DropZone,
-        LineScanPlot,
-        SurfaceDescription,
-        SurfacePermissions,
-        TopographyBadges,
-        TopographyCard
-    },
-    props: {
-        topographyUrl: String
-    },
-    data() {
-        return {
-            _showDeleteModal: false,
-            _topography: null
-        }
-    },
-    mounted() {
-        this.updateCard();
-    },
-    methods: {
-        updateCard() {
-            /* Fetch JSON describing the card */
-            axios.get(this.topographyUrl).then(response => {
-                this._topography = response.data;
-            });
-        },
-        deleteTopography() {
-            axios.delete(this._topography.url).then(response => {
-                this.$emit('topography-deleted', this._topography.url);
-                const id = getIdFromUrl(this._topography.surface);
-                window.location.href = `/manager/html/surface/?surface=${id}`;
-            });
-        }
-    },
-    computed: {
-        base64Subjects() {
-            return subjectsToBase64({topography: [this._topography.id]});
-        }
-    }
+import DeepZoomImage from "../components/DeepZoomImage.vue";
+import LineScanPlot from "../components/LineScanPlot.vue";
+
+import TopographyBadges from "./TopographyBadges.vue";
+import TopographyCard from "./TopographyCard.vue";
+
+
+const props = defineProps({
+    topographyUrl: String
+});
+
+const _disabled = ref(false);
+const _showDeleteModal = ref(false);
+const _topography = ref(null);
+
+onMounted(() => {
+    updateCard();
+});
+
+function updateCard() {
+    /* Fetch JSON describing the card */
+    axios.get(`${props.topographyUrl}?permissions=yes`).then(response => {
+        _topography.value = response.data;
+        _disabled.value = _topography.value === null || _topography.value.permissions.current_user.permission === 'view';
+    });
 };
+
+function deleteTopography() {
+    axios.delete(_topography.url).then(response => {
+        this.$emit('topography-deleted', _topography.value.url);
+        const id = getIdFromUrl(_topography.value.surface);
+        window.location.href = `/manager/html/surface/?surface=${id}`;
+    });
+}
+
+const base64Subjects = computed(() => {
+    return subjectsToBase64({
+        topography: [_topography.id]
+    });
+});
+
 </script>
 
 <template>
@@ -74,7 +58,7 @@ export default {
                      class="card mb-1">
                     <div class="card-body">
                         <b-spinner small></b-spinner>
-                        Querying topography data, please wait...
+                        Querying measurement data, please wait...
                     </div>
                 </div>
                 <b-tabs v-if="_topography !== null"
@@ -93,8 +77,10 @@ export default {
                         </deep-zoom-image>
                     </b-tab>
                     <b-tab title="Properties">
-                        <topography-card :topography="_topography"
-                                         :enlarged="true">
+                        <topography-card :topography-url="_topography.url"
+                                         v-model:topography="_topography"
+                                         :enlarged="true"
+                                         :disabled="_disabled">
                         </topography-card>
                     </b-tab>
                     <template #tabs-end>

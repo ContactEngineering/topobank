@@ -118,6 +118,7 @@ def task_dispatch(celery_task, cls_id, obj_id):
 
 
 def run_task(model_instance, *args, **kwargs):
+    model_instance.task_id = None  # If this is populated with an old task id, then Celery will return a failure
     model_instance.task_state = TaskStateModel.PENDING
     # Only submit this on_commit, once save() has finalized and everything
     # has been flushed to the database (including a possible 'pe'nding state)

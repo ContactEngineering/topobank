@@ -2,6 +2,7 @@
 Basic models for the web app for handling topography data.
 """
 
+import dateutil.parser
 import io
 import logging
 import math
@@ -29,6 +30,7 @@ from guardian.shortcuts import assign_perm, remove_perm, get_perms, get_users_wi
 from notifications.signals import notify
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
+from SurfaceTopography.Exceptions import UndefinedDataError
 
 from ..publication.models import Publication, DOICreationException
 from ..taskapp.models import TaskStateModel
@@ -711,6 +713,7 @@ class Topography(TaskStateModel, SubjectMixin):
     bandwidth_upper = models.FloatField(null=True, default=None, editable=False)  # in meters
     short_reliability_cutoff = models.FloatField(null=True, default=None, editable=False)
 
+    is_periodic_editable = models.BooleanField(default=True, editable=False)
     is_periodic = models.BooleanField(default=False)
 
     #
@@ -718,7 +721,7 @@ class Topography(TaskStateModel, SubjectMixin):
     #
     instrument_name = models.CharField(max_length=200, blank=True)
     instrument_type = models.TextField(choices=INSTRUMENT_TYPE_CHOICES, default=INSTRUMENT_TYPE_UNDEFINED)
-    instrument_parameters = models.JSONField(default=dict, blank=True)
+    instrument_parameters = models.JSONField(default=dict)
 
     #
     # Other fields
@@ -936,6 +939,8 @@ class Topography(TaskStateModel, SubjectMixin):
     @staticmethod
     def _clean_instrument_parameters(params):
         cleaned_params = {}
+        if params is None:
+            return cleaned_params
 
         def _clean_value_unit_pair(r):
             cleaned_r = None
@@ -1022,7 +1027,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Eventually get topography from module "SurfaceTopography" using the given keywords
         topo = reader.topography(**reader_kwargs)
-        if self.fill_undefined_data_mode != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING:
+        if self.fill_undefined_data_mode != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING and topo.is_uniform:
             topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
         return topo.detrend(detrend_mode=self.detrend_mode)
 
@@ -1345,7 +1350,11 @@ class Topography(TaskStateModel, SubjectMixin):
             self.bandwidth_lower = fac * bandwidth_lower
             self.bandwidth_upper = fac * bandwidth_upper
 
-            short_reliability_cutoff = st_topo.short_reliability_cutoff()  # Return float or None
+            try:
+                short_reliability_cutoff = st_topo.short_reliability_cutoff()  # Return float or None
+            except UndefinedDataError:
+                # Short reliability cutoff can only be computed on topographies without undefined data
+                short_reliability_cutoff = None
             if short_reliability_cutoff is not None:
                 short_reliability_cutoff *= fac
             self.short_reliability_cutoff = short_reliability_cutoff  # None is also saved here
@@ -1380,6 +1389,9 @@ class Topography(TaskStateModel, SubjectMixin):
                                          f"User '{self.creator}' uploaded the measurement '{self.name}' to "
                                          f"digital surface twin '{self.surface.name}'.")
 
+        # Check if this is the first time we are opening this file...
+        populate_initial_metadata = self.data_source is None
+
         # Populate datafile information in the database.
         # (We never load the topography, so we don't know this until here.
         # Fields that are undefined are autodetected.)
@@ -1402,6 +1414,11 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Select channel
         channel = reader.channels[self.data_source]
+
+        #
+        # Look for necessary metadata. We override values in the database. This may be necessary if the underlying
+        # reader changes (e.g. through bug fixes).
+        #
 
         # Populate resolution information in the database
         if channel.dim == 1:
@@ -1449,6 +1466,44 @@ class Topography(TaskStateModel, SubjectMixin):
             self.height_scale_editable = False
             # Reset unit information here
             self.height_scale = channel.height_scale_factor
+
+        # Populate information on periodicity
+        if not channel.is_uniform:
+            # This is a nonuniform line scan that does not support periodicity
+            self.is_periodic_editable = False
+            self.is_periodic = False
+        elif self.is_periodic is None:
+            # This is a uniform line scan or map, periodicity is supported
+            self.is_periodic_editable = True
+            self.is_periodic = channel.is_periodic
+
+        #
+        # We now look for optional metadata. Only import it from the file on first read, otherwise we may override
+        # what the user has painfully adjusted when refreshing the cache.
+        #
+
+        if populate_initial_metadata:
+            # Measurement time
+            try:
+                self.measurement_date = dateutil.parser.parse(channel.info['acquisition_time'])
+            except:
+                pass
+
+            # Instrument name
+            try:
+                self.instrument_name = channel.info['instrument']['name']
+            except:
+                pass
+
+            # Instrument parameters
+            try:
+                self.instrument_parameters = channel.info['instrument']['parameters']
+                if 'tip_radius' in self.instrument_parameters:
+                    self.instrument_type = self.INSTRUMENT_TYPE_CONTACT_BASED
+                elif 'resolution' in self.instrument_parameters:
+                    self.instrument_type = self.INSTRUMENT_TYPE_MICROSCOPE_BASED
+            except:
+                self.instrument_type = self.INSTRUMENT_TYPE_UNDEFINED
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:

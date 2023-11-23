@@ -1,0 +1,457 @@
+{% extends 'base.html' %}
+{% load icon_tags %}
+{% load license_tags %}
+{% load crispy_forms_tags %}
+
+{% block content %}
+
+
+  <div class="tab-content mt-2">
+
+    <div class="alert alert-primary">
+      <h2 class="alert-heading">You are about to publish your digital surface twin <em>{{ surface.name }}</em></h2>
+      <p>By publishing, you create an immutable copy of this digital twin as a snapshot with all its data.</p>
+      <p>This snapshot has a version number and a unique URL for citations and it is visible
+         and usable for everyone.</p>
+    </div>
+    <div class="alert alert-success">
+      <h2 class="alert-heading">Implications of publishing</h2>
+      <ul>
+        <li>The digital twin and all measurements will be <b>visible by everyone</b>,
+          registered or anonymous users, now and in future.</li>
+        <li>The related data (raw data, descriptions, ..) <b>will be downloadable by everyone</b>.</li>
+        <li>Every user can perform analyses on your data.</li>
+        <li>You choose a license for your data - the choice of the license is irrevocable.</li>
+        <li>If you have assigned tags to the digital twin or its measurements, these tags are also
+        part of the publication.</li>
+        <li>Your ORCID iD will saved along with your publication.</li>
+        {% if configured_for_doi_generation %}
+        <li>A <a href="https://www.doi.org/">DOI (Digital Object Identifier)</a> will be generated
+        with the given data. Your data will be accessible under the corresponding URL.</li>
+        {% endif %}
+      </ul>
+      <p>
+      This is great if you want to <b>make your data public under a permanent URL</b>, e.g. in order
+      to reference your data in a citation.
+      </p>
+      <p>
+      Since a copy is made, you can still work on your
+      original data as before the publication.
+      You may also publish an updated version of this digital surface twin later.
+      </p>
+    </div>
+
+    {% if surface.topography_set.count == 0 %}
+      <div class="alert alert-error">
+        <h2 class="alert-heading">This digital surface twin has no measurements yet</h2>
+        <div class="row">
+          <div class="col">
+            <p>
+              If you'd like to publish this digitial surface twin, please add at least one measurement to it.
+              You can do this by pressing the button on the right or on the previous tab.
+            </p>
+          </div>
+          <div class="col">
+            <a class="btn btn-default alert-link"
+               href="{% url 'manager:topography-create' surface.id %}">
+              {% fa5_icon 'plus-square-o' %} Add measurement
+            </a>
+          </div>
+        </div>
+
+      </div>
+    {% else %}
+
+      {# --------------------- Django Form via Crispy Forms together with Vuejs ---------------------- #}
+
+      {% crispy form form.helper %}
+
+      {% if form.errors %}
+        {% for field in form %}
+            {% for error in field.errors %}
+                <div class="alert alert-danger">
+                    <strong>Field {{ field.name }}: {{ error|escape }}</strong>
+                </div>
+            {% endfor %}
+        {% endfor %}
+        {% for error in form.non_field_errors %}
+            <div class="alert alert-danger">
+                <strong>{{ error|escape }}</strong>
+            </div>
+        {% endfor %}
+      {% endif %}
+
+    {% endif %}
+  </div>
+
+{% endblock content %}
+
+{% block javascript %}
+
+  <script src="https://unpkg.com/vue@2.7.14/dist/vue.min.js"></script>
+  <script src="https://unpkg.com/vee-validate@<3.0.0"></script>
+
+  {{ user_dict | json_script:"user" }}
+  {{ form.cleaned_data | json_script:"form-cleaned-data" }}
+  {{ form.is_bound | json_script:"form-is-bound" }}
+
+  <script>
+
+  // prevent using enter to submit the form
+  $(document).ready(function() {
+    $(window).keydown(function(event){
+      if(event.keyCode == 13) {
+        event.preventDefault();
+        return false;
+      }
+    });
+  });
+
+
+  function on_submit() {
+    /*
+     * Disabling the submit button in order to prevent
+     * multiple clicks
+     */
+    let save_btn = $('#submit-id-save');
+    let cancel_btn = $('#cancel-btn');
+    cancel_btn.hide();
+    save_btn.attr("disabled", true);
+    save_btn.val("Please wait...");
+  }
+
+  function allow_new_submit() {
+    let save_btn = $('#submit-id-save');
+    let cancel_btn = $('#cancel-btn');
+    cancel_btn.show();
+    save_btn.attr("disabled", false);
+    save_btn.val("Submit again");
+  }
+
+  /**
+  * Component representing all author inputs
+  */
+  let user = JSON.parse(document.getElementById('user').textContent);
+  let form_cleaned_data = JSON.parse(document.getElementById('form-cleaned-data').textContent);
+  let form_is_bound = JSON.parse(document.getElementById('form-is-bound').textContent);
+  let max_len_authors_field = {{ max_len_authors_field }};
+
+  Vue.use(VeeValidate);
+
+  Vue.component('affiliation-component', {
+   delimiters: ['[[', ']]'],
+   props: ['affiliation', 'affiliation_idx', 'author_idx'],  // affiliation_idx counts the affilliations within one author
+   inject: ['$validator'],  // https://github.com/logaretm/vee-validate/issues/56#issuecomment-529174449
+   computed: {
+     name_input_id: function () {
+       return 'author_'+this.author_idx+'_affiliation_'+this.affiliation_idx+'_name';
+     },
+     ror_id_input_id: function () {
+       return 'author_'+this.author_idx+'_affiliation_'+this.affiliation_idx+'_ror_id';
+     }
+   },
+   template: `
+      <li>
+        <div class="form-row m-1">
+          <div class="input-group">
+            <input v-bind:id="name_input_id" class="form-control-sm col-4" type="text" placeholder="Affiliation name" v-model="affiliation.name">
+            <input v-bind:id="ror_id_input_id" class="form-control-sm col-4" type="text"
+                 v-validate="{ required: false, regex: /^0[^ilouILOU]{6}[0-9]{2}$/ }"
+                 v-bind:name="ror_id_input_id"
+                 placeholder="ROR ID (optional, format 0xxxxxxxx)"
+                 v-model.trim="affiliation.ror_id">
+            <div class="input-group-append">
+              <button class="btn btn-sm btn-secondary"
+                      title="Delete this affiliation"
+                      type="button"
+                      v-bind:class="{ disabled: $parent.num_affiliations==1 }"
+                      @click="$parent.delete_affiliation(affiliation_idx)">{% fa5_icon 'trash' %}</button>
+              <button class="btn btn-sm btn-secondary"
+                      title="Move this affiliation up"
+                      type="button"
+                      v-bind:class="{ disabled: affiliation_idx==0 }"
+                      @click="$parent.move_affiliation_up(affiliation_idx)">{% fa5_icon 'arrow-up' %}</button>
+              <button class="btn btn-sm btn-secondary"
+                      title="Move this affiliation down"
+                      type="button"
+                      v-bind:class="{ disabled: affiliation_idx==$parent.num_affiliations-1 }"
+                      @click="$parent.move_affiliation_down(affiliation_idx)">{% fa5_icon 'arrow-down' %}</button>
+              {#<button class="btn btn-sm btn-secondary"#}
+              {#        title="Add an affiliation"#}
+              {#        type="button"#}
+              {#        @click="$parent.add_affiliation(affiliation_idx+1)">{% fa5_icon 'university' %}#}
+              {#        </button>#}
+            </div>
+          </div>
+        </div>
+      </li>
+   `
+  })
+
+  Vue.component('author-component', {
+     delimiters: ['[[', ']]'],
+     props: ['author', 'author_idx'],
+     template: `
+      <div>
+        <hr>
+        <div>
+          <h3>[[ author_idx+1 ]]. Author <span v-if="author_idx == 0" class="asteriskField">*</span></h3>
+
+            <div class="form-row">
+              <div class="form-group col-md-3">
+                <label v-bind:for="'author_'+author_idx+'_first_name'">First name<span class="asteriskField">*</span></label>
+                <input v-bind:id="'author_'+author_idx+'_first_name'" class="form-control" type="text" placeholder="First name" v-model.trim="author.first_name">
+              </div>
+              <div class="form-group col-md-3">
+                <label v-bind:for="'author_'+author_idx+'_last_name'">Last name<span class="asteriskField">*</span></label>
+                <input v-bind:id="'author_'+author_idx+'_last_name'" class="form-control" type="text" placeholder="Last name" v-model.trim="author.last_name">
+              </div>
+              <div class="form-group col-md-4">
+
+                <label v-bind:for="'author_'+author_idx+'_orcid_id'">ORCID ID (optional)</label>
+                <div class="input-group">
+                <input v-bind:id="'author_'+author_idx+'_orcid_id'" class="form-control" type="text"
+                 v-validate="{ required: false, regex: /^[0-9]{4}-[0-9]{4}-[0-9]{4}-[0-9]{3}[0-9X]$/ }"
+                 v-bind:name="'author_'+author_idx+'_orcid_id'"
+                 placeholder="xxxx-xxxx-xxxx-xxxx"
+                 v-model.trim="author.orcid_id">
+                <div class="input-group-append btn-group">
+                  <button class="btn btn-secondary"
+                          title="Delete this author"
+                          type="button"
+                          v-bind:class="{ disabled: $parent.num_authors==1 }"
+                          @click="$parent.delete_author(author_idx)">{% fa5_icon 'trash' %}</button>
+                  <button class="btn btn-secondary insert-me-btn"
+                          title="Insert your name and ORCID ID as author"
+                          type="button"
+                          v-bind:class="{ }"
+                          @click="$parent.insert_user_as_author(author_idx)">{% fa5_icon 'address-card' %}</button>
+                  <button class="btn btn-secondary"
+                          title="Move this author up"
+                          type="button"
+                          v-bind:class="{ disabled: author_idx==0 }"
+                          @click="$parent.move_author_up(author_idx)">{% fa5_icon 'arrow-up' %}</button>
+                  <button class="btn btn-secondary"
+                          title="Move this author down"
+                          type="button"
+                          v-bind:class="{ disabled: author_idx==$parent.num_authors-1 }"
+                          @click="$parent.move_author_down(author_idx)">{% fa5_icon 'arrow-down' %}</button>
+                  {#<button class="btn btn-secondary"#}
+                  {#        title="Add one author"#}
+                  {#        type="button"#}
+                  {#        @click="$parent.add_author(author_idx+1)">{% fa5_icon 'user-plus' %}</button>#}
+                </div>
+                </div>
+              </div>
+            </div>
+            <div class="form-row">
+              <div class="col-8">
+                <label>[[ num_effective_affiliations ]] Affiliation<span v-if="num_effective_affiliations!=1">s</span></label>
+                <ol>
+                  <affiliation-component
+                    v-for="(affiliation, affiliation_idx) in author.affiliations"
+                    :affiliation="affiliation"
+                    :affiliation_idx="affiliation_idx"
+                    :author_idx="author_idx"
+                    :key="affiliation_idx">
+                  </affiliation-component>
+                  <button class="btn btn-sm btn-secondary"
+                    title="One more affiliation"
+                    type="button"
+                    @click="add_affiliation(num_affiliations)">{% fa5_icon 'plus' %}One more affiliation for this author
+                    </button>
+                </ol>
+              </div>
+            </div>
+
+        </div>
+        <div v-if="errors.all().length > 0" class="alert alert-danger" role="alert">
+            <span v-for="error in errors.all()">
+              [[ error ]]<br>
+            </span>
+          </ul>
+        </div>
+      </div>
+     `,
+     computed: {
+       get_full_name: function () {
+         // return this.first_name.trim() + " " + this.last_name.trim();
+         return this.author.first_name + " " + this.author.last_name;
+       },
+       get_json: function () {
+         return {
+           first_name: this.author.first_name,
+           last_name: this.author.last_name,
+           orcid_id: this.author.orcid_id,
+           affiliations: this.author.affiliations
+         };
+       },
+       num_affiliations: function () {
+         return this.author.affiliations.length;
+       },
+       num_effective_affiliations: function () {
+         let affiliations_with_name = this.author.affiliations.filter(aff => aff.name.trim().length > 0);
+         return affiliations_with_name.length;
+       }
+     },
+     methods: {
+        add_affiliation: function (target_idx) {
+          console.log("target idx for new affiliation: "+target_idx);
+         this.author.affiliations.splice(target_idx, 0, this.$parent.make_empty_affiliation())
+       },
+       delete_affiliation: function(index) {
+         // Keep at least one line
+         if (this.author.affiliations.length > 1) {
+            this.author.affiliations.splice(index, 1);
+         }
+       },
+       move_affiliation_up: function(index) {
+         if (index > 0) {
+           // swap with item before
+           let tmp = this.author.affiliations[index];
+           this.author.affiliations.splice(index, 1, this.author.affiliations[index-1]);
+           this.author.affiliations.splice(index-1, 1, tmp);
+         }
+       },
+       move_affiliation_down: function(index) {
+         if (index < this.author.affiliations.length-1) {
+           // swap with item after
+           let tmp = this.author.affiliations[index];
+           this.author.affiliations.splice(index, 1, this.author.affiliations[index+1]);  // we need to use array methods here!
+           this.author.affiliations.splice(index+1, 1, tmp);
+         }
+       },
+     }
+   }
+  );
+
+  let authors = new Vue({
+   delimiters: ['[[', ']]'],
+   el: '#authors',
+   data () {
+     let items;
+     if (form_is_bound) {
+       items = form_cleaned_data['authors_json'];
+       // collect author names if given in cleaned_data, this is needed
+       // in case the form is reloaded because of errors
+       {#for (k = 0; k < form_cleaned_data.num_author_fields; k++) {#}
+       {#  let key = `author_${k}`;#}
+       {#  items.push({ name: form_cleaned_data[key]});#}
+
+     } else { // fresh form
+       items = [this.make_empty_author()];
+     }
+     return {
+       items: items,  // array with author items
+       // max_len_authors_field: max_len_authors_field,
+       // num_authors: num_authors
+     };
+   },
+   computed: {
+     get_full_authors_string: function () {
+       let s = "";
+       if (this.items.length > 0) {
+         s += this.items[0].first_name + " " + this.items[0].last_name;
+         this.items.slice(1).forEach( function(item) {
+           if (item.last_name) {
+              s += ", " + item.first_name + " " + item.last_name;
+           }
+         })
+         return s;
+         // return s.substring(0, max_len_authors_field);
+       }
+     },
+     /*
+     has_duplicate: function() {
+       let names = this.items.map( item => item.name ).filter( item => item.length > 0 );
+       let name_set = new Set(names);
+       return name_set.size < names.length;
+     },*/
+     num_authors: function() {
+       return this.items.length;
+     },
+     authors_json: function() {
+       return JSON.stringify(this.items);
+     }
+   },
+   methods: {
+     make_empty_author: function () {
+       return {
+         first_name: '',
+         last_name: '',
+         orcid_id: '',
+         affiliations: [this.make_empty_affiliation()]
+       }
+     },
+     make_empty_affiliation: function () {
+       return {
+         name: '',
+         ror_id: '',
+       }
+     },
+     add_author: function (target_idx) {
+       console.log("target idx for new author: "+target_idx);
+       if (target_idx == -1) {
+         target_idx = this.num_authors;
+       }
+       this.items.splice(target_idx, 0, this.make_empty_author())
+     },
+     delete_author: function(index) {
+       // Keep at least one line
+       if (this.items.length > 1) {
+          this.items.splice(index, 1);
+       }
+     },
+     insert_user_as_author: function(index) {
+       this.items.splice(index, 1, {
+         first_name: user.first_name,
+         last_name: user.last_name,
+         orcid_id: user.orcid_id,
+         affiliations: [this.make_empty_affiliation()]}
+       );
+     },
+     move_author_up: function(index) {
+       if (index > 0) {
+         // swap with item before
+         let tmp = this.items[index];
+         this.items.splice(index, 1, this.items[index-1]);
+         this.items.splice(index-1, 1, tmp);
+       }
+     },
+     move_author_down: function(index) {
+       if (index < this.items.length-1) {
+         // swap with item after
+         let tmp = this.items[index];
+         this.items.splice(index, 1, this.items[index+1]);  // we need to use array methods here!
+         this.items.splice(index+1, 1, tmp);
+       }
+     },
+     update_item: function (author_input) {
+       let found_item = this.items.find(el => el.id == author_input.id)
+       found_item.name = author_input.name;
+     },
+     filter_key: function (event) {
+       let invalid_keys = [',', ';', '\t', '\n']
+       console.log("event: "+event+" key: "+event.key );
+       if (invalid_keys.includes(event.key)) {
+         return event.preventDefault();
+       }
+     }
+   }
+  });
+
+  // We want custom error messages
+  VeeValidate.configure({
+   generateMessage: (context) => {
+    const messages = {
+
+    }
+    const message = messages[context.rule.name]
+      ? messages[context.rule.name]
+      : `The field ${context.field} is invalid!`;
+    return message;
+   }
+  });
+  </script>
+{% endblock javascript %}
+

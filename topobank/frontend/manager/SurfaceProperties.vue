@@ -109,7 +109,7 @@ export default {
         <b-card-body>
             <b-alert :model-value="_error !== null"
                      variant="danger">
-                {{ _error }}
+                {{ _error.message }}
             </b-alert>
             <b-form>
                 <b-form-group id="input-group-name"

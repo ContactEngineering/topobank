@@ -1,0 +1,33 @@
+{% load icon_tags %}
+
+<div id="authors">
+  <author-component
+    v-for="(author, author_idx) in items"
+    :author="author"
+    :author_idx="author_idx"
+    :key="author_idx">
+  </author-component>
+
+{#  <div v-if="has_duplicate"#}
+{#          class="alert alert-danger">#}
+{#    Duplicate names, names should be unique#}
+{#  </div>#}
+  <hr>
+  {# Buttons for adding more authors #}
+  <div class="form-row">
+    <div class="input-group col-2 my-1">
+      <button class="btn btn-secondary"
+            type="button"
+            id="one_more_author_btn" {# for testing purpose, see splinter tests #}
+            v-on:click="add_author(num_authors)">
+        {% fa5_icon 'plus' %} One more author
+      </button>
+      <input type="hidden" name="authors_json" v-bind:value="authors_json">
+    </div>
+  </div>
+  {# Summary how authors would look like in citations #}
+  <div class='form-text text-muted mt-2 alert alert-success'>
+    Authors will listed like this: <b>[[ get_full_authors_string ]]</b>
+  </div>
+</div>
+

@@ -4,6 +4,7 @@ from io import BytesIO
 
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponse, Http404, HttpResponseForbidden
 from django.shortcuts import redirect
@@ -748,12 +749,15 @@ def force_inspect(request, pk=None):
     if not user.has_perms(['change_surface'], instance.surface):
         return HttpResponseForbidden()
 
+    _log.debug(f'Forcing renewal of cache for {instance}...')
+
     # Force renewal of cache
     run_task(instance)
     instance.save()
 
-    # Permissions were updated successfully
-    return Response(TopographySerializer(instance, context={'request': request}).data, status=200)
+    # Return current state of object
+    data = TopographySerializer(instance, context={'request': request}).data
+    return Response(data, status=200)
 
 
 @api_view(['PATCH'])
