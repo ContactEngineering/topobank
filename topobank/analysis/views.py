@@ -24,7 +24,7 @@ from .models import Analysis, AnalysisFunction, Configuration
 from .permissions import AnalysisFunctionPermissions
 from .registry import AnalysisRegistry
 from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer, ConfigurationSerializer
-from .utils import filter_and_order_analyses, palette_for_topographies
+from .utils import filter_and_order_analyses
 
 _log = logging.getLogger(__name__)
 

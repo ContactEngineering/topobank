@@ -2,10 +2,7 @@ import logging
 import math
 from collections import OrderedDict
 
-from bokeh import palettes as palettes
-
 from ..manager.models import Topography, Surface
-
 
 _log = logging.getLogger(__name__)
 
@@ -126,23 +123,6 @@ def filter_and_order_analyses(analyses):
         sorted_analyses.append(collection_analysis)
 
     return sorted_analyses
-
-
-def palette_for_topographies(nb_topographies):
-    """Return a palette to distinguish topographies by color in a plot.
-
-    Parameters
-    ----------
-    nb_topographies: int
-        Number of topographies
-    """
-    if nb_topographies <= 10:
-        topography_colors = palettes.Category10_10
-    else:
-        topography_colors = [palettes.Plasma256[k * 256 // nb_topographies] for k in range(nb_topographies)]
-        # we don't want to have yellow as first color
-        topography_colors = topography_colors[nb_topographies // 2:] + topography_colors[:nb_topographies // 2]
-    return topography_colors
 
 
 def find_children(subjects):
