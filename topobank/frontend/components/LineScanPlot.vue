@@ -13,7 +13,7 @@ const props = defineProps({
     topography: Object
 });
 
-const uid = ref(uuid4());
+const _bokehPlotElement = ref(null);
 
 onMounted(() => {
     axios.get(props.topography.squeezed_datafile, {responseType: 'arraybuffer'})
@@ -22,7 +22,7 @@ onMounted(() => {
             const x = netcdfReader.getDataVariable('x');
             const heights = netcdfReader.getDataVariable('heights');
 
-            const figure = new Plotting.Figure({
+            const figure = new Plotting.figure({
                 x_axis_label: `Position (${props.topography.unit})`,
                 y_axis_label: `Height (${props.topography.unit})`,
                 output_backend: 'svg',
@@ -48,12 +48,12 @@ onMounted(() => {
             });
 
             // Render to component
-            Plotting.show(figure, `#plot-${uid.value}`);
+            Plotting.show(figure, _bokehPlotElement.value);
         });
 });
 
 </script>
 
 <template>
-    <div :id="`plot-${uid}`"></div>
+    <div ref="_bokehPlotElement"></div>
 </template>
