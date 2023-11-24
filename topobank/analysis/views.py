@@ -136,7 +136,7 @@ def series_card_view(request, **kwargs):
     #
     # Filter only successful ones
     #
-    analyses_success = controller.get(task_states=['su'], has_result_file=True)
+    analyses_success = controller.get(task_states=['su'])
 
     #
     # order analyses such that surface analyses are coming last (plotted on top)

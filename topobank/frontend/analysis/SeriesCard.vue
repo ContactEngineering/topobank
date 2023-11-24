@@ -51,9 +51,7 @@ const _dois = ref([]);
 const _messages = ref([]);
 
 // Current task status
-let _nbFailed = 0;
 let _nbRunningOrPending = 0;
-let _nbSuccess = 0;
 
 
 onMounted(() => {
@@ -103,8 +101,6 @@ function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
         updateCard();
     }
     _nbRunningOrPending = nbRunningOrPending;
-    _nbSuccess = nbSuccess;
-    _nbFailed = nbFailed;
 }
 
 </script>

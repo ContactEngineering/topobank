@@ -324,8 +324,10 @@ function updateCategoryElements() {
     }
 
     /* Loop over elements of second category to set dash */
-    for (let [elementIndex, element] of _categoryElements.value[1].elements.entries()) {
-        element.dash = _dashes[elementIndex % _dashes.length];
+    if (_categoryElements.value[1] != null) {
+        for (let [elementIndex, element] of _categoryElements.value[1].elements.entries()) {
+            element.dash = _dashes[elementIndex % _dashes.length];
+        }
     }
 }
 
