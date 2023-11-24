@@ -1,7 +1,5 @@
 <script setup>
 
-import {v4 as uuid4} from 'uuid';
-
 import axios from "axios";
 import {onMounted, ref} from "vue";
 import {ColumnDataSource, Plotting} from "@bokeh/bokehjs";
