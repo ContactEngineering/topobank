@@ -1,6 +1,4 @@
-import itertools
 import logging
-from collections import OrderedDict
 
 from django.http import Http404
 from django.views.generic import DetailView, TemplateView
@@ -13,8 +11,6 @@ from rest_framework import mixins, viewsets, status
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
-
-import bokeh.palettes as palettes
 
 from pint import DimensionalityError, UnitRegistry, UndefinedUnitError
 
@@ -260,17 +256,8 @@ def series_card_view(request, **kwargs):
     visible_series_indices = set()  # elements: series indices, decides whether a series is visible
 
     #
-    # Prepare helpers for dashes and colors
+    # Prepare helpers
     #
-    surface_color_palette = palettes.Greys256  # surfaces are shown in black/grey
-    topography_color_palette = palette_for_topographies(nb_topographies)
-
-    dash_cycle = itertools.cycle(['solid', 'dashed', 'dotted', 'dotdash', 'dashdot'])
-
-    subject_colors = OrderedDict()  # key: subject instance, value: color
-
-    series_dashes = OrderedDict()  # key: series name
-
     DEFAULT_ALPHA_FOR_TOPOGRAPHIES = 0.3 if has_at_least_one_surface_subject else 1.0
 
     #
@@ -280,8 +267,6 @@ def series_card_view(request, **kwargs):
     # The metadata is prepared here, the data itself will be retrieved
     # by an AJAX request. The url for this request is also prepared here.
     #
-    surface_index = -1
-    topography_index = -1
     for analysis_idx, analysis in enumerate(analyses_success_list):
         #
         # Define some helper variables
@@ -302,20 +287,6 @@ def series_card_view(request, **kwargs):
                     parent_analysis = a
 
         subject_display_name = subject_names[analysis_idx]
-
-        #
-        # Decide for colors
-        #
-        if is_surface_analysis:
-            # Surface results are plotted in black/grey
-            surface_index += 1
-            subject_colors[analysis.subject_dispatch.id] = \
-                surface_color_palette[surface_index * len(surface_color_palette) // nb_surfaces]
-        elif is_topography_analysis:
-            topography_index += 1
-            subject_colors[analysis.subject_dispatch.id] = topography_color_palette[topography_index]
-        else:
-            subject_colors[analysis.subject_dispatch.id] = 'black'  # Find better colors later, if needed
 
         #
         # Handle unexpected task states for robustness, shouldn't be needed in general
@@ -378,19 +349,9 @@ def series_card_view(request, **kwargs):
                 # this series will be visible for all
 
             #
-            # Find out dashes for data series
-            #
-            if series_name not in series_dashes:
-                series_dashes[series_name] = next(dash_cycle)
-                # series_symbols[series_name] = next(symbol_cycle)
-
-            #
             # Actually plot the line
             #
             show_symbols = s['nbDataPoints'] <= MAX_NUM_POINTS_FOR_SYMBOLS if 'nbDataPoints' in s else True
-
-            curr_color = subject_colors[analysis.subject_dispatch.id]
-            curr_dash = series_dashes[series_name]
 
             # hover_name = "{} for '{}'".format(series_name, topography_name)
             line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
@@ -418,8 +379,6 @@ def series_card_view(request, **kwargs):
                 'xScaleFactor': analysis_xscale,
                 'yScaleFactor': analysis_yscale,
                 'url': series_url,
-                'color': curr_color,
-                'dash': curr_dash,
                 'width': line_width,
                 'alpha': alpha,
                 'showSymbols': show_symbols,
