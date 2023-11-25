@@ -225,7 +225,7 @@ function legendLabel(dataSource) {
     } else if (props.categories.length > 0) {
         legendLabel = dataSource[props.categories[0].key];
         const hasParentKey = "hasParent";
-        if ((dataSource[hasParentKey] !== undefined) && (dataSource[hasParentKey] === true) && !secondCategoryInLegendLabels) {
+        if ((dataSource[hasParentKey] != null) && (dataSource[hasParentKey] === true) && !secondCategoryInLegendLabels) {
             legendLabel = "└─ " + legendLabel;
             /* It is not solved yet to get the legend items in the correct order
                to display sublevels only for the correct data series and not for others,
@@ -272,7 +272,7 @@ function updateCategoryElements() {
             // Need to have the same order as index of category
             elements[elementIndex] = {
                 title: title, color: null, dash: null,
-                hasParent: hasParent === undefined ? false : hasParent,
+                hasParent: hasParent == null ? false : hasParent,
                 selected: computed({
                     get() {
                         return _categoryElementSelections[categoryIndex][elementIndex].value;
@@ -299,34 +299,41 @@ function updateCategoryElements() {
         });
     }
 
-    /* Loop over elements of first category to count number of parent and child elements */
-    let nbParents = 0;
-    let nbChildren = 0;
-    for (const element of _categoryElements.value[0].elements) {
-        if (element.hasParent) {
-            nbChildren++;
-        } else {
-            nbParents++;
+    /* Do we have any categories? */
+    if (_categoryElements.value.length > 0) {
+        /* Loop over elements of first category to count number of parent and child elements */
+        let nbParents = 0;
+        let nbChildren = 0;
+        for (const element of _categoryElements.value[0].elements) {
+            if (element.hasParent) {
+                nbChildren++;
+            } else {
+                nbParents++;
+            }
         }
-    }
 
-    /* Loop over elements of first category to set color */
-    let parentIndex = 0;
-    let childIndex = 0;
-    for (let element of _categoryElements.value[0].elements) {
-        if (element.hasParent) {
-            element.color = _childColorPalette[Math.trunc(childIndex * 256 / nbChildren)];
-            childIndex++;
-        } else {
-            element.color = _parentColorPalette[Math.trunc(parentIndex * 256 / nbParents)];
-            parentIndex++;
+        /* Loop over elements of first category to set color */
+        let parentIndex = 0;
+        let childIndex = 0;
+        for (let element of _categoryElements.value[0].elements) {
+            if (element.hasParent) {
+                element.color = _childColorPalette[Math.trunc(childIndex * 256 / nbChildren)];
+                childIndex++;
+            } else {
+                if (nbChildren === 0) {
+                    element.color = _childColorPalette[Math.trunc(parentIndex * 256 / nbParents)];
+                } else {
+                    element.color = _parentColorPalette[Math.trunc(parentIndex * 256 / nbParents)];
+                }
+                parentIndex++;
+            }
         }
-    }
 
-    /* Loop over elements of second category to set dash */
-    if (_categoryElements.value[1] != null) {
-        for (let [elementIndex, element] of _categoryElements.value[1].elements.entries()) {
-            element.dash = _dashes[elementIndex % _dashes.length];
+        /* Loop over elements of second category to set dash */
+        if (_categoryElements.value[1] != null) {
+            for (let [elementIndex, element] of _categoryElements.value[1].elements.entries()) {
+                element.dash = _dashes[elementIndex % _dashes.length];
+            }
         }
     }
 }
@@ -432,11 +439,11 @@ function createPlots() {
     /* We iterate in reverse order because we want to the first element to appear on top of the plot */
     for (const dataSource of [...props.dataSources].reverse()) {
         /* Element indices */
-        const firstElementIndex = dataSource[firstCategory.key + 'Index'];
+        const firstElementIndex = firstCategory == null ? null : dataSource[firstCategory.key + 'Index'];
         const secondElementIndex = secondCategory == null ? null : dataSource[secondCategory.key + 'Index'];
 
         /* Get element */
-        const firstElement = _categoryElements.value[0].elements[firstElementIndex];
+        const firstElement = firstCategory == null ? null : _categoryElements.value[0].elements[firstElementIndex];
         const secondElement = secondCategory == null ? null : _categoryElements.value[1].elements[secondElementIndex];
 
         for (const [plotIndex, plot] of props.plots.entries()) {
@@ -447,7 +454,7 @@ function createPlots() {
             /* Common attributes of lines and symbols */
             let attrs = {
                 visible: dataSource.visible,
-                color: firstElement.color,
+                color: firstElement == null ? 'black' : firstElement.color,
                 alpha: dataSource.isTopographyAnalysis ? Number(_opacity.value) : dataSource.alpha
             };
 
