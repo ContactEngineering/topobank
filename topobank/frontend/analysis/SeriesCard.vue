@@ -2,7 +2,9 @@
 
 import axios from "axios";
 import {v4 as uuid4} from 'uuid';
-import {computed, onMounted, ref, watch} from "vue";
+import {computed, onMounted, ref} from "vue";
+
+import {BSpinner} from 'bootstrap-vue-next';
 
 import BokehPlot from '../components/BokehPlot.vue';
 import BibliographyModal from './BibliographyModal.vue';
@@ -137,18 +139,23 @@ function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
             </a>
         </div>
         <div class="card-body">
-            <div v-if="_analyses === null || _dataSources === null || _dataSources.length === 0" class="tab-content">
-                <span class="spinner"></span>
-                <div>
-                    Analyses are not yet available, but tasks are scheduled or running. Please wait...
-                </div>
+            <div v-if="_analyses == null || _dataSources == null"
+                 class="tab-content">
+                <b-spinner type="grow" small/>
+                Collecting analysis status, please wait...
+            </div>
+            <div v-if="_analyses != null && _dataSources != null && _dataSources.length === 0"
+                 class="tab-content">
+                <b-spinner small/>
+                Analysis tasks are scheduled or running, please wait...
             </div>
 
             <div v-if="_analyses !== null && _analyses.length === 0" class="tab-content">
                 This analysis reported no results for the selected datasets.
             </div>
 
-            <div v-if="_analyses !== null && _dataSources !== null && _analyses.length > 0 && _dataSources.length > 0" class="tab-content">
+            <div v-if="_analyses !== null && _dataSources !== null && _analyses.length > 0 && _dataSources.length > 0"
+                 class="tab-content">
                 <div class="tab-pane show active" role="tabpanel" aria-label="Tab showing a plot">
                     <div :class="['alert', message.alertClass]" v-for="message in _messages">
                         {{ message.message }}
