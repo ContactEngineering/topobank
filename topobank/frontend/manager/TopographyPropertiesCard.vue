@@ -385,8 +385,10 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                                                        :disabled="!_editing || !topography.unit_editable">
                                         </b-form-select>
                                     </div>
-                                    <small>When batch editing line scans, only the first entry of the physical size
-                                        will be used to set the overall length of the line scan.</small>
+                                    <small v-if="batchEdit">
+                                        When batch editing line scans, only the first entry of the physical size
+                                        will be used to set the overall length of the line scan.
+                                    </small>
                                 </div>
                                 <div class="col-4">
                                     <label for="input-physical-size">Height scale</label>
