@@ -192,7 +192,8 @@ watch(_legendLocation, (newVal) => {
     }
 });
 
-watch(props.dataSources, (newVal, oldVal) => {
+// Watching props, see here: https://stackoverflow.com/questions/59125857/how-to-watch-props-change-with-vue-composition-api-vue-3
+watch(() => props.dataSources, (newVal, oldVal) => {
     // For some unknown reason, the dataSource watch is triggered even though it is not updated. We have to check
     // manually that the URL has changed.
     let hasChanged = newVal.length !== oldVal.length;
@@ -529,17 +530,25 @@ function createPlots() {
 
             /* Create symbols */
             if (props.showSymbols) {
-                const symbols = figure.figure.scatter(
-                    {field: "x"},
-                    {field: "y"},
-                    {
-                        ...attrs,
-                        ...{
-                            size: Number(_symbolSize.value),
-                            visible: dataSource.visible == null || dataSource.visible,
-                            marker: dataSource.hasParent ? 'x' : 'circle'
-                        }
-                    });
+                const symbolAttrs = {
+                    ...attrs,
+                    ...{
+                        size: Number(_symbolSize.value),
+                        visible: dataSource.visible == null || dataSource.visible,
+                    }
+                };
+                let symbols = null;
+                if (dataSource.hasParent) {
+                    symbols = figure.figure.x(
+                        {field: "x"},
+                        {field: "y"},
+                        symbolAttrs);
+                } else {
+                    symbols = figure.figure.circle(
+                        {field: "x"},
+                        {field: "y"},
+                        symbolAttrs);
+                }
                 const alphaAttrs = {};
                 if (plot.alphaData !== undefined) {
                     alphaAttrs.fill_alpha = {field: "alpha"};

@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 1.4.1 (2023-11-25)
+
+- MAINT: Order measurements in digital surface twin
+- BUG: Bokeh plot wrapper did not properly defined glyphs when selection is possible
+- BUG: Watching data source changes in Bokeh plot wrapper
+
 ## 1.4.0 (2023-11-25)
 
 - ENH: Batch upload (#173, #877, #905, #906, #967)
