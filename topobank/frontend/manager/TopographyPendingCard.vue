@@ -51,12 +51,12 @@ export default {
                 <h5 class="d-inline">{{ name }}</h5>
             </div>
         </div>
-        <div v-if="taskState === 'pe'"
+        <div v-if="taskState !== 'st'"
              class="card-body">
             <b-spinner small  type="grow"></b-spinner>
             Waiting for data file inspection to start...
         </div>
-        <div v-if="taskState !== 'pe'"
+        <div v-if="taskState === 'st'"
              class="card-body">
             <b-spinner small></b-spinner>
             Inspecting data file and applying filters...

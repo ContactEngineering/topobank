@@ -189,7 +189,7 @@ export default {
                     let description_html = "";
                     // DOI badge added here
                     if (node.data.publication_doi) {
-                        description_html += `<a class="badge badge-dark mr-1" href="https://doi.org/${node.data.publication_doi}">${node.data.publication_doi}</a>`;
+                        description_html += `<a class="badge bg-dark me-1 text-decoration-none" href="https://doi.org/${node.data.publication_doi}">${node.data.publication_doi}</a>`;
                     }
                     // License image
                     if (node.data.publication_license) {
@@ -448,9 +448,7 @@ export default {
 
                     <li class="ms-2">
                         <div class="input-group nav-item">
-                            <div class="input-group-prepend">
-                                <label class="input-group-text" for="page-size-select">Page size</label>
-                            </div>
+                            <label class="input-group-text" for="page-size-select">Page size</label>
                             <select name="page_size" class="custom-select" id="page-size-select" v-model="_pageSize"
                                     @change="reload()">
                                 <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==pageSize}">{{ ps }}

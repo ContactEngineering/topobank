@@ -5,9 +5,6 @@
 
     <div class="tab-content mt-2">
         <div id="app" class="tab-pane active">
-            <!--
-            Show card. Will be replaced by AJAX call.
-            -->
             <div class="card">
                 <div class="card-header">
                     <h5>{{ function.name }}</h5>
@@ -29,8 +26,7 @@
     <script src="{% static 'js/analysis_app.bundle.js' %}"></script>
     <script>
         const params = new URLSearchParams(window.location.search);
-        topobank.analysis_app.createAnalysisResultsDetailApp('#app', {
-            csrfToken: '{{ csrf_token }}',
+        topobank.analysis_app.createAnalysisResultsDetailApp('#app', '{{ csrf_token }}', {
             functionId: {{ function.id }},
             functionName: '{{ function.name }}',
             visualizationType: '{{ visualization_type }}',

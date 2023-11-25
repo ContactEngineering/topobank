@@ -2,7 +2,9 @@
 
 import axios from "axios";
 import {v4 as uuid4} from 'uuid';
-import {computed, onMounted, ref, watch} from "vue";
+import {computed, onMounted, ref} from "vue";
+
+import {BSpinner} from 'bootstrap-vue-next';
 
 import BokehPlot from '../components/BokehPlot.vue';
 import BibliographyModal from './BibliographyModal.vue';
@@ -42,6 +44,7 @@ const _categories = ref(null);
 const _dataSources = ref(null);
 const _outputBackend = ref("svg");
 const _plots = ref(null);
+const _showSymbols = ref(true);
 
 // GUI logic
 const _sidebarVisible = ref(false);
@@ -51,22 +54,13 @@ const _dois = ref([]);
 const _messages = ref([]);
 
 // Current task status
-let _nbFailed = 0;
 let _nbRunningOrPending = 0;
-let _nbSuccess = 0;
 
 
 onMounted(() => {
     updateCard();
 });
 
-/*
-watch(props.functionId, (newValue, oldValue) => {
-    // Function id may update when the user selects or deselects an analysis to show.
-    // The subject do not update in that case.
-    updateCard();
-});
- */
 
 const analysisIds = computed(() => {
     if (_analyses == null) {
@@ -92,6 +86,7 @@ function updateCard() {
             _dataSources.value = response.data.plotConfiguration.dataSources;
             _categories.value = response.data.plotConfiguration.categories;
             _outputBackend.value = response.data.plotConfiguration.outputBackend;
+            _showSymbols.value =  response.data.plotConfiguration.showSymbols;
             _dois.value = response.data.dois;
             _messages.value = response.data.messages;
         });
@@ -103,8 +98,6 @@ function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
         updateCard();
     }
     _nbRunningOrPending = nbRunningOrPending;
-    _nbSuccess = nbSuccess;
-    _nbFailed = nbFailed;
 }
 
 </script>
@@ -141,18 +134,23 @@ function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
             </a>
         </div>
         <div class="card-body">
-            <div v-if="_analyses === null || _dataSources === null || _dataSources.length === 0" class="tab-content">
-                <span class="spinner"></span>
-                <div>
-                    Analyses are not yet available, but tasks are scheduled or running. Please wait...
-                </div>
+            <div v-if="_analyses == null || _dataSources == null"
+                 class="tab-content">
+                <b-spinner type="grow" small/>
+                Collecting analysis status, please wait...
+            </div>
+            <div v-if="_analyses != null && _dataSources != null && _dataSources.length === 0"
+                 class="tab-content">
+                <b-spinner small/>
+                Analysis tasks are scheduled or running, please wait...
             </div>
 
             <div v-if="_analyses !== null && _analyses.length === 0" class="tab-content">
                 This analysis reported no results for the selected datasets.
             </div>
 
-            <div v-if="_analyses !== null && _dataSources !== null && _analyses.length > 0 && _dataSources.length > 0" class="tab-content">
+            <div v-if="_analyses !== null && _dataSources !== null && _analyses.length > 0 && _dataSources.length > 0"
+                 class="tab-content">
                 <div class="tab-pane show active" role="tabpanel" aria-label="Tab showing a plot">
                     <div :class="['alert', message.alertClass]" v-for="message in _messages">
                         {{ message.message }}
@@ -162,6 +160,7 @@ function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
                         :categories="_categories"
                         :data-sources="_dataSources"
                         :output-backend="_outputBackend"
+                        :show-symbols="_showSymbols"
                         :functionTitle="_title"
                         ref="plot">
                     </bokeh-plot>

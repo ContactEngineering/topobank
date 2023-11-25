@@ -121,31 +121,25 @@
               different techniques), you can collect all the <em>measurements</em> together in a single <em>digital
                 surface twin</em>.
             </p>
-            <p><a class="btn btn-secondary" role="button">Create a digital surface twin
-              &raquo;</a></p>
           </div>
           <div class="col-md-3">
             <h4>Measurements</h4>
             <p>For each <em>digital surface twin</em>, you must upload one or more <em>measurements</em>. These represent each
               individual measurement you performed. You can save metadata for each one, and perform basic pre-analysis.
             </p>
-            <p><a class="btn btn-secondary" href="{% url 'manager:select' %}" role="button">Select measurements
-              &raquo;</a></p>
           </div>
           <div class="col-md-3">
             <h4>Analysis workflows</h4>
             <p>A number of <em>analysis workflows</em>, such as computing the power-spectral density or the real area
-            of contact, are automatically performed on all uploaded <em>measurements</em>.
-            These analyses are stored, can be retriggered, visualized or compared.</p>
-            <p><a class="btn btn-secondary" href="{% url 'manager:select' %}" role="button">Select measurements
-              &raquo;</a></p>
+            of contact, are performed on-demand on all uploaded <em>measurements</em>.
+                Multiple analyses can be averaged to create, for example, the joint power-spectral density of a <em>digital surface twin</em>.
+            </p>
           </div>
            <div class="col-md-3">
             <h4>Sharing & publishing</h4>
              <p><em>Digital surface twins</em> can be <em>shared</em> with others for collaboration. You decide whether
                your collaborators can modify them or not.</p>
              <p>Digital surface twins can also be <em>published</em> to make them citable and accessible for everyone.</p>
-          <p><a class="btn btn-secondary" href="" role="button">Show shared data &raquo;</a></p>
           </div>
           {% else %}
           <div class="col-md-12">
