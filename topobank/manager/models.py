@@ -26,6 +26,7 @@ from django.core.validators import MinValueValidator
 from django.contrib.contenttypes.models import ContentType
 
 import tagulous.models as tm
+from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
 from guardian.shortcuts import assign_perm, remove_perm, get_perms, get_users_with_perms, get_anonymous_user
 from notifications.signals import notify
 
@@ -553,6 +554,16 @@ class Surface(models.Model, SubjectMixin):
 
     def related_surfaces(self):
         return [self]
+
+
+class SurfaceUserObjectPermission(UserObjectPermissionBase):
+    content_object = models.ForeignKey(Surface, on_delete=models.CASCADE)
+    enabled = False
+
+
+class SurfaceGroupObjectPermission(GroupObjectPermissionBase):
+    content_object = models.ForeignKey(Surface, on_delete=models.CASCADE)
+    enabled = False
 
 
 class SurfaceCollection(models.Model, SubjectMixin):
