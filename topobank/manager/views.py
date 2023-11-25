@@ -4,8 +4,7 @@ from io import BytesIO
 
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
-from django.db import transaction
-from django.db.models import Q
+from django.db.models import Prefetch, Q
 from django.http import HttpResponse, Http404, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.urls import reverse
@@ -650,7 +649,7 @@ class SurfaceViewSet(mixins.CreateModelMixin,
                      mixins.UpdateModelMixin,
                      mixins.DestroyModelMixin,
                      viewsets.GenericViewSet):
-    queryset = Surface.objects.prefetch_related('topography_set')
+    queryset = Surface.objects.prefetch_related(Prefetch('topography_set', queryset=Topography.objects.order_by('name')))
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
