@@ -529,17 +529,25 @@ function createPlots() {
 
             /* Create symbols */
             if (props.showSymbols) {
-                const symbols = figure.figure.scatter(
-                    {field: "x"},
-                    {field: "y"},
-                    {
-                        ...attrs,
-                        ...{
-                            size: Number(_symbolSize.value),
-                            visible: dataSource.visible == null || dataSource.visible,
-                            marker: dataSource.hasParent ? 'x' : 'circle'
-                        }
-                    });
+                const symbolAttrs = {
+                    ...attrs,
+                    ...{
+                        size: Number(_symbolSize.value),
+                        visible: dataSource.visible == null || dataSource.visible,
+                    }
+                };
+                let symbols = null;
+                if (dataSource.hasParent) {
+                    symbols = figure.figure.x(
+                        {field: "x"},
+                        {field: "y"},
+                        symbolAttrs);
+                } else {
+                    symbols = figure.figure.circle(
+                        {field: "x"},
+                        {field: "y"},
+                        symbolAttrs);
+                }
                 const alphaAttrs = {};
                 if (plot.alphaData !== undefined) {
                     alphaAttrs.fill_alpha = {field: "alpha"};
