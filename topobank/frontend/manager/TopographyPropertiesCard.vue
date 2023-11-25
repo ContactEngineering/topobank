@@ -238,8 +238,9 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
             </div>
             <div v-if="!batchEdit && topography != null && !_editing && !_saving && !saving"
                  class="btn-group btn-group-sm float-end">
-                <button class="btn btn-outline-secondary"
-                        :disabled="disabled || selected"
+                <button v-if="!disabled"
+                        class="btn btn-outline-secondary"
+                        :disabled="selected"
                         @click="_savedTopography = cloneDeep(topography); _editing = true">
                     <i class="fa fa-pen"></i>
                 </button>
@@ -248,18 +249,19 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
                    :href="topography.datafile">
                     <i class="fa fa-download"></i>
                 </a>
-                <button v-if="selected"
+                <button v-if="!disabled && selected"
                         class="btn btn-outline-secondary"
                         disabled>
                     <i class="fa fa-download"></i>
                 </button>
-                <button class="btn btn-outline-secondary"
-                        :disabled="disabled || selected">
+                <button v-if="!disabled"
+                        class="btn btn-outline-secondary"
+                        :disabled="selected">
                     <i class="fa fa-refresh"
                        @click="forceInspect"></i>
                 </button>
-                <button v-if="!enlarged"
-                        :disabled="disabled || selected"
+                <button v-if="!disabled && !enlarged"
+                        :disabled="selected"
                         class="btn btn-outline-secondary"
                         @click="_showDeleteModal = true">
                     <i class="fa fa-trash"></i>

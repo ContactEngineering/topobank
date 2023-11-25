@@ -288,7 +288,7 @@ const allSelected = computed({
                                                     @save:edit="saveBatchEdit"
                                                     @discard:edit="discardBatchEdit">
                         </topography-properties-card>
-                        <div v-if="_topographies.length > 0"
+                        <div v-if="isEditable && _topographies.length > 0"
                              class="d-flex mb-1">
                             <b-card>
                                 <b-form-checkbox size="sm"
@@ -300,7 +300,7 @@ const allSelected = computed({
                         </div>
                         <div v-for="(topography, index) in _topographies">
                             <topography-card v-if="topography !== null"
-                                             :selectable="true"
+                                             :selectable="isEditable"
                                              :topography-url="topography.url"
                                              :disabled="!isEditable"
                                              @delete:topography="() => deleteTopography(index)"
