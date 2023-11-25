@@ -192,7 +192,8 @@ watch(_legendLocation, (newVal) => {
     }
 });
 
-watch(props.dataSources, (newVal, oldVal) => {
+// Watching props, see here: https://stackoverflow.com/questions/59125857/how-to-watch-props-change-with-vue-composition-api-vue-3
+watch(() => props.dataSources, (newVal, oldVal) => {
     // For some unknown reason, the dataSource watch is triggered even though it is not updated. We have to check
     // manually that the URL has changed.
     let hasChanged = newVal.length !== oldVal.length;
