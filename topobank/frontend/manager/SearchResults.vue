@@ -448,9 +448,7 @@ export default {
 
                     <li class="ms-2">
                         <div class="input-group nav-item">
-                            <div class="input-group-prepend">
-                                <label class="input-group-text" for="page-size-select">Page size</label>
-                            </div>
+                            <label class="input-group-text" for="page-size-select">Page size</label>
                             <select name="page_size" class="custom-select" id="page-size-select" v-model="_pageSize"
                                     @change="reload()">
                                 <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==pageSize}">{{ ps }}
