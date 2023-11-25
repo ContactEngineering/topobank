@@ -44,6 +44,7 @@ const _categories = ref(null);
 const _dataSources = ref(null);
 const _outputBackend = ref("svg");
 const _plots = ref(null);
+const _showSymbols = ref(true);
 
 // GUI logic
 const _sidebarVisible = ref(false);
@@ -60,13 +61,6 @@ onMounted(() => {
     updateCard();
 });
 
-/*
-watch(props.functionId, (newValue, oldValue) => {
-    // Function id may update when the user selects or deselects an analysis to show.
-    // The subject do not update in that case.
-    updateCard();
-});
- */
 
 const analysisIds = computed(() => {
     if (_analyses == null) {
@@ -92,6 +86,7 @@ function updateCard() {
             _dataSources.value = response.data.plotConfiguration.dataSources;
             _categories.value = response.data.plotConfiguration.categories;
             _outputBackend.value = response.data.plotConfiguration.outputBackend;
+            _showSymbols.value =  response.data.plotConfiguration.showSymbols;
             _dois.value = response.data.dois;
             _messages.value = response.data.messages;
         });
@@ -165,6 +160,7 @@ function taskStateChanged(nbRunningOrPending, nbSuccess, nbFailed) {
                         :categories="_categories"
                         :data-sources="_dataSources"
                         :output-backend="_outputBackend"
+                        :show-symbols="_showSymbols"
                         :functionTitle="_title"
                         ref="plot">
                     </bokeh-plot>

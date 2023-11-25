@@ -92,6 +92,7 @@ const props = defineProps({
     outputBackend: String,
     height: {type: Number, default: 300},
     width: {type: Number, default: null},
+    showSymbols: {type: Boolean, default: true},
     sizingMode: {type: String, default: "scale_width"},
     aspectRatio: {type: Number, default: 2},
     uid: {
@@ -510,6 +511,8 @@ function createPlots() {
                 source: source,
             };
 
+            let renderers = [];
+
             /* Create lines */
             const line = figure.figure.line(
                 {field: "x"},
@@ -522,39 +525,44 @@ function createPlots() {
                     }
                 });
             figure.lines.unshift(line);
+            renderers.push(line);
 
             /* Create symbols */
-            const circle = figure.figure.circle(
-                {field: "x"},
-                {field: "y"},
-                {
-                    ...attrs,
+            if (props.showSymbols) {
+                const symbols = figure.figure.scatter(
+                    {field: "x"},
+                    {field: "y"},
+                    {
+                        ...attrs,
+                        ...{
+                            size: Number(_symbolSize.value),
+                            visible: dataSource.visible == null || dataSource.visible,
+                            marker: dataSource.hasParent ? 'x' : 'circle'
+                        }
+                    });
+                const alphaAttrs = {};
+                if (plot.alphaData !== undefined) {
+                    alphaAttrs.fill_alpha = {field: "alpha"};
+                }
+                symbols.selection_glyph = new Circle({
+                    ...alphaAttrs,
                     ...{
-                        size: Number(_symbolSize.value),
-                        visible: (dataSource.visible === undefined || dataSource.visible) &&
-                            (dataSource.showSymbols === undefined || dataSource.showSymbols)
+                        fill_color: attrs.color,
+                        line_color: "black",
+                        line_width: 4
                     }
                 });
-            const alphaAttrs = {};
-            if (plot.alphaData !== undefined) {
-                alphaAttrs.fill_alpha = {field: "alpha"};
+                symbols.nonselection_glyph = new Circle({
+                    ...alphaAttrs,
+                    ...{
+                        fill_color: attrs.color,
+                        line_color: null
+                    }
+                });
+                figure.symbols.unshift(symbols);
+
+                renderers.push(symbols, line);
             }
-            circle.selection_glyph = new Circle({
-                ...alphaAttrs,
-                ...{
-                    fill_color: attrs.color,
-                    line_color: "black",
-                    line_width: 4
-                }
-            });
-            circle.nonselection_glyph = new Circle({
-                ...alphaAttrs,
-                ...{
-                    fill_color: attrs.color,
-                    line_color: null
-                }
-            });
-            figure.symbols.unshift(circle);
 
             let label = legendLabel(dataSource);
 
@@ -563,7 +571,7 @@ function createPlots() {
                 legendLabels.add(label);
                 const item = new LegendItem({
                     label: label,
-                    renderers: dataSource.showSymbols ? [circle, line] : [line],
+                    renderers: renderers,
                     visible: dataSource.visible
                 });
                 figure.legendItems.unshift(item);

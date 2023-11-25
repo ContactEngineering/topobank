@@ -29,7 +29,7 @@ from .utils import filter_and_order_analyses
 _log = logging.getLogger(__name__)
 
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
-MAX_NUM_POINTS_FOR_SYMBOLS = 50
+MAX_NUM_POINTS_FOR_SYMBOLS = 10000  # Don't show symbols if more than number of data points total
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
@@ -267,6 +267,7 @@ def series_card_view(request, **kwargs):
     # The metadata is prepared here, the data itself will be retrieved
     # by an AJAX request. The url for this request is also prepared here.
     #
+    nb_data_points = 0
     for analysis_idx, analysis in enumerate(analyses_success_list):
         #
         # Define some helper variables
@@ -351,7 +352,7 @@ def series_card_view(request, **kwargs):
             #
             # Actually plot the line
             #
-            show_symbols = s['nbDataPoints'] <= MAX_NUM_POINTS_FOR_SYMBOLS if 'nbDataPoints' in s else True
+            nb_data_points += s['nbDataPoints'] if 'nbDataPoints' in s else 0
 
             # hover_name = "{} for '{}'".format(series_name, topography_name)
             line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
@@ -381,7 +382,6 @@ def series_card_view(request, **kwargs):
                 'url': series_url,
                 'width': line_width,
                 'alpha': alpha,
-                'showSymbols': show_symbols,
                 'visible': series_name_idx in visible_series_indices,  # independent of subject
                 'isSurfaceAnalysis': is_surface_analysis,
                 'isTopographyAnalysis': is_topography_analysis
@@ -398,6 +398,7 @@ def series_card_view(request, **kwargs):
             'key': "seriesName",
         },
     ]
+    plot_configuration['showSymbols'] = nb_data_points < MAX_NUM_POINTS_FOR_SYMBOLS
 
     context['plotConfiguration'] = plot_configuration
     context['messages'] = messages
