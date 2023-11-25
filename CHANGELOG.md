@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.4.0 (not yet released)
+## 1.4.0 (2023-11-25)
 
 - ENH: Batch upload (#173, #877, #905, #906, #967)
 - ENH: File errors are properly reported to the user (#207)
@@ -10,13 +10,14 @@
 - BUG: Fixes related to uploading files (#223, #261, #667)
 - BUG: Fixed automatic extraction of instrument parameters for some file formats
 - MAINT: Removing 'DATABASE_URL' environment-var from entrypoint (#1037)
-- MAINT: Bokehjs is now used plotting line scans (#972)
+- MAINT: Bokehjs is now used for plotting line scans (#972)
 - MAINT: Surface view is now largely a single-page application
 - MAINT: REST API for topography handling (#173)
 - MAINT: Major refactor of task handling code
 - MAINT: Refactor of codebase to respect hierarchy of Django apps (#1018)
 - MAINT: Cached topography properties (thumbnail, DZI, etc.) are now generated
   in a single task (#895)
+- MAINT: Removed Python Bokeh dependency (#972)
 - MAINT: Updated SurfaceTopography to 1.12.1
 
 ## 1.3.1 (2023-09-13)
