@@ -207,13 +207,14 @@ const instrumentParametersTipRadiusUnit = instrumentParameterModel('tip_radius',
          :class="{ 'border-danger border-2': !batchEdit && isMetadataIncomplete, 'bg-secondary-subtle': selected, 'bg-warning-subtle': batchEdit }">
         <div class="card-header">
             <div
-                v-if="!batchEdit && topography != null && topography.channel_names != null && topography.channel_names.length > 0"
+                v-if="!batchEdit && topography != null"
                 class="d-flex float-start">
                 <b-form-checkbox v-if="selectable" v-model="selectedModel"
                                  :disabled="_editing"
                                  size="sm">
                 </b-form-checkbox>
-                <b-form-select :options="channelOptions"
+                <b-form-select v-if="topography.channel_names != null && topography.channel_names.length > 0"
+                               :options="channelOptions"
                                v-model="topography.data_source"
                                :disabled="!_editing"
                                size="sm">

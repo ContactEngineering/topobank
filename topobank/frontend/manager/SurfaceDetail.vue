@@ -50,6 +50,7 @@ const emit = defineEmits([
 
 // Data that is displayed or can be edited
 const _data = ref(null);  // Surface data
+const _permissions = ref(null);  // Permissions
 const _topographies = ref([]);  // Topographies contained in this surface
 const _versions = ref(null);  // Published versions of this surface
 
@@ -109,6 +110,7 @@ function updateCard() {
     /* Fetch JSON describing the card */
     axios.get(`${props.surfaceUrl}?children=yes&permissions=yes`).then(response => {
         _data.value = response.data;
+        _permissions.value = response.data.permissions;
         _topographies.value = response.data.topography_set;
         _selected.value = new Array(_topographies.value.length).fill(false);  // Nothing is selected
         updateVersions();
@@ -337,14 +339,14 @@ const allSelected = computed({
                                             :description="_data.description"
                                             :category="_data.category"
                                             :tags="_data.tags"
-                                            :permission="_data.permissions.current_user.permission">
+                                            :permission="_permissions.current_user.permission">
                         </surface-properties>
                     </b-tab>
                     <b-tab v-if="_data !== null"
                            title="Permissions">
                         <surface-permissions v-if="_data.publication === null"
                                              :surface-url="_data.url"
-                                             :permissions="_data.permissions">
+                                             v-model:permissions="_permissions">
                         </surface-permissions>
                         <b-card v-if="_data.publication !== null"
                                 class="w-100">
