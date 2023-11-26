@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.4.3 (2023-11-26)
+
+- BUG: Wrong base64 encoded subject when clicking analyze in topography detail view
+
 ## 1.4.2 (2023-11-26)
 
 - MAINT: Hide elements rather than disabling them
