@@ -82,11 +82,10 @@ export default {
     <b-card>
         <template #header>
             <h5 class="float-start">Properties</h5>
-            <b-button-group v-if="!_editing && !_saving"
+            <b-button-group v-if="!_editing && !_saving && isEditable"
                             class="float-end"
                             size="sm">
                 <b-button variant="outline-secondary"
-                          :disabled="!isEditable"
                           @click="_savedName = `${_name}`; _savedDescription = `${_description}`; _editing = true">
                     <i class="fa fa-pen"></i>
                 </b-button>

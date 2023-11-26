@@ -1,8 +1,8 @@
 ---
 name: Bug report
-about: Create a report to help us improve
+about: Create a report on a bug
 title: ''
-labels: enhancement
+labels: bug
 assignees: ''
 
 ---

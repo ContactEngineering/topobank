@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 1.4.2 (2023-11-26)
+
+- MAINT: Hide elements rather than disabling them
+- MAINT: Don't allow selection (batch edit) for published topographies
+- MAINT: Disable edit button in permissions card when permissions cannot be edited
+
 ## 1.4.1 (2023-11-25)
 
 - MAINT: Order measurements in digital surface twin

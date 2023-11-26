@@ -1,74 +1,62 @@
-<script>
+<script setup>
 
 import axios from "axios";
+import {ref} from "vue";
 
 import {
-    BAlert, BButton, BButtonGroup, BCard, BCardBody, BForm, BFormSelect, BSpinner, BModal
+    BAlert, BButton, BButtonGroup, BCard, BCardBody, BForm, BFormSelect, BSpinner
 } from 'bootstrap-vue-next';
 
 import SearchUserModal from "../components/SearchUserModal.vue";
 
-export default {
-    name: 'surface-permissions',
-    components: {
-        BAlert,
-        BButton,
-        BButtonGroup,
-        BCard,
-        BCardBody,
-        BForm,
-        BFormSelect,
-        BSpinner,
-        SearchUserModal,
-        BModal
-    },
-    props: {
-        surfaceUrl: String,
-        permissions: Object,
-    },
-    data() {
-        return {
-            _editing: false,
-            _error: null,
-            _permissions: this.permissions,
-            _savedPermissions: this.permissions,
-            _saving: false,
-            _searchUser: false,
-            _options: [
-                {value: 'no-access', text: 'Revoke access (unshare digital surface twin)'},
-                {value: 'view', text: 'Allowed to view this digital surface twin'},
-                {value: 'edit', text: 'Can edit (add, remove, modify measurements)'},
-                {value: 'full', text: 'Full access (including publishing and access control)'}
-            ]
-        }
-    },
-    methods: {
-        saveCard() {
-            this._editing = false;
-            this._saving = true;
-            axios.patch(`${this.surfaceUrl}set-permissions/`, this._permissions.other_users).then(response => {
-                this._error = null;
-                this.$emit('permissions-updated', response.data);
-            }).catch(error => {
-                this._error = error;
-                this._permissions = this._savedPermissions;
-            }).finally(() => {
-                this._saving = false;
-            });
-        },
-        addUser(user) {
-            this._searchUser = false;
-            this._permissions.other_users.push({user: user, permission: 'view'});
-        }
-    }
-};
+const props = defineProps({
+    surfaceUrl: String,
+    permissions: Object
+});
+
+const emit = defineEmits([
+    'updated:permissions'
+]);
+
+const _editing = ref(false);
+const _error = ref(null);
+const _permissions = ref(props.permissions);
+const _savedPermissions = ref(props.permissions);
+const _saving = ref(false);
+const _searchUser = ref(false);
+const _options = ref([
+    {value: 'no-access', text: 'Revoke access (unshare digital surface twin)'},
+    {value: 'view', text: 'Allowed to view this digital surface twin'},
+    {value: 'edit', text: 'Can edit (add, remove, modify measurements)'},
+    {value: 'full', text: 'Full access (including publishing and access control)'}
+]);
+
+function saveCard() {
+    _editing.value = false;
+    _saving.value = true;
+    axios.patch(`${props.surfaceUrl}set-permissions/`, _permissions.value.other_users).then(response => {
+        _error.value = null;
+        emit('update:permissions', response.data);
+    }).catch(error => {
+        _error.value = error;
+        _permissions.value = this._savedPermissions;
+    }).finally(() => {
+        _saving.value = false;
+    });
+}
+
+function addUser(user) {
+    _searchUser.value = false;
+    _permissions.value.other_users.push({user: user, permission: 'view'});
+}
+
 </script>
 
 <template>
     <b-card>
         <template #header>
             <h5 class="float-start">Permissions</h5>
-            <b-button-group v-if="!_editing && !_saving"
+            <b-button-group v-if="!_editing && !_saving && _permissions.current_user.permission === 'full'"
                             class="float-end"
                             size="sm">
                 <b-button variant="outline-secondary"

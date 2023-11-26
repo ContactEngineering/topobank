@@ -1,6 +1,6 @@
 ---
 name: Refactor
-about: Create a report to help us improve
+about: Changes to code structure, typically for maintainability of the code
 title: ''
 labels: refactor
 assignees: ''
