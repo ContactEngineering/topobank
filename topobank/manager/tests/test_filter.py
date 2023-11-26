@@ -1,6 +1,8 @@
 import pytest
 from django.urls import reverse
 
+from ...publication.models import Publication
+
 from .utils import SurfaceFactory, UserFactory
 
 
@@ -15,13 +17,13 @@ def test_sharing_status_filter(api_client, example_authors, handle_usage_statist
     surface_shared_egress.share(parceval)
 
     surface_published_egress = SurfaceFactory(name="published-egress", creator=lancelot)
-    surface_published_egress.publish('cc0-1.0', example_authors)
+    Publication.publish(surface_published_egress, 'cc0-1.0', example_authors)
     # NOTE THAT THIS CREATES A COPY !!!!
 
     surface_shared_ingress = SurfaceFactory(name="shared-ingress", creator=parceval)
     surface_shared_ingress.share(lancelot)
     surface_published_ingress = SurfaceFactory(name="published-ingress", creator=parceval)
-    surface_published_ingress.publish('cc0-1.0', example_authors)
+    Publication.publish(surface_published_ingress, 'cc0-1.0', example_authors)
     surface_published_invisible = SurfaceFactory(name="invisible", creator=parceval)
 
     api_client.force_login(lancelot)

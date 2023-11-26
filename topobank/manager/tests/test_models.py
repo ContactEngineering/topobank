@@ -1,6 +1,7 @@
 """
 Tests related to the models in topobank.manager app
 """
+
 import pytest
 import datetime
 from numpy.testing import assert_allclose
@@ -10,6 +11,7 @@ from django.db import transaction
 from notifications.signals import notify
 from notifications.models import Notification
 
+from ...publication.models import Publication
 from ..models import Topography, Surface
 from .utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
 
@@ -170,16 +172,16 @@ def test_surface_to_dict(mocker, example_authors):
     fake_url = '/go/fake_url'
     fake_doi_url = 'https://doi.org/fake_url'
 
-    url_mock = mocker.patch('topobank.manager.models.Publication.get_full_url')
+    url_mock = mocker.patch('topobank.publication.models.Publication.get_full_url')
     url_mock.return_value = fake_url
 
-    doi_state_mock = mocker.patch('topobank.manager.models.Publication.doi_state', new_callable=mocker.PropertyMock)
+    doi_state_mock = mocker.patch('topobank.publication.models.Publication.doi_state', new_callable=mocker.PropertyMock)
     doi_state_mock.return_value = 'findable'
 
-    doi_url_mock = mocker.patch('topobank.manager.models.Publication.doi_url', new_callable=mocker.PropertyMock)
+    doi_url_mock = mocker.patch('topobank.publication.models.Publication.doi_url', new_callable=mocker.PropertyMock)
     doi_url_mock.return_value = fake_doi_url
 
-    publication = surface.publish(license, example_authors)
+    publication = Publication.publish(surface, license, example_authors)
 
     expected_dict_published['is_published'] = True
     expected_dict_published['publication'] = {

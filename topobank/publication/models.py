@@ -1,18 +1,20 @@
+import logging
+import math
+from io import BytesIO
+
 from django.db import models
 from django.urls import reverse
 from django.utils import timezone
-from django.utils.safestring import mark_safe
 from django.utils.http import quote
 from django.http.request import urljoin
 from django.conf import settings
 
-from io import BytesIO
-
 from datacite import schema42, DataCiteRESTClient
 from datacite.errors import DataCiteError, HttpError
 
-import logging
-
+from .utils import (AlreadyPublishedException, DOICreationException, NewPublicationTooFastException,
+                    PublicationsDisabledException, PublicationException, UnknownCitationFormat,
+                    set_publication_permissions)
 
 _log = logging.getLogger(__name__)
 
@@ -22,18 +24,7 @@ CITATION_FORMAT_FLAVORS = ['html', 'ris', 'bibtex', 'biblatex']
 DEFAULT_KEYWORDS = ['surface', 'topography']
 
 
-class UnknownCitationFormat(Exception):
-    """Exception thrown when an unknown citation format should be handled."""
 
-    def __init__(self, flavor):
-        self._flavor = flavor
-
-    def __str__(self):
-        return f"Unknown citation format flavor '{self._flavor}'."
-
-
-class DOICreationException(Exception):
-    pass
 
 
 class Publication(models.Model):
@@ -43,12 +34,13 @@ class Publication(models.Model):
     DOI_STATE_DRAFT = 'draft'
     DOI_STATE_REGISTERED = 'registered'
     DOI_STATE_FINDABLE = 'findable'
-    DOI_STATE_CHOICES = [ (k, settings.PUBLICATION_DOI_STATE_INFOS[k]['description'])
-                           for k in [DOI_STATE_DRAFT, DOI_STATE_REGISTERED, DOI_STATE_FINDABLE]]
+    DOI_STATE_CHOICES = [(k, settings.PUBLICATION_DOI_STATE_INFOS[k]['description'])
+                         for k in [DOI_STATE_DRAFT, DOI_STATE_REGISTERED, DOI_STATE_FINDABLE]]
 
     short_url = models.CharField(max_length=10, unique=True, null=True)
     surface = models.OneToOneField("manager.Surface", on_delete=models.PROTECT, related_name='publication')
-    original_surface = models.ForeignKey("manager.Surface", on_delete=models.PROTECT,  # original surface can no longer be deleted once published
+    original_surface = models.ForeignKey("manager.Surface", on_delete=models.PROTECT,
+                                         # original surface can no longer be deleted once published
                                          null=True, related_name='derived_publications')
     publisher = models.ForeignKey("users.User", on_delete=models.PROTECT)
     publisher_orcid_id = models.CharField(max_length=19, default='')  # 16 digits including 3 dashes
@@ -228,7 +220,7 @@ class Publication(models.Model):
         elif self.doi_state == Publication.DOI_STATE_DRAFT:
             return urljoin("https://doi.test.datacite.org/dois/", quote(self.doi_name, safe=''))
         else:
-            return(f"https://doi.org/{self.doi_name}")  # here we keep the slash
+            return (f"https://doi.org/{self.doi_name}")  # here we keep the slash
 
     @property
     def has_doi(self):
@@ -301,7 +293,6 @@ class Publication(models.Model):
                     ]
                 })
             creators.append(creator)
-
 
         #
         # Now construct the full dataset using the creators
@@ -411,10 +402,12 @@ class Publication(models.Model):
                 _log.info(f"Linking draft DOI '{doi_name}' for publication '{self.short_url}' to URL {pub_full_url}...")
                 rest_client.update_url(doi=doi_name, url=pub_full_url)
             elif requested_doi_state == Publication.DOI_STATE_REGISTERED:
-                _log.info(f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' linked to {pub_full_url}...")
+                _log.info(
+                    f"Creating registered DOI '{doi_name}' for publication '{self.short_url}' linked to {pub_full_url}...")
                 rest_client.private_doi(data, url=pub_full_url, doi=doi_name)
             elif requested_doi_state == Publication.DOI_STATE_FINDABLE:
-                _log.info(f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' linked to {pub_full_url}...")
+                _log.info(
+                    f"Creating findable DOI '{doi_name}' for publication '{self.short_url}' linked to {pub_full_url}...")
                 rest_client.public_doi(data, url=pub_full_url, doi=doi_name)
             else:
                 raise DataCiteError(f"Requested DOI state {requested_doi_state} is unknown.")
@@ -445,3 +438,114 @@ class Publication(models.Model):
         container_bytes.seek(0)  # rewind
         self.container.save(self.container_storage_path, container_bytes)
         _log.info("Done.")
+
+    @staticmethod
+    def publish(surface, license, authors):
+        """Publish surface.
+
+        An immutable copy is created along with a publication entry.
+        The latter is returned.
+
+        Parameters
+        ----------
+        license: str
+            One of the keys of LICENSE_CHOICES
+        authors: list
+            List of authors as list of dicts, where each dict has the
+            form as in the example below. Will be saved as-is in JSON
+            format and will be used for creating a DOI.
+
+        Returns
+        -------
+        Publication
+
+        (Fictional) Example of a dict representing an author:
+
+        {
+            'first_name': 'Melissa Kathrin'
+            'last_name': 'Miller',
+            'orcid_id': '1234-1234-1234-1224',
+            'affiliations': [
+                {
+                    'name': 'University of Westminster',
+                    'ror_id': '04ycpbx82'
+                },
+                {
+                    'name': 'New York University Paris',
+                    'ror_id': '05mq03431'
+                },
+            ]
+        }
+
+        """
+        if not settings.PUBLICATION_ENABLED:
+            raise PublicationsDisabledException()
+
+        if surface.is_published:
+            raise AlreadyPublishedException()
+
+        latest_publication = Publication.objects.filter(original_surface=surface).order_by('version').last()
+        #
+        # We limit the publication rate
+        #
+        min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
+        if (latest_publication is not None) and (min_seconds is not None):
+            delta_since_last_pub = timezone.now() - latest_publication.datetime
+            delta_secs = delta_since_last_pub.total_seconds()
+            if delta_secs < min_seconds:
+                raise NewPublicationTooFastException(latest_publication, math.ceil(min_seconds - delta_secs))
+
+        #
+        # Create a copy of this surface
+        #
+        copy = surface.deepcopy()
+
+        try:
+            set_publication_permissions(copy)
+        except PublicationException as exc:
+            # see GH 704
+            _log.error(f"Could not set permission for copied surface to publish ... "
+                       f"deleting copy (surface {copy.pk}) of surface {surface.pk}.")
+            copy.delete()
+            raise
+
+        #
+        # Create publication
+        #
+        if latest_publication:
+            version = latest_publication.version + 1
+        else:
+            version = 1
+
+        #
+        # Save local reference for the publication
+        #
+        pub = Publication.objects.create(surface=copy, original_surface=surface,
+                                         authors_json=authors,
+                                         license=license,
+                                         version=version,
+                                         publisher=surface.creator,
+                                         publisher_orcid_id=surface.creator.orcid_id)
+
+        #
+        # Try to create DOI - if this doesn't work, rollback
+        #
+        if settings.PUBLICATION_DOI_MANDATORY:
+            try:
+                pub.create_doi()
+            except DOICreationException as exc:
+                _log.error("DOI creation failed, reason: %s", exc)
+                _log.warning(f"Cannot create publication with DOI, deleting copy (surface {copy.pk}) of "
+                             f"surface {surface.pk} and publication instance.")
+                pub.delete()  # need to delete pub first because it references copy
+                copy.delete()
+                raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
+        else:
+            _log.info("Skipping creation of DOI, because it is not configured as mandatory.")
+
+        _log.info(f"Published surface {surface.name} (id: {surface.id}) " + \
+                  f"with license {license}, version {version}, authors '{authors}'")
+        _log.info(f"Direct URL of publication: {pub.get_absolute_url()}")
+        _log.info(f"DOI name of publication: {pub.doi_name}")
+
+        return pub

@@ -1,10 +1,11 @@
 import pytest
 from django.shortcuts import reverse
 
-from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
-from topobank.analysis.tests.utils import TopographyAnalysisFactory
-
 from topobank.utils import assert_in_content
+
+from topobank.analysis.tests.utils import TopographyAnalysisFactory
+from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
+from topobank.publication.models import Publication
 
 
 @pytest.mark.django_db
@@ -38,7 +39,7 @@ def test_welcome_page_statistics(client, test_instances, with_publication, handl
     surface_2.share(user_2)
 
     if with_publication:
-        surface_1.publish('cc0-1.0', 'Issac Newton')
+        Publication.publish(surface_1, 'cc0-1.0', 'Issac Newton')
 
     #
     # Test statistics if user is not yet authenticated

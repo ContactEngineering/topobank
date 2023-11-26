@@ -5,8 +5,9 @@ from django.conf import settings
 
 from freezegun import freeze_time
 
-from topobank.manager.tests.utils import Topography1DFactory, SurfaceFactory, UserFactory
-from topobank.analysis.tests.utils import AnalysisFunctionFactory, TopographyAnalysisFactory
+from ...analysis.tests.utils import TopographyAnalysisFactory
+from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, UserFactory
+from ...publication.models import Publication
 
 from ..utils import increase_statistics_by_date, increase_statistics_by_date_and_object, current_statistics
 
@@ -126,7 +127,7 @@ def test_current_statistics(stats_instances, with_publication):
     user_1, user_2, surf_1A = stats_instances
 
     if with_publication:
-        surf_1A.publish('cc0-1.0', 'Mickey Mouse')
+        Publication.publish(surf_1A, 'cc0-1.0', 'Mickey Mouse')
 
     #
     # statistics without user

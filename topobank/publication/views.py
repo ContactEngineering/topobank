@@ -19,11 +19,11 @@ from ..manager.views import download_surface
 from .models import Publication
 from .serializers import PublicationSerializer
 
+from ..manager.models import Surface
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..publication.models import MAX_LEN_AUTHORS_FIELD
 from ..publication.forms import SurfacePublishForm
-
-from ..manager.models import Surface, NewPublicationTooFastException, PublicationException
+from ..publication.utils import NewPublicationTooFastException, PublicationException
 
 _log = logging.getLogger(__name__)
 
@@ -105,7 +105,7 @@ class SurfacePublishView(FormView):
         authors = form.cleaned_data.get('authors_json')
         surface = self._get_surface()
         try:
-            surface.publish(license, authors)
+            Publication.publish(surface, license, authors)
         except NewPublicationTooFastException as exc:
             return redirect("publication:surface-publication-rate-too-high",
                             pk=surface.pk)

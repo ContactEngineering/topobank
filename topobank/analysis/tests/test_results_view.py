@@ -18,6 +18,7 @@ import topobank
 from ...manager.utils import subjects_to_base64
 from ...manager.models import Topography, Surface
 from ...manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, two_topos
+from ...publication.models import Publication
 from ...utils import assert_in_content
 from ..models import Analysis, AnalysisFunction
 from ..tasks import current_configuration, perform_analysis
@@ -616,8 +617,8 @@ def two_analyses_two_publications(test_analysis_function):
     Topography1DFactory(surface=surface1)
     surface2 = SurfaceFactory()
     Topography1DFactory(surface=surface2)
-    pub1 = surface1.publish('cc0-1.0', surface1.creator.name)
-    pub2 = surface2.publish('cc0-1.0', surface1.creator.name + ", " + surface2.creator.name)
+    pub1 = Publication.publish(surface1, 'cc0-1.0', surface1.creator.name)
+    pub2 = Publication.publish(surface2, 'cc0-1.0', surface1.creator.name + ", " + surface2.creator.name)
     pub_topo1 = pub1.surface.topography_set.first()
     pub_topo2 = pub2.surface.topography_set.first()
 

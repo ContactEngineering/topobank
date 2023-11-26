@@ -2,6 +2,7 @@ import pytest
 from django.shortcuts import reverse
 
 from ...analysis.tests.utils import TopographyAnalysisFactory
+from ...publication.models import Publication
 from ...utils import assert_in_content, assert_not_in_content
 from ..utils import selection_from_session, selection_to_instances
 from .utils import UserFactory, SurfaceFactory, Topography1DFactory
@@ -34,7 +35,7 @@ def test_anonymous_user_can_see_published(api_client, handle_usage_statistics, e
     surface = SurfaceFactory(creator=bob, name=surface_name)
     topo = Topography1DFactory(surface=surface)
 
-    pub = surface.publish('cc0-1.0', example_authors)
+    pub = Publication.publish(surface, 'cc0-1.0', example_authors)
 
     # no one is logged in now, assuming the select tab sends a search request
     response = api_client.get(reverse('manager:search'))
@@ -49,7 +50,7 @@ def test_anonymous_user_can_select_published(client, handle_usage_statistics):
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(creator=bob, name=surface_name)
     topo = Topography1DFactory(surface=surface)
-    pub = surface.publish('cc0-1.0', bob.name)
+    pub = Publication.publish(surface, 'cc0-1.0', bob.name)
     published_surface = pub.surface
     published_topo = published_surface.topography_set.first()
 

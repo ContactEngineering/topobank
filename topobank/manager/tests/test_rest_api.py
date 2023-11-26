@@ -7,6 +7,7 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_anonymous_user
 
 from ...manager.models import Surface, Topography
+from ...publication.models import Publication
 from .utils import two_topos, two_users
 
 
@@ -354,7 +355,7 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     assert Surface.objects.count() == 2
 
     # Delete of a published surface should always fail
-    pub = surface3.publish('cc0', 'Bob')
+    pub = Publication.publish(surface3, 'cc0', 'Bob')
     assert Surface.objects.count() == 3
     response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)))
     assert response.status_code == 403
@@ -481,7 +482,7 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     new_name = 'My third new name'
 
     # Patch of a published surface should always fail
-    pub = topo3.surface.publish('cc0', 'Bob')
+    pub = Publication.publish(topo3.surface, 'cc0', 'Bob')
     topo_pub, = pub.surface.topography_set.all()
     assert Topography.objects.count() == 4
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pub.id)),

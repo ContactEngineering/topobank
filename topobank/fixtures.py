@@ -1,6 +1,7 @@
 #
 # Common settings and fixtures used with pytest
 #
+
 import datetime
 
 import pytest
@@ -13,6 +14,7 @@ from trackstats.models import Domain, Metric
 from pytest_django.lazy_django import skip_if_no_django
 
 from .manager.tests.utils import SurfaceFactory
+from .publication.models import Publication
 from .users.tests.factories import UserFactory
 
 ################################################################################
@@ -156,7 +158,7 @@ def example_pub(example_authors):
     surface.tags = ['diamond']
 
     with freeze_time(publication_date):
-        pub = surface.publish('cc0-1.0', example_authors)
+        pub = Publication.publish(surface, 'cc0-1.0', example_authors)
 
     return pub
 

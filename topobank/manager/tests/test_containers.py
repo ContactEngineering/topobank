@@ -1,6 +1,7 @@
 """
 Tests for writing surface containers
 """
+
 import zipfile
 import yaml
 import pytest
@@ -11,10 +12,13 @@ from django.conf import settings
 
 import topobank
 
-from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
+from ...publication.models import Publication
 
 from ..containers import write_surface_container
 from ..models import Topography
+
+from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
+
 
 @pytest.mark.django_db
 def test_surface_container(example_authors):
@@ -58,7 +62,7 @@ def test_surface_container(example_authors):
     # surface 3 is empty
 
     # surface 2 is published
-    publication = surface2.publish('cc0-1.0', example_authors)
+    publication = Publication.publish(surface2, 'cc0-1.0', example_authors)
     surface4 = publication.surface
 
     surfaces = [surface1, surface2, surface3, surface4]
