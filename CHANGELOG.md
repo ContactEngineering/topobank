@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 1.5.0 (not yet released)
+
+- MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be supported
+  after April 2024)
+
 ## 1.4.3 (2023-11-26)
 
 - BUG: Wrong base64 encoded subject when clicking analyze in topography detail view
