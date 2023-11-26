@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.4.2 (not yet released)
+## 1.4.2 (2023-11-26)
 
 - MAINT: Hide elements rather than disabling them
 - MAINT: Don't allow selection (batch edit) for published topographies
