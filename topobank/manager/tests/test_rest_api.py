@@ -311,8 +311,6 @@ def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
     assert s.creator.name == user1.name
 
 
-from topobank.analysis.models import Analysis, AnalysisSubject
-
 @pytest.mark.django_db(transaction=True)
 def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     user1, user2 = two_users

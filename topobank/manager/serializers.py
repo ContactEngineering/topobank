@@ -4,7 +4,7 @@ from django import shortcuts
 from django.utils.translation import gettext_lazy as _
 
 from guardian.shortcuts import get_perms, get_users_with_perms
-from rest_framework import reverse, serializers
+from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..publication.serializers import PublicationSerializer

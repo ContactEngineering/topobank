@@ -2,8 +2,10 @@
 
 ## 1.5.0 (not yet released)
 
-- MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be supported
-  after April 2024)
+- MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be
+  supported after April 2024)
+- MAINT: Split `publication` app into a separate git repository and turned it
+  into an optional dependency
 
 ## 1.4.4 (2023-11-27)
 
