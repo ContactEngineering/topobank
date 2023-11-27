@@ -41,12 +41,12 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 def _analysis_result(analysis):
     func = analysis.function.get_python_function(ContentType.objects.get_for_model(analysis.subject_dispatch.get()))
-    print(ContentType.objects.get_for_model(analysis.subject_dispatch.get()),
-          analysis.kwargs,
-          analysis.function.get_default_kwargs(ContentType.objects.get_for_model(analysis.subject_dispatch.get())),
-          func)
     result = func(analysis.subject_dispatch.get(), **analysis.kwargs)
     return result
+
+
+def _failed_analysis_result(analysis):
+    return {'message': 'This analysis has failed.'}
 
 
 def _analysis_default_kwargs(analysis):
@@ -110,6 +110,17 @@ class TopographyAnalysisFactory(AnalysisFactory):
         model = Analysis
 
     subject_topography = factory.SubFactory(Topography2DFactory)
+
+
+class FailedTopographyAnalysisFactory(AnalysisFactory):
+    """Create an analysis for a topography."""
+
+    # noinspection PyMissingOrEmptyDocstring
+    class Meta:
+        model = Analysis
+
+    subject_topography = factory.SubFactory(Topography2DFactory)
+    result = factory.LazyAttribute(_failed_analysis_result)
 
 
 class SurfaceAnalysisFactory(AnalysisFactory):
