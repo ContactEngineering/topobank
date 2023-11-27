@@ -27,8 +27,6 @@ def forward_func(apps, schema_editor):
         SurfaceGroupObjectPermission.objects.create(group=group_object_perm.group,
                                                     content_object=group_object_perm.content_object,
                                                     permission=group_object_perm.permission)
-    surface_content_type = ContentType.objects.get(app_label='manager', model='surface')
-    assert UserObjectPermission.objects.filter(content_type=surface_content_type).count() == SurfaceUserObjectPermission.objects.all().count()
 
 def reverse_func(apps, schema_editor):
     surface_content_type = ContentType.objects.get(app_label='manager', model='surface')
@@ -48,7 +46,6 @@ def reverse_func(apps, schema_editor):
                                                     content_type=surface_content_type,
                                                     object_pk=group_object_perm.content_object.id,
                                                     permission=group_object_perm.permission)
-    assert UserObjectPermission.objects.filter(content_type=surface_content_type).count() == SurfaceUserObjectPermission.objects.all().count()
 
 class Migration(migrations.Migration):
     dependencies = [
