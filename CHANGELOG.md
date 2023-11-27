@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.4.4 (2023-11-27)
+
+- BUG: Fixed download of TXT, CSV or XLSX if one of the analyses has an error
+
 ## 1.4.3 (2023-11-26)
 
 - BUG: Wrong base64 encoded subject when clicking analyze in topography detail view

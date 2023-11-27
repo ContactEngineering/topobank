@@ -253,16 +253,12 @@ def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
     return s
 
 
-def _get_si_unit_conversion(result):
+def _get_si_unit_conversion(xunit, yunit):
     """Return SI units and conversion factors"""
 
     # Unit conversion tool
     ureg = pint.UnitRegistry()
     ureg.default_format = '~P'  # short and pretty
-
-    # Get original units from result dictionary
-    xunit = result['xunit']
-    yunit = result['yunit']
 
     # Convert units to SI
     xconv = 1
@@ -329,20 +325,39 @@ def download_plot_analyses_to_txt(request, analyses):
         f.write(analysis_header_for_txt_file(analysis))
 
         result = analysis.result
-        xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
+
+        # Get data from result dictionary
+        try:
+            xunit = result['xunit']
+            yunit = result['yunit']
+            xlabel = result['xlabel']
+            ylabel = result['ylabel']
+            series = result['series']
+        except KeyError:
+            # Something is wrong, check if there is an error message
+            try:
+                message = result['message']
+                f.write('# This analysis reported an error during execution:\n')
+                f.write(f'# {message}\n')
+                f.write('\n')
+            except KeyError:
+                pass
+            continue
+
+        xunit, xconv, yunit, yconv = _get_si_unit_conversion(xunit, yunit)
 
         xunit_str = '' if xunit is None else ' ({})'.format(xunit)
         yunit_str = '' if yunit is None else ' ({})'.format(yunit)
-        header = 'Columns: {}{}, {}{}'.format(result['xlabel'], xunit_str, result['ylabel'], yunit_str)
+        header = 'Columns: {}{}, {}{}'.format(xlabel, xunit_str, ylabel, yunit_str)
 
-        std_err_y_in_series = any('std_err_y' in s.keys() for s in result['series'])
+        std_err_y_in_series = any('std_err_y' in s.keys() for s in series)
         if std_err_y_in_series:
-            header += ', standard error of average {}{}'.format(result['ylabel'], yunit_str)
+            header += ', standard error of average {}{}'.format(ylabel, yunit_str)
             f.writelines([
                 '# The value "nan" for the standard error of an average indicates that no error\n',
                 '# could be computed because the average contains only a single data point.\n\n'])
 
-        for series in result['series']:
+        for series in series:
             series_data = [np.array(series['x']) * xconv, np.array(series['y']) * yconv]
             if std_err_y_in_series:
                 try:
@@ -424,10 +439,22 @@ def download_plot_analyses_to_xlsx(request, analyses):
     for analysis_idx, analysis in enumerate(analyses):
         subject = analysis.subject
         result = analysis.result
-        xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
-        column1 = '{} ({})'.format(result['xlabel'], xunit)
-        column2 = '{} ({})'.format(result['ylabel'], yunit)
-        column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
+
+        try:
+            xunit = result['xunit']
+            yunit = result['yunit']
+            xlabel = result['xlabel']
+            ylabel = result['ylabel']
+            series = result['series']
+        except KeyError:
+            # Something is wrong, skip it
+            continue
+
+        xunit, xconv, yunit, yconv = _get_si_unit_conversion(xunit, yunit)
+
+        column1 = '{} ({})'.format(xlabel, xunit)
+        column2 = '{} ({})'.format(ylabel, yunit)
+        column3 = 'standard error of {} ({})'.format(ylabel, yunit)
         column4 = 'comment'
 
         creator = str(subject.creator) if hasattr(subject, 'creator') else ''
@@ -436,7 +463,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
         instrument_parameters = str(subject.instrument_parameters) \
             if hasattr(subject, 'instrument_parameters') else ''
 
-        for series_idx, series in enumerate(result['series']):
+        for series_idx, series in enumerate(series):
             df_columns_dict = {column1: np.array(series['x']) * xconv, column2: np.array(series['y']) * yconv}
             try:
                 std_err_y_mask = series['std_err_y'].mask
@@ -584,43 +611,53 @@ def download_plot_analyses_to_csv(request, analyses):
     -------
     HTTPResponse
     """
-    analysis = analyses[0]
-    result = analysis.result
-    xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
-    column1 = '{} ({})'.format(result['xlabel'], xunit)
-    column2 = '{} ({})'.format(result['ylabel'], yunit)
-    column3 = 'standard error of {} ({})'.format(result['ylabel'], yunit)
-    column4 = 'comment'
-
-    column_subject_type = 'Subject type'
-    column_subject_name = 'Subject name'
-    column_creator = 'Creator'
-    column_instrument_name = 'Instrument name'
-    column_instrument_type = 'Instrument type'
-    column_instrument_parameters = 'Instrument parameters'
-    column_function_name = 'Function name'
-    column_data_series = 'Data series'
-
-    data = pd.DataFrame(columns=[
-        column_subject_type,
-        column_subject_name,
-        column_creator,
-        column_instrument_name,
-        column_instrument_type,
-        column_instrument_parameters,
-        column_function_name,
-        column_data_series,
-        column1,
-        column2,
-        column3,
-        column4
-    ])
-
+    data = None
     for analysis_idx, analysis in enumerate(analyses):
         # Get results and compute unit conversion factors
         result = analysis.result
         subject = analysis.subject
-        xunit, xconv, yunit, yconv = _get_si_unit_conversion(result)
+
+        try:
+            xunit = result['xunit']
+            yunit = result['yunit']
+            xlabel = result['xlabel']
+            ylabel = result['ylabel']
+            series = result['series']
+        except KeyError:
+            # Something is wrong, skip it
+            continue
+
+        xunit, xconv, yunit, yconv = _get_si_unit_conversion(xunit, yunit)
+
+        if data is None:
+            column1 = '{} ({})'.format(xlabel, xunit)
+            column2 = '{} ({})'.format(ylabel, yunit)
+            column3 = 'standard error of {} ({})'.format(ylabel, yunit)
+            column4 = 'comment'
+
+            column_subject_type = 'Subject type'
+            column_subject_name = 'Subject name'
+            column_creator = 'Creator'
+            column_instrument_name = 'Instrument name'
+            column_instrument_type = 'Instrument type'
+            column_instrument_parameters = 'Instrument parameters'
+            column_function_name = 'Function name'
+            column_data_series = 'Data series'
+
+            data = pd.DataFrame(columns=[
+                column_subject_type,
+                column_subject_name,
+                column_creator,
+                column_instrument_name,
+                column_instrument_type,
+                column_instrument_parameters,
+                column_function_name,
+                column_data_series,
+                column1,
+                column2,
+                column3,
+                column4
+            ])
 
         # FIXME! Check that columns are actually identical
         # _column1 = '{} ({})'.format(result['xlabel'], xunit)
@@ -638,7 +675,7 @@ def download_plot_analyses_to_csv(request, analyses):
         instrument_parameters = str(subject.instrument_parameters) \
             if hasattr(subject, 'instrument_parameters') else ''
 
-        for series_idx, series in enumerate(result['series']):
+        for series_idx, series in enumerate(series):
             x = np.array(series['x'])
             y = np.array(series['y'])
             df_columns_dict = {
@@ -668,7 +705,8 @@ def download_plot_analyses_to_csv(request, analyses):
             data = pd.concat([data, pd.DataFrame(df_columns_dict)])
 
     f = io.StringIO()
-    data.to_csv(f, sep=';', index=False)
+    if data is not None:
+        data.to_csv(f, sep=';', index=False)
     response = HttpResponse(f.getvalue(), content_type='application/text')
     filename = f'{slugify(analysis.function.name)}.csv'
     response['Content-Disposition'] = 'attachment; filename="{}"'.format(filename)
