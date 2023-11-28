@@ -1,9 +1,9 @@
 import pytest
 from django.urls import reverse
 
-from ...publication.models import Publication
-
 from .utils import SurfaceFactory, UserFactory
+
+from topobank_publication.models import Publication
 
 
 @pytest.mark.django_db
@@ -37,7 +37,6 @@ def test_sharing_status_filter(api_client, example_authors, handle_usage_statist
     result = api_client.get(reverse('manager:search') + '?sharing_status=shared_ingress').data["page_results"]
     assert len(result) == 1
     assert result[0]['name'] == "shared-ingress"
-
 
     result = api_client.get(reverse('manager:search') + '?sharing_status=published_ingress').data["page_results"]
     assert len(result) == 1

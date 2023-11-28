@@ -18,11 +18,12 @@ import topobank
 from ...manager.utils import subjects_to_base64
 from ...manager.models import Topography, Surface
 from ...manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, two_topos
-from ...publication.models import Publication
 from ...utils import assert_in_content
 from ..models import Analysis, AnalysisFunction
 from ..tasks import current_configuration, perform_analysis
 from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
+
+from topobank_publication.models import Publication
 
 
 def selection_from_instances(instances):

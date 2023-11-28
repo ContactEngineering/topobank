@@ -7,8 +7,9 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_anonymous_user
 
 from ...manager.models import Surface, Topography
-from ...publication.models import Publication
 from .utils import two_topos, two_users
+
+from topobank_publication.models import Publication
 
 
 @pytest.mark.django_db

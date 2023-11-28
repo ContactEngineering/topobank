@@ -12,12 +12,12 @@ from django.conf import settings
 
 import topobank
 
-from ...publication.models import Publication
-
 from ..containers import write_surface_container
 from ..models import Topography
 
 from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
+
+from topobank_publication.models import Publication
 
 
 @pytest.mark.django_db

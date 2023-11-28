@@ -7,9 +7,9 @@ from freezegun import freeze_time
 
 from ...analysis.tests.utils import TopographyAnalysisFactory
 from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, UserFactory
-from ...publication.models import Publication
-
 from ..utils import increase_statistics_by_date, increase_statistics_by_date_and_object, current_statistics
+
+from topobank_publication.models import Publication
 
 
 @pytest.mark.skipif(not settings.ENABLE_USAGE_STATS, reason='Usage statistics not enabled')
