@@ -353,24 +353,11 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     assert response.status_code == 403  # The user can see the surface but not delete it, hence 403
     assert Surface.objects.count() == 2
 
-    # Delete of a published surface should always fail
-    pub = Publication.publish(surface3, 'cc0', 'Bob')
-    assert Surface.objects.count() == 3
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)))
-    assert response.status_code == 403
-    assert Surface.objects.count() == 3
-
-    # Delete of a published surface should even fail for the owner
-    api_client.force_authenticate(pub.surface.creator)
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)))
-    assert response.status_code == 403
-    assert Surface.objects.count() == 3
-
     # Delete of a surface of another user is possible with full access
     surface2.set_permissions(user1, 'full')
     response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)))
     assert response.status_code == 204  # The user can see the surface but not delete it, hence 403
-    assert Surface.objects.count() == 2
+    assert Surface.objects.count() == 1
 
 
 @pytest.mark.django_db

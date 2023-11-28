@@ -65,11 +65,12 @@ def test_surface_container(example_authors):
     # surface 3 is empty
 
     # surface 2 is published
-    if Publication is None:
+    if Publication is not None:
         publication = Publication.publish(surface2, 'cc0-1.0', example_authors)
-    surface4 = publication.surface
-
-    surfaces = [surface1, surface2, surface3, surface4]
+        surface4 = publication.surface
+        surfaces = [surface1, surface2, surface3, surface4]
+    else:
+        surfaces = [surface1, surface2, surface3]
 
     # make sure all squeezed files have been generated
     for t in [topo1a, topo1b, topo2a]:
@@ -118,29 +119,27 @@ def test_surface_container(example_authors):
         assert not meta_surfaces[0]['is_published']
         assert not meta_surfaces[1]['is_published']
         assert not meta_surfaces[2]['is_published']
-        if Publication is None:
-            assert not meta_surfaces[3]['is_published']
-        else:
+        if Publication is not None:
             assert meta_surfaces[3]['is_published']
-        meta_surface4 = meta_surfaces[3]
-        meta_surface_4_pub = meta_surface4['publication']
-        assert meta_surface_4_pub['authors'] == "Hermione Granger, Harry Potter"
-        assert meta_surface_4_pub['license'] == settings.CC_LICENSE_INFOS['cc0-1.0']['option_name']
-        assert meta_surface_4_pub['version'] == 1
+            meta_surface4 = meta_surfaces[3]
+            meta_surface_4_pub = meta_surface4['publication']
+            assert meta_surface_4_pub['authors'] == "Hermione Granger, Harry Potter"
+            assert meta_surface_4_pub['license'] == settings.CC_LICENSE_INFOS['cc0-1.0']['option_name']
+            assert meta_surface_4_pub['version'] == 1
 
-        # check some topography fields
-        topo_meta = meta_surface4['topographies'][0]
-        assert topo_meta['tags'] == ['apple', 'banana']
-        for field in ['is_periodic', 'description', 'detrend_mode',
-                      'data_source', 'measurement_date', 'name', 'unit']:
-            assert topo_meta[field] == getattr(topo2a, field)
-        assert topo_meta['size'] == [topo2a.size_x, topo2a.size_y]
+            # check some topography fields
+            topo_meta = meta_surface4['topographies'][0]
+            assert topo_meta['tags'] == ['apple', 'banana']
+            for field in ['is_periodic', 'description', 'detrend_mode',
+                          'data_source', 'measurement_date', 'name', 'unit']:
+                assert topo_meta[field] == getattr(topo2a, field)
+            assert topo_meta['size'] == [topo2a.size_x, topo2a.size_y]
 
-        assert topo_meta['instrument'] == {
-            'name': instrument_name,
-            'type': instrument_type,
-            'parameters': instrument_params,
-        }
+            assert topo_meta['instrument'] == {
+                'name': instrument_name,
+                'type': instrument_type,
+                'parameters': instrument_params,
+            }
 
         # topo1a should have an height_scale_factor in meta data because
         # this information is not included in the data file
