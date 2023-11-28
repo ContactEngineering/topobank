@@ -86,10 +86,6 @@ urlpatterns = [
                       include("topobank.manager.urls", namespace="manager"),
                   ),
                   path(
-                      "go/",  # shorter than 'publication'
-                      include("topobank_publication.urls", namespace="publication"),
-                  ),
-                  path(
                       "analysis/",
                       include("topobank.analysis.urls", namespace="analysis"),
                   ),
@@ -104,6 +100,15 @@ urlpatterns = [
             ] + static(
                 settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
             )
+
+try:
+    import topobank_publications
+    urlpatterns += [path(
+            "go/",  # shorter than 'publication'
+            include("topobank_publication.urls", namespace="publication"),
+        )]
+except ModuleNotFoundError:
+    pass
 
 if settings.CHALLENGE_REDIRECT_URL:
     urlpatterns += [
