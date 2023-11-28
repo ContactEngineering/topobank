@@ -6,7 +6,10 @@ from topobank.utils import assert_in_content
 from topobank.analysis.tests.utils import TopographyAnalysisFactory
 from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
 
-from topobank_publication.models import Publication
+try:
+    from topobank_publication.models import Publication
+except ModuleNotFoundError:
+    Publication = None
 
 
 @pytest.mark.django_db
@@ -33,7 +36,7 @@ def test_instances(test_analysis_function):
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize('with_publication', [False, True])
+@pytest.mark.parametrize('with_publication', [False] if Publication is None else [False, True])
 def test_welcome_page_statistics(client, test_instances, with_publication, handle_usage_statistics):
 
     (user_1, user_2), (surface_1, surface_2), (topography_1,) = test_instances

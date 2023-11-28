@@ -17,7 +17,10 @@ from ..models import Topography
 
 from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
 
-from topobank_publication.models import Publication
+try:
+    from topobank_publication.models import Publication
+except ModuleNotFoundError:
+    Publication = None
 
 
 @pytest.mark.django_db
@@ -62,7 +65,8 @@ def test_surface_container(example_authors):
     # surface 3 is empty
 
     # surface 2 is published
-    publication = Publication.publish(surface2, 'cc0-1.0', example_authors)
+    if Publication is None:
+        publication = Publication.publish(surface2, 'cc0-1.0', example_authors)
     surface4 = publication.surface
 
     surfaces = [surface1, surface2, surface3, surface4]
@@ -114,7 +118,10 @@ def test_surface_container(example_authors):
         assert not meta_surfaces[0]['is_published']
         assert not meta_surfaces[1]['is_published']
         assert not meta_surfaces[2]['is_published']
-        assert meta_surfaces[3]['is_published']
+        if Publication is None:
+            assert not meta_surfaces[3]['is_published']
+        else:
+            assert meta_surfaces[3]['is_published']
         meta_surface4 = meta_surfaces[3]
         meta_surface_4_pub = meta_surface4['publication']
         assert meta_surface_4_pub['authors'] == "Hermione Granger, Harry Potter"
