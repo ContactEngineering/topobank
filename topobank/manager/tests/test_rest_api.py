@@ -9,8 +9,6 @@ from guardian.shortcuts import get_anonymous_user
 from ...manager.models import Surface, Topography
 from .utils import two_topos, two_users
 
-from topobank_publication.models import Publication
-
 
 @pytest.mark.django_db
 @pytest.mark.parametrize('is_authenticated,with_children', [[True, False],
@@ -464,21 +462,3 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     assert Topography.objects.count() == 3
     topo1, topo2, topo3 = Topography.objects.all()
     assert topo2.name == new_name
-
-    new_name = 'My third new name'
-
-    # Patch of a published surface should always fail
-    pub = Publication.publish(topo3.surface, 'cc0', 'Bob')
-    topo_pub, = pub.surface.topography_set.all()
-    assert Topography.objects.count() == 4
-    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pub.id)),
-                                {'name': new_name})
-    assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
-    assert Surface.objects.count() == 4
-
-    # Delete of a published surface should even fail for the owner
-    api_client.force_authenticate(pub.surface.creator)
-    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pub.id)),
-                                {'name': new_name})
-    assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
-    assert Surface.objects.count() == 4

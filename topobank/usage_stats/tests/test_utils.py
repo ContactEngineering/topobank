@@ -9,7 +9,10 @@ from ...analysis.tests.utils import TopographyAnalysisFactory
 from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, UserFactory
 from ..utils import increase_statistics_by_date, increase_statistics_by_date_and_object, current_statistics
 
-from topobank_publication.models import Publication
+try:
+    from topobank_publication.models import Publication
+except ModuleNotFoundError:
+    Publication = None
 
 
 @pytest.mark.skipif(not settings.ENABLE_USAGE_STATS, reason='Usage statistics not enabled')
@@ -121,7 +124,7 @@ def stats_instances(db, test_analysis_function):
     return user_1, user_2, surf_1A
 
 
-@pytest.mark.parametrize('with_publication', [False, True])
+@pytest.mark.parametrize('with_publication', [False] if Publication is None else [False, True])
 @pytest.mark.django_db
 def test_current_statistics(stats_instances, with_publication):
     user_1, user_2, surf_1A = stats_instances
