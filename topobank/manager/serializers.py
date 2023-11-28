@@ -13,7 +13,10 @@ from ..users.serializers import UserSerializer
 from .models import Surface, Topography, TagModel
 from .utils import get_search_term, filtered_topographies, subjects_to_base64, guardian_to_api
 
-from topobank_publication.serializers import PublicationSerializer
+try:
+    from topobank_publication.serializers import PublicationSerializer
+except ModuleNotFoundError:
+    PublicationSerializer = None
 
 _log = logging.getLogger(__name__)
 
@@ -161,22 +164,26 @@ class SurfaceSerializer(StrictFieldMixin,
                   'category',
                   'creator',
                   'description',
-                  'publication',
                   'tags',
                   'topography_set',
                   'permissions']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
-    # publication = serializers.HyperlinkedRelatedField(view_name='publication:publication-api-detail', read_only=True)
-    publication = PublicationSerializer(read_only=True)
     topography_set = TopographySerializer(many=True, read_only=True)
 
     tags = TagRelatedManagerField(required=False)
 
     permissions = serializers.SerializerMethodField()
 
+    publication = None if PublicationSerializer is None else PublicationSerializer(read_only=True)
+
     def __init__(self, *args, **kwargs):
+        if PublicationSerializer is not None:
+            # We have the topobank-publication module
+            if 'publication' not in self.Meta.fields:
+                self.Meta.fields += ['publication']
+
         super().__init__(*args, **kwargs)
 
         # We only return the topography set if requested to do so
