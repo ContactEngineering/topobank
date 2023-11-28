@@ -105,14 +105,20 @@ class PublishedSurfaceManager(models.Manager):
     """Manager which works on published surfaces."""
 
     def get_queryset(self):
-        return super().get_queryset().exclude(publication__isnull=True)
+        if hasattr(Surface, 'publication'):
+            return super().get_queryset().exclude(publication__isnull=True)
+        else:
+            return super().get_queryset().none()
 
 
 class UnpublishedSurfaceManager(models.Manager):
     """Manager which works on unpublished surfaces."""
 
     def get_queryset(self):
-        return super().get_queryset().filter(publication__isnull=True)
+        if hasattr(Surface, 'publication'):
+            return super().get_queryset().filter(publication__isnull=True)
+        else:
+            return super().get_queryset().none()
 
 
 class SubjectMixin:
