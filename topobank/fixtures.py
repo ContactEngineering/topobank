@@ -14,8 +14,9 @@ from trackstats.models import Domain, Metric
 from pytest_django.lazy_django import skip_if_no_django
 
 from .manager.tests.utils import SurfaceFactory
-from .publication.models import Publication
 from .users.tests.factories import UserFactory
+
+from topobank_publication.models import Publication
 
 ################################################################################
 # remove these deps once the fixtures have been moved to extension projects

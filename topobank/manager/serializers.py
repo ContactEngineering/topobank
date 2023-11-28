@@ -7,12 +7,13 @@ from guardian.shortcuts import get_perms, get_users_with_perms
 from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from ..publication.serializers import PublicationSerializer
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
 
 from .models import Surface, Topography, TagModel
 from .utils import get_search_term, filtered_topographies, subjects_to_base64, guardian_to_api
+
+from topobank_publication.serializers import PublicationSerializer
 
 _log = logging.getLogger(__name__)
 

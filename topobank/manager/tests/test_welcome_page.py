@@ -5,7 +5,8 @@ from topobank.utils import assert_in_content
 
 from topobank.analysis.tests.utils import TopographyAnalysisFactory
 from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
-from topobank.publication.models import Publication
+
+from topobank_publication.models import Publication
 
 
 @pytest.mark.django_db

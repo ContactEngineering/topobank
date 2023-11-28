@@ -116,7 +116,6 @@ LOCAL_APPS = [
     'topobank.analysis.apps.AnalysisAppConfig',
     'topobank.usage_stats.apps.UsageStatsAppConfig',
     'topobank.tabnav.apps.TabNavAppConfig',
-    'topobank.publication.apps.PublicationAppConfig',
     'topobank.organizations.apps.OrganizationsAppConfig',
 ]
 

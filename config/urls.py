@@ -87,7 +87,7 @@ urlpatterns = [
                   ),
                   path(
                       "go/",  # shorter than 'publication'
-                      include("topobank.publication.urls", namespace="publication"),
+                      include("topobank_publication.urls", namespace="publication"),
                   ),
                   path(
                       "analysis/",
