@@ -102,7 +102,7 @@ urlpatterns = [
             )
 
 try:
-    import topobank_publications
+    import topobank_publication
     urlpatterns += [path(
             "go/",  # shorter than 'publication'
             include("topobank_publication.urls", namespace="publication"),
