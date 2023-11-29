@@ -242,7 +242,7 @@ def current_statistics(user=None):
         if user:
             unpublished_surfaces = Surface.objects.filter(creator=user)
         else:
-            unpublished_surfaces = Surface.objects.filter()
+            unpublished_surfaces = Surface.objects.all()
     unpublished_topographies = Topography.objects.filter(surface__in=unpublished_surfaces)
     unpublished_analyses = Analysis.objects.filter(subject_dispatch__topography__in=unpublished_topographies)
 
