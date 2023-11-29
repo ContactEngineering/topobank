@@ -63,18 +63,6 @@ def _get_unit(channel):
     return channel.unit
 
 
-
-
-class LoadTopographyException(Exception):
-    """Failure while loading data for a topography."""
-    pass
-
-
-class PlotTopographyException(Exception):
-    """Failure while plotting topography."""
-    pass
-
-
 class ThumbnailGenerationException(Exception):
     """Failure while generating thumbnails for a topography."""
 
@@ -99,26 +87,6 @@ class TagModel(tm.TagTreeModel):
         force_lowercase = True
         # not needed yet
         # autocomplete_view = 'manager:autocomplete-tags'
-
-
-class PublishedSurfaceManager(models.Manager):
-    """Manager which works on published surfaces."""
-
-    def get_queryset(self):
-        if hasattr(Surface, 'publication'):
-            return super().get_queryset().exclude(publication__isnull=True)
-        else:
-            return super().get_queryset().none()
-
-
-class UnpublishedSurfaceManager(models.Manager):
-    """Manager which works on unpublished surfaces."""
-
-    def get_queryset(self):
-        if hasattr(Surface, 'publication'):
-            return super().get_queryset().filter(publication__isnull=True)
-        else:
-            return super().get_queryset().none()
 
 
 class SubjectMixin:
@@ -187,10 +155,6 @@ class Surface(models.Model, SubjectMixin):
     tags = tm.TagField(to=TagModel)
     creation_datetime = models.DateTimeField(auto_now_add=True)
     modification_datetime = models.DateTimeField(auto_now=True)
-
-    objects = models.Manager()
-    published = PublishedSurfaceManager()
-    unpublished = UnpublishedSurfaceManager()
 
     class Meta:
         ordering = ['name']
@@ -382,7 +346,6 @@ class Surface(models.Model, SubjectMixin):
 
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
         return copy
-
 
     @property
     def is_published(self):
