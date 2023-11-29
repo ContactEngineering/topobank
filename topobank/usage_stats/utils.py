@@ -237,9 +237,9 @@ def current_statistics(user=None):
     if hasattr(Surface, 'publication'):
         kwargs['publication__isnull'] = True
     if user:
-        unpublished_surfaces = Surface.object.filter(creator=user, **kwargs)
+        unpublished_surfaces = Surface.objects.filter(creator=user, **kwargs)
     else:
-        unpublished_surfaces = Surface.object.filter(**kwargs)
+        unpublished_surfaces = Surface.objects.filter(**kwargs)
     unpublished_topographies = Topography.objects.filter(surface__in=unpublished_surfaces)
     unpublished_analyses = Analysis.objects.filter(subject_dispatch__topography__in=unpublished_topographies)
 
