@@ -377,11 +377,6 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
                 })
             urls['download'] = shortcuts.reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
 
-        if 'publish_surface' in perms and PublicationSerializer is not None:
-            urls.update({
-                'publish': shortcuts.reverse('publication:surface-publish', kwargs=dict(pk=obj.pk)),
-            })
-
         return urls
 
     def get_selected(self, obj):
