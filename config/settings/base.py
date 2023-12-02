@@ -125,7 +125,17 @@ PLUGIN_APPS = []
 for entry_point in iter_entry_points(group='topobank.plugins', name=None):
     if entry_point.module_name in TOPOBANK_PLUGINS_EXCLUDE:
         continue
-    PLUGIN_APPS.append(entry_point.module_name)
+    # Some name mangling
+    plugin_name = entry_point.module_name
+    if plugin_name.startswith('topobank_'):
+        plugin_name = plugin_name[9:]
+    plugin_name = plugin_name[0:1].upper() + plugin_name[1:]
+    plugin_config = f'{entry_point.module_name}.apps.{plugin_name}PluginConfig'
+    try:
+        __import__(plugin_config)
+        PLUGIN_APPS.append(plugin_config)
+    except ImportError:
+        _log.info(f"Plugin with module name '{entry_point.module_name}' detected, but import failed. Disabling it.")
 _log.info('Topobank detected the following plugins:', PLUGIN_APPS)
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps

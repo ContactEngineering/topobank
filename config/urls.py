@@ -101,15 +101,6 @@ urlpatterns = [
                 settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
             )
 
-try:
-    import topobank_publication
-    urlpatterns += [path(
-            "go/",  # shorter than 'publication'
-            include("topobank_publication.urls", namespace="publication"),
-        )]
-except ModuleNotFoundError:
-    pass
-
 if settings.CHALLENGE_REDIRECT_URL:
     urlpatterns += [
         path(
@@ -175,6 +166,16 @@ for app in apps.get_app_configs():
                     # include((url_module.urlpatterns, app.label))
                 )
             )
+            if hasattr(url_module, 'toplevel_urls'):
+                prefix, patterns = url_module.topolevel_urls
+                plugin_patterns.append(
+                    path(
+                        prefix,
+                        # Allow access only if plugin available
+                        include((plugin_urls(patterns, app_name=app.name), app.label))
+                    )
+                )
+
 urlpatterns.extend(plugin_patterns)
 
 # Idea, also by Raphael Michel (Djangocon 2019): Auto-wrap all plugin views in a decorator

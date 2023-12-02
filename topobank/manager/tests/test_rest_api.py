@@ -9,11 +9,6 @@ from guardian.shortcuts import get_anonymous_user
 from ...manager.models import Surface, Topography
 from .utils import two_topos, two_users
 
-try:
-    from topobank_publication.models import Publication
-except ModuleNotFoundError:
-    Publication = None
-
 @pytest.mark.django_db
 @pytest.mark.parametrize('is_authenticated,with_children', [[True, False],
                                                             [False, False],
@@ -79,7 +74,7 @@ def test_surface_retrieve_routes(api_client, is_authenticated, with_children, tw
                                          'data_source': 0,
                                          'is_metadata_complete': True
                                          }]}
-    if Publication is not None:
+    if hasattr(Surface, 'publication'):
         surface1_dict['publication'] = None
     surface2_dict = {'category': None,
                      'creator': f'http://testserver/users/api/user/{user.id}/',
@@ -128,7 +123,7 @@ def test_surface_retrieve_routes(api_client, is_authenticated, with_children, tw
                                          'data_source': 0,
                                          'is_metadata_complete': True
                                          }]}
-    if Publication is not None:
+    if hasattr(Surface, 'publication'):
         surface2_dict['publication'] = None
 
     if not with_children:
