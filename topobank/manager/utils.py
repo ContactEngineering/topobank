@@ -21,7 +21,7 @@ from django.contrib.postgres.search import SearchVector, SearchQuery
 from rest_framework.reverse import reverse
 
 from guardian.core import ObjectPermissionChecker
-from guardian.shortcuts import get_objects_for_user, get_users_with_perms, UserObjectPermission
+from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
@@ -205,87 +205,6 @@ def filter_queryset_by_search_term(qs, search_term, search_fields):
         search=SearchQuery(search_term, config="english", search_type='websearch')
         # search__icontains=search_term  # alternative, which finds substrings but does not allow for expressions
     ).distinct('id').order_by('id')
-
-
-def filtered_surfaces(request):
-    """Return queryset with surfaces matching all filter criteria.
-
-    Surfaces should be
-    - readable by the current user
-    - filtered by category and sharing status
-    - filtered by search expression, if given
-
-    Parameters
-    ----------
-    request
-        Request instance
-
-    Returns
-    -------
-        Filtered queryset of surfaces
-    """
-
-    user = request.user
-    # start with all surfaces which are visible for the user
-    qs = surfaces_for_user(user)
-
-    #
-    # Filter by category and sharing status
-    #
-    category = get_category(request)
-    if category != 'all':
-        qs = qs.filter(category=category)
-
-    sharing_status = get_sharing_status(request)
-
-    match sharing_status:
-        case 'own':
-            qs = qs.filter(creator=user)
-        case 'shared_ingress':
-            qs = qs.filter(~Q(creator=user)).exclude(publication__isnull=False)  # exclude published and own surfaces
-        case 'published_ingress':
-            qs = qs.exclude(publication__isnull=True).exclude(creator=user)  # exclude unpublished and own surfaces
-        case 'shared_egress':
-            viewable_surfaces_perms = (UserObjectPermission.objects
-                                       .filter(permission__codename='view_surface')     # only view permissions
-                                       .filter(content_type__app_label='manager', content_type__model='surface')
-                                       .exclude(user=user))  # not own permissions
-            surface_ids = [x[0] for x in viewable_surfaces_perms.values_list("object_pk")]
-            qs = qs.filter(creator=user, id__in=surface_ids, publication__isnull=True)  # own surfaces, shared with others, unpublished
-        case 'published_egress':
-            qs = qs.filter(publication__isnull=False, creator=user)
-        case 'all':
-            pass
-    #
-    # Filter by search term
-    #
-    search_term = get_search_term(request)
-    if search_term:
-        #
-        # search specific fields of all surfaces in a 'websearch' manner:
-        # combine phrases by "AND", allow expressions and quotes
-        #
-        # See https://docs.djangoproject.com/en/3.2/ref/contrib/postgres/search/#full-text-search
-        # for details.
-        #
-        # We introduce an extra field for search in tag names where the tag names
-        # are changed so that the tokenizer splits the names into multiple words
-        qs = qs.annotate(
-            tag_names_for_search=Replace(
-                Replace('tags__name', Value('.'), Value(' ')),  # replace . with space
-                Value('/'), Value(' ')),  # replace / with space
-            topography_tag_names_for_search=Replace(  # same for the topographies
-                Replace('topography__tags__name', Value('.'), Value(' ')),
-                Value('/'), Value(' ')),
-            topography_name_for_search=Replace('topography__name', Value('.'), Value(' '), output_field=TextField())
-            # often there are filenames
-        ).distinct('id').order_by('id')
-        qs = filter_queryset_by_search_term(qs, search_term, [
-            'description', 'name', 'creator__name', 'tag_names_for_search',
-            'topography_name_for_search', 'topography__description', 'topography_tag_names_for_search',
-            'topography__creator__name',
-        ])
-    return qs
 
 
 def filtered_topographies(request, surfaces):

@@ -240,9 +240,12 @@ def make_excel():
     analysis_cpu_seconds_by_date_function_df = _statisticByDateAndObject2dataframe('total_analysis_cpu_ms',
                                                                                    ct_af) / 1000
 
-    ct_pub = ContentType.objects.get(model='publication')
-    publication_views_by_date_function_df = _statisticByDateAndObject2dataframe('publication_view_count', ct_pub,
-                                                                                'short_url')
+    try:
+        ct_pub = ContentType.objects.get(model='publication')
+        publication_views_by_date_function_df = _statisticByDateAndObject2dataframe('publication_view_count', ct_pub,
+                                                                                    'short_url')
+    except ContentType.DoesNotExist:
+        publication_views_by_date_function_df = None
 
     ct_surf = ContentType.objects.get(model='surface')
     surface_views_by_date_function_df = _statisticByDateAndObject2dataframe('surface_view_count', ct_surf, 'id')
@@ -258,7 +261,8 @@ def make_excel():
         statistics_by_date_df.to_excel(writer, sheet_name='statistics by date')
         result_views_by_date_function_df.to_excel(writer, sheet_name='analysis views by date+function')
         analysis_cpu_seconds_by_date_function_df.to_excel(writer, sheet_name='cpu seconds by date+function')
-        publication_views_by_date_function_df.to_excel(writer, sheet_name='publication req. by date+url')
+        if publication_views_by_date_function_df is not None:
+            publication_views_by_date_function_df.to_excel(writer, sheet_name='publication req. by date+url')
         surface_views_by_date_function_df.to_excel(writer, sheet_name='surface views by date+id')
         surface_downloads_by_date_function_df.to_excel(writer, sheet_name='surface downloads by date+id')
         for sheetname, sheet in writer.sheets.items():

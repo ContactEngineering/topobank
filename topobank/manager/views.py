@@ -4,14 +4,15 @@ from io import BytesIO
 
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
-from django.db.models import Prefetch, Q
+from django.db.models import Prefetch, Q, Value, TextField
+from django.db.models.functions import Replace
 from django.http import HttpResponse, Http404, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.urls import reverse
 from django.utils.text import slugify
 from django.views.generic import TemplateView
 
-from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
+from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm, UserObjectPermission
 
 from rest_framework import generics, mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -31,9 +32,9 @@ from .containers import write_surface_container
 from .models import Topography, Surface, TagModel, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
 from .serializers import SurfaceSerializer, TopographySerializer, TagSearchSerizalizer, SurfaceSearchSerializer
-from .utils import selected_instances, tags_for_user, current_selection_as_basket_items, filtered_surfaces, \
-    filtered_topographies, get_search_term, get_category, get_sharing_status, get_tree_mode, \
-    get_upload_instructions, api_to_guardian
+from .utils import (selected_instances, tags_for_user, current_selection_as_basket_items, filtered_topographies,
+                    get_search_term, get_category, get_sharing_status, get_tree_mode, get_upload_instructions,
+                    api_to_guardian, surfaces_for_user, filter_queryset_by_search_term)
 
 # create dicts with labels and option values for Select tab
 CATEGORY_FILTER_CHOICES = {'all': 'All categories',
@@ -66,6 +67,94 @@ DEFAULT_CONTAINER_FILENAME = "digital_surface_twin.zip"
 
 _log = logging.getLogger(__name__)
 
+
+def filtered_surfaces(request):
+    """Return queryset with surfaces matching all filter criteria.
+
+    Surfaces should be
+    - readable by the current user
+    - filtered by category and sharing status
+    - filtered by search expression, if given
+
+    Parameters
+    ----------
+    request
+        Request instance
+
+    Returns
+    -------
+        Filtered queryset of surfaces
+    """
+
+    user = request.user
+    # start with all surfaces which are visible for the user
+    qs = surfaces_for_user(user)
+
+    #
+    # Filter by category and sharing status
+    #
+    category = get_category(request)
+    if category != 'all':
+        qs = qs.filter(category=category)
+
+    sharing_status = get_sharing_status(request)
+
+    match sharing_status:
+        case 'own':
+            qs = qs.filter(creator=user)
+        case 'shared_ingress':
+            qs = qs.filter(~Q(creator=user))
+            if hasattr(Surface, 'publication'):
+                qs = qs.exclude(publication__isnull=False)  # exclude published and own surfaces
+        case 'published_ingress':
+            if hasattr(Surface, 'publication'):
+                qs = qs.exclude(publication__isnull=True)
+            qs = qs.exclude(creator=user)  # exclude unpublished and own surfaces
+        case 'shared_egress':
+            viewable_surfaces_perms = (UserObjectPermission.objects
+                                       .filter(permission__codename='view_surface')     # only view permissions
+                                       .filter(content_type__app_label='manager', content_type__model='surface')
+                                       .exclude(user=user))  # not own permissions
+            surface_ids = [x[0] for x in viewable_surfaces_perms.values_list("object_pk")]
+            qs = qs.filter(creator=user, id__in=surface_ids)
+            if hasattr(Surface, 'publication'):
+                qs = qs.exclude(publication__isnull=False)  # own surfaces, shared with others, unpublished
+        case 'published_egress':
+            if hasattr(Surface, 'publication'):
+                qs = qs.filter(publication__isnull=False)
+            qs = qs.filter(creator=user)
+        case 'all':
+            pass
+    #
+    # Filter by search term
+    #
+    search_term = get_search_term(request)
+    if search_term:
+        #
+        # search specific fields of all surfaces in a 'websearch' manner:
+        # combine phrases by "AND", allow expressions and quotes
+        #
+        # See https://docs.djangoproject.com/en/3.2/ref/contrib/postgres/search/#full-text-search
+        # for details.
+        #
+        # We introduce an extra field for search in tag names where the tag names
+        # are changed so that the tokenizer splits the names into multiple words
+        qs = qs.annotate(
+            tag_names_for_search=Replace(
+                Replace('tags__name', Value('.'), Value(' ')),  # replace . with space
+                Value('/'), Value(' ')),  # replace / with space
+            topography_tag_names_for_search=Replace(  # same for the topographies
+                Replace('topography__tags__name', Value('.'), Value(' ')),
+                Value('/'), Value(' ')),
+            topography_name_for_search=Replace('topography__name', Value('.'), Value(' '), output_field=TextField())
+            # often there are filenames
+        ).distinct('id').order_by('id')
+        qs = filter_queryset_by_search_term(qs, search_term, [
+            'description', 'name', 'creator__name', 'tag_names_for_search',
+            'topography_name_for_search', 'topography__description', 'topography_tag_names_for_search',
+            'topography__creator__name',
+        ])
+    return qs
 
 class TopographyDetailView(TemplateView):
     template_name = "manager/topography_detail.html"
