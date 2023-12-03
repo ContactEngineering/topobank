@@ -8,13 +8,10 @@ import pytest
 import tempfile
 import os
 
-from django.conf import settings
-
 import topobank
 
 from ..containers import write_surface_container
 from ..models import Topography
-
 from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
 
 
