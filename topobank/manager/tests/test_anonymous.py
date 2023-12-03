@@ -1,10 +1,10 @@
 import pytest
 from django.shortcuts import reverse
 
-from topobank.analysis.tests.utils import TopographyAnalysisFactory
-from topobank.utils import assert_in_content, assert_not_in_content
-
+from ..utils import assert_in_content, assert_not_in_content
 from .utils import UserFactory, SurfaceFactory, Topography1DFactory
+
+from topobank.analysis.tests.utils import TopographyAnalysisFactory
 
 
 #
