@@ -167,10 +167,11 @@ for app in apps.get_app_configs():
                 )
             )
             if hasattr(url_module, 'toplevel_urls'):
-                prefix, patterns = url_module.topolevel_urls
+                route, patterns = url_module.toplevel_urls
+                print(route, plugin_urls(patterns, app_name=app.name), app.label)
                 plugin_patterns.append(
                     path(
-                        prefix,
+                        route,
                         # Allow access only if plugin available
                         include((plugin_urls(patterns, app_name=app.name), app.label))
                     )
