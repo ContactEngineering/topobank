@@ -1,10 +1,8 @@
 import pytest
 from django.shortcuts import reverse
 
-from ..utils import assert_in_content, assert_not_in_content
+from ...utils import assert_in_content, assert_not_in_content
 from .utils import UserFactory, SurfaceFactory, Topography1DFactory
-
-from topobank.analysis.tests.utils import TopographyAnalysisFactory
 
 
 #
@@ -66,16 +64,3 @@ def test_anonymous_user_cannot_change(client, handle_usage_statistics):
 
     response = client.delete(reverse('manager:topography-api-detail', kwargs=dict(pk=topo.pk)))
     assert response.status_code == 403  # Forbidden
-
-
-@pytest.mark.django_db
-def test_download_analyses_without_permission(client, test_analysis_function, handle_usage_statistics):
-    bob = UserFactory()
-    surface = SurfaceFactory(creator=bob)
-    topo = Topography1DFactory(surface=surface)
-    analysis = TopographyAnalysisFactory(subject_topography=topo, function=test_analysis_function)
-
-    response = client.get(reverse('analysis:download',
-                                  kwargs=dict(ids=f"{analysis.id}",
-                                              file_format='txt')))
-    assert response.status_code == 403
