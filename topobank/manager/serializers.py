@@ -88,7 +88,7 @@ class TopographySerializer(StrictFieldMixin,
                   'is_metadata_complete',
                   'thumbnail',
                   'duration', 'error', 'task_progress', 'task_state', 'tags',  # TaskStateModelSerializer
-                  'permissions']
+                  'permissions', 'data_history']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)

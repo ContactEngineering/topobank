@@ -647,6 +647,12 @@ class Topography(TaskStateModel, SubjectMixin):
         (INSTRUMENT_TYPE_CONTACT_BASED, 'Contact-based instrument with known tip radius'),
     ]
 
+    DATA_HISTORY = [
+        ('raw', 'Raw Data'),
+        ('app', 'Automatically post-processed by my instrument'),
+        ('mpp', 'Manually post-processed'),
+    ]
+
     verbose_name = 'measurement'
     verbose_name_plural = 'measurements'
 
@@ -661,6 +667,7 @@ class Topography(TaskStateModel, SubjectMixin):
     tags = tm.TagField(to=TagModel)
     creation_datetime = models.DateTimeField(auto_now_add=True)
     modification_datetime = models.DateTimeField(auto_now=True)
+    data_history = models.CharField(max_length=3, choices=DATA_HISTORY, null=True, blank=False)
 
     #
     # Fields related to raw data
