@@ -558,12 +558,10 @@ class Surface(models.Model, SubjectMixin):
 
 class SurfaceUserObjectPermission(UserObjectPermissionBase):
     content_object = models.ForeignKey(Surface, on_delete=models.CASCADE)
-    enabled = False
 
 
 class SurfaceGroupObjectPermission(GroupObjectPermissionBase):
     content_object = models.ForeignKey(Surface, on_delete=models.CASCADE)
-    enabled = False
 
 
 class SurfaceCollection(models.Model, SubjectMixin):

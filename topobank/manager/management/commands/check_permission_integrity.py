@@ -17,7 +17,6 @@ class Command(BaseCommand):
     """
 
     def handle(self, *args, **options):
-        print(SurfaceUserObjectPermission.enabled)
         all_perms_match = True
         users = User.objects.all()
         datasets = Surface.objects.all()
