@@ -44,7 +44,7 @@ function deleteTopography() {
 
 const base64Subjects = computed(() => {
     return subjectsToBase64({
-        topography: [_topography.id]
+        topography: [_topography.value.id]
     });
 });
 

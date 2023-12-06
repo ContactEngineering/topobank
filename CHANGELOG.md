@@ -1,5 +1,24 @@
 # Changelog for *TopoBank*
 
+## 1.5.0 (not yet released)
+
+- MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be supported
+  after April 2024)
+
+## 1.4.4 (2023-11-27)
+
+- BUG: Fixed download of TXT, CSV or XLSX if one of the analyses has an error
+
+## 1.4.3 (2023-11-26)
+
+- BUG: Wrong base64 encoded subject when clicking analyze in topography detail view
+
+## 1.4.2 (2023-11-26)
+
+- MAINT: Hide elements rather than disabling them
+- MAINT: Don't allow selection (batch edit) for published topographies
+- MAINT: Disable edit button in permissions card when permissions cannot be edited
+
 ## 1.4.1 (2023-11-25)
 
 - MAINT: Order measurements in digital surface twin
