@@ -2,6 +2,7 @@
 
 ## 1.5.0 (not yet released)
 
+- MAINT: Changed django-guardian from generic to direct foreign keys
 - MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be supported
   after April 2024)
 
