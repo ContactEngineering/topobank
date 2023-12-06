@@ -252,7 +252,8 @@ def filtered_surfaces(request):
             view_surface_perms = (PermissionModel.objects.
                                   exclude(user=user)
                                   .filter(content_object__creator=user, permission__codename='view_surface'))
-            return qs.filter(id__in=view_surface_perms.values_list('content_object', flat=True))
+            return qs.filter(id__in=view_surface_perms.values_list('content_object', flat=True),
+                             publication__isnull=True)
         case 'published_egress':
             qs = qs.filter(publication__isnull=False, creator=user)
         case 'all':
