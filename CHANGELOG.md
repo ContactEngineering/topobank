@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.4.5 (2023-12-09)
+
+- MAINT: Allow staff users to manually force cache renewals
+
 ## 1.4.4 (2023-11-27)
 
 - BUG: Fixed download of TXT, CSV or XLSX if one of the analyses has an error
