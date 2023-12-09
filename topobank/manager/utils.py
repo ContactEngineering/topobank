@@ -7,6 +7,7 @@ import markdown2
 import tempfile
 import traceback
 
+from guardian.utils import get_user_obj_perms_model
 from storages.utils import clean_name
 
 from django.conf import settings
@@ -246,12 +247,13 @@ def filtered_surfaces(request):
         case 'published_ingress':
             qs = qs.exclude(publication__isnull=True).exclude(creator=user)  # exclude unpublished and own surfaces
         case 'shared_egress':
-            viewable_surfaces_perms = (UserObjectPermission.objects
-                                       .filter(permission__codename='view_surface')     # only view permissions
-                                       .filter(content_type__app_label='manager', content_type__model='surface')
-                                       .exclude(user=user))  # not own permissions
-            surface_ids = [x[0] for x in viewable_surfaces_perms.values_list("object_pk")]
-            qs = qs.filter(creator=user, id__in=surface_ids, publication__isnull=True)  # own surfaces, shared with others, unpublished
+            from .models import Surface
+            PermissionModel = get_user_obj_perms_model(Surface)
+            view_surface_perms = (PermissionModel.objects.
+                                  exclude(user=user)
+                                  .filter(content_object__creator=user, permission__codename='view_surface'))
+            return qs.filter(id__in=view_surface_perms.values_list('content_object', flat=True),
+                             publication__isnull=True)
         case 'published_egress':
             qs = qs.filter(publication__isnull=False, creator=user)
         case 'all':
