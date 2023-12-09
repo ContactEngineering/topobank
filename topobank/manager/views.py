@@ -745,7 +745,7 @@ def force_inspect(request, pk=None):
     instance = Topography.objects.get(pk=pk)
 
     # Check that user has the right to modify this measurement
-    if not user.has_perms(['change_surface'], instance.surface):
+    if not user.is_staff and not user.has_perms(['change_surface'], instance.surface):
         return HttpResponseForbidden()
 
     _log.debug(f'Forcing renewal of cache for {instance}...')
