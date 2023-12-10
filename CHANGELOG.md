@@ -3,6 +3,7 @@
 ## 1.4.5 (2023-12-09)
 
 - MAINT: Allow staff users to manually force cache renewals
+- MAINT: Updated SurfaceTopography to 1.12.2 (fixed SPM reader)
 
 ## 1.4.4 (2023-11-27)
 
