@@ -6,6 +6,7 @@
   supported after April 2024)
 - MAINT: Split `publication` app into a separate git repository and turned it
   into an optional dependency
+- MAINT: Changed django-guardian from generic to direct foreign keys
 
 ## 1.4.4 (2023-11-27)
 
