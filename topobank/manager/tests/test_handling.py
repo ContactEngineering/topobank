@@ -312,7 +312,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                    'name': 'surface1',
                                    'category': 'sim'
                                })
-    assert response.status_code == 201, response.reason
+    assert response.status_code == 201, response.data
 
     # populate surface with some info
     surface_id = response.data['id']
@@ -321,7 +321,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                     'category': 'exp',
                                     'description': description
                                 })
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.data
 
     response = upload_file(str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks)
     assert response.data['name'] == expected_toponame
@@ -334,7 +334,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                     'data_source': 0,
                                     'description': description,
                                 })
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.data
     assert response.data['measurement_date'] == '2018-06-21'
     assert response.data['description'] == description
 
