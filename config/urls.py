@@ -145,13 +145,16 @@ if settings.DEBUG:
 #
 # Load URL patterns from plugins
 #
-def plugin_urls(urllist, app_name):
+def plugin_urls(urllist, app):
     for entry in urllist:
         if hasattr(entry, 'url_patterns'):
+            # FIXME: This looks like a bug, we need to do something with the return value
             plugin_urls(entry.url_patterns)
         elif hasattr(entry, 'callback'):
             def plugin_available_check(user):
-                return app_name in Organization.objects.get_plugins_available(user)
+                if app.TopobankPluginMeta.restricted:
+                    return app.name in Organization.objects.get_plugins_available(user)
+                return True
 
             callback_decorator = user_passes_test(plugin_available_check, login_url='/403/', redirect_field_name=None)
             entry.callback = callback_decorator(entry.callback)
@@ -166,39 +169,12 @@ for app in apps.get_app_configs():
             url_module = importlib.import_module(url_module_name)
             plugin_patterns.append(
                 path(
-                    f"plugins/{app.name}/",  # all urls of this plugin start with this
+                    url_module.urlprefix,  # all urls of this plugin start with this
                     # Allow access only if plugin available
-                    include((plugin_urls(url_module.urlpatterns, app_name=app.name), app.label))
+                    include((plugin_urls(url_module.urlpatterns, app=app), app.label))
                     # Allow access independent of plugin availability (always permitted)
                     # include((url_module.urlpatterns, app.label))
                 )
             )
-            if hasattr(url_module, 'toplevel_urls'):
-                route, patterns = url_module.toplevel_urls
-                print(route, plugin_urls(patterns, app_name=app.name), app.label)
-                plugin_patterns.append(
-                    path(
-                        route,
-                        # Allow access only if plugin available
-                        include((plugin_urls(patterns, app_name=app.name), app.label))
-                    )
-                )
 
 urlpatterns.extend(plugin_patterns)
-
-# Idea, also by Raphael Michel (Djangocon 2019): Auto-wrap all plugin views in a decorator
-#
-# Instead of
-#   include((url_module.urlpatterns, app.label))
-# use
-#   include((plugin_urls(url_module.urlpatterns), app.label))
-# with
-# def plugin_urls(urllist):
-#     for entry in urllist:
-#         if hasattr((entry, "url_patterns")):
-#             plugin_urls(entry.url_patterns)
-#         elif hasattr(entry, 'callback'):
-#             entry.callback = login_required(entry.callback)
-#     return urllist
-#
-# Or any other decorator, e.g. permission checking
