@@ -13,6 +13,7 @@ from django.utils.text import slugify
 from django.views.generic import TemplateView
 
 from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm, UserObjectPermission
+from guardian.utils import get_user_obj_perms_model
 
 from rest_framework import generics, mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -111,12 +112,11 @@ def filtered_surfaces(request):
                 qs = qs.exclude(publication__isnull=True)
             qs = qs.exclude(creator=user)  # exclude unpublished and own surfaces
         case 'shared_egress':
-            viewable_surfaces_perms = (UserObjectPermission.objects
-                                       .filter(permission__codename='view_surface')     # only view permissions
-                                       .filter(content_type__app_label='manager', content_type__model='surface')
+            PermissionModel = get_user_obj_perms_model(Surface)
+            viewable_surfaces_perms = (PermissionModel.objects
+                                       .filter(content_object__creator=user, permission__codename='view_surface')  # only view permissions
                                        .exclude(user=user))  # not own permissions
-            surface_ids = [x[0] for x in viewable_surfaces_perms.values_list("object_pk")]
-            qs = qs.filter(creator=user, id__in=surface_ids)
+            qs = qs.filter(id__in=viewable_surfaces_perms.values_list('content_object', flat=True))
             if hasattr(Surface, 'publication'):
                 qs = qs.exclude(publication__isnull=False)  # own surfaces, shared with others, unpublished
         case 'published_egress':
