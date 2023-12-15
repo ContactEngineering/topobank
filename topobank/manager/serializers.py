@@ -4,10 +4,9 @@ from django import shortcuts
 from django.utils.translation import gettext_lazy as _
 
 from guardian.shortcuts import get_perms, get_users_with_perms
-from rest_framework import reverse, serializers
+from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from ..publication.serializers import PublicationSerializer
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
 
@@ -160,15 +159,12 @@ class SurfaceSerializer(StrictFieldMixin,
                   'category',
                   'creator',
                   'description',
-                  'publication',
                   'tags',
                   'topography_set',
                   'permissions']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
-    # publication = serializers.HyperlinkedRelatedField(view_name='publication:publication-api-detail', read_only=True)
-    publication = PublicationSerializer(read_only=True)
     topography_set = TopographySerializer(many=True, read_only=True)
 
     tags = TagRelatedManagerField(required=False)
@@ -368,11 +364,6 @@ class SurfaceSearchSerializer(serializers.ModelSerializer):
                     'analyze': f"{shortcuts.reverse('analysis:results-list')}?subjects={subjects_to_base64([obj])}"
                 })
             urls['download'] = shortcuts.reverse('manager:surface-download', kwargs=dict(surface_id=obj.id))
-
-        if 'publish_surface' in perms:
-            urls.update({
-                'publish': shortcuts.reverse('publication:surface-publish', kwargs=dict(pk=obj.pk)),
-            })
 
         return urls
 

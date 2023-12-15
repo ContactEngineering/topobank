@@ -233,10 +233,16 @@ def current_statistics(user=None):
         - num_topographies_excluding_publications
         - num_analyses_excluding_publications
     """
-    if user:
-        unpublished_surfaces = Surface.unpublished.filter(creator=user)
+    if hasattr(Surface, 'publication'):
+        if user:
+            unpublished_surfaces = Surface.objects.filter(creator=user, publication__isnull=True)
+        else:
+            unpublished_surfaces = Surface.objects.filter(publication__isnull=True)
     else:
-        unpublished_surfaces = Surface.unpublished.all()
+        if user:
+            unpublished_surfaces = Surface.objects.filter(creator=user)
+        else:
+            unpublished_surfaces = Surface.objects.all()
     unpublished_topographies = Topography.objects.filter(surface__in=unpublished_surfaces)
     unpublished_analyses = Analysis.objects.filter(subject_dispatch__topography__in=unpublished_topographies)
 

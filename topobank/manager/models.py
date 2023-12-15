@@ -5,7 +5,6 @@ Basic models for the web app for handling topography data.
 import dateutil.parser
 import io
 import logging
-import math
 import matplotlib.pyplot, matplotlib.cm
 import numpy as np
 import os.path
@@ -16,7 +15,6 @@ import tempfile
 import django.dispatch
 from django.db import models
 from django.shortcuts import reverse
-from django.utils import timezone
 from django.conf import settings
 from django.core.cache import cache
 from django.core.files.storage import default_storage
@@ -33,11 +31,9 @@ from notifications.signals import notify
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from SurfaceTopography.Exceptions import UndefinedDataError
 
-from ..publication.models import Publication, DOICreationException
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-from ..users.utils import get_default_group
 
 from .utils import api_to_guardian, guardian_to_api, dzi_exists, get_topography_reader, make_dzi, recursive_delete, \
     MAX_LENGTH_SURFACE_COLLECTION_NAME
@@ -68,44 +64,6 @@ def _get_unit(channel):
     return channel.unit
 
 
-class PublicationException(Exception):
-    """A general exception related to publications."""
-    pass
-
-
-class PublicationsDisabledException(PublicationException):
-    """Publications are not allowed due to settings."""
-    pass
-
-
-class AlreadyPublishedException(PublicationException):
-    """A surface has already been published."""
-    pass
-
-
-class NewPublicationTooFastException(PublicationException):
-    """A new publication has been issued to fast after the former one."""
-
-    def __init__(self, latest_publication, wait_seconds):
-        self._latest_pub = latest_publication
-        self._wait_seconds = wait_seconds
-
-    def __str__(self):
-        s = f"Latest publication for this surface is from {self._latest_pub.datetime}. "
-        s += f"Please wait {self._wait_seconds} more seconds before publishing again."
-        return s
-
-
-class LoadTopographyException(Exception):
-    """Failure while loading data for a topography."""
-    pass
-
-
-class PlotTopographyException(Exception):
-    """Failure while plotting topography."""
-    pass
-
-
 class ThumbnailGenerationException(Exception):
     """Failure while generating thumbnails for a topography."""
 
@@ -130,20 +88,6 @@ class TagModel(tm.TagTreeModel):
         force_lowercase = True
         # not needed yet
         # autocomplete_view = 'manager:autocomplete-tags'
-
-
-class PublishedSurfaceManager(models.Manager):
-    """Manager which works on published surfaces."""
-
-    def get_queryset(self):
-        return super().get_queryset().exclude(publication__isnull=True)
-
-
-class UnpublishedSurfaceManager(models.Manager):
-    """Manager which works on unpublished surfaces."""
-
-    def get_queryset(self):
-        return super().get_queryset().filter(publication__isnull=True)
 
 
 class SubjectMixin:
@@ -212,10 +156,6 @@ class Surface(models.Model, SubjectMixin):
     tags = tm.TagField(to=TagModel)
     creation_datetime = models.DateTimeField(auto_now_add=True)
     modification_datetime = models.DateTimeField(auto_now=True)
-
-    objects = models.Manager()
-    published = PublishedSurfaceManager()
-    unpublished = UnpublishedSurfaceManager()
 
     class Meta:
         ordering = ['name']
@@ -407,144 +347,6 @@ class Surface(models.Model, SubjectMixin):
 
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
         return copy
-
-    def set_publication_permissions(self):
-        """Sets all permissions as needed for publication.
-
-        - removes edit, share and delete permission from everyone
-        - add read permission for everyone
-        """
-        # Superusers cannot publish
-        if self.creator.is_superuser:
-            raise PublicationException("Superusers cannot publish!")
-
-        # Remove edit, share and delete permission from everyone
-        users = get_users_with_perms(self)
-        for u in users:
-            for perm in api_to_guardian('full'):
-                remove_perm(perm, u, self)
-
-        # Add read permission for everyone
-        assign_perm('view_surface', get_default_group(), self)
-
-        # Add read permission for anonymous user
-        assign_perm('view_surface', get_anonymous_user(), self)
-
-        from guardian.shortcuts import get_perms
-        # TODO for unknown reasons, when not in Docker, the published surfaces are still changeable
-        # Here "remove_perm" does not work. We do not allow this. See GH 704.
-        if 'change_surface' in get_perms(self.creator, self):
-            raise PublicationException("Withdrawing permissions for publication did not work!")
-
-    def publish(self, license, authors):
-        """Publish surface.
-
-        An immutable copy is created along with a publication entry.
-        The latter is returned.
-
-        Parameters
-        ----------
-        license: str
-            One of the keys of LICENSE_CHOICES
-        authors: list
-            List of authors as list of dicts, where each dict has the
-            form as in the example below. Will be saved as-is in JSON
-            format and will be used for creating a DOI.
-
-        Returns
-        -------
-        Publication
-
-        (Fictional) Example of a dict representing an author:
-
-        {
-            'first_name': 'Melissa Kathrin'
-            'last_name': 'Miller',
-            'orcid_id': '1234-1234-1234-1224',
-            'affiliations': [
-                {
-                    'name': 'University of Westminster',
-                    'ror_id': '04ycpbx82'
-                },
-                {
-                    'name': 'New York University Paris',
-                    'ror_id': '05mq03431'
-                },
-            ]
-        }
-
-        """
-        if not settings.PUBLICATION_ENABLED:
-            raise PublicationsDisabledException()
-
-        if self.is_published:
-            raise AlreadyPublishedException()
-
-        latest_publication = Publication.objects.filter(original_surface=self).order_by('version').last()
-        #
-        # We limit the publication rate
-        #
-        min_seconds = settings.MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS
-        if (latest_publication is not None) and (min_seconds is not None):
-            delta_since_last_pub = timezone.now() - latest_publication.datetime
-            delta_secs = delta_since_last_pub.total_seconds()
-            if delta_secs < min_seconds:
-                raise NewPublicationTooFastException(latest_publication, math.ceil(min_seconds - delta_secs))
-
-        #
-        # Create a copy of this surface
-        #
-        copy = self.deepcopy()
-
-        try:
-            copy.set_publication_permissions()
-        except PublicationException as exc:
-            # see GH 704
-            _log.error(f"Could not set permission for copied surface to publish ... "
-                       f"deleting copy (surface {copy.pk}) of surface {self.pk}.")
-            copy.delete()
-            raise
-
-        #
-        # Create publication
-        #
-        if latest_publication:
-            version = latest_publication.version + 1
-        else:
-            version = 1
-
-        #
-        # Save local reference for the publication
-        #
-        pub = Publication.objects.create(surface=copy, original_surface=self,
-                                         authors_json=authors,
-                                         license=license,
-                                         version=version,
-                                         publisher=self.creator,
-                                         publisher_orcid_id=self.creator.orcid_id)
-
-        #
-        # Try to create DOI - if this doesn't work, rollback
-        #
-        if settings.PUBLICATION_DOI_MANDATORY:
-            try:
-                pub.create_doi()
-            except DOICreationException as exc:
-                _log.error("DOI creation failed, reason: %s", exc)
-                _log.warning(f"Cannot create publication with DOI, deleting copy (surface {copy.pk}) of "
-                             f"surface {self.pk} and publication instance.")
-                pub.delete()  # need to delete pub first because it references copy
-                copy.delete()
-                raise PublicationException(f"Cannot create DOI, reason: {exc}") from exc
-        else:
-            _log.info("Skipping creation of DOI, because it is not configured as mandatory.")
-
-        _log.info(f"Published surface {self.name} (id: {self.id}) " + \
-                  f"with license {license}, version {version}, authors '{authors}'")
-        _log.info(f"Direct URL of publication: {pub.get_absolute_url()}")
-        _log.info(f"DOI name of publication: {pub.doi_name}")
-
-        return pub
 
     @property
     def is_published(self):

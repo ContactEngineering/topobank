@@ -6,6 +6,8 @@ from guardian.shortcuts import assign_perm
 
 from topobank.manager.models import Surface
 
+from topobank_publication.utils import set_publication_permissions
+
 _log = logging.getLogger(__name__)
 
 ALL_PERMISSIONS = ['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface']
@@ -44,7 +46,7 @@ class Command(BaseCommand):
                 if any(creator.has_perm(p, surface) for p in ALL_PERMISSIONS):
                     if not options['dry_run']:
                         # there should be no individual rights for published surfaces
-                        surface.set_publication_permissions()
+                        set_publication_permissions(surface)
                     fixed_published_surfaces.add(surface)
             else:
                 for perm in ALL_PERMISSIONS:

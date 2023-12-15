@@ -9,7 +9,6 @@ from guardian.shortcuts import get_anonymous_user
 from ...manager.models import Surface, Topography
 from .utils import two_topos, two_users
 
-
 @pytest.mark.django_db
 @pytest.mark.parametrize('is_authenticated,with_children', [[True, False],
                                                             [False, False],
@@ -34,7 +33,6 @@ def test_surface_retrieve_routes(api_client, is_authenticated, with_children, tw
                      'name': 'Surface 1',
                      'id': surface1.id,
                      'tags': [],
-                     'publication': None,
                      'url': f'http://testserver/manager/api/surface/{surface1.id}/',
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
@@ -76,13 +74,14 @@ def test_surface_retrieve_routes(api_client, is_authenticated, with_children, tw
                                          'data_source': 0,
                                          'is_metadata_complete': True
                                          }]}
+    if hasattr(Surface, 'publication'):
+        surface1_dict['publication'] = None
     surface2_dict = {'category': None,
                      'creator': f'http://testserver/users/api/user/{user.id}/',
                      'description': '',
                      'name': 'Surface 2',
                      'id': surface2.id,
                      'tags': [],
-                     'publication': None,
                      'url': f'http://testserver/manager/api/surface/{surface2.id}/',
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
@@ -124,6 +123,8 @@ def test_surface_retrieve_routes(api_client, is_authenticated, with_children, tw
                                          'data_source': 0,
                                          'is_metadata_complete': True
                                          }]}
+    if hasattr(Surface, 'publication'):
+        surface2_dict['publication'] = None
 
     if not with_children:
         del surface1_dict['topography_set']
@@ -310,8 +311,6 @@ def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
     assert s.creator.name == user1.name
 
 
-from topobank.analysis.models import Analysis, AnalysisSubject
-
 @pytest.mark.django_db(transaction=True)
 def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     user1, user2 = two_users
@@ -353,24 +352,11 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     assert response.status_code == 403  # The user can see the surface but not delete it, hence 403
     assert Surface.objects.count() == 2
 
-    # Delete of a published surface should always fail
-    pub = surface3.publish('cc0', 'Bob')
-    assert Surface.objects.count() == 3
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)))
-    assert response.status_code == 403
-    assert Surface.objects.count() == 3
-
-    # Delete of a published surface should even fail for the owner
-    api_client.force_authenticate(pub.surface.creator)
-    response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=pub.surface.id)))
-    assert response.status_code == 403
-    assert Surface.objects.count() == 3
-
     # Delete of a surface of another user is possible with full access
     surface2.set_permissions(user1, 'full')
     response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface2.id)))
     assert response.status_code == 204  # The user can see the surface but not delete it, hence 403
-    assert Surface.objects.count() == 2
+    assert Surface.objects.count() == 1
 
 
 @pytest.mark.django_db
@@ -477,21 +463,3 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     assert Topography.objects.count() == 3
     topo1, topo2, topo3 = Topography.objects.all()
     assert topo2.name == new_name
-
-    new_name = 'My third new name'
-
-    # Patch of a published surface should always fail
-    pub = topo3.surface.publish('cc0', 'Bob')
-    topo_pub, = pub.surface.topography_set.all()
-    assert Topography.objects.count() == 4
-    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pub.id)),
-                                {'name': new_name})
-    assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
-    assert Surface.objects.count() == 4
-
-    # Delete of a published surface should even fail for the owner
-    api_client.force_authenticate(pub.surface.creator)
-    response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topo_pub.id)),
-                                {'name': new_name})
-    assert response.status_code == 403  # The user can see the surface but not patch it, hence 403
-    assert Surface.objects.count() == 4

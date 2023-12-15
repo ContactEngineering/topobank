@@ -1,20 +1,19 @@
 """
 Tests for writing surface containers
 """
+
 import zipfile
 import yaml
 import pytest
 import tempfile
 import os
 
-from django.conf import settings
-
 import topobank
-
-from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
 
 from ..containers import write_surface_container
 from ..models import Topography
+from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
+
 
 @pytest.mark.django_db
 def test_surface_container(example_authors):
@@ -57,11 +56,7 @@ def test_surface_container(example_authors):
                                  fill_undefined_data_mode=fill_undefined_data_mode)
     # surface 3 is empty
 
-    # surface 2 is published
-    publication = surface2.publish('cc0-1.0', example_authors)
-    surface4 = publication.surface
-
-    surfaces = [surface1, surface2, surface3, surface4]
+    surfaces = [surface1, surface2, surface3]
 
     # make sure all squeezed files have been generated
     for t in [topo1a, topo1b, topo2a]:
@@ -110,26 +105,6 @@ def test_surface_container(example_authors):
         assert not meta_surfaces[0]['is_published']
         assert not meta_surfaces[1]['is_published']
         assert not meta_surfaces[2]['is_published']
-        assert meta_surfaces[3]['is_published']
-        meta_surface4 = meta_surfaces[3]
-        meta_surface_4_pub = meta_surface4['publication']
-        assert meta_surface_4_pub['authors'] == "Hermione Granger, Harry Potter"
-        assert meta_surface_4_pub['license'] == settings.CC_LICENSE_INFOS['cc0-1.0']['option_name']
-        assert meta_surface_4_pub['version'] == 1
-
-        # check some topography fields
-        topo_meta = meta_surface4['topographies'][0]
-        assert topo_meta['tags'] == ['apple', 'banana']
-        for field in ['is_periodic', 'description', 'detrend_mode',
-                      'data_source', 'measurement_date', 'name', 'unit']:
-            assert topo_meta[field] == getattr(topo2a, field)
-        assert topo_meta['size'] == [topo2a.size_x, topo2a.size_y]
-
-        assert topo_meta['instrument'] == {
-            'name': instrument_name,
-            'type': instrument_type,
-            'parameters': instrument_params,
-        }
 
         # topo1a should have an height_scale_factor in meta data because
         # this information is not included in the data file

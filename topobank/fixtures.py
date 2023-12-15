@@ -1,18 +1,15 @@
 #
 # Common settings and fixtures used with pytest
 #
-import datetime
 
 import pytest
 from django.core.management import call_command
 import logging
 
-from freezegun import freeze_time
 from trackstats.models import Domain, Metric
 
 from pytest_django.lazy_django import skip_if_no_django
 
-from .manager.tests.utils import SurfaceFactory
 from .users.tests.factories import UserFactory
 
 ################################################################################
@@ -141,24 +138,6 @@ def example_authors():
     return authors
 
 
-@pytest.mark.django_db
-@pytest.fixture
-def example_pub(example_authors):
-    """Fixture returning a publication which can be used as test example"""
-
-    user = UserFactory()
-
-    publication_date = datetime.date(2020, 1, 1)
-    description = "This is a nice surface for testing."
-    name = "Diamond Structure"
-
-    surface = SurfaceFactory(name=name, creator=user, description=description)
-    surface.tags = ['diamond']
-
-    with freeze_time(publication_date):
-        pub = surface.publish('cc0-1.0', example_authors)
-
-    return pub
 
 
 @pytest.fixture()

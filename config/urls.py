@@ -15,95 +15,96 @@ from topobank.views import TermsView, HomeView, HelpView, GotoSelectView, TermsD
 from topobank.users.allauth_views import TabbedEmailView
 from topobank.organizations.models import Organization
 
-urlpatterns = [
-                  path("", HomeView.as_view(), name="home"),
-                  path(
-                      "about/",
-                      TemplateView.as_view(template_name="pages/about.html"),
-                      name="about",
-                  ),
-                  path(
-                      "termsandconditions/",
-                      TermsView.as_view(),
-                      name="terms",
-                  ),
-                  path(
-                      "help/",
-                      HelpView.as_view(),
-                      name="help",
-                  ),
-                  path(
-                      "search/",
-                      GotoSelectView.as_view(),
-                      name="search",
-                  ),
-                  # Django Admin, use {% url 'admin:index' %}
-                  path(settings.ADMIN_URL, admin.site.urls),
-                  # User management
-                  path(
-                      "users/",
-                      include("topobank.users.urls", namespace="users"),
-                  ),
-                  re_path("^accounts/email/$", TabbedEmailView.as_view(),
-                      name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
-                  path("accounts/", include("allauth.urls")),
+urlpatterns = [path("", HomeView.as_view(), name="home"),
+               path(
+                   "about/",
+                   TemplateView.as_view(template_name="pages/about.html"),
+                   name="about",
+               ),
+               path(
+                   "termsandconditions/",
+                   TermsView.as_view(),
+                   name="terms",
+               ),
+               path(
+                   "help/",
+                   HelpView.as_view(),
+                   name="help",
+               ),
+               path(
+                   "search/",
+                   GotoSelectView.as_view(),
+                   name="search",
+               ),
+               # Django Admin, use {% url 'admin:index' %}
+               path(settings.ADMIN_URL, admin.site.urls),
+               # User management
+               path(
+                   "users/",
+                   include("topobank.users.urls", namespace="users"),
+               ),
+               re_path("^accounts/email/$", TabbedEmailView.as_view(),
+                       name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
+               path("accounts/", include("allauth.urls")),
 
-                  # For interactive select boxes
-                  re_path(r'^select2/', include('django_select2.urls')),
+               # For interactive select boxes
+               re_path(r'^select2/', include('django_select2.urls')),
 
-                  #
-                  # For asking for terms and conditions
-                  #
+               #
+               # For asking for terms and conditions
+               #
 
-                  # some url specs are overwritten here pointing to own views in order to plug in
-                  # some extra context for the tabbed interface
-                  # View Specific Active Terms
-                  re_path(r'^terms/view/(?P<slug>[a-zA-Z0-9_.-]+)/$', TermsDetailView.as_view(), name="tc_view_specific_page"),
+               # some url specs are overwritten here pointing to own views in order to plug in
+               # some extra context for the tabbed interface
+               # View Specific Active Terms
+               re_path(r'^terms/view/(?P<slug>[a-zA-Z0-9_.-]+)/$', TermsDetailView.as_view(),
+                       name="tc_view_specific_page"),
 
-                  # View Specific Version of Terms
-                  re_path(r'^terms/view/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9.]+)/$', TermsDetailView.as_view(), name="tc_view_specific_version_page"),
+               # View Specific Version of Terms
+               re_path(r'^terms/view/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9.]+)/$', TermsDetailView.as_view(),
+                       name="tc_view_specific_version_page"),
 
-                  # Print Specific Version of Terms
-                  re_path(r'^terms/print/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9.]+)/$', TermsDetailView.as_view(template_name="termsandconditions/tc_print_terms.html"), name="tc_print_page"),
+               # Print Specific Version of Terms
+               re_path(r'^terms/print/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9.]+)/$',
+                       TermsDetailView.as_view(template_name="termsandconditions/tc_print_terms.html"),
+                       name="tc_print_page"),
 
-                  # Accept Terms
-                  re_path(r'^terms/accept/$', TermsAcceptView.as_view(), name="tc_accept_page"),
+               # Accept Terms
+               re_path(r'^terms/accept/$', TermsAcceptView.as_view(), name="tc_accept_page"),
 
-                  # Accept Specific Terms
-                  re_path(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)$', TermsAcceptView.as_view(), name="tc_accept_specific_page"),
+               # Accept Specific Terms
+               re_path(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)$', TermsAcceptView.as_view(),
+                       name="tc_accept_specific_page"),
 
-                  # Accept Specific Terms Version
-                  re_path(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9\.]+)/$', TermsAcceptView.as_view(), name="tc_accept_specific_version_page"),
+               # Accept Specific Terms Version
+               re_path(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9\.]+)/$', TermsAcceptView.as_view(),
+                       name="tc_accept_specific_version_page"),
 
-                  # the defaults
-                  re_path(r'^terms/', include('termsandconditions.urls')),
+               # the defaults
+               re_path(r'^terms/', include('termsandconditions.urls')),
 
-                  # for notifications - see package djano-notifications
-                  re_path('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
-                  # Your stuff: custom urls includes go here
-                  path(
-                      "manager/",
-                      include("topobank.manager.urls", namespace="manager"),
-                  ),
-                  path(
-                      "go/",  # shorter than 'publication'
-                      include("topobank.publication.urls", namespace="publication"),
-                  ),
-                  path(
-                      "analysis/",
-                      include("topobank.analysis.urls", namespace="analysis"),
-                  ),
-                  path(
-                      "plugins/",
-                      include("topobank.plugins.urls", namespace="plugins"),
-                  ),
-                  path(
-                      "watchman/",
-                      include(("watchman.urls", "watchman"), namespace="watchman")
-                  ),
-            ] + static(
-                settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
-            )
+               # for notifications - see package djano-notifications
+               re_path('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
+               # Your stuff: custom urls includes go here
+               path(
+                   "manager/",
+                   include("topobank.manager.urls", namespace="manager"),
+               ),
+               path(
+                   "analysis/",
+                   include("topobank.analysis.urls", namespace="analysis"),
+               ),
+               path(
+                   "plugins/",
+                   include("topobank.plugins.urls", namespace="plugins"),
+               ),
+               path(
+                   "watchman/",
+                   include(("watchman.urls", "watchman"), namespace="watchman")
+               ),
+               ] + static(
+    settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
+)
 
 if settings.CHALLENGE_REDIRECT_URL:
     urlpatterns += [
@@ -140,16 +141,21 @@ if settings.DEBUG:
 
         urlpatterns = [path("__debug__/", include(debug_toolbar.urls))] + urlpatterns
 
+
 #
 # Load URL patterns from plugins
 #
-def plugin_urls(urllist, app_name):
+def plugin_urls(urllist, app):
     for entry in urllist:
         if hasattr(entry, 'url_patterns'):
+            # FIXME: This looks like a bug, we need to do something with the return value
             plugin_urls(entry.url_patterns)
         elif hasattr(entry, 'callback'):
             def plugin_available_check(user):
-                return app_name in Organization.objects.get_plugins_available(user)
+                if app.TopobankPluginMeta.restricted:
+                    return app.name in Organization.objects.get_plugins_available(user)
+                return True
+
             callback_decorator = user_passes_test(plugin_available_check, login_url='/403/', redirect_field_name=None)
             entry.callback = callback_decorator(entry.callback)
     return urllist
@@ -163,29 +169,12 @@ for app in apps.get_app_configs():
             url_module = importlib.import_module(url_module_name)
             plugin_patterns.append(
                 path(
-                    f"plugins/{app.name}/",  # all urls of this plugin start with this
+                    url_module.urlprefix,  # all urls of this plugin start with this
                     # Allow access only if plugin available
-                    include((plugin_urls(url_module.urlpatterns, app_name=app.name), app.label))
+                    include((plugin_urls(url_module.urlpatterns, app=app), app.label))
                     # Allow access independent of plugin availability (always permitted)
                     # include((url_module.urlpatterns, app.label))
                 )
             )
+
 urlpatterns.extend(plugin_patterns)
-
-# Idea, also by Raphael Michel (Djangocon 2019): Auto-wrap all plugin views in a decorator
-#
-# Instead of
-#   include((url_module.urlpatterns, app.label))
-# use
-#   include((plugin_urls(url_module.urlpatterns), app.label))
-# with
-# def plugin_urls(urllist):
-#     for entry in urllist:
-#         if hasattr((entry, "url_patterns")):
-#             plugin_urls(entry.url_patterns)
-#         elif hasattr(entry, 'callback'):
-#             entry.callback = login_required(entry.callback)
-#     return urllist
-#
-# Or any other decorator, e.g. permission checking
-

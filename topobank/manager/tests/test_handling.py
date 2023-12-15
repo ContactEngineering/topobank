@@ -122,7 +122,7 @@ def test_upload_topography_di(api_client, settings, handle_usage_statistics, dja
 
     # first create a surface
     response = api_client.post(reverse('manager:surface-api-list'))
-    assert response.status_code == 201, response.reason  # Created
+    assert response.status_code == 201, response.content  # Created
     surface_id = response.data['id']
 
     # populate surface with some info
@@ -312,7 +312,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                    'name': 'surface1',
                                    'category': 'sim'
                                })
-    assert response.status_code == 201, response.reason
+    assert response.status_code == 201, response.data
 
     # populate surface with some info
     surface_id = response.data['id']
@@ -321,7 +321,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                     'category': 'exp',
                                     'description': description
                                 })
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.data
 
     response = upload_file(str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks)
     assert response.data['name'] == expected_toponame
@@ -334,7 +334,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
                                     'data_source': 0,
                                     'description': description,
                                 })
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.data
     assert response.data['measurement_date'] == '2018-06-21'
     assert response.data['description'] == description
 
@@ -1242,46 +1242,6 @@ def test_delete_surface(api_client, handle_usage_statistics):
     assert response.status_code == 204, response.reason
 
     assert Surface.objects.all().count() == 0
-
-
-@pytest.mark.django_db
-def test_usage_of_cached_container_on_download_of_published_surface(client, example_pub, mocker,
-                                                                    handle_usage_statistics):
-    user = UserFactory()
-    client.force_login(user)
-
-    assert not example_pub.container.name
-
-    surface = example_pub.surface
-
-    # we don't need the correct container here, so we just return some fake data
-    import topobank.manager.containers
-    write_container_mock = mocker.patch('topobank.manager.views.write_surface_container', autospec=True)
-    write_container_mock.return_value = BytesIO(b'Hello Test')
-
-    def download_published():
-        """Download published surface, returns HTTPResponse"""
-        return client.get(reverse('manager:surface-download', kwargs=dict(surface_id=surface.id)), follow=True)
-
-    #
-    # first download
-    #
-    response = download_published()
-    assert response.status_code == 200
-
-    # now container has been set because write_container was called
-    assert write_container_mock.called
-    assert write_container_mock.call_count == 1
-    assert example_pub.container is not None
-
-    #
-    # second download
-    #
-    response = download_published()
-    assert response.status_code == 200
-
-    # no extra call of write_container because it is a published surface
-    assert write_container_mock.call_count == 1
 
 
 @pytest.mark.django_db
