@@ -254,7 +254,7 @@ TEMPLATES = [
                 'django.contrib.messages.context_processors.messages',
                 'topobank.context_processors.versions_processor',
                 'topobank.context_processors.basket_processor',
-                'topobank.tabnav.context_processors.fixed_tabs_processor',
+                'ce-ui.ce_ui.tabnav.context_processors.fixed_tabs_processor',
             ],
         },
     },
