@@ -730,7 +730,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def get_absolute_url(self):
         """URL of detail page for this topography."""
-        return f"{reverse('ce-ui:topography-detail')}?topography={self.pk}"
+        return f"{reverse('ce_ui:topography-detail')}?topography={self.pk}"
 
     def cache_key(self):
         """Used for caching topographies avoiding reading datafiles again when interpreted in the same way"""
