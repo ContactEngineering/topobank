@@ -14,7 +14,7 @@ class ConfigurationException(Exception):
     pass
 
 
-def get_package_version_tuple(pkg_name, version_expr):
+def _get_package_version_tuple(pkg_name, version_expr):
     """
 
     :param pkg_name: name of the package which is used in import statement
@@ -55,7 +55,7 @@ def get_package_version_tuple(pkg_name, version_expr):
 
 
 @transaction.atomic(durable=True)
-def get_package_version_instance(pkg_name, version_expr):
+def get_package_version(pkg_name, version_expr):
     """
     Return version instance for currently installed version of a package.
     The function creates the entry in the dependency and version tables if
@@ -75,7 +75,7 @@ def get_package_version_instance(pkg_name, version_expr):
     version : Version
         Instance of the Version class
     """
-    major, minor, micro, extra = get_package_version_tuple(pkg_name, version_expr)
+    major, minor, micro, extra = _get_package_version_tuple(pkg_name, version_expr)
 
     # create dependency object if it does not yet exist
     dep, created = Dependency.objects.get_or_create(import_name=pkg_name)

@@ -461,9 +461,9 @@ TRACKED_DEPENDENCIES = [
     ('scipy', 'scipy.__version__'),
 ]
 # Extend tracked dependencies by Plugin apps
-for plugin_app in PLUGIN_APPS:
+for plugin_module, plugin_app in zip(PLUGIN_MODULES, PLUGIN_APPS):
     TRACKED_DEPENDENCIES.append(
-        (plugin_app, plugin_app + '.__version__')  # we use the module name as readable name at first
+        (plugin_module, plugin_app + '.TopobankPluginMeta.version')  # we use the module name as readable name at first
     )
 
 #
