@@ -1,7 +1,6 @@
 import logging
 
 from django.http import Http404
-from django.views.generic import DetailView, TemplateView
 from django.core.files.storage import default_storage
 from django.core.exceptions import PermissionDenied
 from django.shortcuts import redirect
@@ -16,13 +15,11 @@ from pint import DimensionalityError, UnitRegistry, UndefinedUnitError
 
 from trackstats.models import Metric
 
-from ..manager.models import Topography, Surface, SurfaceCollection
-from ..manager.utils import instances_to_selection, selection_to_subjects_dict, subjects_from_base64
+from ..manager.models import Surface, SurfaceCollection
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController, renew_existing_analysis
 from .models import Analysis, AnalysisFunction, Configuration
 from .permissions import AnalysisFunctionPermissions
-from .registry import AnalysisRegistry
 from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer, ConfigurationSerializer
 from .utils import filter_and_order_analyses
 
@@ -66,57 +63,6 @@ class AnalysisResultView(viewsets.GenericViewSet,
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
-
-
-@api_view(['POST'])
-def generic_card_view(request):
-    """Gets function ids and subject ids from POST parameters.
-
-    :return: dict to be used in analysis card templates' context
-
-    The returned dict has the following keys:
-
-      title: card title
-      function: AnalysisFunction instance
-      unique_kwargs: dict with common kwargs for all analyses, None if not unique
-      analyses_available: list of all analyses which are relevant for this view
-      analyses_success: list of successfully finished analyses (result is useable, can be displayed)
-      analyses_failure: list of analyses finished with failures (result has traceback, can't be displayed)
-      analyses_unready: list of analyses which are still running or pending
-      subjects_missing: list of subjects for which there is no Analysis object yet
-      subjects_requested_json: json representation of list with all requested subjects as 2-tuple
-                               (subject_type.id, subject.id)
-    """
-    controller = AnalysisController.from_request(request)
-
-    #
-    # for statistics, count views per function
-    #
-    increase_statistics_by_date_and_object(Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=controller.function)
-
-    #
-    # get standard context dictionary
-    #
-    context = controller.get_context(request=request)
-
-    #
-    # Update context
-    #
-    context.update({
-        'title': controller.function.name,
-        'analyses_available': controller.get(),  # all Analysis objects related to this card
-        'analyses_success': controller.get(['su'], True),  # ..the ones which were successful and can be displayed
-        'analyses_failure': controller.get(['fa'], True),  # ..the ones which have failures and can't be displayed
-        'analyses_unready': controller.get(['su', 'fa'], False),  # ..the ones which are still running
-        'subjects_missing': controller.subjects_without_analysis_results,
-        'messages': [],  # use list of dicts of form {'alertClass': 'alert-info', 'message': 'your message'},
-        'analyses_renew_url': reverse('analysis:renew')
-    })
-
-    #
-    # comprise context for analysis result card
-    #
-    return Response(context)
 
 
 @api_view(['GET'])
@@ -283,8 +229,8 @@ def series_card_view(request, **kwargs):
         if is_topography_analysis and analysis.subject_dispatch.topography.surface.num_topographies() > 1:
             for a in analyses_success_list:
                 if a.subject_dispatch.surface is not None and \
-                        a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
-                        a.function.id == analysis.function.id:
+                    a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
+                    a.function.id == analysis.function.id:
                     parent_analysis = a
 
         subject_display_name = subject_names[analysis_idx]
@@ -467,158 +413,3 @@ def data(request, pk, location):
     return redirect(url)
 
 
-def extra_tabs_if_single_item_selected(topographies, surfaces):
-    """Return contribution to context for opening extra tabs if a single topography/surface is selected.
-
-    Parameters
-    ----------
-    topographies: list of topographies
-        Use here the result of function `utils.selected_instances`.
-
-    surfaces: list of surfaces
-        Use here the result of function `utils.selected_instances`.
-
-    Returns
-    -------
-    Sequence of dicts, each dict corresponds to an extra tab.
-
-    """
-    tabs = []
-
-    if len(topographies) == 1 and len(surfaces) == 0:
-        # exactly one topography was selected -> show also tabs of topography
-        topo = topographies[0]
-        tabs.extend([
-            {
-                'title': f"{topo.surface.label}",
-                'icon': "gem",
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={topo.surface.pk}",
-                'active': False,
-                'login_required': False,
-                'tooltip': f"Properties of surface '{topo.surface.label}'",
-            },
-            {
-                'title': f"{topo.name}",
-                'icon': "file",
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:topography-detail')}?topography={topo.pk}",
-                'active': False,
-                'login_required': False,
-                'tooltip': f"Properties of measurement '{topo.name}'",
-            }
-        ])
-    elif len(surfaces) == 1 and all(t.surface == surfaces[0] for t in topographies):
-        # exactly one surface was selected -> show also tab of surface
-        surface = surfaces[0]
-        tabs.append(
-            {
-                'title': f"{surface.label}",
-                'icon': 'gem',
-                'icon_style_prefix': 'far',
-                'href': f"{reverse('manager:surface-detail')}?surface={surface.pk}",
-                'active': False,
-                'login_required': False,
-                'tooltip': f"Properties of surface '{surface.label}'",
-            }
-        )
-    return tabs
-
-
-class AnalysisResultDetailView(DetailView):
-    """Show analyses for a given analysis function.
-    """
-    model = AnalysisFunction
-    template_name = "analysis/analyses_detail.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        function = self.object
-        # Check if user is allowed to use this function
-        reg = AnalysisRegistry()
-        if function.name not in reg.get_analysis_function_names(self.request.user):
-            raise PermissionDenied()
-
-        # filter subjects to those this user is allowed to see
-        effective_topographies, effective_surfaces, subjects = selection_to_subjects_dict(self.request)
-
-        # get analysis result type
-        visualization_app_name, visualization_type = reg.get_visualization_type_for_function_name(function.name)
-
-        context['function'] = function
-        context['visualization_type'] = visualization_type
-
-        # Decide whether to open extra tabs for surface/topography details
-        tabs = extra_tabs_if_single_item_selected(effective_topographies, effective_surfaces)
-        tabs.extend([
-            {
-                'title': f"Analyze",
-                'icon': "chart-area",
-                'href': f"{reverse('analysis:results-list')}?subjects={self.request.GET.get('subjects')}",
-                'active': False,
-                'login_required': False,
-                'tooltip': "Results for selected analysis functions"
-            },
-            {
-                'title': f"{function.name}",
-                'icon': "chart-area",
-                'href': f"{self.request.path}?subjects={self.request.GET.get('subjects')}",
-                'active': True,
-                'login_required': False,
-                'tooltip': f"Results for analysis '{function.name}'",
-                'show_basket': True,
-            }
-        ])
-        context['extra_tabs'] = tabs
-
-        return context
-
-
-class AnalysesResultListView(TemplateView):
-    """View showing analyses from multiple functions.
-    """
-    template_name = "analysis/analyses_list.html"
-
-    def get_context_data(self, **kwargs):
-        context = super().get_context_data(**kwargs)
-
-        topographies = []
-        surfaces = []
-
-        # Find out what the subjects are. The usual query is a base64 encoded
-        # subjects dictionary passed as the 'subjects' argument.
-        subjects = self.request.GET.get('subjects')
-        topography = self.request.GET.get('topography')
-        surface = self.request.GET.get('surface')
-        if subjects is not None:
-            try:
-                subjects = subjects_from_base64(subjects)
-            except:
-                subjects = None
-
-            if subjects is not None:
-                # Update session to reflect selection
-                topographies = [t for t in subjects if isinstance(t, Topography)]
-                surfaces = [t for t in subjects if isinstance(t, Surface)]
-                self.request.session['selection'] = instances_to_selection(topographies=topographies, surfaces=surfaces)
-        elif topography is not None:
-            pass
-        elif surface is not None:
-            pass
-
-        # Decide whether to open extra tabs for surface/topography details
-        tabs = extra_tabs_if_single_item_selected(topographies, surfaces)
-        tabs.append({
-            'title': f"Analyze",
-            'icon': "chart-area",
-            'icon-style-prefix': 'fas',
-            'href': f"{reverse('analysis:results-list')}?subjects={self.request.GET.get('subjects')}",
-            'active': True,
-            'login_required': False,
-            'tooltip': "Results for selected analysis functions",
-            'show_basket': True,
-        })
-        context['extra_tabs'] = tabs
-
-        return context

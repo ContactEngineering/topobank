@@ -2,14 +2,13 @@
 Base settings to build other settings files upon.
 """
 
-import os.path
+import importlib.metadata
 import logging
+import os.path
 import random
 import string
 
 import environ
-
-from pkg_resources import iter_entry_points
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -115,24 +114,11 @@ LOCAL_APPS = [
     'topobank.manager.apps.ManagerAppConfig',
     'topobank.analysis.apps.AnalysisAppConfig',
     'topobank.usage_stats.apps.UsageStatsAppConfig',
-    'topobank.tabnav.apps.TabNavAppConfig',
     'topobank.organizations.apps.OrganizationsAppConfig',
 ]
 
-TOPOBANK_PLUGINS_IGNORE_CONFLICTS = env.bool('TOPOBANK_PLUGINS_IGNORE_CONFLICTS', default=False)
-TOPOBANK_PLUGINS_EXCLUDE = env.list('TOPOBANK_PLUGINS_EXCLUDE', default=[])
-PLUGIN_APPS = []
-for entry_point in iter_entry_points(group='topobank.plugins', name=None):
-    if entry_point.module_name in TOPOBANK_PLUGINS_EXCLUDE:
-        continue
-    # Some name mangling
-    plugin_name = entry_point.module_name
-    if plugin_name.startswith('topobank_'):
-        plugin_name = plugin_name[9:]
-    plugin_name = plugin_name[0:1].upper() + plugin_name[1:]
-    plugin_config = f'{entry_point.module_name}.apps.{plugin_name}PluginConfig'
-    PLUGIN_APPS.append(plugin_config)
-_log.info('Topobank detected the following plugins:', PLUGIN_APPS)
+PLUGIN_APPS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.plugins')]
+_log.info('Topobank detected the following plugin apps:', PLUGIN_APPS)
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 # Remove duplicate entries
@@ -224,6 +210,9 @@ if ENABLE_USAGE_STATS:
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#templates
 
+PLUGIN_CONTEXT_PROCESSORS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.context_processors')]
+_log.info('Topobank detected the following plugin context processors:', PLUGIN_CONTEXT_PROCESSORS)
+
 TEMPLATES = [
     {
         # https://docs.djangoproject.com/en/dev/ref/settings/#std:setting-TEMPLATES-BACKEND
@@ -252,10 +241,7 @@ TEMPLATES = [
                 'django.template.context_processors.static',
                 'django.template.context_processors.tz',
                 'django.contrib.messages.context_processors.messages',
-                'topobank.context_processors.versions_processor',
-                'topobank.context_processors.basket_processor',
-                'ce-ui.ce_ui.tabnav.context_processors.fixed_tabs_processor',
-            ],
+            ] + PLUGIN_CONTEXT_PROCESSORS,
         },
     },
 ]
