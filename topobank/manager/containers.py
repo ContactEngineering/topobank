@@ -166,6 +166,7 @@ def write_surface_container(file, surfaces):
         # Add license information to README
         #
         licenses_used = set(pub.license for pub in publications)
+        legalcode_filepath = {pub.license: pub.get_license_legalcode_filepath()}
         readme_txt += textwrap.dedent("""
         License information
         ===================
@@ -194,8 +195,7 @@ def write_surface_container(file, surfaces):
             #
             # Also add license file
             #
-            zf.write(f'{os.path.dirname(__file__)}/../static/other/{license}-legalcode.txt',
-                     arcname=license_file_in_archive)
+            zf.write(legalcode_filepath[license], arcname=license_file_in_archive)
 
     zf.writestr("README.txt", textwrap.dedent(readme_txt))
 
