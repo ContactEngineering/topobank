@@ -3,7 +3,6 @@ Base settings to build other settings files upon.
 """
 
 import importlib.metadata
-import os.path
 import random
 import string
 
@@ -113,9 +112,8 @@ LOCAL_APPS = [
     'topobank.organizations.apps.OrganizationsAppConfig',
 ]
 
-PLUGIN_ENTRYPOINTS = importlib.metadata.entry_points(group='topobank.plugins')
-PLUGIN_MODULES = [entry_point.name for entry_point in PLUGIN_ENTRYPOINTS]
-PLUGIN_APPS = [entry_point.value for entry_point in PLUGIN_ENTRYPOINTS]
+PLUGIN_MODULES = [entry_point.name for entry_point in importlib.metadata.entry_points(group='topobank.plugins')]
+PLUGIN_APPS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.plugins')]
 print(f'PLUGIN_MODULES: {PLUGIN_MODULES}')
 print(f'PLUGIN_APPS: {PLUGIN_APPS}')
 
