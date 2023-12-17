@@ -29,11 +29,6 @@ from SurfaceTopography.IO.DZI import write_dzi
 
 _log = logging.getLogger(__name__)
 
-MAX_LENGTH_SURFACE_COLLECTION_NAME = 160
-DEFAULT_DATASOURCE_NAME = 'Default'
-MAX_LEN_SEARCH_TERM = 200
-SELECTION_SESSION_VARNAME = 'selection'
-
 
 class TopographyFileException(Exception):
     pass
@@ -318,32 +313,6 @@ def subjects_from_base64(url):
     Encoded dictionary object.
     """
     return subjects_from_dict(dict_from_base64(url))
-
-
-def surface_collection_name(surface_names, max_total_length=MAX_LENGTH_SURFACE_COLLECTION_NAME):
-    """For a given list of names, return a length-limited collection name."""
-    num_surfaces = len(surface_names)
-    k = 0
-    coll_name_prefix = ""
-    last_coll_name = ""
-    while k < num_surfaces:
-        coll_name_prefix += f"Surface '{surface_names[k]}'"
-        num_rest = num_surfaces - (k + 1)
-        coll_name = coll_name_prefix[:]
-        if num_rest > 0:
-            coll_name += f" and {num_rest} more"
-        if len(coll_name) > max_total_length:
-            if last_coll_name == "":
-                coll_name = coll_name_prefix[:max_total_length - 4] + "..."
-            else:
-                coll_name = last_coll_name
-            break
-        else:
-            last_coll_name = coll_name
-            coll_name_prefix += ", "
-            k += 1  # add one more and try if it still fits
-
-    return coll_name
 
 
 def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:

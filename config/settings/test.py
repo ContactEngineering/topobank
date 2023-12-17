@@ -91,6 +91,10 @@ LOGGING = {
             'formatter': 'verbose',
         },
     },
+    'root': {
+        'level': 'DEBUG',
+        'handlers': ['console']
+    },
     'loggers': {
         'django.request': {
             'handlers': ['mail_admins'],
@@ -100,11 +104,6 @@ LOGGING = {
         'django.security.DisallowedHost': {
             'level': 'ERROR',
             'handlers': ['console', 'mail_admins'],
-            'propagate': True
-        },
-        'topobank': {
-            'level': 'DEBUG',
-            'handlers': ['console'],
             'propagate': True
         }
     }

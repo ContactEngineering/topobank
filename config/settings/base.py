@@ -3,7 +3,6 @@ Base settings to build other settings files upon.
 """
 
 import importlib.metadata
-import logging
 import os.path
 import random
 import string
@@ -15,8 +14,6 @@ from django.core.exceptions import ImproperlyConfigured
 from watchman import constants as watchman_constants
 
 import topobank
-
-_log = logging.getLogger(__name__)
 
 
 def random_string(l=16):
@@ -101,7 +98,6 @@ THIRD_PARTY_APPS = [
     'termsandconditions',
     'storages',
     'guardian',
-    'django_select2',
     'notifications',
     'tagulous',
     'trackstats',
@@ -117,8 +113,11 @@ LOCAL_APPS = [
     'topobank.organizations.apps.OrganizationsAppConfig',
 ]
 
-PLUGIN_APPS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.plugins')]
-_log.info('Topobank detected the following plugin apps:', PLUGIN_APPS)
+PLUGIN_ENTRYPOINTS = importlib.metadata.entry_points(group='topobank.plugins')
+PLUGIN_MODULES = [entry_point.name for entry_point in PLUGIN_ENTRYPOINTS]
+PLUGIN_APPS = [entry_point.value for entry_point in PLUGIN_ENTRYPOINTS]
+print(f'PLUGIN_MODULES: {PLUGIN_MODULES}')
+print(f'PLUGIN_APPS: {PLUGIN_APPS}')
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 # Remove duplicate entries
@@ -211,7 +210,7 @@ if ENABLE_USAGE_STATS:
 # https://docs.djangoproject.com/en/dev/ref/settings/#templates
 
 PLUGIN_CONTEXT_PROCESSORS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.context_processors')]
-_log.info('Topobank detected the following plugin context processors:', PLUGIN_CONTEXT_PROCESSORS)
+print(f'PLUGIN_CONTEXT_PROCESSORS: {PLUGIN_CONTEXT_PROCESSORS}')
 
 TEMPLATES = [
     {
@@ -419,18 +418,15 @@ if USE_S3_STORAGE:
 # STATIC
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-root
-STATIC_ROOT = env.str('DJANGO_STATIC_ROOT', default=(environ.Path(__file__) - 3).path('staticfiles'))
+STATIC_ROOT = env.str('DJANGO_STATIC_ROOT', default=(APPS_DIR - 2).path('staticfiles'))  # This is not used in the development environment
+print(f'STATIC_ROOT: {STATIC_ROOT}')
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-url
 STATIC_URL = '/static/'
+print(f'STATIC_URL: {STATIC_URL}')
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
-STATICFILES_DIRS = []
-for d in ['/static', APPS_DIR.path('static'), APPS_DIR.path('../../static')]:
-    d = str(d)
-    if os.path.exists(d):
-        _log.info(f"Adding path '{d}' to static files.")
-        STATICFILES_DIRS += [d]
-    else:
-        _log.info(f"Skipping path '{d}' for static files since it does not exist.")
+STATICFILES_DIRS = [str((APPS_DIR - 2).path('static'))]  # The /static dir of each app is searched automatically
+print(f'STATICFILES_DIRS: {STATICFILES_DIRS}')
+
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
@@ -479,17 +475,6 @@ DJANGO_NOTIFICATIONS_CONFIG = {'USE_JSONFIELD': True}
 # I would like to pass the target url to a notification
 
 #
-# Local references for "select2"
-#
-# An alternative is maybe "django-bower" which could be used
-# to resolve all external javascript dependencies and install them
-# locally in a defined way
-SELECT2_JS = '/static/tagulous/lib/select2-4/js/select2.min.js'
-SELECT2_CSS = '/static/tagulous/lib/select2-4/css/select2.min.css'
-SELECT2_I18N_PATH = '/static/tagulous/lib/select2-4/js/i18n'
-# The default for all these are pointers to Cloudflare CDN
-
-#
 # Settings for django-tagulous (tagging)
 #
 SERIALIZATION_MODULES = {
@@ -499,11 +484,11 @@ SERIALIZATION_MODULES = {
     'yaml': 'tagulous.serializers.pyyaml',
 }
 
-TAGULOUS_AUTOCOMPLETE_JS = (
-    "tagulous/lib/select2-4/js/select2.full.min.js",
-    "tagulous/tagulous.js",
-    "tagulous/adaptor/select2-4.js",
-)
+#TAGULOUS_AUTOCOMPLETE_JS = (
+#    "tagulous/lib/select2-4/js/select2.full.min.js",
+#    "tagulous/tagulous.js",
+#    "tagulous/adaptor/select2-4.js",
+#)
 
 #
 # E-Mail address to contact us

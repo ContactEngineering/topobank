@@ -11,9 +11,10 @@ from django.contrib.auth.decorators import user_passes_test
 
 import notifications.urls
 
-from topobank.views import TermsView, HomeView, HelpView, GotoSelectView, TermsDetailView, TermsAcceptView
 from topobank.users.allauth_views import TabbedEmailView
 from topobank.organizations.models import Organization
+
+from ce_ui.views import TermsView, HomeView, HelpView, TermsDetailView, TermsAcceptView
 
 urlpatterns = [path("", HomeView.as_view(), name="home"),
                path(
@@ -33,7 +34,7 @@ urlpatterns = [path("", HomeView.as_view(), name="home"),
                ),
                path(
                    "search/",
-                   GotoSelectView.as_view(),
+                   RedirectView.as_view(pattern_name='ce_ui:select'),
                    name="search",
                ),
                # Django Admin, use {% url 'admin:index' %}
@@ -46,9 +47,6 @@ urlpatterns = [path("", HomeView.as_view(), name="home"),
                re_path("^accounts/email/$", TabbedEmailView.as_view(),
                        name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
                path("accounts/", include("allauth.urls")),
-
-               # For interactive select boxes
-               re_path(r'^select2/', include('django_select2.urls')),
 
                #
                # For asking for terms and conditions

@@ -26,16 +26,8 @@ CACHES = {
         'OPTIONS': {
             'CLIENT_CLASS': "django_redis.client.DefaultClient",
         }
-    },
-    # "select2": {
-    #     "BACKEND": "django_redis.cache.RedisCache",
-    #     "LOCATION": env.str("DJANGO_SELECT2_CACHE_LOCATION", default='redis://127.0.0.1:6379/2'),
-    #     "OPTIONS": {
-    #         "CLIENT_CLASS": "django_redis.client.DefaultClient",
-    #     }
-    # }
+    }
 }
-SELECT2_CACHE_BACKEND = "default"
 
 # TEMPLATES
 # ------------------------------------------------------------------------------

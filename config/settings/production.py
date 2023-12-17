@@ -35,8 +35,6 @@ CACHES = {
     # }
 }
 
-SELECT2_CACHE_BACKEND = "default"
-
 # SECURITY
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-proxy-ssl-header

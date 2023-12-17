@@ -35,8 +35,7 @@ from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
 
-from .utils import api_to_guardian, guardian_to_api, dzi_exists, get_topography_reader, make_dzi, recursive_delete, \
-    MAX_LENGTH_SURFACE_COLLECTION_NAME
+from .utils import api_to_guardian, guardian_to_api, dzi_exists, get_topography_reader, make_dzi, recursive_delete
 
 _log = logging.getLogger(__name__)
 
@@ -178,7 +177,7 @@ class Surface(models.Model, SubjectMixin):
         return [self]
 
     def get_absolute_url(self):
-        return f"{reverse('manager:surface-detail')}?surface={self.pk}"
+        return f"{reverse('ce_ui:surface-detail')}?surface={self.pk}"
 
     def num_topographies(self):
         return self.topography_set.count()
@@ -368,7 +367,9 @@ class SurfaceGroupObjectPermission(GroupObjectPermissionBase):
 
 class SurfaceCollection(models.Model, SubjectMixin):
     """A collection of surfaces."""
-    name = models.CharField(max_length=MAX_LENGTH_SURFACE_COLLECTION_NAME)
+    MAX_LENGTH_NAME = 160
+
+    name = models.CharField(max_length=MAX_LENGTH_NAME)
     surfaces = models.ManyToManyField(Surface)
 
     # We have a manytomany field, because a surface could be part of multiple collections.
@@ -729,7 +730,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def get_absolute_url(self):
         """URL of detail page for this topography."""
-        return f"{reverse('manager:topography-detail')}?topography={self.pk}"
+        return f"{reverse('ce-ui:topography-detail')}?topography={self.pk}"
 
     def cache_key(self):
         """Used for caching topographies avoiding reading datafiles again when interpreted in the same way"""
