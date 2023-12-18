@@ -1,117 +1,66 @@
 import importlib.util
 
+from django.apps import apps
 from django.conf import settings
-from django.urls import include, path, re_path
 from django.conf.urls.static import static
 from django.contrib import admin
-from django.views.generic import TemplateView, RedirectView
-from django.views import defaults as default_views
-from django.apps import apps
 from django.contrib.auth.decorators import user_passes_test
+from django.urls import include, path, re_path
+from django.views import defaults as default_views
 
 import notifications.urls
 
 from topobank.users.allauth_views import TabbedEmailView
 from topobank.organizations.models import Organization
 
-from ce_ui.views import TermsView, HomeView, HelpView, TermsDetailView, TermsAcceptView
+urlpatterns = [
+    #
+    # Django Admin, use {% url 'admin:index' %}
+    #
+    path(settings.ADMIN_URL, admin.site.urls),
+    #
+    # User management
+    #
+    path(
+        "users/",
+        include("topobank.users.urls", namespace="users"),
+    ),
+    re_path("^accounts/email/$", TabbedEmailView.as_view(),
+            name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
+    path("accounts/", include("allauth.urls")),
 
-urlpatterns = [path("", HomeView.as_view(), name="home"),
-               path(
-                   "about/",
-                   TemplateView.as_view(template_name="pages/about.html"),
-                   name="about",
-               ),
-               path(
-                   "termsandconditions/",
-                   TermsView.as_view(),
-                   name="terms",
-               ),
-               path(
-                   "help/",
-                   HelpView.as_view(),
-                   name="help",
-               ),
-               path(
-                   "search/",
-                   RedirectView.as_view(pattern_name='ce_ui:select'),
-                   name="search",
-               ),
-               # Django Admin, use {% url 'admin:index' %}
-               path(settings.ADMIN_URL, admin.site.urls),
-               # User management
-               path(
-                   "users/",
-                   include("topobank.users.urls", namespace="users"),
-               ),
-               re_path("^accounts/email/$", TabbedEmailView.as_view(),
-                       name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
-               path("accounts/", include("allauth.urls")),
+    #
+    # Notifications - see package django-notifications
+    #
+    re_path('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
+    #
+    # Watchman - see package django-watchman
+    #
+    path(
+        "watchman/",
+        include(("watchman.urls", "watchman"), namespace="watchman")
+    ),
+    #
+    # Core topobank applications
+    #
+    path(
+        "manager/",
+        include("topobank.manager.urls", namespace="manager"),
+    ),
+    path(
+        "analysis/",
+        include("topobank.analysis.urls", namespace="analysis"),
+    ),
+    path(
+        "plugins/",
+        include("topobank.plugins.urls", namespace="plugins"),
+    ),
+]
 
-               #
-               # For asking for terms and conditions
-               #
-
-               # some url specs are overwritten here pointing to own views in order to plug in
-               # some extra context for the tabbed interface
-               # View Specific Active Terms
-               re_path(r'^terms/view/(?P<slug>[a-zA-Z0-9_.-]+)/$', TermsDetailView.as_view(),
-                       name="tc_view_specific_page"),
-
-               # View Specific Version of Terms
-               re_path(r'^terms/view/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9.]+)/$', TermsDetailView.as_view(),
-                       name="tc_view_specific_version_page"),
-
-               # Print Specific Version of Terms
-               re_path(r'^terms/print/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9.]+)/$',
-                       TermsDetailView.as_view(template_name="termsandconditions/tc_print_terms.html"),
-                       name="tc_print_page"),
-
-               # Accept Terms
-               re_path(r'^terms/accept/$', TermsAcceptView.as_view(), name="tc_accept_page"),
-
-               # Accept Specific Terms
-               re_path(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)$', TermsAcceptView.as_view(),
-                       name="tc_accept_specific_page"),
-
-               # Accept Specific Terms Version
-               re_path(r'^terms/accept/(?P<slug>[a-zA-Z0-9_.-]+)/(?P<version>[0-9\.]+)/$', TermsAcceptView.as_view(),
-                       name="tc_accept_specific_version_page"),
-
-               # the defaults
-               re_path(r'^terms/', include('termsandconditions.urls')),
-
-               # for notifications - see package djano-notifications
-               re_path('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
-               # Your stuff: custom urls includes go here
-               path(
-                   "manager/",
-                   include("topobank.manager.urls", namespace="manager"),
-               ),
-               path(
-                   "analysis/",
-                   include("topobank.analysis.urls", namespace="analysis"),
-               ),
-               path(
-                   "plugins/",
-                   include("topobank.plugins.urls", namespace="plugins"),
-               ),
-               path(
-                   "watchman/",
-                   include(("watchman.urls", "watchman"), namespace="watchman")
-               ),
-               ] + static(
-    settings.MEDIA_URL, document_root=settings.MEDIA_ROOT
-)
-
-if settings.CHALLENGE_REDIRECT_URL:
-    urlpatterns += [
-        path(
-            "challenge/",
-            RedirectView.as_view(url=settings.CHALLENGE_REDIRECT_URL, permanent=False),
-            name="challenge",
-        ),
-    ]
+#
+# Add serving of static files
+#
+urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
 
 if settings.DEBUG:
     # This allows the error pages to be debugged during development, just visit
@@ -144,11 +93,13 @@ if settings.DEBUG:
 # Load URL patterns from plugins
 #
 def plugin_urls(urllist, app):
+    print('>>>', urllist)
     for entry in urllist:
         if hasattr(entry, 'url_patterns'):
-            # FIXME: This looks like a bug, we need to do something with the return value
-            plugin_urls(entry.url_patterns)
+            # This is a list of URL patterns
+            entry.url_patterns = plugin_urls(entry.url_patterns, app)
         elif hasattr(entry, 'callback'):
+            # This is a path with a view
             def plugin_available_check(user):
                 if app.TopobankPluginMeta.restricted:
                     return app.name in Organization.objects.get_plugins_available(user)
@@ -156,6 +107,7 @@ def plugin_urls(urllist, app):
 
             callback_decorator = user_passes_test(plugin_available_check, login_url='/403/', redirect_field_name=None)
             entry.callback = callback_decorator(entry.callback)
+    print('<<<', urllist)
     return urllist
 
 
@@ -165,14 +117,29 @@ for app in apps.get_app_configs():
         url_module_name = app.name + '.urls'
         if importlib.util.find_spec(url_module_name):
             url_module = importlib.import_module(url_module_name)
-            plugin_patterns.append(
-                path(
-                    url_module.urlprefix,  # all urls of this plugin start with this
+            if hasattr(url_module, 'urlprefix') and url_module.urlprefix is not None:
+                print('urlprefix =', url_module.urlprefix)
+                plugin_patterns.append(
+                    path(
+                        url_module.urlprefix,  # all urls of this plugin start with this
+                        # Allow access only if plugin available
+                        include((plugin_urls(url_module.urlpatterns, app=app), app.label))
+                        # Allow access independent of plugin availability (always permitted)
+                        # include((url_module.urlpatterns, app.label))
+                    )
+                )
+            else:
+                print('no urlprefix')
+                # This plugin wants to register top-level routes; this is usually the user-interface plugin
+                plugin_patterns.extend(
                     # Allow access only if plugin available
-                    include((plugin_urls(url_module.urlpatterns, app=app), app.label))
+                    plugin_urls(url_module.urlpatterns, app=app)
                     # Allow access independent of plugin availability (always permitted)
                     # include((url_module.urlpatterns, app.label))
                 )
-            )
+
+print(plugin_patterns)
 
 urlpatterns.extend(plugin_patterns)
+
+print(urlpatterns)
