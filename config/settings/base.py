@@ -94,7 +94,6 @@ THIRD_PARTY_APPS = [
     'allauth.socialaccount',
     'allauth.socialaccount.providers.orcid',
     'rest_framework',
-    'termsandconditions',
     'storages',
     'guardian',
     'notifications',
@@ -116,6 +115,10 @@ PLUGIN_MODULES = [entry_point.name for entry_point in importlib.metadata.entry_p
 PLUGIN_APPS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.plugins')]
 print(f'PLUGIN_MODULES: {PLUGIN_MODULES}')
 print(f'PLUGIN_APPS: {PLUGIN_APPS}')
+
+PLUGIN_THIRD_PARTY_APPS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.third_party_apps')]
+print(f'PLUGIN_THIRD_PARTY_APPS: {PLUGIN_THIRD_PARTY_APPS}')
+THIRD_PARTY_APPS += PLUGIN_THIRD_PARTY_APPS
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 # Remove duplicate entries
