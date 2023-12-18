@@ -15,10 +15,6 @@ from topobank.organizations.models import Organization
 
 urlpatterns = [
     #
-    # Django Admin, use {% url 'admin:index' %}
-    #
-    path(settings.ADMIN_URL, admin.site.urls),
-    #
     # User management
     #
     path(
@@ -28,18 +24,6 @@ urlpatterns = [
     re_path("^accounts/email/$", TabbedEmailView.as_view(),
             name='account_email'),  # same as allauth.accounts.email.EmailView, but with tab data
     path("accounts/", include("allauth.urls")),
-
-    #
-    # Notifications - see package django-notifications
-    #
-    re_path('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
-    #
-    # Watchman - see package django-watchman
-    #
-    path(
-        "watchman/",
-        include(("watchman.urls", "watchman"), namespace="watchman")
-    ),
     #
     # Core topobank applications
     #
@@ -54,6 +38,21 @@ urlpatterns = [
     path(
         "plugins/",
         include("topobank.plugins.urls", namespace="plugins"),
+    ),
+    #
+    # Django Admin, use {% url 'admin:index' %}
+    #
+    path(settings.ADMIN_URL, admin.site.urls),
+    #
+    # Notifications - see package django-notifications
+    #
+    re_path('^inbox/notifications/', include(notifications.urls, namespace='notifications')),
+    #
+    # Watchman - see package django-watchman
+    #
+    path(
+        "watchman/",
+        include(("watchman.urls", "watchman"), namespace="watchman")
     ),
 ]
 
