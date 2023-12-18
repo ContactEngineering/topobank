@@ -60,7 +60,7 @@ class Command(BaseCommand):
         if options['changelog']:
             href = static('other/CHANGELOG.md')
         else:
-            href = reverse('home')
+            href = '#'
 
         notify.send(sender=actor, recipient=recipients, verb="notifies all about", description=message, href=href)
         # See javascript code in template "base.html" for details how the notification is displayed.
