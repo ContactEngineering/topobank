@@ -93,7 +93,6 @@ if settings.DEBUG:
 # Load URL patterns from plugins
 #
 def plugin_urls(urllist, app):
-    print('>>>', urllist)
     for entry in urllist:
         if hasattr(entry, 'url_patterns'):
             # This is a list of URL patterns
@@ -107,7 +106,6 @@ def plugin_urls(urllist, app):
 
             callback_decorator = user_passes_test(plugin_available_check, login_url='/403/', redirect_field_name=None)
             entry.callback = callback_decorator(entry.callback)
-    print('<<<', urllist)
     return urllist
 
 
@@ -118,7 +116,6 @@ for app in apps.get_app_configs():
         if importlib.util.find_spec(url_module_name):
             url_module = importlib.import_module(url_module_name)
             if hasattr(url_module, 'urlprefix') and url_module.urlprefix is not None:
-                print('urlprefix =', url_module.urlprefix)
                 plugin_patterns.append(
                     path(
                         url_module.urlprefix,  # all urls of this plugin start with this
@@ -129,7 +126,6 @@ for app in apps.get_app_configs():
                     )
                 )
             else:
-                print('no urlprefix')
                 # This plugin wants to register top-level routes; this is usually the user-interface plugin
                 plugin_patterns.extend(
                     # Allow access only if plugin available
@@ -138,8 +134,4 @@ for app in apps.get_app_configs():
                     # include((url_module.urlpatterns, app.label))
                 )
 
-print(plugin_patterns)
-
 urlpatterns.extend(plugin_patterns)
-
-print(urlpatterns)
