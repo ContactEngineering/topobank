@@ -87,8 +87,8 @@ DJANGO_APPS = [
     'django.contrib.postgres',  # needed for 'search' lookup
 ]
 THIRD_PARTY_APPS = [
-    'crispy_forms',
-    'crispy_bootstrap5',
+    'crispy_forms',  # format forms
+    'crispy_bootstrap5',  # format forms with Bootstrap-5
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
@@ -97,10 +97,10 @@ THIRD_PARTY_APPS = [
     'storages',
     'guardian',
     'notifications',
-    'tagulous',
+    'tagulous',  # tag-model with hierarchies
     'trackstats',
-    'watchman',
-    'request_profiler',
+    'watchman',  # system status report
+    'request_profiler',  # keep track of response times for selected routes
 ]
 LOCAL_APPS = [
     # Your stuff: custom apps go here
