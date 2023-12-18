@@ -190,13 +190,19 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    # Enable the following if you want to check T&C by middleware
-    # this must be called before anonymous user replacement, otherwise anonymous users will
-    # always be asked to accept terms and conditons
-    'termsandconditions.middleware.TermsAndConditionsRedirectMiddleware',
-    'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+PLUGIN_MIDDLEWARE = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.middleware')]
+print(f'PLUGIN_MIDDLEWARE: {PLUGIN_MIDDLEWARE}')
+
+# Plugin middleware must be called before anonymous user replacement, because the UI plugin registers Terms & Conditions
+# middleware. If plugin middleware comes last, then anonymous users will always be asked to accept terms and conditions.
+MIDDLEWARE += PLUGIN_MIDDLEWARE
+
+MIDDLEWARE += [
+    'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
 ]
 
 #
