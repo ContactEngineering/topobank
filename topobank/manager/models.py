@@ -177,7 +177,7 @@ class Surface(models.Model, SubjectMixin):
         return [self]
 
     def get_absolute_url(self):
-        return f"{reverse('ce_ui:surface-detail')}?surface={self.pk}"
+        return reverse('manager:surface-api-detail', kwargs=dict(pk=self.pk))
 
     def num_topographies(self):
         return self.topography_set.count()
@@ -730,7 +730,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def get_absolute_url(self):
         """URL of detail page for this topography."""
-        return f"{reverse('ce_ui:topography-detail')}?topography={self.pk}"
+        return reverse('manager:topography-api-detail', kwargs=dict(pk=self.pk))
 
     def cache_key(self):
         """Used for caching topographies avoiding reading datafiles again when interpreted in the same way"""
