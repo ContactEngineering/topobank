@@ -2,9 +2,10 @@ import pytest
 
 from django.core.management import call_command
 
-from .test_utils import UserFactory
+from ..models import DEFAULT_GROUP_NAME
 from ..utils import get_default_group
-from topobank.users.models import DEFAULT_GROUP_NAME
+
+from .factories import UserFactory
 
 
 @pytest.mark.django_db

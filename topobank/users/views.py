@@ -43,7 +43,7 @@ class UserDetailView(LoginRequiredMixin, DetailView):
         context = super().get_context_data(**kwargs)
         context['extra_tabs'] = [
             {
-                'title': f"User profile",
+                'title': "User profile",
                 'icon': "user",
                 'href': self.request.path,
                 'active': True,
@@ -79,13 +79,13 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
         context = super().get_context_data(**kwargs)
         context['extra_tabs'] = [
             {
-                'title': f"User Profile",
+                'title': "User Profile",
                 'icon': "user",
                 'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
                 'active': False,
             },
             {
-                'title': f"Update user",
+                'title': "Update user",
                 'icon': "edit",
                 'href': self.request.path,
                 'active': True,

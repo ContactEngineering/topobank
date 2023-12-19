@@ -12,7 +12,7 @@ from notifications.signals import notify
 from notifications.models import Notification
 
 from ..models import Topography, Surface
-from .utils import two_topos, SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
+from .utils import SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
 
 
 @pytest.mark.django_db
@@ -38,7 +38,6 @@ def test_topography_has_unit_set(two_topos):
 
 @pytest.mark.django_db
 def test_topography_instrument_dict():
-
     instrument_parameters = {
         'tip_radius': {
             'value': 10,
@@ -63,7 +62,7 @@ def test_topography_instrument_dict():
 def test_topography_str(two_topos):
     surface = Surface.objects.get(name="Surface 1")
     topos = Topography.objects.filter(surface=surface).order_by('name')
-    assert [str(t) for t in topos ] == ["Topography 'Example 3 - ZSensor' from 2018-01-01"]
+    assert [str(t) for t in topos] == ["Topography 'Example 3 - ZSensor' from 2018-01-01"]
 
     surface = Surface.objects.get(name="Surface 2")
     topos = Topography.objects.filter(surface=surface).order_by('name')
@@ -155,13 +154,12 @@ def test_call_topography_method_multiple_times(two_topos):
 
 @pytest.mark.django_db
 def test_unique_topography_name_in_same_surface():
-
     user = UserFactory()
     surface1 = SurfaceFactory(creator=user)
 
     Topography1DFactory(surface=surface1, name='TOPO')
 
-    with transaction.atomic(): # otherwise we can't proceed in this test
+    with transaction.atomic():  # otherwise we can't proceed in this test
         with pytest.raises(IntegrityError):
             Topography1DFactory(surface=surface1, name='TOPO')
 
@@ -172,7 +170,6 @@ def test_unique_topography_name_in_same_surface():
 
 @pytest.mark.django_db
 def test_surface_description(django_user_model):
-
     username = "testuser"
     password = "abcd$1234"
 
@@ -180,7 +177,7 @@ def test_surface_description(django_user_model):
 
     surface = Surface.objects.create(name='Surface 1', creator=user)
 
-    assert ""==surface.description
+    assert "" == surface.description
 
     surface.description = "First surface"
 
@@ -192,7 +189,6 @@ def test_surface_description(django_user_model):
 
 @pytest.mark.django_db
 def test_surface_share_and_unshare():
-
     password = "abcd$1234"
 
     user1 = UserFactory(password=password)
@@ -208,7 +204,7 @@ def test_surface_share_and_unshare():
     #
     # first: share, but only with view access
     #
-    surface.share(user2) # default: only view access
+    surface.share(user2)  # default: only view access
     assert user2.has_perm('view_surface', surface)
     assert not user2.has_perm('change_surface', surface)
     assert not user2.has_perm('delete_surface', surface)
@@ -247,7 +243,6 @@ def test_surface_share_and_unshare():
 
 @pytest.mark.django_db
 def test_other_methods_about_sharing():
-
     user1 = UserFactory()
     user2 = UserFactory()
 
@@ -275,7 +270,6 @@ def test_other_methods_about_sharing():
 
 @pytest.mark.django_db
 def test_notifications_are_deleted_when_surface_deleted():
-
     password = "abcd$1234"
     user = UserFactory(password=password)
     surface = SurfaceFactory(creator=user)
@@ -299,7 +293,6 @@ def test_notifications_are_deleted_when_surface_deleted():
 
 @pytest.mark.django_db
 def test_notifications_are_deleted_when_topography_deleted():
-
     password = "abcd$1234"
     user = UserFactory(password=password)
     surface = SurfaceFactory(creator=user)
@@ -327,7 +320,6 @@ def test_notifications_are_deleted_when_topography_deleted():
 @pytest.mark.parametrize('height_scale_factor', [1, 2])
 @pytest.mark.parametrize('detrend_mode', ['center', 'height', 'curvature'])
 def test_squeezed_datafile(handle_usage_statistics, height_scale_factor, detrend_mode, use_dummy_cache_backend):
-
     factory_kwargs = dict(height_scale_editable=True)
     if height_scale_factor is not None:
         factory_kwargs['height_scale'] = height_scale_factor
@@ -379,12 +371,3 @@ def test_squeezed_datafile(handle_usage_statistics, height_scale_factor, detrend
 
     df.close()
     sdf.close()
-
-
-
-
-
-
-
-
-

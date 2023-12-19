@@ -1,6 +1,6 @@
+from topobank.manager.tests.utils import SurfaceFactory
 
 from ..utils import are_collaborating
-from topobank.manager.tests.utils import UserFactory, SurfaceFactory
 
 
 def test_collaborators(django_user_model):

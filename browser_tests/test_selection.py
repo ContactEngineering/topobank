@@ -2,16 +2,17 @@
 Browser test for selection of topographies and functions.
 """
 
+import os
+import os.path
 import pytest
-import os, os.path
 
 from browser_tests.conftest import wait_for_page_load, logout_user, login_user
 
 from topobank.analysis.models import AnalysisFunction
 
+
 @pytest.mark.django_db(transaction=False)
 def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, webdriver):
-
     #
     # Create an analysis function for selection
     #
@@ -40,7 +41,7 @@ def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, w
     selection_choices = webdriver.find_elements_by_class_name("select2-selection__choice")
 
     assert len(selection_choices) == 1
-    assert selection_choices[0].text[1:] == "example3.di" # first character is some cross symbol, therefore [1:]
+    assert selection_choices[0].text[1:] == "example3.di"  # first character is some cross symbol, therefore [1:]
 
     #
     # Also select full surface
@@ -71,9 +72,8 @@ def test_selection_synchronize(surface_1_with_topographies_testuser_logged_in, w
 @pytest.mark.django_db(transaction=False)
 def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
                                                webdriver):
-
     webdriver.get(live_server.url + '/')
-    for i in [1,2]:
+    for i in [1, 2]:
         #
         # Create a another verified test user
         #
@@ -115,7 +115,6 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
                       for fn in ['example3.di', 'example4.txt']]
 
         for dp in data_paths:
-
             link = webdriver.find_element_by_link_text("Add topography")
             link.click()
 
@@ -127,7 +126,7 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
             link.click()
 
             input = webdriver.find_element_by_id('id_1-name')
-            input.send_keys(" of "+username)
+            input.send_keys(" of " + username)
 
             input = webdriver.find_element_by_id('id_1-measurement_date')
             input.send_keys("2018-02-01")
@@ -145,7 +144,6 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
             # switch to surface view in order to be able to add another topography
             link = webdriver.find_element_by_link_text("Surface 1")
             link.click()
-
 
         #
         # Logout
@@ -168,11 +166,11 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
         link.click()
 
     search_field = webdriver.find_element_by_class_name("select2-search__field")
-    search_field.click() # activate results
+    search_field.click()  # activate results
 
     search_options = webdriver.find_elements_by_class_name("select2-results__option")
 
-    search_options_texts = [ so.text for so in search_options ]
+    search_options_texts = [so.text for so in search_options]
 
     assert sorted(search_options_texts) == [
         'Surface 1 of user2', 'example3.di of user2', 'example4.txt of user2',
@@ -185,11 +183,11 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
     link.click()
 
     search_field = webdriver.find_elements_by_class_name("select2-search__field")[0]
-    search_field.click() # activate results
+    search_field.click()  # activate results
 
     search_options = webdriver.find_elements_by_class_name("select2-results__option")
 
-    search_options_texts = [ so.text for so in search_options ]
+    search_options_texts = [so.text for so in search_options]
 
     assert sorted(search_options_texts) == [
         'Surface 1 of user2', 'example3.di of user2', 'example4.txt of user2',
@@ -197,9 +195,9 @@ def test_selection_only_own_surfaces_and_topos(live_server, django_user_model,
 
     logout_user(webdriver)
 
+
 @pytest.mark.django_db(transaction=False)
 def test_show_empty_surface_when_explicitly_selected(one_empty_surface_testuser_signed_in, webdriver):
-
     link = webdriver.find_element_by_link_text("Surfaces")
     with wait_for_page_load(webdriver):
         link.click()
@@ -215,13 +213,3 @@ def test_show_empty_surface_when_explicitly_selected(one_empty_surface_testuser_
     # Now "Add topography" button should be shown
     #
     webdriver.find_element_by_link_text("Add topography")
-
-
-
-
-
-
-
-
-
-

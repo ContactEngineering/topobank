@@ -94,12 +94,13 @@ class Command(BaseCommand):
                 num_saved += 1
 
             if (idx + 1) % 10 == 0:
-                self.stdout.write(self.style.NOTICE(f"Processed {idx+1} topographies so far.."))
+                self.stdout.write(self.style.NOTICE(f"Processed {idx + 1} topographies so far.."))
 
         self.stdout.write(self.style.SUCCESS(f"Processed {num_topographies} topographies."))
         self.stdout.write(self.style.SUCCESS(f"Number of editable height scale factors: {num_editable}"))
         self.stdout.write(self.style.SUCCESS(f"                 ... of which are not 1: {num_editable_not_1}"))
-        self.stdout.write(self.style.SUCCESS(f"Number of height scale factors fixed by file contents: {num_not_editable}"))
+        self.stdout.write(
+            self.style.SUCCESS(f"Number of height scale factors fixed by file contents: {num_not_editable}"))
         self.stdout.write(
             self.style.SUCCESS(f"Number of detected differences in editable flag: {num_different_editable}"))
         self.stdout.write(

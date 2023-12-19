@@ -19,6 +19,7 @@ class AccountAdapter(DefaultAccountAdapter):
         user.name = form.cleaned_data.get('name')
         user.save()
 
+
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
 
     def is_open_for_signup(self, request, sociallogin):

@@ -10,13 +10,13 @@ class TabbedEmailView(EmailView):
         context = super().get_context_data(**kwargs)
         context['extra_tabs'] = [
             {
-                'title': f"User profile",
+                'title': "User profile",
                 'icon': "user",
                 'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
                 'active': False
             },
             {
-                'title': f"Edit e-mail addresses",
+                'title': "Edit e-mail addresses",
                 'icon': "edit",
                 'href': self.request.path,
                 'active': True

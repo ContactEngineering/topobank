@@ -1,5 +1,6 @@
 from django.urls import reverse
 
+
 def test_api():
     """Test API routes"""
     assert reverse('manager:surface-api-list') == '/manager/api/surface/'

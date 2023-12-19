@@ -7,7 +7,7 @@ from django.shortcuts import reverse
 from guardian.shortcuts import get_anonymous_user
 
 from ...manager.models import Surface, Topography
-from .utils import two_topos, two_users
+
 
 @pytest.mark.django_db
 @pytest.mark.parametrize('is_authenticated,with_children', [[True, False],
@@ -318,7 +318,6 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     user = topo1.creator
     surface1 = topo1.surface
     surface2 = topo2.surface
-    surface3 = topo3.surface
 
     # Delete as anonymous user should fail
     response = api_client.delete(reverse('manager:surface-api-detail', kwargs=dict(pk=surface1.id)))

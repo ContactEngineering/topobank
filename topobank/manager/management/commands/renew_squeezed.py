@@ -70,7 +70,7 @@ class Command(BaseCommand):
                 else:
                     _log.warning(f"Datafile '{topo.squeezed_datafile.name}' does not exist but is expected to.")
 
-            _log.info(f"Renewing squeezed data file for '{topo.name}', id {topo.id}, {topo_idx+1}/{num_total}..")
+            _log.info(f"Renewing squeezed data file for '{topo.name}', id {topo.id}, {topo_idx + 1}/{num_total}..")
             if not options['dry_run']:
                 try:
                     if options['background']:
@@ -93,7 +93,8 @@ class Command(BaseCommand):
                                                 "success not known yet."))
 
         if num_failed > 0 and not options['with_traceback']:
-            self.stdout.write(self.style.NOTICE("There have been failures. Use option --with-traceback to see details."))
+            self.stdout.write(
+                self.style.NOTICE("There have been failures. Use option --with-traceback to see details."))
 
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("This was a dry run, nothing has been changed."))

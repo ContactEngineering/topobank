@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = "Deletes a user and all associated data (surfaces, topographies, analyses, files, terms, shares). "+\
+    help = "Deletes a user and all associated data (surfaces, topographies, analyses, files, terms, shares). " + \
            "Handle with care."
 
     def add_arguments(self, parser):

@@ -1,13 +1,14 @@
+import os
+import os.path
 import pytest
-from selenium.webdriver import Firefox, Chrome
+from contextlib import contextmanager
+
+from selenium.webdriver import Chrome
 from selenium.webdriver.support.ui import WebDriverWait
 from selenium.webdriver.support import expected_conditions
 from selenium.common.exceptions import NoSuchElementException
 from selenium.webdriver.common.by import By
-from django.conf import settings
 
-from contextlib import contextmanager
-import os, os.path
 
 @pytest.fixture(scope='session')
 def webdriver():
@@ -19,6 +20,7 @@ def webdriver():
     yield driver
     driver.quit()
 
+
 @contextmanager
 def wait_for_page_load(browser, timeout=10):
     old_page = browser.find_element_by_tag_name('html')
@@ -27,8 +29,8 @@ def wait_for_page_load(browser, timeout=10):
         expected_conditions.staleness_of(old_page)
     )
 
-def login_user(webdriver, username, password):
 
+def login_user(webdriver, username, password):
     user_dropwdown = webdriver.find_element_by_id('userDropdown')
     user_dropwdown.click()
 
@@ -141,14 +143,13 @@ def no_surfaces_testuser_signed_in(live_server, webdriver, django_user_model, se
         with pytest.raises(NoSuchElementException):
             webdriver.find_element_by_partial_link_text("Sign Out")
 
-
     #
     # temporary media directory is deleted again
     #
 
+
 @pytest.fixture(scope="function")
 def one_empty_surface_testuser_signed_in(no_surfaces_testuser_signed_in, webdriver):
-
     link = webdriver.find_element_by_link_text("Surfaces")
     link.click()
 
@@ -165,13 +166,13 @@ def one_empty_surface_testuser_signed_in(no_surfaces_testuser_signed_in, webdriv
     link = webdriver.find_element_by_link_text("TopoBank")
     link.click()
 
+
 @pytest.fixture(scope="function")
 def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_signed_in, webdriver):
-
     datafile_paths_prefix = 'topobank/manager/fixtures/'
 
-    data_paths = [ os.path.join(datafile_paths_prefix, fn)
-                   for fn in ['example3.di', 'example4.txt']]
+    data_paths = [os.path.join(datafile_paths_prefix, fn)
+                  for fn in ['example3.di', 'example4.txt']]
 
     #
     # Select surface 1 in order to be able to add a topography
@@ -185,7 +186,6 @@ def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_si
     btn.click()
 
     for dp in data_paths:
-
         link = webdriver.find_element_by_link_text("Add topography")
         link.click()
 
@@ -206,7 +206,7 @@ def surface_1_with_topographies_testuser_logged_in(one_empty_surface_testuser_si
         # finally save
         link = webdriver.find_element_by_id("submit-id-save")
         with wait_for_page_load(webdriver):
-            link.click() # let's wait here, because some data file must be uploaded
+            link.click()  # let's wait here, because some data file must be uploaded
 
         # switch to surface view in order to be able to add another topography
         link = webdriver.find_element_by_link_text("Surface 1")
