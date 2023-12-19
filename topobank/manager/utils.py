@@ -10,18 +10,15 @@ import traceback
 from storages.utils import clean_name
 
 from django.conf import settings
-from django.db.models import Q, Value, Count, TextField
-from django.db.models.functions import Replace
-from django.core.exceptions import PermissionDenied
+from django.db.models import Q
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.contrib.contenttypes.models import ContentType
-from django.contrib.postgres.search import SearchVector, SearchQuery
 
 from rest_framework.reverse import reverse
 
 from guardian.core import ObjectPermissionChecker
-from guardian.shortcuts import get_objects_for_user, get_users_with_perms
+from guardian.shortcuts import get_objects_for_user
 
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
