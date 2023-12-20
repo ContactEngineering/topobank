@@ -56,7 +56,7 @@ class User(GuardianUserMixin, AbstractUser):
     def _orcid_info(self):  # TODO use local cache
         try:
             from allauth.socialaccount.models import SocialAccount
-        except:
+        except:  # noqa: E722
             raise ORCIDException("ORCID authentication not configured.")
 
         try:
@@ -88,7 +88,7 @@ class User(GuardianUserMixin, AbstractUser):
         """
         try:
             return self._orcid_info()['uri']
-        except:
+        except:  # noqa: E722
             return None
 
     def is_sharing_with(self, user):

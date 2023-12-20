@@ -6,18 +6,19 @@ import datetime
 import openpyxl
 import tempfile
 
+from django.urls import reverse
+
 import ContactMechanics
 import NuMPI
-import SurfaceTopography
-import muFFT
 import numpy as np
+import muFFT
 import pytest
-from django.urls import reverse
+import SurfaceTopography
 
 import topobank
 from ...manager.utils import subjects_to_base64
 from ...manager.models import Topography, Surface
-from ...manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory, two_topos
+from ...manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory
 from ...utils import assert_in_content
 from ..models import Analysis, AnalysisFunction
 from ..tasks import current_configuration, perform_analysis
@@ -184,17 +185,17 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     #
     kwargs_1a = dict(a=1, b=2)
     kwargs_1b = dict(a=1, b=3)  # differing from kwargs_1a!
-    ana1a = TopographyAnalysisFactory(subject_topography=topo1a, function=func, kwargs=kwargs_1a)
-    ana1b = TopographyAnalysisFactory(subject_topography=topo1b, function=func, kwargs=kwargs_1b)
-    ana2a = TopographyAnalysisFactory(subject_topography=topo2a, function=func)  # default arguments
+    TopographyAnalysisFactory(subject_topography=topo1a, function=func, kwargs=kwargs_1a)
+    TopographyAnalysisFactory(subject_topography=topo1b, function=func, kwargs=kwargs_1b)
+    TopographyAnalysisFactory(subject_topography=topo2a, function=func)  # default arguments
 
     #
     # Generate analyses for surfaces with differing arguments
     #
     kwargs_1 = dict(a=2, b=2)
     kwargs_2 = dict(a=2, b=3)  # differing from kwargs_1a!
-    ana1 = SurfaceAnalysisFactory(subject_surface=surf1, function=func, kwargs=kwargs_1)
-    ana2 = SurfaceAnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_2)
+    SurfaceAnalysisFactory(subject_surface=surf1, function=func, kwargs=kwargs_1)
+    SurfaceAnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_2)
 
     api_client.force_login(user)
 
@@ -449,7 +450,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
         data = np.array(list(sheet.values))[first_data_row:, :last_data_col + 1]
         np.testing.assert_equal(data, exp_data)
 
-    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-0-series-0"),
+    assert_data_equal(xlsx.get_sheet_by_name("analysis-0-series-0"),
                       [
                           (None, 'time (s)', 'distance (m)'),
                           (0, 0, 0),
@@ -460,7 +461,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
                       ]
                       )
 
-    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-0-series-1"),
+    assert_data_equal(xlsx.get_sheet_by_name("analysis-0-series-1"),
                       [
                           (None, 'time (s)', 'distance (m)'),
                           (0, 1, 3),
@@ -471,7 +472,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
                       ]
                       )
 
-    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-0-series-1"),
+    assert_data_equal(xlsx.get_sheet_by_name("analysis-0-series-1"),
                       [
                           (None, 'time (s)', 'distance (m)'),
                           (0, 1, 3),
@@ -482,7 +483,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
                       ]
                       )
 
-    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-1-series-0"),
+    assert_data_equal(xlsx.get_sheet_by_name("analysis-1-series-0"),
                       [
                           (None, 'time (s)', 'distance (m)'),
                           (0, 1, 1),
@@ -493,7 +494,7 @@ def test_analysis_download_as_xlsx(client, two_topos, ids_downloadable_analyses,
                       ]
                       )
 
-    assert_data_equal(xlsx.get_sheet_by_name(f"analysis-1-series-1"),
+    assert_data_equal(xlsx.get_sheet_by_name("analysis-1-series-1"),
                       [
                           (None, 'time (s)', 'distance (m)'),
                           (0, 2, 4),
@@ -635,12 +636,12 @@ def test_view_shared_analysis_results(api_client, handle_usage_statistics):
     topo2a = Topography1DFactory(surface=surface2, name='topo2a')
 
     # analyses, differentiate by start time
-    analysis1a_1 = TopographyAnalysisFactory(subject_topography=topo1a, function=func1,
-                                             start_time=datetime.datetime(2019, 1, 1, 12))
-    analysis1b_1 = TopographyAnalysisFactory(subject_topography=topo1b, function=func1,
-                                             start_time=datetime.datetime(2019, 1, 1, 13))
-    analysis2a_1 = TopographyAnalysisFactory(subject_topography=topo2a, function=func1,
-                                             start_time=datetime.datetime(2019, 1, 1, 14))
+    TopographyAnalysisFactory(subject_topography=topo1a, function=func1,
+                              start_time=datetime.datetime(2019, 1, 1, 12))
+    TopographyAnalysisFactory(subject_topography=topo1b, function=func1,
+                              start_time=datetime.datetime(2019, 1, 1, 13))
+    TopographyAnalysisFactory(subject_topography=topo2a, function=func1,
+                              start_time=datetime.datetime(2019, 1, 1, 14))
 
     # Function should have three analyses, all successful (the default when using the factory)
     assert func1.analysis_set.count() == 3

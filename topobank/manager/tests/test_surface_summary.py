@@ -3,22 +3,19 @@ from pytest import approx
 
 from dataclasses import dataclass
 
-from django.shortcuts import reverse
-
-from ..models import Topography
 from ..utils import bandwidths_data
 
-from .utils import Topography1DFactory, topography_loaded_from_broken_file
-from topobank.utils import assert_in_content
+from .utils import Topography1DFactory
+
 
 @pytest.fixture
 def two_topos_mock_for_bandwidth(mocker, db):
-
     @dataclass  # new feature in Python 3.7
     class STTopoStub:  # ST: from module SurfaceTopography
         bandwidth: tuple
         unit: str
         with_cut_off: bool
+
         def short_reliability_cutoff(self):
             return 1.2 if self.with_cut_off else None  # should be seen in tests
 
@@ -44,7 +41,6 @@ def two_topos_mock_for_bandwidth(mocker, db):
 
 
 def test_bandwidths_data(two_topos_mock_for_bandwidth):
-
     topoB, topoA = two_topos_mock_for_bandwidth
 
     for topo in two_topos_mock_for_bandwidth:
@@ -67,7 +63,6 @@ def test_bandwidths_data(two_topos_mock_for_bandwidth):
 
 @pytest.mark.django_db
 def test_bandwidth_with_angstrom():
-
     topo = Topography1DFactory(unit='Å')
     bd = bandwidths_data([topo])
 

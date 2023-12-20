@@ -53,7 +53,7 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
     assert response.status_code == 204, response.reason  # Created
 
     # We need to execute on commit actions, because this is where the renew_cache task is triggered
-    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+    with django_capture_on_commit_callbacks(execute=True):
         # Get info on file (this will trigger the inspection). In the production instance, the first GET triggers a
         # background (Celery) task and always returns a 'pe'nding state. In this testing environment, this is run
         # immediately after the `save` but not yet reflected in the returned dictionary.
@@ -62,7 +62,7 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
         assert response.data['task_state'] == 'pe'
         # We need to close the commit capture here because the file inspection runs on commit
 
-    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+    with django_capture_on_commit_callbacks(execute=True):
         # Get info on file again, this should not report a successful file inspection.
         response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
         assert response.status_code == 200, response.reason
@@ -277,12 +277,12 @@ def two_users():
     user2 = UserFactory(username='testuser2', password='abcd$1234')
 
     surface1 = SurfaceFactory(creator=user1)
-    topo1 = Topography1DFactory(surface=surface1)
+    Topography1DFactory(surface=surface1)
 
     surface2 = SurfaceFactory(creator=user2)
-    topo2 = Topography1DFactory(surface=surface2)
+    Topography1DFactory(surface=surface2)
 
     surface3 = SurfaceFactory(creator=user2)
-    topo3 = Topography1DFactory(surface=surface3)
+    Topography1DFactory(surface=surface3)
 
     return user1, user2

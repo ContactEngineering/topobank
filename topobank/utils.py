@@ -113,8 +113,8 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
     errors = response.context['form'].errors[field_name]
 
     assert any((error_msg_fragment in err) for err in errors), \
-        f"Form has errors as expected, but no error contains the given error message fragment '{error_msg_fragment}'." + \
-        f" Instead: {errors}"
+        (f"Form has errors as expected, but no error contains the given error message fragment "
+         f"'{error_msg_fragment}'. Instead: {errors}")
 
 
 # abbreviation for use with pytest

@@ -1,5 +1,3 @@
-import logging
-
 import celery.result
 import celery.states
 from celery.utils.log import get_task_logger
@@ -132,7 +130,7 @@ class TaskStateModel(models.Model):
             self.task_worker()
             self.task_state = TaskStateModel.SUCCESS
             self.task_error = ''
-        except CannotDetectFileFormat as exc:
+        except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
             self.task_error = 'The data file is of an unknown or unsupported format.'
         except Exception as exc:

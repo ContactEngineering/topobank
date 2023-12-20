@@ -15,8 +15,9 @@ from pint import DimensionalityError, UnitRegistry, UndefinedUnitError
 
 from trackstats.models import Metric
 
-from ..manager.models import Surface, SurfaceCollection
+from ..manager.models import Surface
 from ..usage_stats.utils import increase_statistics_by_date_and_object
+
 from .controller import AnalysisController, renew_existing_analysis
 from .models import Analysis, AnalysisFunction, Configuration
 from .permissions import AnalysisFunctionPermissions
@@ -124,15 +125,12 @@ def series_card_view(request, **kwargs):
     #
     subject_names = []  # will be shown under category with key "subject_name" (see plot.js)
     has_at_least_one_surface_subject = False
-    has_at_least_one_surfacecollection_subject = False
     for a in analyses_success_list:
         s = a.subject
         subject_name = s.label.replace("'", "&apos;")
         if isinstance(s, Surface):
             subject_name = f"Average of »{subject_name}«"
             has_at_least_one_surface_subject = True
-        elif isinstance(s, SurfaceCollection):
-            has_at_least_one_surfacecollection_subject = True
         subject_names.append(subject_name)
 
     #
@@ -220,7 +218,6 @@ def series_card_view(request, **kwargs):
         #
         is_surface_analysis = analysis.subject_dispatch.surface is not None
         is_topography_analysis = analysis.subject_dispatch.topography is not None
-        is_surfacecollection_analysis = analysis.subject_dispatch.collection is not None
 
         #
         # Change display name depending on whether there is a parent analysis or not
@@ -229,8 +226,8 @@ def series_card_view(request, **kwargs):
         if is_topography_analysis and analysis.subject_dispatch.topography.surface.num_topographies() > 1:
             for a in analyses_success_list:
                 if a.subject_dispatch.surface is not None and \
-                    a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
-                    a.function.id == analysis.function.id:
+                        a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
+                        a.function.id == analysis.function.id:
                     parent_analysis = a
 
         subject_display_name = subject_names[analysis_idx]
@@ -308,9 +305,9 @@ def series_card_view(request, **kwargs):
             # Find out whether this dataset for this special series has a parent dataset
             # in the parent_analysis, which means whether the same series is available there
             #
-            has_parent = (parent_analysis is not None) and \
-                         any(s['name'] == series_name if 'name' in s else f'{i}' == series_name
-                             for i, s in enumerate(parent_analysis.result_metadata.get('series', [])))
+            has_parent = (parent_analysis is not None) and any(
+                s['name'] == series_name if 'name' in s else f'{i}' == series_name for i, s in
+                enumerate(parent_analysis.result_metadata.get('series', [])))
 
             #
             # Context information for this data source, will be interpreted by client JS code
@@ -411,5 +408,3 @@ def data(request, pk, location):
     name = f'{analysis.storage_prefix}/{location}'
     url = default_storage.url(name)
     return redirect(url)
-
-

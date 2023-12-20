@@ -43,11 +43,10 @@ EMAIL_PORT = 1025
 
 # STATIC FILES
 # ------------------------------------------------------------------------------
-#STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
 STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
 # with 'whitenoise.storage.CompressedManifestStaticFilesStorage', collect static is
 # very slow in development, not sure why - with production settings, it's fast
-
 
 
 # django-debug-toolbar
@@ -68,9 +67,9 @@ DEBUG_TOOLBAR_CONFIG = {
 INTERNAL_IPS = ['127.0.0.1', '10.0.2.2']
 if env('USE_DOCKER') == 'yes':
     import socket
+
     hostname, _, ips = socket.gethostbyname_ex(socket.gethostname())
     INTERNAL_IPS += [ip[:-1] + '1' for ip in ips]
-
 
 # django-extensions
 # ------------------------------------------------------------------------------

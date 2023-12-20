@@ -13,7 +13,6 @@ from ...manager.utils import subjects_to_base64
 @pytest.mark.skip('Fix usage statistics')
 @pytest.mark.django_db
 def test_counts_analyses_views(api_client, test_analysis_function, mocker, handle_usage_statistics):
-
     analysis = TopographyAnalysisFactory.create(function=test_analysis_function)
     topography = analysis.subject
     user = topography.surface.creator
@@ -63,4 +62,3 @@ def test_counts_analyses_views(api_client, test_analysis_function, mocker, handl
                                        value=1, date=yesterday)
 
     api_client.logout()
-

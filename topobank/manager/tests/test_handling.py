@@ -10,12 +10,10 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.utils.text import slugify
 
-from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, two_topos, \
-    one_line_scan, upload_file
+from ...utils import assert_no_form_errors, assert_form_error
 from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
 
-from topobank.utils import assert_in_content, \
-    assert_redirects, assert_no_form_errors, assert_form_error
+from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, upload_file
 
 filelist = [
     "10x10.txt",
@@ -231,7 +229,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
     username = 'testuser'
     password = 'abcd$1234'
 
-    user = django_user_model.objects.create_user(username=username, password=password)
+    django_user_model.objects.create_user(username=username, password=password)
 
     assert api_client.login(username=username, password=password)
 
@@ -348,7 +346,7 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
 
     instrument_name = "My Profilometer"
 
-    user = django_user_model.objects.create_user(username=username, password=password)
+    django_user_model.objects.create_user(username=username, password=password)
 
     assert api_client.login(username=username, password=password)
 
@@ -482,7 +480,7 @@ def test_upload_topography_fill_undefined_data(api_client, settings, django_capt
     username = 'testuser'
     password = 'abcd$1234'
 
-    user = django_user_model.objects.create_user(username=username, password=password)
+    django_user_model.objects.create_user(username=username, password=password)
 
     assert api_client.login(username=username, password=password)
 
@@ -531,8 +529,8 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(api_client
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo1 = Topography1DFactory(surface=surface,
-                                name="TOPO")  # <-- we will try to create another topography named TOPO later
+    Topography1DFactory(surface=surface,
+                        name="TOPO")  # <-- we will try to create another topography named TOPO later
 
     api_client.force_login(user)
 
@@ -561,7 +559,7 @@ def test_trying_upload_of_topography_file_with_unknown_format(api_client, settin
     username = 'testuser'
     password = 'abcd$1234'
 
-    user = django_user_model.objects.create_user(username=username, password=password)
+    django_user_model.objects.create_user(username=username, password=password)
 
     assert api_client.login(username=username, password=password)
 
@@ -622,13 +620,12 @@ def test_trying_upload_of_corrupted_topography_file(api_client, settings, django
     # using .topography() and leads to a "ValueError: buffer is smaller
     # than requested size"
 
-    description = "test description"
     category = 'exp'
 
     username = 'testuser'
     password = 'abcd$1234'
 
-    user = django_user_model.objects.create_user(username=username, password=password)
+    django_user_model.objects.create_user(username=username, password=password)
 
     assert api_client.login(username=username, password=password)
 
@@ -823,7 +820,6 @@ def test_edit_line_scan(api_client, one_line_scan, django_user_model, handle_usa
     password = 'abcd$1234'
 
     topo_id = one_line_scan.id
-    surface_id = one_line_scan.surface.id
 
     assert api_client.login(username=username, password=password)
 
@@ -840,7 +836,7 @@ def test_edit_line_scan(api_client, one_line_scan, django_user_model, handle_usa
     assert response.data['height_scale'] == approx(1.)
     assert response.data['detrend_mode'] == 'height'
     assert response.data['size_y'] is None  # should have been removed by __init__
-    assert response.data['is_periodic'] == False
+    assert not response.data['is_periodic']
 
     #
     # Then send a patch with updated data
@@ -1021,7 +1017,6 @@ def test_delete_topography(api_client, two_topos, django_user_model, topo_exampl
 
     # topography 1 is still in database
     topo = topo_example3
-    surface = topo.surface
 
     # make squeezed datafile
     topo.renew_cache()
@@ -1042,7 +1037,7 @@ def test_delete_topography(api_client, two_topos, django_user_model, topo_exampl
 
     assert api_client.login(username=username, password=password)
 
-    response = api_client.delete(reverse('manager:topography-api-detail', kwargs=dict(pk=pk)))
+    api_client.delete(reverse('manager:topography-api-detail', kwargs=dict(pk=pk)))
 
     # topography topo_id is no more in database
     assert not Topography.objects.filter(pk=pk).exists()
@@ -1177,8 +1172,8 @@ def test_delete_surface(api_client, handle_usage_statistics):
 def test_download_of_unpublished_surface(client, handle_usage_statistics):
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo1 = Topography1DFactory(surface=surface)
-    topo2 = Topography2DFactory(surface=surface)
+    Topography1DFactory(surface=surface)
+    Topography2DFactory(surface=surface)
 
     client.force_login(user)
 
@@ -1255,12 +1250,9 @@ def test_automatic_extraction_of_instrument_parameters(api_client, settings, han
     }
 
     # Update tip radius
-    new_instrument_parameters = {'tip_radius':
-        {
-            'value': 3,
-            'unit': 'm',
-        }
-    }
+    new_instrument_parameters = {'tip_radius': {
+        'value': 3,
+        'unit': 'm'}}
 
     topography_id = response.data['id']
     response = api_client.patch(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)),

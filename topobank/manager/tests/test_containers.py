@@ -17,7 +17,6 @@ from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, Tag
 
 @pytest.mark.django_db
 def test_surface_container(example_authors):
-
     instrument_name = 'My nice profilometer'
     instrument_type = 'contact-based'
     instrument_params = {
@@ -125,5 +124,3 @@ def test_surface_container(example_authors):
         assert 'has_undefined_data' in topo1b_meta
 
     os.remove(outfile.name)
-
-

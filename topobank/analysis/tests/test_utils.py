@@ -4,13 +4,12 @@ import datetime
 from django.contrib.contenttypes.models import ContentType
 
 from ...manager.models import Topography, Surface
-from ...manager.utils import subjects_to_dict
-from ...manager.tests.utils import UserFactory, two_topos, user_three_topographies_three_surfaces_three_tags
+from ...manager.tests.utils import UserFactory
 
-from ...analysis.controller import AnalysisController, request_analysis
-from ...analysis.models import Analysis
-from ...analysis.utils import mangle_sheet_name, round_to_significant_digits, find_children
-from ...analysis.tests.utils import TopographyAnalysisFactory
+from ..controller import AnalysisController, request_analysis
+from ..models import Analysis
+from ..utils import mangle_sheet_name, round_to_significant_digits, find_children
+from ..tests.utils import TopographyAnalysisFactory
 
 
 @pytest.mark.django_db
@@ -32,7 +31,6 @@ def test_request_analysis(two_topos, test_analysis_function):
 
 @pytest.mark.django_db
 def test_latest_analyses(two_topos, test_analysis_function):
-
     topo1 = Topography.objects.get(name="Example 3 - ZSensor")
     topo2 = Topography.objects.get(name="Example 4 - Default")
 
@@ -105,7 +103,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     analysis.save()
     analysis.users.add(user)
 
-    tt = ContentType.objects.get_for_model(Topography)
+    ContentType.objects.get_for_model(Topography)
     analyses = AnalysisController(user, subjects=[topo1, topo2], function=test_analysis_function)
 
     assert len(analyses) == 2  # one analysis per function and topography
@@ -149,7 +147,7 @@ def test_mangle_sheet_name():
     (2.71143412237, 3, 2.71),
     (2.71143412237, 10, 2.7114341224),
     (-3.45, 2, -3.5),
-    (0,5,0),
+    (0, 5, 0),
     (float('nan'), 5, float('nan'))
 ])
 def test_round_to_significant_digits(x, num_sig_digits, rounded):

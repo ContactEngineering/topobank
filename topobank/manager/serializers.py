@@ -2,7 +2,7 @@ import logging
 
 from django.utils.translation import gettext_lazy as _
 
-from guardian.shortcuts import get_perms, get_users_with_perms
+from guardian.shortcuts import get_users_with_perms
 from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 

@@ -43,7 +43,6 @@ class AnalysisSubject(models.Model):
 
     @staticmethod
     def Q(subject):
-        topography = surface = collection = None
         if isinstance(subject, Topography):
             return models.Q(subject_dispatch__topography_id=subject.id)
         elif isinstance(subject, Surface):
@@ -344,7 +343,7 @@ class AnalysisFunction(models.Model):
             raise ValueError(f"Cannot evaluate analysis function '{self.name}' with None as subject.")
         try:
             subject_type = ContentType.objects.get_for_model(subject)
-        except Exception as exc:
+        except Exception:
             raise ValueError(f"Cannot find content type for subject '{subject}'.")
         return self.get_implementation(subject_type).eval(subject, **kwargs)
 

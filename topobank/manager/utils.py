@@ -487,9 +487,6 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
             default_storage_replace(target_name, File(open(filename, mode='rb')))
 
 
-import botocore.awsrequest
-
-
 def get_upload_instructions(instance, name, expire, method=None):
     """Generate a presigned URL for an upload direct to S3"""
     # Preserve the trailing slash after normalizing the path.
@@ -569,7 +566,7 @@ def guardian_to_api(guardian_permissions):
         api_permission = 'view'
         if 'change_surface' in guardian_permissions:
             api_permission = 'edit'
-            if ('delete_surface' in guardian_permissions and 'share_surface' in guardian_permissions and
-                'publish_surface' in guardian_permissions):
+            if ('delete_surface' in guardian_permissions and 'share_surface' in guardian_permissions
+                    and 'publish_surface' in guardian_permissions):
                 api_permission = 'full'
     return api_permission

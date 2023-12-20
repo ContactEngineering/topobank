@@ -2,16 +2,18 @@ import pytest
 
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
-from django.shortcuts import reverse
 
 from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, SurfaceCollectionFactory
 from ...manager.models import Topography, Surface, SurfaceCollection
 from ...organizations.tests.test_models import OrganizationFactory
 from ...users.tests.factories import UserFactory
+
 from ..functions import topography_analysis_function_for_tests, surface_analysis_function_for_tests, \
     surfacecollection_analysis_function_for_tests, VIZ_SERIES
 from ..registry import AnalysisRegistry, AlreadyRegisteredAnalysisFunctionException, register_implementation
 from ..urls import app_name
+
+
 # from ..views import registry_view
 
 
@@ -19,10 +21,13 @@ from ..urls import app_name
 def test_register_function_with_different_kwargs():
     def func1(topography, a=1, b="foo", progress_recorder=None, storage_prefix=None):
         pass
+
     def func2(topography, a=1, b="foo", c="bar", progress_recorder=None, storage_prefix=None):
         pass
+
     def func3(topography, a=1, b="bar", progress_recorder=None, storage_prefix=None):
         pass
+
     register_implementation(app_name, VIZ_SERIES, "test2")(func1)
     with pytest.raises(AlreadyRegisteredAnalysisFunctionException):
         register_implementation(app_name, VIZ_SERIES, "test2")(func2)
@@ -94,18 +99,19 @@ def test_analysis_function_implementation_for_surfacecollection():
     assert impl.is_available_for_user(u)
 
 
-@pytest.mark.parametrize(["plugins_installed", "plugins_available_for_org", "fake_func_module", "expected_is_available"],
-                         [
-                            ([], None, "topobank_plugin_A", False),   # None: No organization attached
-                            ([], None, "topobank.analysis.functions", True),   # None: No organization attached
-                            ([], "", "topobank_plugin_A", False),
-                            ([], "topobank_plugin_A", "topobank_plugin_A", False),
-                            (["topobank_plugin_A"], "plugin_A", "topobank_plugin_A", False),
-                            (["topobank_plugin_A"], "topobank_plugin_A", "topobank_plugin_A", True),
-                            (["topobank_plugin_A"], "topobank_plugin_A, topobank_plugin_B", "topobank_plugin_A", True),
-                            (["topobank_plugin_A", "topobank_plugin_B"], "topobank_plugin_A, topobank_plugin_B", "topobank_plugin_B", True),
-                            (["topobank_plugin_A", "topobank_plugin_B"], "topobank_plugin_A, topobank_plugin_B", "topobank_C", False),
-                         ])
+@pytest.mark.parametrize(
+    ["plugins_installed", "plugins_available_for_org", "fake_func_module", "expected_is_available"],
+    [
+        ([], None, "topobank_plugin_A", False),  # None: No organization attached
+        ([], None, "topobank.analysis.functions", True),  # None: No organization attached
+        ([], "", "topobank_plugin_A", False),
+        ([], "topobank_plugin_A", "topobank_plugin_A", False),
+        (["topobank_plugin_A"], "plugin_A", "topobank_plugin_A", False),
+        (["topobank_plugin_A"], "topobank_plugin_A", "topobank_plugin_A", True),
+        (["topobank_plugin_A"], "topobank_plugin_A, topobank_plugin_B", "topobank_plugin_A", True),
+        (["topobank_plugin_A", "topobank_plugin_B"], "topobank_plugin_A, topobank_plugin_B", "topobank_plugin_B", True),
+        (["topobank_plugin_A", "topobank_plugin_B"], "topobank_plugin_A, topobank_plugin_B", "topobank_C", False),
+    ])
 @pytest.mark.django_db
 def test_availability_of_implementation_in_plugin(api_rf, mocker, plugins_installed, plugins_available_for_org,
                                                   fake_func_module, expected_is_available):
@@ -127,11 +133,12 @@ def test_availability_of_implementation_in_plugin(api_rf, mocker, plugins_instal
 
     # mock .__module__ for python function such we can test for different fake origins
     # for the underlying python function
-    m1 = mocker.patch.object(topography_analysis_function_for_tests, "__module__", fake_func_module)
+    mocker.patch.object(topography_analysis_function_for_tests, "__module__", fake_func_module)
 
     def my_get_app_config(x):
         class FakeApp:
             pass
+
         a = FakeApp()
 
         if x == 'analysis':

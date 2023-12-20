@@ -54,7 +54,7 @@ class SurfaceViewSet(mixins.CreateModelMixin,
         instance = serializer.save(creator=self.request.user)
 
         # We now have an id, set name if missing
-        if not 'name' in serializer.data or serializer.data['name'] == '':
+        if 'name' not in serializer.data or serializer.data['name'] == '':
             instance.name = f'Digital surface twin #{instance.id}'
             instance.save()
 

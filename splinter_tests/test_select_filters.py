@@ -9,7 +9,6 @@ from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, Ta
 
 @pytest.fixture(scope='function')
 def items_for_filtering(db, user_alice, user_bob):
-
     tag1 = TagModelFactory(name='tag1')
     tag2 = TagModelFactory(name='tag2')
 
@@ -141,7 +140,6 @@ def test_filter(user_alice_logged_in, items_for_filtering):
 # following tests breaking them TODO fix this
 @pytest.mark.skip
 def test_search(user_alice_logged_in, items_for_filtering):
-
     browser, user_alice = user_alice_logged_in
 
     # tag1, tag2 = items_for_filtering['tags']
@@ -208,4 +206,3 @@ def test_search(user_alice_logged_in, items_for_filtering):
     # assert not is_text_present_in_result_table(browser, 'surface1')
     # assert is_text_present_in_result_table(browser, 'surface2')
     # assert is_text_present_in_result_table(browser, 'surface3')
-

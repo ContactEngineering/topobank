@@ -37,7 +37,6 @@ def test_request_analysis(mocker, test_analysis_function):
                         dict(a=13,
                              b=24))
 
-
     # test case 2
     analysis = request_analysis(user, af, topo, 1, 2)
     assert_correct_args(analysis,
@@ -96,7 +95,3 @@ def test_unmark_other_analyses_during_request_analysis(mocker, test_analysis_fun
     assert a3 in analyses
 
     assert analyses[0].kwargs == dict(a=1, b=2)
-
-
-
-

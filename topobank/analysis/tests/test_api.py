@@ -1,5 +1,6 @@
 from django.urls import reverse
 
+
 def test_api():
     """Test API routes"""
     assert reverse('analysis:card-series', kwargs=dict(function_id=123)) == '/analysis/api/card/series/123'

@@ -8,7 +8,7 @@ import pytest
 from ..utils import subjects_to_dict, subjects_from_dict, subjects_to_base64, subjects_from_base64, surfaces_for_user
 from ..models import Surface, Topography
 
-from .utils import SurfaceFactory, UserFactory, user_three_topographies_three_surfaces_three_tags
+from .utils import SurfaceFactory, UserFactory
 
 
 def test_subjects_to_dict(user_three_topographies_three_surfaces_three_tags):

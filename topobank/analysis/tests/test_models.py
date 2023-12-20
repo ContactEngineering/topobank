@@ -7,17 +7,15 @@ from django.db.models.functions import Lower
 from django.contrib.contenttypes.models import ContentType
 from django.utils import timezone
 
-from topobank.manager.models import Topography
-from topobank.manager.tests.utils import two_topos, Topography1DFactory  # needed for fixture
-from topobank.manager.tests.utils import Topography2DFactory, SurfaceFactory, SurfaceCollectionFactory, UserFactory
+from ...manager.models import Topography
+from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, SurfaceCollectionFactory, UserFactory
 
-from ..models import Analysis, AnalysisFunction
-from ..tasks import current_configuration
-from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceCollectionAnalysisFactory
-
-from ..registry import ImplementationMissingAnalysisFunctionException, AnalysisFunctionImplementation, \
-    register_implementation
 from ..functions import topography_analysis_function_for_tests
+from ..models import Analysis, AnalysisFunction
+from ..registry import ImplementationMissingAnalysisFunctionException
+from ..tasks import current_configuration
+
+from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceCollectionAnalysisFactory
 
 
 @pytest.mark.django_db
@@ -112,17 +110,15 @@ def test_analysis_function(test_analysis_function):
 
 @pytest.mark.django_db
 def test_analysis_times(two_topos, test_analysis_function):
-    import pickle
-
     now = timezone.now()
 
     analysis = TopographyAnalysisFactory.create(
-            subject_topography=Topography.objects.first(),
-            function=test_analysis_function,
-            task_state=Analysis.SUCCESS,
-            kwargs={'a': 2, 'b': 4},
-            start_time=datetime.datetime(2018, 1, 1, 12),
-            end_time=datetime.datetime(2018, 1,  1, 13),
+        subject_topography=Topography.objects.first(),
+        function=test_analysis_function,
+        task_state=Analysis.SUCCESS,
+        kwargs={'a': 2, 'b': 4},
+        start_time=datetime.datetime(2018, 1, 1, 12),
+        end_time=datetime.datetime(2018, 1, 1, 13),
     )
     analysis.save()
 
@@ -171,7 +167,6 @@ def test_default_function_kwargs():
 
 @pytest.mark.django_db
 def test_current_configuration(settings):
-
     settings.TRACKED_DEPENDENCIES = [
         ('SurfaceTopography', 'SurfaceTopography.__version__'),
         ('ContactMechanics', 'ContactMechanics.__version__'),
@@ -189,7 +184,6 @@ def test_current_configuration(settings):
     assert len(versions) == 6
 
     v0, v1, v2, v3, v4, v5 = versions
-
 
     import ContactMechanics
     assert v0.dependency.import_name == 'ContactMechanics'
@@ -214,8 +208,3 @@ def test_current_configuration(settings):
     import topobank
     assert v5.dependency.import_name == 'topobank'
     assert v5.number_as_string() == topobank.__version__
-
-
-
-
-

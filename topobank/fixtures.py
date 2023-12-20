@@ -12,15 +12,6 @@ from pytest_django.lazy_django import skip_if_no_django
 
 from .users.tests.factories import UserFactory
 
-################################################################################
-# remove these deps once the fixtures have been moved to extension projects
-from io import StringIO
-
-from .analysis.models import AnalysisFunction
-from .analysis.tests.utils import TopographyAnalysisFactory
-
-################################################################################
-
 _log = logging.getLogger(__name__)
 
 PASSWORD = "secret"
@@ -136,8 +127,6 @@ def example_authors():
          },
     ]
     return authors
-
-
 
 
 @pytest.fixture()

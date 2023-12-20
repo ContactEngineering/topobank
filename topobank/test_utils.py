@@ -1,8 +1,9 @@
 """Tests for utils module on topobank level"""
-from django.core.files.storage import default_storage
 
-import numpy as np
 import json
+import numpy as np
+
+from django.core.files.storage import default_storage
 
 from topobank.supplib.json import ExtendedJSONEncoder
 
@@ -70,8 +71,3 @@ def test_store_split_dict_with_nan():
     assert np.array_equal(result_from_storage['series'][0]['x'], series_0.dict['x'])
     y = [np.nan if _y is None else _y for _y in result_from_storage['series'][0]['y']]  # np.nans will be read as None
     assert np.array_equal(y, series_0.dict['y'], equal_nan=True)
-
-
-
-
-

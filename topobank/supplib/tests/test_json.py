@@ -4,6 +4,7 @@ import numpy as np
 
 from ..json import ExtendedJSONEncoder
 
+
 def test_json_encoder():
     d = {
         'a': 1,

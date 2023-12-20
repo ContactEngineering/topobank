@@ -15,8 +15,8 @@ from watchman import constants as watchman_constants
 import topobank
 
 
-def random_string(l=16):
-    return ''.join(random.choice(string.ascii_lowercase) for i in range(l))
+def random_string(L=16):
+    return ''.join(random.choice(string.ascii_lowercase) for i in range(L))
 
 
 # We provide (dummy) default values for every setting so we can run manage.py
@@ -116,7 +116,8 @@ PLUGIN_APPS = [entry_point.value for entry_point in importlib.metadata.entry_poi
 print(f'PLUGIN_MODULES: {PLUGIN_MODULES}')
 print(f'PLUGIN_APPS: {PLUGIN_APPS}')
 
-PLUGIN_THIRD_PARTY_APPS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.third_party_apps')]
+PLUGIN_THIRD_PARTY_APPS = [entry_point.value for entry_point in
+                           importlib.metadata.entry_points(group='topobank.third_party_apps')]
 print(f'PLUGIN_THIRD_PARTY_APPS: {PLUGIN_THIRD_PARTY_APPS}')
 THIRD_PARTY_APPS += PLUGIN_THIRD_PARTY_APPS
 
@@ -216,7 +217,8 @@ if ENABLE_USAGE_STATS:
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#templates
 
-PLUGIN_CONTEXT_PROCESSORS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.context_processors')]
+PLUGIN_CONTEXT_PROCESSORS = [entry_point.value for entry_point in
+                             importlib.metadata.entry_points(group='topobank.context_processors')]
 print(f'PLUGIN_CONTEXT_PROCESSORS: {PLUGIN_CONTEXT_PROCESSORS}')
 
 TEMPLATES = [
@@ -239,15 +241,15 @@ TEMPLATES = [
             ],
             # https://docs.djangoproject.com/en/dev/ref/settings/#template-context-processors
             'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.template.context_processors.i18n',
-                'django.template.context_processors.media',
-                'django.template.context_processors.static',
-                'django.template.context_processors.tz',
-                'django.contrib.messages.context_processors.messages',
-            ] + PLUGIN_CONTEXT_PROCESSORS,
+                                      'django.template.context_processors.debug',
+                                      'django.template.context_processors.request',
+                                      'django.contrib.auth.context_processors.auth',
+                                      'django.template.context_processors.i18n',
+                                      'django.template.context_processors.media',
+                                      'django.template.context_processors.static',
+                                      'django.template.context_processors.tz',
+                                      'django.contrib.messages.context_processors.messages',
+                                  ] + PLUGIN_CONTEXT_PROCESSORS,
         },
     },
 ]
@@ -425,7 +427,8 @@ if USE_S3_STORAGE:
 # STATIC
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-root
-STATIC_ROOT = env.str('DJANGO_STATIC_ROOT', default=(APPS_DIR - 2).path('staticfiles'))  # This is not used in the development environment
+STATIC_ROOT = env.str('DJANGO_STATIC_ROOT',
+                      default=(APPS_DIR - 2).path('staticfiles'))  # This is not used in the development environment
 print(f'STATIC_ROOT: {STATIC_ROOT}')
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-url
 STATIC_URL = '/static/'
@@ -491,11 +494,11 @@ SERIALIZATION_MODULES = {
     'yaml': 'tagulous.serializers.pyyaml',
 }
 
-#TAGULOUS_AUTOCOMPLETE_JS = (
+# TAGULOUS_AUTOCOMPLETE_JS = (
 #    "tagulous/lib/select2-4/js/select2.full.min.js",
 #    "tagulous/tagulous.js",
 #    "tagulous/adaptor/select2-4.js",
-#)
+# )
 
 #
 # E-Mail address to contact us
@@ -605,12 +608,15 @@ WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.c
 #
 TABNAV_DISPLAY_HOME_TAB = True
 
+
 #
 # Request profiler
 #
 
 # Default configuration is to ingore staff user, we override this here to log all requests
-REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC = lambda x: True
+def REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC(x):
+    return True
+
 
 # Keep records for two weeks
 REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14

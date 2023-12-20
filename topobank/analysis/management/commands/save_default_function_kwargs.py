@@ -1,7 +1,7 @@
-from django.core.management.base import BaseCommand
-import pickle
-from collections import defaultdict
 import logging
+from collections import defaultdict
+
+from django.core.management.base import BaseCommand
 
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
@@ -41,7 +41,7 @@ class Command(BaseCommand):
             for impl in af.implementations.all():
                 try:
                     dkw = impl.default_kwargs
-                except AttributeError as err:
+                except AttributeError:
                     self.stdout.write(self.style.WARNING(f"Cannot use implementation '{impl}'. Skipping it."))
                     continue
 
@@ -59,8 +59,8 @@ class Command(BaseCommand):
             try:
                 impl = a.function.get_implementation(a.subject_type)
             except ImplementationMissingAnalysisFunctionException:
-                self.stdout.write(self.style.WARNING(f"Skipping analysis {a.id} because the implementation " + \
-                                                     f"no longer exists and we cannot determine default parameters."))
+                self.stdout.write(self.style.WARNING(f"Skipping analysis {a.id} because the implementation "
+                                                     "no longer exists and we cannot determine default parameters."))
                 continue
 
             changed = False
@@ -71,8 +71,8 @@ class Command(BaseCommand):
                         changed = True
                         num_changed_arguments[k] += 1
             else:
-                self.stdout.write(self.style.WARNING(f"Skipping analysis {a.id} because we have no default "+\
-                                                     f"arguments for function '{a.function}' and subject "+\
+                self.stdout.write(self.style.WARNING(f"Skipping analysis {a.id} because we have no default "
+                                                     f"arguments for function '{a.function}' and subject "
                                                      f"typ {a.subject_type}."))
 
             if changed:
@@ -83,7 +83,7 @@ class Command(BaseCommand):
 
         num_changed_analyses = sum(num_changed_analyses_by_function.values())
 
-        msg = f"Fixed kwargs of {num_changed_analyses} analyses, " +\
+        msg = f"Fixed kwargs of {num_changed_analyses} analyses, " + \
               "now all analyses have kwargs with explicit keyword arguments."
         self.stdout.write(self.style.SUCCESS(msg))
 
@@ -99,4 +99,3 @@ class Command(BaseCommand):
 
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("This was a dry-run, nothing was changed in database."))
-

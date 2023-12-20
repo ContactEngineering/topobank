@@ -5,7 +5,8 @@ Basic models for the web app for handling topography data.
 import dateutil.parser
 import io
 import logging
-import matplotlib.pyplot, matplotlib.cm
+import matplotlib.pyplot
+import matplotlib.cm
 import numpy as np
 import os.path
 import PIL
@@ -25,7 +26,7 @@ from django.contrib.contenttypes.models import ContentType
 
 import tagulous.models as tm
 from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
-from guardian.shortcuts import assign_perm, remove_perm, get_perms, get_users_with_perms, get_anonymous_user
+from guardian.shortcuts import assign_perm, remove_perm, get_perms, get_users_with_perms
 from notifications.signals import notify
 
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
@@ -332,29 +333,26 @@ class Surface(models.Model, SubjectMixin):
         # Copy of the surface entry
         # (see https://docs.djangoproject.com/en/2.2/topics/db/queries/#copying-model-instances)
 
-        copy = Surface.objects.get(pk=self.pk)
-        copy.pk = None
-        copy.task_id = None  # We need to indicate that no tasks have run
-        copy.tags = self.tags.get_tag_list()
-        copy.save()
+        surface = Surface.objects.get(pk=self.pk)
+        surface.pk = None
+        surface.task_id = None  # We need to indicate that no tasks have run
+        surface.tags = self.tags.get_tag_list()
+        surface.save()
 
-        for topo in self.topography_set.all():
-            new_topo = topo.deepcopy(copy)
+        for topography in self.topography_set.all():
+            topography.deepcopy(surface)
             # we pass the surface here because there is a constraint that (surface_id + topography name)
             # must be unique, i.e. a surface should never have two topographies of the same name,
             # so we can't set the new surface as the second step
 
-        _log.info("Created deepcopy of surface %s -> surface %s", self.pk, copy.pk)
-        return copy
+        _log.info("Created deepcopy of surface %s -> surface %s", self.pk, surface.pk)
+        return surface
 
     @property
     def is_published(self):
         """Returns True, if a publication for this surface exists.
         """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
-
-    def related_surfaces(self):
-        return [self]
 
 
 class SurfaceUserObjectPermission(UserObjectPermissionBase):
@@ -381,7 +379,7 @@ class SurfaceCollection(models.Model, SubjectMixin):
     def related_surfaces(self):
         return list(self.surfaces.all())
 
-    def is_shared(self, with_user):
+    def is_shared(self, with_user, allow_change=False):
         """Returns True, if this subject is shared with a given user.
 
         Always returns True if user is the creator of all related surfaces.
@@ -578,7 +576,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
             # `instrument_parameters` is special as it can contain non-significant entries
             if (self._clean_instrument_parameters(self.instrument_parameters) !=
-                self._clean_instrument_parameters(old_obj.instrument_parameters)):
+                    self._clean_instrument_parameters(old_obj.instrument_parameters)):
                 changed_fields += ['instrument_parameters']
 
             # We need to refresh if any of the significant fields changed during this save
@@ -592,7 +590,7 @@ class Topography(TaskStateModel, SubjectMixin):
         # Save to data base
         _log.debug('Saving model...')
         if self.id is None and (
-            self.datafile is not None or self.squeezed_datafile is not None or self.thumbnail is not None):
+                self.datafile is not None or self.squeezed_datafile is not None or self.thumbnail is not None):
             # We don't have an `id` but are trying to save a model with a data file; this does not work because the
             # `storage_prefix`  contains the `id`. (The `id` only becomes available once the model instance has
             # been saved.) Note that this situation is only relevant for tests.
@@ -1298,13 +1296,13 @@ class Topography(TaskStateModel, SubjectMixin):
             # Measurement time
             try:
                 self.measurement_date = dateutil.parser.parse(channel.info['acquisition_time'])
-            except:
+            except:  # noqa: E722
                 pass
 
             # Instrument name
             try:
                 self.instrument_name = channel.info['instrument']['name']
-            except:
+            except:  # noqa: E722
                 pass
 
             # Instrument parameters
@@ -1314,7 +1312,7 @@ class Topography(TaskStateModel, SubjectMixin):
                     self.instrument_type = self.INSTRUMENT_TYPE_CONTACT_BASED
                 elif 'resolution' in self.instrument_parameters:
                     self.instrument_type = self.INSTRUMENT_TYPE_MICROSCOPE_BASED
-            except:
+            except:  # noqa: E722
                 self.instrument_type = self.INSTRUMENT_TYPE_UNDEFINED
 
         # Read the file if metadata information is complete

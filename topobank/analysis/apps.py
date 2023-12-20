@@ -6,4 +6,4 @@ class AnalysisAppConfig(AppConfig):
 
     def ready(self):
         # make sure the signals are registered now
-        from . import signals
+        from . import signals  # noqa: F401

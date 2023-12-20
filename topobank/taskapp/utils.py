@@ -1,6 +1,5 @@
 import importlib
 
-from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
@@ -29,26 +28,26 @@ def _get_package_version_tuple(pkg_name, version_expr):
 
     try:
         major: int = int(version_tuple[0])
-    except:
+    except:  # noqa: E722
         raise ConfigurationException("Cannot determine major version of package '{}'. Full version string: {}",
                                      format(pkg_name, version))
 
     try:
         minor: int = int(version_tuple[1])
-    except:
+    except:  # noqa: E722
         raise ConfigurationException("Cannot determine minor version of package '{}'. Full version string: {}",
                                      format(pkg_name, version))
 
     try:
         micro: int = int(version_tuple[2].split('+')[0])  # because of version strings like '0.51.0+0.g2c488bd.dirty'
         s = f'{version_tuple[0]}.{version_tuple[1]}.{micro}'
-    except:
+    except:  # noqa: E722
         micro = None
         s = f'{version_tuple[0]}.{version_tuple[1]}'
 
     try:
         extra: str = version[len(s):]  # the rest of the version string
-    except:
+    except:  # noqa: E722
         extra = None
 
     return major, minor, micro, extra

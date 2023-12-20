@@ -4,17 +4,15 @@ from topobank.analysis.tasks import perform_analysis, current_configuration
 
 from topobank.analysis.models import Analysis
 from topobank.manager.models import Topography
-from topobank.manager.tests.utils import two_topos
 from topobank.analysis.tests.utils import TopographyAnalysisFactory
 
 
 @pytest.mark.django_db
 def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
-
     def my_func(topography, a=0, b=1, bins=15, window='hann', progress_recorder=None, storage_prefix=None):
         return {
             'topotype': str(type(topography.topography())),
-            'x': (a+b)*bins,
+            'x': (a + b) * bins,
             's': window
         }
 
@@ -57,7 +55,7 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
     # No let's change the version of SurfaceTopography
     #
     settings.TRACKED_DEPENDENCIES = [
-        ('SurfaceTopography', '"0.89.1"'),      # this version does not exist, so should be unknown here
+        ('SurfaceTopography', '"0.89.1"'),  # this version does not exist, so should be unknown here
         ('topobank', 'topobank.__version__'),
         ('numpy', 'numpy.version.full_version')
     ]
@@ -89,4 +87,3 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
 
     topobank_version = analysis2.configuration.versions.get(dependency__import_name='topobank')
     assert topobank_version == first_config.versions.get(dependency__import_name='topobank')
-
