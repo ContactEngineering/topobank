@@ -90,7 +90,7 @@ DEFAULT_PAGE_SIZE = 10
 DEFAULT_SELECT_TAB_STATE = {
     'search_term': '',  # empty string means: no search
     'category': 'all',
-    'sort_by': '',
+    'sort_by': 'sort-by-name',
     'sharing_status': 'all',
     'tree_mode': 'surface list',
     'page_size': 10,

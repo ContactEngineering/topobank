@@ -5,19 +5,22 @@ import markdown2
 import tempfile
 import traceback
 
+from django.shortcuts import reverse
+from guardian.shortcuts import get_objects_for_user, get_users_with_perms
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
 from django.conf import settings
+from django.db.models import Q, Value, Count
+from django.db.models.functions import Replace
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.search import SearchVector, SearchQuery
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.storage import default_storage
-from django.db.models import Q, Value, Count
-from django.db.models.functions import Replace
-from django.shortcuts import reverse
-from guardian.shortcuts import get_objects_for_user, get_users_with_perms
+
+
+
 
 _log = logging.getLogger(__name__)
 

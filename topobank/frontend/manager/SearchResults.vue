@@ -30,7 +30,7 @@ export default {
     props: {
         baseUrls: Object,
         category: String,
-        sortbyFilterChoices:String,
+        sortbyFilterChoices: String,
         categoryFilterChoices: Object,
         currentPage: Number,
         initialSelection: {
@@ -50,7 +50,7 @@ export default {
         return {
             _selection: this.initialSelection,
             _category: this.category,
-            _sortBy:this.sortBy,
+            _sortBy: this.sortBy,
             _currentPage: this.currentPage,
             _isLoading: this.isLoading,
             _numItems: null,
@@ -283,7 +283,7 @@ export default {
 
             queryParams.set("search", this._searchTerm);  // empty string -> no search
             queryParams.set("category", this._category);
-            queryParams.set("sort_by",this._sortBy);
+            queryParams.set("sort_by", this._sortBy);
             queryParams.set("sharing_status", this._sharingStatus);
             queryParams.set('page_size', this._pageSize);
             queryParams.set('page', this._currentPage);
@@ -443,20 +443,20 @@ export default {
                         <a class="page-link" v-on:click="loadPage(_currentPage+1)">Next</a>
                     </li>
 
-                  <li class="ml-2">
-                    <div class="input-group nav-item">
-                      <div class="input-group-prepend">
-                        <label class="input-group-text" for="page-size-select">Page size</label>
-                      </div>
-                      <select name="page_size" class="custom-select" id="page-size-select" v-model="_pageSize"
+                    <li class="ml-2">
+                      <div class="input-group nav-item">
+                       <div class="input-group-prepend">
+                         <label class="input-group-text" for="page-size-select">Page size</label>
+                       </div>
+                          <select name="page_size" class="custom-select" id="page-size-select" v-model="_pageSize"
                               @change="reload()">
-                        <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==pageSize}">{{
-                            ps
-                          }}
-                        </option>
-                      </select>
-                    </div>
-                  </li>
+                            <option v-for="ps in [10,25,50,100]" v-bind:class="{selected: ps==pageSize}">{{
+                                ps
+                                }}
+                            </option>
+                          </select>
+                       </div>
+                    </li>
                   <!--sort is added here-->
                   <li class="page-item ml-2">
                     <select name="sort_by" class="form-control" v-model="_sortBy" @change="reload">
