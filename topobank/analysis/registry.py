@@ -567,6 +567,9 @@ class AnalysisFunctionImplementation:
             return False
         elif app.name == 'topobank.analysis':  # special case, should be always available
             return True
+        elif hasattr(app, 'TopobankPluginMeta') and not app.TopobankPluginMeta.restricted:
+            # This plugin is marked as being available to everyone
+            return True
 
         from ..organizations.models import Organization
         plugins_available = Organization.objects.get_plugins_available(user)
