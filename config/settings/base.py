@@ -434,7 +434,12 @@ print(f'STATIC_ROOT: {STATIC_ROOT}')
 STATIC_URL = '/static/'
 print(f'STATIC_URL: {STATIC_URL}')
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
-STATICFILES_DIRS = [str((APPS_DIR - 2).path('static'))]  # The /static dir of each app is searched automatically
+STATICFILES_DIR = env.str('DJANGO_STATICFILES_DIR', default=None)
+# The /static dir of each app is searched automatically, we here add one auxiliary directory
+if STATICFILES_DIR is None:
+    STATICFILES_DIRS = []
+else:
+    STATICFILES_DIRS = [STATICFILES_DIR]
 print(f'STATICFILES_DIRS: {STATICFILES_DIRS}')
 
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
