@@ -1,5 +1,6 @@
 import json
 
+import numpy
 import pytest
 
 from django.shortcuts import reverse
@@ -462,3 +463,12 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     assert Topography.objects.count() == 3
     topo1, topo2, topo3 = Topography.objects.all()
     assert topo2.name == new_name
+
+
+def test_versions(api_client):
+    response = api_client.get(reverse('manager:versions'))
+    assert response.data['numpy'] == {
+        'version': numpy.__version__,
+        'license': 'BSD 3-Clause',
+        'homepage': 'https://numpy.org/'
+    }

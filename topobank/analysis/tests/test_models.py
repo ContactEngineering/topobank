@@ -168,12 +168,14 @@ def test_default_function_kwargs():
 @pytest.mark.django_db
 def test_current_configuration(settings):
     settings.TRACKED_DEPENDENCIES = [
-        ('SurfaceTopography', 'SurfaceTopography.__version__'),
-        ('ContactMechanics', 'ContactMechanics.__version__'),
-        ('NuMPI', 'NuMPI.__version__'),
-        ('muFFT', 'muFFT.version.description()'),
-        ('topobank', 'topobank.__version__'),
-        ('numpy', 'numpy.version.full_version')
+        ('SurfaceTopography', 'SurfaceTopography.__version__', 'MIT',
+         'https://github.com/ContactEngineering/SurfaceTopography'),
+        ('ContactMechanics', 'ContactMechanics.__version__', 'MIT',
+         'https://github.com/ContactEngineering/ContactMechanics'),
+        ('NuMPI', 'NuMPI.__version__', 'MIT', 'https://github.com/IMTEK-Simulation/NuMPI'),
+        ('muFFT', 'muFFT.version.description()', 'LGPL-3.0', 'https://gitlab.com/muspectre/muspectre'),
+        ('topobank', 'topobank.__version__', 'MIT', 'https://github.com/ContactEngineering/SurfaceTopography'),
+        ('numpy', 'numpy.version.full_version', 'BSD 3-Clause', 'https://numpy.org/'),
     ]
 
     config = current_configuration()

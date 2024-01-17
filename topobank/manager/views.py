@@ -1,7 +1,9 @@
+import importlib
 import logging
 import os.path
 from io import BytesIO
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.db.models import Prefetch, Q
@@ -20,7 +22,7 @@ from notifications.signals import notify
 from trackstats.models import Metric, Period
 
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from ..taskapp.utils import run_task
+from ..taskapp.utils import run_task, get_package_version
 from ..users.models import User
 
 from .containers import write_surface_container
@@ -305,3 +307,16 @@ def upload_topography(request, pk=None):
 
     # Return 204 No Content
     return Response({}, status=204)
+
+
+@api_view(['GET'])
+def versions(request):
+    versions = {
+        pkg_name: {
+            'version': eval(version_expr, {pkg_name: importlib.import_module(pkg_name)}),
+            'license': license,
+            'homepage': homepage
+        } for pkg_name, version_expr, license, homepage in settings.TRACKED_DEPENDENCIES
+    }
+
+    return Response(versions, status=200)

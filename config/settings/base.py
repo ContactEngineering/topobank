@@ -469,19 +469,36 @@ GUARDIAN_RENDER_403 = True
 #
 # list of tuples of form (import_name, expression_returning_version_string)
 TRACKED_DEPENDENCIES = [
-    ('SurfaceTopography', 'SurfaceTopography.__version__'),
-    ('ContactMechanics', 'ContactMechanics.__version__'),
-    ('NuMPI', 'NuMPI.__version__'),
-    ('muFFT', 'muFFT.version.description()'),
-    ('topobank', 'topobank.__version__'),
-    ('numpy', 'numpy.__version__'),
-    ('scipy', 'scipy.__version__'),
+    ('topobank', 'topobank.__version__', 'MIT', 'https://github.com/ContactEngineering/topobank')
 ]
+
 # Extend tracked dependencies by Plugin apps
 for plugin_module, plugin_app in zip(PLUGIN_MODULES, PLUGIN_APPS):
     TRACKED_DEPENDENCIES.append(
-        (plugin_module, plugin_app + '.TopobankPluginMeta.version')  # we use the module name as readable name at first
+        (plugin_module, plugin_app + '.TopobankPluginMeta.version', 'MIT',
+         f'https://github.com/ContactEngineering/{plugin_module}')
     )
+
+TRACKED_DEPENDENCIES += [
+    ('SurfaceTopography', 'SurfaceTopography.__version__', 'MIT',
+     'https://github.com/ContactEngineering/SurfaceTopography'),
+    ('ContactMechanics', 'ContactMechanics.__version__', 'MIT',
+     'https://github.com/ContactEngineering/ContactMechanics'),
+    ('NuMPI', 'NuMPI.__version__', 'MIT', 'https://github.com/IMTEK-Simulation/NuMPI'),
+    ('muFFT', 'muFFT.version.description()', 'LGPL-3.0', 'https://gitlab.com/muspectre/muspectre'),
+    ('numpy', 'numpy.__version__', 'BSD 3-Clause', 'https://numpy.org/'),
+    ('scipy', 'scipy.__version__', 'BSD 3-Clause', 'https://scipy.org/'),
+    ('pandas', 'pandas.__version__', 'BSD 3-Clause', 'https://pandas.pydata.org/'),
+    ('netCDF4', 'netCDF4.__version__', 'MIT', 'https://unidata.github.io/netcdf4-python/'),
+    ('xarray', 'xarray.__version__', 'BSD 3-Clause', 'https://xarray.pydata.org/en/stable/'),
+    ('django', 'django.__version__', 'BSD 3-Clause', 'https://www.djangoproject.com/'),
+    ('allauth', 'allauth.__version__', 'BSD 3-Clause', 'https://django-allauth.readthedocs.io/en/latest/'),
+    ('guardian', 'guardian.__version__', 'BSD 3-Clause', 'https://django-guardian.readthedocs.io/en/stable/'),
+    ('storages', 'storages.__version__', 'BSD 3-Clause', 'https://django-storages.readthedocs.io/en/latest/'),
+    ('boto3', 'boto3.__version__', 'Apache 2.0', 'https://boto3.amazonaws.com/v1/documentation/api/latest/index.html'),
+    ('redis', 'redis.__version__', 'MIT', 'https://redis.io/'),
+    ('rest_framework', 'rest_framework.__version__', 'BSD 3-Clause', 'https://www.django-rest-framework.org/'),
+]
 
 #
 # Settings for notifications package

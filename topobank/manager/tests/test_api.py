@@ -7,3 +7,4 @@ def test_api():
     assert reverse('manager:surface-api-detail', kwargs=dict(pk=123)) == '/manager/api/surface/123/'
     assert reverse('manager:topography-api-list') == '/manager/api/topography/'
     assert reverse('manager:topography-api-detail', kwargs=dict(pk=123)) == '/manager/api/topography/123/'
+    assert reverse('manager:versions') == '/manager/api/versions/'

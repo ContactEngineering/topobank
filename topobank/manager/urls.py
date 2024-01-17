@@ -44,6 +44,11 @@ urlpatterns += [
         view=login_required(views.set_permissions),
         name='set-permissions'
     ),
+    path(
+        'api/versions/',
+        view=views.versions,
+        name='versions'
+    )
 ]
 
 if not settings.USE_S3_STORAGE:
