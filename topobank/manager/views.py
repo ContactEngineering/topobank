@@ -22,7 +22,7 @@ from notifications.signals import notify
 from trackstats.models import Metric, Period
 
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from ..taskapp.utils import run_task, get_package_version
+from ..taskapp.utils import run_task
 from ..users.models import User
 
 from .containers import write_surface_container
