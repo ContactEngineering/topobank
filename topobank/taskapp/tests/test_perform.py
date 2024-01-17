@@ -55,9 +55,9 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
     # No let's change the version of SurfaceTopography
     #
     settings.TRACKED_DEPENDENCIES = [
-        ('SurfaceTopography', '"0.89.1"'),  # this version does not exist, so should be unknown here
-        ('topobank', 'topobank.__version__'),
-        ('numpy', 'numpy.version.full_version')
+        ('SurfaceTopography', '"0.89.1"', 'MIT', 'abc'),  # this version does not exist, so should be unknown here
+        ('topobank', 'topobank.__version__', 'MIT', 'def'),
+        ('numpy', 'numpy.version.full_version', 'BSD 3-Clause', 'ghi')
     ]
 
     topo2 = Topography.objects.last()
