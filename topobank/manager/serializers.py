@@ -160,7 +160,8 @@ class SurfaceSerializer(StrictFieldMixin,
                   'description',
                   'tags',
                   'topography_set',
-                  'permissions']
+                  'permissions',
+                  'publication']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
@@ -169,6 +170,8 @@ class SurfaceSerializer(StrictFieldMixin,
     tags = TagRelatedManagerField(required=False)
 
     permissions = serializers.SerializerMethodField()
+
+    publication = serializers.HyperlinkedRelatedField(view_name='publication:publication-api-detail', read_only=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
