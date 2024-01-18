@@ -1,9 +1,7 @@
-import importlib
 import logging
 import os.path
 from io import BytesIO
 
-from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.db.models import Prefetch, Q
