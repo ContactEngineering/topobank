@@ -21,6 +21,7 @@ from rest_framework.response import Response
 from notifications.signals import notify
 from trackstats.models import Metric, Period
 
+from ..supplib.versions import get_versions
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..taskapp.utils import run_task
 from ..users.models import User
@@ -311,12 +312,4 @@ def upload_topography(request, pk=None):
 
 @api_view(['GET'])
 def versions(request):
-    versions = {
-        pkg_name: {
-            'version': eval(version_expr, {pkg_name: importlib.import_module(pkg_name)}),
-            'license': license,
-            'homepage': homepage
-        } for pkg_name, version_expr, license, homepage in settings.TRACKED_DEPENDENCIES
-    }
-
-    return Response(versions, status=200)
+    return Response(get_versions(), status=200)
