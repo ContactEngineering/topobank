@@ -94,7 +94,7 @@ def sync_analysis_functions(db):
 
 
 @pytest.fixture(scope="function")
-def test_analysis_function(db):
+def test_analysis_function(db, sync_analysis_functions):
     from .analysis.models import AnalysisFunction
     return AnalysisFunction.objects.get(name="test")
 
