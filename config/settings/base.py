@@ -617,11 +617,6 @@ CONTACT_MECHANICS_KWARGS_LIMITS = {
 CHALLENGE_REDIRECT_URL = env.str('CHALLENGE_REDIRECT_URL', default='https://forms.gle/GB3jLqJggbMmNfFm6')
 # CHALLENGE_REDIRECT_URL = ''
 
-#
-# Performance related settings
-#
-DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY = False  # This fails for large datasets (e.g. 8k x 8k)
-
 # Configure watchman checks
 WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.celery_worker_check',)
 

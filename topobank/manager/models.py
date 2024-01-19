@@ -17,7 +17,6 @@ import django.dispatch
 from django.db import models
 from django.shortcuts import reverse
 from django.conf import settings
-from django.core.cache import cache
 from django.core.files.storage import default_storage
 from django.core.files import File
 from django.core.files.base import ContentFile
@@ -616,7 +615,6 @@ class Topography(TaskStateModel, SubjectMixin):
 
         # Save after run task, because run task may update the task state
         super().save(*args, **kwargs)
-        cache.delete(self.cache_key())
 
         # Reset to no refresh
         self._refresh_dependent_data = False
@@ -841,8 +839,7 @@ class Topography(TaskStateModel, SubjectMixin):
             topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
         return topo.detrend(detrend_mode=self.detrend_mode)
 
-    def topography(self, allow_cache=settings.DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY, allow_squeezed=True,
-                   return_reader=False):
+    def topography(self, allow_squeezed=True, return_reader=False):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -864,11 +861,6 @@ class Topography(TaskStateModel, SubjectMixin):
 
         Parameters
         ----------
-        allow_cache: bool
-            If True (see settings.DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY),
-            the instance is allowed to get the topography from cache if available.
-            If it was not in cache, the topography in cache is put there after generation.
-
         allow_squeezed: bool
             If True (default), the instance is allowed to be generated
             from a squeezed datafile which is not the original datafile.
@@ -884,33 +876,26 @@ class Topography(TaskStateModel, SubjectMixin):
         # Try to get topography from cache if possible
         #
         toporeader = None
-        topo = cache.get(cache_key) if allow_cache else None
+        topo = None
+        if allow_squeezed and self.has_squeezed_datafile:
+            if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+                _log.warning(
+                    'You are requesting to load a (2D) topography and you are not within in a Celery worker '
+                    'process. This operation is potentially slow and may require a lot of memory - do not use '
+                    '`Topography.topography` within the main Django server!')
+
+            # Okay, we can use the squeezed datafile, it's already there.
+            toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
+            topo = toporeader.topography(info=self._instrument_info)
+            # In the squeezed format, these things are already applied/included:
+            # unit, scaling, detrending, physical sizes
+            # so don't need to provide them to the .topography() method
+            _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
+
         if topo is None:
-            if allow_squeezed and self.has_squeezed_datafile:
-                if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
-                    _log.warning(
-                        'You are requesting to load a (2D) topography and you are not within in a Celery worker '
-                        'process. This operation is potentially slow and may require a lot of memory - do not use '
-                        '`Topography.topography` within the main Django server!')
-
-                # Okay, we can use the squeezed datafile, it's already there.
-                toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
-                topo = toporeader.topography(info=self._instrument_info)
-                # In the squeezed format, these things are already applied/included:
-                # unit, scaling, detrending, physical sizes
-                # so don't need to provide them to the .topography() method
-                _log.info(f"Using squeezed datafile instead of original datafile for topography id {self.id}.")
-
-            if topo is None:
-                # Read raw file if squeezed file is unavailable
-                toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
-                topo = self._read(toporeader)
-
-            if allow_cache:
-                cache.set(cache_key, topo)
-
-        else:
-            _log.info(f"Using topography from cache for id {self.id}.")
+            # Read raw file if squeezed file is unavailable
+            toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
+            topo = self._read(toporeader)
 
         if return_reader:
             return topo, toporeader
