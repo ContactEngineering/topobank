@@ -575,7 +575,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
             # `instrument_parameters` is special as it can contain non-significant entries
             if (self._clean_instrument_parameters(self.instrument_parameters) !=
-                    self._clean_instrument_parameters(old_obj.instrument_parameters)):
+                self._clean_instrument_parameters(old_obj.instrument_parameters)):
                 changed_fields += ['instrument_parameters']
 
             # We need to refresh if any of the significant fields changed during this save
@@ -589,7 +589,7 @@ class Topography(TaskStateModel, SubjectMixin):
         # Save to data base
         _log.debug('Saving model...')
         if self.id is None and (
-                self.datafile is not None or self.squeezed_datafile is not None or self.thumbnail is not None):
+            self.datafile is not None or self.squeezed_datafile is not None or self.thumbnail is not None):
             # We don't have an `id` but are trying to save a model with a data file; this does not work because the
             # `storage_prefix`  contains the `id`. (The `id` only becomes available once the model instance has
             # been saved.) Note that this situation is only relevant for tests.
@@ -727,10 +727,6 @@ class Topography(TaskStateModel, SubjectMixin):
     def get_absolute_url(self):
         """URL of detail page for this topography."""
         return reverse('manager:topography-api-detail', kwargs=dict(pk=self.pk))
-
-    def cache_key(self):
-        """Used for caching topographies avoiding reading datafiles again when interpreted in the same way"""
-        return f"topography-{self.id}-channel-{self.data_source}"
 
     def is_shared(self, with_user):
         """Returns True, if this topography is shared with a given user.
@@ -870,8 +866,6 @@ class Topography(TaskStateModel, SubjectMixin):
             If True, return a tuple containing the topography and the reader.
             (Default: False)
         """
-        cache_key = self.cache_key()
-
         #
         # Try to get topography from cache if possible
         #
