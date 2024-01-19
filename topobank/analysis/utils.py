@@ -2,7 +2,7 @@ import logging
 import math
 from collections import OrderedDict
 
-from ..manager.models import Topography, Surface
+from ..manager.models import Surface
 
 _log = logging.getLogger(__name__)
 
@@ -81,7 +81,7 @@ def filter_and_order_analyses(analyses):
     for topography_analysis in sorted([a for a in analyses if a.subject_dispatch.topography is not None],
                                       key=lambda a: a.subject_dispatch.topography_id):
         surface = topography_analysis.subject_dispatch.topography.surface
-        if not surface in analysis_groups:
+        if surface not in analysis_groups:
             analysis_groups[surface] = []
         analysis_groups[surface].append(topography_analysis)
 

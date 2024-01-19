@@ -1,4 +1,3 @@
-
 import pytest
 
 from topobank.analysis.models import AnalysisFunction, Analysis
@@ -6,9 +5,9 @@ from topobank.manager.models import Surface
 
 from browser_tests.conftest import wait_for_page_load
 
+
 @pytest.mark.django_db
 def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, webdriver):
-
     #
     # Create two analysis functions for selection
     #
@@ -23,37 +22,34 @@ def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, we
     #
     # Create analysis results for all
     #
-    import pickle
     for func in funcs:
         for topo in topos:
-            a  = Analysis.objects.create(function=func, topography=topo, kwargs={})
+            a = Analysis.objects.create(function=func, topography=topo, kwargs={})
             a.task_state = Analysis.SUCCESS
-            xx = list(range(10)) # just to fake some values
+            xx = list(range(10))  # just to fake some values
             yy = list(range(20))
             a.result = dict(
-                        name=func.name,
-                        scalars=dict(
-                            mean_slope=1,
-                            rms_slope=0,
-                        ),
-                        xlabel='x',
-                        ylabel='y',
-                        series=[
-                            dict(name=func.name,
-                                 x=xx,
-                                 y=yy,
-                                 style='k-',
-                                 ),
-                            dict(name='f',
-                                 x=xx,
-                                 y=yy,
-                                 style='r-',
-                                 )
-                        ]
+                name=func.name,
+                scalars=dict(
+                    mean_slope=1,
+                    rms_slope=0,
+                ),
+                xlabel='x',
+                ylabel='y',
+                series=[
+                    dict(name=func.name,
+                         x=xx,
+                         y=yy,
+                         style='k-',
+                         ),
+                    dict(name='f',
+                         x=xx,
+                         y=yy,
+                         style='r-',
+                         )
+                ]
             )
             a.save()
-
-
 
     #
     # Select both analyses functions and the surface
@@ -80,9 +76,9 @@ def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, we
     assert len(cards) == 2
 
     # we assume that the functions are also ordered by name
-    expected_names = [ 'Height Distribution', 'Slope Distribution']
+    expected_names = ['Height Distribution', 'Slope Distribution']
 
-    for k, card in enumerate(cards): # iterate over other two
+    for k, card in enumerate(cards):  # iterate over other two
 
         # check function name of card
         header = card.find_element_by_class_name("card-header")
@@ -94,10 +90,4 @@ def test_grouping_by_function(surface_1_with_topographies_testuser_logged_in, we
         left_column = footer.find_elements_by_class_name("col-6")[0]
 
         left_column_labels = left_column.find_elements_by_class_name("form-check-label")
-        assert ['example3.di','example4.txt'] == [ l.text for l in left_column_labels ]
-
-
-
-
-
-
+        assert ['example3.di', 'example4.txt'] == [L.text for L in left_column_labels]

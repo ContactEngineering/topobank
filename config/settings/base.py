@@ -2,14 +2,11 @@
 Base settings to build other settings files upon.
 """
 
-import os.path
-import logging
+import importlib.metadata
 import random
 import string
 
 import environ
-
-from pkg_resources import iter_entry_points
 
 from django.core.exceptions import ImproperlyConfigured
 
@@ -17,11 +14,9 @@ from watchman import constants as watchman_constants
 
 import topobank
 
-_log = logging.getLogger(__name__)
 
-
-def random_string(l=16):
-    return ''.join(random.choice(string.ascii_lowercase) for i in range(l))
+def random_string(L=16):
+    return ''.join(random.choice(string.ascii_lowercase) for i in range(L))
 
 
 # We provide (dummy) default values for every setting so we can run manage.py
@@ -92,22 +87,20 @@ DJANGO_APPS = [
     'django.contrib.postgres',  # needed for 'search' lookup
 ]
 THIRD_PARTY_APPS = [
-    'crispy_forms',
-    'crispy_bootstrap5',
+    'crispy_forms',  # format forms
+    'crispy_bootstrap5',  # format forms with Bootstrap-5
     'allauth',
     'allauth.account',
     'allauth.socialaccount',
     'allauth.socialaccount.providers.orcid',
     'rest_framework',
-    'termsandconditions',
     'storages',
     'guardian',
-    'django_select2',
     'notifications',
-    'tagulous',
+    'tagulous',  # tag-model with hierarchies
     'trackstats',
-    'watchman',
-    'request_profiler',
+    'watchman',  # system status report
+    'request_profiler',  # keep track of response times for selected routes
 ]
 LOCAL_APPS = [
     # Your stuff: custom apps go here
@@ -115,24 +108,18 @@ LOCAL_APPS = [
     'topobank.manager.apps.ManagerAppConfig',
     'topobank.analysis.apps.AnalysisAppConfig',
     'topobank.usage_stats.apps.UsageStatsAppConfig',
-    'topobank.tabnav.apps.TabNavAppConfig',
     'topobank.organizations.apps.OrganizationsAppConfig',
 ]
 
-TOPOBANK_PLUGINS_IGNORE_CONFLICTS = env.bool('TOPOBANK_PLUGINS_IGNORE_CONFLICTS', default=False)
-TOPOBANK_PLUGINS_EXCLUDE = env.list('TOPOBANK_PLUGINS_EXCLUDE', default=[])
-PLUGIN_APPS = []
-for entry_point in iter_entry_points(group='topobank.plugins', name=None):
-    if entry_point.module_name in TOPOBANK_PLUGINS_EXCLUDE:
-        continue
-    # Some name mangling
-    plugin_name = entry_point.module_name
-    if plugin_name.startswith('topobank_'):
-        plugin_name = plugin_name[9:]
-    plugin_name = plugin_name[0:1].upper() + plugin_name[1:]
-    plugin_config = f'{entry_point.module_name}.apps.{plugin_name}PluginConfig'
-    PLUGIN_APPS.append(plugin_config)
-_log.info('Topobank detected the following plugins:', PLUGIN_APPS)
+PLUGIN_MODULES = [entry_point.name for entry_point in importlib.metadata.entry_points(group='topobank.plugins')]
+PLUGIN_APPS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.plugins')]
+print(f'PLUGIN_MODULES: {PLUGIN_MODULES}')
+print(f'PLUGIN_APPS: {PLUGIN_APPS}')
+
+PLUGIN_THIRD_PARTY_APPS = [entry_point.value for entry_point in
+                           importlib.metadata.entry_points(group='topobank.third_party_apps')]
+print(f'PLUGIN_THIRD_PARTY_APPS: {PLUGIN_THIRD_PARTY_APPS}')
+THIRD_PARTY_APPS += PLUGIN_THIRD_PARTY_APPS
 
 # https://docs.djangoproject.com/en/dev/ref/settings/#installed-apps
 # Remove duplicate entries
@@ -204,13 +191,19 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    # Enable the following if you want to check T&C by middleware
-    # this must be called before anonymous user replacement, otherwise anonymous users will
-    # always be asked to accept terms and conditons
-    'termsandconditions.middleware.TermsAndConditionsRedirectMiddleware',
-    'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
     'django.contrib.messages.middleware.MessageMiddleware',
     'django.middleware.clickjacking.XFrameOptionsMiddleware',
+]
+
+PLUGIN_MIDDLEWARE = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.middleware')]
+print(f'PLUGIN_MIDDLEWARE: {PLUGIN_MIDDLEWARE}')
+
+# Plugin middleware must be called before anonymous user replacement, because the UI plugin registers Terms & Conditions
+# middleware. If plugin middleware comes last, then anonymous users will always be asked to accept terms and conditions.
+MIDDLEWARE += PLUGIN_MIDDLEWARE
+
+MIDDLEWARE += [
+    'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
 ]
 
 #
@@ -223,6 +216,10 @@ if ENABLE_USAGE_STATS:
 # TEMPLATES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#templates
+
+PLUGIN_CONTEXT_PROCESSORS = [entry_point.value for entry_point in
+                             importlib.metadata.entry_points(group='topobank.context_processors')]
+print(f'PLUGIN_CONTEXT_PROCESSORS: {PLUGIN_CONTEXT_PROCESSORS}')
 
 TEMPLATES = [
     {
@@ -244,18 +241,15 @@ TEMPLATES = [
             ],
             # https://docs.djangoproject.com/en/dev/ref/settings/#template-context-processors
             'context_processors': [
-                'django.template.context_processors.debug',
-                'django.template.context_processors.request',
-                'django.contrib.auth.context_processors.auth',
-                'django.template.context_processors.i18n',
-                'django.template.context_processors.media',
-                'django.template.context_processors.static',
-                'django.template.context_processors.tz',
-                'django.contrib.messages.context_processors.messages',
-                'topobank.context_processors.versions_processor',
-                'topobank.context_processors.basket_processor',
-                'topobank.tabnav.context_processors.fixed_tabs_processor',
-            ],
+                                      'django.template.context_processors.debug',
+                                      'django.template.context_processors.request',
+                                      'django.contrib.auth.context_processors.auth',
+                                      'django.template.context_processors.i18n',
+                                      'django.template.context_processors.media',
+                                      'django.template.context_processors.static',
+                                      'django.template.context_processors.tz',
+                                      'django.contrib.messages.context_processors.messages',
+                                  ] + PLUGIN_CONTEXT_PROCESSORS,
         },
     },
 ]
@@ -433,18 +427,21 @@ if USE_S3_STORAGE:
 # STATIC
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-root
-STATIC_ROOT = env.str('DJANGO_STATIC_ROOT', default=(environ.Path(__file__) - 3).path('staticfiles'))
+STATIC_ROOT = env.str('DJANGO_STATIC_ROOT',
+                      default=(APPS_DIR - 2).path('staticfiles'))  # This is not used in the development environment
+print(f'STATIC_ROOT: {STATIC_ROOT}')
 # https://docs.djangoproject.com/en/dev/ref/settings/#static-url
 STATIC_URL = '/static/'
+print(f'STATIC_URL: {STATIC_URL}')
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#std:setting-STATICFILES_DIRS
-STATICFILES_DIRS = []
-for d in ['/static', APPS_DIR.path('static'), APPS_DIR.path('../../static')]:
-    d = str(d)
-    if os.path.exists(d):
-        _log.info(f"Adding path '{d}' to static files.")
-        STATICFILES_DIRS += [d]
-    else:
-        _log.info(f"Skipping path '{d}' for static files since it does not exist.")
+STATICFILES_DIR = env.str('DJANGO_STATICFILES_DIR', default=None)
+# The /static dir of each app is searched automatically, we here add one auxiliary directory
+if STATICFILES_DIR is None:
+    STATICFILES_DIRS = []
+else:
+    STATICFILES_DIRS = [STATICFILES_DIR]
+print(f'STATICFILES_DIRS: {STATICFILES_DIRS}')
+
 # https://docs.djangoproject.com/en/dev/ref/contrib/staticfiles/#staticfiles-finders
 STATICFILES_FINDERS = [
     'django.contrib.staticfiles.finders.FileSystemFinder',
@@ -472,36 +469,42 @@ GUARDIAN_RENDER_403 = True
 #
 # list of tuples of form (import_name, expression_returning_version_string)
 TRACKED_DEPENDENCIES = [
-    ('SurfaceTopography', 'SurfaceTopography.__version__'),
-    ('ContactMechanics', 'ContactMechanics.__version__'),
-    ('NuMPI', 'NuMPI.__version__'),
-    ('muFFT', 'muFFT.version.description()'),
-    ('topobank', 'topobank.__version__'),
-    ('numpy', 'numpy.__version__'),
-    ('scipy', 'scipy.__version__'),
+    ('topobank', 'topobank.__version__', 'MIT', 'https://github.com/ContactEngineering/topobank')
 ]
+
 # Extend tracked dependencies by Plugin apps
-for plugin_app in PLUGIN_APPS:
+for plugin_module, plugin_app in zip(PLUGIN_MODULES, PLUGIN_APPS):
     TRACKED_DEPENDENCIES.append(
-        (plugin_app, plugin_app + '.__version__')  # we use the module name as readable name at first
+        (plugin_module, plugin_app + '.TopobankPluginMeta.version', 'MIT',
+         f'https://github.com/ContactEngineering/{plugin_module}')
     )
+
+TRACKED_DEPENDENCIES += [
+    ('SurfaceTopography', 'SurfaceTopography.__version__', 'MIT',
+     'https://github.com/ContactEngineering/SurfaceTopography'),
+    ('ContactMechanics', 'ContactMechanics.__version__', 'MIT',
+     'https://github.com/ContactEngineering/ContactMechanics'),
+    ('NuMPI', 'NuMPI.__version__', 'MIT', 'https://github.com/IMTEK-Simulation/NuMPI'),
+    ('muFFT', 'muFFT.version.description()', 'LGPL-3.0', 'https://gitlab.com/muspectre/muspectre'),
+    ('numpy', 'numpy.__version__', 'BSD 3-Clause', 'https://numpy.org/'),
+    ('scipy', 'scipy.__version__', 'BSD 3-Clause', 'https://scipy.org/'),
+    ('pandas', 'pandas.__version__', 'BSD 3-Clause', 'https://pandas.pydata.org/'),
+    ('netCDF4', 'netCDF4.__version__', 'MIT', 'https://unidata.github.io/netcdf4-python/'),
+    ('xarray', 'xarray.__version__', 'BSD 3-Clause', 'https://xarray.pydata.org/en/stable/'),
+    ('django', 'django.__version__', 'BSD 3-Clause', 'https://www.djangoproject.com/'),
+    ('allauth', 'allauth.__version__', 'BSD 3-Clause', 'https://django-allauth.readthedocs.io/en/latest/'),
+    ('guardian', 'guardian.__version__', 'BSD 3-Clause', 'https://django-guardian.readthedocs.io/en/stable/'),
+    ('storages', 'storages.__version__', 'BSD 3-Clause', 'https://django-storages.readthedocs.io/en/latest/'),
+    ('boto3', 'boto3.__version__', 'Apache 2.0', 'https://boto3.amazonaws.com/v1/documentation/api/latest/index.html'),
+    ('redis', 'redis.__version__', 'MIT', 'https://redis.io/'),
+    ('rest_framework', 'rest_framework.__version__', 'BSD 3-Clause', 'https://www.django-rest-framework.org/'),
+]
 
 #
 # Settings for notifications package
 #
 DJANGO_NOTIFICATIONS_CONFIG = {'USE_JSONFIELD': True}
 # I would like to pass the target url to a notification
-
-#
-# Local references for "select2"
-#
-# An alternative is maybe "django-bower" which could be used
-# to resolve all external javascript dependencies and install them
-# locally in a defined way
-SELECT2_JS = '/static/tagulous/lib/select2-4/js/select2.min.js'
-SELECT2_CSS = '/static/tagulous/lib/select2-4/css/select2.min.css'
-SELECT2_I18N_PATH = '/static/tagulous/lib/select2-4/js/i18n'
-# The default for all these are pointers to Cloudflare CDN
 
 #
 # Settings for django-tagulous (tagging)
@@ -513,11 +516,11 @@ SERIALIZATION_MODULES = {
     'yaml': 'tagulous.serializers.pyyaml',
 }
 
-TAGULOUS_AUTOCOMPLETE_JS = (
-    "tagulous/lib/select2-4/js/select2.full.min.js",
-    "tagulous/tagulous.js",
-    "tagulous/adaptor/select2-4.js",
-)
+# TAGULOUS_AUTOCOMPLETE_JS = (
+#    "tagulous/lib/select2-4/js/select2.full.min.js",
+#    "tagulous/tagulous.js",
+#    "tagulous/adaptor/select2-4.js",
+# )
 
 #
 # E-Mail address to contact us
@@ -627,12 +630,15 @@ WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.c
 #
 TABNAV_DISPLAY_HOME_TAB = True
 
+
 #
 # Request profiler
 #
 
 # Default configuration is to ingore staff user, we override this here to log all requests
-REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC = lambda x: True
+def REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC(x):
+    return True
+
 
 # Keep records for two weeks
 REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14

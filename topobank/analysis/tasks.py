@@ -13,7 +13,7 @@ from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 
 from ..taskapp.celeryapp import app
 from ..taskapp.tasks import ProgressRecorder
-from ..taskapp.utils import get_package_version_instance
+from ..taskapp.utils import get_package_version
 from ..utils import store_split_dict
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 
@@ -35,8 +35,8 @@ def current_configuration():
 
     :return: Configuration instance which can be used for analyses
     """
-    versions = [get_package_version_instance(pkg_name, version_expr)
-                for pkg_name, version_expr in settings.TRACKED_DEPENDENCIES]
+    versions = [get_package_version(pkg_name, version_expr)
+                for pkg_name, version_expr, license, homepage in settings.TRACKED_DEPENDENCIES]
 
     def make_config_from_versions():
         c = Configuration.objects.create()

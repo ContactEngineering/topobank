@@ -44,5 +44,3 @@ class Command(BaseCommand):
         #
         # TODO Check that each users is only attached to one combination of topography, function and arguments
         #
-
-

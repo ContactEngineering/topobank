@@ -9,20 +9,19 @@ import tempfile
 import math
 
 from topobank.manager.models import Surface, Topography
-from topobank.manager.tests.utils import UserFactory, FIXTURE_DIR, SurfaceFactory, \
-    Topography2DFactory, Topography1DFactory, two_topos
+from topobank.manager.tests.utils import UserFactory, SurfaceFactory, \
+    Topography2DFactory, Topography1DFactory
 
 
 @pytest.mark.django_db
 def test_import_downloaded_surface_archive(client):
-
     username = 'test_user'
     surface_name = "Test Surface for Import"
     surface_category = 'dum'
     user = UserFactory(username=username)
     surface = SurfaceFactory(creator=user, name=surface_name, category=surface_category)
-    topo1 = Topography2DFactory(surface=surface, name='2D Measurement', size_x=10, size_y=10, unit='mm')
-    topo2 = Topography1DFactory(surface=surface, name='1D Measurement', size_x=9, unit='µm')
+    Topography2DFactory(surface=surface, name='2D Measurement', size_x=10, size_y=10, unit='mm')
+    Topography1DFactory(surface=surface, name='1D Measurement', size_x=9, unit='µm')
 
     client.force_login(user)
 
@@ -69,7 +68,7 @@ def test_fix_sizes(two_topos):
     # this file comes from a DI file where sizes are fixed
 
     # let's save wrong values to fix it
-    topo.size_editable = True   # this is wrong
+    topo.size_editable = True  # this is wrong
     topo.size_x = 1.  # also wrong
     topo.size_y = 2.
     topo.save()
@@ -90,7 +89,7 @@ def test_fix_height_scale(two_topos):
     # this file comes from a DI file where height scales are fixed
 
     # let's save wrong values to fix it
-    topo.height_scale_editable = True   # this is wrong
+    topo.height_scale_editable = True  # this is wrong
     topo.height_scale = 9999.  # also wrong
     topo.save()
 
@@ -110,7 +109,3 @@ def test_renew_cache(mocker):
     call_command('renew_cache', background=False)
 
     assert renew_cache_mock.called
-
-
-
-

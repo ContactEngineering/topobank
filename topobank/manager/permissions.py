@@ -115,19 +115,7 @@ class ParentObjectPermissionsFilter(BaseFilterBackend):
     parent_model = Surface
 
     def filter_queryset(self, request, queryset, view):
-        # We want to defer this import until runtime, rather than import-time.
-        # See https://github.com/encode/django-rest-framework/issues/4608
-        # (Also see #1624 for why we need to make this import explicitly)
-        from guardian.shortcuts import get_objects_for_user
-
         user = request.user
-        permission = self.perm_format % {
-            'app_label': queryset.model._meta.app_label,
-            'model_name': queryset.model._meta.model_name,
-        }
-
-        # Now we should extract list of pk values for which we would filter
-        # queryset
 
         # User model stores the per-object permissions
         ctype = ContentType.objects.get_for_model(self.parent_model)

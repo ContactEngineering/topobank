@@ -1,9 +1,9 @@
 import freezegun
 import pytest
 
-from django.shortcuts import reverse
-
 from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory
+from topobank_publication.models import Publication
+
 from splinter_tests.utils import goto_select_page, goto_publications_page, \
     select_sharing_status, press_view_for_item_by_name, num_items_in_result_table, \
     data_of_item_by_name, double_click_on_item_by_name
@@ -291,7 +291,7 @@ def test_switch_between_wip_and_version(user_alice_logged_in, handle_usage_stati
     # Alice has a surface and publishes it
     #
     surface = SurfaceFactory(creator=user_alice, name="Alice's Surface")
-    topo = Topography2DFactory(surface=surface)
+    Topography2DFactory(surface=surface)
     publication = Publication.publish(surface, 'cc0-1.0', 'Alice')
 
     #
@@ -361,7 +361,7 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
     topo_description = "My nice measurement"
 
     surface = SurfaceFactory(creator=user_alice, name=surface_name)
-    topo = Topography2DFactory(surface=surface, name=topo_name, description=topo_description)
+    Topography2DFactory(surface=surface, name=topo_name, description=topo_description)
     publication = Publication.publish(surface, 'cc0-1.0', 'Famous Scientist')
 
     # Alice filters for published surfaces - enters
@@ -398,6 +398,6 @@ def test_how_to_cite(user_alice_logged_in, handle_usage_statistics):
 
     # Now the page shows a citation in text format
     exp_pub_url = base_url.rstrip('/') + publication.get_absolute_url()
-    exp_citation = f"Famous Scientist. ({publication.datetime.year}). contact.engineering. {surface_name} (Version 1). " + \
-                   f"{exp_pub_url}"
+    exp_citation = (f"Famous Scientist. ({publication.datetime.year}). contact.engineering. {surface_name} "
+                    f"(Version 1). {exp_pub_url}")
     assert browser.is_text_present(exp_citation)

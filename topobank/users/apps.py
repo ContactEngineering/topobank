@@ -1,5 +1,6 @@
 from django.apps import AppConfig
 
+
 class UsersAppConfig(AppConfig):
     name = "topobank.users"
     verbose_name = "Users"
@@ -9,6 +10,4 @@ class UsersAppConfig(AppConfig):
             Users system checks
             Users signal registration
         """
-        import topobank.users.signals
-
-
+        import topobank.users.signals  # noqa: F401

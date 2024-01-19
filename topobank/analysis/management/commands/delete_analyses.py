@@ -3,8 +3,8 @@ import logging
 
 from topobank.analysis.models import Analysis
 
-
 _log = logging.getLogger(__name__)
+
 
 class Command(BaseCommand):
     help = "Deletes analyses from the database."
@@ -28,6 +28,5 @@ class Command(BaseCommand):
 
             self.stdout.write(self.style.SUCCESS("Deleted {} analyses from database.".format(num_deleted)))
         else:
-            self.stdout.write(self.style.WARNING("Nothing deleted. Can only delete all analyses up to now. See help (-h)."))
-
-
+            self.stdout.write(
+                self.style.WARNING("Nothing deleted. Can only delete all analyses up to now. See help (-h)."))

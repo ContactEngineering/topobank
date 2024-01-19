@@ -1,6 +1,7 @@
 """
 Test whether analyses are recalculated on certain events.
 """
+
 import pytest
 
 from pathlib import Path
@@ -10,9 +11,7 @@ from topobank.manager.tests.utils import FIXTURE_DIR, Topography1DFactory, Surfa
 from topobank.manager.models import Topography
 
 from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.tests.utils import SurfaceAnalysisFactory, AnalysisFunctionFactory, TopographyAnalysisFactory, \
-    Topography2DFactory
-from topobank.utils import assert_in_content, assert_no_form_errors
+from topobank.analysis.tests.utils import SurfaceAnalysisFactory, TopographyAnalysisFactory, Topography2DFactory
 
 
 @pytest.mark.parametrize("auto_renew", [True, False])
@@ -148,7 +147,6 @@ def test_analysis_removal_on_topography_deletion(api_client, test_analysis_funct
     # The analysis of the surface is not deleting in this test, because the analysis does not actually run.
     # (Analysis run `on_commit`, but this is never triggered in this test.)
     # assert Analysis.objects.filter(subject_dispatch__surface=surface).count() == 0
-
 
 
 @pytest.mark.parametrize("auto_renew", [True, False])

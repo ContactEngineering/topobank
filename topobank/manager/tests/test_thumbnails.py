@@ -1,11 +1,12 @@
 """
 Tests related to thumbnails.
 """
+
 import pytest
 
 from django.shortcuts import reverse
-from topobank.manager.tests.utils import Topography2DFactory, UserFactory, SurfaceFactory, Topography1DFactory
-from topobank.utils import assert_no_form_errors
+
+from .utils import Topography2DFactory, UserFactory, SurfaceFactory, Topography1DFactory
 
 
 @pytest.mark.django_db
@@ -55,7 +56,6 @@ def test_no_renewal_on_measurement_date_change(api_client, mocker, settings, dja
     """Check whether thumbnail is renewed if detrend mode changes for a topography"""
     settings.CELERY_TASK_ALWAYS_EAGER = True
 
-    from ..models import Topography
     renew_cache_mock = mocker.patch('topobank.manager.models.Topography.renew_cache')
 
     user = UserFactory()

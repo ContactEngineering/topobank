@@ -1,6 +1,5 @@
 import importlib
 
-from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 
@@ -14,7 +13,7 @@ class ConfigurationException(Exception):
     pass
 
 
-def get_package_version_tuple(pkg_name, version_expr):
+def _get_package_version_tuple(pkg_name, version_expr):
     """
 
     :param pkg_name: name of the package which is used in import statement
@@ -29,33 +28,33 @@ def get_package_version_tuple(pkg_name, version_expr):
 
     try:
         major: int = int(version_tuple[0])
-    except:
+    except:  # noqa: E722
         raise ConfigurationException("Cannot determine major version of package '{}'. Full version string: {}",
                                      format(pkg_name, version))
 
     try:
         minor: int = int(version_tuple[1])
-    except:
+    except:  # noqa: E722
         raise ConfigurationException("Cannot determine minor version of package '{}'. Full version string: {}",
                                      format(pkg_name, version))
 
     try:
         micro: int = int(version_tuple[2].split('+')[0])  # because of version strings like '0.51.0+0.g2c488bd.dirty'
         s = f'{version_tuple[0]}.{version_tuple[1]}.{micro}'
-    except:
+    except:  # noqa: E722
         micro = None
         s = f'{version_tuple[0]}.{version_tuple[1]}'
 
     try:
         extra: str = version[len(s):]  # the rest of the version string
-    except:
+    except:  # noqa: E722
         extra = None
 
     return major, minor, micro, extra
 
 
 @transaction.atomic(durable=True)
-def get_package_version_instance(pkg_name, version_expr):
+def get_package_version(pkg_name, version_expr):
     """
     Return version instance for currently installed version of a package.
     The function creates the entry in the dependency and version tables if
@@ -75,7 +74,7 @@ def get_package_version_instance(pkg_name, version_expr):
     version : Version
         Instance of the Version class
     """
-    major, minor, micro, extra = get_package_version_tuple(pkg_name, version_expr)
+    major, minor, micro, extra = _get_package_version_tuple(pkg_name, version_expr)
 
     # create dependency object if it does not yet exist
     dep, created = Dependency.objects.get_or_create(import_name=pkg_name)

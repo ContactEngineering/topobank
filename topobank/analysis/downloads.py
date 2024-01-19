@@ -9,7 +9,6 @@ import pint
 from openpyxl.worksheet.hyperlink import Hyperlink
 from openpyxl.styles import Font
 from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound
-from django.contrib.contenttypes.models import ContentType
 from django.utils.text import slugify
 
 import pandas as pd
@@ -18,10 +17,10 @@ import numpy as np
 import textwrap
 
 from .models import Analysis
-from ..manager.models import Surface
 from .registry import register_download_function, AnalysisRegistry, UnknownKeyException
 from .functions import VIZ_SERIES
 from .utils import filter_and_order_analyses
+
 
 #######################################################################
 # Download views
@@ -51,7 +50,6 @@ def download_analyses(request, ids, file_format):
     analyses_ids = [int(i) for i in ids.split(',')]
 
     analyses = []
-    surface_ct = ContentType.objects.get_for_model(Surface)
 
     registry = AnalysisRegistry()
     visualization_type = None
@@ -94,8 +92,8 @@ def download_analyses(request, ids, file_format):
     try:
         download_function = AnalysisRegistry().get_download_function(*key)
     except UnknownKeyException:
-        return HttpResponseBadRequest(
-            f"Cannot provide a download for '{spec}' as analysis result type '{visualization_type}' in file format '{file_format}'")
+        return HttpResponseBadRequest(f"Cannot provide a download for '{spec}' as analysis result type "
+                                      f"'{visualization_type}' in file format '{file_format}'")
 
     return download_function(request, analyses)
 
@@ -467,7 +465,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
             df_columns_dict = {column1: np.array(series['x']) * xconv, column2: np.array(series['y']) * yconv}
             try:
                 std_err_y_mask = series['std_err_y'].mask
-            except (AttributeError, KeyError) as exc:
+            except (AttributeError, KeyError):
                 std_err_y_mask = np.zeros(len(series['y']), dtype=bool)
 
             try:
@@ -525,9 +523,9 @@ def download_plot_analyses_to_xlsx(request, analyses):
             sheet.column_dimensions['D'].width = 25
 
             # Link "Back to Index"
-            sheet["D1"].hyperlink = Hyperlink(ref=f"D1",
+            sheet["D1"].hyperlink = Hyperlink(ref="D1",
                                               location="'INDEX'!A1",
-                                              tooltip=f"Click to jump back to INDEX")
+                                              tooltip="Click to jump back to INDEX")
             sheet["D1"].value = "Click to jump back to INDEX"
             sheet["D1"].style = "Hyperlink"
 
@@ -692,7 +690,7 @@ def download_plot_analyses_to_csv(request, analyses):
             }
             try:
                 std_err_y_mask = series['std_err_y'].mask
-            except (AttributeError, KeyError) as exc:
+            except (AttributeError, KeyError):
                 std_err_y_mask = np.zeros(len(series['y']), dtype=bool)
 
             try:

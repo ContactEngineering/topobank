@@ -9,11 +9,11 @@ class TestUserURLs(TestCase):
     def setUp(self):
         self.user = self.make_user()
 
-    #def test_list_reverse(self):
+    # def test_list_reverse(self):
     #    """users:list should reverse to /users/."""
     #    self.assertEqual(reverse("users:list"), "/users/")
 
-    #def test_list_resolve(self):
+    # def test_list_resolve(self):
     #    """/users/ should resolve to users:list."""
     #    self.assertEqual(resolve("/users/").view_name, "users:list")
 

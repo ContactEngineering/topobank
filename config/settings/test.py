@@ -91,6 +91,10 @@ LOGGING = {
             'formatter': 'verbose',
         },
     },
+    'root': {
+        'level': 'DEBUG',
+        'handlers': ['console']
+    },
     'loggers': {
         'django.request': {
             'handlers': ['mail_admins'],
@@ -100,11 +104,6 @@ LOGGING = {
         'django.security.DisallowedHost': {
             'level': 'ERROR',
             'handlers': ['console', 'mail_admins'],
-            'propagate': True
-        },
-        'topobank': {
-            'level': 'DEBUG',
-            'handlers': ['console'],
             'propagate': True
         }
     }
@@ -122,6 +121,6 @@ DATABASES = {
 BOKEH_OUTPUT_BACKEND = 'canvas'
 
 # Enable usage stats in tests
-if not ENABLE_USAGE_STATS:
-    ENABLE_USAGE_STATS = True
-    MIDDLEWARE += ['topobank.usage_stats.middleware.count_request_middleware']
+if not ENABLE_USAGE_STATS:  # noqa: F405
+    ENABLE_USAGE_STATS = True  # noqa: F405
+    MIDDLEWARE += ['topobank.usage_stats.middleware.count_request_middleware']  # noqa: F405

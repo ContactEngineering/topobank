@@ -6,13 +6,11 @@ from .models import User
 
 
 class MyUserChangeForm(UserChangeForm):
-
     class Meta(UserChangeForm.Meta):
         model = User
 
 
 class MyUserCreationForm(UserCreationForm):
-
     error_message = UserCreationForm.error_messages.update(
         {"duplicate_username": "This username has already been taken."}
     )
@@ -41,4 +39,3 @@ class MyUserAdmin(AuthUserAdmin):
     @admin.display(description="ORCID URI")
     def orcid_uri(self, user):
         return user.orcid_uri()
-

@@ -1,13 +1,14 @@
-import pytest
-from pathlib import Path
 import datetime
+from pathlib import Path
+
+import pytest
+
 from django.shortcuts import reverse
-from bs4 import BeautifulSoup
+
 from notifications.models import Notification
 
 from ..models import Topography
 from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, upload_file
-from topobank.utils import assert_in_content, assert_not_in_content, assert_no_form_errors
 
 
 def test_individual_read_access_permissions(api_client, django_user_model, handle_usage_statistics):

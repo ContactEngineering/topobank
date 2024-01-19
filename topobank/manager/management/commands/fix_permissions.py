@@ -37,7 +37,7 @@ class Command(BaseCommand):
         # Fix object permissions
         fixed_published_surfaces = set()
         fixed_unpublished_surfaces = set()
-        num_fixed_permissions_for_unpublished = defaultdict(lambda : 0)
+        num_fixed_permissions_for_unpublished = defaultdict(lambda: 0)
 
         for surface in Surface.objects.all():
             creator = surface.creator

@@ -30,8 +30,8 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
     #
     assert api_client.login(username=user.username, password=password)
 
-    url = reverse(f'analysis:card-{VIZ_SERIES}', kwargs=dict(function_id=func1.id)) \
-          + '?subjects=' + subjects_to_base64([topo1])
+    url = (reverse(f'analysis:card-{VIZ_SERIES}', kwargs=dict(function_id=func1.id)) + '?subjects='
+           + subjects_to_base64([topo1]))
     response = api_client.get(url)
 
     data_sources = response.data['plotConfiguration']['dataSources']
@@ -83,8 +83,8 @@ def test_series_card_if_no_successful_topo_analysis(api_client, handle_usage_sta
     #
     password = "secret"
     user = UserFactory(password=password)
-    topography_ct = ContentType.objects.get_for_model(Topography)
-    surface_ct = ContentType.objects.get_for_model(Surface)
+    ContentType.objects.get_for_model(Topography)
+    ContentType.objects.get_for_model(Surface)
     func1 = AnalysisFunction.objects.get(name="test")
 
     surf = SurfaceFactory(creator=user)

@@ -6,6 +6,7 @@ from SurfaceTopography.IO import detect_format, CannotDetectFileFormat
 
 _log = logging.getLogger(__name__)
 
+
 class Command(BaseCommand):
     help = """Set datafile format for topographies which haven't one yet.
 
@@ -35,7 +36,7 @@ class Command(BaseCommand):
 
     def handle(self, *args, **options):
 
-        format_counts = { None: 0 }
+        format_counts = {None: 0}
         num_cannot_openend = 0  # number of files which cannot be openend
 
         topographies = Topography.objects.all()
@@ -52,7 +53,7 @@ class Command(BaseCommand):
                         datafile.mode = 'rb'
                     datafile_format = detect_format(datafile)
                 except CannotDetectFileFormat as exc:
-                    msg = f"Could not detect format for topography id {topo.id}: "+str(exc)
+                    msg = f"Could not detect format for topography id {topo.id}: " + str(exc)
                     self.stdout.write(self.style.WARNING(msg))
                     format_counts[None] += 1
                     continue
@@ -84,11 +85,13 @@ class Command(BaseCommand):
             self.stdout.write(self.style.SUCCESS(f"  {fmt}: {freq}"))
 
         if format_counts[None] == 0:
-            self.stdout.write(self.style.SUCCESS("All {} topography files which can be opened can also be loaded.".format(
-                num_topographies-num_cannot_openend)))
+            self.stdout.write(
+                self.style.SUCCESS("All {} topography files which can be opened can also be loaded.".format(
+                    num_topographies - num_cannot_openend)))
         else:
-            self.stdout.write(self.style.WARNING("In total {} topographies currently can be opened, but not be loaded.".format(
-                format_counts[None])))
+            self.stdout.write(
+                self.style.WARNING("In total {} topographies currently can be opened, but not be loaded.".format(
+                    format_counts[None])))
 
         if options['dry_run']:
             self.stdout.write(self.style.WARNING("This was a dry run, nothing has been changed."))

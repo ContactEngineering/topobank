@@ -10,10 +10,8 @@ import numpy as np
 import logging
 
 from ..utils import SplitDictionaryHere
-#from .registry import register_implementation
 
 _log = logging.getLogger(__name__)
-
 
 # Visualization types
 APP_NAME = 'analysis'

@@ -4,7 +4,7 @@ from .base import env
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
-SECRET_KEY = env('DJANGO_SECRET_KEY', default=random_string())
+SECRET_KEY = env('DJANGO_SECRET_KEY', default=random_string())  # noqa: F405
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
 ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['example.com'])
 
@@ -34,8 +34,6 @@ CACHES = {
     #     }
     # }
 }
-
-SELECT2_CACHE_BACKEND = "default"
 
 # SECURITY
 # ------------------------------------------------------------------------------
@@ -104,7 +102,7 @@ EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[contact.engi
 # ADMIN
 # ------------------------------------------------------------------------------
 # Django Admin URL regex.
-ADMIN_URL = env('DJANGO_ADMIN_URL', default=random_string())
+ADMIN_URL = env('DJANGO_ADMIN_URL', default=random_string())  # noqa: F405
 
 EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
 
@@ -189,7 +187,6 @@ LOGGING = {
     }
 }
 
-
 # Your stuff...
 # ------------------------------------------------------------------------------
 
@@ -218,8 +215,8 @@ WATCHMAN_AUTH_DECORATOR = 'django.contrib.admin.views.decorators.staff_member_re
 # See: http://whitenoise.evans.io/en/latest/django.html#enable-whitenoise
 # See also here for a discussion of Whitenoise vs S3:
 # http://whitenoise.evans.io/en/stable/#shouldn-t-i-be-pushing-my-static-files-to-s3-using-something-like-django-storages
-MIDDLEWARE.insert(
-    MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1,
+MIDDLEWARE.insert(  # noqa: F405
+    MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1,  # noqa: F405
     'whitenoise.middleware.WhiteNoiseMiddleware')
 # Enable white noise compressed storage
 STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'

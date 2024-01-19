@@ -28,6 +28,7 @@ def test_download_plot_analyses_to_txt(rf):
 
     assert_in_content(response, 'This analysis reported an error during execution')
 
+
 @pytest.mark.parametrize("user_has_plugin", [False, True])
 @pytest.mark.django_db
 def test_download_view_permission_for_function_from_plugin(mocker, client, user_has_plugin, handle_usage_statistics):
@@ -41,11 +42,9 @@ def test_download_view_permission_for_function_from_plugin(mocker, client, user_
     m.return_value = user_has_plugin
 
     response = client.get(reverse('analysis:download',
-                          kwargs=dict(ids=str(analysis.id),
-                                      file_format='txt')))
+                                  kwargs=dict(ids=str(analysis.id),
+                                              file_format='txt')))
     if user_has_plugin:
         assert response.status_code == 200
     else:
         assert response.status_code == 403
-
-

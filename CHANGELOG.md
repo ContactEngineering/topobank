@@ -2,8 +2,10 @@
 
 ## 1.5.0 (not yet released)
 
+- ENH: API route to retrieve version information
 - MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be
   supported after April 2024)
+- MAINT: Split UI into separate `ce_ui` app in a separate git repository
 - MAINT: Split `publication` app into a separate git repository and turned it
   into an optional dependency
 - MAINT: Changed django-guardian from generic to direct foreign keys

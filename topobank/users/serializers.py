@@ -16,4 +16,3 @@ class UserSerializer(serializers.HyperlinkedModelSerializer):
             return obj.orcid_id
         except ORCIDException:
             return None
-

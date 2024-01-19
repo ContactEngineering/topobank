@@ -213,9 +213,6 @@ class AnalysisRegistry(metaclass=Singleton):
         impl = AnalysisFunctionImplementation(func)
         subject_model = impl.get_subject_model()
 
-        _log.debug(f"Adding implementation for analysis function '{name}' for subject "
-                   f"'{subject_app_name}|{subject_model}' with visualization type '{visualization_type}'.")
-
         # Idiot check: For a given function name, the card view flavor should be unique
         if name in self._visualization_type_by_function_name:
             curr_visualization_type = self._visualization_type_by_function_name[name]
@@ -569,6 +566,9 @@ class AnalysisFunctionImplementation:
         if app is None:
             return False
         elif app.name == 'topobank.analysis':  # special case, should be always available
+            return True
+        elif hasattr(app, 'TopobankPluginMeta') and not app.TopobankPluginMeta.restricted:
+            # This plugin is marked as being available to everyone
             return True
 
         from ..organizations.models import Organization

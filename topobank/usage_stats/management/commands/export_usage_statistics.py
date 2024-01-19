@@ -4,9 +4,9 @@ from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import EmailMessage
 from django.conf import settings
 from django.db.models import Count
-from openpyxl.utils import get_column_letter
 
 from trackstats.models import Metric, StatisticByDate, StatisticByDateAndObject
+
 from topobank.usage_stats.utils import register_metrics
 from topobank.manager.models import Topography, Surface
 
@@ -42,7 +42,7 @@ def _adjust_columns_widths(worksheet):
             try:  # Necessary to avoid error on empty cells
                 if len(str(cell.value)) > max_length:
                     max_length = len(cell.value)
-            except:
+            except:  # noqa: E722
                 pass
 
         adjusted_width = (max_length + 2) * 1.2
@@ -126,16 +126,16 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='nam
     statistics = StatisticByDateAndObject.objects.filter(metric=metric, object_type_id=content_type.id)
 
     values = []
-    for l in statistics.values():
+    for L in statistics.values():
 
         # _log.info("Getting statistics value for %s..", l)
         try:
-            obj = content_type.get_object_for_this_type(id=l['object_id'])
+            obj = content_type.get_object_for_this_type(id=L['object_id'])
             obj_name = getattr(obj, attr_name)
-            values.append({'date': l['date'], obj_name: l['value']})
+            values.append({'date': L['date'], obj_name: L['value']})
         except ObjectDoesNotExist:
             _log.warning("Cannot find object with id %s, content_type '%s', but it is listed in statistics. Ignoring.",
-                         l['object_id'], content_type)
+                         L['object_id'], content_type)
 
     if values:
         df = pd.DataFrame.from_records(values, index='date').groupby('date').sum()
@@ -148,8 +148,9 @@ def _statisticByDateAndObject2dataframe(metric_ref, content_type, attr_name='nam
 
 
 def make_excel():
+    def last_value_func(x):
+        return x.iloc[-1] if len(x) > 0 else np.nan
 
-    last_value_func = lambda x: x.iloc[-1] if len(x) > 0 else np.nan
     #
     # Compile results with single value for a date
     #
@@ -159,7 +160,7 @@ def make_excel():
         ('login_count', 1, 'Number of users having logged in', np.sum),
         ('total_request_count', 1, 'Total number of requests of any kind', np.sum),
         ('search_view_count', 1, 'Number of views for Search page', np.sum),
-        ('total_analysis_cpu_ms', .001/60/60, 'Total analysis CPU time in hours', np.sum),
+        ('total_analysis_cpu_ms', .001 / 60 / 60, 'Total analysis CPU time in hours', np.sum),
         ('total_number_users', 1, 'Total number of registered users', last_value_func),
         ('total_number_surfaces', 1, 'Total number of surfaces', last_value_func),
         ('total_number_topographies', 1, 'Total number of topographies', last_value_func),
@@ -192,9 +193,9 @@ def make_excel():
     else:
         summary_groups = statistics_by_date_df.reset_index().groupby(pd.Grouper(key='date', axis=0, freq='M'))
 
-        summary_df = summary_groups.aggregate({ column_heading: agg_func
-                                                for metric_ref, factor, column_heading, agg_func
-                                                in single_value_metrics})
+        summary_df = summary_groups.aggregate({column_heading: agg_func
+                                               for metric_ref, factor, column_heading, agg_func
+                                               in single_value_metrics})
 
         # sort columns
         column_order = [ch for _, _, ch, _ in single_value_metrics]
@@ -218,10 +219,12 @@ def make_excel():
     #
     # Compile distribution of measurements over users
     #
-    measurement_dist_qs = Topography.objects.values('creator').annotate(meas_count=Count('creator')).order_by('-meas_count')
+    measurement_dist_qs = Topography.objects.values('creator').annotate(meas_count=Count('creator')).order_by(
+        '-meas_count')
     measurement_dist_df = pd.DataFrame.from_records(measurement_dist_qs)
     if not measurement_dist_df.empty:
-        surface_dist_qs = Surface.objects.values('creator').annotate(surf_count=Count('creator')).order_by('-surf_count')
+        surface_dist_qs = Surface.objects.values('creator').annotate(surf_count=Count('creator')).order_by(
+            '-surf_count')
         surface_dist_df = pd.DataFrame.from_records(surface_dist_qs)
         measurement_dist_df = measurement_dist_df.merge(surface_dist_df, on='creator', how='left')
         del measurement_dist_df['creator']
@@ -272,10 +275,10 @@ def make_excel():
         summary_sheet = writer.sheets['summary']
         # cell ranges
         index_column = 'A'
-        value_cells = 'B2:{col}{row}'.format(
-            col=get_column_letter(summary_sheet.max_column),
-            row=summary_sheet.max_row)
-        title_row = '1'
+        # value_cells = 'B2:{col}{row}'.format(
+        #     col=get_column_letter(summary_sheet.max_column),
+        #     row=summary_sheet.max_row)
+        # title_row = '1'
 
         # index column width
         summary_sheet.column_dimensions[index_column].width = 21
@@ -309,7 +312,7 @@ class Command(BaseCommand):
         #
         # Compile Dataframe for "summary" sheet (see GH #572)
         #
-        #summary_df = pd.DataFrame({'month': []}).set_index('month')
+        # summary_df = pd.DataFrame({'month': []}).set_index('month')
 
         # Shows the data by month, with the current month at the top, and going
         # reverse-chronologically back to the creation month at the bottom.
@@ -356,7 +359,7 @@ class Command(BaseCommand):
                 recipients,
                 reply_to=[settings.CONTACT_EMAIL_ADDRESS],
                 attachments=[
-                    (EXPORT_FILE_NAME, open(EXPORT_FILE_NAME, mode='rb' ).read(), 'application/vnd.ms-excel')
+                    (EXPORT_FILE_NAME, open(EXPORT_FILE_NAME, mode='rb').read(), 'application/vnd.ms-excel')
                 ]
             )
 
@@ -364,7 +367,7 @@ class Command(BaseCommand):
 
             try:
                 email.send()
-                self.stdout.write(self.style.SUCCESS(f"Mail was sent successfully."))
+                self.stdout.write(self.style.SUCCESS("Mail was sent successfully."))
             except Exception as exc:
                 self.stdout.write(self.style.ERROR(f"Could not send statistics to {recipients}. Reason: {exc}"))
 

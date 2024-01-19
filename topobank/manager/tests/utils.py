@@ -15,7 +15,6 @@ from django.shortcuts import reverse
 
 from ...users.tests.factories import UserFactory
 from ..models import Topography, Surface, SurfaceCollection, TagModel
-from ..views import SurfaceListView
 
 FIXTURE_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -40,18 +39,21 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
     topography_id = response.data['id']
 
     # upload file
-    upload_instructions = response.data['upload_instructions']  # The POST request above informs us how to upload the file
+    upload_instructions = response.data[
+        'upload_instructions']  # The POST request above informs us how to upload the file
     _log.debug(f"Upload post url: {upload_instructions['url']}")
     with open(fn, mode='rb') as fp:
         if settings.USE_S3_STORAGE:
             # We need to use `requests` as the upload is directly to S3, not to the Django app
-            response = requests.post(upload_instructions['url'], data={**upload_instructions['fields']}, files={'file': fp})
+            response = requests.post(upload_instructions['url'], data={**upload_instructions['fields']},
+                                     files={'file': fp})
         else:
-            response = api_client.post(upload_instructions['url'], {**upload_instructions['fields'], name: fp}, format='multipart')
+            response = api_client.post(upload_instructions['url'], {**upload_instructions['fields'], name: fp},
+                                       format='multipart')
     assert response.status_code == 204, response.reason  # Created
 
     # We need to execute on commit actions, because this is where the renew_cache task is triggered
-    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+    with django_capture_on_commit_callbacks(execute=True):
         # Get info on file (this will trigger the inspection). In the production instance, the first GET triggers a
         # background (Celery) task and always returns a 'pe'nding state. In this testing environment, this is run
         # immediately after the `save` but not yet reflected in the returned dictionary.
@@ -60,7 +62,7 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
         assert response.data['task_state'] == 'pe'
         # We need to close the commit capture here because the file inspection runs on commit
 
-    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+    with django_capture_on_commit_callbacks(execute=True):
         # Get info on file again, this should not report a successful file inspection.
         response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
         assert response.status_code == 200, response.reason
@@ -237,32 +239,6 @@ def ordereddicts_to_dicts(input_ordered_dict, sorted_by='id'):
     return result
 
 
-def search_surfaces(request_factory, user, expr):
-    """Search surfaces with given expression and return dicts with results.
-
-    This is a helper function used in tests.
-
-    Parameters
-    ----------
-    request_factory: rest_framework.test.APIRequestFactory
-        Used to generate a search request
-    user: topobank.users.models.User
-        This is the user who performs the search.
-    expr: str
-        Search expression.
-
-    Returns
-    -------
-    List of dicts with search results, sorted by 'title' key.
-    """
-    request = request_factory.get(reverse('manager:search') + f"?search={expr}")
-    request.user = user
-    request.session = {}  # must be there
-    response = SurfaceListView.as_view()(request)
-    assert response.status_code == 200
-    return ordereddicts_to_dicts(response.data['page_results'], sorted_by='title')
-
-
 @pytest.fixture
 def topography_loaded_from_broken_file():
     topo = Topography1DFactory()
@@ -301,12 +277,12 @@ def two_users():
     user2 = UserFactory(username='testuser2', password='abcd$1234')
 
     surface1 = SurfaceFactory(creator=user1)
-    topo1 = Topography1DFactory(surface=surface1)
+    Topography1DFactory(surface=surface1)
 
     surface2 = SurfaceFactory(creator=user2)
-    topo2 = Topography1DFactory(surface=surface2)
+    Topography1DFactory(surface=surface2)
 
     surface3 = SurfaceFactory(creator=user2)
-    topo3 = Topography1DFactory(surface=surface3)
+    Topography1DFactory(surface=surface3)
 
     return user1, user2

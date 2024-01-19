@@ -1,14 +1,12 @@
-from django.core.management.base import BaseCommand
-from django.contrib.contenttypes.models import ContentType
-from guardian.shortcuts import get_users_with_perms
 import logging
 import sys
-from abc import ABC, abstractmethod
+from django.contrib.contenttypes.models import ContentType
+from django.core.management.base import BaseCommand
 
 from topobank.manager.models import Topography, Surface
 from topobank.analysis.models import Analysis
 from topobank.analysis.models import AnalysisFunction
-from topobank.analysis.utils import submit_analysis, renew_analysis, renew_analyses_for_subject
+from topobank.analysis.controller import submit_analysis, renew_existing_analysis, renew_analyses_for_subject
 
 _log = logging.getLogger(__name__)
 
@@ -55,7 +53,7 @@ class Command(BaseCommand):
             action='store_true',
             dest='use_default_kwargs',
             help='Use default kwargs of the corresponding analysis function instead of the keyword arguments'
-            ' saved for this analysis in the database.',
+                 ' saved for this analysis in the database.',
         )
 
     def parse_item(self, item, use_default_kwargs=False, related=False):
@@ -89,7 +87,7 @@ class Command(BaseCommand):
             task_state = item[:2]
             analyses = Analysis.objects.filter(task_state=task_state)
             for a in analyses:
-                renew_analysis(a, use_default_kwargs=use_default_kwargs)
+                renew_existing_analysis(a, use_default_kwargs=use_default_kwargs)
             self.stdout.write(
                 self.style.SUCCESS(f"Found {len(analyses)} analyses with task state '{task_state}'.")
             )
@@ -122,7 +120,7 @@ class Command(BaseCommand):
                             self.style.SUCCESS(f"Renewed analyses for topography '{obj}'.")
                         )
             elif ct.name == "analysis":
-                renew_analysis(obj, use_default_kwargs=use_default_kwargs)
+                renew_existing_analysis(obj, use_default_kwargs=use_default_kwargs)
                 self.stdout.write(
                     self.style.SUCCESS(f"Renewed analysis '{obj}'.")
                 )

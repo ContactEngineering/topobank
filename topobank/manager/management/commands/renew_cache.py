@@ -42,7 +42,7 @@ class Command(BaseCommand):
         num_total = Topography.objects.count()
 
         for topo_idx, topo in enumerate(Topography.objects.order_by('name')):
-            _log.info(f"Renewing cache file for '{topo.name}', id {topo.id}, {topo_idx+1}/{num_total}..")
+            _log.info(f"Renewing cache file for '{topo.name}', id {topo.id}, {topo_idx + 1}/{num_total}..")
 
             try:
                 if options['background']:
@@ -63,6 +63,7 @@ class Command(BaseCommand):
                                                 "success not known yet."))
 
         if num_failed > 0 and not options['with_traceback']:
-            self.stdout.write(self.style.NOTICE("There have been failures. Use option --with-traceback to see details."))
+            self.stdout.write(
+                self.style.NOTICE("There have been failures. Use option --with-traceback to see details."))
 
         self.stdout.write(self.style.SUCCESS("Done."))

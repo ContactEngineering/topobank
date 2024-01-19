@@ -21,11 +21,11 @@ class PluginListView(TemplateView):
         #
         context['extra_tabs'] = [
             {
-                'title': f"Plugins",
+                'title': "Plugins",
                 'icon': "plug",
                 'href': self.request.path,
                 'active': True,
-                'tooltip': f"Installed plugins"
+                'tooltip': "Installed plugins"
             }
         ]
         return context

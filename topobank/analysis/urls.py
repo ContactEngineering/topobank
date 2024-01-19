@@ -16,19 +16,6 @@ urlpatterns = router.urls
 app_name = functions.APP_NAME
 urlpatterns += [
     #
-    # HTML routes
-    #
-    path(
-        'html/list/',  # TODO change to 'function', also rename name
-        view=views.AnalysesResultListView.as_view(),
-        name='results-list'
-    ),
-    path(
-        r'html/detail/<int:pk>/',
-        view=views.AnalysisResultDetailView.as_view(),
-        name='results-detail'
-    ),
-    #
     # API routes
     #
     # GET

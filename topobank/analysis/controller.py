@@ -77,7 +77,8 @@ def renew_analyses_for_subject(subject, recursive=True, run_analyses=True):
                 subject_type = subj.get_content_type()
                 if af.is_implemented_for_type(subject_type):
                     # filter also for users who are allowed to use the function
-                    users = [u for u in users_for_subject if af.get_implementation(subject_type).is_available_for_user(u)]
+                    users = [u for u in users_for_subject if
+                             af.get_implementation(subject_type).is_available_for_user(u)]
                     try:
                         submit_analysis(users, af, subject=subj)
                     except Exception as err:
@@ -245,7 +246,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     #
     # Search for analyses with same topography, function and (pickled) function args
     #
-    analysis = Analysis.objects.filter( \
+    analysis = Analysis.objects.filter(
         AnalysisSubject.Q(subject)
         & Q(function=analysis_func)
         & Q(kwargs=pyfunc_kwargs)).order_by('start_time').last()  # will be None if not found

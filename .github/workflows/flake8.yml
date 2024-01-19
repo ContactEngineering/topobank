@@ -1,0 +1,31 @@
+name: Check coding conventions with flake8
+
+on:
+  push:
+    branches:
+      - '**'
+    tags:
+      - '**'
+  pull_request:
+    branches:
+      - '**'
+
+jobs:
+  tests:
+    runs-on: ubuntu-latest
+
+    steps:
+    - uses: actions/checkout@v3
+      with:
+        fetch-depth: 0
+
+        submodules: recursive
+
+    - name: Install dependencies
+      run: |
+        sudo apt-get update -qy
+        sudo apt-get install -y flake8
+
+    - name: Flake8
+      run: |
+        flake8

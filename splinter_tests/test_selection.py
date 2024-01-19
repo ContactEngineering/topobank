@@ -7,7 +7,6 @@ from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, Ta
 
 @pytest.fixture(scope='function')
 def items_for_selection(db, user_alice):
-
     tag1 = TagModelFactory(name="tag1")
     tag2 = TagModelFactory(name="tag2")
 
@@ -27,7 +26,6 @@ def items_for_selection(db, user_alice):
 
 @pytest.mark.django_db
 def test_deselect_all(user_alice_logged_in, items_for_selection):
-
     browser, user_alice = user_alice_logged_in
 
     #
@@ -53,7 +51,6 @@ def test_deselect_all(user_alice_logged_in, items_for_selection):
 
 @pytest.mark.django_db
 def test_select_page_size(user_alice_logged_in):
-
     browser, user_alice = user_alice_logged_in
 
     # create a lot of surfaces
@@ -119,7 +116,6 @@ def test_select_page_size(user_alice_logged_in):
 
 @pytest.mark.django_db
 def test_keep_current_page_in_session(user_alice_logged_in):
-
     browser, user_alice = user_alice_logged_in
 
     # create a lot of surfaces
@@ -167,16 +163,3 @@ def test_keep_current_page_in_session(user_alice_logged_in):
 
     assert browser.is_text_present("Showing 1 surfaces out of 11")
     assert active_page_number(browser) == 2
-
-
-
-
-
-
-
-
-
-
-
-
-

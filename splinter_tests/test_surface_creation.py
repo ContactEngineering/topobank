@@ -3,7 +3,6 @@ import pytest
 
 @pytest.mark.django_db
 def test_empty_surface(user_alice_logged_in):
-
     browser, user_alice = user_alice_logged_in
 
     #
@@ -42,4 +41,3 @@ def test_empty_surface(user_alice_logged_in):
 
     assert browser.is_text_present("Permissions", wait_time=2)
     assert browser.is_text_present("My first empty surface")
-

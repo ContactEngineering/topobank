@@ -1,6 +1,6 @@
+import importlib.metadata
+
 try:
-    from importlib.metadata import version
-    __version__ = version("topobank")
-except ModuleNotFoundError:
-    from setuptools_scm import get_version
-    __version__ = get_version()
+    __version__ = importlib.metadata.version('topobank')
+except importlib.metadata.PackageNotFoundError:
+    __version__ = '0.0.0'

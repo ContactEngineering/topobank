@@ -6,7 +6,6 @@ from django.contrib.auth.models import Permission
 
 from .utils import FIXTURE_DIR
 from ..models import Surface, Topography
-from topobank.utils import assert_in_content, assert_redirects
 
 
 @pytest.mark.django_db

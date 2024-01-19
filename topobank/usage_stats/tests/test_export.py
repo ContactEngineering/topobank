@@ -20,8 +20,8 @@ def test_sheets(api_client, handle_usage_statistics):
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
-    topo1 = Topography2DFactory(surface=surface)
-    topo2 = Topography2DFactory(surface=surface)
+    Topography2DFactory(surface=surface)
+    Topography2DFactory(surface=surface)
 
     save_landing_page_statistics()  # save current state for users, surfaces, ..
 

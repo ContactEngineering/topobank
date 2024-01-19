@@ -15,18 +15,27 @@ _log = logging.getLogger(__name__)
 def forward_func(apps, schema_editor):
     # Migrating user permissions
     user_object_perms = UserObjectPermission.objects.all()  # 'old' user perms
-    _log.info(f"Migrating {user_object_perms.count()} UserObjectPermissions")
+    _log.info(f"Migrating {user_object_perms.count()} UserObjectPermissions...")
     for user_object_perm in user_object_perms:
-        SurfaceUserObjectPermission.objects.create(user=user_object_perm.user,
-                                                   content_object=user_object_perm.content_object,
-                                                   permission=user_object_perm.permission)
+        # Check whether content_object actually exists. It may not exist because there is no contraint/key linking
+        # those together in the standard guardian permissions, i.e. we may have dangling permissions in the database.
+        if user_object_perm.content_object is not None:
+            SurfaceUserObjectPermission.objects.create(user=user_object_perm.user,
+                                                       content_object=user_object_perm.content_object,
+                                                       permission=user_object_perm.permission)
+    _log.info(f"{SurfaceUserObjectPermission.objects.count()} SurfaceUserObjectPermissions after migration.")
+
     # Migrating group permissions
     group_object_perms = GroupObjectPermission.objects.all()  # 'old' group perms
-    _log.info(f"Migrating {group_object_perms.count()} GroupObjectPermissions")
+    _log.info(f"Migrating {group_object_perms.count()} GroupObjectPermissions...")
     for group_object_perm in group_object_perms:
-        SurfaceGroupObjectPermission.objects.create(group=group_object_perm.group,
-                                                    content_object=group_object_perm.content_object,
-                                                    permission=group_object_perm.permission)
+        # Check whether content_object actually exists. It may not exist because there is no contraint/key linking
+        # those together in the standard guardian permissions, i.e. we may have dangling permissions in the database.
+        if group_object_perm.content_object is not None:
+            SurfaceGroupObjectPermission.objects.create(group=group_object_perm.group,
+                                                        content_object=group_object_perm.content_object,
+                                                        permission=group_object_perm.permission)
+    _log.info(f"{SurfaceGroupObjectPermission.objects.count()} SurfaceGroupObjectPermissions after migration.")
 
 def reverse_func(apps, schema_editor):
     surface_content_type = ContentType.objects.get(app_label='manager', model='surface')

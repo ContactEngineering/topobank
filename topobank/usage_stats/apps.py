@@ -7,4 +7,3 @@ class UsageStatsAppConfig(AppConfig):
     def ready(self):
         from .utils import register_metrics
         register_metrics()
-

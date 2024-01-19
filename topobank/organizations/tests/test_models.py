@@ -46,8 +46,3 @@ def test_group_deletion_during_org_deletion():
     # Group should be deleted, too
     with pytest.raises(Group.DoesNotExist):
         Group.objects.get(name=org_name)
-
-
-
-
-
