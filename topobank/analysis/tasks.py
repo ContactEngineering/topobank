@@ -1,5 +1,6 @@
 import logging
 import traceback
+import tracemalloc
 
 from django.conf import settings
 from django.utils import timezone
@@ -90,14 +91,15 @@ def perform_analysis(self, analysis_id):
     analysis.configuration = current_configuration()
     analysis.save()
 
-    def save_result(result, task_state, dois=[]):
-        _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}' to storage...")
+    def save_result(result, task_state, peak_memory=None, dois=set()):
+        _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}' and peak memory usage "
+                   f"of {int(peak_memory / 1024 / 1024)} MB to storage...")
         analysis.task_state = task_state
         store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
         analysis.end_time = timezone.now()  # with timezone
+        analysis.task_memory = peak_memory
         analysis.dois = list(dois)  # dois is a set, we need to convert it
         analysis.save()
-        _log.debug("...done saving analysis result.")
 
     @doi()
     def evaluate_function(subject, **kwargs):
@@ -113,9 +115,15 @@ def perform_analysis(self, analysis_id):
                    f"kwargs {kwargs} and storage prefix '{analysis.storage_prefix}'...")
         # also request citation information
         dois = set()
+        tracemalloc.start()
+        tracemalloc.reset_peak()
         result = evaluate_function(subject, progress_recorder=progress_recorder, storage_prefix=analysis.storage_prefix,
                                    dois=dois, **kwargs)
-        save_result(result, Analysis.SUCCESS, dois)
+        size, peak = tracemalloc.get_traced_memory()
+        tracemalloc.stop()
+        _log.debug(f"...done evaluating analysis function '{analysis.function.name}' on subject '{subject}'; peak "
+                   f"memory usage was {int(peak / 1024 / 1024)} MB.")
+        save_result(result, Analysis.SUCCESS, peak_memory=peak, dois=dois)
     except Exception as exc:
         is_incompatible = isinstance(exc, EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES)
         _log.warning(f"Exception while performing analysis {analysis_id} (compatible? {is_incompatible}): {exc}")
