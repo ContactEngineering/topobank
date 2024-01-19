@@ -518,6 +518,7 @@ def test_upload_topography_fill_undefined_data(api_client, settings, django_capt
     assert t.description == description
     assert t.fill_undefined_data_mode == fill_undefined_data_mode
     assert t.task_state == 'su'
+    assert t.task_memory > 100000
 
 
 @pytest.mark.django_db

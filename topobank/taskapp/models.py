@@ -1,3 +1,5 @@
+import tracemalloc
+
 import celery.result
 import celery.states
 from celery.utils.log import get_task_logger
@@ -49,6 +51,9 @@ class TaskStateModel(models.Model):
     # This is the self-reported task state. It can differ from what Celery
     # knows about the task.
     task_state = models.CharField(max_length=7, choices=TASK_STATE_CHOICES, default=NOTRUN)
+
+    # Maxmimum memory usage of the task
+    task_memory = models.FloatField(null=True)
 
     # Any error information emitted from the task
     task_error = models.TextField(default='')
@@ -127,8 +132,13 @@ class TaskStateModel(models.Model):
 
         # actually run the task
         try:
+            tracemalloc.start()
+            tracemalloc.reset_peak()
             self.task_worker()
+            size, peak = tracemalloc.get_traced_memory()
+            tracemalloc.stop()
             self.task_state = TaskStateModel.SUCCESS
+            self.task_memory = peak
             self.task_error = ''
         except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
