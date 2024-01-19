@@ -92,7 +92,8 @@ def perform_analysis(self, analysis_id):
     analysis.save()
 
     def save_result(result, task_state, peak_memory=None, dois=set()):
-        _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}' and peak memory usage of {int(peak_memory / 1024 / 1024)} MB to storage...")
+        _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}' and peak memory usage "
+                   f"of {int(peak_memory / 1024 / 1024)} MB to storage...")
         analysis.task_state = task_state
         store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
         analysis.end_time = timezone.now()  # with timezone
