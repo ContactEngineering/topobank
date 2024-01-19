@@ -906,7 +906,8 @@ class Topography(TaskStateModel, SubjectMixin):
                 toporeader = get_topography_reader(self.datafile, format=self.datafile_format)
                 topo = self._read(toporeader)
 
-            cache.set(cache_key, topo)
+            if allow_cache:
+                cache.set(cache_key, topo)
 
         else:
             _log.info(f"Using topography from cache for id {self.id}.")

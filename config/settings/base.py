@@ -620,7 +620,7 @@ CHALLENGE_REDIRECT_URL = env.str('CHALLENGE_REDIRECT_URL', default='https://form
 #
 # Performance related settings
 #
-DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY = True
+DEFAULT_ALLOW_CACHE_FOR_LOW_LEVEL_TOPOGRAPHY = False  # This fails for large datasets (e.g. 8k x 8k)
 
 # Configure watchman checks
 WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + ('topobank.taskapp.utils.celery_worker_check',)
