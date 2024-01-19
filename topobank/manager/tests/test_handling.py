@@ -314,7 +314,7 @@ def test_upload_topography_txt(api_client, django_user_model, django_capture_on_
     #
     # Also check some properties of the SurfaceTopography.Topography
     #
-    st_topo = t.topography(allow_cache=False, allow_squeezed=False)
+    st_topo = t.topography(allow_squeezed=False)
     assert st_topo.physical_sizes == exp_physical_sizes
 
 
@@ -449,7 +449,7 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
     #
     # Also check some properties of the SurfaceTopography.Topography
     #
-    st_topo = t.topography(allow_cache=False, allow_squeezed=False)
+    st_topo = t.topography(allow_squeezed=False)
     assert st_topo.info["instrument"] == {'name': instrument_name,
                                           'parameters': clean_instrument_parameters,
                                           'type': instrument_type}
