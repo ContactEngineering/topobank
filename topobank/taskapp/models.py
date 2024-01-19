@@ -53,7 +53,7 @@ class TaskStateModel(models.Model):
     task_state = models.CharField(max_length=7, choices=TASK_STATE_CHOICES, default=NOTRUN)
 
     # Maxmimum memory usage of the task
-    task_memory = models.FloatField(null=True)
+    task_memory = models.IntegerField(null=True)
 
     # Any error information emitted from the task
     task_error = models.TextField(default='')
