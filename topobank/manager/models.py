@@ -416,6 +416,8 @@ class Topography(TaskStateModel, SubjectMixin):
         unique_together = (('surface', 'name'),)
         verbose_name_plural = "topographies"
 
+    celery_queue = settings.TOPOBANK_MANAGER_QUEUE
+
     LENGTH_UNIT_CHOICES = [
         ('km', 'kilometers'),
         ('m', 'meters'),

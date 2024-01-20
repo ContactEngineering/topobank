@@ -306,6 +306,13 @@ CELERY_RESULT_SERIALIZER = 'json'
 # TODO: set to whatever value is adequate in your circumstances
 # CELERYD_TASK_SOFT_TIME_LIMIT = 60
 
+TOPOBANK_MANAGER_QUEUE = 'manager'
+TOPOBANK_ANALYSIS_QUEUE = 'analysis'
+
+CELERY_TASK_ROUTES = {
+    'topobank.analysis.tasks.perform_analysis': {'queue': TOPOBANK_ANALYSIS_QUEUE},
+}
+
 # https://docs.celeryproject.org/en/stable/userguide/configuration.html#worker-cancel-long-running-tasks-on-connection-loss
 CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = True
 # https://docs.celeryproject.org/en/stable/userguide/configuration.html?highlight=heartbeat#broker-heartbeat

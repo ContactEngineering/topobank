@@ -121,11 +121,13 @@ def run_task(model_instance, *args, **kwargs):
     model_instance.task_state = TaskStateModel.PENDING
     # Only submit this on_commit, once save() has finalized and everything
     # has been flushed to the database (including a possible 'pe'nding state)
+    celery_kwargs = {}
+    if hasattr(model_instance, 'celery_queue'):
+        celery_kwargs['queue'] = model_instance.celery_queue
     transaction.on_commit(
-        lambda: task_dispatch.delay(
-            ContentType.objects.get_for_model(model_instance).id,
-            model_instance.id,
-            *args,
-            **kwargs
+        lambda: task_dispatch.apply_async(
+            args=[ContentType.objects.get_for_model(model_instance).id, model_instance.id] + list(args),
+            kwargs=kwargs,
+            **celery_kwargs
         )
     )
