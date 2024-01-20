@@ -3,6 +3,9 @@
 ## 1.5.0 (not yet released)
 
 - ENH: API route to retrieve version information
+- ENH: Tracing and reporting memory usage of analysis tasks (#1060)
+- ENH: Routing manager and analysis tasks to different Celery queues
+- ENH: Fine-grained filtering of sharing and publication status
 - MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be
   supported after April 2024)
 - MAINT: Split UI into separate `ce_ui` app in a separate git repository
