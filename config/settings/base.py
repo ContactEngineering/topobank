@@ -191,8 +191,6 @@ MIDDLEWARE = [
     'django.middleware.common.CommonMiddleware',
     'django.middleware.csrf.CsrfViewMiddleware',
     'django.contrib.auth.middleware.AuthenticationMiddleware',
-    'django.contrib.messages.middleware.MessageMiddleware',
-    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 PLUGIN_MIDDLEWARE = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.middleware')]
@@ -204,6 +202,8 @@ MIDDLEWARE += PLUGIN_MIDDLEWARE
 
 MIDDLEWARE += [
     'topobank.middleware.anonymous_user_middleware',  # we need guardian's kind of anonymous user for API calls
+    'django.contrib.messages.middleware.MessageMiddleware',
+    'django.middleware.clickjacking.XFrameOptionsMiddleware',
 ]
 
 #
