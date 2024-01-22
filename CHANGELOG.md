@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.6.0 (2024-01-22)
+
+- ENH: Return creation and modification time in API routes
+
 ## 1.5.0 (2024-01-20)
 
 - ENH: API route to retrieve version information
