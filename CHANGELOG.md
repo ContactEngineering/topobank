@@ -3,6 +3,8 @@
 ## 1.6.0 (2024-01-22)
 
 - ENH: Return creation and modification time in API routes
+- MAINT: Fix creation datetime to publication date or None if unknown (was
+  set to the date of earlier migration introducing the field)
 
 ## 1.5.0 (2024-01-20)
 
