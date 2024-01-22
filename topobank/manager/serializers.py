@@ -85,6 +85,7 @@ class TopographySerializer(StrictFieldMixin,
                   'upload_instructions',
                   'is_metadata_complete',
                   'thumbnail',
+                  'creation_datetime', 'modification_datetime',
                   'duration', 'error', 'task_progress', 'task_state', 'tags',  # TaskStateModelSerializer
                   'permissions']
 
@@ -159,6 +160,7 @@ class SurfaceSerializer(StrictFieldMixin,
                   'creator',
                   'description',
                   'tags',
+                  'creation_datetime', 'modification_datetime',
                   'topography_set',
                   'permissions']
 
