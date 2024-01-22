@@ -153,8 +153,8 @@ class Surface(models.Model, SubjectMixin):
     description = models.TextField(blank=True)
     category = models.CharField(max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False)
     tags = tm.TagField(to=TagModel)
-    creation_datetime = models.DateTimeField(auto_now_add=True)
-    modification_datetime = models.DateTimeField(auto_now=True)
+    creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
+    modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
     class Meta:
         ordering = ['name']
@@ -470,8 +470,8 @@ class Topography(TaskStateModel, SubjectMixin):
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=TagModel)
-    creation_datetime = models.DateTimeField(auto_now_add=True)
-    modification_datetime = models.DateTimeField(auto_now=True)
+    creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
+    modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
     #
     # Fields related to raw data
