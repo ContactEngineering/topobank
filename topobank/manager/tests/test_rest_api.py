@@ -35,6 +35,8 @@ def test_surface_retrieve_routes(api_client, is_authenticated, with_children, tw
                      'id': surface1.id,
                      'tags': [],
                      'url': f'http://testserver/manager/api/surface/{surface1.id}/',
+                     'creation_datetime': surface1.creation_datetime.astimezone().isoformat(),
+                     'modification_datetime': surface1.modification_datetime.astimezone().isoformat(),
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
                                          'creator': f'http://testserver/users/api/user/{user.id}/',
@@ -73,7 +75,9 @@ def test_surface_retrieve_routes(api_client, is_authenticated, with_children, tw
                                          'thumbnail': None,
                                          'channel_names': [],
                                          'data_source': 0,
-                                         'is_metadata_complete': True
+                                         'is_metadata_complete': True,
+                                         'creation_datetime': topo1.creation_datetime.astimezone().isoformat(),
+                                         'modification_datetime': topo1.modification_datetime.astimezone().isoformat(),
                                          }]}
     if hasattr(Surface, 'publication'):
         surface1_dict['publication'] = None
@@ -84,6 +88,8 @@ def test_surface_retrieve_routes(api_client, is_authenticated, with_children, tw
                      'id': surface2.id,
                      'tags': [],
                      'url': f'http://testserver/manager/api/surface/{surface2.id}/',
+                     'creation_datetime': surface2.creation_datetime.astimezone().isoformat(),
+                     'modification_datetime': surface2.modification_datetime.astimezone().isoformat(),
                      'topography_set': [{'bandwidth_lower': None,
                                          'bandwidth_upper': None,
                                          'creator': f'http://testserver/users/api/user/{user.id}/',
@@ -122,7 +128,9 @@ def test_surface_retrieve_routes(api_client, is_authenticated, with_children, tw
                                          'thumbnail': None,
                                          'channel_names': [],
                                          'data_source': 0,
-                                         'is_metadata_complete': True
+                                         'is_metadata_complete': True,
+                                         'creation_datetime': topo2.creation_datetime.astimezone().isoformat(),
+                                         'modification_datetime': topo2.modification_datetime.astimezone().isoformat(),
                                          }]}
     if hasattr(Surface, 'publication'):
         surface2_dict['publication'] = None
@@ -218,6 +226,8 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
                   'duration': None,
                   'data_source': 0,
                   'channel_names': [],
+                  'creation_datetime': topo1.creation_datetime.astimezone().isoformat(),
+                  'modification_datetime': topo1.modification_datetime.astimezone().isoformat(),
                   }
     topo2_dict = {'bandwidth_lower': None,
                   'bandwidth_upper': None,
@@ -258,6 +268,8 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
                   'duration': None,
                   'data_source': 0,
                   'channel_names': [],
+                  'creation_datetime': topo2.creation_datetime.astimezone().isoformat(),
+                  'modification_datetime': topo2.modification_datetime.astimezone().isoformat(),
                   }
 
     if is_authenticated:
@@ -271,6 +283,9 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
         del data['datafile']  # datafile has an S3 hash which is difficult to mock
+        # topo1 is updated but the get command, because it is triggering file inspection
+        topo1 = Topography.objects.get(pk=topo1.id)
+        topo1_dict['modification_datetime'] = topo1.modification_datetime.astimezone().isoformat()
         assert data == topo1_dict
     else:
         # Anonymous user does not have access by default
@@ -281,6 +296,9 @@ def test_topography_retrieve_routes(api_client, is_authenticated, two_topos, han
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
         del data['datafile']  # datafile has an S3 hash which is difficult to mock
+        # topo2 is updated but the get command, because it is triggering file inspection
+        topo2 = Topography.objects.get(pk=topo2.id)
+        topo2_dict['modification_datetime'] = topo2.modification_datetime.astimezone().isoformat()
         assert data == topo2_dict
     else:
         # Anonymous user does not have access by default
@@ -409,6 +427,8 @@ def test_patch_surface_routes(api_client, two_topos, handle_usage_statistics):
     surface1, surface2 = Surface.objects.all()
     assert surface1.name == new_name
 
+    assert surface1.modification_datetime > surface1.creation_datetime
+
 
 @pytest.mark.django_db
 def test_patch_topography_routes(api_client, two_users, handle_usage_statistics):
@@ -436,6 +456,7 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     assert Topography.objects.count() == 3
     topo1, topo2, topo3 = Topography.objects.all()
     assert topo1.name == new_name
+    assert topo1.modification_datetime > topo1.creation_datetime
 
     new_name = 'My second new name'
 
