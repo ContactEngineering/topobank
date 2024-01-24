@@ -2,24 +2,21 @@ import logging
 import traceback
 import tracemalloc
 
-from django.conf import settings
-from django.utils import timezone
-from django.shortcuts import reverse
-
-from notifications.signals import notify
-
 from ContactMechanics.Systems import IncompatibleFormulationError
-from SurfaceTopography.Support import doi
+from django.conf import settings
+from django.shortcuts import reverse
+from django.utils import timezone
+from notifications.signals import notify
 from SurfaceTopography.Exceptions import CannotPerformAnalysisError
+from SurfaceTopography.Support import doi
 
 from ..taskapp.celeryapp import app
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
-from ..utils import store_split_dict
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
-
+from ..utils import store_split_dict
 from .functions import IncompatibleTopographyException
-from .models import Analysis, AnalysisCollection, Configuration, RESULT_FILE_BASENAME
+from .models import RESULT_FILE_BASENAME, Analysis, AnalysisCollection, Configuration
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError,
                                            CannotPerformAnalysisError)

@@ -2,17 +2,18 @@
 Tests for writing surface containers
 """
 
-import zipfile
-import yaml
-import pytest
-import tempfile
 import os
+import tempfile
+import zipfile
+
+import pytest
+import yaml
 
 import topobank
 
 from ..containers import write_surface_container
 from ..models import Topography
-from .utils import SurfaceFactory, Topography2DFactory, Topography1DFactory, TagModelFactory, UserFactory, FIXTURE_DIR
+from .utils import FIXTURE_DIR, SurfaceFactory, TagModelFactory, Topography1DFactory, Topography2DFactory, UserFactory
 
 
 @pytest.mark.django_db

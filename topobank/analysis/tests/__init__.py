@@ -1,5 +1,9 @@
-from ..functions import surface_analysis_function_for_tests, surfacecollection_analysis_function_for_tests, \
-        topography_analysis_function_for_tests, VIZ_SERIES
+from ..functions import (
+    VIZ_SERIES,
+    surface_analysis_function_for_tests,
+    surfacecollection_analysis_function_for_tests,
+    topography_analysis_function_for_tests
+)
 from ..registry import register_implementation
 from ..urls import app_name
 

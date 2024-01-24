@@ -1,6 +1,6 @@
-from django.views.generic import TemplateView
-from django.conf import settings
 from django.apps import apps
+from django.conf import settings
+from django.views.generic import TemplateView
 
 from topobank.organizations.models import Organization
 

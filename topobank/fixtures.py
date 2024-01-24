@@ -2,13 +2,12 @@
 # Common settings and fixtures used with pytest
 #
 
-import pytest
-from django.core.management import call_command
 import logging
 
-from trackstats.models import Domain, Metric
-
+import pytest
+from django.core.management import call_command
 from pytest_django.lazy_django import skip_if_no_django
+from trackstats.models import Domain, Metric
 
 from .users.tests.factories import UserFactory
 

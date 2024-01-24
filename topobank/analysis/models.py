@@ -4,19 +4,18 @@ Models related to analyses.
 
 import json
 
-from django.db import models
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
+from django.db import models
 from django.utils import timezone
 
 from ..manager.models import Surface, SurfaceCollection, Topography
 from ..manager.utils import recursive_delete
 from ..taskapp.models import Configuration, TaskStateModel
 from ..users.models import User
-from ..utils import store_split_dict, load_split_dict
-
-from .registry import ImplementationMissingAnalysisFunctionException, AnalysisRegistry
+from ..utils import load_split_dict, store_split_dict
+from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
 
 RESULT_FILE_BASENAME = 'result'
 
@@ -302,7 +301,7 @@ class AnalysisFunction(models.Model):
         specified.
         """
         if models is None:
-            from ..manager.models import SurfaceCollection, Surface, Topography
+            from ..manager.models import Surface, SurfaceCollection, Topography
             models = set([SurfaceCollection, Surface, Topography])
 
         is_available_to_user = False

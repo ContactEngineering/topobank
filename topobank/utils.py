@@ -7,8 +7,8 @@ import io
 import json
 
 from django.core.files.storage import default_storage
-from django.utils import formats
 from django.test import SimpleTestCase
+from django.utils import formats
 
 from .manager.utils import default_storage_replace
 from .supplib.json import ExtendedJSONEncoder

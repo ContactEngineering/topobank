@@ -1,9 +1,9 @@
+import logging
+
+from django.contrib.auth.models import Group
 from django.db import models
 from django.utils.translation import gettext_lazy as _
 
-from django.contrib.auth.models import Group
-
-import logging
 _log = logging.getLogger(__name__)
 
 DEFAULT_ORGANIZATION_NAME = "World"

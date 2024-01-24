@@ -1,10 +1,9 @@
 import pytest
 
-from topobank.analysis.tasks import perform_analysis, current_configuration
-
 from topobank.analysis.models import Analysis
-from topobank.manager.models import Topography
+from topobank.analysis.tasks import current_configuration, perform_analysis
 from topobank.analysis.tests.utils import TopographyAnalysisFactory
+from topobank.manager.models import Topography
 
 
 @pytest.mark.django_db

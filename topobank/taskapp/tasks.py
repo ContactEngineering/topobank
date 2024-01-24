@@ -4,13 +4,12 @@ Definition of celery tasks used in TopoBank.
 
 from decimal import Decimal
 
-from celery.signals import after_setup_task_logger
 from celery.app.log import TaskFormatter
+from celery.signals import after_setup_task_logger
 from celery.utils.log import get_task_logger
 
-from ..users.models import User
 from ..usage_stats.utils import current_statistics
-
+from ..users.models import User
 from .celeryapp import app
 
 _log = get_task_logger(__name__)

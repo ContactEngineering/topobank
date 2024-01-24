@@ -20,9 +20,9 @@ Frontend apps are implemented as Vue.js components.
 import inspect
 import logging
 
-from ..utils import Singleton
-
 from django.contrib.contenttypes.models import ContentType
+
+from ..utils import Singleton
 
 _log = logging.getLogger(__name__)
 
@@ -350,7 +350,7 @@ class AnalysisRegistry(metaclass=Singleton):
             and also delete all analyses related to those functions.
             Be careful, might delete existing analyses.
         """
-        from .models import AnalysisFunction, Analysis
+        from .models import Analysis, AnalysisFunction
 
         counts = dict(
             funcs_updated=0,

@@ -2,7 +2,6 @@
 Test management commands related to users.
 """
 import pytest
-
 from django.core.management import call_command
 
 

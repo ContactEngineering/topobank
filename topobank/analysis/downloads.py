@@ -2,25 +2,23 @@
 Views and helper functions for downloading analyses.
 """
 
-import tempfile
-
-import openpyxl
-import pint
-from openpyxl.worksheet.hyperlink import Hyperlink
-from openpyxl.styles import Font
-from django.http import HttpResponse, HttpResponseForbidden, HttpResponseBadRequest, HttpResponseNotFound
-from django.utils.text import slugify
-
-import pandas as pd
 import io
-import numpy as np
+import tempfile
 import textwrap
 
-from .models import Analysis
-from .registry import register_download_function, AnalysisRegistry, UnknownKeyException
-from .functions import VIZ_SERIES
-from .utils import filter_and_order_analyses
+import numpy as np
+import openpyxl
+import pandas as pd
+import pint
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden, HttpResponseNotFound
+from django.utils.text import slugify
+from openpyxl.styles import Font
+from openpyxl.worksheet.hyperlink import Hyperlink
 
+from .functions import VIZ_SERIES
+from .models import Analysis
+from .registry import AnalysisRegistry, UnknownKeyException, register_download_function
+from .utils import filter_and_order_analyses
 
 #######################################################################
 # Download views

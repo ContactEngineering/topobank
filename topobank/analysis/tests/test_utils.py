@@ -1,15 +1,15 @@
-import pytest
-import math
 import datetime
+import math
+
+import pytest
 from django.contrib.contenttypes.models import ContentType
 
-from ...manager.models import Topography, Surface
+from ...manager.models import Surface, Topography
 from ...manager.tests.utils import UserFactory
-
 from ..controller import AnalysisController, request_analysis
 from ..models import Analysis
-from ..utils import mangle_sheet_name, round_to_significant_digits, find_children
 from ..tests.utils import TopographyAnalysisFactory
+from ..utils import find_children, mangle_sheet_name, round_to_significant_digits
 
 
 @pytest.mark.django_db
@@ -113,9 +113,8 @@ def test_latest_analyses(two_topos, test_analysis_function):
     at1, = AnalysisController(user, subjects=[topo1], function=test_analysis_function).get()
     at2, = AnalysisController(user, subjects=[topo2], function=test_analysis_function).get()
 
-    from django.conf import settings
-
     import pytz
+    from django.conf import settings
 
     tz = pytz.timezone(settings.TIME_ZONE)
 

@@ -1,5 +1,6 @@
 import importlib.util
 
+import notifications.urls
 from django.apps import apps
 from django.conf import settings
 from django.conf.urls.static import static
@@ -8,10 +9,8 @@ from django.contrib.auth.decorators import user_passes_test
 from django.urls import include, path, re_path
 from django.views import defaults as default_views
 
-import notifications.urls
-
-from topobank.users.allauth_views import TabbedEmailView
 from topobank.organizations.models import Organization
+from topobank.users.allauth_views import TabbedEmailView
 
 urlpatterns = [
     #

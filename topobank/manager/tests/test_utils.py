@@ -5,9 +5,8 @@ and other things in topobank.manager.utils
 
 import pytest
 
-from ..utils import subjects_to_dict, subjects_from_dict, subjects_to_base64, subjects_from_base64, surfaces_for_user
 from ..models import Surface, Topography
-
+from ..utils import subjects_from_base64, subjects_from_dict, subjects_to_base64, subjects_to_dict, surfaces_for_user
 from .utils import SurfaceFactory, UserFactory
 
 

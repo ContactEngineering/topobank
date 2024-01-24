@@ -1,5 +1,6 @@
-from django.core.management.base import BaseCommand
 import logging
+
+from django.core.management.base import BaseCommand
 from guardian.shortcuts import get_users_with_perms
 
 from topobank.analysis.models import Analysis

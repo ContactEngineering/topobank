@@ -1,9 +1,9 @@
-import pytest
 import datetime
-from freezegun import freeze_time
+
+import pytest
 from django.conf import settings
 from django.shortcuts import reverse
-
+from freezegun import freeze_time
 from trackstats.models import Metric, Period
 
 from ...analysis.tests.utils import TopographyAnalysisFactory

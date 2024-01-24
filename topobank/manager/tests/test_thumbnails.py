@@ -3,10 +3,9 @@ Tests related to thumbnails.
 """
 
 import pytest
-
 from django.shortcuts import reverse
 
-from .utils import Topography2DFactory, UserFactory, SurfaceFactory, Topography1DFactory
+from .utils import SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory
 
 
 @pytest.mark.django_db

@@ -1,9 +1,10 @@
 import os
 import os.path
-import pytest
 
+import pytest
 from django.urls import reverse
 from selenium.common.exceptions import NoSuchElementException
+
 from browser_tests.conftest import wait_for_page_load
 
 

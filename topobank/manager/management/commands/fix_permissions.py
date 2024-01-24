@@ -3,10 +3,9 @@ from collections import defaultdict
 
 from django.core.management.base import BaseCommand
 from guardian.shortcuts import assign_perm
+from topobank_publication.utils import set_publication_permissions
 
 from topobank.manager.models import Surface
-
-from topobank_publication.utils import set_publication_permissions
 
 _log = logging.getLogger(__name__)
 

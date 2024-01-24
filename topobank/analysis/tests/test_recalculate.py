@@ -1,6 +1,6 @@
 import pytest
-from django.shortcuts import reverse
 from django.db import transaction
+from django.shortcuts import reverse
 
 from ...analysis.models import Analysis
 from ...analysis.tests.utils import TopographyAnalysisFactory
