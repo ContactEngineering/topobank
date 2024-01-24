@@ -25,12 +25,22 @@ from ..taskapp.utils import run_task
 from ..users.models import User
 
 from .containers import write_surface_container
-from .models import Topography, Surface, topography_datafile_path
+from .models import Property, Topography, Surface, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
-from .serializers import SurfaceSerializer, TopographySerializer
+from .serializers import PropertySerializer, SurfaceSerializer, TopographySerializer
 from .utils import get_upload_instructions, api_to_guardian
 
 _log = logging.getLogger(__name__)
+
+
+class PropertyViewSet(mixins.CreateModelMixin,
+                      mixins.RetrieveModelMixin,
+                      mixins.UpdateModelMixin,
+                      mixins.DestroyModelMixin,
+                      viewsets.GenericViewSet):
+    queryset = Property.objects.all()
+    serializer_class = PropertySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
 
 class SurfaceViewSet(mixins.CreateModelMixin,

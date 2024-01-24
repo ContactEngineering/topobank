@@ -135,6 +135,14 @@ class SubjectMixin:
         return User.objects.intersection(*tuple(get_users_with_perms(s) for s in self.related_surfaces()))
 
 
+class Property(models.Model):
+    name = tm.SingleTagField()
+    value_categorical = models.CharField(blank=True, null=True)
+    value_numerical = models.FloatField(blank=True, null=True)
+    unit = tm.SingleTagField(
+        null=True
+    )
+
 class Surface(models.Model, SubjectMixin):
     """Physical Surface.
 
@@ -150,6 +158,7 @@ class Surface(models.Model, SubjectMixin):
 
     name = models.CharField(max_length=80, blank=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
+    properties = models.ManyToManyField(Property)
     description = models.TextField(blank=True)
     category = models.CharField(max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False)
     tags = tm.TagField(to=TagModel)

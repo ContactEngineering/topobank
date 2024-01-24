@@ -1,6 +1,8 @@
 import logging
+from django.db.models.expressions import fields
 
 from django.utils.translation import gettext_lazy as _
+from numpy import require
 
 from guardian.shortcuts import get_users_with_perms
 from rest_framework import serializers
@@ -9,7 +11,7 @@ from tagulous.contrib.drf import TagRelatedManagerField
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
 
-from .models import Surface, Topography
+from .models import Property, Surface, Topography
 from .utils import guardian_to_api
 
 _log = logging.getLogger(__name__)
@@ -149,6 +151,15 @@ class TopographySerializer(StrictFieldMixin,
                                 for key, value in users.items() if key != current_user]}
 
 
+class PropertySerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Property
+        fields = ['name', 'value_categorical', 'value_numerical', 'unit']
+
+    name = serializers.CharField()
+    unit = serializers.CharField()
+
+
 class SurfaceSerializer(StrictFieldMixin,
                         serializers.HyperlinkedModelSerializer):
     class Meta:
@@ -162,7 +173,8 @@ class SurfaceSerializer(StrictFieldMixin,
                   'tags',
                   'creation_datetime', 'modification_datetime',
                   'topography_set',
-                  'permissions']
+                  'permissions',
+                  'properties']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
@@ -171,6 +183,8 @@ class SurfaceSerializer(StrictFieldMixin,
     tags = TagRelatedManagerField(required=False)
 
     permissions = serializers.SerializerMethodField()
+
+    properties = PropertySerializer(many=True)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
