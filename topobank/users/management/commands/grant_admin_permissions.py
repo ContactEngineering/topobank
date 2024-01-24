@@ -13,8 +13,6 @@ from topobank.users.models import User
 # from guardian.shortcuts import get_user_perms, remove_perm
 
 
-
-
 _log = logging.getLogger(__name__)
 
 PERMISSIONS_TO_GRANT = {  # key: model, value: list of actions - subset of {"delete", "add", "view", "change"}

@@ -9,6 +9,7 @@ from .utils import TopographyAnalysisFactory
 # Django's AnonymousUser by the one of django guardian
 #
 
+
 @pytest.mark.django_db
 def test_download_analyses_without_permission(client, test_analysis_function, handle_usage_statistics):
     bob = UserFactory()
