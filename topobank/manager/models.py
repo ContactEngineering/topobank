@@ -143,6 +143,7 @@ class Property(models.Model):
         null=True
     )
 
+
 class Surface(models.Model, SubjectMixin):
     """Physical Surface.
 

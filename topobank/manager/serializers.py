@@ -1,8 +1,6 @@
 import logging
-from django.db.models.expressions import fields
 
 from django.utils.translation import gettext_lazy as _
-from numpy import require
 
 from guardian.shortcuts import get_users_with_perms
 from rest_framework import serializers
