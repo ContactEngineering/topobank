@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.6.1 (not yet released)
+
+- MAINT: installing pre-commit to run linting before commits
+
 ## 1.6.0 (2024-01-22)
 
 - ENH: Return creation and modification time in API routes
