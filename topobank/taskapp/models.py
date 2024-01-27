@@ -2,11 +2,9 @@ import tracemalloc
 
 import celery.result
 import celery.states
-from celery.utils.log import get_task_logger
-
 import django.db.models as models
+from celery.utils.log import get_task_logger
 from django.utils import timezone
-
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
 _log = get_task_logger(__name__)

@@ -2,9 +2,7 @@ import json
 
 import numpy
 import pytest
-
 from django.shortcuts import reverse
-
 from guardian.shortcuts import get_anonymous_user
 
 from ...manager.models import Surface, Topography

@@ -1,11 +1,10 @@
 import pytest
-
 from django.contrib.auth.models import Group
 
 from topobank.manager.tests.utils import UserFactory
 
-from .utils import OrganizationFactory
 from ..models import Organization
+from .utils import OrganizationFactory
 
 
 @pytest.mark.django_db

@@ -2,24 +2,19 @@ import base64
 import functools
 import json
 import logging
-
-import markdown2
 import tempfile
 import traceback
 
-from storages.utils import clean_name
-
+import markdown2
 from django.conf import settings
-from django.db.models import Q
+from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
 from django.core.files.storage import default_storage
-from django.contrib.contenttypes.models import ContentType
-
-from rest_framework.reverse import reverse
-
+from django.db.models import Q
 from guardian.core import ObjectPermissionChecker
 from guardian.shortcuts import get_objects_for_user
-
+from rest_framework.reverse import reverse
+from storages.utils import clean_name
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi

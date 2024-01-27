@@ -2,40 +2,37 @@
 Basic models for the web app for handling topography data.
 """
 
-import dateutil.parser
 import io
 import logging
-import matplotlib.pyplot
-import matplotlib.cm
-import numpy as np
 import os.path
-import PIL
 import sys
 import tempfile
 
+import dateutil.parser
 import django.dispatch
-from django.db import models
-from django.shortcuts import reverse
+import matplotlib.cm
+import matplotlib.pyplot
+import numpy as np
+import PIL
+import tagulous.models as tm
 from django.conf import settings
-from django.core.files.storage import default_storage
+from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
 from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
-from django.contrib.contenttypes.models import ContentType
-
-import tagulous.models as tm
-from guardian.models import UserObjectPermissionBase, GroupObjectPermissionBase
-from guardian.shortcuts import assign_perm, remove_perm, get_perms, get_users_with_perms
+from django.db import models
+from django.shortcuts import reverse
+from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
+from guardian.shortcuts import assign_perm, get_perms, get_users_with_perms, remove_perm
 from notifications.signals import notify
-
-from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from SurfaceTopography.Exceptions import UndefinedDataError
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-
-from .utils import api_to_guardian, guardian_to_api, dzi_exists, get_topography_reader, make_dzi, recursive_delete
+from .utils import api_to_guardian, dzi_exists, get_topography_reader, guardian_to_api, make_dzi, recursive_delete
 
 _log = logging.getLogger(__name__)
 

@@ -1,8 +1,8 @@
-import pytest
 import datetime
-from freezegun import freeze_time
-from django.shortcuts import reverse
 
+import pytest
+from django.shortcuts import reverse
+from freezegun import freeze_time
 from trackstats.models import Metric, Period
 
 

@@ -5,30 +5,26 @@ from io import BytesIO
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.db.models import Prefetch, Q
-from django.http import HttpResponse, Http404, HttpResponseForbidden
+from django.http import Http404, HttpResponse, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.utils.text import slugify
-
 from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
-
+from notifications.signals import notify
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-
-from notifications.signals import notify
 from trackstats.models import Metric, Period
 
 from ..supplib.versions import get_versions
-from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..taskapp.utils import run_task
+from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
-
 from .containers import write_surface_container
-from .models import Property, Topography, Surface, topography_datafile_path
+from .models import Property, Surface, Topography, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
 from .serializers import PropertySerializer, SurfaceSerializer, TopographySerializer
-from .utils import get_upload_instructions, api_to_guardian
+from .utils import api_to_guardian, get_upload_instructions
 
 _log = logging.getLogger(__name__)
 

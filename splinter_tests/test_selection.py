@@ -1,8 +1,13 @@
 import pytest
 
-from splinter_tests.utils import checkbox_for_item_by_name, is_in_basket, \
-    goto_select_page, goto_sharing_page, active_page_number
-from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, TagModelFactory
+from splinter_tests.utils import (
+    active_page_number,
+    checkbox_for_item_by_name,
+    goto_select_page,
+    goto_sharing_page,
+    is_in_basket
+)
+from topobank.manager.tests.utils import SurfaceFactory, TagModelFactory, Topography1DFactory
 
 
 @pytest.fixture(scope='function')

@@ -1,9 +1,10 @@
-from django.core.management.base import BaseCommand
 import logging
 import pprint
 
+from django.core.management.base import BaseCommand
+
 from topobank.manager.models import Topography
-from topobank.taskapp.tasks import renew_topography_thumbnail, renew_topography_dzi
+from topobank.taskapp.tasks import renew_topography_dzi, renew_topography_thumbnail
 
 _log = logging.getLogger(__name__)
 

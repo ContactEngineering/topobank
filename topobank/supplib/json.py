@@ -1,5 +1,4 @@
 import numpy as np
-
 from django.core.serializers.json import DjangoJSONEncoder
 
 

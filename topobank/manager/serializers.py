@@ -1,14 +1,12 @@
 import logging
 
 from django.utils.translation import gettext_lazy as _
-
 from guardian.shortcuts import get_users_with_perms
 from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
-
 from .models import Property, Surface, Topography
 from .utils import guardian_to_api
 

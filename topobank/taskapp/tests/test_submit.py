@@ -1,10 +1,9 @@
 import pytest
 
-from ...manager.tests.utils import Topography1DFactory, UserFactory
-
-from ...analysis.models import Analysis
 from ...analysis.controller import request_analysis
+from ...analysis.models import Analysis
 from ...analysis.tests.utils import TopographyAnalysisFactory
+from ...manager.tests.utils import Topography1DFactory, UserFactory
 
 
 @pytest.mark.django_db

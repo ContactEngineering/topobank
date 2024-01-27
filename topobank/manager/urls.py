@@ -1,7 +1,6 @@
 from django.conf import settings
 from django.contrib.auth.decorators import login_required
-from django.urls import re_path, path
-
+from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter
 
 from . import views

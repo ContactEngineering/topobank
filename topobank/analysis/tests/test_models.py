@@ -1,21 +1,18 @@
+import datetime
 import operator
 
 import pytest
-
-import datetime
-from django.db.models.functions import Lower
 from django.contrib.contenttypes.models import ContentType
+from django.db.models.functions import Lower
 from django.utils import timezone
 
 from ...manager.models import Topography
-from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, SurfaceCollectionFactory, UserFactory
-
+from ...manager.tests.utils import SurfaceCollectionFactory, SurfaceFactory, Topography1DFactory, UserFactory
 from ..functions import topography_analysis_function_for_tests
 from ..models import Analysis, AnalysisFunction
 from ..registry import ImplementationMissingAnalysisFunctionException
 from ..tasks import current_configuration
-
-from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory, SurfaceCollectionAnalysisFactory
+from .utils import SurfaceAnalysisFactory, SurfaceCollectionAnalysisFactory, TopographyAnalysisFactory
 
 
 @pytest.mark.django_db

@@ -1,8 +1,9 @@
-from django.core.management.base import BaseCommand
 import logging
 
+from django.core.management.base import BaseCommand
+from SurfaceTopography.IO import CannotDetectFileFormat, detect_format
+
 from topobank.manager.models import Topography
-from SurfaceTopography.IO import detect_format, CannotDetectFileFormat
 
 _log = logging.getLogger(__name__)
 

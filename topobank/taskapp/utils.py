@@ -2,7 +2,6 @@ import importlib
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-
 from watchman.decorators import check as watchman_check
 
 from .celeryapp import app

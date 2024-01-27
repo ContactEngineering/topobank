@@ -1,12 +1,17 @@
 import freezegun
 import pytest
-
-from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory
 from topobank_publication.models import Publication
 
-from splinter_tests.utils import goto_select_page, goto_publications_page, \
-    select_sharing_status, press_view_for_item_by_name, num_items_in_result_table, \
-    data_of_item_by_name, double_click_on_item_by_name
+from splinter_tests.utils import (
+    data_of_item_by_name,
+    double_click_on_item_by_name,
+    goto_publications_page,
+    goto_select_page,
+    num_items_in_result_table,
+    press_view_for_item_by_name,
+    select_sharing_status
+)
+from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory
 
 
 def press_yes_publish(browser):

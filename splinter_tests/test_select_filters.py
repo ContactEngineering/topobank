@@ -1,10 +1,19 @@
 import pytest
 
-from splinter_tests.utils import search_for, clear_search_term, selected_category, selected_sharing_status, \
-    selected_tree_mode, is_text_present_in_result_table, active_page_number, active_page_size, select_tree_mode, \
-    goto_sharing_page, goto_select_page
-
-from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, TagModelFactory
+from splinter_tests.utils import (
+    active_page_number,
+    active_page_size,
+    clear_search_term,
+    goto_select_page,
+    goto_sharing_page,
+    is_text_present_in_result_table,
+    search_for,
+    select_tree_mode,
+    selected_category,
+    selected_sharing_status,
+    selected_tree_mode
+)
+from topobank.manager.tests.utils import SurfaceFactory, TagModelFactory, Topography1DFactory
 
 
 @pytest.fixture(scope='function')

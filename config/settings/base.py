@@ -7,9 +7,7 @@ import random
 import string
 
 import environ
-
 from django.core.exceptions import ImproperlyConfigured
-
 from watchman import constants as watchman_constants
 
 import topobank

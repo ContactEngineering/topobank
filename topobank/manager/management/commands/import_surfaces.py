@@ -4,15 +4,15 @@ Management command for importing a surface from file(s).
 ONLY USE FROM TRUSTED SOURCES!
 """
 
-from django.core.management.base import BaseCommand, CommandError
+import datetime
+import logging
+import zipfile
+
+import yaml
 from django.core.files import File
 from django.core.files.storage import default_storage
+from django.core.management.base import BaseCommand, CommandError
 from django.utils.timezone import now
-
-import zipfile
-import yaml
-import logging
-import datetime
 
 from topobank.manager.models import Surface, Topography, topography_datafile_path
 from topobank.users.models import User

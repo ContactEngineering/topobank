@@ -1,27 +1,23 @@
 import logging
 
-from django.http import Http404
-from django.core.files.storage import default_storage
-from django.core.exceptions import PermissionDenied
-from django.shortcuts import redirect
 from django.conf import settings
-
-from rest_framework import mixins, viewsets, status
+from django.core.exceptions import PermissionDenied
+from django.core.files.storage import default_storage
+from django.http import Http404
+from django.shortcuts import redirect
+from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from rest_framework.reverse import reverse
-
-from pint import DimensionalityError, UnitRegistry, UndefinedUnitError
-
 from trackstats.models import Metric
 
 from ..manager.models import Surface
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-
 from .controller import AnalysisController, renew_existing_analysis
 from .models import Analysis, AnalysisFunction, Configuration
 from .permissions import AnalysisFunctionPermissions
-from .serializers import AnalysisResultSerializer, AnalysisFunctionSerializer, ConfigurationSerializer
+from .serializers import AnalysisFunctionSerializer, AnalysisResultSerializer, ConfigurationSerializer
 from .utils import filter_and_order_analyses
 
 _log = logging.getLogger(__name__)

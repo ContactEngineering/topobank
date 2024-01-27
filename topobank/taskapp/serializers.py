@@ -1,6 +1,5 @@
-from rest_framework import serializers
-
 from celery.utils.log import get_task_logger
+from rest_framework import serializers
 
 from .models import TaskStateModel
 

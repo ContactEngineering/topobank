@@ -5,9 +5,9 @@ The first argument is either a Topography or Surface instance (model).
 """
 
 import collections
+import logging
 
 import numpy as np
-import logging
 
 from ..utils import SplitDictionaryHere
 

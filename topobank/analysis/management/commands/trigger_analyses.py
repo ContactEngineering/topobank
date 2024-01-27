@@ -1,12 +1,12 @@
 import logging
 import sys
+
 from django.contrib.contenttypes.models import ContentType
 from django.core.management.base import BaseCommand
 
-from topobank.manager.models import Topography, Surface
-from topobank.analysis.models import Analysis
-from topobank.analysis.models import AnalysisFunction
-from topobank.analysis.controller import submit_analysis, renew_existing_analysis, renew_analyses_for_subject
+from topobank.analysis.controller import renew_analyses_for_subject, renew_existing_analysis, submit_analysis
+from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.manager.models import Surface, Topography
 
 _log = logging.getLogger(__name__)
 
