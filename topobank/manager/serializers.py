@@ -168,7 +168,7 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
     unit = serializers.CharField(allow_null=True)
 
     def validate_value(self, value):
-        if not(isinstance(value, str) or isinstance(value, float) or isinstance(value, int)):
+        if not (isinstance(value, str) or isinstance(value, float) or isinstance(value, int)):
             raise serializers.ValidationError(f"value must be of type float or string, but got {type(value)}")
         return value
 

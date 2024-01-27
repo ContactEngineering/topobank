@@ -184,6 +184,7 @@ class Property(models.Model):
     def __str__(self):
         return f"{self.name}: {self.value} {self.unit}"
 
+
 class Surface(models.Model, SubjectMixin):
     """Physical Surface.
 
