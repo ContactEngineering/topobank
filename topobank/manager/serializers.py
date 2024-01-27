@@ -149,13 +149,28 @@ class TopographySerializer(StrictFieldMixin,
                                 for key, value in users.items() if key != current_user]}
 
 
-class PropertySerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+class ValueField(serializers.Field):
+
+    def to_representation(self, value):
+        return value
+
+    def to_internal_value(self, data):
+        return data
+
+
+class PropertySerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Property
-        fields = ['name', 'value_categorical', 'value_numerical', 'unit']
+        fields = ['name', 'value', 'unit']
 
     name = serializers.CharField()
-    unit = serializers.CharField()
+    value = ValueField()
+    unit = serializers.CharField(allow_null=True)
+
+    def validate_value(self, value):
+        if not(isinstance(value, str) or isinstance(value, float) or isinstance(value, int)):
+            raise serializers.ValidationError(f"value must be of type float or string, but got {type(value)}")
+        return value
 
 
 class SurfaceSerializer(StrictFieldMixin,

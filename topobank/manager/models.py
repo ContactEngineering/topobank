@@ -140,9 +140,49 @@ class Property(models.Model):
     value_categorical = models.CharField(blank=True, null=True)
     value_numerical = models.FloatField(blank=True, null=True)
     unit = tm.SingleTagField(
-        null=True
+        null=True,
+        blank=True
     )
 
+    @property
+    def value(self):
+        if self.value_numerical is None:
+            return self.value_categorical
+        return self.value_numerical
+
+    @value.setter
+    def value(self, value):
+        """
+        Set the value of the property.
+
+        Parameters:
+        - value (int, float, str): The value to be assigned. Should be of type int, float, or str.
+
+        Raises:
+        - TypeError: If the provided value is not of type int, float, or str.
+
+        Notes:
+        - If the value is of type str, it will be assigned to the 'value_categorical' attribute.
+        - If the value is of type int or float, it will be assigned to the 'value_numerical' attribute.
+        """
+        if isinstance(value, str):
+            self.value_categorical = value
+            self.value_numerical = None
+        elif isinstance(value, float) or isinstance(value, int):
+            self.value_numerical = value
+            self.value_categorical = None
+        else:
+            raise TypeError(f"The value must be of type int, float or str, got {type(value)}")
+
+    def save(self, *args, **kwargs):
+        if self.value_categorical is None and self.value_numerical is None:
+            raise ValueError("Either 'value_categorical' or 'value_numerical' must be not None.")
+        if self.value_categorical is not None and self.value_numerical is not None:
+            raise ValueError("Only one of 'value_categorical' or 'value_numerical' should be not None.")
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name}: {self.value} {self.unit}"
 
 class Surface(models.Model, SubjectMixin):
     """Physical Surface.
