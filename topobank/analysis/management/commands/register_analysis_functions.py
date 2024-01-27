@@ -3,6 +3,7 @@
 Making the functions available in the database.
 """
 from django.core.management.base import BaseCommand
+
 from topobank.analysis.registry import AnalysisRegistry
 
 

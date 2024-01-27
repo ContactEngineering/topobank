@@ -1,6 +1,7 @@
-from django.core.management.base import BaseCommand
 import logging
 import math
+
+from django.core.management.base import BaseCommand
 
 from topobank.manager.models import Topography
 from topobank.manager.utils import get_topography_reader

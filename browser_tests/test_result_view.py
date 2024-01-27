@@ -1,9 +1,8 @@
 import pytest
 
-from topobank.analysis.models import AnalysisFunction, Analysis
-from topobank.manager.models import Surface
-
 from browser_tests.conftest import wait_for_page_load
+from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.manager.models import Surface
 
 
 @pytest.mark.django_db

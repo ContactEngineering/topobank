@@ -3,26 +3,26 @@ Test for results view.
 """
 
 import datetime
-import openpyxl
 import tempfile
 
-from django.urls import reverse
-
 import ContactMechanics
+import muFFT
 import NuMPI
 import numpy as np
-import muFFT
+import openpyxl
 import pytest
 import SurfaceTopography
+from django.urls import reverse
 
 import topobank
+
+from ...manager.models import Surface, Topography
+from ...manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
 from ...manager.utils import subjects_to_base64
-from ...manager.models import Topography, Surface
-from ...manager.tests.utils import SurfaceFactory, UserFactory, Topography1DFactory
 from ...utils import assert_in_content
 from ..models import Analysis, AnalysisFunction
 from ..tasks import current_configuration, perform_analysis
-from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory
+from .utils import SurfaceAnalysisFactory, TopographyAnalysisFactory
 
 
 def selection_from_instances(instances):

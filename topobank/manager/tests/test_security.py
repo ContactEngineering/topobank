@@ -1,11 +1,11 @@
 from pathlib import Path
 
 import pytest
-from django.urls import reverse
 from django.contrib.auth.models import Permission
+from django.urls import reverse
 
-from .utils import FIXTURE_DIR
 from ..models import Surface, Topography
+from .utils import FIXTURE_DIR
 
 
 @pytest.mark.django_db

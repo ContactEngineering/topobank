@@ -2,9 +2,7 @@ import datetime
 from pathlib import Path
 
 import pytest
-
 from django.shortcuts import reverse
-
 from notifications.models import Notification
 
 from ..models import Topography

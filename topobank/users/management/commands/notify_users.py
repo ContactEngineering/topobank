@@ -1,11 +1,10 @@
-from django.core.management.base import BaseCommand
-from django.contrib.sites.models import Site  # we use this as object which is always there, this is a workaround
-from django.conf.urls.static import static
-
-from notifications.signals import notify
-
-import sys
 import logging
+import sys
+
+from django.conf.urls.static import static
+from django.contrib.sites.models import Site  # we use this as object which is always there, this is a workaround
+from django.core.management.base import BaseCommand
+from notifications.signals import notify
 
 from topobank.users.models import User
 

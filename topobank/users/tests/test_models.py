@@ -1,7 +1,8 @@
 import pytest
 
-from .factories import UserFactory, OrcidSocialAccountFactory
 from topobank.manager.tests.utils import SurfaceFactory
+
+from .factories import OrcidSocialAccountFactory, UserFactory
 
 
 @pytest.mark.django_db

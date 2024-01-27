@@ -3,10 +3,10 @@ from datetime import date
 from django.conf import settings
 from django.db import transaction
 from django.db.models import F
-from trackstats.models import StatisticByDate, StatisticByDateAndObject, Period
+from trackstats.models import Period, StatisticByDate, StatisticByDateAndObject
 
-from topobank.manager.models import Surface, Topography
 from topobank.analysis.models import Analysis
+from topobank.manager.models import Surface, Topography
 
 
 def register_metrics():

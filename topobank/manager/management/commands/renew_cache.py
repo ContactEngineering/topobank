@@ -1,7 +1,7 @@
+import logging
 import traceback
 
 from django.core.management.base import BaseCommand
-import logging
 
 from topobank.manager.models import Topography
 from topobank.taskapp.utils import run_task

@@ -4,8 +4,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
 
-from ..manager.utils import subjects_from_dict, subjects_to_dict, dict_from_base64, subjects_to_base64
-
+from ..manager.utils import dict_from_base64, subjects_from_dict, subjects_to_base64, subjects_to_dict
 from .models import Analysis, AnalysisFunction, AnalysisSubject
 from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
 from .serializers import AnalysisResultSerializer

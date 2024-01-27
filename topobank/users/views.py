@@ -1,8 +1,7 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.core.exceptions import PermissionDenied
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, RedirectView, UpdateView
-from django.core.exceptions import PermissionDenied
-
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 

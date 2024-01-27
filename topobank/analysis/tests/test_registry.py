@@ -1,18 +1,19 @@
 import pytest
-
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
 
-from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, SurfaceCollectionFactory
-from ...manager.models import Topography, Surface, SurfaceCollection
+from ...manager.models import Surface, SurfaceCollection, Topography
+from ...manager.tests.utils import SurfaceCollectionFactory, SurfaceFactory, Topography1DFactory
 from ...organizations.tests.test_models import OrganizationFactory
 from ...users.tests.factories import UserFactory
-
-from ..functions import topography_analysis_function_for_tests, surface_analysis_function_for_tests, \
-    surfacecollection_analysis_function_for_tests, VIZ_SERIES
-from ..registry import AnalysisRegistry, AlreadyRegisteredAnalysisFunctionException, register_implementation
+from ..functions import (
+    VIZ_SERIES,
+    surface_analysis_function_for_tests,
+    surfacecollection_analysis_function_for_tests,
+    topography_analysis_function_for_tests
+)
+from ..registry import AlreadyRegisteredAnalysisFunctionException, AnalysisRegistry, register_implementation
 from ..urls import app_name
-
 
 # from ..views import registry_view
 

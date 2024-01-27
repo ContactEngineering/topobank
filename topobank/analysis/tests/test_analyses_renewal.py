@@ -2,16 +2,15 @@
 Test whether analyses are recalculated on certain events.
 """
 
-import pytest
-
 from pathlib import Path
+
+import pytest
 from django.shortcuts import reverse
 
-from topobank.manager.tests.utils import FIXTURE_DIR, Topography1DFactory, SurfaceFactory, UserFactory, upload_file
-from topobank.manager.models import Topography
-
 from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.tests.utils import SurfaceAnalysisFactory, TopographyAnalysisFactory, Topography2DFactory
+from topobank.analysis.tests.utils import SurfaceAnalysisFactory, Topography2DFactory, TopographyAnalysisFactory
+from topobank.manager.models import Topography
+from topobank.manager.tests.utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, UserFactory, upload_file
 
 
 @pytest.mark.parametrize("auto_renew", [True, False])

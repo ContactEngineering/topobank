@@ -3,10 +3,9 @@ import logging
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.signals import post_delete
 from django.dispatch import receiver
-
 from notifications.models import Notification
 
-from .models import Topography, Surface
+from .models import Surface, Topography
 
 _log = logging.getLogger(__name__)
 

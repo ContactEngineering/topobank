@@ -1,13 +1,13 @@
 import os
 import os.path
-import pytest
 from contextlib import contextmanager
 
-from selenium.webdriver import Chrome
-from selenium.webdriver.support.ui import WebDriverWait
-from selenium.webdriver.support import expected_conditions
+import pytest
 from selenium.common.exceptions import NoSuchElementException
+from selenium.webdriver import Chrome
 from selenium.webdriver.common.by import By
+from selenium.webdriver.support import expected_conditions
+from selenium.webdriver.support.ui import WebDriverWait
 
 
 @pytest.fixture(scope='session')

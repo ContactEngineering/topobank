@@ -1,8 +1,8 @@
-from django.core.management.base import BaseCommand
-
 import logging
 
-from topobank.users.models import User, DEFAULT_GROUP_NAME
+from django.core.management.base import BaseCommand
+
+from topobank.users.models import DEFAULT_GROUP_NAME, User
 from topobank.users.utils import get_default_group
 
 _log = logging.getLogger(__name__)

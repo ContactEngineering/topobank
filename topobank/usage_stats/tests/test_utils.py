@@ -1,19 +1,18 @@
-import pytest
 import datetime
 
+import pytest
 from django.conf import settings
-
 from freezegun import freeze_time
 
 from ...analysis.tests.utils import TopographyAnalysisFactory
-from ...manager.tests.utils import Topography1DFactory, SurfaceFactory, UserFactory
-from ..utils import increase_statistics_by_date, increase_statistics_by_date_and_object, current_statistics
+from ...manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
+from ..utils import current_statistics, increase_statistics_by_date, increase_statistics_by_date_and_object
 
 
 @pytest.mark.skipif(not settings.ENABLE_USAGE_STATS, reason='Usage statistics not enabled')
 @pytest.mark.django_db
 def test_increase_statistics_by_date(handle_usage_statistics):
-    from trackstats.models import Metric, Domain, StatisticByDate
+    from trackstats.models import Domain, Metric, StatisticByDate
 
     Domain.objects.TESTDOMAIN = Domain.objects.register(ref='test', name='A test domain')
     Metric.objects.TESTMETRIC = Metric.objects.register(ref='test', name='A test metric',
@@ -50,7 +49,7 @@ def test_increase_statistics_by_date(handle_usage_statistics):
 @pytest.mark.skipif(not settings.ENABLE_USAGE_STATS, reason='Usage statistics not enabled')
 @pytest.mark.django_db
 def test_increase_statistics_by_date_and_object(handle_usage_statistics):
-    from trackstats.models import Metric, Domain, StatisticByDateAndObject
+    from trackstats.models import Domain, Metric, StatisticByDateAndObject
 
     Domain.objects.TESTDOMAIN = Domain.objects.register(ref='test', name='A test domain')
     Metric.objects.TESTMETRIC = Metric.objects.register(ref='test', name='A test metric',

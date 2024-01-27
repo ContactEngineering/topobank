@@ -1,10 +1,7 @@
 from django.urls import path, re_path
-
 from rest_framework.routers import DefaultRouter
 
-from . import downloads
-from . import functions
-from . import views
+from . import downloads, functions, views
 
 router = DefaultRouter()
 router.register(r'api/configuration', views.ConfigurationView, basename='configuration')

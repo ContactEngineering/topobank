@@ -1,20 +1,19 @@
-import os.path
-import logging
 import datetime
-import factory
-import requests
 import json
+import logging
+import os.path
 import tempfile
 from operator import itemgetter
 
+import factory
 import pytest
-
+import requests
 from django.conf import settings
 from django.core.management import call_command
 from django.shortcuts import reverse
 
 from ...users.tests.factories import UserFactory
-from ..models import Topography, Surface, SurfaceCollection, TagModel
+from ..models import Surface, SurfaceCollection, TagModel, Topography
 
 FIXTURE_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),

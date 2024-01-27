@@ -2,17 +2,17 @@
 Tests related to the models in topobank.manager app
 """
 
-import pytest
 import datetime
+
+import pytest
+from django.db import transaction
+from django.db.utils import IntegrityError
+from notifications.models import Notification
+from notifications.signals import notify
 from numpy.testing import assert_allclose
 
-from django.db.utils import IntegrityError
-from django.db import transaction
-from notifications.signals import notify
-from notifications.models import Notification
-
-from ..models import Topography, Surface
-from .utils import SurfaceFactory, UserFactory, Topography1DFactory, Topography2DFactory
+from ..models import Surface, Topography
+from .utils import SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory
 
 
 @pytest.mark.django_db

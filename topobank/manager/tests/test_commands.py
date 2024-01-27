@@ -1,16 +1,15 @@
 """
 Testing management commands for manager app.
 """
+import math
+import tempfile
+
+import pytest
 from django.core.management import call_command
 from django.shortcuts import reverse
 
-import pytest
-import tempfile
-import math
-
 from topobank.manager.models import Surface, Topography
-from topobank.manager.tests.utils import UserFactory, SurfaceFactory, \
-    Topography2DFactory, Topography1DFactory
+from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory
 
 
 @pytest.mark.django_db

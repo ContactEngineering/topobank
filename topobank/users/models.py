@@ -1,16 +1,15 @@
+import os
+
 from django.contrib.auth.models import AbstractUser
 from django.db import models
+from django.db.models.signals import pre_save
+from django.db.utils import ProgrammingError
+from django.dispatch import receiver
 from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
-from django.db.models.signals import pre_save
-from django.dispatch import receiver
-from django.db.utils import ProgrammingError
-
 from guardian.core import ObjectPermissionChecker
 from guardian.mixins import GuardianUserMixin
-from guardian.shortcuts import get_objects_for_user, get_anonymous_user
-
-import os
+from guardian.shortcuts import get_anonymous_user, get_objects_for_user
 
 DEFAULT_GROUP_NAME = 'all'
 

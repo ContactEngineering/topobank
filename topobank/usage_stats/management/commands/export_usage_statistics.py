@@ -1,18 +1,17 @@
-from django.core.management.base import BaseCommand
+import logging
+
+import numpy as np
+import pandas as pd
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ObjectDoesNotExist
 from django.core.mail import EmailMessage
-from django.conf import settings
+from django.core.management.base import BaseCommand
 from django.db.models import Count
-
 from trackstats.models import Metric, StatisticByDate, StatisticByDateAndObject
 
+from topobank.manager.models import Surface, Topography
 from topobank.usage_stats.utils import register_metrics
-from topobank.manager.models import Topography, Surface
-
-import pandas as pd
-import numpy as np
-import logging
 
 EXPORT_FILE_NAME = 'usage_statistics.xlsx'
 
