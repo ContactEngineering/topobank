@@ -35,6 +35,34 @@ Running tests with py.test
 
 Or use run configurations in your IDE, e.g. in PyCharm.
 
+linting with pre-commit hooks
+-----------------------------
+
+We are testing the code quality in the test pipeline, if your code is not conform with flake8,
+the pipeline will fail.
+To prevent you from committing non-conform code, you can install pre-commit.
+`pre-commit` runs tests on your code befor the commit.
+Just install `pre-commit` with pip or your package manager.
+Then run:
+
+.. code-block:: bash
+
+    pre-commit install
+
+Thats all you really need to do!
+
+To run the `pre-commit` hooks by hand you can run:
+
+.. code-block:: bash
+
+    pre-commit run
+
+If you want to skip a pre-commit stage, i.e. flake8, run:
+
+.. code-block:: bash
+
+   SKIP=flake8 pre-commit run
+
 Docker
 ------
 
