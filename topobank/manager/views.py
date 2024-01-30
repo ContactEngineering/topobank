@@ -126,7 +126,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
 
 
 def download_surface(request, surface_id):
-    """Returns a file comprised from topographies contained in a surface.
+    """Returns a file or redirect comprised from topographies contained in a surface.
 
     :param request:
     :param surface_id: surface id
@@ -161,9 +161,8 @@ def download_surface(request, surface_id):
 
         # noinspection PyBroadException
         try:
-            with pub.container.open() as cf:
-                content_data = cf.read()
-            _log.debug(f"Read container for published surface {pub.short_url} from storage.")
+            if pub.container:
+                return redirect(pub.container.url)
         except Exception:  # not interested here, why it fails
             renew_publication_container = True
     else:
