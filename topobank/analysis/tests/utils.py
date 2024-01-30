@@ -1,16 +1,15 @@
-from dataclasses import dataclass
-import logging
 import datetime
-import numpy as np
+import logging
+from dataclasses import dataclass
 
-from django.contrib.contenttypes.models import ContentType
 import factory
+import numpy as np
 import pytest
-
+from django.contrib.contenttypes.models import ContentType
 from SurfaceTopography import NonuniformLineScan as STNonuniformLineScan
 from SurfaceTopography import Topography as STTopography
 
-from ...manager.tests.utils import Topography2DFactory, SurfaceFactory, SurfaceCollectionFactory
+from ...manager.tests.utils import SurfaceCollectionFactory, SurfaceFactory, Topography2DFactory
 from ..models import Analysis, AnalysisFunction, AnalysisSubject
 
 _log = logging.getLogger(__name__)

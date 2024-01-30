@@ -4,10 +4,10 @@ Browser test for selection of topographies and functions.
 
 import os
 import os.path
+
 import pytest
 
-from browser_tests.conftest import wait_for_page_load, logout_user, login_user
-
+from browser_tests.conftest import login_user, logout_user, wait_for_page_load
 from topobank.analysis.models import AnalysisFunction
 
 

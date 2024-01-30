@@ -1,10 +1,8 @@
 import pytest
-
 from django.core.management import call_command
 
 from ..models import DEFAULT_GROUP_NAME
 from ..utils import get_default_group
-
 from .factories import UserFactory
 
 

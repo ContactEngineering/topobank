@@ -2,13 +2,12 @@
 Test of downloads module.
 """
 
+import pytest
 from django.shortcuts import reverse
 
 from ...utils import assert_in_content
 from ..downloads import download_plot_analyses_to_txt
-from .utils import TopographyAnalysisFactory, FailedTopographyAnalysisFactory, AnalysisFunction
-
-import pytest
+from .utils import AnalysisFunction, FailedTopographyAnalysisFactory, TopographyAnalysisFactory
 
 
 @pytest.mark.django_db

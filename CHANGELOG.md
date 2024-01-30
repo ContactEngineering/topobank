@@ -5,6 +5,7 @@
 - MAINT: Updated to django-allauth >= 0.56.0
 - MAINT: Don't serve from Django but redirect to S3 for published surface
   containers
+- MAINT: installing pre-commit to run linting before commits
 
 ## 1.6.0 (2024-01-22)
 

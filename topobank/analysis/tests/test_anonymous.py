@@ -1,15 +1,14 @@
 import pytest
 from django.shortcuts import reverse
 
-from ...manager.tests.utils import UserFactory, SurfaceFactory, Topography1DFactory
-
+from ...manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
 from .utils import TopographyAnalysisFactory
-
 
 #
 # The code in these tests rely on a middleware which replaces
 # Django's AnonymousUser by the one of django guardian
 #
+
 
 @pytest.mark.django_db
 def test_download_analyses_without_permission(client, test_analysis_function, handle_usage_statistics):

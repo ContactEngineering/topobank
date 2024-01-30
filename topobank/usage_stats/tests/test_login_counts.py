@@ -1,7 +1,7 @@
-import pytest
 import datetime
-from freezegun import freeze_time
 
+import pytest
+from freezegun import freeze_time
 from trackstats.models import Metric, StatisticByDate
 
 from topobank.manager.tests.utils import UserFactory

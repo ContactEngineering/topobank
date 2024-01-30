@@ -1,8 +1,8 @@
 import os
+
 from celery import Celery
 from celery.schedules import crontab
-
-from django.apps import apps, AppConfig
+from django.apps import AppConfig, apps
 from django.conf import settings
 
 if not settings.configured:

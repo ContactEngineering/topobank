@@ -1,14 +1,13 @@
 import pytest
-
 from django.contrib.contenttypes.models import ContentType
 from django.urls import reverse
 
-from ...manager.models import Topography, Surface
-from ...manager.tests.utils import Topography1DFactory, Topography2DFactory, UserFactory, SurfaceFactory
+from ...manager.models import Surface, Topography
+from ...manager.tests.utils import SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory
 from ...manager.utils import subjects_to_base64
-from ..models import Analysis, AnalysisFunction
 from ..functions import VIZ_SERIES
-from .utils import TopographyAnalysisFactory, SurfaceAnalysisFactory, AnalysisSubjectFactory
+from ..models import Analysis, AnalysisFunction
+from .utils import AnalysisSubjectFactory, SurfaceAnalysisFactory, TopographyAnalysisFactory
 
 
 @pytest.mark.django_db

@@ -1,11 +1,11 @@
 """Tests for output file for usage statistics."""
+import pandas as pd
+import pytest
 from django.core.management import call_command
 from django.shortcuts import reverse
 
-import pytest
-import pandas as pd
+from topobank.manager.tests.utils import SurfaceFactory, Topography2DFactory, UserFactory
 
-from topobank.manager.tests.utils import UserFactory, Topography2DFactory, SurfaceFactory
 from ...taskapp.tasks import save_landing_page_statistics
 
 

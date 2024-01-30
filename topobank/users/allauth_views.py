@@ -1,8 +1,7 @@
 # Views that are only required when allauth is configured
 
-from django.urls import reverse
-
 from allauth.account.views import EmailView
+from django.urls import reverse
 
 
 class TabbedEmailView(EmailView):

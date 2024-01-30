@@ -1,13 +1,13 @@
 """Tests for utils module on topobank level"""
 
 import json
-import numpy as np
 
+import numpy as np
 from django.core.files.storage import default_storage
 
 from topobank.supplib.json import ExtendedJSONEncoder
 
-from .utils import store_split_dict, load_split_dict, SplitDictionaryHere
+from .utils import SplitDictionaryHere, load_split_dict, store_split_dict
 
 
 def test_used_json_encoder_with_nan():

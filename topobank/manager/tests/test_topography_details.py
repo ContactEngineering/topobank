@@ -1,5 +1,4 @@
 import pytest
-
 from django.shortcuts import reverse
 
 from ...utils import assert_in_content

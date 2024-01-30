@@ -1,17 +1,17 @@
-import sys
 import logging
+import sys
 
-from django.core.management.base import BaseCommand
 from django.contrib.auth.models import Group, Permission
 from django.contrib.contenttypes.models import ContentType
-# from guardian.shortcuts import get_user_perms, remove_perm
-
+from django.core.management.base import BaseCommand
 from request_profiler.models import ProfilingRecord, RuleSet
 
+from topobank.analysis.models import Analysis
 from topobank.organizations.models import Organization
 from topobank.users.models import User
 
-from topobank.analysis.models import Analysis
+# from guardian.shortcuts import get_user_perms, remove_perm
+
 
 _log = logging.getLogger(__name__)
 

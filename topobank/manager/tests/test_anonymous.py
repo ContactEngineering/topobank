@@ -1,8 +1,7 @@
 import pytest
 from django.shortcuts import reverse
 
-from .utils import UserFactory, SurfaceFactory, Topography1DFactory
-
+from .utils import SurfaceFactory, Topography1DFactory, UserFactory
 
 #
 # The code in these tests rely on a middleware which replaces

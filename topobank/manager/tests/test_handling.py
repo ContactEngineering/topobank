@@ -3,16 +3,14 @@ import os.path
 from pathlib import Path
 
 import pytest
-from pytest import approx
-
-from django.shortcuts import reverse
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.shortcuts import reverse
 from django.utils.text import slugify
+from pytest import approx
 
-from ...utils import assert_no_form_errors, assert_form_error
-from ..models import Topography, Surface, MAX_LENGTH_DATAFILE_FORMAT
-
+from ...utils import assert_form_error, assert_no_form_errors
+from ..models import MAX_LENGTH_DATAFILE_FORMAT, Surface, Topography
 from .utils import FIXTURE_DIR, SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory, upload_file
 
 filelist = [

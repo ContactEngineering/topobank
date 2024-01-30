@@ -7,17 +7,17 @@ import logging
 import math
 import os.path
 import textwrap
-import yaml
 import zipfile
 
+import SurfaceTopography
+import yaml
 from django.conf import settings
 from django.utils.text import slugify
 from django.utils.timezone import now
 
 import topobank
-from .models import Topography
 
-import SurfaceTopography
+from .models import Topography
 
 _log = logging.getLogger(__name__)
 

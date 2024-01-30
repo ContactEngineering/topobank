@@ -1,14 +1,14 @@
-from django.core.management.base import BaseCommand
-from django.core.files.storage import default_storage
-from guardian.shortcuts import get_user_perms, remove_perm
-
-import sys
 import logging
+import sys
 
-from topobank.users.models import User
-from topobank.manager.models import Surface, Topography
-from topobank.analysis.models import Analysis
+from django.core.files.storage import default_storage
+from django.core.management.base import BaseCommand
+from guardian.shortcuts import get_user_perms, remove_perm
 from termsandconditions.models import UserTermsAndConditions
+
+from topobank.analysis.models import Analysis
+from topobank.manager.models import Surface, Topography
+from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
 

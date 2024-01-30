@@ -1,10 +1,9 @@
+from dataclasses import dataclass
+
 import pytest
 from pytest import approx
 
-from dataclasses import dataclass
-
 from ..utils import bandwidths_data
-
 from .utils import Topography1DFactory
 
 

@@ -1,8 +1,7 @@
+import logging
 from itertools import product
 
 from django.core.management.base import BaseCommand
-import logging
-
 from guardian.shortcuts import get_perms
 
 from topobank.manager.models import Surface, SurfaceUserObjectPermission

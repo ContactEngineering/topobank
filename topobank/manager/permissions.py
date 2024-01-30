@@ -1,11 +1,8 @@
-from django.http import Http404
-
 from django.contrib.contenttypes.models import ContentType
-
-from rest_framework.filters import BaseFilterBackend
-from rest_framework.permissions import DjangoObjectPermissions, SAFE_METHODS
-
+from django.http import Http404
 from guardian.utils import get_user_obj_perms_model
+from rest_framework.filters import BaseFilterBackend
+from rest_framework.permissions import SAFE_METHODS, DjangoObjectPermissions
 
 from .models import Surface
 
