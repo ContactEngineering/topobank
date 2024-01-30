@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.7.0 (not yet released)
+## 1.6.1 (2024-01-30)
 
 - MAINT: Updated to django-allauth >= 0.56.0
 - MAINT: Don't serve from Django but redirect to S3 for published surface
