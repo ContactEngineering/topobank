@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+## 1.7.0 (not yet released)
+
+- MAINT: Updated to django-allauth >= 0.56.0
+- MAINT: Don't serve from Django but redirect to S3 for published surface
+  containers
+
 ## 1.6.0 (2024-01-22)
 
 - ENH: Return creation and modification time in API routes
