@@ -171,11 +171,38 @@ class Property(models.Model):
         else:
             raise TypeError(f"The value must be of type int, float or str, got {type(value)}")
 
-    def save(self, *args, **kwargs):
-        if self.value_categorical is None and self.value_numerical is None:
+    def validate(self):
+        """
+        Checks the invariants of this Model.
+        If any invariant is broken, a ValueError is raised
+
+        Invariants:
+        - 1. `value_categorical` or `value_numerical` are `None`
+        - 2. `value_categorical` or `value_numerical` are not `None`
+        This results in a 'XOR' logic and exaclty one of the value fields has to hold a value
+        - 3. if `value_categorical` is not `None`, unit is `None`
+        - 4. if `value_numerical` is not `None`, unit is not `None`
+        This enforces the definition of a categorical values -> no units.
+
+        Note that the `unit` field can be blank (`""`).
+        `unit` == `None` and `unit` == `""`, are not the same.
+        The first means that the value has no unit, the second that the value has a dimensionless unit."""
+
+        # Invariant 1
+        if not (self.value_categorical is None or self.value_numerical is None):
+            raise ValueError("Either 'value_categorical' or 'value_numerical' must be None.")
+        # Invariant 2
+        if not (self.value_categorical is not None or self.value_numerical is not None):
             raise ValueError("Either 'value_categorical' or 'value_numerical' must be not None.")
-        if self.value_categorical is not None and self.value_numerical is not None:
-            raise ValueError("Only one of 'value_categorical' or 'value_numerical' should be not None.")
+        # Invariant 3
+        if self.value_categorical is not None and self.unit is not None:
+            raise ValueError("If the Property is categorical, the unit must be 'None'")
+        # Invariant 4
+        if self.value_numerical is not None and self.unit is None:
+            raise ValueError("If the Property is numerical, the unit must not be 'None'")
+
+    def save(self, *args, **kwargs):
+        self.validate()
         super().save(*args, **kwargs)
 
     def __str__(self):
