@@ -159,11 +159,13 @@ class ValueField(serializers.Field):
 class PropertySerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Property
-        fields = ['name', 'value', 'unit']
+        fields = ['name', 'value', 'unit', 'surface']
 
     name = serializers.CharField()
     value = ValueField()
     unit = serializers.CharField(allow_null=True)
+    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
+                                                  queryset=Surface.objects.all())
 
     def validate_value(self, value):
         if not (isinstance(value, str) or isinstance(value, float) or isinstance(value, int)):

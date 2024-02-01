@@ -9,6 +9,7 @@ import sys
 import tempfile
 
 import dateutil.parser
+from django.core.exceptions import ValidationError
 import django.dispatch
 import matplotlib.cm
 import matplotlib.pyplot
@@ -132,83 +133,6 @@ class SubjectMixin:
         return User.objects.intersection(*tuple(get_users_with_perms(s) for s in self.related_surfaces()))
 
 
-class Property(models.Model):
-    name = tm.SingleTagField()
-    value_categorical = models.CharField(blank=True, null=True)
-    value_numerical = models.FloatField(blank=True, null=True)
-    unit = tm.SingleTagField(
-        null=True,
-        blank=True
-    )
-
-    @property
-    def value(self):
-        if self.value_numerical is None:
-            return self.value_categorical
-        return self.value_numerical
-
-    @value.setter
-    def value(self, value):
-        """
-        Set the value of the property.
-
-        Parameters:
-        - value (int, float, str): The value to be assigned. Should be of type int, float, or str.
-
-        Raises:
-        - TypeError: If the provided value is not of type int, float, or str.
-
-        Notes:
-        - If the value is of type str, it will be assigned to the 'value_categorical' attribute.
-        - If the value is of type int or float, it will be assigned to the 'value_numerical' attribute.
-        """
-        if isinstance(value, str):
-            self.value_categorical = value
-            self.value_numerical = None
-        elif isinstance(value, float) or isinstance(value, int):
-            self.value_numerical = value
-            self.value_categorical = None
-        else:
-            raise TypeError(f"The value must be of type int, float or str, got {type(value)}")
-
-    def validate(self):
-        """
-        Checks the invariants of this Model.
-        If any invariant is broken, a ValueError is raised
-
-        Invariants:
-        - 1. `value_categorical` or `value_numerical` are `None`
-        - 2. `value_categorical` or `value_numerical` are not `None`
-        This results in a 'XOR' logic and exaclty one of the value fields has to hold a value
-        - 3. if `value_categorical` is not `None`, unit is `None`
-        - 4. if `value_numerical` is not `None`, unit is not `None`
-        This enforces the definition of a categorical values -> no units.
-
-        Note that the `unit` field can be blank (`""`).
-        `unit` == `None` and `unit` == `""`, are not the same.
-        The first means that the value has no unit, the second that the value has a dimensionless unit."""
-
-        # Invariant 1
-        if not (self.value_categorical is None or self.value_numerical is None):
-            raise ValueError("Either 'value_categorical' or 'value_numerical' must be None.")
-        # Invariant 2
-        if not (self.value_categorical is not None or self.value_numerical is not None):
-            raise ValueError("Either 'value_categorical' or 'value_numerical' must be not None.")
-        # Invariant 3
-        if self.value_categorical is not None and self.unit is not None:
-            raise ValueError("If the Property is categorical, the unit must be 'None'")
-        # Invariant 4
-        if self.value_numerical is not None and self.unit is None:
-            raise ValueError("If the Property is numerical, the unit must not be 'None'")
-
-    def save(self, *args, **kwargs):
-        self.validate()
-        super().save(*args, **kwargs)
-
-    def __str__(self):
-        return f"{self.name}: {self.value} {self.unit}"
-
-
 class Surface(models.Model, SubjectMixin):
     """Physical Surface.
 
@@ -224,7 +148,6 @@ class Surface(models.Model, SubjectMixin):
 
     name = models.CharField(max_length=80, blank=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
-    properties = models.ManyToManyField(Property)
     description = models.TextField(blank=True)
     category = models.CharField(max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False)
     tags = tm.TagField(to=TagModel)
@@ -427,6 +350,84 @@ class Surface(models.Model, SubjectMixin):
         """Returns True, if a publication for this surface exists.
         """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
+
+
+class Property(models.Model):
+    name = tm.SingleTagField()
+    value_categorical = models.CharField(blank=True, null=True)
+    value_numerical = models.FloatField(blank=True, null=True)
+    unit = tm.SingleTagField(
+        null=True,
+        blank=True
+    )
+    surface = models.ForeignKey(Surface, on_delete=models.CASCADE, related_name="properties")
+
+    @property
+    def value(self):
+        if self.value_numerical is None:
+            return self.value_categorical
+        return self.value_numerical
+
+    @value.setter
+    def value(self, value):
+        """
+        Set the value of the property.
+
+        Parameters:
+        - value (int, float, str): The value to be assigned. Should be of type int, float, or str.
+
+        Raises:
+        - TypeError: If the provided value is not of type int, float, or str.
+
+        Notes:
+        - If the value is of type str, it will be assigned to the 'value_categorical' attribute.
+        - If the value is of type int or float, it will be assigned to the 'value_numerical' attribute.
+        """
+        if isinstance(value, str):
+            self.value_categorical = value
+            self.value_numerical = None
+        elif isinstance(value, float) or isinstance(value, int):
+            self.value_numerical = value
+            self.value_categorical = None
+        else:
+            raise TypeError(f"The value must be of type int, float or str, got {type(value)}")
+
+    def validate(self):
+        """
+        Checks the invariants of this Model.
+        If any invariant is broken, a ValidationError is raised
+
+        Invariants:
+        - 1. `value_categorical` or `value_numerical` are `None`
+        - 2. `value_categorical` or `value_numerical` are not `None`
+        This results in a 'XOR' logic and exaclty one of the value fields has to hold a value
+        - 3. if `value_categorical` is not `None`, unit is `None`
+        - 4. if `value_numerical` is not `None`, unit is not `None`
+        This enforces the definition of a categorical values -> no units.
+
+        Note that the `unit` field can be blank (`""`).
+        `unit` == `None` and `unit` == `""`, are not the same.
+        The first means that the value has no unit, the second that the value has a dimensionless unit."""
+
+        # Invariant 1
+        if not (self.value_categorical is None or self.value_numerical is None):
+            raise ValidationError("Either 'value_categorical' or 'value_numerical' must be None.")
+        # Invariant 2
+        if not (self.value_categorical is not None or self.value_numerical is not None):
+            raise ValidationError("Either 'value_categorical' or 'value_numerical' must be not None.")
+        # Invariant 3
+        if self.value_categorical is not None and self.unit is not None:
+            raise ValidationError("If the Property is categorical, the unit must be 'None'")
+        # Invariant 4
+        if self.value_numerical is not None and self.unit is None:
+            raise ValidationError("If the Property is numerical, the unit must not be 'None'")
+
+    def save(self, *args, **kwargs):
+        self.validate()
+        super().save(*args, **kwargs)
+
+    def __str__(self):
+        return f"{self.name}: {self.value} {self.unit}"
 
 
 class SurfaceUserObjectPermission(UserObjectPermissionBase):
