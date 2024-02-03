@@ -76,16 +76,6 @@ class DZIGenerationException(ThumbnailGenerationException):
     pass
 
 
-class TagModel(tm.TagTreeModel):
-    """This is the common tag model for surfaces and topographies.
-    """
-
-    class TagMeta:
-        force_lowercase = True
-        # not needed yet
-        # autocomplete_view = 'manager:autocomplete-tags'
-
-
 class SubjectMixin:
     """Extra methods common to all instances which can be subject to an analysis.
     """
@@ -132,8 +122,25 @@ class SubjectMixin:
         return User.objects.intersection(*tuple(get_users_with_perms(s) for s in self.related_surfaces()))
 
 
-class Surface(models.Model, SubjectMixin):
-    """Physical Surface.
+class TagModel(tm.TagTreeModel,
+               SubjectMixin):
+    """This is the common tag model for surfaces and topographies.
+    """
+
+    class TagMeta:
+        force_lowercase = True
+        # not needed yet
+        # autocomplete_view = 'manager:autocomplete-tags'
+
+    def related_surfaces(self):
+        l = list(Surface.objects.filter(tags=self.id))
+        print(l)
+        return l
+
+class Surface(models.Model,
+              SubjectMixin):
+    """
+    A physical surface of a specimen.
 
     There can be many topographies (measurements) for one surface.
     """
@@ -405,7 +412,9 @@ def topography_thumbnail_path(instance, filename):
 
 
 class Topography(TaskStateModel, SubjectMixin):
-    """Topography measurement of a surface."""
+    """
+    A single topography measurement of a surface of a specimen.
+    """
 
     # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
@@ -574,7 +583,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
             # `instrument_parameters` is special as it can contain non-significant entries
             if (self._clean_instrument_parameters(self.instrument_parameters) !=
-                    self._clean_instrument_parameters(old_obj.instrument_parameters)):
+                self._clean_instrument_parameters(old_obj.instrument_parameters)):
                 changed_fields += ['instrument_parameters']
 
             # We need to refresh if any of the significant fields changed during this save

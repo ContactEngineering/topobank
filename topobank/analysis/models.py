@@ -49,7 +49,8 @@ class AnalysisSubject(models.Model):
         elif isinstance(subject, SurfaceCollection):
             return models.Q(subject_dispatch__collection_id=subject.id)
         else:
-            raise ValueError('`subject` argument must be of type `Topography`, `Surface` or `SurfaceCollection`.')
+            raise ValueError('`subject` argument must be of type `Topography`, `Surface` or `SurfaceCollection`, '
+                             f'not {type(subject)}.')
 
     def get(self):
         if self.topography is not None:
