@@ -98,10 +98,11 @@ def mangle_content_type(obj, default_app_label='manager'):
     """Mangle content type into a string that can be used as a Javascript variable name"""
     if not isinstance(obj, ContentType):
         obj = ContentType.objects.get_for_model(obj)
-    if obj.app_label == default_app_label:
-        return obj.name
+    app_label, name = obj.natural_key()
+    if app_label == default_app_label:
+        return name
     else:
-        return f'{obj.app_label}_{obj.name}'
+        return f'{app_label}_{name}'
 
 
 def demangle_content_type(s, default_app_label='manager'):
