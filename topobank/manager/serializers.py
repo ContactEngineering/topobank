@@ -57,6 +57,16 @@ class StrictFieldMixin:
         return attrs
 
 
+class TagSerializer(StrictFieldMixin,
+                    serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Surface
+        fields = ['url',
+                  'id']
+
+    url = serializers.HyperlinkedIdentityField(view_name='manager:tag-api-detail', read_only=True)
+
+
 class TopographySerializer(StrictFieldMixin,
                            TaskStateModelSerializer):
     class Meta:

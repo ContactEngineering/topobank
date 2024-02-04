@@ -6,8 +6,9 @@ from rest_framework.routers import DefaultRouter
 from . import views
 
 router = DefaultRouter()
-router.register(r'api/surface', views.SurfaceViewSet, basename='surface-api')
+router.register(r'api/tag', views.TagViewSet, basename='tag-api')
 router.register(r'api/topography', views.TopographyViewSet, basename='topography-api')
+router.register(r'api/surface', views.SurfaceViewSet, basename='surface-api')
 
 urlpatterns = router.urls
 

@@ -21,12 +21,19 @@ from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
-from .models import Surface, Topography, topography_datafile_path
+from .models import Surface, Tag, Topography, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
-from .serializers import SurfaceSerializer, TopographySerializer
+from .serializers import SurfaceSerializer, TagSerializer, TopographySerializer
 from .utils import api_to_guardian, get_upload_instructions
 
 _log = logging.getLogger(__name__)
+
+
+class TagViewSet(mixins.RetrieveModelMixin,
+                 viewsets.GenericViewSet):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
 
 class SurfaceViewSet(mixins.CreateModelMixin,
