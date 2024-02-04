@@ -13,7 +13,7 @@ from django.core.management import call_command
 from django.shortcuts import reverse
 
 from ...users.tests.factories import UserFactory
-from ..models import Surface, SurfaceCollection, TagModel, Topography
+from ..models import Surface, SurfaceCollection, Tag, Topography
 
 FIXTURE_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -144,7 +144,7 @@ class TagModelFactory(factory.django.DjangoModelFactory):
     """Generates a tag."""
 
     class Meta:
-        model = TagModel
+        model = Tag
 
     name = factory.Sequence(lambda n: "tag-{}".format(n))
 

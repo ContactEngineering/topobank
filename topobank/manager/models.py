@@ -122,8 +122,8 @@ class SubjectMixin:
         return User.objects.intersection(*tuple(get_users_with_perms(s) for s in self.related_surfaces()))
 
 
-class TagModel(tm.TagTreeModel,
-               SubjectMixin):
+class Tag(tm.TagTreeModel,
+          SubjectMixin):
     """This is the common tag model for surfaces and topographies.
     """
 
@@ -136,6 +136,7 @@ class TagModel(tm.TagTreeModel,
         l = list(Surface.objects.filter(tags=self.id))
         print(l)
         return l
+
 
 class Surface(models.Model,
               SubjectMixin):
@@ -156,7 +157,7 @@ class Surface(models.Model,
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.CharField(max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False)
-    tags = tm.TagField(to=TagModel)
+    tags = tm.TagField(to=Tag)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
@@ -366,7 +367,8 @@ class SurfaceGroupObjectPermission(GroupObjectPermissionBase):
     content_object = models.ForeignKey(Surface, on_delete=models.CASCADE)
 
 
-class SurfaceCollection(models.Model, SubjectMixin):
+class SurfaceCollection(models.Model,
+                        SubjectMixin):
     """A collection of surfaces."""
     MAX_LENGTH_NAME = 160
 
@@ -475,7 +477,7 @@ class Topography(TaskStateModel, SubjectMixin):
     creator = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
-    tags = tm.TagField(to=TagModel)
+    tags = tm.TagField(to=Tag)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
