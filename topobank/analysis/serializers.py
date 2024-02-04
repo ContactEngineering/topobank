@@ -47,7 +47,7 @@ class AnalysisFunctionSerializer(serializers.HyperlinkedModelSerializer):
 class AnalysisSubjectSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = AnalysisSubject
-        fields = ['id', 'topography', 'surface', 'collection']
+        fields = ['id', 'tag', 'topography', 'surface']
 
     topography = serializers.HyperlinkedRelatedField(view_name='manager:topography-api-detail', read_only=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail', read_only=True)

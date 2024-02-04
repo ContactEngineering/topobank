@@ -47,8 +47,8 @@ class AnalysisFunctionView(viewsets.GenericViewSet, mixins.ListModelMixin, mixin
 class AnalysisResultView(viewsets.GenericViewSet,
                          mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
-    queryset = Analysis.objects.select_related('function', 'subject_dispatch__topography', 'subject_dispatch__surface',
-                                               'subject_dispatch__collection').prefetch_related('users')
+    queryset = Analysis.objects.select_related('function', 'subject_dispatch__tag', 'subject_dispatch__topography',
+                                               'subject_dispatch__surface').prefetch_related('users')
     serializer_class = AnalysisResultSerializer
 
     def update(self, request, *args, **kwargs):
@@ -168,8 +168,8 @@ def series_card_view(request, **kwargs):
     # Also collect number of topographies and surfaces
     #
     series_names = set()
+    nb_tags = 0  # Total number of tags shown
     nb_surfaces = 0  # Total number of averages/surfaces shown
-    nb_surfacecollections = 0  # Total number of surface collections shown
     nb_topographies = 0  # Total number of topography results shown
     nb_others = 0  # Total number of results for other kinds of subject types
 
@@ -183,12 +183,12 @@ def series_card_view(request, **kwargs):
         series_metadata = analysis.result_metadata.get('series', [])
         series_names.update([s['name'] if 'name' in s else f'{i}' for i, s in enumerate(series_metadata)])
 
-        if analysis.subject_dispatch.surface is not None:
-            nb_surfaces += 1
+        if analysis.subject_dispatch.tag is not None:
+            nb_tags += 1
         elif analysis.subject_dispatch.topography is not None:
             nb_topographies += 1
-        elif analysis.subject_dispatch.collection is not None:
-            nb_surfacecollections += 1
+        elif analysis.subject_dispatch.surface is not None:
+            nb_surfaces += 1
         else:
             nb_others += 1
 

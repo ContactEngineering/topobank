@@ -18,5 +18,5 @@ class AnalysisFunctionAdmin(admin.ModelAdmin):
 
 @admin.register(AnalysisSubject)
 class AnalysisSubjectAdmin(admin.ModelAdmin):
-    list_display = ('id', 'collection', 'surface', 'topography')
+    list_display = ('id', 'tag', 'surface', 'topography')
     ordering = ['id']

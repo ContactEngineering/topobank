@@ -133,9 +133,7 @@ class Tag(tm.TagTreeModel,
         # autocomplete_view = 'manager:autocomplete-tags'
 
     def related_surfaces(self):
-        l = list(Surface.objects.filter(tags=self.id))
-        print(l)
-        return l
+        return Surface.objects.filter(tags=self.id)
 
 
 class Surface(models.Model,
@@ -367,40 +365,6 @@ class SurfaceGroupObjectPermission(GroupObjectPermissionBase):
     content_object = models.ForeignKey(Surface, on_delete=models.CASCADE)
 
 
-class SurfaceCollection(models.Model,
-                        SubjectMixin):
-    """A collection of surfaces."""
-    MAX_LENGTH_NAME = 160
-
-    name = models.CharField(max_length=MAX_LENGTH_NAME)
-    surfaces = models.ManyToManyField(Surface)
-
-    # We have a manytomany field, because a surface could be part of multiple collections.
-
-    @property
-    def label(self):
-        return self.name
-
-    def related_surfaces(self):
-        return list(self.surfaces.all())
-
-    def is_shared(self, with_user, allow_change=False):
-        """Returns True, if this subject is shared with a given user.
-
-        Always returns True if user is the creator of all related surfaces.
-
-        Parameters
-        ----------
-        with_user: User
-            User to test
-
-        Returns
-        -------
-        True or False
-        """
-        return all(s.is_shared(with_user, allow_change=allow_change) for s in self.related_surfaces())
-
-
 def topography_datafile_path(instance, filename):
     return f'{instance.storage_prefix}/raw/{filename}'
 
@@ -585,7 +549,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
             # `instrument_parameters` is special as it can contain non-significant entries
             if (self._clean_instrument_parameters(self.instrument_parameters) !=
-                self._clean_instrument_parameters(old_obj.instrument_parameters)):
+                    self._clean_instrument_parameters(old_obj.instrument_parameters)):
                 changed_fields += ['instrument_parameters']
 
             # We need to refresh if any of the significant fields changed during this save

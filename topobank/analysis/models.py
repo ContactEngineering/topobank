@@ -10,7 +10,7 @@ from django.core.files.storage import default_storage
 from django.db import models
 from django.utils import timezone
 
-from ..manager.models import Surface, SurfaceCollection, Topography
+from ..manager.models import Surface, Tag, Topography
 from ..manager.utils import recursive_delete
 from ..taskapp.models import Configuration, TaskStateModel
 from ..users.models import User
@@ -21,50 +21,50 @@ RESULT_FILE_BASENAME = 'result'
 
 
 class AnalysisSubject(models.Model):
-    """Analysis subject, which can be either a SurfaceCollection, Surface or a Topography"""
+    """Analysis subject, which can be either a Tag, a Topography or a Surface"""
 
-    collection = models.ForeignKey(SurfaceCollection, null=True, blank=True, on_delete=models.CASCADE)
-    surface = models.ForeignKey(Surface, null=True, blank=True, on_delete=models.CASCADE)
+    tag = models.ForeignKey(Tag, null=True, blank=True, on_delete=models.CASCADE)
     topography = models.ForeignKey(Topography, null=True, blank=True, on_delete=models.CASCADE)
+    surface = models.ForeignKey(Surface, null=True, blank=True, on_delete=models.CASCADE)
 
     @classmethod
     def create(cls, subject):
-        topography = surface = collection = None
-        if isinstance(subject, Topography):
+        tag = topography = surface = None
+        if isinstance(subject, Tag):
+            tag = subject
+        elif isinstance(subject, Topography):
             topography = subject
         elif isinstance(subject, Surface):
             surface = subject
-        elif isinstance(subject, SurfaceCollection):
-            collection = subject
         else:
-            raise ValueError('`subject` argument must be of type `Topography`, `Surface` or `SurfaceCollection`.')
-        return cls.objects.create(topography=topography, surface=surface, collection=collection)
+            raise ValueError('`subject` argument must be of type `Tag`, `Topography` or `Surface`.')
+        return cls.objects.create(tag=tag, topography=topography, surface=surface)
 
     @staticmethod
     def Q(subject):
-        if isinstance(subject, Topography):
+        if isinstance(subject, Tag):
+            return models.Q(subject_dispatch__tag_id=subject.id)
+        elif isinstance(subject, Topography):
             return models.Q(subject_dispatch__topography_id=subject.id)
         elif isinstance(subject, Surface):
             return models.Q(subject_dispatch__surface_id=subject.id)
-        elif isinstance(subject, SurfaceCollection):
-            return models.Q(subject_dispatch__collection_id=subject.id)
         else:
-            raise ValueError('`subject` argument must be of type `Topography`, `Surface` or `SurfaceCollection`, '
+            raise ValueError('`subject` argument must be of type `Tag`, `Topography` or `Surface`, '
                              f'not {type(subject)}.')
 
     def get(self):
-        if self.topography is not None:
+        if self.tag is not None:
+            return self.tag
+        elif self.topography is not None:
             return self.topography
         elif self.surface is not None:
             return self.surface
-        elif self.collection is not None:
-            return self.collection
         else:
             raise RuntimeError('Database corruption: All subjects appear to be None/null.')
 
     def save(self, *args, **kwargs):
-        if sum([self.collection is not None, self.surface is not None, self.topography is not None]) != 1:
-            raise ValidationError('Only of of collection, surface or topgoraphy can be defined.')
+        if sum([self.tag is not None, self.topography is not None, self.surface is not None]) != 1:
+            raise ValidationError('Only of of tag, topography or tag can be defined.')
         super().save(*args, **kwargs)
 
 
@@ -127,7 +127,7 @@ class Analysis(TaskStateModel):
 
     @property
     def subject(self):
-        """Return the subject of the analysis, which can be a Topography, a Surface or a SurfaceCollection"""
+        """Return the subject of the analysis, which can be a Tag, a Topography or a Surface"""
         return self.subject_dispatch.get()
 
     @property
@@ -204,9 +204,9 @@ class Analysis(TaskStateModel):
         return self.subject_dispatch.surface is not None
 
     @property
-    def is_collection_related(self):
-        """Returns True, if the analysis subject is a surface collection, else False."""
-        return self.subject_dispatch.collection is not None
+    def is_tag_related(self):
+        """Returns True, if the analysis subject is a tag, else False."""
+        return self.subject_dispatch.tag is not None
 
 
 class AnalysisFunction(models.Model):
@@ -302,8 +302,8 @@ class AnalysisFunction(models.Model):
         specified.
         """
         if models is None:
-            from ..manager.models import Surface, SurfaceCollection, Topography
-            models = set([SurfaceCollection, Surface, Topography])
+            from ..manager.models import Surface, Tag, Topography
+            models = set([Tag, Topography, Surface])
 
         is_available_to_user = False
         for model in models:
