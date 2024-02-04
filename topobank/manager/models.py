@@ -132,8 +132,11 @@ class Tag(tm.TagTreeModel,
         # not needed yet
         # autocomplete_view = 'manager:autocomplete-tags'
 
+    def is_shared(self, with_user, allow_change=False):
+        return True  # Tags are generally shared, but the surfaces may not
+
     def related_surfaces(self):
-        return Surface.objects.filter(tags=self.id)
+        return list(Surface.objects.filter(tags=self.id))
 
 
 class Surface(models.Model,
