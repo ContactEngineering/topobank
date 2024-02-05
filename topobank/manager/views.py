@@ -2,6 +2,7 @@ import logging
 import os.path
 from io import BytesIO
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.db.models import Prefetch, Q
@@ -146,6 +147,8 @@ def download_surface(request, surface_id):
 
     content_data = None
 
+    print('download')
+
     #
     # If the surface has been published, there might be a container file already.
     # If yes:
@@ -154,34 +157,43 @@ def download_surface(request, surface_id):
     #     If no, save the container in the publication later.
     # If no: create a container for this surface on the fly
     #
-    renew_publication_container = False
     if surface.is_published:
+        print('is_published')
         pub = surface.publication
         container_filename = os.path.basename(pub.container_storage_path)
 
-        # noinspection PyBroadException
-        try:
-            if pub.container:
+        if pub.container:
+            print('pub.container')
+            if settings.USE_S3_STORAGE:
+                # Return redirect to S3
+                print('redirect', pub.container.url)
                 return redirect(pub.container.url)
-        except Exception:  # not interested here, why it fails
-            renew_publication_container = True
+            else:
+                print('content_data')
+                content_data = pub.container.read()
     else:
         container_filename = slugify(surface.name) + ".zip"
 
     if content_data is None:
+        print('making new container')
         container_bytes = BytesIO()
         _log.info(f"Preparing container of surface id={surface_id} for download..")
         write_surface_container(container_bytes, [surface])
         content_data = container_bytes.getvalue()
 
-        if renew_publication_container:
+        if surface.is_published:
+            print('is_published')
             try:
                 container_bytes.seek(0)
                 _log.info(f"Saving container for publication with URL {pub.short_url} to storage for later..")
                 pub.container.save(pub.container_storage_path, container_bytes)
             except (OSError, BlockingIOError) as exc:
-                _log.error(f"Cannot save container for publication {pub.short_url} to storage. "
-                           f"Reason: {exc}")
+                _log.error(f"Cannot save container for publication {pub.short_url} to storage. Reason: {exc}")
+            # Return redirect to S3
+            if settings.USE_S3_STORAGE:
+                # Return redirect to S3
+                print('redirect', pub.container.url)
+                return redirect(pub.container.url)
 
     # Prepare response object.
     response = HttpResponse(content_data,
