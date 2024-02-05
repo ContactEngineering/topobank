@@ -106,9 +106,14 @@ class SubjectMixin:
         raise NotImplementedError()
 
     def related_surfaces(self):
-        """Returns sequence of related surfaces.
+        """Returns a list of related surfaces. This can be either the parent
+        surface (for a topography), the child surfaces (for a tag), or the
+        surface itself (for a surface).
 
-        :return: True or False
+        Returns
+        -------
+        surfaces : list of Surface
+            The surfaces that are related to this object.
         """
         raise NotImplementedError()
 
@@ -117,7 +122,9 @@ class SubjectMixin:
 
         Returns
         -------
-        A queryset of users.
+        users : Queryset of users
+            All users that have some form of permission (view, full, etc.) on
+            this subject.
         """
         return User.objects.intersection(*tuple(get_users_with_perms(s) for s in self.related_surfaces()))
 
