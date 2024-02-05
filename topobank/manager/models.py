@@ -26,6 +26,7 @@ from django.shortcuts import reverse
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 from guardian.shortcuts import assign_perm, get_perms, get_users_with_perms, remove_perm
 from notifications.signals import notify
+from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -146,6 +147,18 @@ class Tag(tm.TagTreeModel,
         return list(Surface.objects.filter(tags=self.id))
 
 
+class TopobankLazySurfaceContainer(SurfaceContainer):
+    """Wraps a `Surface` with lazy loading of topography data"""
+    def __init__(self, surface):
+        self._surface = surface
+
+    def __len__(self):
+        return len(self._surface)
+
+    def __getitem__(self, item):
+        return self._surface[item].read()
+
+
 class Surface(models.Model,
               SubjectMixin):
     """
@@ -182,6 +195,12 @@ class Surface(models.Model,
             s += f" (version {self.publication.version})"
         return s
 
+    def __len__(self):
+        return self.topography_set.count()
+
+    def __getitem__(self, item):
+        return self.topography_set[item]
+
     @property
     def label(self):
         return str(self)
@@ -193,7 +212,7 @@ class Surface(models.Model,
         return reverse('manager:surface-api-detail', kwargs=dict(pk=self.pk))
 
     def num_topographies(self):
-        return self.topography_set.count()
+        return len(self)
 
     def save(self, *args, **kwargs):
         created = self.pk is None
@@ -365,6 +384,14 @@ class Surface(models.Model,
         """Returns True, if a publication for this surface exists.
         """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
+
+    def lazy_read(self):
+        """
+        Returns a `SurfaceTopography.Container.SurfaceContainer`
+        representation of this dataset. Reading of actual data is deferred
+        to the point where it is actually needed.
+        """
+        return TopobankLazySurfaceContainer(self)
 
 
 class SurfaceUserObjectPermission(UserObjectPermissionBase):
@@ -783,7 +810,7 @@ class Topography(TaskStateModel, SubjectMixin):
         if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
             _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
                          'process. This operation is potentially slow and may require a lot of memory - do not use '
-                         '`Topography.topography` within the main Django server!')
+                         '`Topography.read` within the main Django server!')
 
         reader_kwargs = dict(channel_index=self.data_source,
                              periodic=self.is_periodic)
@@ -819,7 +846,7 @@ class Topography(TaskStateModel, SubjectMixin):
             topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
         return topo.detrend(detrend_mode=self.detrend_mode)
 
-    def topography(self, allow_squeezed=True, return_reader=False):
+    def read(self, allow_squeezed=True, return_reader=False):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -860,7 +887,7 @@ class Topography(TaskStateModel, SubjectMixin):
                 _log.warning(
                     'You are requesting to load a (2D) topography and you are not within in a Celery worker '
                     'process. This operation is potentially slow and may require a lot of memory - do not use '
-                    '`Topography.topography` within the main Django server!')
+                    '`Topography.read` within the main Django server!')
 
             # Okay, we can use the squeezed datafile, it's already there.
             toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
@@ -879,6 +906,8 @@ class Topography(TaskStateModel, SubjectMixin):
             return topo, toporeader
         else:
             return topo
+
+    topography = read  # Renaming this, mark `topography` as deprecated before v2
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
@@ -967,7 +996,7 @@ class Topography(TaskStateModel, SubjectMixin):
             Thumbnail image.
         """
         if st_topo is None:
-            st_topo = self.topography()  # SurfaceTopography instance (=st)
+            st_topo = self.read()  # SurfaceTopography instance (=st)
         image_file = io.BytesIO()
         if st_topo.dim == 1:
             dpi = 100
@@ -1009,7 +1038,7 @@ class Topography(TaskStateModel, SubjectMixin):
         None
         """
         if st_topo is None:
-            st_topo = self.topography()
+            st_topo = self.read()
 
         image_file = self.get_thumbnail(st_topo=st_topo)
 
@@ -1033,7 +1062,7 @@ class Topography(TaskStateModel, SubjectMixin):
         None
         """
         if st_topo is None:
-            st_topo = self.topography()
+            st_topo = self.read()
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
             make_dzi(st_topo, self._dzi_storage_prefix())
@@ -1097,7 +1126,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def renew_squeezed_datafile(self, st_topo=None):
         if st_topo is None:
-            st_topo = self.topography()
+            st_topo = self.read()
         with tempfile.NamedTemporaryFile() as tmp:
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)
@@ -1117,7 +1146,7 @@ class Topography(TaskStateModel, SubjectMixin):
         Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
         """
         if st_topo is None:
-            st_topo = self.topography()
+            st_topo = self.read()
         if st_topo.unit is not None:
             bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
             fac = get_unit_conversion_factor(st_topo.unit, 'm')

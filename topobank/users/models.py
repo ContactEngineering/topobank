@@ -116,7 +116,7 @@ class User(GuardianUserMixin, AbstractUser):
             # we might get an exception if the migrations
             # haven't been performed yet
             return self.id == self._get_anonymous_user().id
-        except ProgrammingError:
+        except (ProgrammingError, self.DoesNotExist):
             return super().is_anonymous
 
     @property
@@ -135,7 +135,7 @@ class User(GuardianUserMixin, AbstractUser):
             # we might get an exception if the migrations
             # haven't been performed yet
             return self.id != self._get_anonymous_user().id
-        except ProgrammingError:
+        except (ProgrammingError, self.DoesNotExist):
             return super().is_anonymous
 
     class Meta:

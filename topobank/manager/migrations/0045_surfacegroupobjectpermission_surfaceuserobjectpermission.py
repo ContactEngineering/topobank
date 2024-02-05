@@ -60,6 +60,7 @@ class Migration(migrations.Migration):
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
         ('auth', '0012_alter_user_first_name_max_length'),
+        ('guardian', '0002_generic_permissions_index'),
         ('manager', '0044_alter_topography_instrument_parameters'),
     ]
 
