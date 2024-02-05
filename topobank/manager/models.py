@@ -153,10 +153,10 @@ class TopobankLazySurfaceContainer(SurfaceContainer):
         self._surface = surface
 
     def __len__(self):
-        return len(self._surface)
+        return self._surface.num_topographies()
 
     def __getitem__(self, item):
-        return self._surface[item].read()
+        return self._surface.topography_set[item].read()
 
 
 class Surface(models.Model,
@@ -195,12 +195,6 @@ class Surface(models.Model,
             s += f" (version {self.publication.version})"
         return s
 
-    def __len__(self):
-        return self.topography_set.count()
-
-    def __getitem__(self, item):
-        return self.topography_set[item]
-
     @property
     def label(self):
         return str(self)
@@ -212,7 +206,7 @@ class Surface(models.Model,
         return reverse('manager:surface-api-detail', kwargs=dict(pk=self.pk))
 
     def num_topographies(self):
-        return len(self)
+        return self.topography_set.count()
 
     def save(self, *args, **kwargs):
         created = self.pk is None
