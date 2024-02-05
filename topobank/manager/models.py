@@ -151,12 +151,13 @@ class TopobankLazySurfaceContainer(SurfaceContainer):
     """Wraps a `Surface` with lazy loading of topography data"""
     def __init__(self, surface):
         self._surface = surface
+        self._topographies = self._surface.topography_set.all()
 
     def __len__(self):
-        return self._surface.num_topographies()
+        return len(self._topographies)
 
     def __getitem__(self, item):
-        return self._surface.topography_set[item].read()
+        return self._topographies[item].read()
 
 
 class Surface(models.Model,
