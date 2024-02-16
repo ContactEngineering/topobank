@@ -151,7 +151,7 @@ def write_surface_container(file, surfaces):
     ===================
 
     TopoBank: {topobank.__version__}
-    SurfaceTopgoraphy: {SurfaceTopography.__version__}
+    SurfaceTopography: {SurfaceTopography.__version__}
     """)
 
     if len(publications) > 0:
