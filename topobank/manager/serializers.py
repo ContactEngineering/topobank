@@ -200,7 +200,8 @@ class SurfaceSerializer(StrictFieldMixin,
         current_user = request.user
         users = get_users_with_perms(obj, attach_perms=True)
         return {'current_user': {'user': UserSerializer(current_user, context=self.context).data,
-                                 'permission': guardian_to_api(users[current_user])},
+                                 'permission': guardian_to_api(
+                                     users[current_user]) if current_user in users else 'no-access'},
                 'other_users': [{'user': UserSerializer(key, context=self.context).data,
                                  'permission': guardian_to_api(value)}
                                 for key, value in users.items() if key != current_user]}
