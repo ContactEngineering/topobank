@@ -7,12 +7,12 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 from ...manager.models import Topography
-from ...manager.tests.utils import SurfaceCollectionFactory, SurfaceFactory, Topography1DFactory, UserFactory
+from ...manager.tests.utils import SurfaceFactory, TagFactory, Topography1DFactory, UserFactory
 from ..functions import topography_analysis_function_for_tests
 from ..models import Analysis, AnalysisFunction
 from ..registry import ImplementationMissingAnalysisFunctionException
 from ..tasks import current_configuration
-from .utils import SurfaceAnalysisFactory, SurfaceCollectionAnalysisFactory, TopographyAnalysisFactory
+from .utils import SurfaceAnalysisFactory, TagAnalysisFactory, TopographyAnalysisFactory
 
 
 @pytest.mark.django_db
@@ -32,13 +32,13 @@ def test_surface_as_analysis_subject():
 
 
 @pytest.mark.django_db
-def test_surfacecollection_as_analysis_subject():
+def test_tag_as_analysis_subject():
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
     s3 = SurfaceFactory()
-    sc = SurfaceCollectionFactory(surfaces=[s1, s2, s3])
+    sc = TagFactory(surfaces=[s1, s2, s3])
     func = AnalysisFunction.objects.get(name="test")
-    analysis = SurfaceCollectionAnalysisFactory(subject_collection=sc, function=func)
+    analysis = TagAnalysisFactory(subject_collection=sc, function=func)
     assert analysis.subject == sc
 
 
@@ -54,7 +54,7 @@ def test_default_users_for_surface_analysis():
 
 
 @pytest.mark.django_db
-def test_default_users_for_surfacecollection_analysis():
+def test_default_users_for_tag_analysis():
     u1 = UserFactory(name='Alice')
     u2 = UserFactory(name='Bob')
     u3 = UserFactory(name='Kim')
@@ -63,9 +63,9 @@ def test_default_users_for_surfacecollection_analysis():
     surf1.set_permissions(u3, 'view')
     surf2.set_permissions(u3, 'view')
     # Only Kim is allowed to see both surfaces
-    sc = SurfaceCollectionFactory(surfaces=[surf1, surf2])
+    sc = TagFactory(surfaces=[surf1, surf2])
     func = AnalysisFunction.objects.get(name="test")
-    analysis = SurfaceCollectionAnalysisFactory(subject_collection=sc, function=func)
+    analysis = TagAnalysisFactory(subject_collection=sc, function=func)
     assert sorted(analysis.get_default_users(), key=operator.attrgetter('name')) == [u3]
 
 

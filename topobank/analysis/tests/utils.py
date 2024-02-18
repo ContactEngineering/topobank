@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from SurfaceTopography import NonuniformLineScan as STNonuniformLineScan
 from SurfaceTopography import Topography as STTopography
 
-from ...manager.tests.utils import SurfaceCollectionFactory, SurfaceFactory, Topography2DFactory
+from ...manager.tests.utils import SurfaceFactory, TagFactory, Topography2DFactory
 from ..models import Analysis, AnalysisFunction, AnalysisSubject
 
 _log = logging.getLogger(__name__)
@@ -132,14 +132,14 @@ class SurfaceAnalysisFactory(AnalysisFactory):
     subject_surface = factory.SubFactory(SurfaceFactory)
 
 
-class SurfaceCollectionAnalysisFactory(AnalysisFactory):
+class TagAnalysisFactory(AnalysisFactory):
     """Create an analysis for a surface collection."""
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Analysis
 
-    subject_collection = factory.SubFactory(SurfaceCollectionFactory)
+    subject_tag = factory.SubFactory(TagFactory)
 
 
 @dataclass(frozen=True)

@@ -178,7 +178,7 @@ def subjects_to_dict(subjects):
 
     Parameters
     ----------
-    subjects : list of Topography or Surface or SurfaceCollection
+    subjects : list of Topography or Surface or Tag
         Subjects for serialization
 
     Returns
@@ -298,7 +298,7 @@ def subjects_from_base64(url):
 
     Parameters
     ----------
-    subjects : list of Topography or Surface or SurfaceCollection
+    subjects : list of Topography or Surface or Tag
         Subjects for serialization
 
     Returns
