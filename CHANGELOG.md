@@ -3,6 +3,7 @@
 ## 1.7.0 (not yet released)
 
 - ENH: Tags as analysis subjects (as a replacement for surface collections)
+- ENH: Import of ZIP containers
 
 ## 1.6.1 (2024-01-30)
 
