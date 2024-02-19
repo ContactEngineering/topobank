@@ -5,7 +5,7 @@ from io import BytesIO
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.db.models import Prefetch, Q
-from django.http import Http404, HttpResponse, HttpResponseForbidden
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.utils.text import slugify
 from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
@@ -24,6 +24,7 @@ from .containers import write_surface_container
 from .models import Surface, Tag, Topography, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
 from .serializers import SurfaceSerializer, TagSerializer, TopographySerializer
+from .tasks import import_container_from_url
 from .utils import api_to_guardian, get_upload_instructions
 
 _log = logging.getLogger(__name__)
@@ -308,6 +309,19 @@ def upload_topography(request, pk=None):
 
     # Return 204 No Content
     return Response({}, status=204)
+
+
+@api_view(['POST'])
+def import_surface(request):
+    url = request.data.get('url')
+
+    if not url:
+        return HttpResponseBadRequest()
+
+    user = request.user
+    import_container_from_url.delay(user.id, url)
+
+    return Response({}, status=200)
 
 
 @api_view(['GET'])

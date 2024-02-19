@@ -45,6 +45,11 @@ urlpatterns += [
         name='set-permissions'
     ),
     path(
+        'api/import-surface/',
+        view=login_required(views.import_surface),
+        name='import-surface'
+    ),
+    path(
         'api/versions/',
         view=views.versions,
         name='versions'

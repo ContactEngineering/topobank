@@ -44,6 +44,6 @@ def import_container_from_url(user_id, url):
 
     # Notify user
     notify.send(sender=user, recipient=user, verb='imported', target=surface,
-                description=f"Successfully import digital surface twin with '{surface.name}' from URL {url}.")
+                description=f"Successfully import digital surface twin '{surface.name}' from URL {url}.")
 
     return surface.id
