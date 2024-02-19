@@ -38,7 +38,7 @@ def import_container_from_url(user_id, url):
     user = User.objects.get(id=user_id)
 
     # Process archive
-    with zipfile.Zipfile(container_file, mode='r') as z:
+    with zipfile.ZipFile(container_file, mode='r') as z:
         surface, = import_container(z, user)
 
     return surface.id
