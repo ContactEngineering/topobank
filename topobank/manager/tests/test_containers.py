@@ -8,11 +8,12 @@ import zipfile
 
 import pytest
 import yaml
+from notifications.models import Notification
 
 import topobank
 
 from ..containers import write_surface_container
-from ..models import Topography
+from ..models import Surface, Topography
 from ..tasks import import_container_from_url
 from .utils import FIXTURE_DIR, SurfaceFactory, TagModelFactory, Topography1DFactory, Topography2DFactory, UserFactory
 
@@ -131,4 +132,10 @@ def test_surface_container(example_authors):
 @pytest.mark.django_db
 def test_import():
     user = UserFactory(username='testuser1', password='abcd$1234')
-    import_container_from_url(user.id, 'https://doi.org/10.57703/ce-867nv')
+    surface_id = import_container_from_url(user.id, 'https://doi.org/10.57703/ce-867nv')
+    surface = Surface.objects.get(id=surface_id)
+    assert surface.name == 'Self-affine synthetic surface'
+    assert surface.topography_set.count() == 3
+    assert surface.description.startswith('This surface contains virtual measurements taken')
+    assert Notification.objects.filter(recipient=user, verb='imported',
+                                       description__startswith='Successfully import digital surface twin').count() == 1

@@ -2,6 +2,7 @@ import io
 import zipfile
 
 import requests
+from notifications.signals import notify
 
 from ..taskapp.celeryapp import app
 from ..users.models import User
@@ -40,5 +41,9 @@ def import_container_from_url(user_id, url):
     # Process archive
     with zipfile.ZipFile(container_file, mode='r') as z:
         surface, = import_container(z, user)
+
+    # Notify user
+    notify.send(sender=user, recipient=user, verb='imported', target=surface,
+                description=f"Successfully import digital surface twin with '{surface.name}' from URL {url}.")
 
     return surface.id
