@@ -7,7 +7,7 @@ from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
-from .models import Surface, Topography
+from .models import Surface, Tag, Topography
 from .utils import guardian_to_api
 
 _log = logging.getLogger(__name__)
@@ -60,9 +60,10 @@ class StrictFieldMixin:
 class TagSerializer(StrictFieldMixin,
                     serializers.HyperlinkedModelSerializer):
     class Meta:
-        model = Surface
+        model = Tag
         fields = ['url',
-                  'id']
+                  'id',
+                  'name']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:tag-api-detail', read_only=True)
 

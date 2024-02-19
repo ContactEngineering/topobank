@@ -36,10 +36,10 @@ def test_tag_as_analysis_subject():
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
     s3 = SurfaceFactory()
-    sc = TagFactory(surfaces=[s1, s2, s3])
+    st = TagFactory(surfaces=[s1, s2, s3])
     func = AnalysisFunction.objects.get(name="test")
-    analysis = TagAnalysisFactory(subject_collection=sc, function=func)
-    assert analysis.subject == sc
+    analysis = TagAnalysisFactory(subject_tag=st, function=func)
+    assert analysis.subject == st
 
 
 @pytest.mark.django_db
@@ -63,9 +63,9 @@ def test_default_users_for_tag_analysis():
     surf1.set_permissions(u3, 'view')
     surf2.set_permissions(u3, 'view')
     # Only Kim is allowed to see both surfaces
-    sc = TagFactory(surfaces=[surf1, surf2])
+    st = TagFactory(surfaces=[surf1, surf2])
     func = AnalysisFunction.objects.get(name="test")
-    analysis = TagAnalysisFactory(subject_collection=sc, function=func)
+    analysis = TagAnalysisFactory(subject_tag=st, function=func)
     assert sorted(analysis.get_default_users(), key=operator.attrgetter('name')) == [u3]
 
 

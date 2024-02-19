@@ -108,7 +108,7 @@ def test_renewal_on_topography_change(api_client, mocker, settings, django_captu
 
     if auto_renew:
         renew_topo_analyses_mock.assert_called()
-        assert renew_topo_analyses_mock.call_count == AnalysisFunction.objects.count()  # Called once each
+        assert renew_topo_analyses_mock.call_count == AnalysisFunction.objects.count() - 1  # Called once each (- 1 tag)
     else:
         renew_topo_analyses_mock.assert_not_called()
         assert renew_topo_analyses_mock.call_count == 0  # Never called
@@ -181,7 +181,7 @@ def test_renewal_on_topography_creation(api_client, mocker, settings, handle_usa
 
     if auto_renew:
         renew_topo_analyses_mock.assert_called()
-        assert renew_topo_analyses_mock.call_count == 2 * AnalysisFunction.objects.count()
+        assert renew_topo_analyses_mock.call_count == 2 * (AnalysisFunction.objects.count() - 1)
     else:
         renew_topo_analyses_mock.assert_not_called()
         assert renew_topo_analyses_mock.call_count == 0

@@ -192,7 +192,7 @@ def tag_analysis_function_for_tests(tag, a=1, b="foo", progress_recorder=None, s
     """
 
     name = f'Test result for test function called for tag {tag}, ' \
-           ', which is built from surfaces {}'.format([s.name for s in tag.surfaces.all()])
+           ', which is built from surfaces {}'.format([s.name for s in tag.surface_set.all()])
 
     return {'name': name,
             'xunit': 'm',

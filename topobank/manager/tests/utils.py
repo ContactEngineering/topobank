@@ -99,7 +99,7 @@ class TagFactory(factory.django.DjangoModelFactory):
         if extracted:
             # A list of surfaces were passed in, use them for the manytomany field
             for surface in extracted:
-                self.surfaces.add(surface)
+                self.surface_set.add(surface)
 
 
 class Topography1DFactory(factory.django.DjangoModelFactory):
