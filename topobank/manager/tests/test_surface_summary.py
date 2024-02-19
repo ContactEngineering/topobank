@@ -55,9 +55,9 @@ def test_bandwidths_data(two_topos_mock_for_bandwidth):
 
     for i in range(len(exp_bd)):
         for field in ['upper_bound', 'lower_bound', 'short_reliability_cutoff']:
-            assert exp_bd[i][field] == approx(bd[i][field])
+            assert exp_bd[i][field] == approx(bd[i][field]), field
         for field in ['topography', 'link']:
-            assert exp_bd[i][field] == bd[i][field]
+            assert exp_bd[i][field] == bd[i][field], field
 
 
 @pytest.mark.django_db
