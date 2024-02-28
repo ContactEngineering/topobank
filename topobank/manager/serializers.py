@@ -163,7 +163,7 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
 
     name = serializers.CharField()
     value = ValueField()
-    unit = serializers.CharField(allow_null=True)
+    unit = serializers.CharField(allow_null=True, allow_blank=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
                                                   queryset=Surface.objects.all())
 
@@ -171,6 +171,18 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
         if not (isinstance(value, str) or isinstance(value, float) or isinstance(value, int)):
             raise serializers.ValidationError(f"value must be of type float or string, but got {type(value)}")
         return value
+
+    def validate(self, data):
+        print(data)
+        if isinstance(data['value'], str) and data['unit'] is not None:
+            raise serializers.ValidationError({
+                "categorical value": f"If the value is categorical (str), the unit has to be 'null'"
+            })
+        if (isinstance(data['value'], str) or isinstance(data['value'], float)) and data['unit'] is None:
+            raise serializers.ValidationError({
+                "numerical value": f"If the value is categorical (int | float), the unit has to be not 'null' (str)"
+            })
+        return data
 
 
 class SurfaceSerializer(StrictFieldMixin,
