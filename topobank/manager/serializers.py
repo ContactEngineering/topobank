@@ -163,7 +163,7 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
 
     name = serializers.CharField()
     value = ValueField()
-    unit = serializers.CharField(allow_null=True, allow_blank=True)
+    unit = serializers.CharField(allow_null=True, allow_blank=True, required=False)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
                                                   queryset=Surface.objects.all())
 
@@ -180,11 +180,11 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
         return value
 
     def validate(self, data):
-        if isinstance(data['value'], str) and data['unit'] is not None:
+        if isinstance(data.get('value'), str) and data.get('unit') is not None:
             raise serializers.ValidationError({
                 "categorical value": "If the value is categorical (str), the unit has to be 'null'"
             })
-        if (isinstance(data['value'], int) or isinstance(data['value'], float)) and data['unit'] is None:
+        if (isinstance(data.get('value'), int) or isinstance(data.get('value'), float)) and data.get('unit') is None:
             raise serializers.ValidationError({
                 "numerical value": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
             })
