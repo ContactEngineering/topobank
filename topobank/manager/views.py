@@ -36,7 +36,7 @@ class PropertyViewSet(mixins.CreateModelMixin,
                       viewsets.GenericViewSet):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
+    permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
 
 
 class SurfaceViewSet(mixins.CreateModelMixin,
