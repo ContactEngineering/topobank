@@ -184,7 +184,7 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
             raise serializers.ValidationError({
                 "categorical value": "If the value is categorical (str), the unit has to be 'null'"
             })
-        if (isinstance(data['value'], str) or isinstance(data['value'], float)) and data['unit'] is None:
+        if (isinstance(data['value'], int) or isinstance(data['value'], float)) and data['unit'] is None:
             raise serializers.ValidationError({
                 "numerical value": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
             })
