@@ -167,20 +167,26 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
                                                   queryset=Surface.objects.all())
 
+    def to_representation(self, instance):
+        repr = super().to_representation(instance)
+        if instance.is_numerical() and instance.unit is None:
+            repr['unit'] = ''
+        return repr
+
+
     def validate_value(self, value):
         if not (isinstance(value, str) or isinstance(value, float) or isinstance(value, int)):
             raise serializers.ValidationError(f"value must be of type float or string, but got {type(value)}")
         return value
 
     def validate(self, data):
-        print(data)
         if isinstance(data['value'], str) and data['unit'] is not None:
             raise serializers.ValidationError({
-                "categorical value": f"If the value is categorical (str), the unit has to be 'null'"
+                "categorical value": "If the value is categorical (str), the unit has to be 'null'"
             })
         if (isinstance(data['value'], str) or isinstance(data['value'], float)) and data['unit'] is None:
             raise serializers.ValidationError({
-                "numerical value": f"If the value is categorical (int | float), the unit has to be not 'null' (str)"
+                "numerical value": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
             })
         return data
 

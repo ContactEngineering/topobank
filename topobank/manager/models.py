@@ -402,12 +402,13 @@ class Property(models.Model):
         - 2. `value_categorical` or `value_numerical` are not `None`
         This results in a 'XOR' logic and exaclty one of the value fields has to hold a value
         - 3. if `value_categorical` is not `None`, unit is `None`
-        - 4. if `value_numerical` is not `None`, unit is not `None`
+
         This enforces the definition of a categorical values -> no units.
 
-        Note that the `unit` field can be blank (`""`).
-        `unit` == `None` and `unit` == `""`, are not the same.
-        The first means that the value has no unit, the second that the value has a dimensionless unit."""
+        IMPORTANT!
+        The opposite is not the case!
+        If a unit is `None` this could also mean that its a numerical value, with no dimension
+        """
 
         # Invariant 1
         if not (self.value_categorical is None or self.value_numerical is None):
@@ -418,13 +419,16 @@ class Property(models.Model):
         # Invariant 3
         if self.value_categorical is not None and self.unit is not None:
             raise ValidationError("If the Property is categorical, the unit must be 'None'")
-        # Invariant 4
-        if self.value_numerical is not None and self.unit is None:
-            raise ValidationError("If the Property is numerical, the unit must not be 'None'")
 
     def save(self, *args, **kwargs):
         self.validate()
         super().save(*args, **kwargs)
+
+    def is_numerical(self):
+        return self.value_numerical is not None
+
+    def is_categorical(self):
+        return not self.is_numerical()
 
     def __str__(self):
         return f"{self.name}: {self.value} {self.unit}"
