@@ -202,17 +202,16 @@ class SurfaceSerializer(StrictFieldMixin,
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # We only return the topography set if requested to do so
-        children = self.context['request'].query_params.get('children')
-        with_children = children is not None and children.lower() in ['yes', 'true']
-        if not with_children:
-            self.fields.pop('topography_set')
-
-        # We only return permissions if requested to do so
-        permissions = self.context['request'].query_params.get('permissions')
-        with_permissions = permissions is not None and permissions.lower() in ['yes', 'true']
-        if not with_permissions:
-            self.fields.pop('permissions')
+        optional_fields = [
+            ('children', 'topography_set'),
+            ('permissions', 'permissions'),
+            ('properties', 'properties')
+        ]
+        for option, field in optional_fields:
+            param = self.context['request'].query_params.get(option)
+            requested = param is not None and param.lower() in ['yes', 'true']
+            if not requested:
+                self.fields.pop(field)
 
     def get_permissions(self, obj):
         request = self.context['request']
