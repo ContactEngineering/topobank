@@ -187,6 +187,11 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
             raise serializers.ValidationError({
                 "numerical value": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
             })
+        if not self.context['request'].user.has_perm('change_surface', data.get('surface')):
+            raise serializers.ValidationError({
+                "permission denied": "You do not have the permissions to change this surface"
+            })
+
         return data
 
 
