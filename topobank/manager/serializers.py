@@ -184,6 +184,10 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
             raise serializers.ValidationError({
                 "categorical value": "If the value is categorical (str), the unit has to be 'null'"
             })
+        if isinstance(data.get('value'), str) and data.get('value') == "":
+            raise serializers.ValidationError({
+                "value": "This field may not be blank"
+            })
         if (isinstance(data.get('value'), int) or isinstance(data.get('value'), float)) and data.get('unit') is None:
             raise serializers.ValidationError({
                 "numerical value": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
