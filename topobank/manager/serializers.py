@@ -159,8 +159,9 @@ class ValueField(serializers.Field):
 class PropertySerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Property
-        fields = ['name', 'value', 'unit', 'surface']
+        fields = ['url', 'name', 'value', 'unit', 'surface']
 
+    url = serializers.HyperlinkedIdentityField(view_name='manager:property-api-detail', read_only=True)
     name = serializers.CharField()
     value = ValueField()
     unit = serializers.CharField(allow_null=True, allow_blank=True, required=False)
