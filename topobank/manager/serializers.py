@@ -191,6 +191,10 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
             raise serializers.ValidationError({
                 "permission denied": "You do not have the permissions to change this surface"
             })
+        # If the peoperty changes from a numeric to categoric the unit needs to be 'None'
+        # This ensures that the unit is set to None when its omitted
+        if 'unit' not in data:
+            data['unit'] = None
 
         return data
 
