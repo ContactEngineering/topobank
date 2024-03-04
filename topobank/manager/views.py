@@ -45,7 +45,8 @@ class SurfaceViewSet(mixins.CreateModelMixin,
                      mixins.DestroyModelMixin,
                      viewsets.GenericViewSet):
     queryset = Surface.objects.prefetch_related(
-        Prefetch('topography_set', queryset=Topography.objects.order_by('name')))
+        Prefetch('topography_set', queryset=Topography.objects.order_by('name')),
+        Prefetch('properties', queryset=Property.objects.order_by('id')))
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
