@@ -15,7 +15,7 @@ import topobank
 from ..containers import write_surface_container
 from ..models import Surface, Topography
 from ..tasks import import_container_from_url
-from .utils import FIXTURE_DIR, SurfaceFactory, TagModelFactory, Topography1DFactory, Topography2DFactory, UserFactory
+from .utils import FIXTURE_DIR, SurfaceFactory, TagFactory, Topography1DFactory, Topography2DFactory, UserFactory
 
 
 @pytest.mark.django_db
@@ -32,8 +32,8 @@ def test_surface_container(example_authors):
     fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
     user = UserFactory()
-    tag1 = TagModelFactory(name='apple')
-    tag2 = TagModelFactory(name='banana')
+    tag1 = TagFactory(name='apple')
+    tag2 = TagFactory(name='banana')
     surface1 = SurfaceFactory(creator=user, tags=[tag1])
     surface2 = SurfaceFactory(creator=user)
     surface3 = SurfaceFactory(creator=user, description='Nice results')

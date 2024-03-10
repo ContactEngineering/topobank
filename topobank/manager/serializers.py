@@ -1,5 +1,6 @@
 import logging
 
+import pint
 from django.utils.translation import gettext_lazy as _
 from guardian.shortcuts import get_users_with_perms
 from rest_framework import serializers
@@ -7,10 +8,11 @@ from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
-from .models import Surface, Tag, Topography
+from .models import Property, Surface, Tag, Topography
 from .utils import guardian_to_api
 
 _log = logging.getLogger(__name__)
+_ureg = pint.UnitRegistry()
 
 
 # From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
@@ -158,6 +160,71 @@ class TopographySerializer(StrictFieldMixin,
                                 for key, value in users.items() if key != current_user]}
 
 
+class ValueField(serializers.Field):
+
+    def to_representation(self, value):
+        return value
+
+    def to_internal_value(self, data):
+        return data
+
+
+class PropertySerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Property
+        fields = ['url', 'name', 'value', 'unit', 'surface']
+
+    url = serializers.HyperlinkedIdentityField(view_name='manager:property-api-detail', read_only=True)
+    name = serializers.CharField()
+    value = ValueField()
+    unit = serializers.CharField(allow_null=True, allow_blank=True, required=False)
+    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
+                                                  queryset=Surface.objects.all())
+
+    def to_representation(self, instance):
+        repr = super().to_representation(instance)
+        if instance.is_numerical() and instance.unit is None:
+            repr['unit'] = ''
+        return repr
+
+    def validate_value(self, value):
+        if not (isinstance(value, str) or isinstance(value, float) or isinstance(value, int)):
+            raise serializers.ValidationError(f"value must be of type float or string, but got {type(value)}")
+        return value
+
+    def validate(self, data):
+        if isinstance(data.get('value'), str) and data.get('unit') is not None:
+            raise serializers.ValidationError({
+                "categorical value": "If the value is categorical (str), the unit has to be 'null'"
+            })
+        if isinstance(data.get('value'), str) and data.get('value') == "":
+            raise serializers.ValidationError({
+                "value": "This field may not be blank"
+            })
+        if (isinstance(data.get('value'), int) or isinstance(data.get('value'), float)) and data.get('unit') is None:
+            raise serializers.ValidationError({
+                "numerical value": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
+            })
+        if not self.context['request'].user.has_perm('change_surface', data.get('surface')):
+            raise serializers.ValidationError({
+                "permission denied": "You do not have the permissions to change this surface"
+            })
+        # If the peoperty changes from a numeric to categoric the unit needs to be 'None'
+        # This ensures that the unit is set to None when its omitted
+        if 'unit' not in data:
+            data['unit'] = None
+
+        if data['unit'] is not None:
+            try:
+                _ureg.check(data['unit'])
+            except pint.errors.UndefinedUnitError:
+                raise serializers.ValidationError({
+                    "unit": f"Unit '{data['unit']}' is not a physical unit"
+                })
+
+        return data
+
+
 class SurfaceSerializer(StrictFieldMixin,
                         serializers.HyperlinkedModelSerializer):
     class Meta:
@@ -171,7 +238,8 @@ class SurfaceSerializer(StrictFieldMixin,
                   'tags',
                   'creation_datetime', 'modification_datetime',
                   'topography_set',
-                  'permissions']
+                  'permissions',
+                  'properties']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
@@ -181,20 +249,21 @@ class SurfaceSerializer(StrictFieldMixin,
 
     permissions = serializers.SerializerMethodField()
 
+    properties = PropertySerializer(many=True)
+
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # We only return the topography set if requested to do so
-        children = self.context['request'].query_params.get('children')
-        with_children = children is not None and children.lower() in ['yes', 'true']
-        if not with_children:
-            self.fields.pop('topography_set')
-
-        # We only return permissions if requested to do so
-        permissions = self.context['request'].query_params.get('permissions')
-        with_permissions = permissions is not None and permissions.lower() in ['yes', 'true']
-        if not with_permissions:
-            self.fields.pop('permissions')
+        optional_fields = [
+            ('children', 'topography_set'),
+            ('permissions', 'permissions'),
+            ('properties', 'properties')
+        ]
+        for option, field in optional_fields:
+            param = self.context['request'].query_params.get(option)
+            requested = param is not None and param.lower() in ['yes', 'true']
+            if not requested:
+                self.fields.pop(field)
 
     def get_permissions(self, obj):
         request = self.context['request']

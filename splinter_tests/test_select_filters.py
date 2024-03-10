@@ -13,13 +13,13 @@ from splinter_tests.utils import (
     selected_sharing_status,
     selected_tree_mode
 )
-from topobank.manager.tests.utils import SurfaceFactory, TagModelFactory, Topography1DFactory
+from topobank.manager.tests.utils import SurfaceFactory, TagFactory, Topography1DFactory
 
 
 @pytest.fixture(scope='function')
 def items_for_filtering(db, user_alice, user_bob):
-    tag1 = TagModelFactory(name='tag1')
-    tag2 = TagModelFactory(name='tag2')
+    tag1 = TagFactory(name='tag1')
+    tag2 = TagFactory(name='tag2')
 
     surface1 = SurfaceFactory(name='surface1', creator=user_alice, category='exp', description='apple')
     topo1a = Topography1DFactory(name='topo1a', surface=surface1)

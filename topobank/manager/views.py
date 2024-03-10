@@ -22,13 +22,23 @@ from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
-from .models import Surface, Tag, Topography, topography_datafile_path
+from .models import Property, Surface, Tag, Topography, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
-from .serializers import SurfaceSerializer, TagSerializer, TopographySerializer
+from .serializers import PropertySerializer, SurfaceSerializer, TagSerializer, TopographySerializer
 from .tasks import import_container_from_url
 from .utils import api_to_guardian, get_upload_instructions
 
 _log = logging.getLogger(__name__)
+
+
+class PropertyViewSet(mixins.CreateModelMixin,
+                      mixins.RetrieveModelMixin,
+                      mixins.UpdateModelMixin,
+                      mixins.DestroyModelMixin,
+                      viewsets.GenericViewSet):
+    queryset = Property.objects.all()
+    serializer_class = PropertySerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
 
 
 class TagViewSet(mixins.RetrieveModelMixin,
@@ -44,7 +54,8 @@ class SurfaceViewSet(mixins.CreateModelMixin,
                      mixins.DestroyModelMixin,
                      viewsets.GenericViewSet):
     queryset = Surface.objects.prefetch_related(
-        Prefetch('topography_set', queryset=Topography.objects.order_by('name')))
+        Prefetch('topography_set', queryset=Topography.objects.order_by('name')),
+        Prefetch('properties', queryset=Property.objects.order_by('id')))
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
@@ -155,8 +166,6 @@ def download_surface(request, surface_id):
 
     content_data = None
 
-    print('download')
-
     #
     # If the surface has been published, there might be a container file already.
     # If yes:
@@ -166,31 +175,25 @@ def download_surface(request, surface_id):
     # If no: create a container for this surface on the fly
     #
     if surface.is_published:
-        print('is_published')
         pub = surface.publication
         container_filename = os.path.basename(pub.container_storage_path)
 
         if pub.container:
-            print('pub.container')
             if settings.USE_S3_STORAGE:
                 # Return redirect to S3
-                print('redirect', pub.container.url)
                 return redirect(pub.container.url)
             else:
-                print('content_data')
                 content_data = pub.container.read()
     else:
         container_filename = slugify(surface.name) + ".zip"
 
     if content_data is None:
-        print('making new container')
         container_bytes = BytesIO()
         _log.info(f"Preparing container of surface id={surface_id} for download..")
         write_surface_container(container_bytes, [surface])
         content_data = container_bytes.getvalue()
 
         if surface.is_published:
-            print('is_published')
             try:
                 container_bytes.seek(0)
                 _log.info(f"Saving container for publication with URL {pub.short_url} to storage for later..")
@@ -200,7 +203,6 @@ def download_surface(request, surface_id):
             # Return redirect to S3
             if settings.USE_S3_STORAGE:
                 # Return redirect to S3
-                print('redirect', pub.container.url)
                 return redirect(pub.container.url)
 
     # Prepare response object.

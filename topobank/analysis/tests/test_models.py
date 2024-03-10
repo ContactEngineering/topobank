@@ -36,7 +36,7 @@ def test_tag_as_analysis_subject():
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
     s3 = SurfaceFactory()
-    st = TagFactory(surfaces=[s1, s2, s3])
+    st = TagFactory.create(surfaces=[s1, s2, s3])
     func = AnalysisFunction.objects.get(name="test")
     analysis = TagAnalysisFactory(subject_tag=st, function=func)
     assert analysis.subject == st
