@@ -1,5 +1,15 @@
 import pytest
+from django.core.exceptions import ValidationError
 from rest_framework.reverse import reverse
+
+from topobank.manager.models import Property
+
+
+@pytest.mark.django_db(transaction=True)
+def test_wrong_unit(one_line_scan):
+    prop = Property(name="test", value=1.0, unit="csc")
+    with pytest.raises(ValidationError):
+        prop.save()
 
 
 @pytest.mark.django_db
@@ -51,7 +61,7 @@ def test_numerical_value_must_have_units(api_client, one_line_scan, handle_usage
 
     # create a numerical property with float value
     response = api_client.post(reverse('manager:property-api-list'),
-                               data=dict(name="price", value=1.99, unit="cent", surface=surface_api_url))
+                               data=dict(name="area", value=1.99, unit="m^2", surface=surface_api_url))
     assert response.status_code == 201
 
     # attempt creating a numerical property with a dimensionless unit
@@ -62,4 +72,9 @@ def test_numerical_value_must_have_units(api_client, one_line_scan, handle_usage
     # attempt creating a numerical property with no unit
     response = api_client.post(reverse('manager:property-api-list'),
                                data=dict(name="dings", value=1337, surface=surface_api_url))
+    assert response.status_code == 400
+
+    # create a numerical property with wrong unit
+    response = api_client.post(reverse('manager:property-api-list'),
+                               data=dict(name="stupid-unit", value=1.99, unit="m2", surface=surface_api_url))
     assert response.status_code == 400

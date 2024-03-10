@@ -1,5 +1,6 @@
 import logging
 
+import pint
 from django.utils.translation import gettext_lazy as _
 from guardian.shortcuts import get_users_with_perms
 from rest_framework import serializers
@@ -11,6 +12,7 @@ from .models import Property, Surface, Tag, Topography
 from .utils import guardian_to_api
 
 _log = logging.getLogger(__name__)
+_ureg = pint.UnitRegistry()
 
 
 # From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
@@ -211,6 +213,14 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
         # This ensures that the unit is set to None when its omitted
         if 'unit' not in data:
             data['unit'] = None
+
+        if data['unit'] is not None:
+            try:
+                _ureg.check(data['unit'])
+            except pint.errors.UndefinedUnitError:
+                raise serializers.ValidationError({
+                    "unit": f"Unit '{data['unit']}' is not a physical unit"
+                })
 
         return data
 

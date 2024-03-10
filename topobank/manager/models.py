@@ -14,6 +14,7 @@ import matplotlib.cm
 import matplotlib.pyplot
 import numpy as np
 import PIL
+import pint
 import tagulous.models as tm
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
@@ -37,6 +38,7 @@ from ..users.models import User
 from .utils import api_to_guardian, dzi_exists, get_topography_reader, guardian_to_api, make_dzi, recursive_delete
 
 _log = logging.getLogger(__name__)
+_ureg = pint.UnitRegistry()
 
 post_renew_cache = django.dispatch.Signal()
 
@@ -457,6 +459,12 @@ class Property(models.Model):
         # Invariant 3
         if self.value_categorical is not None and self.unit is not None:
             raise ValidationError("If the Property is categorical, the unit must be 'None'")
+        # Check unit
+        if self.unit is not None:
+            try:
+                _ureg.check(str(self.unit))
+            except pint.errors.UndefinedUnitError:
+                raise ValidationError(f"Unit '{self.unit}' is not a physical unit")
 
     def save(self, *args, **kwargs):
         self.validate()
