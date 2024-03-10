@@ -1,5 +1,4 @@
 import pytest
-
 from rest_framework.reverse import reverse
 
 
@@ -33,7 +32,7 @@ def test_categorical_value_cannot_have_units(api_client, one_line_scan):
 
 
 @pytest.mark.django_db
-def test_numerical_value_must_have_units(api_client, one_line_scan):
+def test_numerical_value_must_have_units(api_client, one_line_scan, handle_usage_statistics):
     # `api_client` is a fixture from django-rest-framework
     # `one_line_scan` is a fixture from topobank.manager.tests.utils that
     # creates a user and a surface with a topography
