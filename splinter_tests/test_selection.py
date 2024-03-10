@@ -7,13 +7,13 @@ from splinter_tests.utils import (
     goto_sharing_page,
     is_in_basket
 )
-from topobank.manager.tests.utils import SurfaceFactory, TagModelFactory, Topography1DFactory
+from topobank.manager.tests.utils import SurfaceFactory, TagFactory, Topography1DFactory
 
 
 @pytest.fixture(scope='function')
 def items_for_selection(db, user_alice):
-    tag1 = TagModelFactory(name="tag1")
-    tag2 = TagModelFactory(name="tag2")
+    tag1 = TagFactory(name="tag1")
+    tag2 = TagFactory(name="tag2")
 
     surface1 = SurfaceFactory(creator=user_alice, name='surface1')
     topo1a = Topography1DFactory(surface=surface1, name='topo1a')

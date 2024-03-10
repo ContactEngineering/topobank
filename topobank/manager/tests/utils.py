@@ -140,15 +140,6 @@ class Topography2DFactory(Topography1DFactory):
         model = Topography
 
 
-class TagModelFactory(factory.django.DjangoModelFactory):
-    """Generates a tag."""
-
-    class Meta:
-        model = Tag
-
-    name = factory.Sequence(lambda n: "tag-{}".format(n))
-
-
 #
 # Define fixtures
 #
@@ -254,9 +245,9 @@ def topography_loaded_from_broken_file():
 def user_three_topographies_three_surfaces_three_tags():
     user = UserFactory()
 
-    tag1 = TagModelFactory()
-    tag2 = TagModelFactory()
-    tag3 = TagModelFactory()
+    tag1 = TagFactory()
+    tag2 = TagFactory()
+    tag3 = TagFactory()
 
     surface1 = SurfaceFactory(creator=user, tags=[tag1])
     topo1a = Topography1DFactory(surface=surface1)
