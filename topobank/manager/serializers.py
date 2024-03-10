@@ -194,21 +194,15 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
 
     def validate(self, data):
         if isinstance(data.get('value'), str) and data.get('unit') is not None:
-            raise serializers.ValidationError({
-                "categorical value": "If the value is categorical (str), the unit has to be 'null'"
-            })
+            raise serializers.ValidationError(
+                {"message": "If the value is categorical (str), the unit has to be 'null'"})
         if isinstance(data.get('value'), str) and data.get('value') == "":
-            raise serializers.ValidationError({
-                "value": "This field may not be blank"
-            })
+            raise serializers.ValidationError({"message": "This field may not be blank"})
         if (isinstance(data.get('value'), int) or isinstance(data.get('value'), float)) and data.get('unit') is None:
-            raise serializers.ValidationError({
-                "numerical value": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
-            })
+            raise serializers.ValidationError(
+                {"message": "If the value is categorical (int | float), the unit has to be not 'null' (str)"})
         if not self.context['request'].user.has_perm('change_surface', data.get('surface')):
-            raise serializers.ValidationError({
-                "permission denied": "You do not have the permissions to change this surface"
-            })
+            raise serializers.ValidationError({"message": "You do not have the permissions to change this surface"})
         # If the peoperty changes from a numeric to categoric the unit needs to be 'None'
         # This ensures that the unit is set to None when its omitted
         if 'unit' not in data:
@@ -218,9 +212,8 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
             try:
                 _ureg.check(data['unit'])
             except pint.errors.UndefinedUnitError:
-                raise serializers.ValidationError({
-                    "unit": f"Unit '{data['unit']}' is not a physical unit"
-                })
+                unit = data['unit']
+                raise serializers.ValidationError({"message": f"Unit '{unit}' is not a physical unit"})
 
         return data
 
