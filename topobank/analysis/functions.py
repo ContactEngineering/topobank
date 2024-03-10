@@ -172,13 +172,13 @@ def surface_analysis_function_for_tests(surface, a=1, b="foo", progress_recorder
 
 
 # This function will be registered in tests by a fixture
-def surfacecollection_analysis_function_for_tests(surfacecollection, a=1, b="foo",
-                                                  progress_recorder=None, storage_prefix=None):
+def tag_analysis_function_for_tests(tag, a=1, b="foo", progress_recorder=None, storage_prefix=None):
     """This function can be registered for tests.
 
     Parameters
     ----------
-    surfacecollection: SurfaceCollection instance
+    tag : Tag
+        Analysis subject.
     a: int
         Just a parameter as example.
     d: str
@@ -191,8 +191,8 @@ def surfacecollection_analysis_function_for_tests(surfacecollection, a=1, b="foo
         files related to this analysis.
     """
 
-    name = f'Test result for test function called for surface collection {surfacecollection}, ' \
-           ', which is built from surfaces {}'.format([s.name for s in surfacecollection.surfaces.all()])
+    name = f'Test result for test function called for tag {tag}, ' \
+           ', which is built from surfaces {}'.format([s.name for s in tag.surface_set.all()])
 
     return {'name': name,
             'xunit': 'm',

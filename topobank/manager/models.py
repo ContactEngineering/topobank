@@ -9,7 +9,6 @@ import sys
 import tempfile
 
 import dateutil.parser
-from django.core.exceptions import ValidationError
 import django.dispatch
 import matplotlib.cm
 import matplotlib.pyplot
@@ -18,6 +17,7 @@ import PIL
 import tagulous.models as tm
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
@@ -27,6 +27,7 @@ from django.shortcuts import reverse
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 from guardian.shortcuts import assign_perm, get_perms, get_users_with_perms, remove_perm
 from notifications.signals import notify
+from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -77,16 +78,6 @@ class DZIGenerationException(ThumbnailGenerationException):
     pass
 
 
-class TagModel(tm.TagTreeModel):
-    """This is the common tag model for surfaces and topographies.
-    """
-
-    class TagMeta:
-        force_lowercase = True
-        # not needed yet
-        # autocomplete_view = 'manager:autocomplete-tags'
-
-
 class SubjectMixin:
     """Extra methods common to all instances which can be subject to an analysis.
     """
@@ -117,9 +108,14 @@ class SubjectMixin:
         raise NotImplementedError()
 
     def related_surfaces(self):
-        """Returns sequence of related surfaces.
+        """Returns a list of related surfaces. This can be either the parent
+        surface (for a topography), the child surfaces (for a tag), or the
+        surface itself (for a surface).
 
-        :return: True or False
+        Returns
+        -------
+        surfaces : list of Surface
+            The surfaces that are related to this object.
         """
         raise NotImplementedError()
 
@@ -128,13 +124,47 @@ class SubjectMixin:
 
         Returns
         -------
-        A queryset of users.
+        users : Queryset of users
+            All users that have some form of permission (view, full, etc.) on
+            this subject.
         """
         return User.objects.intersection(*tuple(get_users_with_perms(s) for s in self.related_surfaces()))
 
 
-class Surface(models.Model, SubjectMixin):
-    """Physical Surface.
+class Tag(tm.TagTreeModel,
+          SubjectMixin):
+    """This is the common tag model for surfaces and topographies.
+    """
+
+    class TagMeta:
+        force_lowercase = True
+        # not needed yet
+        # autocomplete_view = 'manager:autocomplete-tags'
+
+    def is_shared(self, with_user, allow_change=False):
+        return True  # Tags are generally shared, but the surfaces may not
+
+    def related_surfaces(self):
+        return list(Surface.objects.filter(tags=self.id))
+
+
+class TopobankLazySurfaceContainer(SurfaceContainer):
+    """Wraps a `Surface` with lazy loading of topography data"""
+    def __init__(self, surface):
+        self._surface = surface
+        self._topographies = self._surface.topography_set.all()
+
+    def __len__(self):
+        return len(self._topographies)
+
+    def __getitem__(self, item):
+        return self._topographies[item].read()
+
+
+class Surface(models.Model,
+              SubjectMixin):
+    """
+    A physical surface of a specimen.
 
     There can be many topographies (measurements) for one surface.
     """
@@ -150,7 +180,7 @@ class Surface(models.Model, SubjectMixin):
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.CharField(max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False)
-    tags = tm.TagField(to=TagModel)
+    tags = tm.TagField(to=Tag)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
@@ -351,6 +381,14 @@ class Surface(models.Model, SubjectMixin):
         """
         return hasattr(self, 'publication')  # checks whether the related object surface.publication exists
 
+    def lazy_read(self):
+        """
+        Returns a `SurfaceTopography.Container.SurfaceContainer`
+        representation of this dataset. Reading of actual data is deferred
+        to the point where it is actually needed.
+        """
+        return TopobankLazySurfaceContainer(self)
+
 
 class Property(models.Model):
     name = tm.SingleTagField()
@@ -442,39 +480,6 @@ class SurfaceGroupObjectPermission(GroupObjectPermissionBase):
     content_object = models.ForeignKey(Surface, on_delete=models.CASCADE)
 
 
-class SurfaceCollection(models.Model, SubjectMixin):
-    """A collection of surfaces."""
-    MAX_LENGTH_NAME = 160
-
-    name = models.CharField(max_length=MAX_LENGTH_NAME)
-    surfaces = models.ManyToManyField(Surface)
-
-    # We have a manytomany field, because a surface could be part of multiple collections.
-
-    @property
-    def label(self):
-        return self.name
-
-    def related_surfaces(self):
-        return list(self.surfaces.all())
-
-    def is_shared(self, with_user, allow_change=False):
-        """Returns True, if this subject is shared with a given user.
-
-        Always returns True if user is the creator of all related surfaces.
-
-        Parameters
-        ----------
-        with_user: User
-            User to test
-
-        Returns
-        -------
-        True or False
-        """
-        return all(s.is_shared(with_user, allow_change=allow_change) for s in self.related_surfaces())
-
-
 def topography_datafile_path(instance, filename):
     return f'{instance.storage_prefix}/raw/{filename}'
 
@@ -488,7 +493,9 @@ def topography_thumbnail_path(instance, filename):
 
 
 class Topography(TaskStateModel, SubjectMixin):
-    """Topography measurement of a surface."""
+    """
+    A single topography measurement of a surface of a specimen.
+    """
 
     # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
@@ -549,7 +556,7 @@ class Topography(TaskStateModel, SubjectMixin):
     creator = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
-    tags = tm.TagField(to=TagModel)
+    tags = tm.TagField(to=Tag)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
@@ -881,7 +888,7 @@ class Topography(TaskStateModel, SubjectMixin):
         if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
             _log.warning('You are requesting to load a (2D) topography and you are not within in a Celery worker '
                          'process. This operation is potentially slow and may require a lot of memory - do not use '
-                         '`Topography.topography` within the main Django server!')
+                         '`Topography.read` within the main Django server!')
 
         reader_kwargs = dict(channel_index=self.data_source,
                              periodic=self.is_periodic)
@@ -917,7 +924,7 @@ class Topography(TaskStateModel, SubjectMixin):
             topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
         return topo.detrend(detrend_mode=self.detrend_mode)
 
-    def topography(self, allow_squeezed=True, return_reader=False):
+    def read(self, allow_squeezed=True, return_reader=False):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -958,7 +965,7 @@ class Topography(TaskStateModel, SubjectMixin):
                 _log.warning(
                     'You are requesting to load a (2D) topography and you are not within in a Celery worker '
                     'process. This operation is potentially slow and may require a lot of memory - do not use '
-                    '`Topography.topography` within the main Django server!')
+                    '`Topography.read` within the main Django server!')
 
             # Okay, we can use the squeezed datafile, it's already there.
             toporeader = get_topography_reader(self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT)
@@ -977,6 +984,8 @@ class Topography(TaskStateModel, SubjectMixin):
             return topo, toporeader
         else:
             return topo
+
+    topography = read  # Renaming this, mark `topography` as deprecated before v2
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
@@ -1065,7 +1074,7 @@ class Topography(TaskStateModel, SubjectMixin):
             Thumbnail image.
         """
         if st_topo is None:
-            st_topo = self.topography()  # SurfaceTopography instance (=st)
+            st_topo = self.read()  # SurfaceTopography instance (=st)
         image_file = io.BytesIO()
         if st_topo.dim == 1:
             dpi = 100
@@ -1107,7 +1116,7 @@ class Topography(TaskStateModel, SubjectMixin):
         None
         """
         if st_topo is None:
-            st_topo = self.topography()
+            st_topo = self.read()
 
         image_file = self.get_thumbnail(st_topo=st_topo)
 
@@ -1131,7 +1140,7 @@ class Topography(TaskStateModel, SubjectMixin):
         None
         """
         if st_topo is None:
-            st_topo = self.topography()
+            st_topo = self.read()
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
             make_dzi(st_topo, self._dzi_storage_prefix())
@@ -1195,7 +1204,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def renew_squeezed_datafile(self, st_topo=None):
         if st_topo is None:
-            st_topo = self.topography()
+            st_topo = self.read()
         with tempfile.NamedTemporaryFile() as tmp:
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)
@@ -1215,7 +1224,7 @@ class Topography(TaskStateModel, SubjectMixin):
         Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
         """
         if st_topo is None:
-            st_topo = self.topography()
+            st_topo = self.read()
         if st_topo.unit is not None:
             bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
             fac = get_unit_conversion_factor(st_topo.unit, 'm')

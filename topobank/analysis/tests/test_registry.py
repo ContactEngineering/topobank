@@ -2,14 +2,14 @@ import pytest
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
 
-from ...manager.models import Surface, SurfaceCollection, Topography
-from ...manager.tests.utils import SurfaceCollectionFactory, SurfaceFactory, Topography1DFactory
+from ...manager.models import Surface, Tag, Topography
+from ...manager.tests.utils import SurfaceFactory, TagFactory, Topography1DFactory
 from ...organizations.tests.test_models import OrganizationFactory
 from ...users.tests.factories import UserFactory
 from ..functions import (
     VIZ_SERIES,
     surface_analysis_function_for_tests,
-    surfacecollection_analysis_function_for_tests,
+    tag_analysis_function_for_tests,
     topography_analysis_function_for_tests
 )
 from ..registry import AlreadyRegisteredAnalysisFunctionException, AnalysisRegistry, register_implementation
@@ -77,21 +77,21 @@ def test_analysis_function_implementation_for_surface():
 
 
 @pytest.mark.django_db
-def test_analysis_function_implementation_for_surfacecollection():
+def test_analysis_function_implementation_for_tag():
     reg = AnalysisRegistry()
 
-    ct = ContentType.objects.get_for_model(SurfaceCollection)
+    ct = ContentType.objects.get_for_model(Tag)
 
     impl = reg.get_implementation("test", ct)
 
-    assert impl.python_function == surfacecollection_analysis_function_for_tests
+    assert impl.python_function == tag_analysis_function_for_tests
     assert impl.default_kwargs == dict(a=1, b="foo")
 
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
     s3 = SurfaceFactory()
 
-    sc = SurfaceCollectionFactory(surfaces=[s1, s2, s3])
+    sc = TagFactory(surfaces=[s1, s2, s3])
     result = impl.eval(sc, a=2, b="bar")
     assert result['comment'] == 'a is 2 and b is bar'
 

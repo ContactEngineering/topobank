@@ -3,7 +3,7 @@ import logging
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
-from django.http import Http404
+from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import redirect
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
@@ -13,6 +13,7 @@ from rest_framework.reverse import reverse
 from trackstats.models import Metric
 
 from ..manager.models import Surface
+from ..manager.utils import demangle_content_type
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController, renew_existing_analysis
 from .models import Analysis, AnalysisFunction, Configuration
@@ -39,16 +40,22 @@ class AnalysisFunctionView(viewsets.GenericViewSet, mixins.ListModelMixin, mixin
     def get_queryset(self):
         # We need to filter the queryset to exclude functions in the list view
         user = self.request.user
+        subject_type = self.request.query_params.get('subject_type', None)
         # FIXME!!! This is a hack!!! The analysis function permission system needs to be refactored.
-        ids = [f.id for f in AnalysisFunction.objects.all() if f.is_available_for_user(user)]
+        if subject_type is None:
+            ids = [f.id for f in AnalysisFunction.objects.all()
+                   if f.is_available_for_user(user)]
+        else:
+            ids = [f.id for f in AnalysisFunction.objects.all()
+                   if f.is_available_for_user(user) and f.is_implemented_for_type(demangle_content_type(subject_type))]
         return AnalysisFunction.objects.filter(pk__in=ids)
 
 
 class AnalysisResultView(viewsets.GenericViewSet,
                          mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
-    queryset = Analysis.objects.select_related('function', 'subject_dispatch__topography', 'subject_dispatch__surface',
-                                               'subject_dispatch__collection').prefetch_related('users')
+    queryset = Analysis.objects.select_related('function', 'subject_dispatch__tag', 'subject_dispatch__topography',
+                                               'subject_dispatch__surface').prefetch_related('users')
     serializer_class = AnalysisResultSerializer
 
     def update(self, request, *args, **kwargs):
@@ -60,6 +67,26 @@ class AnalysisResultView(viewsets.GenericViewSet,
             return Response(serializer.data, status=status.HTTP_201_CREATED)
         else:
             return Response({}, status=status.HTTP_403_FORBIDDEN)
+
+
+@api_view(['GET'])
+def query_analyses(request, **kwargs):
+    try:
+        controller = AnalysisController.from_request(request, **kwargs)
+    except ValueError as err:
+        return HttpResponseBadRequest(str(err))
+
+    #
+    # Trigger missing analyses
+    #
+    controller.trigger_missing_analyses()
+
+    #
+    # Get context from controller and return
+    #
+    context = controller.get_context(request=request)
+
+    return Response(context)
 
 
 @api_view(['GET'])
@@ -168,8 +195,8 @@ def series_card_view(request, **kwargs):
     # Also collect number of topographies and surfaces
     #
     series_names = set()
+    nb_tags = 0  # Total number of tags shown
     nb_surfaces = 0  # Total number of averages/surfaces shown
-    nb_surfacecollections = 0  # Total number of surface collections shown
     nb_topographies = 0  # Total number of topography results shown
     nb_others = 0  # Total number of results for other kinds of subject types
 
@@ -183,12 +210,12 @@ def series_card_view(request, **kwargs):
         series_metadata = analysis.result_metadata.get('series', [])
         series_names.update([s['name'] if 'name' in s else f'{i}' for i, s in enumerate(series_metadata)])
 
-        if analysis.subject_dispatch.surface is not None:
-            nb_surfaces += 1
+        if analysis.subject_dispatch.tag is not None:
+            nb_tags += 1
         elif analysis.subject_dispatch.topography is not None:
             nb_topographies += 1
-        elif analysis.subject_dispatch.collection is not None:
-            nb_surfacecollections += 1
+        elif analysis.subject_dispatch.surface is not None:
+            nb_surfaces += 1
         else:
             nb_others += 1
 

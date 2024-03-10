@@ -5,6 +5,7 @@ Test whether analyses are recalculated on certain events.
 from pathlib import Path
 
 import pytest
+from django.contrib.contenttypes.models import ContentType
 from django.shortcuts import reverse
 
 from topobank.analysis.models import Analysis, AnalysisFunction
@@ -108,7 +109,9 @@ def test_renewal_on_topography_change(api_client, mocker, settings, django_captu
 
     if auto_renew:
         renew_topo_analyses_mock.assert_called()
-        assert renew_topo_analyses_mock.call_count == AnalysisFunction.objects.count()  # Called once each
+        assert renew_topo_analyses_mock.call_count == sum([
+            x.is_implemented_for_type(ContentType.objects.get_for_model(Topography))
+            for x in AnalysisFunction.objects.all()])
     else:
         renew_topo_analyses_mock.assert_not_called()
         assert renew_topo_analyses_mock.call_count == 0  # Never called
@@ -181,7 +184,9 @@ def test_renewal_on_topography_creation(api_client, mocker, settings, handle_usa
 
     if auto_renew:
         renew_topo_analyses_mock.assert_called()
-        assert renew_topo_analyses_mock.call_count == 2 * AnalysisFunction.objects.count()
+        assert renew_topo_analyses_mock.call_count == 2 * sum([
+            x.is_implemented_for_type(ContentType.objects.get_for_model(Topography))
+            for x in AnalysisFunction.objects.all()])
     else:
         renew_topo_analyses_mock.assert_not_called()
         assert renew_topo_analyses_mock.call_count == 0

@@ -18,7 +18,7 @@ def two_topos_mock_for_bandwidth(mocker, db):
         def short_reliability_cutoff(self):
             return 1.2 if self.with_cut_off else None  # should be seen in tests
 
-    topography_method_mock = mocker.patch('topobank.manager.models.Topography.topography')
+    topography_method_mock = mocker.patch('topobank.manager.models.Topography.read')
     topography_method_mock.side_effect = [
         STTopoStub(bandwidth=lambda: (6, 600), unit='nm', with_cut_off=True),
         STTopoStub(bandwidth=lambda: (5, 100), unit='µm', with_cut_off=False),
@@ -55,9 +55,9 @@ def test_bandwidths_data(two_topos_mock_for_bandwidth):
 
     for i in range(len(exp_bd)):
         for field in ['upper_bound', 'lower_bound', 'short_reliability_cutoff']:
-            assert exp_bd[i][field] == approx(bd[i][field])
+            assert exp_bd[i][field] == approx(bd[i][field]), field
         for field in ['topography', 'link']:
-            assert exp_bd[i][field] == bd[i][field]
+            assert exp_bd[i][field] == bd[i][field], field
 
 
 @pytest.mark.django_db

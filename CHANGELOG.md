@@ -1,5 +1,17 @@
 # Changelog for *TopoBank*
 
+## 1.7.0 (not yet released)
+
+- ENH: Tags as analysis subjects (as a replacement for surface collections)
+- ENH: Import of ZIP containers from URL
+
+## 1.6.1 (2024-01-30)
+
+- MAINT: Updated to django-allauth >= 0.56.0
+- MAINT: Don't serve from Django but redirect to S3 for published surface
+  containers
+- MAINT: installing pre-commit to run linting before commits
+
 ## 1.6.0 (2024-01-22)
 
 - ENH: Return creation and modification time in API routes
@@ -13,6 +25,7 @@
 - ENH: Routing manager and analysis tasks to different Celery queues
 - ENH: More options for filtering of sharing and publication status
 - ENH: Plugins can register middlewares and context processors
+- ENH: Plugin version are now stored for each analysis (#957)
 - MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be
   supported after April 2024)
 - MAINT: Split UI into separate `ce_ui` app in a separate git repository

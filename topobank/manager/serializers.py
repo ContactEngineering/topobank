@@ -7,7 +7,7 @@ from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
-from .models import Property, Surface, Topography
+from .models import Property, Surface, Tag, Topography
 from .utils import guardian_to_api
 
 _log = logging.getLogger(__name__)
@@ -55,6 +55,17 @@ class StrictFieldMixin:
             raise serializers.ValidationError(errors)
 
         return attrs
+
+
+class TagSerializer(StrictFieldMixin,
+                    serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Tag
+        fields = ['url',
+                  'id',
+                  'name']
+
+    url = serializers.HyperlinkedIdentityField(view_name='manager:tag-api-detail', read_only=True)
 
 
 class TopographySerializer(StrictFieldMixin,
@@ -249,7 +260,8 @@ class SurfaceSerializer(StrictFieldMixin,
         current_user = request.user
         users = get_users_with_perms(obj, attach_perms=True)
         return {'current_user': {'user': UserSerializer(current_user, context=self.context).data,
-                                 'permission': guardian_to_api(users[current_user])},
+                                 'permission': guardian_to_api(
+                                     users[current_user]) if current_user in users else 'no-access'},
                 'other_users': [{'user': UserSerializer(key, context=self.context).data,
                                  'permission': guardian_to_api(value)}
                                 for key, value in users.items() if key != current_user]}

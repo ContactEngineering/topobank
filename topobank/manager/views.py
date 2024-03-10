@@ -2,10 +2,11 @@ import logging
 import os.path
 from io import BytesIO
 
+from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.db.models import Prefetch, Q
-from django.http import Http404, HttpResponse, HttpResponseForbidden
+from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.utils.text import slugify
 from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
@@ -21,9 +22,10 @@ from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
-from .models import Property, Surface, Topography, topography_datafile_path
+from .models import Property, Surface, Tag, Topography, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
-from .serializers import PropertySerializer, SurfaceSerializer, TopographySerializer
+from .serializers import PropertySerializer, SurfaceSerializer, TagSerializer, TopographySerializer
+from .tasks import import_container_from_url
 from .utils import api_to_guardian, get_upload_instructions
 
 _log = logging.getLogger(__name__)
@@ -37,6 +39,13 @@ class PropertyViewSet(mixins.CreateModelMixin,
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
+
+
+class TagViewSet(mixins.RetrieveModelMixin,
+                 viewsets.GenericViewSet):
+    queryset = Tag.objects.all()
+    serializer_class = TagSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly]
 
 
 class SurfaceViewSet(mixins.CreateModelMixin,
@@ -137,7 +146,7 @@ class TopographyViewSet(mixins.CreateModelMixin,
 
 
 def download_surface(request, surface_id):
-    """Returns a file comprised from topographies contained in a surface.
+    """Returns a file or redirect comprised from topographies contained in a surface.
 
     :param request:
     :param surface_id: surface id
@@ -165,18 +174,16 @@ def download_surface(request, surface_id):
     #     If no, save the container in the publication later.
     # If no: create a container for this surface on the fly
     #
-    renew_publication_container = False
     if surface.is_published:
         pub = surface.publication
         container_filename = os.path.basename(pub.container_storage_path)
 
-        # noinspection PyBroadException
-        try:
-            with pub.container.open() as cf:
-                content_data = cf.read()
-            _log.debug(f"Read container for published surface {pub.short_url} from storage.")
-        except Exception:  # not interested here, why it fails
-            renew_publication_container = True
+        if pub.container:
+            if settings.USE_S3_STORAGE:
+                # Return redirect to S3
+                return redirect(pub.container.url)
+            else:
+                content_data = pub.container.read()
     else:
         container_filename = slugify(surface.name) + ".zip"
 
@@ -186,14 +193,17 @@ def download_surface(request, surface_id):
         write_surface_container(container_bytes, [surface])
         content_data = container_bytes.getvalue()
 
-        if renew_publication_container:
+        if surface.is_published:
             try:
                 container_bytes.seek(0)
                 _log.info(f"Saving container for publication with URL {pub.short_url} to storage for later..")
                 pub.container.save(pub.container_storage_path, container_bytes)
             except (OSError, BlockingIOError) as exc:
-                _log.error(f"Cannot save container for publication {pub.short_url} to storage. "
-                           f"Reason: {exc}")
+                _log.error(f"Cannot save container for publication {pub.short_url} to storage. Reason: {exc}")
+            # Return redirect to S3
+            if settings.USE_S3_STORAGE:
+                # Return redirect to S3
+                return redirect(pub.container.url)
 
     # Prepare response object.
     response = HttpResponse(content_data,
@@ -313,6 +323,19 @@ def upload_topography(request, pk=None):
 
     # Return 204 No Content
     return Response({}, status=204)
+
+
+@api_view(['POST'])
+def import_surface(request):
+    url = request.data.get('url')
+
+    if not url:
+        return HttpResponseBadRequest()
+
+    user = request.user
+    import_container_from_url.delay(user.id, url)
+
+    return Response({}, status=200)
 
 
 @api_view(['GET'])

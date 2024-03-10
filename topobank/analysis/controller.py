@@ -134,7 +134,7 @@ def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
     ----------
     users : sequence of User instances
         Users which should see the analysis.
-    subject : Topography or Surface or SurfaceCollection
+    subject : Tag or Topography or Surface
         Instance which will be subject of the analysis (first argument of
         analysis function).
     analysis_func : AnalysisFunction
@@ -293,8 +293,8 @@ class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
     queryset = Analysis.objects.all() \
-        .select_related('function', 'subject_dispatch__topography', 'subject_dispatch__surface',
-                        'subject_dispatch__collection')
+        .select_related('function', 'subject_dispatch__tag', 'subject_dispatch__topography',
+                        'subject_dispatch__surface')
 
     def __init__(self, user, subjects=None, function=None, function_id=None, function_kwargs=None, with_children=True):
         """
@@ -306,7 +306,7 @@ class AnalysisController:
         ----------
         user : topobank.manager.models.User
             Currently logged-in user.
-        subjects : list of Topography, Surface or SurfaceCollection, optional
+        subjects : list of Tag, Topography or Surface, optional
             Subjects for which to filter analyses. (Default: None)
         function : AnalysisFunction, optional
             Analysis function object. (Default: None)
@@ -519,9 +519,9 @@ class AnalysisController:
         return self.queryset \
             .filter(query) \
             .order_by('subject_dispatch__topography_id', 'subject_dispatch__surface_id',
-                      'subject_dispatch__collection_id', '-start_time') \
+                      'subject_dispatch__tag_id', '-start_time') \
             .distinct('subject_dispatch__topography_id', 'subject_dispatch__surface_id',
-                      'subject_dispatch__collection_id')
+                      'subject_dispatch__tag_id')
 
     def _get_subjects_without_analysis_results(self):
         """Find analyses that are missing (i.e. have not yet run)"""
@@ -558,8 +558,8 @@ class AnalysisController:
 
     def trigger_missing_analyses(self):
         """
-        Automatically trigger analyses for missing subjects (topographies,
-        surfaces or surface collections).
+        Automatically trigger analyses for missing subjects (tags,
+        topographies or surfaces).
 
         Save keyword arguments which should be used for missing analyses,
         sorted by subject type.
