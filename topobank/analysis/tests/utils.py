@@ -9,7 +9,7 @@ from django.contrib.contenttypes.models import ContentType
 from SurfaceTopography import NonuniformLineScan as STNonuniformLineScan
 from SurfaceTopography import Topography as STTopography
 
-from ...manager.tests.utils import SurfaceCollectionFactory, SurfaceFactory, Topography2DFactory
+from ...manager.tests.utils import SurfaceFactory, TagFactory, Topography2DFactory
 from ..models import Analysis, AnalysisFunction, AnalysisSubject
 
 _log = logging.getLogger(__name__)
@@ -69,17 +69,17 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     class Meta:
         # model = Analysis
         abstract = True
-        exclude = ['subject_topography', 'subject_surface', 'subject_collection']
+        exclude = ['subject_topography', 'subject_surface', 'subject_tag']
 
     subject_topography = None  # factory.SubFactory(Topography2DFactory)
     subject_surface = None
-    subject_collection = None
+    subject_tag = None
 
     function = factory.SubFactory(AnalysisFunctionFactory)
     subject_dispatch = factory.SubFactory(AnalysisSubjectFactory,
                                           topography=factory.SelfAttribute('..subject_topography'),
                                           surface=factory.SelfAttribute('..subject_surface'),
-                                          collection=factory.SelfAttribute('..subject_collection'))
+                                          tag=factory.SelfAttribute('..subject_tag'))
 
     kwargs = factory.LazyAttribute(_analysis_default_kwargs)
     result = factory.LazyAttribute(_analysis_result)
@@ -132,14 +132,14 @@ class SurfaceAnalysisFactory(AnalysisFactory):
     subject_surface = factory.SubFactory(SurfaceFactory)
 
 
-class SurfaceCollectionAnalysisFactory(AnalysisFactory):
+class TagAnalysisFactory(AnalysisFactory):
     """Create an analysis for a surface collection."""
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Analysis
 
-    subject_collection = factory.SubFactory(SurfaceCollectionFactory)
+    subject_tag = factory.SubFactory(TagFactory)
 
 
 @dataclass(frozen=True)

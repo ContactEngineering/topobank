@@ -149,7 +149,7 @@ def test_call_topography_method_multiple_times(two_topos):
     st_topo = topo.topography(allow_squeezed=False)
 
     assert st_topo.parent_topography.height_scale_factor == scaling_factor_before
-    assert st_topo.coeffs == coeffs_before
+    assert (st_topo.coeffs == coeffs_before).all()
 
 
 @pytest.mark.django_db

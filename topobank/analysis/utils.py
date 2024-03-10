@@ -118,9 +118,9 @@ def filter_and_order_analyses(analyses):
     #
     # Finally add analyses for surface collections, if any
     #
-    for collection_analysis in sorted([a for a in analyses if a.subject_dispatch.collection is not None],
-                                      key=lambda a: a.subject_dispatch.collection_id):
-        sorted_analyses.append(collection_analysis)
+    for tag_analysis in sorted([a for a in analyses if a.subject_dispatch.tag is not None],
+                               key=lambda a: a.subject_dispatch.tag_id):
+        sorted_analyses.append(tag_analysis)
 
     return sorted_analyses
 
