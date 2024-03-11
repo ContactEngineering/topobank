@@ -13,7 +13,7 @@ from django.core.management import call_command
 from django.shortcuts import reverse
 
 from ...users.tests.factories import UserFactory
-from ..models import Surface, Tag, Topography
+from ..models import Property, Surface, Tag, Topography
 
 FIXTURE_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -100,6 +100,23 @@ class TagFactory(factory.django.DjangoModelFactory):
             # A list of surfaces were passed in, use them for the manytomany field
             for surface in extracted:
                 self.surface_set.add(surface)
+
+
+class PropertyFactory(factory.django.DjangoModelFactory):
+    """Generates a Property."""
+
+    class Meta:
+        model = Property
+
+    @factory.post_generation
+    def surfaces(self, create, extracted, **kwargs):
+        if not create:
+            # Simple build, do nothing
+            return
+        if extracted:
+            # A list of surfaces were passed in, use them for the manytomany field
+            for surface in extracted:
+                self.properties.add(surface)
 
 
 class Topography1DFactory(factory.django.DjangoModelFactory):

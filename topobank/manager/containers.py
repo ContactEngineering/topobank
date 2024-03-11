@@ -19,7 +19,7 @@ from django.utils.timezone import now
 
 import topobank
 
-from .models import Surface, Topography, topography_datafile_path
+from .models import Property, Surface, Topography, topography_datafile_path
 
 _log = logging.getLogger(__name__)
 
@@ -42,6 +42,21 @@ SURFACE_DEFAULT_ATTR_VALUES = {
 
 
 def import_topography(topo_dict, topo_file, surface, ignore_missing=False):
+    """
+    Process a single topography from a surface container ZIP.
+
+    Parameters
+    ----------
+    topo_dict : dict
+        Dictionary with metadata of the topography.
+    topo_file : file
+        File object with the topography data.
+    surface : Surface
+        Surface instance to which the topography belongs.
+    ignore_missing : bool, optional
+        If True, try to find reasonable defaults for missing attributes.
+        (Default: False)
+    """
     topo_name = topo_dict['name']
 
     size_x, *size_rest = topo_dict['size']
@@ -100,7 +115,8 @@ def import_topography(topo_dict, topo_file, surface, ignore_missing=False):
 
 
 def import_container(surface_zip, user, datafile_attribute='datafile', ignore_missing=False, unsafe_yaml_loader=False):
-    """Process surface archive i.e. importing the surfaces.
+    """
+    Process surface archive i.e. importing the surfaces.
 
     Parameters
     ----------
@@ -137,6 +153,14 @@ def import_container(surface_zip, user, datafile_attribute='datafile', ignore_mi
                               tags=surface_dict['tags'])
             surface.save()
 
+            if 'properties' in surface_dict:
+                for property_dict in surface_dict['properties']:
+                    name = property_dict['name']
+                    value = property_dict['value']
+                    unit = property_dict.get('unit', None)
+                    surface.properties.add(Property(name=name, value=value, unit=unit))
+                surface.save()
+
             surfaces += [surface]
 
             for topo_idx, topo_dict in enumerate(surface_dict['topographies']):
@@ -149,7 +173,8 @@ def import_container(surface_zip, user, datafile_attribute='datafile', ignore_mi
 
 
 def write_surface_container(file, surfaces):
-    """Write container data to a file.
+    """
+    Write container data to a file.
 
     Parameters
     ----------
