@@ -4,6 +4,7 @@ from collections import defaultdict
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
+from django.db.models import Case, F, Sum, Value, When
 from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import redirect
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
@@ -444,10 +445,28 @@ def statistics(request):
 @api_view(['GET'])
 def memory_usage(request):
     m = defaultdict(list)
-    for function_id in AnalysisFunction.objects.values_list('id', flat=True):
-        for task_memory, start_time, end_time, subject in Analysis.objects.filter(function_id=function_id) \
-                .values_list('task_memory', 'start_time', 'end_time'):
-            m[function_id] += [{'task_memory': task_memory,
-                                'start_time': start_time,
-                                'end_time': end_time}]
+    for function_id, function_name in AnalysisFunction.objects.values_list('id', 'name'):
+        max_nb_grid_pts = Case(When(subject_dispatch__surface__isnull=False,
+                                    then=Sum(
+                                        F('subject_dispatch__surface__topography__resolution_x') * Case(
+                                            When(
+                                                subject_dispatch__surface__topography__resolution_y__isnull=False,
+                                                then=F(
+                                                    'subject_dispatch__surface__topography__resolution_y')),
+                                            default=1))),
+                               default=F('subject_dispatch__topography__resolution_x') * Case(
+                                   When(subject_dispatch__topography__resolution_y__isnull=False,
+                                        then=F('subject_dispatch__topography__resolution_y')),
+                                   default=1))
+        for x in Analysis.objects \
+                .filter(function_id=function_id) \
+                .values('task_memory') \
+                .annotate(resolution_x=F('subject_dispatch__topography__resolution_x'),
+                          resolution_y=F('subject_dispatch__topography__resolution_y'),
+                          duration=F('end_time') - F('start_time'),
+                          subject=Case(When(subject_dispatch__tag__isnull=False, then=Value('tag')),
+                                       When(subject_dispatch__surface__isnull=False, then=Value('surface')),
+                                       default=Value('topography')),
+                          max_nb_grid_pts=max_nb_grid_pts):
+            m[function_name] += [x]
     return Response(m, status=200)
