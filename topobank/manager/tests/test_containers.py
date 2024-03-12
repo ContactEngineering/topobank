@@ -15,7 +15,15 @@ import topobank
 from ..containers import write_surface_container
 from ..models import Surface, Topography
 from ..tasks import import_container_from_url
-from .utils import FIXTURE_DIR, SurfaceFactory, TagFactory, Topography1DFactory, Topography2DFactory, UserFactory
+from .utils import (
+    FIXTURE_DIR,
+    PropertyFactory,
+    SurfaceFactory,
+    TagFactory,
+    Topography1DFactory,
+    Topography2DFactory,
+    UserFactory
+)
 
 
 @pytest.mark.django_db
@@ -37,6 +45,9 @@ def test_surface_container(example_authors):
     surface1 = SurfaceFactory(creator=user, tags=[tag1])
     surface2 = SurfaceFactory(creator=user)
     surface3 = SurfaceFactory(creator=user, description='Nice results')
+
+    PropertyFactory.create(name='categorical', value='abc', surface=surface2)
+    PropertyFactory.create(name='numerical', value=1, unit='m', surface=surface2)
 
     topo1a = Topography1DFactory(surface=surface1)
     topo1b = Topography2DFactory(surface=surface1,
@@ -125,6 +136,15 @@ def test_surface_container(example_authors):
         assert 'fill_undefined_data_mode' in topo1b_meta
         assert 'has_undefined_data' in topo1a_meta
         assert 'has_undefined_data' in topo1b_meta
+
+        # check properties
+        assert 'properties' in meta_surfaces[1]
+        assert len(meta_surfaces[1]['properties']) == 2
+        assert meta_surfaces[1]['properties'][0]['name'] == 'categorical'
+        assert meta_surfaces[1]['properties'][0]['value'] == 'abc'
+        assert meta_surfaces[1]['properties'][1]['name'] == 'numerical'
+        assert meta_surfaces[1]['properties'][1]['value'] == 1
+        assert meta_surfaces[1]['properties'][1]['unit'] == 'm'
 
     os.remove(outfile.name)
 

@@ -483,6 +483,20 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     topo1, topo2, topo3 = Topography.objects.all()
     assert topo2.name == new_name
 
+    # Patching surface field of a topography should fail
+    response = api_client.patch(reverse('manager:topography-api-detail',
+                                        kwargs=dict(pk=topo2.id)),
+                                {'surface': reverse('manager:surface-api-detail',
+                                                    kwargs=dict(pk=topo1.surface.id))})
+    assert response.status_code == 400  # The user can see the surface but not patch it, hence 400
+    assert Topography.objects.count() == 3
+    topo1, topo2, topo3 = Topography.objects.all()
+    assert topo2.name == new_name
+    surface1, surface2, surface3 = Surface.objects.all()
+    assert surface1.topography_set.count() == 1
+    assert surface2.topography_set.count() == 1
+    assert surface3.topography_set.count() == 1
+
 
 def test_versions(api_client):
     response = api_client.get(reverse('manager:versions'))
@@ -491,3 +505,11 @@ def test_versions(api_client):
         'license': 'BSD 3-Clause',
         'homepage': 'https://numpy.org/'
     }
+
+
+@pytest.mark.django_db
+def test_statistics(api_client, two_users, handle_usage_statistics):
+    response = api_client.get(reverse('manager:statistics'))
+    assert response.data['nb_users'] == 2
+    assert response.data['nb_surfaces'] == 3
+    assert response.data['nb_topographies'] == 3

@@ -54,6 +54,11 @@ urlpatterns += [
         'api/versions/',
         view=views.versions,
         name='versions'
+    ),
+    path(
+        'api/statistics/',
+        view=views.statistics,
+        name='statistics'
     )
 ]
 

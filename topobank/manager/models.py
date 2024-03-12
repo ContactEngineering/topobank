@@ -253,6 +253,8 @@ class Surface(models.Model,
                 'doi_url': self.publication.doi_url or '',
                 'doi_state': self.publication.doi_state or '',
             }
+        if self.properties.count() > 0:
+            d['properties'] = [p.to_dict() for p in self.properties.all()]
         return d
 
     def get_permissions(self, with_user):
@@ -405,8 +407,8 @@ class Property(models.Model):
     @property
     def value(self):
         if self.value_numerical is None:
-            return self.value_categorical
-        return self.value_numerical
+            return str(self.value_categorical)
+        return float(self.value_numerical)
 
     @value.setter
     def value(self, value):
@@ -478,6 +480,12 @@ class Property(models.Model):
 
     def __str__(self):
         return f"{self.name}: {self.value} {self.unit}"
+
+    def to_dict(self):
+        d = {'name': str(self.name), 'value': self.value}
+        if self.unit is not None:
+            d['unit'] = str(self.unit)
+        return d
 
 
 class SurfaceUserObjectPermission(UserObjectPermissionBase):

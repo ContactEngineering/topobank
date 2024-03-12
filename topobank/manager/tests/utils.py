@@ -13,7 +13,7 @@ from django.core.management import call_command
 from django.shortcuts import reverse
 
 from ...users.tests.factories import UserFactory
-from ..models import Surface, Tag, Topography
+from ..models import Property, Surface, Tag, Topography
 
 FIXTURE_DIR = os.path.join(
     os.path.dirname(os.path.realpath(__file__)),
@@ -34,7 +34,7 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
                                    'name': name,
                                    **kwargs
                                })
-    assert response.status_code == 201, response.reason  # Created
+    assert response.status_code == 201, response.data  # Created
     topography_id = response.data['id']
 
     # upload file
@@ -49,7 +49,7 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
         else:
             response = api_client.post(upload_instructions['url'], {**upload_instructions['fields'], name: fp},
                                        format='multipart')
-    assert response.status_code == 204, response.reason  # Created
+    assert response.status_code == 204, response.data  # Created
 
     # We need to execute on commit actions, because this is where the renew_cache task is triggered
     with django_capture_on_commit_callbacks(execute=True):
@@ -57,14 +57,14 @@ def upload_file(fn, surface_id, api_client, django_capture_on_commit_callbacks, 
         # background (Celery) task and always returns a 'pe'nding state. In this testing environment, this is run
         # immediately after the `save` but not yet reflected in the returned dictionary.
         response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
-        assert response.status_code == 200, response.reason
+        assert response.status_code == 200, response.data
         assert response.data['task_state'] == 'pe'
         # We need to close the commit capture here because the file inspection runs on commit
 
     with django_capture_on_commit_callbacks(execute=True):
         # Get info on file again, this should not report a successful file inspection.
         response = api_client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topography_id)))
-        assert response.status_code == 200, response.reason
+        assert response.status_code == 200, response.data
         assert response.data['task_state'] == final_task_state
 
     return response
@@ -100,6 +100,23 @@ class TagFactory(factory.django.DjangoModelFactory):
             # A list of surfaces were passed in, use them for the manytomany field
             for surface in extracted:
                 self.surface_set.add(surface)
+
+
+class PropertyFactory(factory.django.DjangoModelFactory):
+    """Generates a Property."""
+
+    class Meta:
+        model = Property
+
+    @factory.post_generation
+    def surfaces(self, create, extracted, **kwargs):
+        if not create:
+            # Simple build, do nothing
+            return
+        if extracted:
+            # A list of surfaces were passed in, use them for the manytomany field
+            for surface in extracted:
+                self.properties.add(surface)
 
 
 class Topography1DFactory(factory.django.DjangoModelFactory):
