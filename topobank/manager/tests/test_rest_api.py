@@ -507,8 +507,9 @@ def test_versions(api_client):
     }
 
 
-def test_statistics(api_client, two_users):
+@pytest.mark.django_db
+def test_statistics(api_client, two_users, handle_usage_statistics):
     response = api_client.get(reverse('manager:statistics'))
-    assert response.data['nbUsers'] == 2
-    assert response.data['nbSurfaces'] == 3
-    assert response.data['nbTopographies'] == 3
+    assert response.data['nb_users'] == 2
+    assert response.data['nb_surfaces'] == 3
+    assert response.data['nb_topographies'] == 3

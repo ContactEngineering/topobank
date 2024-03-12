@@ -348,7 +348,7 @@ def versions(request):
 @api_view(['GET'])
 def statistics(request):
     return Response({
-        'nbUsers': User.objects.count(),
-        'nbSurfaces': Surface.objects.count(),
-        'nbTopographies': Topography.objects.count(),
+        'nb_users': User.objects.count() - 1,  # -1 because we don't count the anonymous user
+        'nb_surfaces': Surface.objects.count(),
+        'nb_topographies': Topography.objects.count(),
     }, status=200)
