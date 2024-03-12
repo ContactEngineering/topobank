@@ -6,7 +6,7 @@ from topobank.manager.tests.utils import SurfaceFactory, Topography1DFactory
 from topobank.users.tests.factories import UserFactory
 
 
-def test_statistics(api_client):
+def test_statistics(api_client, handle_usage_statistics):
     user = UserFactory()
     surf1 = SurfaceFactory(creator=user)
     surf2 = SurfaceFactory(creator=user)
