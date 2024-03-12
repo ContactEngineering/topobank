@@ -102,6 +102,8 @@ class TopographyViewSet(mixins.CreateModelMixin,
                         description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.")
 
     def perform_create(self, serializer):
+        print('validated_data =', serializer.validated_data)
+
         # File name is passed in the 'name' field on create. It is the only field that needs to be present for the
         # create (POST) request.
         filename = self.request.data['name']

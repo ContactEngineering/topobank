@@ -159,6 +159,11 @@ class TopographySerializer(StrictFieldMixin,
                                  'permission': guardian_to_api(value)}
                                 for key, value in users.items() if key != current_user]}
 
+    def update(self, instance, validated_data):
+        if 'surface' in validated_data:
+            raise serializers.ValidationError({"message": "You cannot change the `surface` of a topography"})
+        return super().update(instance, validated_data)
+
 
 class ValueField(serializers.Field):
 
