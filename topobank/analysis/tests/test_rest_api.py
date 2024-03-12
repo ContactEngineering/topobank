@@ -34,9 +34,9 @@ def test_statistics(api_client, handle_usage_statistics):
     SurfaceAnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_2)
 
     response = api_client.get(reverse('manager:statistics'))
-    assert response.data['nbUsers'] == 2
-    assert response.data['nbSurfaces'] == 2
-    assert response.data['nbTopographies'] == 3
+    assert response.data['nb_users'] == 2
+    assert response.data['nb_surfaces'] == 2
+    assert response.data['nb_topographies'] == 3
 
     response = api_client.get(reverse('analysis:statistics'))
-    assert response.data['nbAnalyses'] == 5
+    assert response.data['nb_analyses'] == 5

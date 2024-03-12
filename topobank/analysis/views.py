@@ -438,7 +438,7 @@ def data(request, pk, location):
 @api_view(['GET'])
 def statistics(request):
     return Response({
-        'nbAnalyses': Analysis.objects.count(),
+        'nb_analyses': Analysis.objects.count(),
     }, status=200)
 
 
