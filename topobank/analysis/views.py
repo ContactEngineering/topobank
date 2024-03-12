@@ -249,7 +249,7 @@ def series_card_view(request, **kwargs):
         if is_topography_analysis and analysis.subject_dispatch.topography.surface.num_topographies() > 1:
             for a in analyses_success_list:
                 if a.subject_dispatch.surface is not None and \
-                        a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
+                    a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
                         a.function.id == analysis.function.id:
                     parent_analysis = a
 
@@ -431,3 +431,10 @@ def data(request, pk, location):
     name = f'{analysis.storage_prefix}/{location}'
     url = default_storage.url(name)
     return redirect(url)
+
+
+@api_view(['GET'])
+def statistics(request):
+    return Response({
+        'nbAnalyses': Analysis.objects.count(),
+    }, status=200)

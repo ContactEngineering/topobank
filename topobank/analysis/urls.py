@@ -50,5 +50,10 @@ urlpatterns += [
         r'download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
         view=downloads.download_analyses,
         name='download'
+    ),
+    path(
+        'api/statistics/',
+        view=views.statistics,
+        name='statistics'
     )
 ]

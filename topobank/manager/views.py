@@ -343,3 +343,12 @@ def import_surface(request):
 @api_view(['GET'])
 def versions(request):
     return Response(get_versions(), status=200)
+
+
+@api_view(['GET'])
+def statistics(request):
+    return Response({
+        'nbUsers': User.objects.count(),
+        'nbSurfaces': Surface.objects.count(),
+        'nbTopographies': Topography.objects.count(),
+    }, status=200)

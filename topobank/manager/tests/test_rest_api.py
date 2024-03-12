@@ -505,3 +505,10 @@ def test_versions(api_client):
         'license': 'BSD 3-Clause',
         'homepage': 'https://numpy.org/'
     }
+
+
+def test_statistics(api_client, two_users):
+    response = api_client.get(reverse('manager:statistics'))
+    assert response.data['nbUsers'] == 2
+    assert response.data['nbSurfaces'] == 3
+    assert response.data['nbTopographies'] == 3
