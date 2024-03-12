@@ -33,6 +33,20 @@ urlpatterns += [
         view=views.series_card_view,
         name=f'card-{functions.VIZ_SERIES}'
     ),
+    # GET
+    # * Return total number of analyses
+    path(
+        'api/statistics/',
+        view=views.statistics,
+        name='statistics'
+    ),
+    # GET
+    # * Return memory usage of individual analyses
+    path(
+        'api/memory-usage/',
+        view=views.memory_usage,
+        name='memory-usage'
+    ),
     #
     # Data routes (returned data type is unspecified)
     #
@@ -50,10 +64,5 @@ urlpatterns += [
         r'download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
         view=downloads.download_analyses,
         name='download'
-    ),
-    path(
-        'api/statistics/',
-        view=views.statistics,
-        name='statistics'
     )
 ]

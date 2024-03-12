@@ -1,4 +1,5 @@
 import logging
+from collections import defaultdict
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
@@ -249,7 +250,7 @@ def series_card_view(request, **kwargs):
         if is_topography_analysis and analysis.subject_dispatch.topography.surface.num_topographies() > 1:
             for a in analyses_success_list:
                 if a.subject_dispatch.surface is not None and \
-                    a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
+                        a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
                         a.function.id == analysis.function.id:
                     parent_analysis = a
 
@@ -438,3 +439,15 @@ def statistics(request):
     return Response({
         'nbAnalyses': Analysis.objects.count(),
     }, status=200)
+
+
+@api_view(['GET'])
+def memory_usage(request):
+    m = defaultdict(list)
+    for function_id in AnalysisFunction.objects.values_list('id', flat=True):
+        for task_memory, start_time, end_time, subject in Analysis.objects.filter(function_id=function_id) \
+                .values_list('task_memory', 'start_time', 'end_time'):
+            m[function_id] += [{'task_memory': task_memory,
+                                'start_time': start_time,
+                                'end_time': end_time}]
+    return Response(m, status=200)
