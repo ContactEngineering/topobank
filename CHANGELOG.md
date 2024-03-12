@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.7.0 (not yet released)
+## 1.7.0 (2024-03-12)
 
 - ENH: Properties as key-value pairs with categorical and numerical values,
   including units (#904)
