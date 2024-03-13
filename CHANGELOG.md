@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.7.1 (2024-03-13)
+
+- ENH: Report sum and max of data points when reporting task memory usage
+
 ## 1.7.0 (2024-03-12)
 
 - ENH: Properties as key-value pairs with categorical and numerical values,
