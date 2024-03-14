@@ -33,5 +33,9 @@ class CeleryAppConfig(AppConfig):
             'save-landing-page-statistics': {
                 'task': 'topobank.taskapp.tasks.save_landing_page_statistics',
                 'schedule': crontab(hour='0', minute='0'),
+            },
+            'fit-memory-model': {
+                'task': 'topobank.analysis.tasks.fit_memory_model',
+                'schedule': crontab(hour='0', minute='0'),
             }
         }
