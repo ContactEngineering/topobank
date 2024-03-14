@@ -1,6 +1,7 @@
 import datetime
 import operator
 
+import numpy as np
 import pytest
 from django.contrib.contenttypes.models import ContentType
 from django.db.models.functions import Lower
@@ -11,7 +12,7 @@ from ...manager.tests.utils import SurfaceFactory, TagFactory, Topography1DFacto
 from ..functions import topography_analysis_function_for_tests
 from ..models import Analysis, AnalysisFunction
 from ..registry import ImplementationMissingAnalysisFunctionException
-from ..tasks import current_configuration
+from ..tasks import current_configuration, fit_memory_model
 from .utils import SurfaceAnalysisFactory, TagAnalysisFactory, TopographyAnalysisFactory
 
 
@@ -207,3 +208,34 @@ def test_current_configuration(settings):
     import topobank
     assert v5.dependency.import_name == 'topobank'
     assert v5.number_as_string() == topobank.__version__
+
+
+@pytest.mark.django_db
+def test_memory_model(settings, two_topos, test_analysis_function):
+    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
+
+    topo1, topo2 = Topography.objects.all()
+
+    bytes_per_data_point = 102
+
+    analysis1 = TopographyAnalysisFactory.create(
+        subject_topography=topo1,
+        function=test_analysis_function,
+        task_state=Analysis.SUCCESS,
+        task_memory=bytes_per_data_point * topo1.resolution_x * topo1.resolution_y
+    )
+    analysis1.save()
+
+    analysis2 = TopographyAnalysisFactory.create(
+        subject_topography=topo2,
+        function=test_analysis_function,
+        task_state=Analysis.SUCCESS,
+        task_memory=bytes_per_data_point * topo2.resolution_x * topo2.resolution_y
+    )
+    analysis2.save()
+
+    fit_memory_model()
+
+    analysis_function = AnalysisFunction.objects.get(name=test_analysis_function.name)
+
+    np.testing.assert_allclose(analysis_function.memory_slope, bytes_per_data_point)

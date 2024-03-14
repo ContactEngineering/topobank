@@ -3,9 +3,9 @@ import traceback
 import tracemalloc
 
 import numpy as np
-
 from ContactMechanics.Systems import IncompatibleFormulationError
 from django.conf import settings
+from django.db.models import Case, F, Max, When
 from django.shortcuts import reverse
 from django.utils import timezone
 from notifications.signals import notify
@@ -18,7 +18,7 @@ from ..taskapp.utils import get_package_version
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..utils import store_split_dict
 from .functions import IncompatibleTopographyException
-from .models import RESULT_FILE_BASENAME, Analysis, AnalysisCollection, Configuration
+from .models import RESULT_FILE_BASENAME, Analysis, AnalysisCollection, AnalysisFunction, Configuration
 
 EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError,
                                            CannotPerformAnalysisError)
@@ -222,8 +222,13 @@ def fit_memory_model():
                                When(subject_dispatch__topography__resolution_y__isnull=False,
                                     then=F('subject_dispatch__topography__resolution_y')),
                                default=1))
-    for function in AnalysisFunctions.objects.all():
-        memory, nb_data_pts, y = Analysis.objects.filter(function=function).values('task_memory').annotate(
-            max_nb_data_pts=max_nb_data_pts)
-        function.memory_slope, function.memory_offset = np.polyfit(x, y, 1)
-        function.save()
+    for function in AnalysisFunction.objects.all():
+        if Analysis.objects.filter(function=function).count() > 0:
+            y, x = np.transpose([
+                list(analysis.values()) for analysis in
+                Analysis.objects.filter(function=function).values('task_memory').annotate(
+                    max_nb_data_pts=max_nb_data_pts)
+            ])
+            print(x, y)
+            function.memory_slope, function.memory_offset = np.polyfit(x, y, 1)
+            function.save()
