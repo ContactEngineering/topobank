@@ -2,6 +2,8 @@ import logging
 import traceback
 import tracemalloc
 
+import numpy as np
+
 from ContactMechanics.Systems import IncompatibleFormulationError
 from django.conf import settings
 from django.shortcuts import reverse
@@ -203,3 +205,25 @@ def check_analysis_collection(collection_id):
             collection.combined_task_state = 'st'
 
         collection.save()
+
+
+@app.task
+def fit_memory_model():
+    """Fit a simple model for predicting memory usage of an analysis task."""
+    max_nb_data_pts = Case(When(subject_dispatch__surface__isnull=False,
+                                then=Max(
+                                    F('subject_dispatch__surface__topography__resolution_x') * Case(
+                                        When(
+                                            subject_dispatch__surface__topography__resolution_y__isnull=False,
+                                            then=F(
+                                                'subject_dispatch__surface__topography__resolution_y')),
+                                        default=1))),
+                           default=F('subject_dispatch__topography__resolution_x') * Case(
+                               When(subject_dispatch__topography__resolution_y__isnull=False,
+                                    then=F('subject_dispatch__topography__resolution_y')),
+                               default=1))
+    for function in AnalysisFunctions.objects.all():
+        memory, nb_data_pts, y = Analysis.objects.filter(function=function).values('task_memory').annotate(
+            max_nb_data_pts=max_nb_data_pts)
+        function.memory_slope, function.memory_offset = np.polyfit(x, y, 1)
+        function.save()

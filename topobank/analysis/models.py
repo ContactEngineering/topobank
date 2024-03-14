@@ -221,6 +221,9 @@ class AnalysisFunction(models.Model):
     """
     name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
 
+    memory_slope = models.FloatField(null=True, help_text="Slope a of the linear memory estimator a*x + b.")
+    memory_offset = models.FloatField(null=True, help_text="Offset b of the linear memory estimator a*x + b.")
+
     def __str__(self):
         return self.name
 
