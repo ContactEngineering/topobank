@@ -4,7 +4,7 @@ from collections import defaultdict
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
-from django.db.models import Case, F, Sum, Value, When
+from django.db.models import Case, F, Max, Sum, Value, When
 from django.http import Http404, HttpResponseBadRequest
 from django.shortcuts import redirect
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
@@ -446,7 +446,19 @@ def statistics(request):
 def memory_usage(request):
     m = defaultdict(list)
     for function_id, function_name in AnalysisFunction.objects.values_list('id', 'name'):
-        max_nb_grid_pts = Case(When(subject_dispatch__surface__isnull=False,
+        max_nb_data_pts = Case(When(subject_dispatch__surface__isnull=False,
+                                    then=Max(
+                                        F('subject_dispatch__surface__topography__resolution_x') * Case(
+                                            When(
+                                                subject_dispatch__surface__topography__resolution_y__isnull=False,
+                                                then=F(
+                                                    'subject_dispatch__surface__topography__resolution_y')),
+                                            default=1))),
+                               default=F('subject_dispatch__topography__resolution_x') * Case(
+                                   When(subject_dispatch__topography__resolution_y__isnull=False,
+                                        then=F('subject_dispatch__topography__resolution_y')),
+                                   default=1))
+        sum_nb_data_pts = Case(When(subject_dispatch__surface__isnull=False,
                                     then=Sum(
                                         F('subject_dispatch__surface__topography__resolution_x') * Case(
                                             When(
@@ -467,6 +479,7 @@ def memory_usage(request):
                           subject=Case(When(subject_dispatch__tag__isnull=False, then=Value('tag')),
                                        When(subject_dispatch__surface__isnull=False, then=Value('surface')),
                                        default=Value('topography')),
-                          max_nb_grid_pts=max_nb_grid_pts):
+                          max_nb_data_pts=max_nb_data_pts,
+                          sum_nb_data_pts=sum_nb_data_pts):
             m[function_name] += [x]
     return Response(m, status=200)

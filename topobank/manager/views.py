@@ -5,7 +5,7 @@ from io import BytesIO
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
-from django.db.models import Prefetch, Q
+from django.db.models import Case, F, Prefetch, Q, When
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.utils.text import slugify
@@ -352,3 +352,13 @@ def statistics(request):
         'nb_surfaces': Surface.objects.count(),
         'nb_topographies': Topography.objects.count(),
     }, status=200)
+
+
+@api_view(['GET'])
+def memory_usage(request):
+    r = Topography.objects \
+        .values('resolution_x', 'resolution_y', 'task_memory') \
+        .annotate(duration=F('end_time') - F('start_time'),
+                  nb_data_pts=F('resolution_x') * Case(
+                      When(resolution_y__isnull=False, then=F('resolution_y')), default=1))
+    return Response(list(r), status=200)

@@ -59,6 +59,13 @@ urlpatterns += [
         'api/statistics/',
         view=views.statistics,
         name='statistics'
+    ),
+    # GET
+    # * Return memory usage of inspection tasks
+    path(
+        'api/memory-usage/',
+        view=views.memory_usage,
+        name='memory-usage'
     )
 ]
 
