@@ -152,7 +152,7 @@ def test_surface_container(example_authors):
 @pytest.mark.django_db
 def test_import():
     user = UserFactory(username='testuser1', password='abcd$1234')
-    surface_id = import_container_from_url(user.id, 'https://doi.org/10.57703/ce-867nv')
+    surface_id = import_container_from_url(user.id, 'https://contact.engineering/go/867nv')
     surface = Surface.objects.get(id=surface_id)
     assert surface.name == 'Self-affine synthetic surface'
     assert surface.topography_set.count() == 3
