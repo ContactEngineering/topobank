@@ -24,10 +24,10 @@ def migrate_tagulous_fields_backwards(apps, schema_editor):
     PropertyUnitModel = apps.get_model("manager", "Tagulous_Property_unit")
 
     for property in PropertyModel.objects.all():
-        nameTag = PropertyNameModel.objects.create(name=property.name)
+        nameTag, _ = PropertyNameModel.objects.get_or_create(name=property.name)
         property.name = nameTag.id
         if property.unit != None:
-            unitTag = PropertyUnitModel.objects.create(name=property.unit)
+            unitTag, _ = PropertyUnitModel.objects.get_or_create(name=property.unit)
             property.unit = unitTag.id
         property.save()
 
