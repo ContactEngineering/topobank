@@ -203,6 +203,12 @@ class Surface(models.Model,
     def label(self):
         return str(self)
 
+    @property
+    def attachments(self):
+        if not hasattr(self, "fileparent"):
+            return []
+        return self.fileparent.files.all()
+
     def related_surfaces(self):
         return [self]
 
@@ -1435,3 +1441,39 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def task_worker(self):
         self.renew_cache()
+
+
+class FileParent(models.Model):
+    tag = models.OneToOneField(Tag, on_delete=models.CASCADE, null=True, blank=True)
+    surface = models.OneToOneField(Surface, on_delete=models.CASCADE, null=True, blank=True)
+    topography = models.OneToOneField(Topography, on_delete=models.CASCADE, null=True, blank=True)
+
+    def active_key(self):
+        for field in self._meta.fields:
+            if field.is_relation and (fk := getattr(self, field.name)) is not None:
+                return fk
+
+    def __str__(self):
+        return str(self.active_key())
+
+
+class FileManifest(models.Model):
+    FILE_KIND_CHOICES = [
+        ("att", "Attachment"),
+        ("raw", "Raw data file")
+    ]
+    FILE_STATUS_CHOICES = [
+        ("unknown", "Unknown"),
+        ("present", "Present"),
+        ("missing", "Missing")
+    ]
+
+    file = models.FileField()
+    parent = models.ForeignKey(FileParent, related_name="files", on_delete=models.CASCADE)
+    kind = models.CharField(max_length=3, choices=FILE_KIND_CHOICES)
+    status = models.CharField(max_length=7, default="unknown", choices=FILE_STATUS_CHOICES)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return str(self.file)
