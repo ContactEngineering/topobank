@@ -1437,3 +1437,28 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def task_worker(self):
         self.renew_cache()
+
+
+class FileParent(models.Model):
+    tag = models.OneToOneField(Tag, on_delete=models.CASCADE, null=True, blank=True)
+    surface = models.OneToOneField(Surface, on_delete=models.CASCADE, null=True, blank=True)
+    topography = models.OneToOneField(Topography, on_delete=models.CASCADE, null=True, blank=True)
+
+
+class FileKind(models.IntegerChoices):
+    ATTACHMENT = 0, "Attachment"
+
+
+class FileStatus(models.IntegerChoices):
+    UNKNOWN = 0, "Unknown"
+    PRESENT = 1, "Present"
+    MISSING = 2, "Missing"
+
+
+class FileManifest(models.Model):
+    file = models.FileField()
+    parent = models.ForeignKey(FileParent, on_delete=models.CASCADE)
+    kind = models.IntegerField(choices=FileKind.choices)
+    status = models.IntegerField(default=FileStatus.UNKNOWN, choices=FileStatus.choices)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)

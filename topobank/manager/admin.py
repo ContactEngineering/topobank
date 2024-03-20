@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Property, Surface, Topography
+from .models import FileManifest, Property, Surface, Topography
 
 
 @admin.register(Property)
@@ -19,3 +19,10 @@ class TopographyAdmin(admin.ModelAdmin):
     list_display = ('id', 'name', 'creation_datetime', 'task_state', 'task_id')
     list_filter = ('task_state',)
     ordering = ['-creation_datetime']
+
+
+@admin.register(FileManifest)
+class FileManifestAdmin(admin.ModelAdmin):
+    list_display = ('id', 'file', 'kind', 'status', 'created', 'updated')
+    list_filter = ('kind', 'status')
+    ordering = ['-created']
