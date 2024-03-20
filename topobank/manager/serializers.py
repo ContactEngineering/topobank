@@ -8,7 +8,7 @@ from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
-from .models import Property, Surface, Tag, Topography
+from .models import FileManifest, Property, Surface, Tag, Topography
 from .utils import guardian_to_api
 
 _log = logging.getLogger(__name__)
@@ -223,6 +223,23 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
         return data
 
 
+class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = FileManifest
+        fields = '__all__'
+
+    url = serializers.HyperlinkedIdentityField(view_name='manager:file-api-detail', read_only=True)
+    name = serializers.SerializerMethodField()
+    parent = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail')
+    status = serializers.ChoiceField(choices=FileManifest.FILE_STATUS_CHOICES, read_only=True)
+    kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
+    created = serializers.DateTimeField(read_only=True)
+    updated = serializers.DateTimeField(read_only=True)
+
+    def get_name(self, obj):
+        return obj.file.name
+
+
 class SurfaceSerializer(StrictFieldMixin,
                         serializers.HyperlinkedModelSerializer):
     class Meta:
@@ -237,17 +254,16 @@ class SurfaceSerializer(StrictFieldMixin,
                   'creation_datetime', 'modification_datetime',
                   'topography_set',
                   'permissions',
-                  'properties']
+                  'properties',
+                  'attachments']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
     topography_set = TopographySerializer(many=True, read_only=True)
-
-    tags = TagRelatedManagerField(required=False)
-
-    permissions = serializers.SerializerMethodField()
-
     properties = PropertySerializer(many=True)
+    attachments = FileManifestSerializer(many=True)
+    tags = TagRelatedManagerField(required=False)
+    permissions = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -255,7 +271,8 @@ class SurfaceSerializer(StrictFieldMixin,
         optional_fields = [
             ('children', 'topography_set'),
             ('permissions', 'permissions'),
-            ('properties', 'properties')
+            ('properties', 'properties'),
+            ('attachments', 'attachments')
         ]
         for option, field in optional_fields:
             param = self.context['request'].query_params.get(option)
