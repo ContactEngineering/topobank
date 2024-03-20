@@ -22,13 +22,29 @@ from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
-from .models import Property, Surface, Tag, Topography, topography_datafile_path
+from .models import FileManifest, Property, Surface, Tag, Topography, topography_datafile_path
 from .permissions import ObjectPermissions, ParentObjectPermissions
-from .serializers import PropertySerializer, SurfaceSerializer, TagSerializer, TopographySerializer
+from .serializers import (
+    FileManifestSerializer,
+    PropertySerializer,
+    SurfaceSerializer,
+    TagSerializer,
+    TopographySerializer
+)
 from .tasks import import_container_from_url
 from .utils import api_to_guardian, get_upload_instructions
 
 _log = logging.getLogger(__name__)
+
+
+class FileManifestViewSet(mixins.CreateModelMixin,
+                          mixins.RetrieveModelMixin,
+                          mixins.UpdateModelMixin,
+                          mixins.DestroyModelMixin,
+                          viewsets.GenericViewSet):
+    queryset = FileManifest.objects.all()
+    serializer_class = FileManifestSerializer
+    # ToDo permissions
 
 
 class PropertyViewSet(mixins.CreateModelMixin,

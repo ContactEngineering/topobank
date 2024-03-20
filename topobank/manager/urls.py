@@ -10,6 +10,7 @@ router.register(r'api/tag', views.TagViewSet, basename='tag-api')
 router.register(r'api/topography', views.TopographyViewSet, basename='topography-api')
 router.register(r'api/surface', views.SurfaceViewSet, basename='surface-api')
 router.register(r'api/property', views.PropertyViewSet, basename='property-api')
+router.register(r'api/file', views.FileManifestViewSet, basename='file-api')
 
 urlpatterns = router.urls
 

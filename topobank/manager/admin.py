@@ -23,6 +23,6 @@ class TopographyAdmin(admin.ModelAdmin):
 
 @admin.register(FileManifest)
 class FileManifestAdmin(admin.ModelAdmin):
-    list_display = ('id', 'file', 'kind', 'status', 'created', 'updated')
+    list_display = ('id', 'file', 'parent', 'kind', 'status', 'created', 'updated')
     list_filter = ('kind', 'status')
     ordering = ['-created']
