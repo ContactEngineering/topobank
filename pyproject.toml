@@ -1,12 +1,12 @@
 [build-system]
-requires = ['setuptools>=40.8.0', 'setuptools_scm[toml]>=6.2', 'wheel']
-build-backend = 'setuptools.build_meta:__legacy__'
+requires = ["flit_core>=3.2"]
+build-backend = "flit_core.buildapi"
 
 [project]
 name = 'topobank'
 description = 'Web-based management tool for surface topography data'
 requires-python = '>=3.8.0'
-dynamic = ['dependencies', 'entry-points', 'optional-dependencies', 'version']
+dynamic = ['version']
 readme = 'README.rst'
 license = { file = 'LICENSE' }
 authors = [
@@ -31,13 +31,211 @@ classifiers = [
     'Topic :: Internet :: WWW/HTTP',
     'Topic :: Internet :: WWW/HTTP :: Dynamic Content'
 ]
+dependencies = [
+    'argon2-cffi',  # https://github.com/hynek/argon2_cffi
+    'whitenoise>=5.3',  # https://github.com/evansd/whitenoise
+    'psycopg2>=2.8',  # https://github.com/psycopg/psycopg2
+
+    # Django
+    'django==4.2.7',    #  does this work with pyup?  # https://www.djangoproject.com/
+    'django-environ',  # https://github.com/joke2k/django-environ
+    'django-allauth>=0.56.0',  # https://github.com/pennersr/django-allauth
+    'django-crispy-forms',  # https://github.com/django-crispy-forms/django-crispy-forms
+    'crispy-bootstrap5',  # https://stackoverflow.com/questions/75495403/django-returns-templatedoesnotexist-when-using-crispy-forms
+
+    # Redis for caching
+    'django-redis',
+
+    # Django REST Framework
+    'djangorestframework',
+    # https://github.com/encode/django-rest-framework
+
+    # tagging support
+    'django-tagulous>=1.3.0',
+
+    # statistics
+    # django-statsy  # cannot be used currently because of fixed version in requirements
+    'django-trackstats',
+
+    # parsing dates
+    'python-dateutil',
+
+    #
+    # Storage
+    #
+    'boto3', # S3
+    'django-storages',
+
+    # Permissions on object level
+    'django-guardian>=2.4.0',
+
+    # Endpoint status
+    'django-watchman',
+
+    # Profiling
+    'django-request-profiler',
+
+    # Celery
+    # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
+    'celery[redis]>=5.2.3',
+    # with memcached we've had several problems within a Docker swarm stack
+    # pylibmc seems to cause memcache problems: see GH 737
+    # librabbitmq>=2.0
+    # problems while compiling librabbitmq
+
+    # Flower (monitoring for celery) is currently not used because of dependency and security problems
+    # flower==1.0.0
+
+    # tornado>=4.2.0, <6.0.0
+
+    # Surface topography I/O and analysis
+    'SurfaceTopography>=1.12.2',
+    'muspectre',
+    # FIXME: This is needed for just IncompatibleFormulationError. The dependency should really come in through
+    # topobank-contact
+    'ContactMechanics>=1.1.1',
+
+    # pandas is currently needed for downloading xlsx files from analyses
+    'pandas',
+
+    # xarray is used to write analysis data to netcdf files
+    'xarray',
+    'netcdf4',
+    'h5netcdf',
+
+    # notifications
+    # (static/js/notify.js appears to be missing from 1.8.0 and above)
+    'django-notifications-hq==1.7.0',
+
+    # openpyxl
+    'openpyxl',
+
+    # requests from server
+    'requests',
+
+    # Unit conversion
+    'pint',
+
+    # markdown conversion for terms & conditions and for docstrings in readers
+    'markdown2>=2.4.0',
+    # Version 2.3.8 has a security issue (CVE-2020-11888)
+    # Version 2.3.9 has a security issue (CVE-2021-26813)
+
+    'urllib3>=1.26.5',
+    # Upgrade because of CVE-2021-33503
+
+    # for syntax highlighting for docstrings of readers
+    'pygments>=2.7.4',
+
+    # some other constraints due to security concerns
+    'lxml>=4.9.1',
+    'jinja2>=2.11.3',
+    # because of CVE-2020-28493
+
+    'cryptography>=39.0.1',
+    # https://www.openssl.org/news/secadv/20221213.txt
+
+    'Pillow>=9.0.1',
+    # because of several CVEs
+
+    'PyYAML>=5.4',
+    # CVE-2020-14343
+
+    'sqlparse>=0.4.2',
+    # CVE-2021-32839
+
+    'pyjwt>=2.4.0',
+    #  https://github.com/ContactEngineering/TopoBank/security/dependabot/61
+
+    'greenlet',
+    'gevent',
+    'gunicorn[gevent]>=20.1.0',  # https://github.com/benoitc/gunicorn
+    # gunicorn[eventlet]>=20.0.4
+    #
+    # Got problems with eventlet, see issue #415
+
+    # because of problem with AttributeError for 'X509_V_FLAG_CB_ISSUER_CHECK'
+    'pyopenssl>=23.0.0'
+]
+
+[project.optional-dependencies]
+dev = [
+    'Werkzeug',
+    # https://github.com/pallets/werkzeug
+    'ipdb',
+    # https://github.com/gotcha/ipdb
+    # Not version 2.9 because of this
+    # https://stackoverflow.com/questions/68024060/assertionerror-database-connection-isnt-set-to-utc
+
+    # Documentation
+    # ------------------------------------------------------------------------------
+    'Sphinx<6.0.0',
+    # https://github.com/sphinx-doc/sphinx
+    'sphinx_rtd_theme',
+
+    # Testing
+    # ------------------------------------------------------------------------------
+    'pytest',
+    'pytest-sugar',
+
+    # Because of CVE-2020-29651
+    'py>=1.10.0',
+
+    # Code quality
+    # ------------------------------------------------------------------------------
+    'flake8',
+    'coverage',
+
+    # Django
+    # ------------------------------------------------------------------------------
+    'factory-boy',
+    # https://github.com/FactoryBoy/factory_boy
+    'django-test-plus',
+    # https://github.com/revsys/django-test-plus
+
+    'django-debug-toolbar',
+    # https://github.com/jazzband/django-debug-toolbar
+    # Debug toolbar must be compatible with Django 3.2
+    'django-extensions>=3.2.0',
+    # https://github.com/django-extensions/django-extensions
+    'django-coverage-plugin',
+    # https://github.com/nedbat/django_coverage_plugin
+    'pytest-django>=4.4.0',
+    # https://github.com/pytest-dev/pytest-django
+    'pytest-mock',
+    'pytest-cov',
+
+    # Dependency Handling
+    # ------------------------------------------------------------------------------
+    'pip-tools>=6.8.0',
+
+    # Docker
+    # ------------------------------------------------------------------------------
+    # docker-compose
+    # introduces dependency on a too old pyyaml version
+
+    # Debugging
+    # ------------------------------------------------------------------------------
+
+    # just for interactive use to try things (not necessary)
+    'ipython>=7.31.1',
+
+    # additional for browser test
+    'pytest-splinter',
+    'splinter[django]',
+    'selenium',
+    'pytest-selenium',
+
+    # for parsing html
+    'beautifulsoup4',
+
+    # for testing functions depending on date functions
+    'freezegun',
+
+    # for using storage items in test
+    'dj-inmemorystorage'
+]
 
 [project.urls]
 homepage = 'https://contact.engineering'
 repository = 'https://github.com/ContactEngineering/topobank'
-
-[tool.setuptools]
-py-modules = ['topobank']
-
-[tool.setuptools_scm]
-
