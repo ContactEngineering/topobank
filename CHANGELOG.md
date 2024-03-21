@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+## 1.7.2 (2024-03-21)
+
+- MAINT: Changing properties Tagulous fields to `TextField`s to remove race
+  condition
+
 ## 1.7.1 (2024-03-14)
 
 - ENH: Report inspection task memory usage
