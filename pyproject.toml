@@ -89,7 +89,7 @@ dependencies = [
     # tornado>=4.2.0, <6.0.0
 
     # Surface topography I/O and analysis
-    'SurfaceTopography>=1.12.2',
+    'SurfaceTopography>=1.13.12',
     'muspectre',
     # FIXME: This is needed for just IncompatibleFormulationError. The dependency should really come in through
     # topobank-contact

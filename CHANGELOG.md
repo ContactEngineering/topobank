@@ -4,6 +4,7 @@
 
 - MAINT: Changing properties Tagulous fields to `TextField`s to remove race
   condition
+- MAINT: Bumped SurfaceTopography to 1.13.12
 
 ## 1.7.1 (2024-03-14)
 
