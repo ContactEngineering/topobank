@@ -112,6 +112,10 @@ LOCAL_APPS = [
 PLUGIN_MODULES = [entry_point.name for entry_point in importlib.metadata.entry_points(group='topobank.plugins')]
 PLUGIN_APPS = [entry_point.value for entry_point in importlib.metadata.entry_points(group='topobank.plugins')]
 print(f'PLUGIN_MODULES: {PLUGIN_MODULES}')
+for mod in PLUGIN_MODULES:
+    version = importlib.metadata.version(mod)
+    file = importlib.util.find_spec(mod).origin
+    print(f'{mod}: {version}, {file}')
 print(f'PLUGIN_APPS: {PLUGIN_APPS}')
 
 PLUGIN_THIRD_PARTY_APPS = [entry_point.value for entry_point in
