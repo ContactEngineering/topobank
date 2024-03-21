@@ -395,13 +395,10 @@ class Surface(models.Model,
 
 
 class Property(models.Model):
-    name = tm.SingleTagField()
+    name = models.TextField(default="prop")
     value_categorical = models.CharField(blank=True, null=True)
     value_numerical = models.FloatField(blank=True, null=True)
-    unit = tm.SingleTagField(
-        null=True,
-        blank=True
-    )
+    unit = models.TextField(null=True, blank=True)
     surface = models.ForeignKey(Surface, on_delete=models.CASCADE, related_name="properties")
 
     @property
