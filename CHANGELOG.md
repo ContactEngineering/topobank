@@ -14,7 +14,7 @@
 
 ## 1.7.0 (2024-03-12)
 
-- ENH: Properties as key-value pairs with categorical and numerical values,
+- ENH: Properties as key-value pairs wi th categorical and numerical values,
   including units (#904)
 - ENH: Export properties to metadata of ZIP containers (#1074)
 - ENH: Tags as analysis subjects (as a replacement for surface collections)
