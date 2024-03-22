@@ -1,5 +1,5 @@
 [build-system]
-requires = ["flit_core>=3.2"]
+requires = ["flit_core>=3.2", "DiscoverVersion"]
 build-backend = "flit_core.buildapi"
 
 [project]
@@ -32,6 +32,8 @@ classifiers = [
     'Topic :: Internet :: WWW/HTTP :: Dynamic Content'
 ]
 dependencies = [
+    'DiscoverVersion',  # Version information from git
+
     'argon2-cffi',  # https://github.com/hynek/argon2_cffi
     'whitenoise>=5.3',  # https://github.com/evansd/whitenoise
     'psycopg2>=2.8',  # https://github.com/psycopg/psycopg2

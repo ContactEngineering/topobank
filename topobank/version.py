@@ -1,6 +1,3 @@
-import importlib.metadata
+from DiscoverVersion import get_version
 
-try:
-    __version__ = importlib.metadata.version('topobank')
-except importlib.metadata.PackageNotFoundError:
-    __version__ = '0.0.0'
+__version__ = get_version('topobank', __file__)
