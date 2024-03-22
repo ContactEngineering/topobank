@@ -1,3 +1,1 @@
-from DiscoverVersion import get_version
-
-__version__ = get_version(__name__)
+from .version import __version__  # noqa: F401
