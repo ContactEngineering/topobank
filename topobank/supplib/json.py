@@ -50,3 +50,10 @@ class ExtendedJSONEncoder(DjangoJSONEncoder):
         # https://stackoverflow.com/questions/28639953/python-json-encoder-convert-nans-to-null-instead
         obj = nan_to_none(obj)
         return super().encode(obj, *args, **kwargs)
+
+
+try:
+    from jaxlib.xla_extension import ArrayImpl
+    ExtendedJSONEncoder._TYPE_MAP[ArrayImpl] = lambda obj: obj.tolist()
+except ModuleNotFoundError:
+    pass

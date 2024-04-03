@@ -235,7 +235,10 @@ dev = [
     'freezegun',
 
     # for using storage items in test
-    'dj-inmemorystorage'
+    'dj-inmemorystorage',
+
+    # JAX
+    'jax'
 ]
 
 [project.urls]
