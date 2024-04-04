@@ -209,8 +209,7 @@ def store_split_dict(storage_prefix, name, src_dict):
     # Traverse dictionary and search for instances of SplitDictionaryHere.
     # Those are written to separate files.
 
-    # We're using our own JSON encoder here, because it represents NaN values as "NaN" (with quotes),
-    # which is JSON compatible (only works with Numpy arrays)
+    # We're using our own JSON encoder here, because it represents NaN values as null
     encoder_cls = ExtendedJSONEncoder
 
     def _split_dict(d):
