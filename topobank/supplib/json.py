@@ -1,13 +1,23 @@
 import numpy as np
 from django.core.serializers.json import DjangoJSONEncoder
 
+try:
+    from jaxlib.xla_extension import ArrayImpl
+except ModuleNotFoundError:
+    ArrayImpl = np.ndarray
+
 
 def nan_to_none(obj):
     if isinstance(obj, dict):
         return {k: nan_to_none(v) for k, v in obj.items()}
-    elif isinstance(obj, list) or isinstance(obj, set) or isinstance(obj, np.ndarray):
+    elif isinstance(obj, list) or isinstance(obj, set):
         return [nan_to_none(v) for v in obj]
-    elif isinstance(obj, float) and np.isnan(obj):
+    elif isinstance(obj, np.ndarray) or isinstance(obj, ArrayImpl):
+        if obj.ndim == 0:
+            return nan_to_none(obj.item())
+        else:
+            return [nan_to_none(v) for v in obj]
+    elif np.isnan(obj):
         return None
     return obj
 
@@ -50,10 +60,3 @@ class ExtendedJSONEncoder(DjangoJSONEncoder):
         # https://stackoverflow.com/questions/28639953/python-json-encoder-convert-nans-to-null-instead
         obj = nan_to_none(obj)
         return super().encode(obj, *args, **kwargs)
-
-
-try:
-    from jaxlib.xla_extension import ArrayImpl
-    ExtendedJSONEncoder._TYPE_MAP[ArrayImpl] = lambda obj: obj.tolist()
-except ModuleNotFoundError:
-    pass
