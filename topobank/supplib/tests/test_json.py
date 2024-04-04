@@ -17,9 +17,10 @@ def test_json_encoder():
         'g': set([3, 4, 4]),
         'h': jnp.array([11, 12, 13], dtype=np.int64),
         'i': jnp.array([11, np.nan, 13]),
+        'j': jnp.array([np.nan, np.nan, np.nan]),
     }
 
     s = json.dumps(d, cls=ExtendedJSONEncoder)
 
     assert s == ('{"a": 1, "b": 2, "c": [1, 2, 3], "d": [1, 2, 4], "e": null, "f": [5.0, 6.0, null], "g": [3, 4], '
-                 '"h": [11, 12, 13], "i": [11.0, null, 13.0]}')
+                 '"h": [11, 12, 13], "i": [11.0, null, 13.0], "j": [null, null, null]}')
