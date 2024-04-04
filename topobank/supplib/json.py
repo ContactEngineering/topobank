@@ -17,7 +17,7 @@ def nan_to_none(obj):
             return nan_to_none(obj.item())
         else:
             return [nan_to_none(v) for v in obj]
-    elif np.isnan(obj):
+    elif isinstance(obj, float) and np.isnan(obj):
         return None
     return obj
 
