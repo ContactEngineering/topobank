@@ -35,7 +35,15 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-from .utils import api_to_guardian, dzi_exists, get_topography_reader, guardian_to_api, make_dzi, recursive_delete
+from .utils import (
+    api_to_guardian,
+    dzi_exists,
+    generate_upload_path,
+    get_topography_reader,
+    guardian_to_api,
+    make_dzi,
+    recursive_delete
+)
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -207,7 +215,7 @@ class Surface(models.Model,
     def attachments(self):
         if not hasattr(self, "fileparent"):
             return []
-        return self.fileparent.files.all()
+        return self.fileparent.get_valid_files()
 
     def related_surfaces(self):
         return [self]
@@ -1450,32 +1458,58 @@ class FileParent(models.Model):
     surface = models.OneToOneField(Surface, on_delete=models.CASCADE, null=True, blank=True)
     topography = models.OneToOneField(Topography, on_delete=models.CASCADE, null=True, blank=True)
 
-    def active_key(self):
+    def get_owner(self) -> tuple[str, Surface | Topography]:
         for field in self._meta.fields:
             if field.is_relation and (fk := getattr(self, field.name)) is not None:
-                return fk
+                return (field.name, fk)
+        raise ValueError("Exactly one field has to be not null")
 
-    def __str__(self):
-        return str(self.active_key())
+    # ToDo validate before safe
+
+    def get_valid_files(self) -> models.QuerySet['FileManifest']:
+        return self.files.filter(upload_finished__isnull=False)
+
+    def __str__(self) -> str:
+        owner_type, owner_obj = self.get_owner()
+        return f"{owner_type}: {owner_obj}"
 
 
+# The Flow for "direct file upload" is heavily inspired from here:
+# https://www.hacksoft.io/blog/direct-to-s3-file-upload-with-django
 class FileManifest(models.Model):
     FILE_KIND_CHOICES = [
         ("att", "Attachment"),
         ("raw", "Raw data file")
     ]
-    FILE_STATUS_CHOICES = [
-        ("unknown", "Unknown"),
-        ("present", "Present"),
-        ("missing", "Missing")
-    ]
 
-    file = models.FileField()
+    file = models.FileField(
+        upload_to=generate_upload_path,
+        blank=True,
+        null=True
+    )
+
+    original_file_name = models.CharField()
+    file_name = models.CharField(max_length=255, unique=True)
+    file_type = models.CharField(max_length=255)
+
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+
     parent = models.ForeignKey(FileParent, related_name="files", on_delete=models.CASCADE)
     kind = models.CharField(max_length=3, choices=FILE_KIND_CHOICES)
-    status = models.CharField(max_length=7, default="unknown", choices=FILE_STATUS_CHOICES)
+
+    upload_finished = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return str(self.file)
+        return f"FileManifest:\n\tfile -> {self.file}\n\tparent -> {self.parent}\n\tkind -> {self.kind}"
+
+    @property
+    def is_valid(self):
+        return bool(self.upload_finished)
+
+    @property
+    def url(self):
+        if settings.USE_S3_STORAGE:
+            return self.file.url
+        return f"{settings.APP_DOMAIN}{self.file.url}"

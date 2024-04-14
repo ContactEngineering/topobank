@@ -11,6 +11,7 @@ router.register(r'api/topography', views.TopographyViewSet, basename='topography
 router.register(r'api/surface', views.SurfaceViewSet, basename='surface-api')
 router.register(r'api/property', views.PropertyViewSet, basename='property-api')
 router.register(r'api/file', views.FileManifestViewSet, basename='file-api')
+router.register(r'api/fileparent', views.FileParentViewSet, basename='fileparent-api')
 
 urlpatterns = router.urls
 
@@ -20,6 +21,8 @@ urlpatterns = router.urls
 
 app_name = "manager"
 urlpatterns += [
+    path('api/upload/direct/start/', view=views.FileDirectUploadStartApi.as_view()),
+    path('api/upload/direct/finish/', view=views.FileDirectUploadFinishApi.as_view()),
     #
     # Data routes
     #

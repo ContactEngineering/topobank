@@ -28,6 +28,9 @@ APPS_DIR = environ.Path(topobank.__file__) - 1
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
 DEBUG = env.bool('DJANGO_DEBUG', False)
+
+APP_DOMAIN = env("APP_DOMAIN", default="http://127.0.0.1:8000")
+
 # Local time zone. Choices are
 # http://en.wikipedia.org/wiki/List_of_tz_zones_by_name
 # though not all of them may be available with every OS.
