@@ -469,14 +469,19 @@ class Property(models.Model):
         self.validate()
         super().save(*args, **kwargs)
 
+    @property
     def is_numerical(self):
         return self.value_numerical is not None
 
+    @property
     def is_categorical(self):
-        return not self.is_numerical()
+        return not self.is_numerical
 
     def __str__(self):
-        return f"{self.name}: {self.value} {self.unit}"
+        if self.is_numerical:
+            return f"{self.name}: {self.value} {self.unit}"
+        else:
+            return f"{self.name}: {self.value}"
 
     def to_dict(self):
         d = {'name': str(self.name), 'value': self.value}

@@ -188,7 +188,7 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
 
     def to_representation(self, instance):
         repr = super().to_representation(instance)
-        if instance.is_numerical() and instance.unit is None:
+        if instance.is_numerical and instance.unit is None:
             repr['unit'] = ''
         return repr
 

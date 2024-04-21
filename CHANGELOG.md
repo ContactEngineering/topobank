@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.8.0 (not yet released)
+
+- API: is_numerical and is_categorical of Property are now properties
+
 ## 1.7.3 (2024-03-22)
  
 - BUG: Fixed version discovery
