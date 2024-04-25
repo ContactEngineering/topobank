@@ -1,4 +1,6 @@
+from django.conf import settings
 from django.db import transaction
+from django.urls import reverse
 from django.utils import timezone
 
 from topobank.manager.models import FileManifest, FileParent
@@ -30,7 +32,13 @@ class FileUploadService:
         file_manifest.file = file_manifest.file.field.attr_class(file_manifest, file_manifest.file.field, upload_path)
         file_manifest.save()
 
-        upload_instructions = get_upload_instructions(None, upload_path, self.expire)
+        if settings.USE_S3_STORAGE:
+            upload_instructions = get_upload_instructions(None, upload_path, self.expire)
+        else:
+            upload_instructions = {
+                'method': 'POST',
+                'url': reverse('manager:upload-direct-local', kwargs={'file_id': file_manifest.id})
+            }
 
         return {'id': file_manifest.id, **upload_instructions}
 
@@ -41,3 +49,10 @@ class FileUploadService:
         file_manifest.save()
 
         return file_manifest
+
+    @transaction.atomic
+    def upload_local(self, *, file_manifest: FileManifest, file) -> FileManifest:
+        file_manifest.file = file
+        file_manifest.full_clean()
+        file_manifest.save()
+        return file

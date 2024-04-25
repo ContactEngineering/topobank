@@ -204,6 +204,16 @@ class FileDirectUploadFinishApi(APIView):
         return Response({'id': file_id})
 
 
+class FileDirectUploadLocalApi(APIView):
+    def post(self, request, file_id):
+        file_manifest = get_object_or_404(FileManifest, id=file_id)
+        file = request.FILES["file"]
+        service = FileUploadService(request.user)
+        file = service.upload_local(file_manifest=file_manifest, file=file)
+
+        return Response({'id': file_id})
+
+
 def download_surface(request, surface_id):
     """Returns a file or redirect comprised from topographies contained in a surface.
 

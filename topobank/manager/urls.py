@@ -79,3 +79,8 @@ if not settings.USE_S3_STORAGE:
         view=login_required(views.upload_topography),
         name='upload-topography'
     )]
+    urlpatterns += [path(
+        'api/upload/direct/local/<str:file_id>/',
+        view=views.FileDirectUploadLocalApi.as_view(),
+        name="upload-direct-local"
+    )]
