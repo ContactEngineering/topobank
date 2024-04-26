@@ -1504,6 +1504,10 @@ class FileManifest(models.Model):
     def __str__(self):
         return f"FileManifest:\n\tfile -> {self.file}\n\tparent -> {self.parent}\n\tkind -> {self.kind}"
 
+    def delete(self, *args, **kwargs):
+        self.file.delete(save=False)
+        super().delete(*args, **kwargs)
+
     @property
     def is_valid(self):
         return bool(self.upload_finished)
