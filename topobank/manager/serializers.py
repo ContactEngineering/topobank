@@ -258,10 +258,10 @@ class FileUploadSerializer(serializers.Serializer):
             raise serializers.ValidationError("Only one of surface or topography should be provided, not both.")
 
         if surface_value is not None:
-            data['parent'] = FileParent.objects.get_or_create(surface=surface_value)[0]
+            data['parent'], _ = FileParent.objects.get_or_create(surface=surface_value)
             del data['surface']
         elif topography_value is not None:
-            data['parent'] = FileParent.objects.get_or_create(topography=topography_value)[0]
+            data['parent'], _ = FileParent.objects.get_or_create(topography=topography_value)
             del data['topography']
 
         return data
@@ -277,6 +277,7 @@ class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
                   'kind',
                   'created',
                   'updated',
+                  'creator_name',
                   ]
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:file-api-detail', read_only=True)
@@ -287,9 +288,13 @@ class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
     kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
     created = serializers.DateTimeField(read_only=True)
     updated = serializers.DateTimeField(read_only=True)
+    creator_name = serializers.SerializerMethodField()
 
     def get_name(self, obj):
         return obj.original_file_name
+
+    def get_creator_name(self, obj):
+        return obj.uploaded_by.name
 
 
 class SurfaceSerializer(StrictFieldMixin,
