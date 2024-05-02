@@ -2,10 +2,8 @@ import base64
 import functools
 import json
 import logging
-import pathlib
 import tempfile
 import traceback
-from uuid import uuid4
 
 import markdown2
 from django.conf import settings
@@ -570,11 +568,6 @@ def guardian_to_api(guardian_permissions):
     return api_permission
 
 
-def generate_file_name(original_file_name: str) -> str:
-    extension = pathlib.Path(original_file_name).suffix
-    return f"{uuid4().hex}{extension}"
-
-
 def generate_upload_path(instance, file_name: str) -> str:
     owner_type, owner_obj = instance.parent.get_owner()
-    return f"{owner_type}/{owner_obj.id}/{instance.kind}/{file_name}"
+    return f"{owner_type}/{owner_obj.id}/{instance.kind}/{instance.id}/{file_name}"

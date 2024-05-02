@@ -4,7 +4,7 @@ from django.urls import reverse
 from django.utils import timezone
 
 from topobank.manager.models import FileManifest, FileParent
-from topobank.manager.utils import generate_file_name, generate_upload_path, get_upload_instructions
+from topobank.manager.utils import generate_upload_path, get_upload_instructions
 from topobank.users.models import User
 
 
@@ -17,8 +17,7 @@ class FileUploadService:
     @transaction.atomic
     def start(self, *, file_name: str, file_type: str, parent: FileParent, kind: str):
         file_manifest = FileManifest(
-                original_file_name=file_name,
-                file_name=generate_file_name(file_name),
+                file_name=file_name,
                 file_type=file_type,
                 kind=kind,
                 uploaded_by=self.user,
@@ -28,7 +27,7 @@ class FileUploadService:
         file_manifest.full_clean()
         file_manifest.save()
 
-        upload_path = generate_upload_path(file_manifest, file_manifest.original_file_name)
+        upload_path = generate_upload_path(file_manifest, file_name)
         file_manifest.file = file_manifest.file.field.attr_class(file_manifest, file_manifest.file.field, upload_path)
         file_manifest.save()
 

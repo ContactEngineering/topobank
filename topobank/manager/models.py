@@ -1488,8 +1488,7 @@ class FileManifest(models.Model):
         null=True
     )
 
-    original_file_name = models.CharField()
-    file_name = models.CharField(max_length=255, unique=True)
+    file_name = models.CharField(max_length=255)
     file_type = models.CharField(max_length=255)
 
     uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)

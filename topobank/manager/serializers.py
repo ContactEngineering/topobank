@@ -271,7 +271,7 @@ class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = FileManifest
         fields = ['url',
-                  'name',
+                  'file_name',
                   'file',
                   'parent',
                   'kind',
@@ -281,7 +281,6 @@ class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
                   ]
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:file-api-detail', read_only=True)
-    name = serializers.SerializerMethodField()
     file = serializers.FileField(read_only=True)
     parent = serializers.HyperlinkedRelatedField(view_name='manager:fileparent-api-detail',
                                                  queryset=FileParent.objects.all())
@@ -289,9 +288,6 @@ class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
     created = serializers.DateTimeField(read_only=True)
     updated = serializers.DateTimeField(read_only=True)
     creator_name = serializers.SerializerMethodField()
-
-    def get_name(self, obj):
-        return obj.original_file_name
 
     def get_creator_name(self, obj):
         return obj.uploaded_by.name
