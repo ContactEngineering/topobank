@@ -246,7 +246,7 @@ class FileUploadSerializer(serializers.Serializer):
                                                      required=False)
     kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
     file_name = serializers.CharField()
-    file_type = serializers.CharField()
+    file_type = serializers.CharField(allow_blank=True)
 
     def validate(self, data):
         surface_value = data.get('surface')
