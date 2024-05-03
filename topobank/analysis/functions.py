@@ -70,15 +70,27 @@ class ReentrantTopographyException(IncompatibleTopographyException):
     pass
 
 
-def wrap_series(series):
+def wrap_series(series, primary_key='x'):
     """
     Wrap each data series into a `SplitDictionaryHere` with a consecutive name
     'series-0', 'series-1'. Each `SplitDictionaryHere` is written into a separate
     file by `store_split_dict`.
+
+    Parameters
+    ----------
+    series : list
+        The list of data series to be wrapped.
+    primary_key : str, optional
+        The primary key for the data series. Default is 'x'.
+
+    Returns
+    -------
+    wrapped_series : list
+        The list of wrapped data series.
     """
     wrapped_series = []
     for i, s in enumerate(series):
-        supplementary = {'name': s['name'], 'nbDataPoints': len(s['x'])}
+        supplementary = {'name': s['name'], 'nbDataPoints': len(s[primary_key])}
         if 'visible' in s:
             supplementary['visible'] = s['visible']
         wrapped_series.append(SplitDictionaryHere(
