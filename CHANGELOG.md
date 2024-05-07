@@ -3,6 +3,8 @@
 ## 1.8.0 (not yet released)
 
 - API: is_numerical and is_categorical of Property are now properties
+- ENH: Tag can report all properties of its surfaces
+- MAINT: JSON serialization of JAX arrays
 
 ## 1.7.3 (2024-03-22)
  
