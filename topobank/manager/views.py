@@ -312,6 +312,20 @@ def set_permissions(request, pk=None):
     return Response({}, status=204)
 
 
+@api_view(['GET'])
+def tag_numerical_properties(request, pk=None):
+    obj = Tag.objects.get(pk=pk)
+    prop_values, prop_infos = obj.get_properties(kind='numerical')
+    return Response(list(prop_values.keys()), status=200)
+
+
+@api_view(['GET'])
+def tag_categorical_properties(request, pk=None):
+    obj = Tag.objects.get(pk=pk)
+    prop_values, prop_infos = obj.get_properties(kind='categorical')
+    return Response(list(prop_values.keys()), status=200)
+
+
 @api_view(['POST'])
 def upload_topography(request, pk=None):
     instance = Topography.objects.get(pk=pk)
