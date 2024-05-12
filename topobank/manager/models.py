@@ -7,6 +7,7 @@ import logging
 import os.path
 import sys
 import tempfile
+from collections import defaultdict
 
 import dateutil.parser
 import django.dispatch
@@ -148,6 +149,72 @@ class Tag(tm.TagTreeModel,
 
     def related_surfaces(self):
         return list(Surface.objects.filter(tags=self.id))
+
+    def get_properties(self, kind=None):
+        """
+        Collects unique properties for a given tag based on the kind of property.
+
+        Parameters
+        ----------
+        self : Tag
+            The tag to collect unique properties for.
+        kind : str, optional
+            The kind of property to collect. Can be 'categorical', 'numerical', or None.
+            If None, collects all properties. Default is None.
+
+        Raises
+        ------
+        ValueError
+            If the kind is not None, 'categorical', or 'numerical'.
+
+        Returns
+        -------
+        property_values : dict
+            Keys are property names and values are lists of property values for
+            each surface related to the tag.
+        property_infos : dict
+            Keys are property names and values are either a list of categories for
+            categorical properties or a dictionary with min and max values for
+            numerical properties.
+        """
+        if kind not in [None, 'categorical', 'numerical']:
+            raise ValueError(f"Invalid value for kind: {kind}")
+
+        nb_surfaces = len(self.related_surfaces())
+
+        # Initialize a dictionary to collect all properties. The default value for
+        # each property is a list of np.nan of length equal to the number of
+        # surfaces.
+        property_values = defaultdict(lambda: [np.nan] * nb_surfaces)
+        categorical_properties = set()
+
+        # Iterate over all surfaces related to the tag
+        for i, surface in enumerate(self.related_surfaces()):
+            # For each surface, iterate over all its properties
+            for p in Property.objects.filter(surface=surface):
+                # If the property is categorical, add its name to the set of
+                # categorical properties and set its value for the current surface
+                if p.is_categorical:
+                    categorical_properties.add(str(p.name))
+                    if kind is None or kind == 'categorical':
+                        property_values[str(p.name)][i] = p.value
+                # If the property is not categorical, set its value for the
+                # current surface (np.nan if the value is None)
+                elif kind is None or kind == 'numerical':
+                    property_values[str(p.name)][i] = np.nan if p.value is None else p.value
+
+        # Initialize a dictionary to store additional information about each property
+        property_infos = {}
+
+        # For each property, if it's categorical, store its categories (excluding
+        # np.nan). If it's numerical, store its min and max values.
+        for key, values in property_values.items():
+            if key in categorical_properties:
+                property_infos[key] = {'categories': list(set(values) - set([np.nan]))}
+            else:
+                property_infos[key] = {'min_value': np.nanmin(values), 'max_value': np.nanmax(values)}
+
+        return property_values, property_infos
 
 
 class TopobankLazySurfaceContainer(SurfaceContainer):

@@ -1,7 +1,11 @@
 import json
 
-import jax.numpy as jnp
 import numpy as np
+
+try:
+    import jax.numpy as jnp
+except ModuleNotFoundError:
+    jnp = np
 
 from ..json import ExtendedJSONEncoder
 

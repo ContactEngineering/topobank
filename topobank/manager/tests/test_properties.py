@@ -1,3 +1,4 @@
+import numpy as np
 import pytest
 from django.core.exceptions import ValidationError
 from rest_framework.reverse import reverse
@@ -78,3 +79,51 @@ def test_numerical_value_must_have_units(api_client, one_line_scan, handle_usage
     response = api_client.post(reverse('manager:property-api-list'),
                                data=dict(name="stupid-unit", value=1.99, unit="m2", surface=surface_api_url))
     assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_tag_properties(user_three_topographies_three_surfaces_three_tags):
+    user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3) \
+        = user_three_topographies_three_surfaces_three_tags
+
+    surface1.properties.create(name="height", value=42, unit="m")
+    surface2.properties.create(name="height", value=12, unit="m")
+    surface2.properties.create(name="category", value='abc')
+    surface3.properties.create(name="category", value='def')
+
+    tag3.surface_set.add(surface2)
+
+    tag1_values, tag1_infos = tag1.get_properties()
+    assert tag1_values == {'height': [42]}
+    tag2_values, tag2_infos = tag2.get_properties()
+    assert tag2_values == {'height': [12], 'category': ['abc']}
+    tag3_values, tag3_infos = tag3.get_properties()
+    assert tag3_values == {'height': [12, np.nan], 'category': ['abc', 'def']}
+
+
+@pytest.mark.django_db
+def test_tag_property_routes(api_client, user_three_topographies_three_surfaces_three_tags):
+    user, (topo1a, topo1b, topo2a), (surface1, surface2, surface3), (tag1, tag2, tag3) \
+        = user_three_topographies_three_surfaces_three_tags
+
+    surface1.properties.create(name="height", value=42, unit="m")
+    surface2.properties.create(name="height", value=12, unit="m")
+    surface2.properties.create(name="category", value='abc')
+    surface3.properties.create(name="category", value='def')
+
+    tag3.surface_set.add(surface2)
+
+    api_client.force_login(user)
+
+    response = api_client.get(reverse('manager:numerical-properties', [tag1.id]))
+    assert response.data == ['height']
+    response = api_client.get(reverse('manager:categorical-properties', [tag1.id]))
+    assert response.data == []
+    response = api_client.get(reverse('manager:numerical-properties', [tag2.id]))
+    assert response.data == ['height']
+    response = api_client.get(reverse('manager:categorical-properties', [tag2.id]))
+    assert response.data == ['category']
+    response = api_client.get(reverse('manager:numerical-properties', [tag3.id]))
+    assert response.data == ['height']
+    response = api_client.get(reverse('manager:categorical-properties', [tag3.id]))
+    assert response.data == ['category']
