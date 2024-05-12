@@ -207,7 +207,9 @@ class Tag(tm.TagTreeModel,
 
         # For each property, if it's categorical, store its categories (excluding
         # np.nan). If it's numerical, store its min and max values.
+        print(categorical_properties)
         for key, values in property_values.items():
+            print(key, key in categorical_properties, values)
             if key in categorical_properties:
                 property_infos[key] = {'categories': list(set(values) - set([np.nan]))}
             else:
