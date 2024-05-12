@@ -194,6 +194,7 @@ class Tag(tm.TagTreeModel,
             for p in Property.objects.filter(surface=surface):
                 # If the property is categorical, add its name to the set of
                 # categorical properties and set its value for the current surface
+                print(p.name, p.value, p.value_categorical, p.value_numerical, p.is_categorical, kind)
                 if p.is_categorical and (kind is None or kind == 'categorical'):
                     categorical_properties.add(str(p.name))
                     property_values[str(p.name)][i] = p.value
