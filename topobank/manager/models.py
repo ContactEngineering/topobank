@@ -189,22 +189,18 @@ class Tag(tm.TagTreeModel,
         categorical_properties = set()
 
         # Iterate over all surfaces related to the tag
-        print('---')
         for i, surface in enumerate(self.related_surfaces()):
             # For each surface, iterate over all its properties
             for p in Property.objects.filter(surface=surface):
                 # If the property is categorical, add its name to the set of
                 # categorical properties and set its value for the current surface
-                print(p.name, p.value, p.value_categorical, p.value_numerical, p.is_categorical, kind)
                 if p.is_categorical:
                     categorical_properties.add(str(p.name))
                     if kind is None or kind == 'categorical':
-                        print('ADDED')
                         property_values[str(p.name)][i] = p.value
                 # If the property is not categorical, set its value for the
                 # current surface (np.nan if the value is None)
                 elif kind is None or kind == 'numerical':
-                    print('ADDED')
                     property_values[str(p.name)][i] = np.nan if p.value is None else p.value
 
         # Initialize a dictionary to store additional information about each property
@@ -213,7 +209,6 @@ class Tag(tm.TagTreeModel,
         # For each property, if it's categorical, store its categories (excluding
         # np.nan). If it's numerical, store its min and max values.
         for key, values in property_values.items():
-            print(key, key in categorical_properties, values)
             if key in categorical_properties:
                 property_infos[key] = {'categories': list(set(values) - set([np.nan]))}
             else:
