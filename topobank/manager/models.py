@@ -1513,6 +1513,4 @@ class FileManifest(models.Model):
 
     @property
     def url(self):
-        if settings.USE_S3_STORAGE:
-            return self.file.url
-        return f"{settings.APP_DOMAIN}{self.file.url}"
+        return self.file.url
