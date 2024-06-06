@@ -28,7 +28,7 @@ from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
 from .models import FileManifest, FileParent, Property, Surface, Tag, Topography, topography_datafile_path
-from .permissions import ObjectPermissions, ParentObjectPermissions
+from .permissions import FileParentObjectPermissions, ObjectPermissions, ParentObjectPermissions
 from .serializers import (
     FileManifestSerializer,
     FileParentSerializer,
@@ -49,7 +49,7 @@ class FileParentViewSet(mixins.RetrieveModelMixin,
                         viewsets.GenericViewSet):
     queryset = FileParent.objects.all()
     serializer_class = FileParentSerializer
-    # ToDo permissions
+    permission_classes = [IsAuthenticatedOrReadOnly, FileParentObjectPermissions]
 
 
 class FileManifestViewSet(mixins.CreateModelMixin,
