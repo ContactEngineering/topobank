@@ -1463,14 +1463,35 @@ class FileParent(models.Model):
                 return (field.name, fk)
         raise ValueError("Exactly one field has to be not null")
 
-    # ToDo validate before safe
+    def validate(self):
+        """
+        Checks the invariants of this Model.
+        If any invariant is broken, a ValidationError is raised
+
+        Invariants:
+        - 1. `surface` or `topography` are `None`
+        - 2. `surface` or `topography` are not `None`
+        This results in a 'XOR' logic and exaclty one of the value fields has to hold a value
+        """
+
+        # Invariant 1
+        if not (self.surface is None or self.topography is None):
+            raise ValidationError("Either 'surface' or 'topography' must be None.")
+        # Invariant 2
+        if not (self.surface is not None or self.topography is not None):
+            raise ValidationError("Either 'surface' or 'topography' must be not None.")
+
+    def save(self, *args, **kwargs):
+        self.validate()
+        super().save(*args, **kwargs)
 
     def get_valid_files(self) -> models.QuerySet['FileManifest']:
+        # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
         return self.files.filter(upload_finished__isnull=False)
 
     def __str__(self) -> str:
         owner_type, owner_obj = self.get_owner()
-        return f"{owner_type}: {owner_obj}"
+        return f"FileParent : {owner_type} - {owner_obj}"
 
 
 # The Flow for "direct file upload" is heavily inspired from here:
@@ -1502,6 +1523,7 @@ class FileManifest(models.Model):
     def __str__(self):
         return f"FileManifest:\n\tfile -> {self.file}\n\tparent -> {self.parent}\n\tkind -> {self.kind}"
 
+    # TODO: Here the returned value `None` Seems to be incorrect, change to the correct type
     def delete(self, *args, **kwargs):
         self.file.delete(save=False)
         super().delete(*args, **kwargs)
