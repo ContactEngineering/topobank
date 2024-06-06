@@ -226,11 +226,9 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
 class FileParentSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = FileParent
-        fields = ['tag', 'surface', 'topography']
+        fields = ['surface', 'topography']
         # fields = '__all__'
 
-    tag = serializers.HyperlinkedRelatedField(view_name='manager:tag-api-detail',
-                                              queryset=Tag.objects.all())
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
                                                   queryset=Surface.objects.all())
     topography = serializers.HyperlinkedRelatedField(view_name='manager:topography-api-detail',

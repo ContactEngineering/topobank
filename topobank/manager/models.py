@@ -1454,7 +1454,6 @@ class Topography(TaskStateModel, SubjectMixin):
 
 
 class FileParent(models.Model):
-    tag = models.OneToOneField(Tag, on_delete=models.CASCADE, null=True, blank=True)
     surface = models.OneToOneField(Surface, on_delete=models.CASCADE, null=True, blank=True)
     topography = models.OneToOneField(Topography, on_delete=models.CASCADE, null=True, blank=True)
 

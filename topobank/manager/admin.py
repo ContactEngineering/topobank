@@ -30,4 +30,4 @@ class FileManifestAdmin(admin.ModelAdmin):
 
 @admin.register(FileParent)
 class FileParentAdmin(admin.ModelAdmin):
-    list_display = ('id', 'tag', 'surface', 'topography')
+    list_display = ('id', 'surface', 'topography')
