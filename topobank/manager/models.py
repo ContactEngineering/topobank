@@ -792,6 +792,12 @@ class Topography(TaskStateModel, SubjectMixin):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
 
     @property
+    def attachments(self):
+        if not hasattr(self, "fileparent"):
+            return []
+        return self.fileparent.get_valid_files()
+
+    @property
     def label(self):
         """Return a string which can be used in the UI.
         """

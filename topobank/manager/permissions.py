@@ -37,13 +37,13 @@ class ParentObjectPermissions(ObjectPermissions):
     """
     parent_property = 'surface'
 
-    def get_parent_obj(self, obj):
+    def get_permission_responsible_object(self, obj):
         return getattr(obj, self.parent_property)
 
     def has_object_permission(self, request, view, obj):
         user = request.user
 
-        parent_obj = self.get_parent_obj(obj)
+        parent_obj = self.get_permission_responsible_object(obj)
 
         required_perms = self.get_required_object_permissions(request.method, parent_obj.__class__)
 
@@ -73,7 +73,7 @@ class FileParentObjectPermissions(ParentObjectPermissions):
     This might be either a `Surface` or a `Topography` object.
     """
 
-    def get_parent_obj(self, obj: FileParent):
+    def get_permission_responsible_object(self, obj: FileParent):
         _, parent_obj = obj.get_owner()
         return parent_obj
 
@@ -84,9 +84,15 @@ class FileManifestObjectPermissions(ParentObjectPermissions):
     This might be either a `Surface` or a `Topography` object.
     """
 
-    def get_parent_obj(self, obj: FileManifest):
-        _, parent_obj = obj.parent.get_owner()
-        return parent_obj
+    def get_permission_responsible_object(self, obj: FileManifest):
+        parent_type, parent_obj = obj.parent.get_owner()
+        match parent_type:
+            case "surface":
+                return parent_obj
+            case "topography":
+                return parent_obj.surface
+            case _:
+                raise ValueError("The parent type should be one of `surface` or `topography`")
 
 
 # From django-rest-framework-guardian:

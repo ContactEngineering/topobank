@@ -70,6 +70,73 @@ class TagSerializer(StrictFieldMixin,
     url = serializers.HyperlinkedIdentityField(view_name='manager:tag-api-detail', read_only=True)
 
 
+class FileParentSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = FileParent
+        fields = ['surface', 'topography']
+
+    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
+                                                  queryset=Surface.objects.all())
+    topography = serializers.HyperlinkedRelatedField(view_name='manager:topography-api-detail',
+                                                     queryset=Topography.objects.all())
+
+
+class FileUploadSerializer(serializers.Serializer):
+    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
+                                                  queryset=Surface.objects.all(),
+                                                  required=False)
+    topography = serializers.HyperlinkedRelatedField(view_name='manager:topography-api-detail',
+                                                     queryset=Topography.objects.all(),
+                                                     required=False)
+    kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
+    file_name = serializers.CharField()
+    file_type = serializers.CharField(allow_blank=True)
+
+    def validate(self, data):
+        surface_value = data.get('surface')
+        topography_value = data.get('topography')
+
+        if surface_value is None and topography_value is None:
+            raise serializers.ValidationError("Exactly one of surface or topography must be provided.")
+        elif surface_value is not None and topography_value is not None:
+            raise serializers.ValidationError("Only one of surface or topography should be provided, not both.")
+
+        if surface_value is not None:
+            data['parent'], _ = FileParent.objects.get_or_create(surface=surface_value)
+            del data['surface']
+        elif topography_value is not None:
+            data['parent'], _ = FileParent.objects.get_or_create(topography=topography_value)
+            del data['topography']
+
+        return data
+
+
+class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = FileManifest
+        fields = ['url',
+                  'file_name',
+                  'file',
+                  'parent',
+                  'kind',
+                  'created',
+                  'updated',
+                  'creator_name',
+                  ]
+
+    url = serializers.HyperlinkedIdentityField(view_name='manager:file-api-detail', read_only=True)
+    file = serializers.FileField(read_only=True)
+    parent = serializers.HyperlinkedRelatedField(view_name='manager:fileparent-api-detail',
+                                                 queryset=FileParent.objects.all())
+    kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
+    created = serializers.DateTimeField(read_only=True)
+    updated = serializers.DateTimeField(read_only=True)
+    creator_name = serializers.SerializerMethodField()
+
+    def get_creator_name(self, obj):
+        return obj.uploaded_by.name
+
+
 class TopographySerializer(StrictFieldMixin,
                            TaskStateModelSerializer):
     class Meta:
@@ -98,12 +165,15 @@ class TopographySerializer(StrictFieldMixin,
                   'thumbnail',
                   'creation_datetime', 'modification_datetime',
                   'duration', 'error', 'task_progress', 'task_state', 'tags',  # TaskStateModelSerializer
+                  'attachments',
                   'permissions']
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:topography-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
                                                   queryset=Surface.objects.all())
+
+    attachments = FileManifestSerializer(many=True)
 
     tags = TagRelatedManagerField(required=False)
 
@@ -116,13 +186,15 @@ class TopographySerializer(StrictFieldMixin,
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
 
-        # We only return permissions if requested to do so
-        with_permissions = False
-        if 'request' in self.context:
-            permissions = self.context['request'].query_params.get('permissions')
-            with_permissions = permissions is not None and permissions.lower() in ['yes', 'true']
-        if not with_permissions:
-            self.fields.pop('permissions')
+        if 'request' not in self.context:
+            return
+        # We only return permissions and attachments if requested to do so
+        optional_fields = ['permissions', 'attachments']
+        for field in optional_fields:
+            param = self.context['request'].query_params.get(field)
+            requested = param is not None and param.lower() in ['yes', 'true']
+            if not requested:
+                self.fields.pop(field)
 
     def validate(self, data):
         read_only_fields = []
@@ -221,74 +293,6 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
                 raise serializers.ValidationError({"message": f"Unit '{unit}' is not a physical unit"})
 
         return data
-
-
-class FileParentSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = FileParent
-        fields = ['surface', 'topography']
-        # fields = '__all__'
-
-    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
-                                                  queryset=Surface.objects.all())
-    topography = serializers.HyperlinkedRelatedField(view_name='manager:topography-api-detail',
-                                                     queryset=Topography.objects.all())
-
-
-class FileUploadSerializer(serializers.Serializer):
-    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
-                                                  queryset=Surface.objects.all(),
-                                                  required=False)
-    topography = serializers.HyperlinkedRelatedField(view_name='manager:topography-api-detail',
-                                                     queryset=Topography.objects.all(),
-                                                     required=False)
-    kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
-    file_name = serializers.CharField()
-    file_type = serializers.CharField(allow_blank=True)
-
-    def validate(self, data):
-        surface_value = data.get('surface')
-        topography_value = data.get('topography')
-
-        if surface_value is None and topography_value is None:
-            raise serializers.ValidationError("Exactly one of surface or topography must be provided.")
-        elif surface_value is not None and topography_value is not None:
-            raise serializers.ValidationError("Only one of surface or topography should be provided, not both.")
-
-        if surface_value is not None:
-            data['parent'], _ = FileParent.objects.get_or_create(surface=surface_value)
-            del data['surface']
-        elif topography_value is not None:
-            data['parent'], _ = FileParent.objects.get_or_create(topography=topography_value)
-            del data['topography']
-
-        return data
-
-
-class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = FileManifest
-        fields = ['url',
-                  'file_name',
-                  'file',
-                  'parent',
-                  'kind',
-                  'created',
-                  'updated',
-                  'creator_name',
-                  ]
-
-    url = serializers.HyperlinkedIdentityField(view_name='manager:file-api-detail', read_only=True)
-    file = serializers.FileField(read_only=True)
-    parent = serializers.HyperlinkedRelatedField(view_name='manager:fileparent-api-detail',
-                                                 queryset=FileParent.objects.all())
-    kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
-    created = serializers.DateTimeField(read_only=True)
-    updated = serializers.DateTimeField(read_only=True)
-    creator_name = serializers.SerializerMethodField()
-
-    def get_creator_name(self, obj):
-        return obj.uploaded_by.name
 
 
 class SurfaceSerializer(StrictFieldMixin,
