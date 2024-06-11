@@ -91,11 +91,10 @@ dependencies = [
     # tornado>=4.2.0, <6.0.0
 
     # Surface topography I/O and analysis
-    'SurfaceTopography>=1.13.12',
-    'muspectre',
+    'SurfaceTopography>=1.14.0',
     # FIXME: This is needed for just IncompatibleFormulationError. The dependency should really come in through
     # topobank-contact
-    'ContactMechanics>=1.1.1',
+    'ContactMechanics>=1.4.0',
 
     # pandas is currently needed for downloading xlsx files from analyses
     'pandas',

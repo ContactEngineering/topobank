@@ -170,7 +170,7 @@ def test_current_configuration(settings):
         ('ContactMechanics', 'ContactMechanics.__version__', 'MIT',
          'https://github.com/ContactEngineering/ContactMechanics'),
         ('NuMPI', 'NuMPI.__version__', 'MIT', 'https://github.com/IMTEK-Simulation/NuMPI'),
-        ('muFFT', 'muFFT.version.description()', 'LGPL-3.0', 'https://gitlab.com/muspectre/muspectre'),
+        ('muFFT', 'muFFT.__version__', 'LGPL-3.0', 'https://gitlab.com/muSpectre/muFFT'),
         ('topobank', 'topobank.__version__', 'MIT', 'https://github.com/ContactEngineering/SurfaceTopography'),
         ('numpy', 'numpy.version.full_version', 'BSD 3-Clause', 'https://numpy.org/'),
     ]
