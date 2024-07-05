@@ -11,7 +11,6 @@ router.register(r'api/topography', views.TopographyViewSet, basename='topography
 router.register(r'api/surface', views.SurfaceViewSet, basename='surface-api')
 router.register(r'api/property', views.PropertyViewSet, basename='property-api')
 router.register(r'api/file', views.FileManifestViewSet, basename='file-api')
-router.register(r'api/fileparent', views.FileParentViewSet, basename='fileparent-api')
 
 urlpatterns = router.urls
 

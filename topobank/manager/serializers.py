@@ -70,17 +70,6 @@ class TagSerializer(StrictFieldMixin,
     url = serializers.HyperlinkedIdentityField(view_name='manager:tag-api-detail', read_only=True)
 
 
-class FileParentSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = FileParent
-        fields = ['surface', 'topography']
-
-    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
-                                                  queryset=Surface.objects.all())
-    topography = serializers.HyperlinkedRelatedField(view_name='manager:topography-api-detail',
-                                                     queryset=Topography.objects.all())
-
-
 class FileUploadSerializer(serializers.Serializer):
     surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
                                                   queryset=Surface.objects.all(),
@@ -117,7 +106,6 @@ class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
         fields = ['url',
                   'file_name',
                   'file',
-                  'parent',
                   'kind',
                   'created',
                   'updated',
@@ -126,8 +114,6 @@ class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:file-api-detail', read_only=True)
     file = serializers.FileField(read_only=True)
-    parent = serializers.HyperlinkedRelatedField(view_name='manager:fileparent-api-detail',
-                                                 queryset=FileParent.objects.all())
     kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
     created = serializers.DateTimeField(read_only=True)
     updated = serializers.DateTimeField(read_only=True)

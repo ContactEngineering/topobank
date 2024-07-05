@@ -4,7 +4,7 @@ from guardian.utils import get_user_obj_perms_model
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.permissions import SAFE_METHODS, DjangoObjectPermissions
 
-from .models import FileManifest, FileParent, Surface
+from .models import FileManifest, Surface
 
 
 class ObjectPermissions(DjangoObjectPermissions):
@@ -65,17 +65,6 @@ class ParentObjectPermissions(ObjectPermissions):
             return False
 
         return True
-
-
-class FileParentObjectPermissions(ParentObjectPermissions):
-    """
-    Delegate permissions check to the parent object.
-    This might be either a `Surface` or a `Topography` object.
-    """
-
-    def get_permission_responsible_object(self, obj: FileParent):
-        _, parent_obj = obj.get_owner()
-        return parent_obj
 
 
 class FileManifestObjectPermissions(ParentObjectPermissions):

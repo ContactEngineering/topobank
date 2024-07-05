@@ -27,16 +27,10 @@ from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
-from .models import FileManifest, FileParent, Property, Surface, Tag, Topography, topography_datafile_path
-from .permissions import (
-    FileManifestObjectPermissions,
-    FileParentObjectPermissions,
-    ObjectPermissions,
-    ParentObjectPermissions
-)
+from .models import FileManifest, Property, Surface, Tag, Topography, topography_datafile_path
+from .permissions import FileManifestObjectPermissions, ObjectPermissions, ParentObjectPermissions
 from .serializers import (
     FileManifestSerializer,
-    FileParentSerializer,
     FileUploadSerializer,
     PropertySerializer,
     SurfaceSerializer,
@@ -47,14 +41,6 @@ from .tasks import import_container_from_url
 from .utils import api_to_guardian, get_upload_instructions
 
 _log = logging.getLogger(__name__)
-
-
-class FileParentViewSet(mixins.RetrieveModelMixin,
-                        mixins.DestroyModelMixin,
-                        viewsets.GenericViewSet):
-    queryset = FileParent.objects.all()
-    serializer_class = FileParentSerializer
-    permission_classes = [FileParentObjectPermissions]
 
 
 class FileManifestViewSet(mixins.CreateModelMixin,
