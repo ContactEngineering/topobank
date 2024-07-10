@@ -32,7 +32,10 @@ class User(GuardianUserMixin, AbstractUser):
         except ORCIDException:
             orcid_id = None
 
-        return "{} ({})".format(self.name, orcid_id if orcid_id else "no ORCID ID")
+        if orcid_id is None or orcid_id == '':
+            return self.name
+        else:
+            return "{} ({})".format(self.name, orcid_id)
 
     def _get_anonymous_user(self):
         if self.anonymous_user is None:
