@@ -423,7 +423,10 @@ def data(request, pk, location):
     except ValueError:
         raise Http404()
 
-    analysis = Analysis.objects.get(id=pk)
+    try:
+        analysis = Analysis.objects.get(id=pk)
+    except Analysis.DoesNotExist:
+        raise PermissionDenied()  # This should be shown independent of whether the surface exists
 
     if not analysis.is_visible_for_user(request.user):
         raise PermissionDenied()
