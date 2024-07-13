@@ -1,5 +1,12 @@
 # Changelog for *TopoBank*
 
+## 1.8.1 (2024-07-13)
+
+- MAINT: Bumped dependencies to remove muSpectre and introduce muFFT
+- BUG: Permission denied when analysis does not exists (right now it yields
+  internal server error)
+- BUG: Skip permissions check if there are no surfaces in the subjects
+
 ## 1.8.0 (2024-05-12)
 
 - API: `is_numerical` and `is_categorical` of Property are now properties
