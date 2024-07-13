@@ -254,7 +254,13 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
     if user is not None:
         # Build list of related surfaces
         related_surfaces = [s.related_surfaces() for s in subjects]
+        if related_surfaces == []:
+            # Nothing to check
+            return []
         unique_surfaces = set([s for s in functools.reduce(lambda x, y: x + y, related_surfaces, [])])
+        if len(unique_surfaces) == 0:
+            # Nothing to check (but should not really happen)
+            return []
         checker = ObjectPermissionChecker(user)
         checker.prefetch_perms(unique_surfaces)
         permissions = [all([checker.has_perm('view_surface', s) for s in r]) for r in related_surfaces]
