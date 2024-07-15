@@ -753,7 +753,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
             # `instrument_parameters` is special as it can contain non-significant entries
             if (self._clean_instrument_parameters(self.instrument_parameters) !=
-                self._clean_instrument_parameters(old_obj.instrument_parameters)):
+                    self._clean_instrument_parameters(old_obj.instrument_parameters)):
                 changed_fields += ['instrument_parameters']
 
             # We need to refresh if any of the significant fields changed during this save
