@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.8.2 (not yet released)
+
+- ENH: Surfaces are now returned for all tag children
+
 ## 1.8.1 (2024-07-13)
 
 - MAINT: Bumped dependencies to remove muSpectre and introduce muFFT
