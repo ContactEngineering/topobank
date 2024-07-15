@@ -309,12 +309,8 @@ def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
         if isinstance(a[key], dict):
             assert_dict_equal(a[key], b[key], key=key)
         elif isinstance(a[key], np.ndarray) or isinstance(b[key], np.ndarray):
-            if (hasattr(a[key], 'dtype') and isinstance(a[key].dtype, np.floating)) or \
-                    (hasattr(b[key], 'dtype') and isinstance(b[key].dtype, np.floating)):
-                np.testing.assert_allclose(a[key], b[key], rtol=rtol, atol=atol,
-                                           err_mgs=f'The value of the following key differs: {key}')
-            else:
-                assert np.all(a[key] == b[key]), f'The value of the following key differs: {key}'
+            np.testing.assert_allclose(a[key], b[key], rtol=rtol, atol=atol,
+                                       err_msg=f'The value of the following key differs: {key}')
         elif isinstance(a[key], list):
             assert_dicts_equal(a[key], b[key])
         else:
