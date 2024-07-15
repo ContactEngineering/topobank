@@ -275,3 +275,32 @@ def load_split_dict(storage_prefix, name):
 
     d = json.load(default_storage.open(f'{storage_prefix}/{name}.json'))
     return _unsplit_dict(d)
+
+
+def unsplit_dict(d):
+    """Unsplit a dictionary which was split by `store_split_dict`.
+
+    Parameters
+    ----------
+    d: dict
+        Dictionary which was split by `store_split_dict`.
+
+    Returns
+    -------
+    Original dict as stored with `store_split_dict`, but without the wrapper classes
+    of type `SplitDictionaryHere`.
+    """
+    if isinstance(d, SplitDictionaryHere):
+        return unsplit_dict(d.dict)
+    elif hasattr(d, 'items'):
+        new_d = {}
+        for key, value in d.items():
+            new_d[key] = unsplit_dict(value)
+        return new_d
+    elif isinstance(d, list):
+        new_d = []
+        for value in d:
+            new_d.append(unsplit_dict(value))
+        return new_d
+    else:
+        return d
