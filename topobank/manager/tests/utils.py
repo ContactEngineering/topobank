@@ -6,6 +6,7 @@ import tempfile
 from operator import itemgetter
 
 import factory
+import numpy as np
 import pytest
 import requests
 from django.conf import settings
@@ -293,3 +294,32 @@ def two_users():
     Topography1DFactory(surface=surface3)
 
     return user1, user2
+
+
+def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
+    try:
+        keys_a = set(a.keys())
+        keys_b = set(b.keys())
+    except AttributeError:
+        assert a == b, f'The value of the following key differs: {key}'
+        return
+
+    assert keys_a == keys_b, f'The following keys are not present in both dictionaries: {keys_a ^ keys_b}'
+    for key in keys_a:
+        if isinstance(a[key], dict):
+            assert_dict_equal(a[key], b[key], key=key)
+        elif isinstance(a[key], list):
+            assert_dicts_equal(a[key], b[key])
+        elif isinstance(a[key], np.ndarray) or isinstance(b[key], np.ndarray):
+            if isinstance(a[key].dtype, np.floating):
+                np.testing.assert_allclose(a[key], b[key], rtol=rtol, atol=atol,
+                                           err_mgs=f'The value of the following key differs: {key}')
+            else:
+                assert np.all(a[key] == b[key]), f'The value of the following key differs: {key}'
+        else:
+            assert a[key] == b[key], f'The value of the following key differs: {key}'
+
+
+def assert_dicts_equal(a, b):
+    for x, y in zip(a, b):
+        assert_dict_equal(x, y)
