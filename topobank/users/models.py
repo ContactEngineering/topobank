@@ -27,11 +27,7 @@ class User(GuardianUserMixin, AbstractUser):
     anonymous_user = None
 
     def __str__(self):
-        try:
-            orcid_id = self.orcid_id
-        except ORCIDException:
-            orcid_id = None
-
+        orcid_id = self.orcid_id
         if orcid_id is None or orcid_id == '':
             return self.name
         else:
@@ -75,22 +71,43 @@ class User(GuardianUserMixin, AbstractUser):
 
     @property
     def orcid_id(self):
-        """Return ORCID iD, the 16-digit identifier as string in format XXXX-XXXX-XXXX-XXXX.
-
-        :return: str
-        :raises: ORCIDInfoMissingException
         """
-        return self._orcid_info()['path']
+        Return ORCID iD, a unique 16-digit identifier for researchers.
 
-    # defined as method and not as property, because we maybe later return other URI when a keyword is given
+        This method attempts to retrieve the ORCID iD from the user's linked
+        social account information. If the ORCID iD cannot be retrieved (e.g.,
+        due to the user not having an ORCID account linked), the method returns
+        None.
+
+        Returns
+        -------
+        str or None
+            The ORCID iD as a string if available, otherwise None.
+        """
+        try:
+            return self._orcid_info()['path']
+        except ORCIDException:
+            return None
+
     def orcid_uri(self):
-        """Return uri to ORCID account or None if not available.
+        """
+        Return the URI to the user's ORCID account, if available.
 
-        :return: str or None
+        This method is defined as a method rather than a property to allow for the
+        possibility of returning different URIs based on given keywords in the future.
+        Currently, it attempts to retrieve the ORCID URI from the user's linked social
+        account information. If the ORCID URI cannot be retrieved, for example, if the
+        user does not have an ORCID account linked or if there is an issue accessing
+        the information, the method returns None.
+
+        Returns
+        -------
+        str or None
+            The ORCID URI as a string if available, otherwise None.
         """
         try:
             return self._orcid_info()['uri']
-        except:  # noqa: E722
+        except ORCIDException:  # noqa: E722
             return None
 
     def is_sharing_with(self, user):

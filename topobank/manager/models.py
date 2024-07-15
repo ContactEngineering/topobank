@@ -219,6 +219,7 @@ class Tag(tm.TagTreeModel,
 
 class TopobankLazySurfaceContainer(SurfaceContainer):
     """Wraps a `Surface` with lazy loading of topography data"""
+
     def __init__(self, surface):
         self._surface = surface
         self._topographies = self._surface.topography_set.all()
@@ -303,9 +304,12 @@ class Surface(models.Model,
         Returns:
             dict
         """
+        creator = {'name': self.creator.name}
+        if self.creator.orcid_id is not None:
+            creator['orcid'] = self.creator.orcid_id
         d = {'name': self.name,
              'category': self.category,
-             'creator': {'name': self.creator.name, 'orcid': self.creator.orcid_id},
+             'creator': creator,
              'description': self.description,
              'tags': [t.name for t in self.tags.order_by('name')],
              'is_published': self.is_published,
@@ -749,7 +753,7 @@ class Topography(TaskStateModel, SubjectMixin):
 
             # `instrument_parameters` is special as it can contain non-significant entries
             if (self._clean_instrument_parameters(self.instrument_parameters) !=
-                    self._clean_instrument_parameters(old_obj.instrument_parameters)):
+                self._clean_instrument_parameters(old_obj.instrument_parameters)):
                 changed_fields += ['instrument_parameters']
 
             # We need to refresh if any of the significant fields changed during this save
