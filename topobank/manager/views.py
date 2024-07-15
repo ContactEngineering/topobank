@@ -349,7 +349,7 @@ def import_surface(request):
         return HttpResponseBadRequest()
 
     user = request.user
-    import_container_from_url.delay(user.id, url)
+    import_container_from_url.delay(user, url)
 
     return Response({}, status=200)
 
