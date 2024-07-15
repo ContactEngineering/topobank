@@ -148,7 +148,7 @@ class Tag(tm.TagTreeModel,
         return True  # Tags are generally shared, but the surfaces may not
 
     def related_surfaces(self):
-        return list(Surface.objects.filter(tags=self.id))
+        return list(Surface.objects.filter(tags__in=Tag.objects.filter(pk=self.id) | self.get_descendants()))
 
     def get_properties(self, kind=None):
         """
