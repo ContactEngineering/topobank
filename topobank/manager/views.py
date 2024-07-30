@@ -349,7 +349,8 @@ def import_surface(request):
         return HttpResponseBadRequest()
 
     user = request.user
-    import_container_from_url.delay(user, url)
+    # Need to pass id here because user is not JSON serializable
+    import_container_from_url.delay(user.id, url)
 
     return Response({}, status=200)
 
