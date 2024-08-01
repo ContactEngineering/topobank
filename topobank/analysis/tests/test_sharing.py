@@ -1,0 +1,43 @@
+import pytest
+
+from topobank.analysis.controller import AnalysisController
+from topobank.manager.models import Surface
+
+
+@pytest.mark.django_db
+def test_topography_analysis(mocker, two_users, test_analysis_function):
+    user1, user2 = two_users
+
+    surface1, surface2, surface3 = Surface.objects.all()
+
+    controller = AnalysisController(
+        user1, subjects=[surface1], function=test_analysis_function
+    )
+    controller.trigger_missing_analyses()
+    assert len(controller) == 2  # analysis of topography and surface
+
+    results = controller.get()
+
+    for r in results:
+        r.task_state = "su"
+
+    # Controller should not trigger analyses again
+    controller.trigger_missing_analyses()
+    assert [r.task_state for r in controller.get()] == ["su", "su"]
+
+    controller = AnalysisController(
+        user2, subjects=[surface1], function=test_analysis_function
+    )
+    controller.trigger_missing_analyses()
+    assert len(controller) == 0  # user2 has no access to surface1
+
+    surface1.share(user2)
+
+    controller = AnalysisController(
+        user2, subjects=[surface1], function=test_analysis_function
+    )
+    controller.trigger_missing_analyses()
+    assert len(controller) == 2  # user2 now has access to surface1
+
+    # Controller triggered analyses because they are tied to a specific user
+    assert [r.task_state for r in controller.get()] == ["pe", "pe"]
