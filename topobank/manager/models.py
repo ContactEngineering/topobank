@@ -466,6 +466,10 @@ class Surface(models.Model,
 
 
 class Property(models.Model):
+    class Meta:
+        unique_together = (('surface', 'name'),)
+        verbose_name_plural = 'properties'
+
     name = models.TextField(default="prop")
     value_categorical = models.CharField(blank=True, null=True)
     value_numerical = models.FloatField(blank=True, null=True)

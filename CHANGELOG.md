@@ -1,8 +1,9 @@
 # Changelog for *TopoBank*
 
-## 1.8.2 (not yet released)
+## 1.9.0 (not yet released)
 
 - ENH: Surfaces are now returned for all tag children
+- BUG: Avoid properties of identical name
 
 ## 1.8.1 (2024-07-13)
 
