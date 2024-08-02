@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('manager', '0053_fileparent_filemanifest'),
+        ('manager', '0054_fileparent_filemanifest'),
     ]
 
     operations = [

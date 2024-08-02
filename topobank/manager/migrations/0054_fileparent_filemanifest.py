@@ -11,7 +11,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ('manager', '0052_alter_tagulous_property_unit_unique_together_and_more'),
+        ('manager', '0053_alter_property_options_and_more'),
     ]
 
     operations = [
