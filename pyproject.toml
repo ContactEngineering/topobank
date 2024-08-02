@@ -39,7 +39,7 @@ dependencies = [
     'psycopg2>=2.8',  # https://github.com/psycopg/psycopg2
 
     # Django
-    'django==4.2.11',    #  does this work with pyup?  # https://www.djangoproject.com/
+    'django==4.2.14',    #  does this work with pyup?  # https://www.djangoproject.com/
     'django-environ',  # https://github.com/joke2k/django-environ
     'django-allauth>=0.56.0',  # https://github.com/pennersr/django-allauth
     'django-crispy-forms',  # https://github.com/django-crispy-forms/django-crispy-forms
@@ -91,11 +91,10 @@ dependencies = [
     # tornado>=4.2.0, <6.0.0
 
     # Surface topography I/O and analysis
-    'SurfaceTopography>=1.13.12',
-    'muspectre',
+    'SurfaceTopography>=1.14.0',
     # FIXME: This is needed for just IncompatibleFormulationError. The dependency should really come in through
     # topobank-contact
-    'ContactMechanics>=1.1.1',
+    'ContactMechanics>=1.4.0',
 
     # pandas is currently needed for downloading xlsx files from analyses
     'pandas',
@@ -107,7 +106,7 @@ dependencies = [
 
     # notifications
     # (static/js/notify.js appears to be missing from 1.8.0 and above)
-    'django-notifications-hq==1.7.0',
+    'django-notifications-hq==1.8.3',
 
     # openpyxl
     'openpyxl',
@@ -171,7 +170,7 @@ dev = [
 
     # Documentation
     # ------------------------------------------------------------------------------
-    'Sphinx<6.0.0',
+    'Sphinx<8.0.3',
     # https://github.com/sphinx-doc/sphinx
     'sphinx_rtd_theme',
 

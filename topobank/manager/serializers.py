@@ -18,9 +18,10 @@ _ureg = pint.UnitRegistry()
 # From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
 class StrictFieldMixin:
     """Raises error if read only fields or non-existing fields passed to input data"""
+
     default_error_messages = {
-        'read_only': _('This field is read only'),
-        'does_not_exist': _('This field does not exist')
+        "read_only": _("This field is read only"),
+        "does_not_exist": _("This field does not exist"),
     }
 
     def to_internal_value(self, data):
@@ -30,7 +31,9 @@ class StrictFieldMixin:
         # check that all dictionary keys are fields
         for key in data.keys():
             if key not in field_names:
-                errors[key] = serializers.ErrorDetail(self.error_messages['does_not_exist'], code='does_not_exist')
+                errors[key] = serializers.ErrorDetail(
+                    self.error_messages["does_not_exist"], code="does_not_exist"
+                )
 
         if errors != {}:
             raise serializers.ValidationError(errors)
@@ -40,34 +43,36 @@ class StrictFieldMixin:
     def validate(self, attrs):
         attrs = super().validate(attrs)
 
-        if not hasattr(self, 'initial_data'):
+        if not hasattr(self, "initial_data"):
             return attrs
 
         # collect declared read only fields and read only fields from Meta
-        read_only_fields = ({field_name for field_name, field in self.fields.items() if field.read_only} |
-                            set(getattr(self.Meta, 'read_only_fields', set())))
+        read_only_fields = {
+            field_name for field_name, field in self.fields.items() if field.read_only
+        } | set(getattr(self.Meta, "read_only_fields", set()))
 
         received_read_only_fields = set(self.initial_data) & read_only_fields
 
         if received_read_only_fields:
             errors = {}
             for field_name in received_read_only_fields:
-                errors[field_name] = serializers.ErrorDetail(self.error_messages['read_only'], code='read_only')
+                errors[field_name] = serializers.ErrorDetail(
+                    self.error_messages["read_only"], code="read_only"
+                )
 
             raise serializers.ValidationError(errors)
 
         return attrs
 
 
-class TagSerializer(StrictFieldMixin,
-                    serializers.HyperlinkedModelSerializer):
+class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Tag
-        fields = ['url',
-                  'id',
-                  'name']
+        fields = ["url", "id", "name"]
 
-    url = serializers.HyperlinkedIdentityField(view_name='manager:tag-api-detail', read_only=True)
+    url = serializers.HyperlinkedIdentityField(
+        view_name="manager:tag-api-detail", read_only=True
+    )
 
 
 class FileUploadSerializer(serializers.Serializer):
@@ -165,7 +170,9 @@ class TopographySerializer(StrictFieldMixin,
 
     is_metadata_complete = serializers.SerializerMethodField()
 
-    upload_instructions = serializers.DictField(default=None, read_only=True)  # Pre-signed upload location
+    upload_instructions = serializers.DictField(
+        default=None, read_only=True
+    )  # Pre-signed upload location
 
     permissions = serializers.SerializerMethodField()
 
@@ -186,45 +193,57 @@ class TopographySerializer(StrictFieldMixin,
         read_only_fields = []
         if self.instance is not None:
             if not self.instance.size_editable:
-                if 'size_x' in data:
-                    read_only_fields += ['size_x']
-                if 'size_y' in data:
-                    read_only_fields += ['size_y']
+                if "size_x" in data:
+                    read_only_fields += ["size_x"]
+                if "size_y" in data:
+                    read_only_fields += ["size_y"]
             if not self.instance.unit_editable:
-                if 'unit' in data:
-                    read_only_fields += ['unit']
+                if "unit" in data:
+                    read_only_fields += ["unit"]
             if not self.instance.height_scale_editable:
-                if 'unit' in data:
-                    read_only_fields += ['height_scale']
+                if "unit" in data:
+                    read_only_fields += ["height_scale"]
             if not self.instance.is_periodic_editable:
-                if 'is_periodic' in data:
-                    read_only_fields += ['is_periodic']
+                if "is_periodic" in data:
+                    read_only_fields += ["is_periodic"]
             if len(read_only_fields) > 0:
-                s = ', '.join([f'`{name}`' for name in read_only_fields])
-                raise serializers.ValidationError(f'{s} is given by the data file and cannot be set')
+                s = ", ".join([f"`{name}`" for name in read_only_fields])
+                raise serializers.ValidationError(
+                    f"{s} is given by the data file and cannot be set"
+                )
         return super().validate(data)
 
     def get_is_metadata_complete(self, obj):
         return obj.is_metadata_complete
 
     def get_permissions(self, obj):
-        request = self.context['request']
+        request = self.context["request"]
         current_user = request.user
         users = get_users_with_perms(obj.surface, attach_perms=True)
-        return {'current_user': {'user': UserSerializer(current_user, context=self.context).data,
-                                 'permission': guardian_to_api(users[current_user])},
-                'other_users': [{'user': UserSerializer(key, context=self.context).data,
-                                 'permission': guardian_to_api(value)}
-                                for key, value in users.items() if key != current_user]}
+        return {
+            "current_user": {
+                "user": UserSerializer(current_user, context=self.context).data,
+                "permission": guardian_to_api(users[current_user]),
+            },
+            "other_users": [
+                {
+                    "user": UserSerializer(key, context=self.context).data,
+                    "permission": guardian_to_api(value),
+                }
+                for key, value in users.items()
+                if key != current_user
+            ],
+        }
 
     def update(self, instance, validated_data):
-        if 'surface' in validated_data:
-            raise serializers.ValidationError({"message": "You cannot change the `surface` of a topography"})
+        if "surface" in validated_data:
+            raise serializers.ValidationError(
+                {"message": "You cannot change the `surface` of a topography"}
+            )
         return super().update(instance, validated_data)
 
 
 class ValueField(serializers.Field):
-
     def to_representation(self, value):
         return value
 
@@ -235,54 +254,102 @@ class ValueField(serializers.Field):
 class PropertySerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Property
-        fields = ['url', 'name', 'value', 'unit', 'surface']
+        fields = ["url", "name", "value", "unit", "surface"]
 
-    url = serializers.HyperlinkedIdentityField(view_name='manager:property-api-detail', read_only=True)
+    url = serializers.HyperlinkedIdentityField(
+        view_name="manager:property-api-detail", read_only=True
+    )
     name = serializers.CharField()
     value = ValueField()
     unit = serializers.CharField(allow_null=True, allow_blank=True, required=False)
-    surface = serializers.HyperlinkedRelatedField(view_name='manager:surface-api-detail',
-                                                  queryset=Surface.objects.all())
+    surface = serializers.HyperlinkedRelatedField(
+        view_name="manager:surface-api-detail", queryset=Surface.objects.all()
+    )
 
     def to_representation(self, instance):
         repr = super().to_representation(instance)
         if instance.is_numerical and instance.unit is None:
-            repr['unit'] = ''
+            repr["unit"] = ""
         return repr
 
     def validate_value(self, value):
-        if not (isinstance(value, str) or isinstance(value, float) or isinstance(value, int)):
-            raise serializers.ValidationError(f"value must be of type float or string, but got {type(value)}")
+        if not (
+            isinstance(value, str) or isinstance(value, float) or isinstance(value, int)
+        ):
+            raise serializers.ValidationError(
+                f"value must be of type float or string, but got {type(value)}"
+            )
         return value
 
-    def validate(self, data):
-        if isinstance(data.get('value'), str) and data.get('unit') is not None:
+    def validate(self, attrs):
+        if isinstance(attrs.get("value"), str) and attrs.get("unit") is not None:
             raise serializers.ValidationError(
-                {"message": "If the value is categorical (str), the unit has to be 'null'"})
-        if isinstance(data.get('value'), str) and data.get('value') == "":
-            raise serializers.ValidationError({"message": "This field may not be blank"})
-        if (isinstance(data.get('value'), int) or isinstance(data.get('value'), float)) and data.get('unit') is None:
+                {
+                    "message": "If the value is categorical (str), the unit has to be 'null'"
+                }
+            )
+        if isinstance(attrs.get("value"), str) and attrs.get("value") == "":
             raise serializers.ValidationError(
-                {"message": "If the value is categorical (int | float), the unit has to be not 'null' (str)"})
-        if not self.context['request'].user.has_perm('change_surface', data.get('surface')):
-            raise serializers.ValidationError({"message": "You do not have the permissions to change this surface"})
+                {"message": "This field may not be blank"}
+            )
+        if (
+            isinstance(attrs.get("value"), int) or isinstance(attrs.get("value"), float)
+        ) and attrs.get("unit") is None:
+            raise serializers.ValidationError(
+                {
+                    "message": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
+                }
+            )
+        if not self.context["request"].user.has_perm(
+            "change_surface", attrs.get("surface")
+        ):
+            raise serializers.ValidationError(
+                {"message": "You do not have the permissions to change this surface"}
+            )
         # If the peoperty changes from a numeric to categoric the unit needs to be 'None'
         # This ensures that the unit is set to None when its omitted
-        if 'unit' not in data:
-            data['unit'] = None
+        if "unit" not in attrs:
+            attrs["unit"] = None
 
-        if data['unit'] is not None:
+        if attrs["unit"] is not None:
             try:
-                _ureg.check(data['unit'])
+                _ureg.check(attrs["unit"])
             except pint.errors.UndefinedUnitError:
-                unit = data['unit']
-                raise serializers.ValidationError({"message": f"Unit '{unit}' is not a physical unit"})
+                unit = attrs["unit"]
+                raise serializers.ValidationError(
+                    {"message": f"Unit '{unit}' is not a physical unit"}
+                )
 
-        return data
+        method = self.context.get("request").method
+        # NOTE: On creation (POST) we need to check if the surface already has a property with the same name
+        if method == "POST":
+            if attrs.get("surface").properties.filter(name=attrs.get("name")).exists():
+                raise serializers.ValidationError(
+                    {"message": "Property names have to be unique"}
+                )
+
+        # NOTE: On update (PUT) we need to check if the surface already has a property with the same name,
+        # that is not the surface we are trying to update
+        if method == "PUT":
+            match self.instance:
+                case None:
+                    # NOTE:This code should not be reachable.
+                    # On update, the serializer should always hold a instance
+                    pass
+                case _:
+                    if (
+                        attrs.get("surface")
+                        .properties.filter(name=attrs.get("name"))
+                        .exclude(id=self.instance.id)
+                        .exists()
+                    ):
+                        raise serializers.ValidationError(
+                            {"message": "Property names have to be unique"}
+                        )
+        return attrs
 
 
-class SurfaceSerializer(StrictFieldMixin,
-                        serializers.HyperlinkedModelSerializer):
+class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
         fields = ['url',
@@ -300,6 +367,7 @@ class SurfaceSerializer(StrictFieldMixin,
 
     url = serializers.HyperlinkedIdentityField(view_name='manager:surface-api-detail', read_only=True)
     creator = serializers.HyperlinkedRelatedField(view_name='users:user-api-detail', read_only=True)
+
     topography_set = TopographySerializer(many=True, read_only=True)
     properties = PropertySerializer(many=True)
     attachments = FileManifestSerializer(many=True)
@@ -316,18 +384,28 @@ class SurfaceSerializer(StrictFieldMixin,
             ('attachments', 'attachments')
         ]
         for option, field in optional_fields:
-            param = self.context['request'].query_params.get(option)
-            requested = param is not None and param.lower() in ['yes', 'true']
+            param = self.context["request"].query_params.get(option)
+            requested = param is not None and param.lower() in ["yes", "true"]
             if not requested:
                 self.fields.pop(field)
 
     def get_permissions(self, obj):
-        request = self.context['request']
+        request = self.context["request"]
         current_user = request.user
         users = get_users_with_perms(obj, attach_perms=True)
-        return {'current_user': {'user': UserSerializer(current_user, context=self.context).data,
-                                 'permission': guardian_to_api(
-                                     users[current_user]) if current_user in users else 'no-access'},
-                'other_users': [{'user': UserSerializer(key, context=self.context).data,
-                                 'permission': guardian_to_api(value)}
-                                for key, value in users.items() if key != current_user]}
+        return {
+            "current_user": {
+                "user": UserSerializer(current_user, context=self.context).data,
+                "permission": guardian_to_api(users[current_user])
+                if current_user in users
+                else "no-access",
+            },
+            "other_users": [
+                {
+                    "user": UserSerializer(key, context=self.context).data,
+                    "permission": guardian_to_api(value),
+                }
+                for key, value in users.items()
+                if key != current_user
+            ],
+        }

@@ -114,23 +114,43 @@ def import_topography(topo_dict, topo_file, surface, ignore_missing=False):
     topography.save()
 
 
-def import_container(surface_zip, user, datafile_attribute='datafile', ignore_missing=False, unsafe_yaml_loader=False):
+def import_container(surface_zip, user, datafile_attribute='datafile', ignore_missing=False, unsafe_yaml_loader=False,
+                     tag=None):
     """
-    Process surface archive i.e. importing the surfaces.
+    Import surfaces from a ZIP archive and create corresponding Surface instances in the database.
+
+    This function processes a ZIP archive containing surface data, including metadata and topography files. It creates
+    Surface instances for each surface in the archive, sets the creator to the specified user, and imports topographies
+    associated with each surface. It also handles optional tagging of surfaces, setting of default values for missing
+    attributes, and the choice between safe and unsafe YAML loading for metadata.
 
     Parameters
     ----------
-    surface_zip : zipfile.Zipfile
-        archive with surfaces
-    user : topobank.users.User
-        User which should be creator of the surface and all data.
-    datafile_attribute : str
-        attribute in file from which the file name for a topography is stored
-    ignore_missing : bool
-        If True, try to find reasonable defaults for missing attributes.
-    unsafe_yaml_loader : bool
-        If True, use an unsafe YAML loader. Use this with care,
-        if there is malicious code in the metadata, this can compromise your system.
+    surface_zip : zipfile.ZipFile
+        The ZIP archive containing surfaces and their metadata.
+    user : topobank.users.models.User
+        The user who will be set as the creator of the imported surfaces.
+    datafile_attribute : str, optional
+        The attribute name in the metadata file that stores the file name for a topography's data file.
+        Default is 'datafile'.
+    ignore_missing : bool, optional
+        If True, the function will try to find reasonable defaults for missing attributes in the metadata.
+        Default is False.
+    unsafe_yaml_loader : bool, optional
+        If True, an unsafe YAML loader will be used to load the metadata. This can potentially execute
+        malicious code contained in the YAML file, so it should be used with caution. Default is False.
+    tag : str, optional
+        An optional tag to add to all imported surfaces. Default is None.
+
+    Returns
+    -------
+    list of Surface
+        A list of the Surface instances that were created as a result of the import.
+
+    Notes
+    -----
+    The function assumes the ZIP archive's structure and metadata format are correct and does not perform
+    extensive validation of the archive's contents.
     """
     surfaces = []
     with surface_zip.open('meta.yml', mode='r') as meta_file:
@@ -146,11 +166,14 @@ def import_container(surface_zip, user, datafile_attribute='datafile', ignore_mi
 
             surface_description = surface_dict['description']
             surface_description += f'\n\nImported from file "{surface_zip.filename}" on {import_time}.'
+            tags = set(surface_dict['tags'])
+            if tag is not None:
+                tags.add(tag)
             surface = Surface(creator=user,
                               name=surface_dict['name'],
                               category=surface_dict['category'],
                               description=surface_description,
-                              tags=surface_dict['tags'])
+                              tags=tags)
             surface.save()
 
             if 'properties' in surface_dict:

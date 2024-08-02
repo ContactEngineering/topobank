@@ -49,6 +49,16 @@ urlpatterns += [
         name='set-permissions'
     ),
     path(
+        'api/tag/<pk>/numerical-properties/',
+        view=login_required(views.tag_numerical_properties),
+        name='numerical-properties'
+    ),
+    path(
+        'api/tag/<pk>/categorical-properties/',
+        view=login_required(views.tag_categorical_properties),
+        name='categorical-properties'
+    ),
+    path(
         'api/import-surface/',
         view=login_required(views.import_surface),
         name='import-surface'
