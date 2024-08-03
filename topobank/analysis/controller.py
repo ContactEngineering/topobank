@@ -216,21 +216,31 @@ def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
 
 
 def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
-    """Request an analysis for a given user.
+    """
+    Request an analysis for a given user.
 
-    :param user: User instance, user who want to see this analysis
-    :param subject: instance which will be used as first argument to analysis function
-    :param analysis_func: AnalysisFunc instance
-    :param other_args: other positional arguments for analysis_func
-    :param kwargs: keyword arguments for analysis func
-    :returns: Analysis object
+    Parameters
+    ----------
+    user : User
+        User instance, user who wants to see this analysis.
+    subject : instance
+        Instance which will be used as the first argument to the analysis function.
+    analysis_func : AnalysisFunc
+        AnalysisFunc instance.
+    other_args : tuple
+        Other positional arguments for the analysis function.
+    kwargs : dict
+        Keyword arguments for the analysis function.
 
-    The returned analysis can be a precomputed one or a new analysis is
-    submitted may or may not be completed in future. Check database fields
-    (e.g. task_state) in order to check for completion.
+    Returns
+    -------
+    Analysis
+        The returned analysis can be a precomputed one or a new analysis is
+        submitted that may or may not be completed in the future. Check database fields
+        (e.g. task_state) in order to check for completion.
 
     The analysis will be marked such that the "users" field points to
-    the given user and that there is no other analysis for same function
+    the given user and that there is no other analysis for the same function
     and subject that points to that user.
     """
 
