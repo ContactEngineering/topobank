@@ -42,6 +42,7 @@ dependencies = [
     'django==4.2.14',    #  does this work with pyup?  # https://www.djangoproject.com/
     'django-environ',  # https://github.com/joke2k/django-environ
     'django-allauth>=0.56.0',  # https://github.com/pennersr/django-allauth
+    'fido2',  # required by django-allauth
     'django-crispy-forms',  # https://github.com/django-crispy-forms/django-crispy-forms
     'crispy-bootstrap5',  # https://stackoverflow.com/questions/75495403/django-returns-templatedoesnotexist-when-using-crispy-forms
 
