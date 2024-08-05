@@ -26,16 +26,16 @@ connect to the datbase and set the :code:`is_superuser` or :code:`is_staff` flag
 
 .. _ORCID: https://orcid.org/
 
-Running tests with py.test
---------------------------
+Running tests with pytest
+-------------------------
 
 ::
 
-  $ USE_DOCKER=no DJANGO_SETTINGS_MODULE=config.settings.test pytest
+  $ DJANGO_SETTINGS_MODULE=topobank.settings.test pytest
 
 Or use run configurations in your IDE, e.g. in PyCharm.
 
-linting with pre-commit hooks
+Linting with pre-commit hooks
 -----------------------------
 
 We are testing the code quality in the test pipeline, if your code is not conform with flake8,
