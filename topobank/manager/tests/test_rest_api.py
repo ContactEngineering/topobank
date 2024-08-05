@@ -324,7 +324,7 @@ def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
     assert response.status_code == 201
 
     assert Surface.objects.count() == 4
-    _, _, _, s = Surface.objects.all()
+    s = Surface.objects.get(id=response.data['id'])
     assert s.creator.name == user1.name
 
 
