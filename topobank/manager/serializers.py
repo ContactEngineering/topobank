@@ -300,21 +300,20 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
         # NOTE: On update (PUT) we need to check if the surface already has a property with the same name,
         # that is not the surface we are trying to update
         if method == "PUT":
-            match self.instance:
-                case None:
-                    # NOTE:This code should not be reachable.
-                    # On update, the serializer should always hold a instance
-                    pass
-                case _:
-                    if (
-                        attrs.get("surface")
-                        .properties.filter(name=attrs.get("name"))
-                        .exclude(id=self.instance.id)
-                        .exists()
-                    ):
-                        raise serializers.ValidationError(
-                            {"message": "Property names have to be unique"}
-                        )
+            if self.instance is None:
+                # NOTE:This code should not be reachable.
+                # On update, the serializer should always hold a instance
+                pass
+            else:
+                if (
+                    attrs.get("surface")
+                    .properties.filter(name=attrs.get("name"))
+                    .exclude(id=self.instance.id)
+                    .exists()
+                ):
+                    raise serializers.ValidationError(
+                        {"message": "Property names have to be unique"}
+                    )
         return attrs
 
 
@@ -371,9 +370,11 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": guardian_to_api(users[current_user])
-                if current_user in users
-                else "no-access",
+                "permission": (
+                    guardian_to_api(users[current_user])
+                    if current_user in users
+                    else "no-access"
+                ),
             },
             "other_users": [
                 {
