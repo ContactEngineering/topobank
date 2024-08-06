@@ -6,7 +6,7 @@ from topobank.manager.tests.utils import TagFactory
 
 
 @pytest.mark.django_db
-def test_topography_analysis(mocker, two_users, test_analysis_function):
+def test_topography_analysis(two_users, test_analysis_function):
     user1, user2 = two_users
 
     surface1, surface2, surface3 = Surface.objects.all()
@@ -46,7 +46,7 @@ def test_topography_analysis(mocker, two_users, test_analysis_function):
 
 
 @pytest.mark.django_db
-def test_surface_analysis(mocker, two_users, test_analysis_function):
+def test_surface_analysis(two_users, test_analysis_function):
     user1, user2 = two_users
 
     surface1, surface2, surface3 = Surface.objects.all()
@@ -85,7 +85,7 @@ def test_surface_analysis(mocker, two_users, test_analysis_function):
 
 
 @pytest.mark.django_db
-def test_tag_analysis(mocker, two_users, test_analysis_function):
+def test_tag_analysis(two_users, test_analysis_function):
     user1, user2 = two_users
 
     surface1, surface2, surface3 = Surface.objects.all()
@@ -113,7 +113,7 @@ def test_tag_analysis(mocker, two_users, test_analysis_function):
         user1, subjects=[tag], function=test_analysis_function
     )
     controller.trigger_missing_analyses()
-    assert len(controller) == 1  # user1 has no access to surface1
+    assert len(controller) == 1  # user1 has access to the tag
 
     # Controller triggered analyses because they are tied to a specific user
     assert [r.task_state for r in controller.get()] == ["pe"]

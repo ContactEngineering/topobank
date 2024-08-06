@@ -35,7 +35,7 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-from .utils import api_to_guardian, dzi_exists, get_topography_reader, guardian_to_api, make_dzi, recursive_delete
+from .utils import api_to_guardian, dzi_exists, get_topography_reader, guardian_to_api, make_dzi, recursive_delete, surfaces_for_user
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -143,11 +143,21 @@ class Tag(tm.TagTreeModel,
         # not needed yet
         # autocomplete_view = 'manager:autocomplete-tags'
 
+    _user = None
+
+    def authenticate_user(self, user):
+        self._user = user
+
     def is_shared(self, with_user, allow_change=False):
         return True  # Tags are generally shared, but the surfaces may not
 
     def related_surfaces(self):
-        return list(Surface.objects.filter(tags__in=Tag.objects.filter(pk=self.id) | self.get_descendants()))
+        if self._user is None:
+            raise PermissionError("Cannot return surfaces belonging to a tag because "
+                                  "no user was specified. Use `authenticate_user` "
+                                  "to restrict user permissions.")
+        return surfaces_for_user(self._user).filter(
+            tags__in=Tag.objects.filter(pk=self.id) | self.get_descendants())
 
     def get_properties(self, kind=None):
         """

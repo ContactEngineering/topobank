@@ -574,9 +574,7 @@ def test_analysis_download_as_xlsx(
     def assert_version_in_vals(modname, version):
         assert (f"Version of '{modname}'", version) in vals
 
-    assert_version_in_vals(
-        "SurfaceTopography", SurfaceTopography.__version__.split("+")[0]
-    )
+    assert_version_in_vals("SurfaceTopography", SurfaceTopography.__version__)
     assert_version_in_vals("ContactMechanics", ContactMechanics.__version__)
     assert_version_in_vals("NuMPI", NuMPI.__version__)
     assert_version_in_vals("muFFT", muFFT.version.description())
