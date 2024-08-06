@@ -58,7 +58,8 @@ EMAIL_PORT = 1025
 # STORAGE
 # ------------------------------------------------------------------------------
 # We want to use a storage driver in memory in order to be able to use it in tests
-DEFAULT_FILE_STORAGE = "inmemorystorage.InMemoryStorage"
+USE_S3_STORAGE = False
+STORAGES["default"]["BACKEND"] = "inmemorystorage.InMemoryStorage"
 
 # CELERY
 # ------------------------------------------------------------------------------

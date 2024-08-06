@@ -7,7 +7,10 @@ from .base import env
 # DEBUG = True
 # DEBUG = False
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
-SECRET_KEY = env('DJANGO_SECRET_KEY', default='4IZmXA8orNipbjyYuMIkFjUEzRWADMsuKYMkVjkYRFheCobKf7RRxHLXKlgU6TC6')
+SECRET_KEY = env(
+    "DJANGO_SECRET_KEY",
+    default="4IZmXA8orNipbjyYuMIkFjUEzRWADMsuKYMkVjkYRFheCobKf7RRxHLXKlgU6TC6",
+)
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
 ALLOWED_HOSTS = [
     "localhost",
@@ -19,48 +22,43 @@ ALLOWED_HOSTS = [
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
 CACHES = {
-    'default': {
-        'BACKEND': env.str("DJANGO_DEFAULT_CACHE_BACKEND",
-                           default='django_redis.cache.RedisCache'),
-        'LOCATION': env.str("DJANGO_DEFAULT_CACHE_LOCATION", default='redis://localhost:6379/0'),
-        'OPTIONS': {
-            'CLIENT_CLASS': "django_redis.client.DefaultClient",
-        }
+    "default": {
+        "BACKEND": env.str(
+            "DJANGO_DEFAULT_CACHE_BACKEND", default="django_redis.cache.RedisCache"
+        ),
+        "LOCATION": env.str(
+            "DJANGO_DEFAULT_CACHE_LOCATION", default="redis://localhost:6379/0"
+        ),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
 }
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#templates
-TEMPLATES[0]['OPTIONS']['debug'] = DEBUG  # noqa F405
+TEMPLATES[0]["OPTIONS"]["debug"] = DEBUG  # noqa F405
 
 # EMAIL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-host
-EMAIL_HOST = env('EMAIL_HOST', default='mailhog')
+EMAIL_HOST = env("EMAIL_HOST", default="mailhog")
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-port
 EMAIL_PORT = 1025
-
-# STATIC FILES
-# ------------------------------------------------------------------------------
-# STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
-STATICFILES_STORAGE = 'whitenoise.storage.ManifestStaticFilesStorage'
-# with 'whitenoise.storage.CompressedManifestStaticFilesStorage', collect static is
-# very slow in development, not sure why - with production settings, it's fast
-
 
 # django-debug-toolbar
 # ------------------------------------------------------------------------------
 # https://django-debug-toolbar.readthedocs.io/en/latest/installation.html#prerequisites
-INSTALLED_APPS += ['debug_toolbar']  # noqa F405
+INSTALLED_APPS += ["debug_toolbar"]  # noqa F405
 # https://django-debug-toolbar.readthedocs.io/en/latest/installation.html#middleware
-MIDDLEWARE += ['debug_toolbar.middleware.DebugToolbarMiddleware']  # noqa F405
+MIDDLEWARE += ["debug_toolbar.middleware.DebugToolbarMiddleware"]  # noqa F405
 # https://django-debug-toolbar.readthedocs.io/en/latest/configuration.html#debug-toolbar-config
 DEBUG_TOOLBAR_CONFIG = {
-    'DISABLE_PANELS': [
-        'debug_toolbar.panels.redirects.RedirectsPanel',
+    "DISABLE_PANELS": [
+        "debug_toolbar.panels.redirects.RedirectsPanel",
     ],
-    'SHOW_TEMPLATE_CONTEXT': True,
+    "SHOW_TEMPLATE_CONTEXT": True,
 }
 
 # https://django-debug-toolbar.readthedocs.io/en/latest/installation.html#internal-ips
@@ -74,7 +72,7 @@ DEBUG_TOOLBAR_CONFIG = {
 # django-extensions
 # ------------------------------------------------------------------------------
 # https://django-extensions.readthedocs.io/en/latest/installation_instructions.html#configuration
-INSTALLED_APPS += ['django_extensions']  # noqa F405
+INSTALLED_APPS += ["django_extensions"]  # noqa F405
 # Celery
 # ------------------------------------------------------------------------------
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_always_eager
@@ -94,52 +92,44 @@ CELERY_TASK_EAGER_PROPAGATES = True
 # See https://docs.djangoproject.com/en/dev/topics/logging for
 # more details on how to customize your logging configuration.
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'filters': {
-        'require_debug_false': {
-            '()': 'django.utils.log.RequireDebugFalse'
-        }
-    },
-    'formatters': {
-        'verbose': {
-            'format': '%(levelname)s %(asctime)s %(module)s '
-                      '%(process)d %(thread)d %(message)s'
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
+    "formatters": {
+        "verbose": {
+            "format": "%(levelname)s %(asctime)s %(module)s "
+            "%(process)d %(thread)d %(message)s"
         },
     },
-    'handlers': {
-        'mail_admins': {
-            'level': 'ERROR',
-            'filters': ['require_debug_false'],
-            'class': 'django.utils.log.AdminEmailHandler'
+    "handlers": {
+        "mail_admins": {
+            "level": "ERROR",
+            "filters": ["require_debug_false"],
+            "class": "django.utils.log.AdminEmailHandler",
         },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
     },
-    'loggers': {
-        'django.request': {
-            'handlers': ['mail_admins'],
-            'level': 'ERROR',
-            'propagate': True
+    "loggers": {
+        "django.request": {
+            "handlers": ["mail_admins"],
+            "level": "ERROR",
+            "propagate": True,
         },
-        'django.security.DisallowedHost': {
-            'level': 'ERROR',
-            'handlers': ['console', 'mail_admins'],
-            'propagate': True
+        "django.security.DisallowedHost": {
+            "level": "ERROR",
+            "handlers": ["console", "mail_admins"],
+            "propagate": True,
         },
-        'topobank': {
-            'level': 'DEBUG',
-            'handlers': ['console'],
-            'propagate': True
+        "topobank": {"level": "DEBUG", "handlers": ["console"], "propagate": True},
+        "watchman": {
+            "handlers": ["console"],
+            "level": "INFO",
         },
-        'watchman': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
-    }
+    },
 }
 
 # Bokeh output backend. Possibilities are:
@@ -147,7 +137,7 @@ LOGGING = {
 # - 'svg': Render using SVG. Plot will download as SVG if this is enabled while they download as PNG in the 'canvas'
 #   backend. SVG has problems with zooming plots.
 # - 'webgl': Accelerates some plots using WebGL
-BOKEH_OUTPUT_BACKEND = 'svg'
+BOKEH_OUTPUT_BACKEND = "svg"
 
 # Settings for watchman
 # WATCHMAN_AUTH_DECORATOR = 'django.contrib.admin.views.decorators.staff_member_required'

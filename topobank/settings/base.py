@@ -420,28 +420,27 @@ TERMS_STORE_IP_ADDRESS = False
 #
 # Storage Settings
 #
-USE_S3_STORAGE = env.bool("USE_S3_STORAGE", default=False)
+USE_S3_STORAGE = True
 
-if USE_S3_STORAGE:
-    # Enable this storage for the S3 backend
-    DEFAULT_FILE_STORAGE = "storages.backends.s3boto3.S3Boto3Storage"
-    AWS_LOCATION = env.str("AWS_MEDIA_PREFIX", default="media")
+STORAGES = {
+    "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+AWS_LOCATION = env.str("AWS_MEDIA_PREFIX", default="media")
 
-    AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY_ID", default=None)
-    AWS_SECRET_ACCESS_KEY = env.str("AWS_SECRET_ACCESS_KEY", default=None)
+AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY_ID", default=None)
+AWS_SECRET_ACCESS_KEY = env.str("AWS_SECRET_ACCESS_KEY", default=None)
 
-    AWS_STORAGE_BUCKET_NAME = env.str(
-        "AWS_STORAGE_BUCKET_NAME", default="topobank-assets"
-    )
+AWS_STORAGE_BUCKET_NAME = env.str("AWS_STORAGE_BUCKET_NAME", default="topobank-assets")
 
-    AWS_AUTO_CREATE_BUCKET = True
+AWS_AUTO_CREATE_BUCKET = True
 
-    AWS_S3_ENDPOINT_URL = env.str("AWS_S3_ENDPOINT_URL", default=None)
-    AWS_S3_USE_SSL = env.bool("AWS_S3_USE_SSL", default=True)
-    AWS_S3_VERIFY = env.bool("AWS_S3_VERIFY", default=True)
-    AWS_DEFAULT_ACL = None
-    # Append extra characters if new files have the same name
-    AWS_S3_FILE_OVERWRITE = False
+AWS_S3_ENDPOINT_URL = env.str("AWS_S3_ENDPOINT_URL", default=None)
+AWS_S3_USE_SSL = env.bool("AWS_S3_USE_SSL", default=True)
+AWS_S3_VERIFY = env.bool("AWS_S3_VERIFY", default=True)
+AWS_DEFAULT_ACL = None
+# Append extra characters if new files have the same name
+AWS_S3_FILE_OVERWRITE = False
 
 # STATIC
 # ------------------------------------------------------------------------------
@@ -467,7 +466,6 @@ STATICFILES_FINDERS = [
     "django.contrib.staticfiles.finders.FileSystemFinder",
     "django.contrib.staticfiles.finders.AppDirectoriesFinder",
 ]
-STATICFILES_STORAGE = "django.contrib.staticfiles.storage.StaticFilesStorage"
 
 # MEDIA
 # ------------------------------------------------------------------------------
