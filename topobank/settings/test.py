@@ -69,7 +69,7 @@ CELERY_TASK_ALWAYS_EAGER = True
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-store-eager-result
 CELERY_TASK_STORE_EAGER_RESULT = True
 # Use DB backend because we have no broker/results backend running
-INSTALLED_APPS += ["django_celery_results"]
+INSTALLED_APPS += ["django_celery_results"]  # noqa: F405
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
 CELERY_RESULT_BACKEND = "django-db"
 
@@ -136,6 +136,6 @@ BOKEH_OUTPUT_BACKEND = "canvas"
 # Enable usage stats in tests
 if not ENABLE_USAGE_STATS:  # noqa: F405
     ENABLE_USAGE_STATS = True  # noqa: F405
-    MIDDLEWARE += [
+    MIDDLEWARE += [  # noqa: F405
         "topobank.usage_stats.middleware.count_request_middleware"
-    ]  # noqa: F405
+    ]
