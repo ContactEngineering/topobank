@@ -11,7 +11,6 @@ from collections import defaultdict
 
 import dateutil.parser
 import django.dispatch
-import matplotlib.cm
 import matplotlib.pyplot
 import numpy as np
 import PIL
@@ -1197,7 +1196,7 @@ class Topography(TaskStateModel, SubjectMixin):
             mx, mn = heights.max(), heights.min()
             heights = (heights - mn) / (mx - mn)
             # Get color map
-            cmap = matplotlib.cm.get_cmap(cmap)
+            cmap = matplotlib.pyplot.get_cmap(cmap)
             # Convert to image
             colors = (cmap(heights.T) * 255).astype(np.uint8)
             # Remove alpha channel before writing

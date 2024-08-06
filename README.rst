@@ -29,9 +29,11 @@ connect to the datbase and set the :code:`is_superuser` or :code:`is_staff` flag
 Running tests with pytest
 -------------------------
 
+You need a PostgreSQL database to run tests.
+
 ::
 
-  $ DJANGO_SETTINGS_MODULE=topobank.settings.test pytest
+  $ pytest
 
 Or use run configurations in your IDE, e.g. in PyCharm.
 

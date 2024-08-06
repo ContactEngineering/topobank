@@ -200,8 +200,6 @@ def test_notification_when_editing_shared_stuff(api_client, handle_usage_statist
 @pytest.mark.django_db
 def test_upload_topography_for_shared_surface(api_client, settings, handle_usage_statistics,
                                               django_capture_on_commit_callbacks):
-    settings.CELERY_TASK_ALWAYS_EAGER = True
-
     input_file_path = Path(FIXTURE_DIR + '/example3.di')
     description = "test description"
 

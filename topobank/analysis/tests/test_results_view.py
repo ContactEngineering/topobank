@@ -507,7 +507,7 @@ def test_analysis_download_as_xlsx(
         np.testing.assert_equal(data, exp_data)
 
     assert_data_equal(
-        xlsx.get_sheet_by_name("analysis-0-series-0"),
+        xlsx["analysis-0-series-0"],
         [
             (None, "time (s)", "distance (m)"),
             (0, 0, 0),
@@ -519,7 +519,7 @@ def test_analysis_download_as_xlsx(
     )
 
     assert_data_equal(
-        xlsx.get_sheet_by_name("analysis-0-series-1"),
+        xlsx["analysis-0-series-1"],
         [
             (None, "time (s)", "distance (m)"),
             (0, 1, 3),
@@ -531,7 +531,7 @@ def test_analysis_download_as_xlsx(
     )
 
     assert_data_equal(
-        xlsx.get_sheet_by_name("analysis-0-series-1"),
+        xlsx["analysis-0-series-1"],
         [
             (None, "time (s)", "distance (m)"),
             (0, 1, 3),
@@ -543,7 +543,7 @@ def test_analysis_download_as_xlsx(
     )
 
     assert_data_equal(
-        xlsx.get_sheet_by_name("analysis-1-series-0"),
+        xlsx["analysis-1-series-0"],
         [
             (None, "time (s)", "distance (m)"),
             (0, 1, 1),
@@ -555,7 +555,7 @@ def test_analysis_download_as_xlsx(
     )
 
     assert_data_equal(
-        xlsx.get_sheet_by_name("analysis-1-series-1"),
+        xlsx["analysis-1-series-1"],
         [
             (None, "time (s)", "distance (m)"),
             (0, 2, 4),
@@ -567,7 +567,7 @@ def test_analysis_download_as_xlsx(
     )
 
     # check whether version numbers are available in INFORMATION sheet
-    ws = xlsx.get_sheet_by_name("INFORMATION")
+    ws = xlsx["INFORMATION"]
 
     vals = list(ws.values)
 
@@ -589,7 +589,7 @@ def test_analysis_download_as_xlsx(
         assert ("Creator", str(t.creator)) in vals
 
     # Check links on INDEX sheet
-    ws = xlsx.get_sheet_by_name("INDEX")
+    ws = xlsx["INDEX"]
 
     function_name = Analysis.objects.get(id=ids_downloadable_analyses[0]).function.name
 
