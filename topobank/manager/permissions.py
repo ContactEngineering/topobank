@@ -2,7 +2,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from guardian.utils import get_user_obj_perms_model
 from rest_framework.filters import BaseFilterBackend
-from rest_framework.permissions import SAFE_METHODS, DjangoObjectPermissions
+from rest_framework.permissions import SAFE_METHODS, BasePermission, DjangoObjectPermissions
 
 from .models import Surface
 
@@ -122,3 +122,11 @@ class ParentObjectPermissionsFilter(BaseFilterBackend):
         # Construct filter arguments that search for pk of parent model
         filter_kwargs = {f'{self.parent_property}__pk__in': user_obj_perms_queryset}
         return queryset.filter(**filter_kwargs)
+
+
+class TagPermission(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        obj.authenticate_user(request.user)
+        # Permissions are granted if authenticated tag returns 1 or more
+        # surfaces
+        return len(obj.related_surfaces()) > 0

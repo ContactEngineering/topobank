@@ -20,6 +20,7 @@ class OrcidSocialAccountFactory(factory.django.DjangoModelFactory):
               'host': 'orcid.org'
             }
         }
+        self.save()
 
 
 class UserFactory(factory.django.DjangoModelFactory):

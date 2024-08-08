@@ -11,7 +11,6 @@ from collections import defaultdict
 
 import dateutil.parser
 import django.dispatch
-import matplotlib.cm
 import matplotlib.pyplot
 import numpy as np
 import PIL
@@ -25,7 +24,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.shortcuts import reverse
+from rest_framework.reverse import reverse
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 from guardian.shortcuts import assign_perm, get_perms, get_users_with_perms, remove_perm
 from notifications.signals import notify
@@ -36,7 +35,7 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-from .utils import api_to_guardian, dzi_exists, get_topography_reader, guardian_to_api, make_dzi, recursive_delete
+from .utils import api_to_guardian, dzi_exists, get_topography_reader, guardian_to_api, make_dzi, recursive_delete, surfaces_for_user
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -144,11 +143,21 @@ class Tag(tm.TagTreeModel,
         # not needed yet
         # autocomplete_view = 'manager:autocomplete-tags'
 
+    _user = None
+
+    def authenticate_user(self, user):
+        self._user = user
+
     def is_shared(self, with_user, allow_change=False):
         return True  # Tags are generally shared, but the surfaces may not
 
     def related_surfaces(self):
-        return list(Surface.objects.filter(tags__in=Tag.objects.filter(pk=self.id) | self.get_descendants()))
+        if self._user is None:
+            raise PermissionError("Cannot return surfaces belonging to a tag because "
+                                  "no user was specified. Use `authenticate_user` "
+                                  "to restrict user permissions.")
+        return surfaces_for_user(self._user).filter(
+            tags__in=Tag.objects.filter(pk=self.id) | self.get_descendants())
 
     def get_properties(self, kind=None):
         """
@@ -270,12 +279,14 @@ class Surface(models.Model,
     @property
     def label(self):
         return str(self)
-
+    
     def related_surfaces(self):
         return [self]
 
-    def get_absolute_url(self):
-        return reverse('manager:surface-api-detail', kwargs=dict(pk=self.pk))
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this surface"""
+        return reverse('manager:surface-api-detail', kwargs=dict(pk=self.pk),
+                       request=request)
 
     def num_topographies(self):
         return self.topography_set.count()
@@ -353,17 +364,26 @@ class Surface(models.Model,
         return guardian_to_api(get_perms(with_user, self))
 
     def is_shared(self, with_user):
-        """Returns True, if this surface is shared with a given user.
+        """
+        Returns True if this surface is shared with a given user.
 
-        Always returns True if user is the creator.
+        Always returns True if the user is the creator of the surface.
 
-        :param with_user: User to test
-        :return: True or False
+        Parameters
+        ----------
+        with_user : User
+            The user to check for sharing status.
+
+        Returns
+        -------
+        bool
+            True if the surface is shared with the given user, False otherwise.
         """
         return self.get_permissions(with_user) != 'no-access'
 
     def set_permissions(self, with_user, permissions):
-        """Set permissions for access to this surface for a given user.
+        """
+        Set permissions for access to this surface for a given user.
         This is equivalent to sharing the dataset.
 
         Parameters
@@ -378,7 +398,7 @@ class Surface(models.Model,
                     'change_surface'
                 'full': Full access (essentially transfer), corresponding to
                     'view_surface', 'change_surface', 'delete_surface',
-                    'share_surface' and 'publish_surface':
+                    'share_surface' and 'publish_surface'
         """
         if self.is_published:
             raise PermissionError('Permissions of a published digital surface twin cannot be changed.')
@@ -906,9 +926,10 @@ class Topography(TaskStateModel, SubjectMixin):
         """
         return [self.surface]
 
-    def get_absolute_url(self):
-        """URL of detail page for this topography."""
-        return reverse('manager:topography-api-detail', kwargs=dict(pk=self.pk))
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this topography."""
+        return reverse('manager:topography-api-detail', kwargs=dict(pk=self.pk),
+                       request=request)
 
     def is_shared(self, with_user):
         """Returns True, if this topography is shared with a given user.
@@ -1192,7 +1213,7 @@ class Topography(TaskStateModel, SubjectMixin):
             mx, mn = heights.max(), heights.min()
             heights = (heights - mn) / (mx - mn)
             # Get color map
-            cmap = matplotlib.cm.get_cmap(cmap)
+            cmap = matplotlib.pyplot.get_cmap(cmap)
             # Convert to image
             colors = (cmap(heights.T) * 255).astype(np.uint8)
             # Remove alpha channel before writing

@@ -21,9 +21,15 @@ def test_statistics(api_client, handle_usage_statistics):
     #
     kwargs_1a = dict(a=1, b=2)
     kwargs_1b = dict(a=1, b=3)  # differing from kwargs_1a!
-    TopographyAnalysisFactory(subject_topography=topo1a, function=func, kwargs=kwargs_1a)
-    TopographyAnalysisFactory(subject_topography=topo1b, function=func, kwargs=kwargs_1b)
-    TopographyAnalysisFactory(subject_topography=topo2a, function=func)  # default arguments
+    TopographyAnalysisFactory(
+        subject_topography=topo1a, function=func, kwargs=kwargs_1a
+    )
+    TopographyAnalysisFactory(
+        subject_topography=topo1b, function=func, kwargs=kwargs_1b
+    )
+    TopographyAnalysisFactory(
+        subject_topography=topo2a, function=func
+    )  # default arguments
 
     #
     # Generate analyses for surfaces with differing arguments
@@ -33,10 +39,10 @@ def test_statistics(api_client, handle_usage_statistics):
     SurfaceAnalysisFactory(subject_surface=surf1, function=func, kwargs=kwargs_1)
     SurfaceAnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_2)
 
-    response = api_client.get(reverse('manager:statistics'))
-    assert response.data['nb_users'] == 1
-    assert response.data['nb_surfaces'] == 2
-    assert response.data['nb_topographies'] == 3
+    response = api_client.get(reverse("manager:statistics"))
+    assert response.data["nb_users"] == 1
+    assert response.data["nb_surfaces"] == 2
+    assert response.data["nb_topographies"] == 3
 
-    response = api_client.get(reverse('analysis:statistics'))
-    assert response.data['nb_analyses'] == 5
+    response = api_client.get(reverse("analysis:statistics"))
+    assert response.data["nb_analyses"] == 5

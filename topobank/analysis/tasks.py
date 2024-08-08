@@ -59,11 +59,15 @@ def current_configuration():
 
 
 @app.task(bind=True)
-def perform_analysis(self, analysis_id):
+def perform_analysis(self, analysis_id: int):
     """Perform an analysis which is already present in the database.
 
-    :param self: Celery task on execution (because of bind=True)
-    :param analysis_id: ID of Analysis entry in database
+    Parameters
+    ----------
+    self : celery.app.task.Task
+        Celery task on execution (because of bind=True)
+    analysis_id : int
+        ID of Analysis entry in database
 
     Also alters analysis instance in database saving
 
@@ -113,6 +117,13 @@ def perform_analysis(self, analysis_id):
         subject = analysis.subject
         _log.debug(f"Evaluating analysis function '{analysis.function.name}' on subject '{subject}' with "
                    f"kwargs {kwargs} and storage prefix '{analysis.storage_prefix}'...")
+        # tell subject to restrict to specific user
+        if hasattr(subject, 'authenticate_user'):
+            try:
+                user, = analysis.users
+                subject.authenticate_user(user)
+            except ValueError:
+                pass
         # also request citation information
         dois = set()
         tracemalloc.start()

@@ -39,13 +39,15 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    func = analysis.function.get_python_function(ContentType.objects.get_for_model(analysis.subject_dispatch.get()))
+    func = analysis.function.get_python_function(
+        ContentType.objects.get_for_model(analysis.subject_dispatch.get())
+    )
     result = func(analysis.subject_dispatch.get(), **analysis.kwargs)
     return result
 
 
 def _failed_analysis_result(analysis):
-    return {'message': 'This analysis has failed.'}
+    return {"message": "This analysis has failed."}
 
 
 def _analysis_default_kwargs(analysis):
@@ -69,24 +71,28 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     class Meta:
         # model = Analysis
         abstract = True
-        exclude = ['subject_topography', 'subject_surface', 'subject_tag']
+        exclude = ["subject_topography", "subject_surface", "subject_tag"]
 
     subject_topography = None  # factory.SubFactory(Topography2DFactory)
     subject_surface = None
     subject_tag = None
 
     function = factory.SubFactory(AnalysisFunctionFactory)
-    subject_dispatch = factory.SubFactory(AnalysisSubjectFactory,
-                                          topography=factory.SelfAttribute('..subject_topography'),
-                                          surface=factory.SelfAttribute('..subject_surface'),
-                                          tag=factory.SelfAttribute('..subject_tag'))
+    subject_dispatch = factory.SubFactory(
+        AnalysisSubjectFactory,
+        topography=factory.SelfAttribute("..subject_topography"),
+        surface=factory.SelfAttribute("..subject_surface"),
+        tag=factory.SelfAttribute("..subject_tag"),
+    )
 
     kwargs = factory.LazyAttribute(_analysis_default_kwargs)
     result = factory.LazyAttribute(_analysis_result)
 
     task_state = Analysis.SUCCESS
 
-    start_time = factory.LazyFunction(lambda: datetime.datetime.now() - datetime.timedelta(0, 1))
+    start_time = factory.LazyFunction(
+        lambda: datetime.datetime.now() - datetime.timedelta(0, 1)
+    )
     end_time = factory.LazyFunction(datetime.datetime.now)
 
     @factory.post_generation
@@ -144,15 +150,14 @@ class TagAnalysisFactory(AnalysisFactory):
 
 @dataclass(frozen=True)
 class FakeTopographyModel:
-    """This model is used to create a Topography for being passed to analysis functions.
-    """
+    """This model is used to create a Topography for being passed to analysis functions."""
+
     t: STTopography
     name: str = "mytopo"
     is_periodic: bool = False
 
     def topography(self):
-        """Return low level topography.
-        """
+        """Return low level topography."""
         return self.t
 
     def get_absolute_url(self):
@@ -168,11 +173,11 @@ class DummyProgressRecorder:
 @pytest.fixture
 def simple_linear_2d_topography():
     """Simple 2D topography, which is linear in y"""
-    unit = 'nm'
+    unit = "nm"
     y = np.arange(10).reshape((1, -1))
     x = np.arange(5).reshape((-1, 1))
     arr = -2 * y + 0 * x  # only slope in y direction
-    t = STTopography(arr, (5, 10), unit=unit).detrend('center')
+    t = STTopography(arr, (5, 10), unit=unit).detrend("center")
     return t
 
 
@@ -204,16 +209,18 @@ def simple_surface():
     sx, sy = 1, 1
     lx = 0.3
     topographies = [
-        STTopography(np.resize(np.sin(np.arange(nx) * sx * 2 * np.pi / (nx * lx)), (nx, ny)), (sx, sy), periodic=False,
-                     unit='um')
+        STTopography(
+            np.resize(np.sin(np.arange(nx) * sx * 2 * np.pi / (nx * lx)), (nx, ny)),
+            (sx, sy),
+            periodic=False,
+            unit="um",
+        )
     ]
 
     nx = 278
     sx = 100
     lx = 2
     x = np.arange(nx) * sx / nx
-    topographies += [
-        STNonuniformLineScan(x, np.cos(x * np.pi / lx), unit='nm')
-    ]
+    topographies += [STNonuniformLineScan(x, np.cos(x * np.pi / lx), unit="nm")]
 
     return WrapSurface([WrapTopography(t) for t in topographies])

@@ -23,7 +23,7 @@ from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
 from .models import Property, Surface, Tag, Topography, topography_datafile_path
-from .permissions import ObjectPermissions, ParentObjectPermissions
+from .permissions import ObjectPermissions, ParentObjectPermissions, TagPermission
 from .serializers import PropertySerializer, SurfaceSerializer, TagSerializer, TopographySerializer
 from .tasks import import_container_from_url
 from .utils import api_to_guardian, get_upload_instructions
@@ -41,11 +41,13 @@ class PropertyViewSet(mixins.CreateModelMixin,
     permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
 
 
-class TagViewSet(mixins.RetrieveModelMixin,
+class TagViewSet(mixins.ListModelMixin,
+                 mixins.RetrieveModelMixin,
                  viewsets.GenericViewSet):
     queryset = Tag.objects.all()
+    lookup_field = 'name'
     serializer_class = TagSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [TagPermission]
 
 
 class SurfaceViewSet(mixins.CreateModelMixin,
@@ -315,6 +317,7 @@ def set_permissions(request, pk=None):
 @api_view(['GET'])
 def tag_numerical_properties(request, pk=None):
     obj = Tag.objects.get(pk=pk)
+    obj.authenticate_user(request.user)
     prop_values, prop_infos = obj.get_properties(kind='numerical')
     return Response(list(prop_values.keys()), status=200)
 
@@ -322,6 +325,7 @@ def tag_numerical_properties(request, pk=None):
 @api_view(['GET'])
 def tag_categorical_properties(request, pk=None):
     obj = Tag.objects.get(pk=pk)
+    obj.authenticate_user(request.user)
     prop_values, prop_infos = obj.get_properties(kind='categorical')
     return Response(list(prop_values.keys()), status=200)
 

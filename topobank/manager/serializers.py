@@ -68,11 +68,29 @@ class StrictFieldMixin:
 class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Tag
-        fields = ["url", "id", "name"]
+        fields = ["url", "id", "name", "surfaces"]
 
     url = serializers.HyperlinkedIdentityField(
-        view_name="manager:tag-api-detail", read_only=True
+        view_name="manager:tag-api-detail", lookup_field="name", read_only=True
     )
+    surfaces = serializers.SerializerMethodField()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        optional_fields = [
+            ("surfaces", "surfaces")
+        ]
+        for option, field in optional_fields:
+            param = self.context["request"].query_params.get(option)
+            requested = param is not None and param.lower() in ["yes", "true"]
+            if not requested:
+                self.fields.pop(field)
+
+    def get_surfaces(self, obj):
+        request = self.context["request"]
+        obj.authenticate_user(request.user)
+        return SurfaceSerializer(obj.related_surfaces(), context=self.context, many=True).data
 
 
 class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
@@ -300,21 +318,20 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
         # NOTE: On update (PUT) we need to check if the surface already has a property with the same name,
         # that is not the surface we are trying to update
         if method == "PUT":
-            match self.instance:
-                case None:
-                    # NOTE:This code should not be reachable.
-                    # On update, the serializer should always hold a instance
-                    pass
-                case _:
-                    if (
-                        attrs.get("surface")
-                        .properties.filter(name=attrs.get("name"))
-                        .exclude(id=self.instance.id)
-                        .exists()
-                    ):
-                        raise serializers.ValidationError(
-                            {"message": "Property names have to be unique"}
-                        )
+            if self.instance is None:
+                # NOTE:This code should not be reachable.
+                # On update, the serializer should always hold a instance
+                pass
+            else:
+                if (
+                    attrs.get("surface")
+                    .properties.filter(name=attrs.get("name"))
+                    .exclude(id=self.instance.id)
+                    .exists()
+                ):
+                    raise serializers.ValidationError(
+                        {"message": "Property names have to be unique"}
+                    )
         return attrs
 
 
@@ -371,9 +388,11 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": guardian_to_api(users[current_user])
-                if current_user in users
-                else "no-access",
+                "permission": (
+                    guardian_to_api(users[current_user])
+                    if current_user in users
+                    else "no-access"
+                ),
             },
             "other_users": [
                 {
