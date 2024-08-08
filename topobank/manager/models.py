@@ -24,7 +24,7 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
 from django.db import models
-from django.shortcuts import reverse
+from rest_framework.reverse import reverse
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 from guardian.shortcuts import assign_perm, get_perms, get_users_with_perms, remove_perm
 from notifications.signals import notify
@@ -279,12 +279,14 @@ class Surface(models.Model,
     @property
     def label(self):
         return str(self)
-
+    
     def related_surfaces(self):
         return [self]
 
-    def get_absolute_url(self):
-        return reverse('manager:surface-api-detail', kwargs=dict(pk=self.pk))
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this surface"""
+        return reverse('manager:surface-api-detail', kwargs=dict(pk=self.pk),
+                       request=request)
 
     def num_topographies(self):
         return self.topography_set.count()
@@ -924,9 +926,10 @@ class Topography(TaskStateModel, SubjectMixin):
         """
         return [self.surface]
 
-    def get_absolute_url(self):
-        """URL of detail page for this topography."""
-        return reverse('manager:topography-api-detail', kwargs=dict(pk=self.pk))
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this topography."""
+        return reverse('manager:topography-api-detail', kwargs=dict(pk=self.pk),
+                       request=request)
 
     def is_shared(self, with_user):
         """Returns True, if this topography is shared with a given user.

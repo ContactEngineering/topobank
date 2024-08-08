@@ -68,11 +68,29 @@ class StrictFieldMixin:
 class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Tag
-        fields = ["url", "id", "name"]
+        fields = ["url", "id", "name", "surfaces"]
 
     url = serializers.HyperlinkedIdentityField(
-        view_name="manager:tag-api-detail", read_only=True
+        view_name="manager:tag-api-detail", lookup_field="name", read_only=True
     )
+    surfaces = serializers.SerializerMethodField()
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+
+        optional_fields = [
+            ("surfaces", "surfaces")
+        ]
+        for option, field in optional_fields:
+            param = self.context["request"].query_params.get(option)
+            requested = param is not None and param.lower() in ["yes", "true"]
+            if not requested:
+                self.fields.pop(field)
+
+    def get_surfaces(self, obj):
+        request = self.context["request"]
+        obj.authenticate_user(request.user)
+        return SurfaceSerializer(obj.related_surfaces(), context=self.context, many=True).data
 
 
 class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):

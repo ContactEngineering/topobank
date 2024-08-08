@@ -297,7 +297,7 @@ def two_users():
     surface3 = SurfaceFactory(creator=user2)
     Topography1DFactory(surface=surface3)
 
-    return user1, user2
+    return (user1, user2), (surface1, surface2, surface3)
 
 
 def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
