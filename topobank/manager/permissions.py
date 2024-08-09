@@ -75,13 +75,12 @@ class FileManifestObjectPermissions(ParentObjectPermissions):
 
     def get_permission_responsible_object(self, obj: FileManifest):
         parent_type, parent_obj = obj.parent.get_owner()
-        match parent_type:
-            case "surface":
-                return parent_obj
-            case "topography":
-                return parent_obj.surface
-            case _:
-                raise ValueError("The parent type should be one of `surface` or `topography`")
+        if parent_type == "surface":
+            return parent_obj
+        elif parent_type == "topography":
+            return parent_obj.surface
+        else:
+            raise ValueError("The parent type should be one of `surface` or `topography`")
 
 
 # From django-rest-framework-guardian:
