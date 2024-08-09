@@ -7,9 +7,8 @@ from topobank.manager.tests.utils import TagFactory
 
 @pytest.mark.django_db
 def test_topography_analysis(two_users, test_analysis_function):
-    user1, user2 = two_users
+    (user1, user2), (surface1, surface2, surface3) = two_users
 
-    surface1, surface2, surface3 = Surface.objects.all()
     topography1, topography2, topography3 = Topography.objects.all()
 
     controller = AnalysisController(
@@ -47,9 +46,7 @@ def test_topography_analysis(two_users, test_analysis_function):
 
 @pytest.mark.django_db
 def test_surface_analysis(two_users, test_analysis_function):
-    user1, user2 = two_users
-
-    surface1, surface2, surface3 = Surface.objects.all()
+    (user1, user2), (surface1, surface2, surface3) = two_users
 
     controller = AnalysisController(
         user1, subjects=[surface1], function=test_analysis_function
@@ -86,9 +83,7 @@ def test_surface_analysis(two_users, test_analysis_function):
 
 @pytest.mark.django_db
 def test_tag_analysis(two_users, test_analysis_function):
-    user1, user2 = two_users
-
-    surface1, surface2, surface3 = Surface.objects.all()
+    (user1, user2), (surface1, surface2, surface3) = two_users
 
     tag = TagFactory(name="test_tag")
     surface2.tags.add(tag)

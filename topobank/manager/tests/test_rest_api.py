@@ -5,7 +5,11 @@ import pytest
 from django.shortcuts import reverse
 from guardian.shortcuts import get_anonymous_user
 
-from topobank.manager.tests.utils import TagFactory, assert_dicts_equal
+from topobank.manager.tests.utils import (
+    TagFactory,
+    assert_dict_equal,
+    assert_dicts_equal,
+)
 
 from ...manager.models import Surface, Topography
 
@@ -30,6 +34,12 @@ def test_surface_retrieve_routes(
     assert user.has_perm("view_surface", surface1)
     assert user.has_perm("view_surface", surface2)
 
+    if is_authenticated:
+        api_client.force_authenticate(user)
+
+    response = api_client.get(reverse("manager:surface-api-list"))
+    assert response.status_code == 405
+
     surface1_dict = {
         "category": None,
         "creator": f"http://testserver/users/api/user/{user.id}/",
@@ -42,6 +52,20 @@ def test_surface_retrieve_routes(
         "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
         "topography_set": [
             {
+                "permissions": {
+                    "current_user": {
+                        "permission": "full",
+                        "user": {
+                            "id": user.id,
+                            "name": user.name,
+                            "username": user.username,
+                            "orcid": user.orcid_id,
+                            "url": user.get_absolute_url(response.wsgi_request),
+                        },
+                    },
+                    "other_users": [],
+                },
+                "attachments": [],
                 "bandwidth_lower": None,
                 "bandwidth_upper": None,
                 "creator": f"http://testserver/users/api/user/{user.id}/",
@@ -100,6 +124,20 @@ def test_surface_retrieve_routes(
         "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
         "topography_set": [
             {
+                "permissions": {
+                    "current_user": {
+                        "permission": "full",
+                        "user": {
+                            "id": user.id,
+                            "name": user.name,
+                            "username": user.username,
+                            "orcid": user.orcid_id,
+                            "url": user.get_absolute_url(response.wsgi_request),
+                        },
+                    },
+                    "other_users": [],
+                },
+                "attachments": [],
                 "bandwidth_lower": None,
                 "bandwidth_upper": None,
                 "creator": f"http://testserver/users/api/user/{user.id}/",
@@ -151,12 +189,6 @@ def test_surface_retrieve_routes(
         del surface1_dict["topography_set"]
         del surface2_dict["topography_set"]
 
-    if is_authenticated:
-        api_client.force_authenticate(user)
-
-    response = api_client.get(reverse("manager:surface-api-list"))
-    assert response.status_code == 405
-
     url = reverse("manager:surface-api-detail", kwargs=dict(pk=surface1.id))
     if with_children:
         url += "?children=yes"
@@ -167,7 +199,7 @@ def test_surface_retrieve_routes(
         if "topography_set" in data:
             for t in data["topography_set"]:
                 del t["datafile"]  # datafile has an S3 hash which is difficult to mock
-        assert data == surface1_dict
+        assert_dict_equal(data, surface1_dict)
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
@@ -182,7 +214,7 @@ def test_surface_retrieve_routes(
         if "topography_set" in data:
             for t in data["topography_set"]:
                 del t["datafile"]  # datafile has an S3 hash which is difficult to mock
-        assert data == surface2_dict
+        assert_dict_equal(data, surface2_dict)
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
@@ -611,27 +643,30 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
         f"{reverse('manager:tag-api-detail', kwargs=dict(name=st.name))}?surfaces=yes"
     )
     assert response.data["name"] == st.name
-    assert_dicts_equal(response.data["surfaces"], [
-        {
-            "url": surface2.get_absolute_url(response.wsgi_request),
-            "id": surface2.id,
-            "name": surface2.name,
-            "category": None,
-            "creator": surface2.creator.get_absolute_url(response.wsgi_request),
-            "description": "",
-            "tags": [st.name],
-            "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
-            "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
-        },
-        {
-            "url": surface3.get_absolute_url(response.wsgi_request),
-            "id": surface3.id,
-            "name": surface3.name,
-            "category": None,
-            "creator": surface2.creator.get_absolute_url(response.wsgi_request),
-            "description": "",
-            "tags": [st.name],
-            "creation_datetime": surface3.creation_datetime.astimezone().isoformat(),
-            "modification_datetime": surface3.modification_datetime.astimezone().isoformat(),
-        },
-    ])
+    assert_dicts_equal(
+        response.data["surfaces"],
+        [
+            {
+                "url": surface2.get_absolute_url(response.wsgi_request),
+                "id": surface2.id,
+                "name": surface2.name,
+                "category": None,
+                "creator": surface2.creator.get_absolute_url(response.wsgi_request),
+                "description": "",
+                "tags": [st.name],
+                "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
+                "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
+            },
+            {
+                "url": surface3.get_absolute_url(response.wsgi_request),
+                "id": surface3.id,
+                "name": surface3.name,
+                "category": None,
+                "creator": surface2.creator.get_absolute_url(response.wsgi_request),
+                "description": "",
+                "tags": [st.name],
+                "creation_datetime": surface3.creation_datetime.astimezone().isoformat(),
+                "modification_datetime": surface3.modification_datetime.astimezone().isoformat(),
+            },
+        ],
+    )
