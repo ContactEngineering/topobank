@@ -305,9 +305,9 @@ def series_card_view(request, **kwargs):
             #
             # Collect data for visibility of the corresponding series
             #
-            series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'), request=request)
-            # series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
-
+            # series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'), request=request) # revert this back if we ever solve the redirect issue
+            series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json') # we want to return the aws s3 links directly
+            
             series_name = s['name'] if 'name' in s else f'{series_idx}'
             series_name_idx = series_names.index(series_name)
 
