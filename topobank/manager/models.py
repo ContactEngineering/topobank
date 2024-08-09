@@ -35,7 +35,15 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-from .utils import api_to_guardian, dzi_exists, get_topography_reader, guardian_to_api, make_dzi, recursive_delete, surfaces_for_user
+from .utils import (
+    api_to_guardian,
+    dzi_exists,
+    generate_upload_path,
+    get_topography_reader,
+    guardian_to_api,
+    make_dzi,
+    recursive_delete
+)
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -279,7 +287,13 @@ class Surface(models.Model,
     @property
     def label(self):
         return str(self)
-    
+
+    @property
+    def attachments(self):
+        if not hasattr(self, "fileparent"):
+            return []
+        return self.fileparent.get_valid_files()
+
     def related_surfaces(self):
         return [self]
 
@@ -871,6 +885,12 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def __str__(self):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
+
+    @property
+    def attachments(self):
+        if not hasattr(self, "fileparent"):
+            return []
+        return self.fileparent.get_valid_files()
 
     @property
     def label(self):
@@ -1533,3 +1553,86 @@ class Topography(TaskStateModel, SubjectMixin):
 
     def task_worker(self):
         self.renew_cache()
+
+
+class FileParent(models.Model):
+    surface = models.OneToOneField(Surface, on_delete=models.CASCADE, null=True, blank=True)
+    topography = models.OneToOneField(Topography, on_delete=models.CASCADE, null=True, blank=True)
+
+    def get_owner(self) -> tuple[str, Surface | Topography]:
+        for field in self._meta.fields:
+            if field.is_relation and (fk := getattr(self, field.name)) is not None:
+                return (field.name, fk)
+        raise ValueError("Exactly one field has to be not null")
+
+    def validate(self):
+        """
+        Checks the invariants of this Model.
+        If any invariant is broken, a ValidationError is raised
+
+        Invariants:
+        - 1. `surface` or `topography` are `None`
+        - 2. `surface` or `topography` are not `None`
+        This results in a 'XOR' logic and exaclty one of the value fields has to hold a value
+        """
+
+        # Invariant 1
+        if not (self.surface is None or self.topography is None):
+            raise ValidationError("Either 'surface' or 'topography' must be None.")
+        # Invariant 2
+        if not (self.surface is not None or self.topography is not None):
+            raise ValidationError("Either 'surface' or 'topography' must be not None.")
+
+    def save(self, *args, **kwargs):
+        self.validate()
+        super().save(*args, **kwargs)
+
+    def get_valid_files(self) -> models.QuerySet['FileManifest']:
+        # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
+        return self.files.filter(upload_finished__isnull=False)
+
+    def __str__(self) -> str:
+        owner_type, owner_obj = self.get_owner()
+        return f"FileParent : {owner_type} - {owner_obj}"
+
+
+# The Flow for "direct file upload" is heavily inspired from here:
+# https://www.hacksoft.io/blog/direct-to-s3-file-upload-with-django
+class FileManifest(models.Model):
+    FILE_KIND_CHOICES = [
+        ("att", "Attachment"),
+        ("raw", "Raw data file")
+    ]
+
+    file = models.FileField(
+        upload_to=generate_upload_path,
+        blank=True,
+        null=True
+    )
+
+    file_name = models.CharField(max_length=255)
+    file_type = models.CharField(max_length=255, blank=True, null=True)
+
+    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    parent = models.ForeignKey(FileParent, related_name="files", on_delete=models.CASCADE)
+    kind = models.CharField(max_length=3, choices=FILE_KIND_CHOICES)
+
+    upload_finished = models.DateTimeField(blank=True, null=True)
+    created = models.DateTimeField(auto_now_add=True)
+    updated = models.DateTimeField(auto_now=True)
+
+    def __str__(self):
+        return f"FileManifest:\n\tfile -> {self.file}\n\tparent -> {self.parent}\n\tkind -> {self.kind}"
+
+    def delete(self, *args, **kwargs):
+        self.file.delete(save=False)
+        return super().delete(*args, **kwargs)
+
+    @property
+    def is_valid(self):
+        return bool(self.upload_finished)
+
+    @property
+    def url(self):
+        return self.file.url

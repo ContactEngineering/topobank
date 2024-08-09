@@ -7,28 +7,49 @@ from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.db.models import Case, F, Prefetch, Q, When
 from django.http import Http404, HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.utils.text import slugify
 from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
 from notifications.signals import notify
-from rest_framework import mixins, viewsets
+from rest_framework import mixins
+from rest_framework import serializers as drf_serializers
+from rest_framework import viewsets
 from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+from rest_framework.views import APIView
 from trackstats.models import Metric, Period
+
+from topobank.manager.file_upload import FileUploadService
 
 from ..supplib.versions import get_versions
 from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
-from .models import Property, Surface, Tag, Topography, topography_datafile_path
-from .permissions import ObjectPermissions, ParentObjectPermissions, TagPermission
-from .serializers import PropertySerializer, SurfaceSerializer, TagSerializer, TopographySerializer
+from .models import FileManifest, Property, Surface, Tag, Topography, topography_datafile_path
+from .permissions import FileManifestObjectPermissions, ObjectPermissions, ParentObjectPermissions
+from .serializers import (
+    FileManifestSerializer,
+    FileUploadSerializer,
+    PropertySerializer,
+    SurfaceSerializer,
+    TagSerializer,
+    TopographySerializer
+)
 from .tasks import import_container_from_url
 from .utils import api_to_guardian, get_upload_instructions
 
 _log = logging.getLogger(__name__)
+
+
+class FileManifestViewSet(mixins.CreateModelMixin,
+                          mixins.RetrieveModelMixin,
+                          mixins.DestroyModelMixin,
+                          viewsets.GenericViewSet):
+    queryset = FileManifest.objects.all()
+    serializer_class = FileManifestSerializer
+    permission_classes = [FileManifestObjectPermissions]
 
 
 class PropertyViewSet(mixins.CreateModelMixin,
@@ -38,7 +59,7 @@ class PropertyViewSet(mixins.CreateModelMixin,
                       viewsets.GenericViewSet):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
+    permission_classes = [ParentObjectPermissions]
 
 
 class TagViewSet(mixins.ListModelMixin,
@@ -59,6 +80,8 @@ class SurfaceViewSet(mixins.CreateModelMixin,
         Prefetch('topography_set', queryset=Topography.objects.order_by('name')),
         Prefetch('properties', queryset=Property.objects.order_by('id')))
     serializer_class = SurfaceSerializer
+    # WARNING: This might be the wrong set of permissions!
+    # This means that every unauthenticated user can view every surface, is that wanted?
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
     def _notify(self, instance, verb):
@@ -147,6 +170,43 @@ class TopographyViewSet(mixins.CreateModelMixin,
             instance.save()  # run_task sets the initial task state to 'pe', so we need to save
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
+
+
+class FileDirectUploadStartApi(APIView):
+
+    # ToDo Permissions and Auth
+    def post(self, request):
+        serializer = FileUploadSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        service = FileUploadService(request.user)
+        presigned_data = service.start(**serializer.validated_data)
+        return Response(data=presigned_data)
+
+
+class FileDirectUploadFinishApi(APIView):
+
+    class InputSerializer(drf_serializers.Serializer):
+        file_id = drf_serializers.CharField()
+
+    # ToDo Permissions and Auth
+    def post(self, request):
+        serializer = self.InputSerializer(data=request.data)
+        serializer.is_valid(raise_exception=True)
+        file_id = serializer.validated_data['file_id']
+        service = FileUploadService(request.user)
+        file_manifest = get_object_or_404(FileManifest, id=file_id)
+        service.finish(file_manifest=file_manifest)
+        return Response({'id': file_id})
+
+
+class FileDirectUploadLocalApi(APIView):
+    def post(self, request, file_id):
+        file_manifest = get_object_or_404(FileManifest, id=file_id)
+        file = request.FILES["file"]
+        service = FileUploadService(request.user)
+        file = service.upload_local(file_manifest=file_manifest, file=file)
+
+        return Response({'id': file_id})
 
 
 def download_surface(request, surface_id):

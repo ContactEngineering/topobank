@@ -572,3 +572,8 @@ def guardian_to_api(guardian_permissions):
                     and 'publish_surface' in guardian_permissions):
                 api_permission = 'full'
     return api_permission
+
+
+def generate_upload_path(instance, file_name: str) -> str:
+    owner_type, owner_obj = instance.parent.get_owner()
+    return f"{owner_type}/{owner_obj.id}/{instance.kind}/{instance.id}/{file_name}"
