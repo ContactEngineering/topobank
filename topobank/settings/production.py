@@ -212,4 +212,4 @@ MIDDLEWARE.insert(  # noqa: F405
     "whitenoise.middleware.WhiteNoiseMiddleware",
 )
 
-STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.ManifestStaticFilesStorage"
+STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.ManifestStaticFilesStorage"  # noqa: F405
