@@ -11,7 +11,6 @@ from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
-from rest_framework.reverse import reverse
 from trackstats.models import Metric
 
 from ..manager.models import Surface
@@ -304,10 +303,10 @@ def series_card_view(request, **kwargs):
         for series_idx, s in enumerate(series_metadata):
             #
             # Collect data for visibility of the corresponding series
-            #
-            series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'), request=request)
-            # series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
-
+            # revert this back if we ever solve the redirect issue
+            # series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'), request=request)
+            # we want to return the aws s3 links directly
+            series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
             series_name = s['name'] if 'name' in s else f'{series_idx}'
             series_name_idx = series_names.index(series_name)
 
