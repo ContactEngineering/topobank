@@ -8,6 +8,7 @@ import os.path
 import sys
 import tempfile
 from collections import defaultdict
+from typing import Union
 
 import dateutil.parser
 import django.dispatch
@@ -42,7 +43,8 @@ from .utils import (
     get_topography_reader,
     guardian_to_api,
     make_dzi,
-    recursive_delete
+    recursive_delete,
+    surfaces_for_user
 )
 
 _log = logging.getLogger(__name__)
@@ -1559,7 +1561,7 @@ class FileParent(models.Model):
     surface = models.OneToOneField(Surface, on_delete=models.CASCADE, null=True, blank=True)
     topography = models.OneToOneField(Topography, on_delete=models.CASCADE, null=True, blank=True)
 
-    def get_owner(self) -> tuple[str, Surface | Topography]:
+    def get_owner(self) -> tuple[str, Union[Surface, Topography]]:
         for field in self._meta.fields:
             if field.is_relation and (fk := getattr(self, field.name)) is not None:
                 return (field.name, fk)

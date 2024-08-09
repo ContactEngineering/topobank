@@ -28,7 +28,7 @@ from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
 from .models import FileManifest, Property, Surface, Tag, Topography, topography_datafile_path
-from .permissions import FileManifestObjectPermissions, ObjectPermissions, ParentObjectPermissions
+from .permissions import FileManifestObjectPermissions, ObjectPermissions, ParentObjectPermissions, TagPermission
 from .serializers import (
     FileManifestSerializer,
     FileUploadSerializer,
@@ -80,8 +80,6 @@ class SurfaceViewSet(mixins.CreateModelMixin,
         Prefetch('topography_set', queryset=Topography.objects.order_by('name')),
         Prefetch('properties', queryset=Property.objects.order_by('id')))
     serializer_class = SurfaceSerializer
-    # WARNING: This might be the wrong set of permissions!
-    # This means that every unauthenticated user can view every surface, is that wanted?
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
     def _notify(self, instance, verb):
