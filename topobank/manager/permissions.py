@@ -4,7 +4,7 @@ from guardian.utils import get_user_obj_perms_model
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.permissions import SAFE_METHODS, DjangoObjectPermissions
 
-from .models import Surface
+from .models import FileManifest, Surface
 
 
 class ObjectPermissions(DjangoObjectPermissions):
@@ -37,14 +37,17 @@ class ParentObjectPermissions(ObjectPermissions):
     """
     parent_property = 'surface'
 
+    def get_permission_responsible_object(self, obj):
+        return getattr(obj, self.parent_property)
+
     def has_object_permission(self, request, view, obj):
         user = request.user
 
-        obj = getattr(obj, self.parent_property)
+        parent_obj = self.get_permission_responsible_object(obj)
 
-        perms = self.get_required_object_permissions(request.method, obj.__class__)
+        required_perms = self.get_required_object_permissions(request.method, parent_obj.__class__)
 
-        if not user.has_perms(perms, obj):
+        if not user.has_perms(required_perms, parent_obj):
             # If the user does not have permissions we need to determine if
             # they have read permissions to see 403, or not, and simply see
             # a 404 response.
@@ -54,14 +57,31 @@ class ParentObjectPermissions(ObjectPermissions):
                 # to make another lookup.
                 raise Http404
 
-            read_perms = self.get_required_object_permissions('GET', obj.__class__)
-            if not user.has_perms(read_perms, obj):
+            read_perms = self.get_required_object_permissions('GET', parent_obj.__class__)
+            if not user.has_perms(read_perms, parent_obj):
                 raise Http404
 
             # Has read permissions.
             return False
 
         return True
+
+
+class FileManifestObjectPermissions(ParentObjectPermissions):
+    """
+    Delegate permissions check to the parent object.
+    This might be either a `Surface` or a `Topography` object.
+    """
+
+    def get_permission_responsible_object(self, obj: FileManifest):
+        parent_type, parent_obj = obj.parent.get_owner()
+        match parent_type:
+            case "surface":
+                return parent_obj
+            case "topography":
+                return parent_obj.surface
+            case _:
+                raise ValueError("The parent type should be one of `surface` or `topography`")
 
 
 # From django-rest-framework-guardian:
