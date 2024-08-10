@@ -128,7 +128,7 @@ class SubjectMixin:
         """
         raise NotImplementedError()
 
-    def related_surfaces(self):
+    def get_related_surfaces(self):
         """Returns a list of related surfaces. This can be either the parent
         surface (for a topography), the child surfaces (for a tag), or the
         surface itself (for a surface).
@@ -150,7 +150,7 @@ class SubjectMixin:
             this subject.
         """
         return User.objects.intersection(
-            *tuple(get_users_with_perms(s) for s in self.related_surfaces())
+            *tuple(get_users_with_perms(s) for s in self.get_related_surfaces())
         )
 
 
@@ -170,7 +170,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
     def is_shared(self, with_user, allow_change=False):
         return True  # Tags are generally shared, but the surfaces may not
 
-    def related_surfaces(self):
+    def get_related_surfaces(self):
         if self._user is None:
             raise PermissionError(
                 "Cannot return surfaces belonging to a tag because "
@@ -211,7 +211,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         if kind not in [None, "categorical", "numerical"]:
             raise ValueError(f"Invalid value for kind: {kind}")
 
-        nb_surfaces = len(self.related_surfaces())
+        nb_surfaces = len(self.get_related_surfaces())
 
         # Initialize a dictionary to collect all properties. The default value for
         # each property is a list of np.nan of length equal to the number of
@@ -220,7 +220,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         categorical_properties = set()
 
         # Iterate over all surfaces related to the tag
-        for i, surface in enumerate(self.related_surfaces()):
+        for i, surface in enumerate(self.get_related_surfaces()):
             # For each surface, iterate over all its properties
             for p in Property.objects.filter(surface=surface):
                 # If the property is categorical, add its name to the set of
@@ -333,7 +333,7 @@ class Surface(models.Model, SubjectMixin):
             return []
         return self.fileparent.get_valid_files()
 
-    def related_surfaces(self):
+    def get_related_surfaces(self):
         return [self]
 
     def get_absolute_url(self, request=None):
@@ -1072,7 +1072,7 @@ class Topography(TaskStateModel, SubjectMixin):
             )
         return f"topographies/{self.id}"
 
-    def related_surfaces(self):
+    def get_related_surfaces(self):
         """Returns sequence of related surfaces.
 
         :return: True or False

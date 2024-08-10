@@ -33,7 +33,7 @@ class Command(BaseCommand):
             #
             if a.users.count() == 0:
                 num_dangling_analyses += 1
-                analysis_users = list(set(get_users_with_perms(s) for s in a.related_surfaces()))
+                analysis_users = list(set(get_users_with_perms(s) for s in a.get_related_surfaces()))
 
                 _log.info("Setting users for analysis '{}': {}".format(a, analysis_users))
 

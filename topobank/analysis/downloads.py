@@ -118,7 +118,7 @@ def analyses_meta_data_dataframe(analyses, request):
     values = []
     for i, analysis in enumerate(analyses):
         subject = analysis.subject
-        surfaces = analysis.related_surfaces()
+        surfaces = analysis.get_related_surfaces()
         pubs = [surface.publication for surface in surfaces if surface.is_published]
 
         if i == 0:
@@ -184,7 +184,7 @@ def publications_urls(request, analyses):
     publication_urls = set()
     related_surfaces = set()
     for a in analyses:
-        for surface in a.related_surfaces():
+        for surface in a.get_related_surfaces():
             related_surfaces.add(surface)
     for surface in related_surfaces:
         if surface.is_published:

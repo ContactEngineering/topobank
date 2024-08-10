@@ -90,7 +90,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     def get_surfaces(self, obj):
         request = self.context["request"]
         obj.authenticate_user(request.user)
-        return SurfaceSerializer(obj.related_surfaces(), context=self.context, many=True).data
+        return SurfaceSerializer(obj.get_related_surfaces(), context=self.context, many=True).data
 
 
 class FileUploadSerializer(serializers.Serializer):

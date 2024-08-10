@@ -227,16 +227,16 @@ class Analysis(TaskStateModel):
             raise RuntimeError('This `Analysis` does not have an id yet; the storage prefix is not yet known.')
         return "analyses/{}".format(self.id)
 
-    def related_surfaces(self):
+    def get_related_surfaces(self):
         """Returns sequence of surface instances related to the subject of this analysis."""
-        return self.subject.related_surfaces()
+        return self.subject.get_related_surfaces()
 
     def get_implementation(self):
         return self.function.get_implementation(ContentType.objects.get_for_model(self.subject))
 
     def is_visible_for_user(self, user):
         """Returns True if given user should be able to see this analysis."""
-        is_allowed_to_view_surfaces = all(user.has_perm("view_surface", s) for s in self.related_surfaces())
+        is_allowed_to_view_surfaces = all(user.has_perm("view_surface", s) for s in self.get_related_surfaces())
         is_allowed_to_use_implementation = self.get_implementation().is_available_for_user(user)
         return is_allowed_to_use_implementation and is_allowed_to_view_surfaces
 

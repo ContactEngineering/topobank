@@ -148,4 +148,4 @@ class TagPermission(BasePermission):
         obj.authenticate_user(request.user)
         # Permissions are granted if authenticated tag returns 1 or more
         # surfaces
-        return len(obj.related_surfaces()) > 0
+        return len(obj.get_related_surfaces()) > 0

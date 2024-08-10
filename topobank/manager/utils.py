@@ -240,7 +240,7 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
     # Check permissions is user is specified
     if user is not None:
         # Build list of related surfaces
-        related_surfaces = [s.related_surfaces() for s in subjects]
+        related_surfaces = [s.get_related_surfaces() for s in subjects]
         if related_surfaces == []:
             # Nothing to check
             return []

@@ -98,7 +98,7 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     @factory.post_generation
     def users(self, create, extracted, **kwargs):
         if create:
-            users = set(s.creator for s in self.related_surfaces())
+            users = set(s.creator for s in self.get_related_surfaces())
             self.users.set(users)
 
         if extracted:
