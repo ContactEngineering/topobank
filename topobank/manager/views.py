@@ -67,6 +67,7 @@ class TagViewSet(mixins.ListModelMixin,
                  viewsets.GenericViewSet):
     queryset = Tag.objects.all()
     lookup_field = 'name'
+    lookup_value_regex = '[^.]+'  # We need to match paths that include slashes
     serializer_class = TagSerializer
     permission_classes = [TagPermission]
 

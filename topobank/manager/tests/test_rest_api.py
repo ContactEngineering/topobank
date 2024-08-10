@@ -670,3 +670,24 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
             },
         ],
     )
+
+    surface2.tags.add('my/fantastic/tag')
+    surface3.tags.add('my/fantastic/tag')
+
+    response = api_client.get(reverse('manager:tag-api-detail', kwargs=dict(name='my')))
+    assert response.status_code == 200
+    assert response.data["name"] == "my"
+
+    response = api_client.get(f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic'))}?surfaces=yes")
+    assert response.status_code == 200
+    assert response.data["name"] == "my/fantastic"
+    assert len(response.data["surfaces"]) == 0
+
+    response = api_client.get(f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic/tag'))}?surfaces=yes")
+    assert response.status_code == 200
+    assert response.data["name"] == "my/fantastic/tag"
+    assert len(response.data["surfaces"]) == 2
+
+    api_client.force_login(user1)
+    response = api_client.get(reverse('manager:tag-api-detail', kwargs=dict(name='my')))
+    assert response.status_code == 403

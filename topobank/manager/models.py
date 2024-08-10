@@ -171,15 +171,24 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         return True  # Tags are generally shared, but the surfaces may not
 
     def get_related_surfaces(self):
+        """Return all surfaces with exactly this tag"""
         if self._user is None:
             raise PermissionError(
                 "Cannot return surfaces belonging to a tag because "
                 "no user was specified. Use `authenticate_user` "
                 "to restrict user permissions."
             )
-        return Surface.objects.for_user(self._user).filter(
-            tags__in=Tag.objects.filter(pk=self.id) | self.get_descendants()
-        )
+        return Surface.objects.for_user(self._user).filter(tags=self.id)
+
+    def get_descendant_surfaces(self):
+        """Return all surfaces with exactly this tag or a descendant tag"""
+        if self._user is None:
+            raise PermissionError(
+                "Cannot return surfaces belonging to a tag because "
+                "no user was specified. Use `authenticate_user` "
+                "to restrict user permissions."
+            )
+        return Surface.objects.for_user(self._user).filter(tags__path__startswith=self.path)
 
     def get_properties(self, kind=None):
         """
