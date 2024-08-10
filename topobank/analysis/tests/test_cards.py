@@ -1,13 +1,22 @@
 import pytest
 from django.contrib.contenttypes.models import ContentType
-from django.urls import reverse
+from rest_framework.reverse import reverse
 
 from ...manager.models import Surface, Topography
-from ...manager.tests.utils import SurfaceFactory, Topography1DFactory, Topography2DFactory, UserFactory
+from ...manager.tests.utils import (
+    SurfaceFactory,
+    Topography1DFactory,
+    Topography2DFactory,
+    UserFactory,
+)
 from ...manager.utils import subjects_to_base64
 from ..functions import VIZ_SERIES
 from ..models import Analysis, AnalysisFunction
-from .utils import AnalysisSubjectFactory, SurfaceAnalysisFactory, TopographyAnalysisFactory
+from .utils import (
+    AnalysisSubjectFactory,
+    SurfaceAnalysisFactory,
+    TopographyAnalysisFactory,
+)
 
 
 @pytest.mark.django_db
@@ -50,9 +59,10 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
             "seriesNameIndex": 0,
             "xScaleFactor": 1,
             "yScaleFactor": 1,
-            "url": "http://testserver"
-            + reverse(
-                "analysis:data", kwargs=dict(pk=analysis.id, location="series-0.json")
+            "url": reverse(
+                "analysis:data",
+                kwargs=dict(pk=analysis.id, location="series-0.json"),
+                request=response.wsgi_request,
             ),
             "width": 1,
             "alpha": 1.0,
@@ -70,9 +80,10 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
             "seriesNameIndex": 1,
             "xScaleFactor": 1,
             "yScaleFactor": 1,
-            "url": "http://testserver"
-            + reverse(
-                "analysis:data", kwargs=dict(pk=analysis.id, location="series-1.json")
+            "url": reverse(
+                "analysis:data",
+                kwargs=dict(pk=analysis.id, location="series-1.json"),
+                request=response.wsgi_request,
             ),
             "width": 1,
             "alpha": 1.0,
