@@ -12,7 +12,6 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db.models import Q
 from guardian.core import ObjectPermissionChecker
-from guardian.shortcuts import get_objects_for_user
 from rest_framework.reverse import reverse
 from storages.utils import clean_name
 from SurfaceTopography import open_topography
@@ -155,18 +154,6 @@ def get_topography_reader(filefield, format=None):
         filefield.file.seek(0)
     reader = open_topography(filefield, format=format)
     return reader
-
-
-def surfaces_for_user(user, perms=['view_surface']):
-    """Return a queryset of all surfaces, the user has *all* given permissions.
-
-    :param user: user for which we want to know the surfaces
-    :param perms: list of permission codenames, default is ['view_surface']
-    :return: queryset of surfaces
-    """
-    from .models import Surface
-    return get_objects_for_user(user, perms, klass=Surface, accept_global_perms=False)
-
 
 def subjects_to_dict(subjects):
     """
