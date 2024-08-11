@@ -68,8 +68,10 @@ def default_storage_replace(name, content):
         default_storage.delete(name)
     actual_name = default_storage.save(name, content)
     if actual_name != name:
-        raise IOError(f"Trying to store file with name '{name}', but Django "
-                      f"storage renamed this file to '{actual_name}'.")
+        raise IOError(
+            f"Trying to store file with name '{name}', but Django "
+            f"storage renamed this file to '{actual_name}'."
+        )
     return actual_name
 
 
@@ -82,18 +84,18 @@ def recursive_delete(prefix):
     prefix : str
         Prefix to delete.
     """
-    _log.info(f'Recursive delete of {prefix}')
+    _log.info(f"Recursive delete of {prefix}")
     directories, filenames = default_storage.listdir(prefix)
     for filename in filenames:
-        _log.info(f'Deleting file {prefix}/{filename}...')
-        default_storage.delete(f'{prefix}/{filename}')
+        _log.info(f"Deleting file {prefix}/{filename}...")
+        default_storage.delete(f"{prefix}/{filename}")
     for directory in directories:
-        _log.info(f'Deleting directory {prefix}/{directory}...')
-        recursive_delete(f'{prefix}/{directory}')
-        default_storage.delete(f'{prefix}/{directory}')
+        _log.info(f"Deleting directory {prefix}/{directory}...")
+        recursive_delete(f"{prefix}/{directory}")
+        default_storage.delete(f"{prefix}/{directory}")
 
 
-def mangle_content_type(obj, default_app_label='manager'):
+def mangle_content_type(obj, default_app_label="manager"):
     """Mangle content type into a string that can be used as a Javascript variable name"""
     if not isinstance(obj, ContentType):
         obj = ContentType.objects.get_for_model(obj)
@@ -101,12 +103,12 @@ def mangle_content_type(obj, default_app_label='manager'):
     if app_label == default_app_label:
         return name
     else:
-        return f'{app_label}_{name}'
+        return f"{app_label}_{name}"
 
 
-def demangle_content_type(s, default_app_label='manager'):
+def demangle_content_type(s, default_app_label="manager"):
     """Return content type given its mangled string representation"""
-    s = s.split('_', maxsplit=1)
+    s = s.split("_", maxsplit=1)
     if len(s) == 1:
         return ContentType.objects.get_by_natural_key(default_app_label, *s)
     else:
@@ -123,7 +125,7 @@ def get_reader_infos():
         except Exception:
             descr = "*description not yet available*"
 
-        descr = markdown2.markdown(descr, extras=['fenced-code-blocks'])
+        descr = markdown2.markdown(descr, extras=["fenced-code-blocks"])
 
         reader_infos.append((reader_class.name(), reader_class.format(), descr))
 
@@ -147,13 +149,14 @@ def get_topography_reader(filefield, format=None):
         Instance of a `ReaderBase` subclass according to the format.
     """
     # Workaround such that SurfaceTopography module recognizes this a binary stream
-    if not hasattr(filefield, 'mode'):
-        filefield.mode = 'rb'
-    if hasattr(filefield.file, 'seek'):
+    if not hasattr(filefield, "mode"):
+        filefield.mode = "rb"
+    if hasattr(filefield.file, "seek"):
         # make sure the file is rewound
         filefield.file.seek(0)
     reader = open_topography(filefield, format=format)
     return reader
+
 
 def subjects_to_dict(subjects):
     """
@@ -183,9 +186,7 @@ def subjects_to_dict(subjects):
             tmp[ct] = []
         tmp[ct].append(sub.id)
 
-    return {
-        mangle_content_type(ct): sub_ids for ct, sub_ids in tmp.items()
-    }
+    return {mangle_content_type(ct): sub_ids for ct, sub_ids in tmp.items()}
 
 
 def subjects_from_dict(subjects_dict, user=None, function=None):
@@ -244,13 +245,18 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
         if related_surfaces == []:
             # Nothing to check
             return []
-        unique_surfaces = set([s for s in functools.reduce(lambda x, y: x + y, related_surfaces, [])])
+        unique_surfaces = set(
+            [s for s in functools.reduce(lambda x, y: x + y, related_surfaces, [])]
+        )
         if len(unique_surfaces) == 0:
             # Nothing to check (but should not really happen)
             return []
         checker = ObjectPermissionChecker(user)
         checker.prefetch_perms(unique_surfaces)
-        permissions = [all([checker.has_perm('view_surface', s) for s in r]) for r in related_surfaces]
+        permissions = [
+            all([checker.has_perm("view_surface", s) for s in r])
+            for r in related_surfaces
+        ]
 
         # Filter only those subjects that have view permissions
         subjects = [s for s, p in zip(subjects, permissions) if p]
@@ -323,10 +329,12 @@ def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback) -> str
     :return: a string which can be used in a mailto link for the mail body
     """
 
-    body = ("Hey there,\n\n"
-            "I've problems with 'contact.engineering'.\n\nHere are some details:\n\n"
-            f"Context: {info}\n"
-            f"Error message: {err_msg}\n")
+    body = (
+        "Hey there,\n\n"
+        "I've problems with 'contact.engineering'.\n\nHere are some details:\n\n"
+        f"Context: {info}\n"
+        f"Error message: {err_msg}\n"
+    )
 
     body += "Traceback:\n"
 
@@ -336,7 +344,7 @@ def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback) -> str
     body += "\n\nBest, <your name>"
 
     # change characters to we can use this in a link
-    body = body.replace('\n', '%0D%0A')
+    body = body.replace("\n", "%0D%0A")
     return body
 
 
@@ -353,22 +361,24 @@ def _bandwidths_data_entry(topo):
     err_message = None
     if lower_bound is None or upper_bound is None:
         err_message = f"Bandwidth for measurement '{topo.name}' is not yet available."
-        link = mailto_link_for_reporting_an_error(f"Failure determining bandwidth (id: {topo.id})",
-                                                  "Bandwidth data calculation",
-                                                  err_message,
-                                                  traceback.format_exc())
+        link = mailto_link_for_reporting_an_error(
+            f"Failure determining bandwidth (id: {topo.id})",
+            "Bandwidth data calculation",
+            err_message,
+            traceback.format_exc(),
+        )
     else:
-        link = reverse('manager:topography-detail', kwargs=dict(pk=topo.pk))
+        link = reverse("manager:topography-detail", kwargs=dict(pk=topo.pk))
 
     short_reliability_cutoff = topo.short_reliability_cutoff
 
     return {
-        'lower_bound': lower_bound,
-        'upper_bound': upper_bound,
-        'topography': topo,
-        'link': link,
-        'error_message': err_message,
-        'short_reliability_cutoff': short_reliability_cutoff
+        "lower_bound": lower_bound,
+        "upper_bound": upper_bound,
+        "topography": topo,
+        "link": link,
+        "error_message": err_message,
+        "short_reliability_cutoff": short_reliability_cutoff,
     }
 
 
@@ -398,8 +408,8 @@ def bandwidths_data(topographies):
     # Sort by lower bound, put lower bound=None first to show error messages first in plot
     #
     def weight(entry):
-        lb = entry['lower_bound']
-        return float('-inf') if lb is None else lb  # so errors appear first
+        lb = entry["lower_bound"]
+        return float("-inf") if lb is None else lb  # so errors appear first
 
     bandwidths_data.sort(key=lambda entry: weight(entry))
 
@@ -420,10 +430,18 @@ def dzi_exists(path_prefix):
     -------
     True, if DZI data is expected to be available, else False.
     """
-    return default_storage.exists(f'{path_prefix}/dzi.json')
+    return default_storage.exists(f"{path_prefix}/dzi.json")
 
 
-def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colorbar_title=None, cmap=None):
+def make_dzi(
+    data,
+    path_prefix,
+    physical_sizes=None,
+    unit=None,
+    quality=95,
+    colorbar_title=None,
+    cmap=None,
+):
     """
     Make JPG Deep Zoom Image (DZI) files given data on a two-dimensional grid.
 
@@ -457,23 +475,42 @@ def make_dzi(data, path_prefix, physical_sizes=None, unit=None, quality=95, colo
         (Default: None)
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
-        _log.debug(f"Making DZI files under path prefix {path_prefix} using temp dir {tmpdirname}...")
+        _log.debug(
+            f"Making DZI files under path prefix {path_prefix} using temp dir {tmpdirname}..."
+        )
         try:
             # This is a Topography
-            filenames = data.to_dzi('dzi', root_directory=tmpdirname, meta_format='json', quality=quality, cmap=cmap)
+            filenames = data.to_dzi(
+                "dzi",
+                root_directory=tmpdirname,
+                meta_format="json",
+                quality=quality,
+                cmap=cmap,
+            )
         except AttributeError:
             # This is likely just a numpy array
             if physical_sizes is None or unit is None:
-                raise ValueError('You need to provide `physical_sizes` and `unit` when visualizing numpy arrays.')
-            filenames = write_dzi(data, 'dzi', physical_sizes, unit, root_directory=tmpdirname,
-                                  meta_format='json', quality=quality, colorbar_title=colorbar_title, cmap=cmap)
+                raise ValueError(
+                    "You need to provide `physical_sizes` and `unit` when visualizing numpy arrays."
+                )
+            filenames = write_dzi(
+                data,
+                "dzi",
+                physical_sizes,
+                unit,
+                root_directory=tmpdirname,
+                meta_format="json",
+                quality=quality,
+                colorbar_title=colorbar_title,
+                cmap=cmap,
+            )
         for filename in filenames:
             # Strip tmp directory
-            storage_filename = filename[len(tmpdirname) + 1:]
+            storage_filename = filename[len(tmpdirname) + 1 :]
             # Delete (possibly existing) old data files
-            target_name = f'{path_prefix}/{storage_filename}'
+            target_name = f"{path_prefix}/{storage_filename}"
             # Upload to S3
-            default_storage_replace(target_name, File(open(filename, mode='rb')))
+            default_storage_replace(target_name, File(open(filename, mode="rb")))
 
 
 def get_upload_instructions(instance, name, expire, method=None):
@@ -484,33 +521,35 @@ def get_upload_instructions(instance, name, expire, method=None):
 
     if settings.USE_S3_STORAGE:
         name = default_storage._normalize_name(clean_name(name))
-        if method == 'POST':
-            upload_instructions = default_storage.bucket.meta.client.generate_presigned_post(
-                Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-                Key=name,
-                ExpiresIn=expire)
-            upload_instructions['method'] = 'POST'
-        elif method == 'PUT':
+        if method == "POST":
+            upload_instructions = (
+                default_storage.bucket.meta.client.generate_presigned_post(
+                    Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=name, ExpiresIn=expire
+                )
+            )
+            upload_instructions["method"] = "POST"
+        elif method == "PUT":
             upload_instructions = {
-                'method': 'PUT',
-                'url': default_storage.bucket.meta.client.generate_presigned_url(
-                    ClientMethod='put_object',
+                "method": "PUT",
+                "url": default_storage.bucket.meta.client.generate_presigned_url(
+                    ClientMethod="put_object",
                     Params={
-                        'Bucket': settings.AWS_STORAGE_BUCKET_NAME,
-                        'Key': name,
-                        'ContentType': 'binary/octet-stream'  # must match content type of put request
+                        "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                        "Key": name,
+                        "ContentType": "binary/octet-stream",  # must match content type of put request
                     },
-                    ExpiresIn=expire)
+                    ExpiresIn=expire,
+                ),
             }
         else:
-            raise RuntimeError(f'Unknown upload method: {method}')
+            raise RuntimeError(f"Unknown upload method: {method}")
     else:
-        if method != 'POST':
-            raise RuntimeError('Only POST uploads are supported without S3')
+        if method != "POST":
+            raise RuntimeError("Only POST uploads are supported without S3")
         upload_instructions = {
-            'method': 'POST',
-            'url': reverse('manager:upload-topography', kwargs=dict(pk=instance.id)),
-            'fields': {}
+            "method": "POST",
+            "url": reverse("manager:upload-topography", kwargs=dict(pk=instance.id)),
+            "fields": {},
         }
     return upload_instructions
 
@@ -528,10 +567,16 @@ def api_to_guardian(api_permission):
             'share_surface' and 'publish_surface'
     """
     _permissions = {
-        'no-access': [],
-        'view': ['view_surface'],
-        'edit': ['view_surface', 'change_surface'],
-        'full': ['view_surface', 'change_surface', 'delete_surface', 'share_surface', 'publish_surface']
+        "no-access": [],
+        "view": ["view_surface"],
+        "edit": ["view_surface", "change_surface"],
+        "full": [
+            "view_surface",
+            "change_surface",
+            "delete_surface",
+            "share_surface",
+            "publish_surface",
+        ],
     }
 
     return _permissions[api_permission]
@@ -550,14 +595,17 @@ def guardian_to_api(guardian_permissions):
             'share_surface' and 'publish_surface'
     """
 
-    api_permission = 'no-access'
-    if 'view_surface' in guardian_permissions:
-        api_permission = 'view'
-        if 'change_surface' in guardian_permissions:
-            api_permission = 'edit'
-            if ('delete_surface' in guardian_permissions and 'share_surface' in guardian_permissions
-                    and 'publish_surface' in guardian_permissions):
-                api_permission = 'full'
+    api_permission = "no-access"
+    if "view_surface" in guardian_permissions:
+        api_permission = "view"
+        if "change_surface" in guardian_permissions:
+            api_permission = "edit"
+            if (
+                "delete_surface" in guardian_permissions
+                and "share_surface" in guardian_permissions
+                and "publish_surface" in guardian_permissions
+            ):
+                api_permission = "full"
     return api_permission
 
 
