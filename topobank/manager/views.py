@@ -15,6 +15,7 @@ from rest_framework import mixins
 from rest_framework import serializers as drf_serializers
 from rest_framework import viewsets
 from rest_framework.decorators import api_view
+from rest_framework.exceptions import ParseError
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
@@ -89,14 +90,14 @@ class SurfaceViewSet(mixins.ListModelMixin,
                         description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.")
 
     def get_queryset(self):
-        user = self.request.user
-        qs = Surface.objects.for_user(user)
+        qs = Surface.objects.for_user(self.request.user)
         tag = self.request.query_params.get("tag", None)
         if tag is not None:
             qs = qs.filter(tags__name=tag)
-            return qs
-        else:
-            raise HttpResponseBadRequest("You need to limit your query with query parameters.")
+        elif self.action == 'list':
+            # We do not allow simply listing all surfaces
+            raise ParseError("Please limit you request with query parameters.")
+        return qs
 
     def perform_create(self, serializer):
         # Set creator to current user when creating a new surface
@@ -116,13 +117,14 @@ class SurfaceViewSet(mixins.ListModelMixin,
         super().perform_destroy(instance)
 
 
-class TopographyViewSet(mixins.CreateModelMixin,
+class TopographyViewSet(mixins.ListModelMixin,
+                        mixins.CreateModelMixin,
+                        mixins.RetrieveModelMixin,
                         mixins.UpdateModelMixin,
                         mixins.DestroyModelMixin,
                         viewsets.GenericViewSet):
     EXPIRE_UPLOAD = 100  # Presigned key for uploading expires after 10 seconds
 
-    queryset = Topography.objects.all()
     serializer_class = TopographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
 
@@ -133,9 +135,16 @@ class TopographyViewSet(mixins.CreateModelMixin,
             notify.send(sender=user, verb=verb, recipient=u,
                         description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.")
 
-    def perform_create(self, serializer):
-        print('validated_data =', serializer.validated_data)
+    def get_queryset(self):
+        qs = Surface.objects.for_user(self.request.user)
+        surface = self.request.query_params.get("surface", None)
+        if surface is not None:
+            qs = qs.filter(id=surface)
+        elif self.action == "list":
+            raise ParseError("Please limit you request with query parameters.")
+        return Topography.objects.filter(surface__in=qs)
 
+    def perform_create(self, serializer):
         # File name is passed in the 'name' field on create. It is the only field that needs to be present for the
         # create (POST) request.
         filename = self.request.data['name']

@@ -17,7 +17,7 @@ def test_anonymous_user_cannot_change(client, handle_usage_statistics):
     topo = Topography1DFactory(surface=surface)
 
     response = client.get(reverse('manager:surface-api-list'))
-    assert response.status_code == 405  # Method not allowed
+    assert response.status_code == 400  # Bad request
 
     response = client.get(reverse('manager:surface-api-detail', kwargs=dict(pk=surface.pk)))
     assert response.status_code == 404  # Not found
@@ -35,7 +35,7 @@ def test_anonymous_user_cannot_change(client, handle_usage_statistics):
     assert response.status_code == 403  # Forbidden
 
     response = client.get(reverse('manager:topography-api-list'))
-    assert response.status_code == 405  # Method not allowed
+    assert response.status_code == 400  # Bad request
 
     response = client.get(reverse('manager:topography-api-detail', kwargs=dict(pk=topo.pk)))
     assert response.status_code == 404  # Not found

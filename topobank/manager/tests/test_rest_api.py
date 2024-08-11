@@ -38,7 +38,7 @@ def test_surface_retrieve_routes(
         api_client.force_authenticate(user)
 
     response = api_client.get(reverse("manager:surface-api-list"))
-    assert response.status_code == 405
+    assert response.status_code == 400
 
     surface1_dict = {
         "category": None,
@@ -50,68 +50,68 @@ def test_surface_retrieve_routes(
         "url": f"http://testserver/manager/api/surface/{surface1.id}/",
         "creation_datetime": surface1.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
-        "topography_set": [
-            {
-                "permissions": {
-                    "current_user": {
-                        "permission": "full",
-                        "user": {
-                            "id": user.id,
-                            "name": user.name,
-                            "username": user.username,
-                            "orcid": user.orcid_id,
-                            "url": user.get_absolute_url(response.wsgi_request),
-                        },
-                    },
-                    "other_users": [],
-                },
-                "attachments": [],
-                "bandwidth_lower": None,
-                "bandwidth_upper": None,
-                "creator": f"http://testserver/users/api/user/{user.id}/",
-                "datafile_format": None,
-                "description": "description1",
-                "detrend_mode": "height",
-                "fill_undefined_data_mode": "do-not-fill",
-                "has_undefined_data": None,
-                "height_scale": 0.296382712790741,
-                "height_scale_editable": False,
-                "instrument_name": "",
-                "instrument_parameters": {},
-                "instrument_type": "undefined",
-                "is_periodic": False,
-                "is_periodic_editable": True,
-                "measurement_date": "2018-01-01",
-                "name": "Example 3 - ZSensor",
-                "resolution_x": 256,
-                "resolution_y": 256,
-                "short_reliability_cutoff": None,
-                "size_editable": True,
-                "size_x": 10.0,
-                "size_y": 10.0,
-                "surface": f"http://testserver/manager/api/surface/{surface1.id}/",
-                "unit": "µm",
-                "unit_editable": False,
-                "url": f"http://testserver/manager/api/topography/{topo1.id}/",
-                "duration": None,
-                "error": None,
-                "id": topo1.id,
-                "upload_instructions": None,
-                "squeezed_datafile": None,
-                "tags": [],
-                "task_progress": 0.0,
-                "task_state": "no",
-                "thumbnail": None,
-                "channel_names": [],
-                "data_source": 0,
-                "is_metadata_complete": True,
-                "creation_datetime": topo1.creation_datetime.astimezone().isoformat(),
-                "modification_datetime": topo1.modification_datetime.astimezone().isoformat(),
-            }
-        ],
     }
     if hasattr(Surface, "publication"):
         surface1_dict["publication"] = None
+    surface1_topographies_dict = [
+        {
+            "permissions": {
+                "current_user": {
+                    "permission": "full",
+                    "user": {
+                        "id": user.id,
+                        "name": user.name,
+                        "username": user.username,
+                        "orcid": user.orcid_id,
+                        "url": user.get_absolute_url(response.wsgi_request),
+                    },
+                },
+                "other_users": [],
+            },
+            "attachments": [],
+            "bandwidth_lower": None,
+            "bandwidth_upper": None,
+            "creator": f"http://testserver/users/api/user/{user.id}/",
+            "datafile_format": None,
+            "description": "description1",
+            "detrend_mode": "height",
+            "fill_undefined_data_mode": "do-not-fill",
+            "has_undefined_data": None,
+            "height_scale": 0.296382712790741,
+            "height_scale_editable": False,
+            "instrument_name": "",
+            "instrument_parameters": {},
+            "instrument_type": "undefined",
+            "is_periodic": False,
+            "is_periodic_editable": True,
+            "measurement_date": "2018-01-01",
+            "name": "Example 3 - ZSensor",
+            "resolution_x": 256,
+            "resolution_y": 256,
+            "short_reliability_cutoff": None,
+            "size_editable": True,
+            "size_x": 10.0,
+            "size_y": 10.0,
+            "surface": f"http://testserver/manager/api/surface/{surface1.id}/",
+            "unit": "µm",
+            "unit_editable": False,
+            "url": f"http://testserver/manager/api/topography/{topo1.id}/",
+            "duration": None,
+            "error": None,
+            "id": topo1.id,
+            "upload_instructions": None,
+            "squeezed_datafile": None,
+            "tags": [],
+            "task_progress": 0.0,
+            "task_state": "no",
+            "thumbnail": None,
+            "channel_names": [],
+            "data_source": 0,
+            "is_metadata_complete": True,
+            "creation_datetime": topo1.creation_datetime.astimezone().isoformat(),
+            "modification_datetime": topo1.modification_datetime.astimezone().isoformat(),
+        }
+    ]
     surface2_dict = {
         "category": None,
         "creator": f"http://testserver/users/api/user/{user.id}/",
@@ -122,72 +122,72 @@ def test_surface_retrieve_routes(
         "url": f"http://testserver/manager/api/surface/{surface2.id}/",
         "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
-        "topography_set": [
-            {
-                "permissions": {
-                    "current_user": {
-                        "permission": "full",
-                        "user": {
-                            "id": user.id,
-                            "name": user.name,
-                            "username": user.username,
-                            "orcid": user.orcid_id,
-                            "url": user.get_absolute_url(response.wsgi_request),
-                        },
-                    },
-                    "other_users": [],
-                },
-                "attachments": [],
-                "bandwidth_lower": None,
-                "bandwidth_upper": None,
-                "creator": f"http://testserver/users/api/user/{user.id}/",
-                "datafile_format": None,
-                "description": "description2",
-                "detrend_mode": "height",
-                "fill_undefined_data_mode": "do-not-fill",
-                "has_undefined_data": None,
-                "height_scale": 2.91818e-08,
-                "height_scale_editable": False,
-                "instrument_name": "",
-                "instrument_parameters": {},
-                "instrument_type": "undefined",
-                "is_periodic": False,
-                "is_periodic_editable": True,
-                "measurement_date": "2018-01-02",
-                "name": "Example 4 - Default",
-                "resolution_x": 305,
-                "resolution_y": 75,
-                "short_reliability_cutoff": None,
-                "size_editable": False,
-                "size_x": 112.80791,
-                "size_y": 27.73965,
-                "surface": f"http://testserver/manager/api/surface/{surface2.id}/",
-                "unit": "µm",
-                "unit_editable": False,
-                "url": f"http://testserver/manager/api/topography/{topo2.id}/",
-                "duration": None,
-                "error": None,
-                "id": topo2.id,
-                "upload_instructions": None,
-                "squeezed_datafile": None,
-                "tags": [],
-                "task_progress": 0.0,
-                "task_state": "no",
-                "thumbnail": None,
-                "channel_names": [],
-                "data_source": 0,
-                "is_metadata_complete": True,
-                "creation_datetime": topo2.creation_datetime.astimezone().isoformat(),
-                "modification_datetime": topo2.modification_datetime.astimezone().isoformat(),
-            }
-        ],
     }
     if hasattr(Surface, "publication"):
         surface2_dict["publication"] = None
+    surface2_topographies_dict = [
+        {
+            "permissions": {
+                "current_user": {
+                    "permission": "full",
+                    "user": {
+                        "id": user.id,
+                        "name": user.name,
+                        "username": user.username,
+                        "orcid": user.orcid_id,
+                        "url": user.get_absolute_url(response.wsgi_request),
+                    },
+                },
+                "other_users": [],
+            },
+            "attachments": [],
+            "bandwidth_lower": None,
+            "bandwidth_upper": None,
+            "creator": f"http://testserver/users/api/user/{user.id}/",
+            "datafile_format": None,
+            "description": "description2",
+            "detrend_mode": "height",
+            "fill_undefined_data_mode": "do-not-fill",
+            "has_undefined_data": None,
+            "height_scale": 2.91818e-08,
+            "height_scale_editable": False,
+            "instrument_name": "",
+            "instrument_parameters": {},
+            "instrument_type": "undefined",
+            "is_periodic": False,
+            "is_periodic_editable": True,
+            "measurement_date": "2018-01-02",
+            "name": "Example 4 - Default",
+            "resolution_x": 305,
+            "resolution_y": 75,
+            "short_reliability_cutoff": None,
+            "size_editable": False,
+            "size_x": 112.80791,
+            "size_y": 27.73965,
+            "surface": f"http://testserver/manager/api/surface/{surface2.id}/",
+            "unit": "µm",
+            "unit_editable": False,
+            "url": f"http://testserver/manager/api/topography/{topo2.id}/",
+            "duration": None,
+            "error": None,
+            "id": topo2.id,
+            "upload_instructions": None,
+            "squeezed_datafile": None,
+            "tags": [],
+            "task_progress": 0.0,
+            "task_state": "no",
+            "thumbnail": None,
+            "channel_names": [],
+            "data_source": 0,
+            "is_metadata_complete": True,
+            "creation_datetime": topo2.creation_datetime.astimezone().isoformat(),
+            "modification_datetime": topo2.modification_datetime.astimezone().isoformat(),
+        }
+    ]
 
-    if not with_children:
-        del surface1_dict["topography_set"]
-        del surface2_dict["topography_set"]
+    if with_children:
+        surface1_dict["topography_set"] = surface1_topographies_dict
+        surface2_dict["topography_set"] = surface2_topographies_dict
 
     url = reverse("manager:surface-api-detail", kwargs=dict(pk=surface1.id))
     if with_children:
@@ -200,6 +200,14 @@ def test_surface_retrieve_routes(
             for t in data["topography_set"]:
                 del t["datafile"]  # datafile has an S3 hash which is difficult to mock
         assert_dict_equal(data, surface1_dict)
+
+        response = api_client.get(
+            f"{reverse('manager:topography-api-list')}?surface={surface1.id}&permissions=yes&attachments=yes"
+        )
+        data = response.data
+        for t in data:
+            del t["datafile"]  # datafile has an S3 hash which is difficult to mock
+        assert_dicts_equal(data, surface1_topographies_dict)
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
@@ -215,6 +223,14 @@ def test_surface_retrieve_routes(
             for t in data["topography_set"]:
                 del t["datafile"]  # datafile has an S3 hash which is difficult to mock
         assert_dict_equal(data, surface2_dict)
+
+        response = api_client.get(
+            f"{reverse('manager:topography-api-list')}?surface={surface2.id}&permissions=yes&attachments=yes"
+        )
+        data = response.data
+        for t in data:
+            del t["datafile"]  # datafile has an S3 hash which is difficult to mock
+        assert_dicts_equal(data, surface2_topographies_dict)
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
@@ -324,7 +340,7 @@ def test_topography_retrieve_routes(
         api_client.force_authenticate(user)
 
     response = api_client.get(reverse("manager:topography-api-list"))
-    assert response.status_code == 405
+    assert response.status_code == 400
 
     response = api_client.get(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topo1.id))
@@ -639,7 +655,9 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
 
     # User 2 has access to all surfaces inside the tag
     api_client.force_login(user2)
-    response = api_client.get(reverse('manager:tag-api-detail', kwargs=dict(name=st.name)))
+    response = api_client.get(
+        reverse("manager:tag-api-detail", kwargs=dict(name=st.name))
+    )
     assert response.data["name"] == st.name
 
     response = api_client.get(f"{reverse('manager:surface-api-list')}?tag={st.name}")
@@ -671,16 +689,18 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
         ],
     )
 
-    surface2.tags.add('my/fantastic/tag')
-    surface3.tags.add('my/fantastic/tag')
-    surface2.tags.add('my/fantastic-four/tag')
+    surface2.tags.add("my/fantastic/tag")
+    surface3.tags.add("my/fantastic/tag")
+    surface2.tags.add("my/fantastic-four/tag")
 
-    response = api_client.get(reverse('manager:tag-api-detail', kwargs=dict(name='my')))
+    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
     assert response.status_code == 200
     assert response.data["name"] == "my"
     assert set(response.data["children"]) == {"my/fantastic", "my/fantastic-four"}
 
-    response = api_client.get(f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic'))}?surfaces=yes")
+    response = api_client.get(
+        f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic'))}?surfaces=yes"
+    )
     assert response.status_code == 200
     assert response.data["name"] == "my/fantastic"
     assert response.data["children"] == ["my/fantastic/tag"]
@@ -688,14 +708,18 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=my/fantastic")
     assert len(response.data) == 0
 
-    response = api_client.get(f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic/tag'))}?surfaces=yes")
+    response = api_client.get(
+        f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic/tag'))}?surfaces=yes"
+    )
     assert response.status_code == 200
     assert response.data["name"] == "my/fantastic/tag"
     assert response.data["children"] == []
 
-    response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=my/fantastic/tag")
+    response = api_client.get(
+        f"{reverse('manager:surface-api-list')}?tag=my/fantastic/tag"
+    )
     assert len(response.data) == 2
 
     api_client.force_login(user1)
-    response = api_client.get(reverse('manager:tag-api-detail', kwargs=dict(name='my')))
+    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
     assert response.status_code == 403
