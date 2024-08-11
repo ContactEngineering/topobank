@@ -72,14 +72,12 @@ class TagViewSet(mixins.ListModelMixin,
     permission_classes = [TagPermission]
 
 
-class SurfaceViewSet(mixins.CreateModelMixin,
+class SurfaceViewSet(mixins.ListModelMixin,
+                     mixins.CreateModelMixin,
                      mixins.RetrieveModelMixin,
                      mixins.UpdateModelMixin,
                      mixins.DestroyModelMixin,
                      viewsets.GenericViewSet):
-    queryset = Surface.objects.prefetch_related(
-        Prefetch('topography_set', queryset=Topography.objects.order_by('name')),
-        Prefetch('properties', queryset=Property.objects.order_by('id')))
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
 
@@ -89,6 +87,16 @@ class SurfaceViewSet(mixins.CreateModelMixin,
         for u in other_users:
             notify.send(sender=user, verb=verb, recipient=u,
                         description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.")
+
+    def get_queryset(self):
+        user = self.request.user
+        qs = Surface.objects.for_user(user)
+        tag = self.request.query_params.get("tag", None)
+        if tag is not None:
+            qs = qs.filter(tags__name=tag)
+            return qs
+        else:
+            raise HttpResponseBadRequest("You need to limit your query with query parameters.")
 
     def perform_create(self, serializer):
         # Set creator to current user when creating a new surface

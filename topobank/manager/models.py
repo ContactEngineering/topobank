@@ -3,6 +3,7 @@ Basic models for the web app for handling topography data.
 """
 
 import io
+import itertools
 import logging
 import os.path
 import sys
@@ -49,7 +50,7 @@ from .utils import (
     get_topography_reader,
     guardian_to_api,
     make_dzi,
-    recursive_delete
+    recursive_delete,
 )
 
 _log = logging.getLogger(__name__)
@@ -180,6 +181,27 @@ class Tag(tm.TagTreeModel, SubjectMixin):
             )
         return Surface.objects.for_user(self._user).filter(tags=self.id)
 
+    def get_children(self):
+        def make_child(tag_name):
+            tag_suffix = tag_name[len(self.path)+1:]
+            name, rest = (tag_suffix + '/').split('/', maxsplit=1)
+            return f"{self.path}/{name}"
+
+        if self._user is None:
+            raise PermissionError(
+                "Cannot return children of a tag because "
+                "no user was specified. Use `authenticate_user` "
+                "to restrict user permissions."
+            )
+        all_tags = set(
+            itertools.chain.from_iterable(
+                Surface.objects.for_user(self._user)
+                .filter(tags__path__startswith=f"{self.path}/")
+                .values_list("tags__name")
+            )
+        )
+        return list(set(make_child(tag) for tag in all_tags if tag.startswith(f"{self.path}/")))
+
     def get_descendant_surfaces(self):
         """Return all surfaces with exactly this tag or a descendant tag"""
         if self._user is None:
@@ -188,7 +210,9 @@ class Tag(tm.TagTreeModel, SubjectMixin):
                 "no user was specified. Use `authenticate_user` "
                 "to restrict user permissions."
             )
-        return Surface.objects.for_user(self._user).filter(tags__path__startswith=self.path)
+        return Surface.objects.for_user(self._user).filter(
+            tags__path__startswith=self.path
+        )
 
     def get_properties(self, kind=None):
         """
@@ -220,7 +244,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         if kind not in [None, "categorical", "numerical"]:
             raise ValueError(f"Invalid value for kind: {kind}")
 
-        nb_surfaces = len(self.get_related_surfaces())
+        nb_surfaces = len(self.get_descendant_surfaces())
 
         # Initialize a dictionary to collect all properties. The default value for
         # each property is a list of np.nan of length equal to the number of
@@ -229,7 +253,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         categorical_properties = set()
 
         # Iterate over all surfaces related to the tag
-        for i, surface in enumerate(self.get_related_surfaces()):
+        for i, surface in enumerate(self.get_descendant_surfaces()):
             # For each surface, iterate over all its properties
             for p in Property.objects.filter(surface=surface):
                 # If the property is categorical, add its name to the set of
