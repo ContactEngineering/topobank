@@ -267,9 +267,9 @@ def user_three_topographies_three_surfaces_three_tags():
     tag2 = TagFactory()
     tag3 = TagFactory()
 
-    tag1.authenticate_user(user)
-    tag2.authenticate_user(user)
-    tag3.authenticate_user(user)
+    tag1.authorize_user(user)
+    tag2.authorize_user(user)
+    tag3.authorize_user(user)
 
     surface1 = SurfaceFactory(creator=user, tags=[tag1])
     topo1a = Topography1DFactory(surface=surface1)

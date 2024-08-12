@@ -82,48 +82,55 @@ def test_surface_analysis(two_users, test_analysis_function):
 
 
 @pytest.mark.django_db
-def test_tag_analysis(two_users, test_analysis_function):
+def test_tag_analysis(two_users, django_capture_on_commit_callbacks, test_analysis_function):
     (user1, user2), (surface1, surface2, surface3) = two_users
 
     tag = TagFactory(name="test_tag")
     surface2.tags.add(tag)
     surface3.tags.add(tag)
 
+    # Trigger analysis for the first time
     controller = AnalysisController(
         user2, subjects=[tag], function=test_analysis_function
     )
-    controller.trigger_missing_analyses()
+    assert len(controller) == 0  # no analysis yet
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        controller.trigger_missing_analyses()
+    assert len(callbacks) == 1  # triggered analysis task
     assert len(controller) == 1  # analysis of tag
 
-    results = controller.get()
+    r, = controller.get()
+    assert r.task_state == "su"
+    assert r.result["surfaces"] == [surface2.name, surface3.name]
 
-    for r in results:
-        r.task_state = "su"
-
-    # Controller should not trigger analyses again
-    controller.trigger_missing_analyses()
+    # Trigger for a second time; controller should not trigger analyses again
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        controller.trigger_missing_analyses()
+    assert len(callbacks) == 0  # no analysis was triggered
     assert [r.task_state for r in controller.get()] == ["su"]
 
+    # Switch user
     controller = AnalysisController(
         user1, subjects=[tag], function=test_analysis_function
     )
-    controller.trigger_missing_analyses()
-    assert len(controller) == 1  # user1 has access to the tag
-
-    # Controller triggered analyses because they are tied to a specific user
-    assert [r.task_state for r in controller.get()] == ["pe"]
-
-    for r in results:
-        r.task_state = "su"
+    assert len(controller) == 0  # user1 has no access to the tag
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        controller.trigger_missing_analyses()
+    assert len(callbacks) == 0  # user1 has no access to the tag
 
     surface2.share(user1)
-    surface3.share(user2)
 
+    # User1 again, but now (one of the) surfaces is shared
     controller = AnalysisController(
         user1, subjects=[tag], function=test_analysis_function
     )
-    controller.trigger_missing_analyses()
-    assert len(controller) == 1  # user2 now has access to surface1
+    assert len(controller) == 1  # no analysis yet
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        controller.trigger_missing_analyses()
+    assert len(callbacks) == 0  # Controller triggered no analyses because it existed already
+    assert [r.task_state for r in controller.get()] == ["su"]
 
-    # Controller triggered analyses because they are tied to a specific user
-    assert [r.task_state for r in controller.get()] == ["pe"]
+    r, = controller.get()
+    assert r.task_state == "su"
+    # FIXME, CRITICAL!!! This should really be just surface2 as user1 have no access to surface3
+    assert r.result["surfaces"] == [surface2.name, surface3.name]

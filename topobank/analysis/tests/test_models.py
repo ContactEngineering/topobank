@@ -37,7 +37,7 @@ def test_tag_as_analysis_subject():
     s2 = SurfaceFactory()
     s3 = SurfaceFactory()
     st = TagFactory.create(surfaces=[s1, s2, s3])
-    st.authenticate_user(s1.creator)
+    st.authorize_user(s1.creator)
     func = AnalysisFunction.objects.get(name="test")
     analysis = TagAnalysisFactory(subject_tag=st, function=func)
     assert analysis.subject == st
@@ -68,12 +68,12 @@ def test_default_users_for_tag_analysis():
     surf2.set_permissions(u3, "view")
     st = TagFactory(surfaces=[surf1, surf2])
     # Only Alice and Bob only see a single surface
-    st.authenticate_user(u1)
+    st.authorize_user(u1)
     assert len(st.get_related_surfaces()) == 1
-    st.authenticate_user(u2)
+    st.authorize_user(u2)
     assert len(st.get_related_surfaces()) == 1
     # Only Kim is allowed to see both surfaces
-    st.authenticate_user(u3)
+    st.authorize_user(u3)
     assert len(st.get_related_surfaces()) == 2
     func = AnalysisFunction.objects.get(name="test")
     analysis = TagAnalysisFactory(subject_tag=st, function=func)

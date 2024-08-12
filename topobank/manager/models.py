@@ -165,7 +165,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     _user = None
 
-    def authenticate_user(self, user):
+    def authorize_user(self, user):
         self._user = user
 
     def is_shared(self, with_user, allow_change=False):
@@ -176,7 +176,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         if self._user is None:
             raise PermissionError(
                 "Cannot return surfaces belonging to a tag because "
-                "no user was specified. Use `authenticate_user` "
+                "no user was specified. Use `authorize_user` "
                 "to restrict user permissions."
             )
         return Surface.objects.for_user(self._user).filter(tags=self.id)
@@ -190,7 +190,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         if self._user is None:
             raise PermissionError(
                 "Cannot return children of a tag because "
-                "no user was specified. Use `authenticate_user` "
+                "no user was specified. Use `authorize_user` "
                 "to restrict user permissions."
             )
         all_tags = set(
@@ -209,7 +209,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         if self._user is None:
             raise PermissionError(
                 "Cannot return surfaces belonging to a tag because "
-                "no user was specified. Use `authenticate_user` "
+                "no user was specified. Use `authorize_user` "
                 "to restrict user permissions."
             )
         return Surface.objects.for_user(self._user).filter(

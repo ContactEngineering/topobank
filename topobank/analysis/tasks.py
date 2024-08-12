@@ -118,10 +118,10 @@ def perform_analysis(self, analysis_id: int):
         _log.debug(f"Evaluating analysis function '{analysis.function.name}' on subject '{subject}' with "
                    f"kwargs {kwargs} and storage prefix '{analysis.storage_prefix}'...")
         # tell subject to restrict to specific user
-        if hasattr(subject, 'authenticate_user'):
+        if hasattr(subject, 'authorize_user'):
             try:
-                user, = analysis.users
-                subject.authenticate_user(user)
+                user, = analysis.users.all()
+                subject.authorize_user(user)
             except ValueError:
                 pass
         # also request citation information

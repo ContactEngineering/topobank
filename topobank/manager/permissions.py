@@ -145,7 +145,7 @@ class ParentObjectPermissionsFilter(BaseFilterBackend):
 
 class TagPermission(BasePermission):
     def has_object_permission(self, request, view, obj):
-        obj.authenticate_user(request.user)
+        obj.authorize_user(request.user)
         # Permissions are granted if authenticated tag returns 1 or more
         # surfaces
         return len(obj.get_descendant_surfaces()) > 0

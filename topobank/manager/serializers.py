@@ -77,7 +77,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
 
     def get_children(self, obj: Tag):
         request = self.context["request"]
-        obj.authenticate_user(request.user)
+        obj.authorize_user(request.user)
         return obj.get_children()
 
 
