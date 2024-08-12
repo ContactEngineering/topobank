@@ -183,8 +183,8 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     def get_children(self):
         def make_child(tag_name):
-            tag_suffix = tag_name[len(self.path)+1:]
-            name, rest = (tag_suffix + '/').split('/', maxsplit=1)
+            tag_suffix = tag_name[len(self.path) + 1 :]
+            name, rest = (tag_suffix + "/").split("/", maxsplit=1)
             return f"{self.path}/{name}"
 
         if self._user is None:
@@ -200,7 +200,9 @@ class Tag(tm.TagTreeModel, SubjectMixin):
                 .values_list("tags__name")
             )
         )
-        return list(set(make_child(tag) for tag in all_tags if tag.startswith(f"{self.path}/")))
+        return list(
+            set(make_child(tag) for tag in all_tags if tag.startswith(f"{self.path}/"))
+        )
 
     def get_descendant_surfaces(self):
         """Return all surfaces with exactly this tag or a descendant tag"""
