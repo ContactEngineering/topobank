@@ -720,6 +720,16 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     )
     assert len(response.data) == 2
 
+    # Check top-level tags
+    response = api_client.get(reverse('manager:tag-api-list'))
+    assert response.status_code == 200
+    assert response.data == ['my', 'tag-00000']
+
     api_client.force_login(user1)
     response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
     assert response.status_code == 403
+
+    # Check top-level tags
+    response = api_client.get(reverse('manager:tag-api-list'))
+    assert response.status_code == 200
+    assert response.data == []
