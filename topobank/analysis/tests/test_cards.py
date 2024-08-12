@@ -18,7 +18,7 @@ from .utils import (
     TopographyAnalysisFactory,
 )
 
-
+@pytest.mark.skip("URL does not resolve correctly in CI")
 @pytest.mark.django_db
 def test_series_card_data_sources(api_client, handle_usage_statistics):
     #

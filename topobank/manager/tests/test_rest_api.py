@@ -723,7 +723,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     # Check top-level tags
     response = api_client.get(reverse('manager:tag-api-list'))
     assert response.status_code == 200
-    assert response.data == ['my', 'tag-00000']
+    assert response.data == ['my', st.name]
 
     api_client.force_login(user1)
     response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
