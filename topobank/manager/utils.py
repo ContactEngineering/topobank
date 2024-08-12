@@ -506,7 +506,7 @@ def make_dzi(
             )
         for filename in filenames:
             # Strip tmp directory
-            storage_filename = filename[len(tmpdirname) + 1 :]
+            storage_filename = filename[len(tmpdirname) + 1:]
             # Delete (possibly existing) old data files
             target_name = f"{path_prefix}/{storage_filename}"
             # Upload to S3

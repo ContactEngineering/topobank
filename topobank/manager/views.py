@@ -6,7 +6,7 @@ from io import BytesIO
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
-from django.db.models import Case, F, Prefetch, Q, When
+from django.db.models import Case, F, Q, When
 from django.http import (
     Http404,
     HttpResponse,
