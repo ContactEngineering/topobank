@@ -93,13 +93,14 @@ def test_analysis_function_implementation_for_tag():
     s2 = SurfaceFactory()
     s3 = SurfaceFactory()
 
-    sc = TagFactory(surfaces=[s1, s2, s3])
-    result = impl.eval(sc, a=2, b="bar")
-    assert result["comment"] == "a is 2 and b is bar"
-
     # test function should be available because defined in analysis module
     u = UserFactory()
     assert impl.is_available_for_user(u)
+
+    sc = TagFactory(surfaces=[s1, s2, s3])
+    sc.authorize_user(u)
+    result = impl.eval(sc, a=2, b="bar")
+    assert result["comment"] == "a is 2 and b is bar"
 
 
 @pytest.mark.parametrize(
