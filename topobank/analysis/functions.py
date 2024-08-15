@@ -55,26 +55,6 @@ def reasonable_bins_argument(topography):
         # return 'auto'
 
 
-class IncompatibleTopographyException(Exception):
-    """Raise this exception in case a function cannot handle a topography.
-
-    By handling this special exception, the UI can show the incompatibility
-    as note to the user, not as failure. It is an excepted failure.
-    """
-
-    pass
-
-
-class ReentrantTopographyException(IncompatibleTopographyException):
-    """Raise this exception if a function cannot handle a topography because it is reentrant.
-
-    By handling this special exception, the UI can show the incompatibility
-    as note to the user, not as failure. It is an excepted failure.
-    """
-
-    pass
-
-
 def wrap_series(series, primary_key="x"):
     """
     Wrap each data series into a `SplitDictionaryHere` with a consecutive name

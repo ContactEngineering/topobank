@@ -15,11 +15,7 @@ from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
 from ..utils import store_split_dict
-from .functions import IncompatibleTopographyException
-from .models import RESULT_FILE_BASENAME, Analysis, AnalysisCollection, Configuration
-
-EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES = (IncompatibleTopographyException, IncompatibleFormulationError,
-                                           CannotPerformAnalysisError)
+from .models import RESULT_FILE_BASENAME, Analysis, Configuration
 
 _log = logging.getLogger(__name__)
 
@@ -118,29 +114,25 @@ def perform_analysis(self, analysis_id: int):
         _log.debug(f"Evaluating analysis function '{analysis.function.name}' on subject '{subject}' with "
                    f"kwargs {kwargs} and storage prefix '{analysis.storage_prefix}'...")
         # tell subject to restrict to specific user
-        if hasattr(subject, 'authorize_user'):
-            try:
-                user, = analysis.users.all()
-                subject.authorize_user(user)
-            except ValueError:
-                pass
+        subject.authorize_user(analysis.user)
         # also request citation information
         dois = set()
+        # start tracing of memory usage
         tracemalloc.start()
         tracemalloc.reset_peak()
+        # run actual function
         result = evaluate_function(subject, progress_recorder=progress_recorder, storage_prefix=analysis.storage_prefix,
                                    dois=dois, **kwargs)
+        # collect memory usage
         size, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
         _log.debug(f"...done evaluating analysis function '{analysis.function.name}' on subject '{subject}'; peak "
                    f"memory usage was {int(peak / 1024 / 1024)} MB.")
         save_result(result, Analysis.SUCCESS, peak_memory=peak, dois=dois)
     except Exception as exc:
-        is_incompatible = isinstance(exc, EXCEPTION_CLASSES_FOR_INCOMPATIBILITIES)
-        _log.warning(f"Exception while performing analysis {analysis_id} (compatible? {is_incompatible}): {exc}")
+        _log.warning(f"Exception while performing analysis {analysis_id}: {exc}")
         save_result(dict(message=str(exc),
-                         traceback=traceback.format_exc(),
-                         is_incompatible=is_incompatible),
+                         traceback=traceback.format_exc()),
                     Analysis.FAILURE)
         # we want a real exception here so celery's flower can show the task as failure
         raise
@@ -150,12 +142,6 @@ def perform_analysis(self, analysis_id: int):
             # first check whether analysis is still there
             #
             analysis = Analysis.objects.get(id=analysis_id)
-
-            #
-            # Check whether sth. is to be done because this analysis is part of a collection
-            #
-            for coll in analysis.analysiscollection_set.all():
-                check_analysis_collection.delay(coll.id)
 
             #
             # Add up number of seconds for CPU time
@@ -178,39 +164,3 @@ def perform_analysis(self, analysis_id: int):
             # Analysis was deleted, e.g. because topography or surface was missing
             pass
     _log.debug(f"Done with task {self.request.id}.")
-
-
-@app.task
-def check_analysis_collection(collection_id):
-    """Perform checks on analysis collection. Send notification if needed.
-
-    :param collection_id: id of an AnalysisCollection instance
-    :return:
-    """
-
-    collection = AnalysisCollection.objects.get(id=collection_id)
-
-    analyses = collection.analyses.all()
-    task_states = [analysis.task_state for analysis in analyses]
-
-    has_started = any(ts not in ['pe'] for ts in task_states)
-    has_failure = any(ts in ['fa'] for ts in task_states)
-    is_done = all(ts in ['fa', 'su'] for ts in task_states)
-
-    if has_started:
-        if is_done:
-            #
-            # Notify owner of the collection
-            #
-            collection.combined_task_state = 'fa' if has_failure else 'su'
-
-            href = reverse('analysis:collection', kwargs=dict(collection_id=collection.id))
-
-            notify.send(sender=collection, recipient=collection.owner, verb="finished",
-                        description="Tasks finished: " + collection.name,
-                        href=href)
-
-        else:
-            collection.combined_task_state = 'st'
-
-        collection.save()

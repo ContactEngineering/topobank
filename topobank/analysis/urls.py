@@ -18,14 +18,6 @@ urlpatterns += [
     # GET
     # * Triggers analyses if not yet running
     # * Return state of analyses
-    path(
-        'api/result/',
-        view=views.query_analyses,
-        name='status'
-    ),
-    # GET
-    # * Triggers analyses if not yet running
-    # * Return state of analyses
     # * Return plot configuration for finished analyses
     # This is a post request because the request parameters are complex.
     path(

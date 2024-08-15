@@ -69,6 +69,7 @@ def test_analysis_times(
     api_client.force_login(user)
 
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -77,8 +78,6 @@ def test_analysis_times(
             2018, 1, 1, 13, 1, 1
         ),  # duration: 1 hour, 1 minute, 1 sec
     )
-    analysis.users.add(user)
-    analysis.save()
 
     response = api_client.get(
         reverse(
@@ -119,6 +118,7 @@ def test_show_only_last_analysis(
     # Topography 1
     #
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -127,11 +127,9 @@ def test_show_only_last_analysis(
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
         result=result,
     )
-    analysis.users.add(user)
-    analysis.save()
-
     # save a second only, which has a later start time
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -140,13 +138,12 @@ def test_show_only_last_analysis(
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
         result=result,
     )
-    analysis.users.add(user)
-    analysis.save()
 
     #
     # Topography 2
     #
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -155,11 +152,10 @@ def test_show_only_last_analysis(
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
         result=result,
     )
-    analysis.users.add(user)
-    analysis.save()
 
     # save a second only, which has a later start time
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -168,8 +164,6 @@ def test_show_only_last_analysis(
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
         result=result,
     )
-    analysis.users.add(user)
-    analysis.save()
 
     #
     # Check response, for both topographies only the
@@ -238,79 +232,6 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
 
     assert response.status_code == 200
     assert response.data["hasNonuniqueKwargs"]
-
-
-# Maybe the following test can be rewritten as an integration test for usage with selenium
-@pytest.mark.skip("Test makes no sense, because it needs AJAX call to be executed.")
-@pytest.mark.django_db
-def test_show_multiple_analyses_for_two_functions(client, two_topos):
-    username = "testuser"
-    password = "abcd$1234"
-
-    assert client.login(username=username, password=password)
-
-    topo1 = Topography.objects.first()
-    topo2 = Topography.objects.last()
-    af1 = AnalysisFunction.objects.first()
-    af2 = AnalysisFunction.objects.last()
-
-    assert topo1 != topo2
-    assert af1 != af2
-
-    #
-    # Create analyses for two functions and two different topographies
-    #
-    counter = 0
-    for af in [af1, af2]:
-        for topo in [topo1, topo2]:
-            counter += 1
-            analysis = TopographyAnalysisFactory.create(
-                subject_topography=topo,
-                function=af,
-                task_state=Analysis.SUCCESS,
-                kwargs={"bins": 10},
-                start_time=datetime.datetime(2018, 1, 1, counter),
-                end_time=datetime.datetime(2018, 1, 1, counter + 1),
-            )
-            analysis.save()
-
-    #
-    # Select both topographies
-    #
-    client.post(reverse("manager:topography-select", kwargs=dict(pk=topo1.pk)))
-    client.post(reverse("manager:topography-select", kwargs=dict(pk=topo2.pk)))
-
-    #
-    # Check response when selecting only first function, both analyses should be shown
-    #
-    response = client.post(
-        reverse("analysis:results-list"),
-        data={
-            "functions": [af1.id],
-        },
-        follow=True,
-    )
-
-    assert response.status_code == 200
-
-    assert_in_content(response, "Example 3 - ZSensor")
-    assert_in_content(response, "Example 4 - Default")
-
-    #
-    # Check response when selecting only both functions, both analyses should be shown
-    #
-    response = client.post(
-        reverse("analysis:results-list"),
-        data={
-            "functions": [af1.id, af2.id],
-        },
-        follow=True,
-    )
-
-    assert response.status_code == 200
-
-    assert_in_content(response, "Example 3 - ZSensor")
-    assert_in_content(response, "Example 4 - Default")
 
 
 @pytest.fixture
@@ -727,7 +648,7 @@ def test_download_analysis_results_without_permission(
 
 
 @pytest.mark.django_db
-def test_view_shared_analysis_results(api_client, handle_usage_statistics):
+def test_shared_topography_triggers_new_analysis(api_client, handle_usage_statistics):
     password = "abcd$1234"
 
     #
@@ -780,23 +701,22 @@ def test_view_shared_analysis_results(api_client, handle_usage_statistics):
     assert api_client.login(username=user1.username, password=password)
 
     response = api_client.get(
-        reverse("analysis:card-series", kwargs=dict(function_id=func1.id))
-        + "?subjects="
-        + subjects_to_base64([topo1a, topo1b, topo2a])
+        f"{reverse('analysis:result-list')}?function_id={func1.id}&subjects={subjects_to_base64([topo1a, topo1b, topo2a])}"
     )
 
-    # Function should still have three analyses, all successful (the default when using the factory)
-    assert func1.analysis_set.count() == 3
-    assert all(a.task_state == "su" for a in func1.analysis_set.all())
+    # Function should have another analysis, topo2a for user1
+    assert func1.analysis_set.count() == 4
+    assert all(a.task_state == "su" for a in func1.analysis_set.all()[0:3])
+    assert func1.analysis_set.all()[3].task_state == "pe"
 
     assert response.status_code == 200
 
-    # We should see start times of all three topographies
+    # We should see start times of only two analysis because the third one was just triggered and not yet started
     analyses = response.data["analyses"]
     assert len(analyses) == 3
     assert analyses[0]["start_time"] == "2019-01-01T12:00:00+01:00"  # topo1a
     assert analyses[1]["start_time"] == "2019-01-01T13:00:00+01:00"  # topo1b
-    assert analyses[2]["start_time"] == "2019-01-01T14:00:00+01:00"  # topo2a
+    assert analyses[2]["start_time"] is None  # topo1b
 
     api_client.logout()
 

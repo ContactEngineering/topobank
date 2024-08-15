@@ -105,7 +105,8 @@ def renew_analyses_for_subject(subject, recursive=True, run_analyses=True):
 
 
 def renew_existing_analysis(analysis, use_default_kwargs=False):
-    """Delete existing analysis and recreate and submit with same arguments and users.
+    """
+    Delete existing analysis and recreate and submit with same arguments and user.
 
     Parameters
     ----------
@@ -119,7 +120,7 @@ def renew_existing_analysis(analysis, use_default_kwargs=False):
     -------
     New analysis object.
     """
-    users = analysis.users.all()
+    user = analysis.user
     func = analysis.function
 
     subject_type = ContentType.objects.get_for_model(analysis.subject)
@@ -132,22 +133,23 @@ def renew_existing_analysis(analysis, use_default_kwargs=False):
     pyfunc_kwargs = _sanitize_kwargs(func.get_signature(subject_type), **pyfunc_kwargs)
 
     _log.info(
-        f"Renewing analysis {analysis.id} for {len(users)} users, function {func.name}, "
+        f"Renewing analysis {analysis.id}: User {user}, function {func.name}, "
         f"subject type {subject_type}, subject id {analysis.subject.id}, "
         f"kwargs: {pyfunc_kwargs}"
     )
     analysis.delete()
     return submit_analysis(
-        users, func, subject=analysis.subject, pyfunc_kwargs=pyfunc_kwargs
+        user, func, subject=analysis.subject, pyfunc_kwargs=pyfunc_kwargs
     )
 
 
-def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
-    """Create an analysis entry and submit a task to the task queue.
+def submit_analysis(user, analysis_func, subject, pyfunc_kwargs=None):
+    """
+    Create an analysis entry and submit a task to the task queue.
 
     Parameters
     ----------
-    users : sequence of User instances
+    user : topobank.users.models.User
         Users which should see the analysis.
     subject : Tag or Topography or Surface
         Instance which will be subject of the analysis (first argument of
@@ -167,27 +169,11 @@ def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
     subject_type = ContentType.objects.get_for_model(subject)
 
     #
-    # create entry in Analysis table
-    #
-    if pyfunc_kwargs is None:
-        # Instead of an empty dict, we explicitly store the current default arguments of the analysis function
-        pyfunc_kwargs = analysis_func.get_default_kwargs(subject_type=subject_type)
-
-    analysis = Analysis.objects.create(
-        subject_dispatch=AnalysisSubject.create(subject),
-        function=analysis_func,
-        task_state=Analysis.PENDING,
-        kwargs=pyfunc_kwargs,
-    )
-
-    analysis.users.set(users)
-
-    #
     # delete all completed old analyses for same function and subject and arguments
     # There should be only one analysis per function, subject and arguments
     #
     Analysis.objects.filter(
-        ~Q(id=analysis.id)
+        Q(user=user)
         & AnalysisSubject.Q(subject)
         & Q(function=analysis_func)
         & Q(kwargs=pyfunc_kwargs)
@@ -195,17 +181,23 @@ def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
     ).delete()
 
     #
-    # TODO delete all started old analyses, where the task does not exist any more
+    # Check if user can actually access the subject
     #
-    # maybe_aborted_analyses = Analysis.objects.filter(
-    #    ~Q(id=analysis.id)
-    #    & Q(topography=topography)
-    #    & Q(function=analysis_func)
-    #    & Q(task_state__in=[Analysis.STARTED]))
-    # How to find out if task is still running?
+    subject.authorize_user(user)
+
     #
-    # for a in maybe_aborted_analyses:
-    #    result = app.AsyncResult(a.task_id)
+    # Create new entry in Analysis table
+    #
+    if pyfunc_kwargs is None:
+        # Instead of an empty dict, we explicitly store the current default arguments of the analysis function
+        pyfunc_kwargs = analysis_func.get_default_kwargs(subject_type=subject_type)
+    analysis = Analysis.objects.create(
+        user=user,
+        subject_dispatch=AnalysisSubject.create(subject),
+        function=analysis_func,
+        task_state=Analysis.PENDING,
+        kwargs=pyfunc_kwargs,
+    )
 
     # Send task to the queue if the analysis has been created
     # Note: on_commit will not execute in tests, unless transaction=True is added to pytest.mark.django_db
@@ -215,9 +207,9 @@ def submit_analysis(users, analysis_func, subject, pyfunc_kwargs=None):
     return analysis
 
 
-def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
+def submit_analysis_if_missing(user, analysis_func, subject, *other_args, **kwargs):
     """
-    Request an analysis for a given user.
+    Request an analysis for a given user, which is computed only if it is missing.
 
     Parameters
     ----------
@@ -239,7 +231,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
         submitted that may or may not be completed in the future. Check database fields
         (e.g. task_state) in order to check for completion.
 
-    The analysis will be marked such that the "users" field points to
+    The analysis will be marked such that the "user" field points to
     the given user and that there is no other analysis for the same function
     and subject that points to that user.
     """
@@ -273,23 +265,22 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
         del pyfunc_kwargs["storage_prefix"]
 
     #
-    # Search for analyses with same topography, function and (pickled) function args
+    # Search for analyses with same user, topography, function and (pickled) function args
     #
     analysis = (
         Analysis.objects.filter(
-            AnalysisSubject.Q(subject)
+            Q(user=user)
+            & AnalysisSubject.Q(subject)
             & Q(function=analysis_func)
             & Q(kwargs=pyfunc_kwargs)
         )
         .order_by("start_time")
         .last()
     )  # will be None if not found
-    # what if pickle protocol changes? -> No match, old must be sorted out later
-    # See also GH 426.
 
     if analysis is None:
         analysis = submit_analysis(
-            users=[user],
+            user=user,
             analysis_func=analysis_func,
             subject=subject,
             pyfunc_kwargs=pyfunc_kwargs,
@@ -297,9 +288,6 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
         _log.info(
             f"Submitted new analysis for {analysis_func.name} and {subject.name} (User {user})..."
         )
-    elif user not in analysis.users.all():
-        analysis.users.add(user)
-        _log.info(f"Added user {user} to existing analysis {analysis.id}.")
     else:
         _log.debug(f"User {user} already registered for analysis {analysis.id}.")
 
@@ -308,7 +296,7 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
     #
     if analysis.task_state == Analysis.FAILURE:
         new_analysis = submit_analysis(
-            users=analysis.users.all(),
+            user=analysis.user,
             analysis_func=analysis_func,
             subject=subject,
             pyfunc_kwargs=pyfunc_kwargs,
@@ -316,21 +304,6 @@ def request_analysis(user, analysis_func, subject, *other_args, **kwargs):
         _log.info(f"Submitted analysis {analysis.id} again because of failure..")
         analysis.delete()
         analysis = new_analysis
-
-    #
-    # Remove user from other analyses with same topography and function
-    #
-    other_analyses_with_same_user = Analysis.objects.filter(
-        ~Q(id=analysis.id)
-        & AnalysisSubject.Q(subject)
-        & Q(function=analysis_func)
-        & Q(users__in=[user])
-    )
-    for a in other_analyses_with_same_user:
-        a.users.remove(user)
-        _log.info(
-            f"Removed user {user} from analysis {analysis} with kwargs {analysis.kwargs}."
-        )
 
     return analysis
 
@@ -406,15 +379,22 @@ class AnalysisController:
         )
 
         if not self._function_permission:
-            raise ValueError("User does not have access to this analysis function.")
+            raise PermissionError(f"User {self._user} does not have access to this analysis function.")
 
         self._function_kwargs = function_kwargs
 
         # Calculate subjects for the analyses, filtered for those which have an implementation
         if isinstance(subjects, dict):
-            self._subjects = subjects_from_dict(subjects, user=self._user)
-        else:
-            self._subjects = subjects
+            subjects = subjects_from_dict(subjects)
+
+        # Check permissions
+        self._subjects = []
+        for subject in subjects:
+            try:
+                subject.authorize_user(self._user)
+                self._subjects += [subject]
+            except PermissionError:
+                pass
 
         # Surface permissions are checked in `subjects_from_dict`. Since children (topographies) inherit the permission
         # from their parents, we do not need to do an additional permissions check.
@@ -585,7 +565,7 @@ class AnalysisController:
             return []
 
         # Query for user, function and subjects
-        query = Q(users=self._user) & Q(function=self._function)
+        query = Q(user=self._user) & Q(function=self._function)
 
         # Query for subjects
         subjects_query = None
@@ -674,7 +654,7 @@ class AnalysisController:
         for subject in self.subjects_without_analysis_results:
             if subject.is_shared(self._user):
                 try:
-                    triggered_analysis = request_analysis(
+                    triggered_analysis = submit_analysis_if_missing(
                         self._user, self._function, subject, **function_kwargs
                     )
                     subjects_triggered += [subject]

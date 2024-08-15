@@ -47,8 +47,10 @@ def test_download_view_permission_for_function_from_plugin(
 
     analysis = TopographyAnalysisFactory(function=func)
 
-    m = mocker.patch("topobank.analysis.models.Analysis.is_visible_for_user")
+    m = mocker.patch("topobank.analysis.registry.AnalysisFunctionImplementation.is_available_for_user")
     m.return_value = user_has_plugin
+
+    client.force_login(analysis.subject.creator)
 
     response = client.get(
         reverse(
@@ -56,6 +58,6 @@ def test_download_view_permission_for_function_from_plugin(
         )
     )
     if user_has_plugin:
-        assert response.status_code == 200
+        assert response.status_code == 200, response.content
     else:
-        assert response.status_code == 403
+        assert response.status_code == 403, response.content

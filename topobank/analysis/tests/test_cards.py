@@ -33,7 +33,7 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
     topo1 = Topography2DFactory(surface=surface)
 
     analysis = TopographyAnalysisFactory(
-        subject_topography=topo1, function=func1, users=[user]
+        subject_topography=topo1, function=func1, user=user
     )
 
     #
@@ -119,7 +119,7 @@ def test_series_card_if_no_successful_topo_analysis(
         task_state="su",
         subject_dispatch=AnalysisSubjectFactory(surface_id=topo.surface.id),
         function=func1,
-        users=[user],
+        user=user,
     )
 
     # add a failed analysis for the topography
@@ -127,7 +127,7 @@ def test_series_card_if_no_successful_topo_analysis(
         task_state="fa",
         subject_dispatch=AnalysisSubjectFactory(topography_id=topo.id),
         function=func1,
-        users=[user],
+        user=user,
     )
 
     assert (

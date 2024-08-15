@@ -52,5 +52,5 @@ def test_renew_analyses_api(client, test_analysis_function):
     analysis1b = Analysis.objects.get(function=func, subject_dispatch__topography=topo1)
     analysis2b = Analysis.objects.get(function=func, subject_dispatch__topography=topo2)
 
-    assert user in analysis1b.users.all()
-    assert user in analysis2b.users.all()
+    assert analysis1b.user == user
+    assert analysis2b.user == user

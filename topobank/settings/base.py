@@ -49,7 +49,7 @@ USE_TZ = True
 postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
     DATABASES = {
-        "default": env.db("DATABASE_URL", default=f"postgres:///{random_string()}")
+        "default": env.db("DATABASE_URL", default=f"postgres:///test_topobank-test")
     }
 else:
     DATABASES = {

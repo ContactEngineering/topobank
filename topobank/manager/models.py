@@ -368,6 +368,10 @@ class Surface(models.Model, SubjectMixin):
             return []
         return self.fileparent.get_valid_files()
 
+    def authorize_user(self, user):
+        if not user.has_perm("view_surface", self):
+            raise PermissionError(f"User {user} does not have permission to view this surface")
+
     def get_related_surfaces(self):
         return [self]
 
@@ -900,6 +904,10 @@ class Topography(TaskStateModel, SubjectMixin):
     #
     # Methods
     #
+    def authorize_user(self, user):
+        if not user.has_perm("view_surface", self.surface):
+            raise PermissionError(f"User {user} does not have permission to view this topography")
+
     def save(self, *args, **kwargs):
         if self.creator is None:
             self.creator = self.surface.creator

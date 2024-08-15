@@ -69,7 +69,8 @@ class AnalysisSubject(models.Model):
 
 
 class Analysis(TaskStateModel):
-    """Concrete Analysis with state, function reference, arguments, and results.
+    """
+    Concrete Analysis with state, function reference, arguments, and results.
 
     Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
@@ -81,8 +82,8 @@ class Analysis(TaskStateModel):
     # Definition of the subject
     subject_dispatch = models.OneToOneField(AnalysisSubject, null=True, on_delete=models.CASCADE)
 
-    # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
-    users = models.ManyToManyField(User)
+    # User that triggered this analysis
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
@@ -234,23 +235,12 @@ class Analysis(TaskStateModel):
     def get_implementation(self):
         return self.function.get_implementation(ContentType.objects.get_for_model(self.subject))
 
-    def is_visible_for_user(self, user):
-        """Returns True if given user should be able to see this analysis."""
-        is_allowed_to_view_surfaces = all(user.has_perm("view_surface", s) for s in self.get_related_surfaces())
-        is_allowed_to_use_implementation = self.get_implementation().is_available_for_user(user)
-        return is_allowed_to_use_implementation and is_allowed_to_view_surfaces
-
-    def get_default_users(self):
-        """Return list of users which should naturally be able to see this analysis.
-
-        This is based on the permissions of the subjects and of the analysis function.
-        The users are returned in a queryset sorted by name.
-        """
-        # Find all users having access to all related surfaces
-        users_allowed_by_surfaces = self.subject.get_users_with_perms()
-        # Filter those users for those having access to the function implementation
-        users_allowed = [u for u in users_allowed_by_surfaces if self.get_implementation().is_available_for_user(u)]
-        return User.objects.filter(id__in=[u.id for u in users_allowed]).order_by('name')
+    def authorize_user(self, user):
+        """Returns an exception if given user should not be able to see this analysis."""
+        if not self.get_implementation().is_available_for_user(user):
+            raise PermissionError(f"User {user} is not allowed to use this analysis function.")
+        if not all(user.has_perm("view_surface", s) for s in self.get_related_surfaces()):
+            raise PermissionError(f"User {user} is not allowed to access some of the surfaces that are the subject of the analysis.")
 
     @property
     def is_topography_related(self):
@@ -405,16 +395,3 @@ class AnalysisFunction(models.Model):
         except Exception:
             raise ValueError(f"Cannot find content type for subject '{subject}'.")
         return self.get_implementation(subject_type).eval(subject, **kwargs)
-
-
-class AnalysisCollection(models.Model):
-    """A collection of analyses which belong together for some reason."""
-    name = models.CharField(max_length=160)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    analyses = models.ManyToManyField(Analysis)
-    combined_task_state = models.CharField(max_length=7,
-                                           choices=Analysis.TASK_STATE_CHOICES)
-
-    # We have a manytomany field, because an analysis could be part of multiple collections.
-    # This happens e.g. if the user presses "recalculate" several times and
-    # one analysis becomes part in each of these requests.

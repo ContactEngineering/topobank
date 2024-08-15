@@ -68,8 +68,10 @@ def download_analyses(request, ids, file_format):
         #
         # Check whether user has view permission for requested analysis
         #
-        if not analysis.is_visible_for_user(request.user):
-            return HttpResponseForbidden()
+        try:
+            analysis.authorize_user(request.user)
+        except PermissionError as e:
+            return HttpResponseForbidden(reason=str(e))
 
         #
         # Exclude analysis for surfaces having only one topography

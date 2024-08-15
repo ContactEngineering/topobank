@@ -44,58 +44,6 @@ def test_tag_as_analysis_subject():
 
 
 @pytest.mark.django_db
-def test_default_users_for_surface_analysis():
-    u1 = UserFactory(name="Alice")
-    u2 = UserFactory(name="Bob")
-    surf = SurfaceFactory(creator=u1)
-    surf.set_permissions(u2, "view")
-    func = AnalysisFunction.objects.get(name="test")
-    analysis = SurfaceAnalysisFactory(subject_surface=surf, function=func)
-    assert sorted(analysis.get_default_users(), key=operator.attrgetter("name")) == [
-        u1,
-        u2,
-    ]
-
-
-@pytest.mark.django_db
-def test_default_users_for_tag_analysis():
-    u1 = UserFactory(name="Alice")
-    u2 = UserFactory(name="Bob")
-    u3 = UserFactory(name="Kim")
-    surf1 = SurfaceFactory(creator=u1)
-    surf2 = SurfaceFactory(creator=u2)
-    surf1.set_permissions(u3, "view")
-    surf2.set_permissions(u3, "view")
-    st = TagFactory(surfaces=[surf1, surf2])
-    # Only Alice and Bob only see a single surface
-    st.authorize_user(u1)
-    assert len(st.get_related_surfaces()) == 1
-    st.authorize_user(u2)
-    assert len(st.get_related_surfaces()) == 1
-    # Only Kim is allowed to see both surfaces
-    st.authorize_user(u3)
-    assert len(st.get_related_surfaces()) == 2
-    func = AnalysisFunction.objects.get(name="test")
-    analysis = TagAnalysisFactory(subject_tag=st, function=func)
-    assert sorted(analysis.get_default_users(), key=operator.attrgetter("name")) == [u3]
-
-
-@pytest.mark.django_db
-def test_default_users_for_topography_analysis():
-    u1 = UserFactory(name="Alice")
-    u2 = UserFactory(name="Bob")
-    surf = SurfaceFactory(creator=u1)
-    surf.share(u2)
-    topo = Topography1DFactory(surface=surf)
-    func = AnalysisFunction.objects.get(name="test")
-    analysis = TopographyAnalysisFactory(subject_topography=topo, function=func)
-    assert sorted(analysis.get_default_users(), key=operator.attrgetter("name")) == [
-        u1,
-        u2,
-    ]
-
-
-@pytest.mark.django_db
 def test_exception_implementation_missing():
     # We create an implementation for surfaces, but not for analyses
     topo = Topography1DFactory()

@@ -84,6 +84,17 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
         surface=factory.SelfAttribute("..subject_surface"),
         tag=factory.SelfAttribute("..subject_tag"),
     )
+    user = factory.LazyAttribute(
+        lambda obj: (
+            obj.subject_surface.creator
+            if obj.subject_surface
+            else (
+                obj.subject_topography.creator
+                if obj.subject_topography
+                else obj.subject_tag.get_related_surfaces().first().creator
+            )
+        )
+    )
 
     kwargs = factory.LazyAttribute(_analysis_default_kwargs)
     result = factory.LazyAttribute(_analysis_result)
@@ -94,17 +105,6 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
         lambda: datetime.datetime.now() - datetime.timedelta(0, 1)
     )
     end_time = factory.LazyFunction(datetime.datetime.now)
-
-    @factory.post_generation
-    def users(self, create, extracted, **kwargs):
-        if create:
-            users = set(s.creator for s in self.get_related_surfaces())
-            self.users.set(users)
-
-        if extracted:
-            # a list of users was passed in, add those users
-            for user in extracted:
-                self.users.add(user)
 
 
 class TopographyAnalysisFactory(AnalysisFactory):

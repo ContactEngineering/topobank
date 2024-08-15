@@ -6,7 +6,7 @@ from django.contrib.contenttypes.models import ContentType
 
 from ...manager.models import Surface, Topography
 from ...manager.tests.utils import UserFactory
-from ..controller import AnalysisController, request_analysis
+from ..controller import AnalysisController, submit_analysis_if_missing
 from ..models import Analysis
 from ..tests.utils import TopographyAnalysisFactory
 from ..utils import find_children, mangle_sheet_name, round_to_significant_digits
@@ -20,15 +20,15 @@ def test_request_analysis(two_topos, test_analysis_function):
     # delete all prior analyses for these two topographies in order to have a clean state
     Analysis.objects.filter(subject_dispatch__topography__in=[topo1, topo2]).delete()
 
-    user = UserFactory()
+    user = topo1.creator
 
-    analysis = request_analysis(
+    analysis = submit_analysis_if_missing(
         user=user, subject=topo1, analysis_func=test_analysis_function
     )
 
     assert analysis.subject == topo1
     assert analysis.function == test_analysis_function
-    assert user in analysis.users.all()
+    assert analysis.user == user
 
 
 @pytest.mark.django_db
@@ -45,6 +45,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     # Topography 1
     #
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -52,11 +53,10 @@ def test_latest_analyses(two_topos, test_analysis_function):
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
     )
-    analysis.save()
-    analysis.users.add(user)
 
     # save a second only, which has a later start time
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo1,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -64,13 +64,12 @@ def test_latest_analyses(two_topos, test_analysis_function):
         start_time=datetime.datetime(2018, 1, 2, 12),
         end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
     )
-    analysis.save()
-    analysis.users.add(user)
 
     #
     # Topography 2
     #
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -78,11 +77,10 @@ def test_latest_analyses(two_topos, test_analysis_function):
         start_time=datetime.datetime(2018, 1, 3, 12),
         end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
     )
-    analysis.save()
-    analysis.users.add(user)
 
     # save a second one, which has the latest start time
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -90,11 +88,10 @@ def test_latest_analyses(two_topos, test_analysis_function):
         start_time=datetime.datetime(2018, 1, 5, 12),
         end_time=datetime.datetime(2018, 1, 5, 13, 1, 1),
     )
-    analysis.save()
-    analysis.users.add(user)
 
     # save a third one, which has a later start time than the first
     analysis = TopographyAnalysisFactory.create(
+        user=user,
         subject_topography=topo2,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
@@ -102,8 +99,6 @@ def test_latest_analyses(two_topos, test_analysis_function):
         start_time=datetime.datetime(2018, 1, 4, 12),
         end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
     )
-    analysis.save()
-    analysis.users.add(user)
 
     ContentType.objects.get_for_model(Topography)
     analyses = AnalysisController(
@@ -134,7 +129,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
     assert (
-        Analysis.objects.filter(users=user, function=test_analysis_function).count()
+        Analysis.objects.filter(user=user, function=test_analysis_function).count()
         == 0
     )
 
