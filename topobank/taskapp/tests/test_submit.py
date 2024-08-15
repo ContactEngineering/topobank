@@ -3,7 +3,7 @@ import pytest
 from ...analysis.controller import submit_analysis_if_missing
 from ...analysis.models import Analysis
 from ...analysis.tests.utils import TopographyAnalysisFactory
-from ...manager.tests.utils import Topography1DFactory, UserFactory
+from ...manager.tests.utils import Topography1DFactory
 
 
 @pytest.mark.django_db

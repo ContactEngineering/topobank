@@ -90,7 +90,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     )
 
     # save a third one, which has a later start time than the first
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,
@@ -129,8 +129,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
     assert (
-        Analysis.objects.filter(user=user, function=test_analysis_function).count()
-        == 0
+        Analysis.objects.filter(user=user, function=test_analysis_function).count() == 0
     )
 
 

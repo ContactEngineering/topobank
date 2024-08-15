@@ -49,7 +49,7 @@ USE_TZ = True
 postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
     DATABASES = {
-        "default": env.db("DATABASE_URL", default=f"postgres:///test_topobank-test")
+        "default": env.db("DATABASE_URL", default="postgres:///test_topobank-test")
     }
 else:
     DATABASES = {
@@ -250,16 +250,16 @@ TEMPLATES = [
             ],
             # https://docs.djangoproject.com/en/dev/ref/settings/#template-context-processors
             "context_processors": [
-                "django.template.context_processors.debug",
-                "django.template.context_processors.request",
-                "django.contrib.auth.context_processors.auth",
-                "django.template.context_processors.i18n",
-                "django.template.context_processors.media",
-                "django.template.context_processors.static",
-                "django.template.context_processors.tz",
-                "django.contrib.messages.context_processors.messages",
-            ]
-            + PLUGIN_CONTEXT_PROCESSORS,
+                                      "django.template.context_processors.debug",
+                                      "django.template.context_processors.request",
+                                      "django.contrib.auth.context_processors.auth",
+                                      "django.template.context_processors.i18n",
+                                      "django.template.context_processors.media",
+                                      "django.template.context_processors.static",
+                                      "django.template.context_processors.tz",
+                                      "django.contrib.messages.context_processors.messages",
+                                  ]
+                                  + PLUGIN_CONTEXT_PROCESSORS,
         },
     },
 ]

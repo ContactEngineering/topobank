@@ -2,12 +2,8 @@ import logging
 import traceback
 import tracemalloc
 
-from ContactMechanics.Systems import IncompatibleFormulationError
 from django.conf import settings
-from django.shortcuts import reverse
 from django.utils import timezone
-from notifications.signals import notify
-from SurfaceTopography.Exceptions import CannotPerformAnalysisError
 from SurfaceTopography.Support import doi
 
 from ..taskapp.celeryapp import app

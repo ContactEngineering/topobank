@@ -1,5 +1,4 @@
 import datetime
-import operator
 
 import pytest
 from django.contrib.contenttypes.models import ContentType
@@ -7,7 +6,7 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 from ...manager.models import Topography
-from ...manager.tests.utils import SurfaceFactory, TagFactory, Topography1DFactory, UserFactory
+from ...manager.tests.utils import SurfaceFactory, TagFactory, Topography1DFactory
 from ..functions import topography_analysis_function_for_tests
 from ..models import Analysis, AnalysisFunction
 from ..registry import ImplementationMissingAnalysisFunctionException

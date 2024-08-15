@@ -19,7 +19,6 @@ import topobank
 from ...manager.models import Surface, Topography
 from ...manager.tests.utils import SurfaceFactory, Topography1DFactory, UserFactory
 from ...manager.utils import subjects_to_base64
-from ...utils import assert_in_content
 from ..models import Analysis, AnalysisFunction
 from ..tasks import current_configuration, perform_analysis
 from .utils import SurfaceAnalysisFactory, TopographyAnalysisFactory
@@ -68,7 +67,7 @@ def test_analysis_times(
     user = topo.surface.creator
     api_client.force_login(user)
 
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo,
         function=test_analysis_function,
@@ -154,7 +153,7 @@ def test_show_only_last_analysis(
     )
 
     # save a second only, which has a later start time
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,
