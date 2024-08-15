@@ -116,7 +116,7 @@ def test_show_only_last_analysis(
     #
     # Topography 1
     #
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo1,
         function=test_analysis_function,
