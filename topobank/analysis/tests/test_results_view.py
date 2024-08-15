@@ -141,7 +141,7 @@ def test_show_only_last_analysis(
     #
     # Topography 2
     #
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,
@@ -700,7 +700,8 @@ def test_shared_topography_triggers_new_analysis(api_client, handle_usage_statis
     assert api_client.login(username=user1.username, password=password)
 
     response = api_client.get(
-        f"{reverse('analysis:result-list')}?function_id={func1.id}&subjects={subjects_to_base64([topo1a, topo1b, topo2a])}"
+        f"{reverse('analysis:result-list')}?function_id={func1.id}"
+        f"&subjects={subjects_to_base64([topo1a, topo1b, topo2a])}"
     )
 
     # Function should have another analysis, topo2a for user1

@@ -119,7 +119,8 @@ def test_tag_analysis(two_users, django_capture_on_commit_callbacks, test_analys
         assert len(controller) == 0  # there are no tag analyses for this user
         with django_capture_on_commit_callbacks(execute=True) as callbacks:
             controller.trigger_missing_analyses()
-        assert len(callbacks) == 1  # user1 has no access to any surfaces inside this tag, but analysis is triggered nevertheless
+        # user1 has no access to any surfaces inside this tag, but analysis is triggered nevertheless
+        assert len(callbacks) == 1
         r, = controller.get()
         assert r.task_state == "su"
         assert len(r.result["surfaces"]) == 0  # user1 has no access to any surface inside this tag

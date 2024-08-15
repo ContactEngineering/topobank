@@ -79,7 +79,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     )
 
     # save a second one, which has the latest start time
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,
