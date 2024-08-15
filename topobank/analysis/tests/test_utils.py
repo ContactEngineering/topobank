@@ -44,7 +44,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     #
     # Topography 1
     #
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo1,
         function=test_analysis_function,
@@ -55,7 +55,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     )
 
     # save a second only, which has a later start time
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo1,
         function=test_analysis_function,
@@ -68,7 +68,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     #
     # Topography 2
     #
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,

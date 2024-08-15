@@ -127,7 +127,7 @@ def test_show_only_last_analysis(
         result=result,
     )
     # save a second only, which has a later start time
-    analysis = TopographyAnalysisFactory.create(
+    TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo1,
         function=test_analysis_function,
