@@ -457,7 +457,7 @@ def test_upload_topography_instrument_parameters(api_client, settings, django_ca
         assert clean_instrument_parameters == {}
 
 
-@pytest.mark.parametrize("input_filename", [f for f in filelist if not f.endswidth(".plux")])
+@pytest.mark.parametrize("input_filename", [f for f in filelist if not f.endswith(".plux")])
 @pytest.mark.parametrize("fill_undefined_data_mode", [
     Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
     Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC
