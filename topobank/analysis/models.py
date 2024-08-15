@@ -17,15 +17,19 @@ from ..users.models import User
 from ..utils import load_split_dict, store_split_dict
 from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
 
-RESULT_FILE_BASENAME = 'result'
+RESULT_FILE_BASENAME = "result"
 
 
 class AnalysisSubject(models.Model):
     """Analysis subject, which can be either a Tag, a Topography or a Surface"""
 
     tag = models.ForeignKey(Tag, null=True, blank=True, on_delete=models.CASCADE)
-    topography = models.ForeignKey(Topography, null=True, blank=True, on_delete=models.CASCADE)
-    surface = models.ForeignKey(Surface, null=True, blank=True, on_delete=models.CASCADE)
+    topography = models.ForeignKey(
+        Topography, null=True, blank=True, on_delete=models.CASCADE
+    )
+    surface = models.ForeignKey(
+        Surface, null=True, blank=True, on_delete=models.CASCADE
+    )
 
     @classmethod
     def create(cls, subject):
@@ -37,7 +41,9 @@ class AnalysisSubject(models.Model):
         elif isinstance(subject, Surface):
             surface = subject
         else:
-            raise ValueError('`subject` argument must be of type `Tag`, `Topography` or `Surface`.')
+            raise ValueError(
+                "`subject` argument must be of type `Tag`, `Topography` or `Surface`."
+            )
         return cls.objects.create(tag=tag, topography=topography, surface=surface)
 
     @staticmethod
@@ -49,8 +55,10 @@ class AnalysisSubject(models.Model):
         elif isinstance(subject, Surface):
             return models.Q(subject_dispatch__surface_id=subject.id)
         else:
-            raise ValueError('`subject` argument must be of type `Tag`, `Topography` or `Surface`, '
-                             f'not {type(subject)}.')
+            raise ValueError(
+                "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
+                f"not {type(subject)}."
+            )
 
     def get(self):
         if self.tag is not None:
@@ -60,29 +68,43 @@ class AnalysisSubject(models.Model):
         elif self.surface is not None:
             return self.surface
         else:
-            raise RuntimeError('Database corruption: All subjects appear to be None/null.')
+            raise RuntimeError(
+                "Database corruption: All subjects appear to be None/null."
+            )
 
     def save(self, *args, **kwargs):
-        if sum([self.tag is not None, self.topography is not None, self.surface is not None]) != 1:
-            raise ValidationError('Only of of tag, topography or tag can be defined.')
+        if (
+            sum(
+                [
+                    self.tag is not None,
+                    self.topography is not None,
+                    self.surface is not None,
+                ]
+            )
+            != 1
+        ):
+            raise ValidationError("Only of of tag, topography or tag can be defined.")
         super().save(*args, **kwargs)
 
 
 class Analysis(TaskStateModel):
-    """Concrete Analysis with state, function reference, arguments, and results.
+    """
+    Concrete Analysis with state, function reference, arguments, and results.
 
     Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
 
     # Actual implementation of the analysis as a Python function
-    function = models.ForeignKey('AnalysisFunction', on_delete=models.CASCADE)
+    function = models.ForeignKey("AnalysisFunction", on_delete=models.CASCADE)
 
     # Definition of the subject
-    subject_dispatch = models.OneToOneField(AnalysisSubject, null=True, on_delete=models.CASCADE)
+    subject_dispatch = models.OneToOneField(
+        AnalysisSubject, null=True, on_delete=models.CASCADE
+    )
 
-    # According to GitHub #208, each user should be able to see analysis with parameters chosen by himself
-    users = models.ManyToManyField(User)
+    # User that triggered this analysis
+    user = models.ForeignKey(User, on_delete=models.CASCADE)
 
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
@@ -91,7 +113,9 @@ class Analysis(TaskStateModel):
     dois = models.JSONField(default=list)
 
     # Server configuration (version information)
-    configuration = models.ForeignKey(Configuration, null=True, on_delete=models.SET_NULL)
+    configuration = models.ForeignKey(
+        Configuration, null=True, on_delete=models.SET_NULL
+    )
 
     class Meta:
         verbose_name_plural = "analyses"
@@ -103,9 +127,26 @@ class Analysis(TaskStateModel):
         self._result_metadata_cache = None  # cached toplevel result file
 
     def __str__(self):
-        return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
+        return "Task {} with state {}".format(
+            self.task_id, self.get_task_state_display()
+        )
 
     def delete(self, *args, **kwargs):
+        """
+        Delete the analysis instance, including its associated task and storage files.
+
+        This method performs the following steps:
+        1. Cancels the task if it is currently running.
+        2. Removes associated files from the storage backend.
+        3. Deletes the database entry for the analysis instance.
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+        """
         # Cancel task (if running)
         self.cancel_task()
 
@@ -116,6 +157,21 @@ class Analysis(TaskStateModel):
         super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
+        """
+        Save the analysis instance to the database.
+
+        This method performs the following steps:
+        1. Sets the creation time if the instance does not have an ID.
+        2. Calls the parent class's save method to save the instance.
+        3. Stores the result dictionary in the storage backend if it is provided.
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+        """
         if not self.id:
             self.creation_time = timezone.now()
         super().save(*args, **kwargs)
@@ -127,29 +183,62 @@ class Analysis(TaskStateModel):
 
     @property
     def subject(self):
-        """Return the subject of the analysis, which can be a Tag, a Topography or a Surface"""
+        """
+        Return the subject of the analysis, which can be a Tag, a Topography, or a Surface.
+
+        Returns
+        -------
+        Tag, Topography, or Surface
+            The subject of the analysis.
+        """
         return self.subject_dispatch.get()
 
     @property
     def result(self):
-        """Return result object or None if there is nothing yet."""
+        """
+        Return the result object or None if there is nothing yet.
+
+        This property checks if the result cache is empty. If it is, it loads the result
+        from the storage backend using the storage prefix and result file basename.
+        The loaded result is then cached for future access.
+
+        Returns
+        -------
+        dict or None
+            The result object if available, otherwise None.
+        """
         if self._result_cache is None:
-            self._result_cache = load_split_dict(self.storage_prefix, RESULT_FILE_BASENAME)
+            self._result_cache = load_split_dict(
+                self.storage_prefix, RESULT_FILE_BASENAME
+            )
         return self._result_cache
 
     @property
     def result_metadata(self):
-        """Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it"""
+        """
+        Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it.
+
+        This property checks if the result metadata cache is empty. If it is, it loads the metadata
+        from the storage backend using the storage prefix and result file basename.
+        The loaded metadata is then cached for future access.
+
+        Returns
+        -------
+        dict
+            The toplevel result object without series data.
+        """
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
-                default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json')
+                default_storage.open(
+                    f"{self.storage_prefix}/{RESULT_FILE_BASENAME}.json"
+                )
             )
         return self._result_metadata_cache
 
     @property
     def result_file_name(self):
         """Returns name of the result file in storage backend as string."""
-        return f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json'
+        return f"{self.storage_prefix}/{RESULT_FILE_BASENAME}.json"
 
     @property
     def has_result_file(self):
@@ -165,33 +254,32 @@ class Analysis(TaskStateModel):
         to a real directory.
         """
         if self.id is None:
-            raise RuntimeError('This `Analysis` does not have an id yet; the storage prefix is not yet known.')
+            raise RuntimeError(
+                "This `Analysis` does not have an id yet; the storage prefix is not yet known."
+            )
         return "analyses/{}".format(self.id)
 
-    def related_surfaces(self):
+    def get_related_surfaces(self):
         """Returns sequence of surface instances related to the subject of this analysis."""
-        return self.subject.related_surfaces()
+        return self.subject.get_related_surfaces()
 
     def get_implementation(self):
-        return self.function.get_implementation(ContentType.objects.get_for_model(self.subject))
+        return self.function.get_implementation(
+            ContentType.objects.get_for_model(self.subject)
+        )
 
-    def is_visible_for_user(self, user):
-        """Returns True if given user should be able to see this analysis."""
-        is_allowed_to_view_surfaces = all(user.has_perm("view_surface", s) for s in self.related_surfaces())
-        is_allowed_to_use_implementation = self.get_implementation().is_available_for_user(user)
-        return is_allowed_to_use_implementation and is_allowed_to_view_surfaces
-
-    def get_default_users(self):
-        """Return list of users which should naturally be able to see this analysis.
-
-        This is based on the permissions of the subjects and of the analysis function.
-        The users re returned in a queryset sorted by name.
-        """
-        # Find all users having access to all related surfaces
-        users_allowed_by_surfaces = self.subject.get_users_with_perms()
-        # Filter those users for those having access to the function implementation
-        users_allowed = [u for u in users_allowed_by_surfaces if self.get_implementation().is_available_for_user(u)]
-        return User.objects.filter(id__in=[u.id for u in users_allowed]).order_by('name')
+    def authorize_user(self, user):
+        """Returns an exception if given user should not be able to see this analysis."""
+        if not self.get_implementation().is_available_for_user(user):
+            raise PermissionError(
+                f"User {user} is not allowed to use this analysis function."
+            )
+        if not all(
+            user.has_perm("view_surface", s) for s in self.get_related_surfaces()
+        ):
+            raise PermissionError(
+                f"User {user} is not allowed to access some of the surfaces that are the subject of the analysis."
+            )
 
     @property
     def is_topography_related(self):
@@ -219,7 +307,10 @@ class AnalysisFunction(models.Model):
     These functions are referenced by the analyses. Each function "knows"
     how to find the appropriate implementation for given arguments.
     """
-    name = models.CharField(max_length=80, help_text="A human-readable name.", unique=True)
+
+    name = models.CharField(
+        max_length=80, help_text="A human-readable name.", unique=True
+    )
 
     def __str__(self):
         return self.name
@@ -241,7 +332,9 @@ class AnalysisFunction(models.Model):
         ImplementationMissingException
             in case the implementation is missing
         """
-        return AnalysisRegistry().get_implementation(self.name, subject_type=subject_type)
+        return AnalysisRegistry().get_implementation(
+            self.name, subject_type=subject_type
+        )
 
     def get_python_function(self, subject_type):
         """Return function for given first argument type.
@@ -283,8 +376,7 @@ class AnalysisFunction(models.Model):
         return self.get_implementation(subject_type).signature
 
     def get_implementation_types(self):
-        """Return list of content types for which this function is implemented.
-        """
+        """Return list of content types for which this function is implemented."""
         return AnalysisRegistry().get_implementation_types(self.name)
 
     def is_implemented_for_type(self, subject_type):
@@ -303,6 +395,7 @@ class AnalysisFunction(models.Model):
         """
         if models is None:
             from ..manager.models import Surface, Tag, Topography
+
             models = set([Tag, Topography, Surface])
 
         is_available_to_user = False
@@ -340,22 +433,11 @@ class AnalysisFunction(models.Model):
         all other arguments are keyword arguments.
         """
         if subject is None:
-            raise ValueError(f"Cannot evaluate analysis function '{self.name}' with None as subject.")
+            raise ValueError(
+                f"Cannot evaluate analysis function '{self.name}' with None as subject."
+            )
         try:
             subject_type = ContentType.objects.get_for_model(subject)
         except Exception:
             raise ValueError(f"Cannot find content type for subject '{subject}'.")
         return self.get_implementation(subject_type).eval(subject, **kwargs)
-
-
-class AnalysisCollection(models.Model):
-    """A collection of analyses which belong together for some reason."""
-    name = models.CharField(max_length=160)
-    owner = models.ForeignKey(User, on_delete=models.CASCADE)
-    analyses = models.ManyToManyField(Analysis)
-    combined_task_state = models.CharField(max_length=7,
-                                           choices=Analysis.TASK_STATE_CHOICES)
-
-    # We have a manytomany field, because an analysis could be part of multiple collections.
-    # This happens e.g. if the user presses "recalculate" several times and
-    # one analysis becomes part in each of these requests.

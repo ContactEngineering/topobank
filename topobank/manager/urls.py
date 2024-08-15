@@ -49,12 +49,12 @@ urlpatterns += [
         name='set-permissions'
     ),
     path(
-        'api/tag/<pk>/numerical-properties/',
+        'api/tag-numerical-properties/<pk>/',
         view=login_required(views.tag_numerical_properties),
         name='numerical-properties'
     ),
     path(
-        'api/tag/<pk>/categorical-properties/',
+        'api/tag-categorical-properties/<pk>/',
         view=login_required(views.tag_categorical_properties),
         name='categorical-properties'
     ),

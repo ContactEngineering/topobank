@@ -5,11 +5,11 @@ from django.db import models
 from django.db.models.signals import pre_save
 from django.db.utils import ProgrammingError
 from django.dispatch import receiver
-from django.urls import reverse
 from django.utils.translation import gettext_lazy as _
 from guardian.core import ObjectPermissionChecker
 from guardian.mixins import GuardianUserMixin
 from guardian.shortcuts import get_anonymous_user, get_objects_for_user
+from rest_framework.reverse import reverse
 
 DEFAULT_GROUP_NAME = 'all'
 
@@ -38,8 +38,10 @@ class User(GuardianUserMixin, AbstractUser):
             self.anonymous_user = get_anonymous_user()
         return self.anonymous_user
 
-    def get_absolute_url(self):
-        return reverse("users:detail", kwargs={"username": self.username})
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this user"""
+        return reverse("users:user-api-detail", kwargs={"pk": self.pk},
+                       request=request)
 
     def get_media_path(self):
         """Return relative path of directory for files of this user."""

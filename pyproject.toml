@@ -5,13 +5,14 @@ build-backend = "flit_core.buildapi"
 [project]
 name = 'topobank'
 description = 'Web-based management tool for surface topography data'
-requires-python = '>=3.8.0'
+requires-python = '>=3.9.0'
 dynamic = ['version']
 readme = 'README.rst'
 license = { file = 'LICENSE' }
 authors = [
     { name = "Michael Röttger", email = "info@michael-roettger.de" },
-    { name = "Lars Pastewka", email = "lars.pastewka@imtek.uni-freiburg.de" }
+    { name = "Lars Pastewka", email = "lars.pastewka@imtek.uni-freiburg.de" },
+    { name = "Ioannis Nezis", email = "ioannis@nezis.de" }
 ]
 classifiers = [
     'Development Status :: 5 - Production/Stable',
@@ -25,23 +26,26 @@ classifiers = [
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3 :: Only',
-    'Programming Language :: Python :: 3.8',
     'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
+    'Programming Language :: Python :: 3.11',
+    'Programming Language :: Python :: 3.12',
     'Topic :: Internet :: WWW/HTTP',
     'Topic :: Internet :: WWW/HTTP :: Dynamic Content'
 ]
 dependencies = [
     'DiscoverVersion',  # Version information from git
+    'backports.entry-points-selectable',  # Plugin handling
 
     'argon2-cffi',  # https://github.com/hynek/argon2_cffi
     'whitenoise>=5.3',  # https://github.com/evansd/whitenoise
-    'psycopg2>=2.8',  # https://github.com/psycopg/psycopg2
+    'psycopg[binary]',  # https://github.com/psycopg/psycopg3
 
     # Django
     'django==4.2.15',    #  does this work with pyup?  # https://www.djangoproject.com/
     'django-environ',  # https://github.com/joke2k/django-environ
     'django-allauth>=0.56.0',  # https://github.com/pennersr/django-allauth
+    'fido2',  # required by django-allauth
     'django-crispy-forms',  # https://github.com/django-crispy-forms/django-crispy-forms
     'crispy-bootstrap5',  # https://stackoverflow.com/questions/75495403/django-returns-templatedoesnotexist-when-using-crispy-forms
 
@@ -178,6 +182,7 @@ dev = [
     # ------------------------------------------------------------------------------
     'pytest',
     'pytest-sugar',
+    'pytest-env',
 
     # Because of CVE-2020-29651
     'py>=1.10.0',
@@ -193,6 +198,9 @@ dev = [
     # https://github.com/FactoryBoy/factory_boy
     'django-test-plus',
     # https://github.com/revsys/django-test-plus
+
+    'django-celery-results',
+    # https://django-celery-results.readthedocs.io/en/latest/
 
     'django-debug-toolbar',
     # https://github.com/jazzband/django-debug-toolbar
@@ -218,18 +226,6 @@ dev = [
     # Debugging
     # ------------------------------------------------------------------------------
 
-    # just for interactive use to try things (not necessary)
-    'ipython>=7.31.1',
-
-    # additional for browser test
-    'pytest-splinter',
-    'splinter[django]',
-    'selenium',
-    'pytest-selenium',
-
-    # for parsing html
-    'beautifulsoup4',
-
     # for testing functions depending on date functions
     'freezegun',
 
@@ -246,7 +242,12 @@ repository = 'https://github.com/ContactEngineering/topobank'
 
 [tool.black]
 line-length = 88
-target-version = ["py38", "py39", "py310", "py311", "py312"]
+target-version = ["py39", "py310", "py311", "py312"]
 
 [tool.isort]
 profile = "black"
+
+[tool.pytest.ini_options]
+env = [
+    "DJANGO_SETTINGS_MODULE=topobank.settings.test"
+]

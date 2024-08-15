@@ -370,7 +370,7 @@ Configures Python part: Django and Celery. You can use this as template:
     # General
     # ------------------------------------------------------------------------------
     # DJANGO_READ_DOT_ENV_FILE=True
-    DJANGO_SETTINGS_MODULE=config.settings.production
+    DJANGO_SETTINGS_MODULE=topobank.settings.production
     DJANGO_SECRET_KEY=<put in here your secret key>
     DJANGO_ADMIN_URL=<put here some random string>
     DJANGO_ALLOWED_HOSTS=contact.engineering

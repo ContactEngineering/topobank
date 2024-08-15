@@ -9,14 +9,15 @@ import logging
 
 import numpy as np
 
+from ..manager.models import Tag, Topography, Surface
 from ..utils import SplitDictionaryHere
 
 _log = logging.getLogger(__name__)
 
 # Visualization types
-APP_NAME = 'analysis'
-VIZ_GENERIC = 'generic'
-VIZ_SERIES = 'series'
+APP_NAME = "analysis"
+VIZ_GENERIC = "generic"
+VIZ_SERIES = "series"
 
 
 class ContainerProxy(collections.abc.Iterator):
@@ -48,29 +49,13 @@ def reasonable_bins_argument(topography):
     if topography.is_uniform:
         return int(np.sqrt(np.prod(topography.nb_grid_pts)) + 1.0)
     else:
-        return int(np.sqrt(np.prod(len(topography.positions()))) + 1.0)  # TODO discuss whether auto or this
+        return int(
+            np.sqrt(np.prod(len(topography.positions()))) + 1.0
+        )  # TODO discuss whether auto or this
         # return 'auto'
 
 
-class IncompatibleTopographyException(Exception):
-    """Raise this exception in case a function cannot handle a topography.
-
-    By handling this special exception, the UI can show the incompatibility
-    as note to the user, not as failure. It is an excepted failure.
-    """
-    pass
-
-
-class ReentrantTopographyException(IncompatibleTopographyException):
-    """Raise this exception if a function cannot handle a topography because it is reentrant.
-
-    By handling this special exception, the UI can show the incompatibility
-    as note to the user, not as failure. It is an excepted failure.
-    """
-    pass
-
-
-def wrap_series(series, primary_key='x'):
+def wrap_series(series, primary_key="x"):
     """
     Wrap each data series into a `SplitDictionaryHere` with a consecutive name
     'series-0', 'series-1'. Each `SplitDictionaryHere` is written into a separate
@@ -90,12 +75,12 @@ def wrap_series(series, primary_key='x'):
     """
     wrapped_series = []
     for i, s in enumerate(series):
-        supplementary = {'name': s['name'], 'nbDataPoints': len(s[primary_key])}
-        if 'visible' in s:
-            supplementary['visible'] = s['visible']
-        wrapped_series.append(SplitDictionaryHere(
-            f'series-{i}', s,
-            supplementary=supplementary))
+        supplementary = {"name": s["name"], "nbDataPoints": len(s[primary_key])}
+        if "visible" in s:
+            supplementary["visible"] = s["visible"]
+        wrapped_series.append(
+            SplitDictionaryHere(f"series-{i}", s, supplementary=supplementary)
+        )
     return wrapped_series
 
 
@@ -142,49 +127,78 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
 
 
 # This function will be registered in tests by a fixture
-def topography_analysis_function_for_tests(topography, a=1, b="foo", progress_recorder=None, storage_prefix=None):
+def topography_analysis_function_for_tests(
+    topography: Topography,
+    a: int = 1,
+    b: str = "foo",
+    progress_recorder=None,
+    storage_prefix=None,
+):
     """This function can be registered for tests.
 
     The arguments have no meaning. Result are two series.
     """
-    return {'name': 'Test result for test function called for topography {}.'.format(topography),
-            'xunit': 'm',
-            'yunit': 'm',
-            'xlabel': 'x',
-            'ylabel': 'y',
-            'series': [
-                dict(
-                    name='Fibonacci series',
-                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                    y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
-                    std_err_y=np.zeros(8),
-                ),
-                dict(
-                    name='Geometric series',
-                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                    y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                    std_err_y=np.zeros(8),
-                ),
-            ],
-            'alerts': [dict(alert_class='alert-info', message="This is a test for a measurement alert.")],
-            'comment': f"Arguments: a is {a} and b is {b}"}
+    return {
+        "name": "Test result for test function called for topography {}.".format(
+            topography
+        ),
+        "xunit": "m",
+        "yunit": "m",
+        "xlabel": "x",
+        "ylabel": "y",
+        "series": [
+            dict(
+                name="Fibonacci series",
+                x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
+                std_err_y=np.zeros(8),
+            ),
+            dict(
+                name="Geometric series",
+                x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                std_err_y=np.zeros(8),
+            ),
+        ],
+        "alerts": [
+            dict(
+                alert_class="alert-info",
+                message="This is a test for a measurement alert.",
+            )
+        ],
+        "comment": f"Arguments: a is {a} and b is {b}",
+    }
 
 
 # This function will be registered in tests by a fixture
-def surface_analysis_function_for_tests(surface, a=1, b="foo", progress_recorder=None, storage_prefix=None):
+def surface_analysis_function_for_tests(
+    surface: Surface,
+    a: int = 1,
+    b: str = "foo",
+    progress_recorder=None,
+    storage_prefix=None,
+):
     """This function can be registered for tests."""
-    return {'name': 'Test result for test function called for surface {}.'.format(surface),
-            'xunit': 'm',
-            'yunit': 'm',
-            'xlabel': 'x',
-            'ylabel': 'y',
-            'series': [],
-            'alerts': [dict(alert_class='alert-info', message="This is a test for a surface alert.")],
-            'comment': f"a is {a} and b is {b}"}
+    return {
+        "name": "Test result for test function called for surface {}.".format(surface),
+        "xunit": "m",
+        "yunit": "m",
+        "xlabel": "x",
+        "ylabel": "y",
+        "series": [],
+        "alerts": [
+            dict(
+                alert_class="alert-info", message="This is a test for a surface alert."
+            )
+        ],
+        "comment": f"a is {a} and b is {b}",
+    }
 
 
 # This function will be registered in tests by a fixture
-def tag_analysis_function_for_tests(tag, a=1, b="foo", progress_recorder=None, storage_prefix=None):
+def tag_analysis_function_for_tests(
+    tag: Tag, a: int = 1, b: str = "foo", progress_recorder=None, storage_prefix=None
+):
     """This function can be registered for tests.
 
     Parameters
@@ -203,14 +217,23 @@ def tag_analysis_function_for_tests(tag, a=1, b="foo", progress_recorder=None, s
         files related to this analysis.
     """
 
-    name = f'Test result for test function called for tag {tag}, ' \
-           ', which is built from surfaces {}'.format([s.name for s in tag.surface_set.all()])
+    name = (
+        f"Test result for test function called for tag {tag}, "
+        ", which is built from surfaces {}".format(
+            [s.name for s in tag.surface_set.all()]
+        )
+    )
 
-    return {'name': name,
-            'xunit': 'm',
-            'yunit': 'm',
-            'xlabel': 'x',
-            'ylabel': 'y',
-            'series': [],
-            'alerts': [dict(alert_class='alert-info', message="This is a test for an alert.")],
-            'comment': f"a is {a} and b is {b}"}
+    return {
+        "name": name,
+        "xunit": "m",
+        "yunit": "m",
+        "xlabel": "x",
+        "ylabel": "y",
+        "series": [],
+        "alerts": [
+            dict(alert_class="alert-info", message="This is a test for an alert.")
+        ],
+        "surfaces": [surface.name for surface in tag.get_related_surfaces()],
+        "comment": f"a is {a} and b is {b}",
+    }

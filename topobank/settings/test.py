@@ -10,7 +10,10 @@ from .base import env
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
 DEBUG = False
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
-SECRET_KEY = env("DJANGO_SECRET_KEY", default="KCJtolEW9rLL911GCS6aXhNINZsd5cgFH3GUwECBZ0GG7eHVg7sLlErts9Iq7A2M")
+SECRET_KEY = env(
+    "DJANGO_SECRET_KEY",
+    default="KCJtolEW9rLL911GCS6aXhNINZsd5cgFH3GUwECBZ0GG7eHVg7sLlErts9Iq7A2M",
+)
 # https://docs.djangoproject.com/en/dev/ref/settings/#test-runner
 TEST_RUNNER = "django.test.runner.DiscoverRunner"
 
@@ -19,7 +22,8 @@ TEST_RUNNER = "django.test.runner.DiscoverRunner"
 # https://docs.djangoproject.com/en/dev/ref/settings/#caches
 CACHES = {
     "default": {
-        "BACKEND": "django.core.cache.backends.locmem.LocMemCache", "LOCATION": ""
+        "BACKEND": "django.core.cache.backends.locmem.LocMemCache",
+        "LOCATION": "",
     }
 }
 
@@ -51,10 +55,25 @@ EMAIL_HOST = "localhost"
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-port
 EMAIL_PORT = 1025
 
-# Your stuff...
-
+# STORAGE
+# ------------------------------------------------------------------------------
 # We want to use a storage driver in memory in order to be able to use it in tests
-DEFAULT_FILE_STORAGE = 'inmemorystorage.InMemoryStorage'
+USE_S3_STORAGE = False
+STORAGES["default"]["BACKEND"] = "inmemorystorage.InMemoryStorage"  # noqa: F405
+
+# CELERY
+# ------------------------------------------------------------------------------
+# All celery tasks need to execute immediately because we want to run tests
+# without needing a message queue
+# https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-always-eager
+CELERY_TASK_ALWAYS_EAGER = True
+# https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-store-eager-result
+CELERY_TASK_STORE_EAGER_RESULT = True
+# Use DB backend because we have no broker/results backend running
+INSTALLED_APPS += ["django_celery_results"]  # noqa: F405
+# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
+CELERY_RESULT_BACKEND = "django-db"
+
 
 # ------------------------------------------------------------------------------
 # LOGGING
@@ -66,51 +85,46 @@ DEFAULT_FILE_STORAGE = 'inmemorystorage.InMemoryStorage'
 # See https://docs.djangoproject.com/en/dev/topics/logging for
 # more details on how to customize your logging configuration.
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'filters': {
-        'require_debug_false': {
-            '()': 'django.utils.log.RequireDebugFalse'
-        }
-    },
-    'formatters': {
-        'verbose': {
-            'format': '%(levelname)s %(asctime)s %(module)s '
-                      '%(process)d %(thread)d %(message)s'
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
+    "formatters": {
+        "verbose": {
+            "format": "%(levelname)s %(asctime)s %(module)s "
+            "%(process)d %(thread)d %(message)s"
         },
     },
-    'handlers': {
-        'mail_admins': {
-            'level': 'ERROR',
-            'filters': ['require_debug_false'],
-            'class': 'django.utils.log.AdminEmailHandler'
+    "handlers": {
+        "mail_admins": {
+            "level": "ERROR",
+            "filters": ["require_debug_false"],
+            "class": "django.utils.log.AdminEmailHandler",
         },
-        'console': {
-            'level': 'DEBUG',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+        "console": {
+            "level": "DEBUG",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
     },
-    'root': {
-        'level': 'DEBUG',
-        'handlers': ['console']
-    },
-    'loggers': {
-        'django.request': {
-            'handlers': ['mail_admins'],
-            'level': 'ERROR',
-            'propagate': True
+    "root": {"level": "DEBUG", "handlers": ["console"]},
+    "loggers": {
+        "django.request": {
+            "handlers": ["mail_admins"],
+            "level": "ERROR",
+            "propagate": True,
         },
-        'django.security.DisallowedHost': {
-            'level': 'ERROR',
-            'handlers': ['console', 'mail_admins'],
-            'propagate': True
-        }
-    }
+        "django.security.DisallowedHost": {
+            "level": "ERROR",
+            "handlers": ["console", "mail_admins"],
+            "propagate": True,
+        },
+    },
 }
 
+# DATABASE
+# ------------------------------------------------------------------------------
 DATABASES = {
-    'default': env.db('DATABASE_URL', default='postgres:///topobank-test'),
+    "default": env.db("DATABASE_URL", default="postgres:///topobank-test"),
 }
 
 # Bokeh output backend. Possibilities are:
@@ -118,9 +132,11 @@ DATABASES = {
 # - 'svg': Render using SVG. Plot will download as SVG if this is enabled while they download as PNG in the 'canvas'
 #   backend. SVG has problems with zooming plots.
 # - 'webgl': Accelerates some plots using WebGL
-BOKEH_OUTPUT_BACKEND = 'canvas'
+BOKEH_OUTPUT_BACKEND = "canvas"
 
 # Enable usage stats in tests
 if not ENABLE_USAGE_STATS:  # noqa: F405
     ENABLE_USAGE_STATS = True  # noqa: F405
-    MIDDLEWARE += ['topobank.usage_stats.middleware.count_request_middleware']  # noqa: F405
+    MIDDLEWARE += [  # noqa: F405
+        "topobank.usage_stats.middleware.count_request_middleware"
+    ]

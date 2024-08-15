@@ -8,7 +8,7 @@ from .factories import OrcidSocialAccountFactory, UserFactory
 @pytest.mark.django_db
 def test_absolute_url():
     user = UserFactory(username="testuser")
-    assert user.get_absolute_url() == "/users/testuser/"
+    assert user.get_absolute_url() == f"/users/api/user/{user.id}/"
 
 
 @pytest.mark.django_db

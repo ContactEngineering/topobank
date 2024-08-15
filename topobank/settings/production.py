@@ -4,24 +4,27 @@ from .base import env
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#secret-key
-SECRET_KEY = env('DJANGO_SECRET_KEY', default=random_string())  # noqa: F405
+SECRET_KEY = env("DJANGO_SECRET_KEY", default=random_string())  # noqa: F405
 # https://docs.djangoproject.com/en/dev/ref/settings/#allowed-hosts
-ALLOWED_HOSTS = env.list('DJANGO_ALLOWED_HOSTS', default=['example.com'])
+ALLOWED_HOSTS = env.list("DJANGO_ALLOWED_HOSTS", default=["example.com"])
 
 # DATABASES
 # ------------------------------------------------------------------------------
-DATABASES['default']['CONN_MAX_AGE'] = env.int('CONN_MAX_AGE', default=60)  # noqa F405
+DATABASES["default"]["CONN_MAX_AGE"] = env.int("CONN_MAX_AGE", default=60)  # noqa F405
 
 # CACHES
 # ------------------------------------------------------------------------------
 CACHES = {
-    'default': {
-        'BACKEND': env.str("DJANGO_DEFAULT_CACHE_BACKEND",
-                           default='django_redis.cache.RedisCache'),
-        'LOCATION': env.str("DJANGO_DEFAULT_CACHE_LOCATION", default='redis://redis:6379/0'),
-        'OPTIONS': {
-            'CLIENT_CLASS': "django_redis.client.DefaultClient",
-        }
+    "default": {
+        "BACKEND": env.str(
+            "DJANGO_DEFAULT_CACHE_BACKEND", default="django_redis.cache.RedisCache"
+        ),
+        "LOCATION": env.str(
+            "DJANGO_DEFAULT_CACHE_LOCATION", default="redis://redis:6379/0"
+        ),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
     }
     # 'default': {
     #     'BACKEND': 'django_redis.cache.RedisCache',
@@ -38,9 +41,9 @@ CACHES = {
 # SECURITY
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-proxy-ssl-header
-SECURE_PROXY_SSL_HEADER = ('HTTP_X_FORWARDED_PROTO', 'https')
+SECURE_PROXY_SSL_HEADER = ("HTTP_X_FORWARDED_PROTO", "https")
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-ssl-redirect
-SECURE_SSL_REDIRECT = env.bool('DJANGO_SECURE_SSL_REDIRECT', default=True)
+SECURE_SSL_REDIRECT = env.bool("DJANGO_SECURE_SSL_REDIRECT", default=True)
 # https://docs.djangoproject.com/en/dev/ref/settings/#session-cookie-secure
 SESSION_COOKIE_SECURE = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#session-cookie-httponly
@@ -54,36 +57,30 @@ CSRF_COOKIE_HTTPONLY = True
 # TODO: set this to 60 seconds first and then to 518400 once you prove the former works
 SECURE_HSTS_SECONDS = 60
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-hsts-include-subdomains
-SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool('DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS', default=True)
+SECURE_HSTS_INCLUDE_SUBDOMAINS = env.bool(
+    "DJANGO_SECURE_HSTS_INCLUDE_SUBDOMAINS", default=True
+)
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-hsts-preload
-SECURE_HSTS_PRELOAD = env.bool('DJANGO_SECURE_HSTS_PRELOAD', default=True)
+SECURE_HSTS_PRELOAD = env.bool("DJANGO_SECURE_HSTS_PRELOAD", default=True)
 # https://docs.djangoproject.com/en/dev/ref/middleware/#x-content-type-options-nosniff
-SECURE_CONTENT_TYPE_NOSNIFF = env.bool('DJANGO_SECURE_CONTENT_TYPE_NOSNIFF', default=True)
+SECURE_CONTENT_TYPE_NOSNIFF = env.bool(
+    "DJANGO_SECURE_CONTENT_TYPE_NOSNIFF", default=True
+)
 # https://docs.djangoproject.com/en/dev/ref/settings/#secure-browser-xss-filter
 SECURE_BROWSER_XSS_FILTER = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#x-frame-options
-X_FRAME_OPTIONS = 'DENY'
-
-# STORAGES
-# ------------------------------------------------------------------------------
-# https://django-storages.readthedocs.io/en/latest/#installation
-# Storage settings have been already added to base.py
-
-# MEDIA
-# ------------------------------------------------------------------------------
-# DEFAULT_FILE_STORAGE = 'storages.backends.s3boto3.S3Boto3Storage'
-# MEDIA_URL = f'https://s3.amazonaws.com/{AWS_STORAGE_BUCKET_NAME}/'
+X_FRAME_OPTIONS = "DENY"
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#templates
-TEMPLATES[0]['OPTIONS']['loaders'] = [  # noqa F405
+TEMPLATES[0]["OPTIONS"]["loaders"] = [  # noqa F405
     (
-        'django.template.loaders.cached.Loader',
+        "django.template.loaders.cached.Loader",
         [
-            'django.template.loaders.filesystem.Loader',
-            'django.template.loaders.app_directories.Loader',
-        ]
+            "django.template.loaders.filesystem.Loader",
+            "django.template.loaders.app_directories.Loader",
+        ],
     ),
 ]
 
@@ -91,23 +88,26 @@ TEMPLATES[0]['OPTIONS']['loaders'] = [  # noqa F405
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#default-from-email
 DEFAULT_FROM_EMAIL = env(
-    'DJANGO_DEFAULT_FROM_EMAIL',
-    default='contact.engineering <noreply@contact.engineering>'
+    "DJANGO_DEFAULT_FROM_EMAIL",
+    default="contact.engineering <noreply@contact.engineering>",
 )
 # https://docs.djangoproject.com/en/dev/ref/settings/#server-email
-SERVER_EMAIL = env('DJANGO_SERVER_EMAIL', default=DEFAULT_FROM_EMAIL)
+SERVER_EMAIL = env("DJANGO_SERVER_EMAIL", default=DEFAULT_FROM_EMAIL)
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-subject-prefix
-EMAIL_SUBJECT_PREFIX = env('DJANGO_EMAIL_SUBJECT_PREFIX', default='[contact.engineering]')
+EMAIL_SUBJECT_PREFIX = env(
+    "DJANGO_EMAIL_SUBJECT_PREFIX", default="[contact.engineering]"
+)
 
 # ADMIN
 # ------------------------------------------------------------------------------
 # Django Admin URL regex.
-ADMIN_URL = env('DJANGO_ADMIN_URL', default=random_string())  # noqa: F405
+ADMIN_URL = env("DJANGO_ADMIN_URL", default=random_string())  # noqa: F405
 
-EMAIL_BACKEND = 'django.core.mail.backends.smtp.EmailBackend'
+EMAIL_BACKEND = "django.core.mail.backends.smtp.EmailBackend"
 
 EMAIL_CONFIG = env.email_url(
-    'DJANGO_EMAIL_URL', default='smtp://user@:password@localhost:25')
+    "DJANGO_EMAIL_URL", default="smtp://user@:password@localhost:25"
+)
 # For SMTP+SSL use: smtp+ssl://
 vars().update(EMAIL_CONFIG)  # this sets all variables needed by Django
 
@@ -128,7 +128,7 @@ vars().update(EMAIL_CONFIG)  # this sets all variables needed by Django
 
 # Gunicorn
 # ------------------------------------------------------------------------------
-INSTALLED_APPS += ['gunicorn']  # noqa F405
+INSTALLED_APPS += ["gunicorn"]  # noqa F405
 
 # LOGGING
 # ------------------------------------------------------------------------------
@@ -139,52 +139,44 @@ INSTALLED_APPS += ['gunicorn']  # noqa F405
 # See https://docs.djangoproject.com/en/dev/topics/logging for
 # more details on how to customize your logging configuration.
 LOGGING = {
-    'version': 1,
-    'disable_existing_loggers': False,
-    'filters': {
-        'require_debug_false': {
-            '()': 'django.utils.log.RequireDebugFalse'
-        }
-    },
-    'formatters': {
-        'verbose': {
-            'format': '%(levelname)s %(asctime)s %(module)s '
-                      '%(process)d %(thread)d %(message)s'
+    "version": 1,
+    "disable_existing_loggers": False,
+    "filters": {"require_debug_false": {"()": "django.utils.log.RequireDebugFalse"}},
+    "formatters": {
+        "verbose": {
+            "format": "%(levelname)s %(asctime)s %(module)s "
+            "%(process)d %(thread)d %(message)s"
         },
     },
-    'handlers': {
-        'mail_admins': {
-            'level': 'ERROR',
-            'filters': ['require_debug_false'],
-            'class': 'django.utils.log.AdminEmailHandler'
+    "handlers": {
+        "mail_admins": {
+            "level": "ERROR",
+            "filters": ["require_debug_false"],
+            "class": "django.utils.log.AdminEmailHandler",
         },
-        'console': {
-            'level': 'INFO',
-            'class': 'logging.StreamHandler',
-            'formatter': 'verbose',
+        "console": {
+            "level": "INFO",
+            "class": "logging.StreamHandler",
+            "formatter": "verbose",
         },
     },
-    'loggers': {
-        'django.request': {
-            'handlers': ['console', 'mail_admins'],
-            'level': 'ERROR',
-            'propagate': True
+    "loggers": {
+        "django.request": {
+            "handlers": ["console", "mail_admins"],
+            "level": "ERROR",
+            "propagate": True,
         },
-        'django.security.DisallowedHost': {
-            'level': 'ERROR',
-            'handlers': ['console', 'mail_admins'],
-            'propagate': True
+        "django.security.DisallowedHost": {
+            "level": "ERROR",
+            "handlers": ["console", "mail_admins"],
+            "propagate": True,
         },
-        'topobank': {
-            'level': 'INFO',
-            'handlers': ['console'],
-            'propagate': True
+        "topobank": {"level": "INFO", "handlers": ["console"], "propagate": True},
+        "watchman": {
+            "handlers": ["console"],
+            "level": "INFO",
         },
-        'watchman': {
-            'handlers': ['console'],
-            'level': 'INFO',
-        },
-    }
+    },
 }
 
 # Your stuff...
@@ -195,18 +187,18 @@ LOGGING = {
 # - 'svg': Render using SVG. Plot will download as SVG if this is enabled while they download as PNG in the 'canvas'
 #   backend. SVG has problems with zooming plots.
 # - 'webgl': Accelerates some plots using WebGL
-BOKEH_OUTPUT_BACKEND = 'svg'
+BOKEH_OUTPUT_BACKEND = "svg"
 
 # Settings for watchman
 # WATCHMAN_AUTH_DECORATOR = 'watchman.decorators.token_required'
-WATCHMAN_AUTH_DECORATOR = 'django.contrib.admin.views.decorators.staff_member_required'
+WATCHMAN_AUTH_DECORATOR = "django.contrib.admin.views.decorators.staff_member_required"
 # like this, you need to login as a staff member (can be achieved using the 'grant_admin_permissions'
 # management command) in order to see the dashboard;
 # Can also be configured to use a token or no token at all, see
 # https://django-watchman.readthedocs.io/en/latest/readme.html#documentation
 # for details
 
-# STATIC
+# STATIC FILES
 # ------------------------------------------------------------------------------
 # We use whitenoise in production for delivering static files. Those files need
 # to be collected with `manage.py collectstatic` before. (This happens when
@@ -216,7 +208,8 @@ WATCHMAN_AUTH_DECORATOR = 'django.contrib.admin.views.decorators.staff_member_re
 # See also here for a discussion of Whitenoise vs S3:
 # http://whitenoise.evans.io/en/stable/#shouldn-t-i-be-pushing-my-static-files-to-s3-using-something-like-django-storages
 MIDDLEWARE.insert(  # noqa: F405
-    MIDDLEWARE.index('django.middleware.security.SecurityMiddleware') + 1,  # noqa: F405
-    'whitenoise.middleware.WhiteNoiseMiddleware')
-# Enable white noise compressed storage
-STATICFILES_STORAGE = 'whitenoise.storage.CompressedManifestStaticFilesStorage'
+    MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,  # noqa: F405
+    "whitenoise.middleware.WhiteNoiseMiddleware",
+)
+
+STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.ManifestStaticFilesStorage"  # noqa: F405

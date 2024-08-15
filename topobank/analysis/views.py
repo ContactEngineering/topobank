@@ -56,38 +56,34 @@ class AnalysisResultView(viewsets.GenericViewSet,
                          mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
     queryset = Analysis.objects.select_related('function', 'subject_dispatch__tag', 'subject_dispatch__topography',
-                                               'subject_dispatch__surface').prefetch_related('users')
+                                               'subject_dispatch__surface')
     serializer_class = AnalysisResultSerializer
+
+    def list(self, request, *args, **kwargs):
+        try:
+            controller = AnalysisController.from_request(request, **kwargs)
+        except ValueError as err:
+            return HttpResponseBadRequest(str(err))
+
+        #
+        # Trigger missing analyses
+        #
+        controller.trigger_missing_analyses()
+
+        #
+        # Get context from controller and return
+        #
+        context = controller.get_context(request=request)
+
+        return Response(context)
 
     def update(self, request, *args, **kwargs):
         """Renew existing analysis (PUT)."""
         analysis = self.get_object()
-        if analysis.is_visible_for_user(request.user):
-            new_analysis = renew_existing_analysis(analysis)
-            serializer = self.get_serializer(new_analysis)
-            return Response(serializer.data, status=status.HTTP_201_CREATED)
-        else:
-            return Response({}, status=status.HTTP_403_FORBIDDEN)
-
-
-@api_view(['GET'])
-def query_analyses(request, **kwargs):
-    try:
-        controller = AnalysisController.from_request(request, **kwargs)
-    except ValueError as err:
-        return HttpResponseBadRequest(str(err))
-
-    #
-    # Trigger missing analyses
-    #
-    controller.trigger_missing_analyses()
-
-    #
-    # Get context from controller and return
-    #
-    context = controller.get_context(request=request)
-
-    return Response(context)
+        analysis.authorize_user(request.user)
+        new_analysis = renew_existing_analysis(analysis)
+        serializer = self.get_serializer(new_analysis)
+        return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 @api_view(['GET'])
@@ -427,8 +423,7 @@ def data(request, pk, location):
     except Analysis.DoesNotExist:
         raise PermissionDenied()  # This should be shown independent of whether the surface exists
 
-    if not analysis.is_visible_for_user(request.user):
-        raise PermissionDenied()
+    analysis.authorize_user(request.user)
 
     # okay, we have a valid analysis and the user is allowed to see it
 

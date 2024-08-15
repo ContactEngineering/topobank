@@ -68,11 +68,17 @@ class StrictFieldMixin:
 class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Tag
-        fields = ["url", "id", "name"]
+        fields = ["url", "id", "name", "children"]
 
     url = serializers.HyperlinkedIdentityField(
-        view_name="manager:tag-api-detail", read_only=True
+        view_name="manager:tag-api-detail", lookup_field="name", read_only=True
     )
+    children = serializers.SerializerMethodField()
+
+    def get_children(self, obj: Tag):
+        request = self.context["request"]
+        obj.authorize_user(request.user)
+        return obj.get_children()
 
 
 class FileUploadSerializer(serializers.Serializer):
@@ -331,21 +337,20 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
         # NOTE: On update (PUT) we need to check if the surface already has a property with the same name,
         # that is not the surface we are trying to update
         if method == "PUT":
-            match self.instance:
-                case None:
-                    # NOTE:This code should not be reachable.
-                    # On update, the serializer should always hold a instance
-                    pass
-                case _:
-                    if (
-                        attrs.get("surface")
-                        .properties.filter(name=attrs.get("name"))
-                        .exclude(id=self.instance.id)
-                        .exists()
-                    ):
-                        raise serializers.ValidationError(
-                            {"message": "Property names have to be unique"}
-                        )
+            if self.instance is None:
+                # NOTE:This code should not be reachable.
+                # On update, the serializer should always hold a instance
+                pass
+            else:
+                if (
+                    attrs.get("surface")
+                    .properties.filter(name=attrs.get("name"))
+                    .exclude(id=self.instance.id)
+                    .exists()
+                ):
+                    raise serializers.ValidationError(
+                        {"message": "Property names have to be unique"}
+                    )
         return attrs
 
 
@@ -396,9 +401,11 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": guardian_to_api(users[current_user])
-                if current_user in users
-                else "no-access",
+                "permission": (
+                    guardian_to_api(users[current_user])
+                    if current_user in users
+                    else "no-access"
+                ),
             },
             "other_users": [
                 {

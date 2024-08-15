@@ -33,7 +33,7 @@ def post_topography_delete(sender, instance, **kwargs):
             # The surface may no longer exist if this delete was called on a cascade from the deletion of a surface
             pass
 
-    # Topography analysis is automatically deleted, but we have to renew the corresponding surface analysis; we do
+    # The topography analysis is automatically deleted, but we have to renew the corresponding surface analysis; we do
     # this after the transaction has finished so we can check whether the surface still exists.
     surface_id = instance.surface.id
     transaction.on_commit(lambda: do_renew(surface_id))
@@ -43,5 +43,3 @@ def post_topography_delete(sender, instance, **kwargs):
 # def post_surface_save(sender, instance, **kwargs):
 #    # Since the surface appears to have changed, we need to regenerate the analyses.
 #    renew_analyses_for_subject(instance)
-
-# FIXME!!! Do we need a trigger when saving collections?

@@ -2,7 +2,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
 from guardian.utils import get_user_obj_perms_model
 from rest_framework.filters import BaseFilterBackend
-from rest_framework.permissions import SAFE_METHODS, DjangoObjectPermissions
+from rest_framework.permissions import SAFE_METHODS, BasePermission, DjangoObjectPermissions
 
 from .models import FileManifest, Surface
 
@@ -75,13 +75,12 @@ class FileManifestObjectPermissions(ParentObjectPermissions):
 
     def get_permission_responsible_object(self, obj: FileManifest):
         parent_type, parent_obj = obj.parent.get_owner()
-        match parent_type:
-            case "surface":
-                return parent_obj
-            case "topography":
-                return parent_obj.surface
-            case _:
-                raise ValueError("The parent type should be one of `surface` or `topography`")
+        if parent_type == "surface":
+            return parent_obj
+        elif parent_type == "topography":
+            return parent_obj.surface
+        else:
+            raise ValueError("The parent type should be one of `surface` or `topography`")
 
 
 # From django-rest-framework-guardian:
@@ -142,3 +141,11 @@ class ParentObjectPermissionsFilter(BaseFilterBackend):
         # Construct filter arguments that search for pk of parent model
         filter_kwargs = {f'{self.parent_property}__pk__in': user_obj_perms_queryset}
         return queryset.filter(**filter_kwargs)
+
+
+class TagPermission(BasePermission):
+    def has_object_permission(self, request, view, obj):
+        obj.authorize_user(request.user)
+        # Permissions are granted if authenticated tag returns 1 or more
+        # surfaces
+        return len(obj.get_descendant_surfaces()) > 0

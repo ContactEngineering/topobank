@@ -68,8 +68,10 @@ def download_analyses(request, ids, file_format):
         #
         # Check whether user has view permission for requested analysis
         #
-        if not analysis.is_visible_for_user(request.user):
-            return HttpResponseForbidden()
+        try:
+            analysis.authorize_user(request.user)
+        except PermissionError as e:
+            return HttpResponseForbidden(reason=str(e))
 
         #
         # Exclude analysis for surfaces having only one topography
@@ -118,7 +120,7 @@ def analyses_meta_data_dataframe(analyses, request):
     values = []
     for i, analysis in enumerate(analyses):
         subject = analysis.subject
-        surfaces = analysis.related_surfaces()
+        surfaces = analysis.get_related_surfaces()
         pubs = [surface.publication for surface in surfaces if surface.is_published]
 
         if i == 0:
@@ -184,7 +186,7 @@ def publications_urls(request, analyses):
     publication_urls = set()
     related_surfaces = set()
     for a in analyses:
-        for surface in a.related_surfaces():
+        for surface in a.get_related_surfaces():
             related_surfaces.add(surface)
     for surface in related_surfaces:
         if surface.is_published:
