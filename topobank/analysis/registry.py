@@ -22,7 +22,7 @@ import logging
 
 from django.contrib.contenttypes.models import ContentType
 
-from ..utils import Singleton
+from ..supplib.meta import Singleton
 
 _log = logging.getLogger(__name__)
 
@@ -595,7 +595,7 @@ def _get_app_config_for_obj(obj):
             if ("." not in search_path) or app:
                 break
             search_path, _ = search_path.rsplit(".", 1)
-    # FIXME: `app` should not be None, except in certain tests. Can we add some form of guard here?
+    # FIXME: `app` should not be None, except in certain supplib. Can we add some form of guard here?
     # if app is None:
     #    raise RuntimeError(f'Could not find app config for {obj.__module__}. Is the Django app installed and '
     #                       f'registered? This is likely a misconfigured Django installation.')

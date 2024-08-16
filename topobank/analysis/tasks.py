@@ -6,11 +6,11 @@ from django.conf import settings
 from django.utils import timezone
 from SurfaceTopography.Support import doi
 
+from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
 from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
-from ..utils import store_split_dict
 from .models import RESULT_FILE_BASENAME, Analysis, Configuration
 
 _log = logging.getLogger(__name__)

@@ -10,7 +10,7 @@ import logging
 import numpy as np
 
 from ..manager.models import Tag, Topography, Surface
-from ..utils import SplitDictionaryHere
+from ..supplib.dict import SplitDictionaryHere
 
 _log = logging.getLogger(__name__)
 
@@ -126,7 +126,7 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     return dict(alert_class=f"alert-{level}", message=message)
 
 
-# This function will be registered in tests by a fixture
+# This function will be registered in supplib by a fixture
 def topography_analysis_function_for_tests(
     topography: Topography,
     a: int = 1,
@@ -134,7 +134,7 @@ def topography_analysis_function_for_tests(
     progress_recorder=None,
     storage_prefix=None,
 ):
-    """This function can be registered for tests.
+    """This function can be registered for supplib.
 
     The arguments have no meaning. Result are two series.
     """
@@ -170,7 +170,7 @@ def topography_analysis_function_for_tests(
     }
 
 
-# This function will be registered in tests by a fixture
+# This function will be registered in supplib by a fixture
 def surface_analysis_function_for_tests(
     surface: Surface,
     a: int = 1,
@@ -178,7 +178,7 @@ def surface_analysis_function_for_tests(
     progress_recorder=None,
     storage_prefix=None,
 ):
-    """This function can be registered for tests."""
+    """This function can be registered for supplib."""
     return {
         "name": "Test result for test function called for surface {}.".format(surface),
         "xunit": "m",
@@ -195,11 +195,11 @@ def surface_analysis_function_for_tests(
     }
 
 
-# This function will be registered in tests by a fixture
+# This function will be registered in supplib by a fixture
 def tag_analysis_function_for_tests(
     tag: Tag, a: int = 1, b: str = "foo", progress_recorder=None, storage_prefix=None
 ):
-    """This function can be registered for tests.
+    """This function can be registered for supplib.
 
     Parameters
     ----------

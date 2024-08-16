@@ -11,20 +11,21 @@ might make sense to replace the whole Django WSGI application with a custom one
 that later delegates to the Django one. For example, you could introduce WSGI
 middleware here, or combine a Django application with an application of another
 framework.
-
 """
+
 import os
 import sys
 
 from django.core.wsgi import get_wsgi_application
 
 # If we are running without DJANGO_DEBUG, then topobank has been installed via pip
-if os.environ.get('DJANGO_DEBUG', default=False):
+if os.environ.get("DJANGO_DEBUG", default=False):
     # This allows easy placement of apps within the interior
     # topobank directory when running in debug mode.
-    app_path = os.path.abspath(os.path.join(
-        os.path.dirname(os.path.abspath(__file__)), os.pardir))
-    sys.path.append(os.path.join(app_path, 'topobank'))
+    app_path = os.path.abspath(
+        os.path.join(os.path.dirname(os.path.abspath(__file__)), os.pardir)
+    )
+    sys.path.append(os.path.join(app_path, "topobank"))
 
 # We defer to a DJANGO_SETTINGS_MODULE already in the environment. This breaks
 # if running multiple sites in the same mod_wsgi process. To fix this, use

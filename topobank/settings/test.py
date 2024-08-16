@@ -1,5 +1,5 @@
 """
-With these settings, tests run faster.
+With these settings, supplib run faster.
 """
 
 from .base import *  # noqa
@@ -57,13 +57,13 @@ EMAIL_PORT = 1025
 
 # STORAGE
 # ------------------------------------------------------------------------------
-# We want to use a storage driver in memory in order to be able to use it in tests
+# We want to use a storage driver in memory in order to be able to use it in supplib
 USE_S3_STORAGE = False
 STORAGES["default"]["BACKEND"] = "inmemorystorage.InMemoryStorage"  # noqa: F405
 
 # CELERY
 # ------------------------------------------------------------------------------
-# All celery tasks need to execute immediately because we want to run tests
+# All celery tasks need to execute immediately because we want to run supplib
 # without needing a message queue
 # https://docs.celeryq.dev/en/stable/userguide/configuration.html#task-always-eager
 CELERY_TASK_ALWAYS_EAGER = True
@@ -134,7 +134,7 @@ DATABASES = {
 # - 'webgl': Accelerates some plots using WebGL
 BOKEH_OUTPUT_BACKEND = "canvas"
 
-# Enable usage stats in tests
+# Enable usage stats in supplib
 if not ENABLE_USAGE_STATS:  # noqa: F405
     ENABLE_USAGE_STATS = True  # noqa: F405
     MIDDLEWARE += [  # noqa: F405

@@ -512,12 +512,6 @@ TRACKED_DEPENDENCIES += [
         "MIT",
         "https://github.com/ContactEngineering/SurfaceTopography",
     ),
-    (
-        "ContactMechanics",
-        "ContactMechanics.__version__",
-        "MIT",
-        "https://github.com/ContactEngineering/ContactMechanics",
-    ),
     ("NuMPI", "NuMPI.__version__", "MIT", "https://github.com/IMTEK-Simulation/NuMPI"),
     ("muFFT", "muFFT.__version__", "LGPL-3.0", "https://github.com/muSpectre/muFFT"),
     ("numpy", "numpy.__version__", "BSD 3-Clause", "https://numpy.org/"),
@@ -560,7 +554,6 @@ TRACKED_DEPENDENCIES += [
         "Apache 2.0",
         "https://boto3.amazonaws.com/v1/documentation/api/latest/index.html",
     ),
-    ("redis", "redis.__version__", "MIT", "https://redis.io/"),
     (
         "rest_framework",
         "rest_framework.__version__",

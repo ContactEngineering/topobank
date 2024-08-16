@@ -42,6 +42,7 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
+from ..supplib.storage import recursive_delete
 from ..users.models import User
 from .utils import (
     api_to_guardian,
@@ -49,8 +50,7 @@ from .utils import (
     generate_upload_path,
     get_topography_reader,
     guardian_to_api,
-    make_dzi,
-    recursive_delete,
+    make_dzi
 )
 
 _log = logging.getLogger(__name__)
@@ -962,7 +962,7 @@ class Topography(TaskStateModel, SubjectMixin):
         ):
             # We don't have an `id` but are trying to save a model with a data file; this does not work because the
             # `storage_prefix`  contains the `id`. (The `id` only becomes available once the model instance has
-            # been saved.) Note that this situation is only relevant for tests.
+            # been saved.) Note that this situation is only relevant for supplib.
             datafile = self.datafile
             squeezed_datafile = self.squeezed_datafile
             thumbnail = self.thumbnail
