@@ -142,12 +142,6 @@ def test_current_configuration(settings):
             "https://github.com/ContactEngineering/SurfaceTopography",
         ),
         (
-            "ContactMechanics",
-            "ContactMechanics.__version__",
-            "MIT",
-            "https://github.com/ContactEngineering/ContactMechanics",
-        ),
-        (
             "NuMPI",
             "NuMPI.__version__",
             "MIT",
@@ -173,14 +167,9 @@ def test_current_configuration(settings):
     versions = config.versions.order_by(Lower("dependency__import_name"))
     # Lower: Just to have a defined order independent of database used
 
-    assert len(versions) == 6
+    assert len(versions) == 5
 
-    v0, v1, v2, v3, v4, v5 = versions
-
-    import ContactMechanics
-
-    assert v0.dependency.import_name == "ContactMechanics"
-    assert v0.number_as_string() == ContactMechanics.__version__
+    v1, v2, v3, v4, v5 = versions
 
     import muFFT
 
