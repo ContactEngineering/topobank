@@ -200,7 +200,7 @@ def submit_analysis(user, analysis_func, subject, pyfunc_kwargs=None):
     )
 
     # Send task to the queue if the analysis has been created
-    # Note: on_commit will not execute in tests, unless transaction=True is added to pytest.mark.django_db
+    # Note: on_commit will not execute in supplib, unless transaction=True is added to pytest.mark.django_db
     _log.debug(f"Submitting task for analysis {analysis.id}...")
     transaction.on_commit(lambda: perform_analysis.delay(analysis.id))
 

@@ -11,10 +11,10 @@ from django.db import models
 from django.utils import timezone
 
 from ..manager.models import Surface, Tag, Topography
-from ..manager.utils import recursive_delete
+from ..supplib.dict import load_split_dict, store_split_dict
+from ..supplib.storage import recursive_delete
 from ..taskapp.models import Configuration, TaskStateModel
 from ..users.models import User
-from ..utils import load_split_dict, store_split_dict
 from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
 
 RESULT_FILE_BASENAME = "result"

@@ -1,9 +1,11 @@
 # Changelog for *TopoBank*
 
-## 1.9.0 (not yet released)
+## 1.50.0 (not yet released)
 
 - ENH: Surfaces are now returned for all tag children
 - BUG: Avoid properties of identical name
+- TST: Refactored all tests into a new toplevel directory (#1123)
+- TST: Testing with sqlite (#1124)
 
 ## 1.8.1 (2024-07-13)
 
