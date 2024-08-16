@@ -49,7 +49,7 @@ USE_TZ = True
 postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
     DATABASES = {
-        "default": env.db("DATABASE_URL", default="postgres:///test_topobank-test")
+        "default": env.db("DATABASE_URL", default="sqlite:///topobank.sqlite3")
     }
 else:
     DATABASES = {
