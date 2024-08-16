@@ -5,7 +5,6 @@ Test for results view.
 import datetime
 import tempfile
 
-import ContactMechanics
 import muFFT
 import NuMPI
 import numpy as np
@@ -324,7 +323,6 @@ def test_analysis_download_as_txt(
 
     # check whether version numbers are in there
     assert SurfaceTopography.__version__.split("+")[0] in txt
-    assert ContactMechanics.__version__ in txt
     assert NuMPI.__version__ in txt
     assert muFFT.version.description() in txt
     assert topobank.__version__ in txt
