@@ -29,6 +29,7 @@ from trackstats.models import Metric, Period
 
 from topobank.manager.file_upload import FileUploadService
 
+from ..authorization.utils import api_to_guardian
 from ..supplib.versions import get_versions
 from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
@@ -57,7 +58,7 @@ from .serializers import (
     TopographySerializer,
 )
 from .tasks import import_container_from_url
-from .utils import api_to_guardian, get_upload_instructions
+from .utils import get_upload_instructions
 
 _log = logging.getLogger(__name__)
 

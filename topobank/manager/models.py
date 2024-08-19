@@ -40,16 +40,15 @@ from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
+from ..authorization.utils import api_to_guardian, guardian_to_api
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..supplib.storage import recursive_delete
 from ..users.models import User
 from .utils import (
-    api_to_guardian,
     dzi_exists,
     generate_upload_path,
     get_topography_reader,
-    guardian_to_api,
     make_dzi
 )
 

@@ -512,60 +512,6 @@ def get_upload_instructions(instance, name, expire, method=None):
     return upload_instructions
 
 
-def api_to_guardian(api_permission):
-    """
-    Translate a REST API permissions to a list of Django guardian permissions.
-    The API exposes the following permissions:
-        'no-access': No access to the dataset
-        'view': Basic view access, corresponding to 'view_surface'
-        'edit': Edit access, corresponding to 'view_surface' and
-            'change_surface'
-        'full': Full access (essentially transfer), corresponding to
-            'view_surface', 'change_surface', 'delete_surface',
-            'share_surface' and 'publish_surface'
-    """
-    _permissions = {
-        "no-access": [],
-        "view": ["view_surface"],
-        "edit": ["view_surface", "change_surface"],
-        "full": [
-            "view_surface",
-            "change_surface",
-            "delete_surface",
-            "share_surface",
-            "publish_surface",
-        ],
-    }
-
-    return _permissions[api_permission]
-
-
-def guardian_to_api(guardian_permissions):
-    """
-    Translate a list of Django guardian permissions to an API permission
-    keyword. The API exposes the following permissions:
-        'no-access': No access to the dataset
-        'view': Basic view access, corresponding to 'view_surface'
-        'edit': Edit access, corresponding to 'view_surface' and
-            'change_surface'
-        'full': Full access (essentially transfer), corresponding to
-            'view_surface', 'change_surface', 'delete_surface',
-            'share_surface' and 'publish_surface'
-    """
-
-    api_permission = "no-access"
-    if "view_surface" in guardian_permissions:
-        api_permission = "view"
-        if "change_surface" in guardian_permissions:
-            api_permission = "edit"
-            if (
-                "delete_surface" in guardian_permissions
-                and "share_surface" in guardian_permissions
-                and "publish_surface" in guardian_permissions
-            ):
-                api_permission = "full"
-    return api_permission
-
 
 def generate_upload_path(instance, file_name: str) -> str:
     owner_type, owner_obj = instance.parent.get_owner()

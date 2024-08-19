@@ -6,10 +6,10 @@ from guardian.shortcuts import get_users_with_perms
 from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
+from ..authorization.utils import guardian_to_api
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
 from .models import FileManifest, FileParent, Property, Surface, Tag, Topography
-from .utils import guardian_to_api
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
