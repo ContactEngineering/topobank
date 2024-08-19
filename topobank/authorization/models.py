@@ -7,18 +7,35 @@ from jedi import InternalError
 
 from ..users.models import User
 
+# The types of permissions
+PERMISSION_CHOICES = [
+    ("read", "Read-only access"),
+    ("edit", "Change the model data"),
+    ("full", "Grant/revoke permissions of other users"),
+]
+
+# Integers for access levels for comparisons in authorization:
+# Access is granted if the access level is higher or equal to the
+# requested level
+ACCESS_LEVELS = {
+    None: 0,
+    PERMISSION_CHOICES[0][1]: 1,
+    PERMISSION_CHOICES[1][1]: 2,
+    PERMISSION_CHOICES[2][1]: 3,
+}
+
 
 class PermissionSet(models.Model):
     """A set of permissions"""
 
-    # Currently we only have per-user permissions, but it is forseeable that
+    # Currently we only have per-user permissions, but it is foreseeable that
     # we will have per-organization permissions at some point in the
     # future.
 
     # The following reverse relations exist
     # permissions: Actual permission(s), per user
 
-    def for_user(self, user):
+    def get_for_user(self, user):
         """Return permissions of a specific user"""
         permissions = self.user_permissions.filter(user=user)
         nb_permissions = len(permissions)
@@ -28,15 +45,8 @@ class PermissionSet(models.Model):
             return permissions.first()
         else:
             raise InternalError(
-                f"More than one permission found for user {other_user}. "
+                f"More than one permission found for user {user}. "
                 "This should not happen."
-            )
-
-    def authorize_user(self, user):
-        if self.for_user(user) != "full":
-            raise PermissionError(
-                f"User {user} has no permission to grant/revoke permissions from this "
-                f"set."
             )
 
     def grant_for_user(self, user, allow):
@@ -60,6 +70,15 @@ class PermissionSet(models.Model):
         """Revoke all permissions from user"""
         self.user_permissions.filter(user=user).delete()
 
+    def authorize_user(self, user, allow):
+        """Authorize user for access level given by `allow`"""
+        perm = self.get_for_user(user)
+        if ACCESS_LEVELS[perm] < ACCESS_LEVELS[allow]:
+            raise PermissionError(
+                f"User {user} has permission '{perm}', cannot elevate to permission "
+                f"'{allow}'."
+            )
+
 
 class UserPermission(models.Model):
     """Single permission for a specific user"""
@@ -75,13 +94,6 @@ class UserPermission(models.Model):
 
     # User that this permission relates to
     user = models.ForeignKey(User, on_delete=models.CASCADE)
-
-    # The types of permissions
-    PERMISSION_CHOICES = [
-        ("read", "Read-only access"),
-        ("edit", "Change the model data"),
-        ("full", "Grant/revoke permissions of other users"),
-    ]
 
     # The actual permission
     allow = models.CharField(max_length=4, choices=PERMISSION_CHOICES)

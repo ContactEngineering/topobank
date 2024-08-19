@@ -1,7 +1,7 @@
 from django.apps import AppConfig
 
 
-class AnalysisAppConfig(AppConfig):
+class AuthorizationAppConfig(AppConfig):
     name = 'topobank.authorization'
 
     def ready(self):

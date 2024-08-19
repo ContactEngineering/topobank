@@ -1,9 +1,18 @@
 from rest_framework.permissions import BasePermission
 
 
-class TagPermission(BasePermission):
+class Permission(BasePermission):
+    METHOD_TO_PERM = {
+        "GET": "read",
+        "OPTIONS": "read",
+        "HEAD": "read",
+        "POST": "edit",
+        "PUT": "edit",
+        "PATCH": "edit",
+        "DELETE": "edit",
+    }
+
     def has_object_permission(self, request, view, obj):
-        obj.authorize_user(request.user)
-        # Permissions are granted if authenticated tag returns 1 or more
-        # surfaces
-        return len(obj.get_descendant_surfaces()) > 0
+        obj.permissions.authorize_user(
+            request.user, self.METHOD_TO_PERM[request.method]
+        )

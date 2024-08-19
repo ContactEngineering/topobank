@@ -40,6 +40,7 @@ from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
+from ..authorization.models import PermissionSet
 from ..authorization.utils import api_to_guardian, guardian_to_api
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
@@ -60,7 +61,6 @@ post_renew_cache = django.dispatch.Signal()
 MAX_LENGTH_DATAFILE_FORMAT = (
     15  # some more characters than currently needed, we may have sub formats in future
 )
-MAX_NUM_POINTS_FOR_SYMBOLS_IN_LINE_SCAN_PLOT = 100
 SQUEEZED_DATAFILE_FORMAT = "nc"
 
 # Detect whether we are running within a Celery worker. This solution was suggested here:
@@ -332,8 +332,26 @@ class Surface(models.Model, SubjectMixin):
         for k in ["cc0-1.0", "ccby-4.0", "ccbysa-4.0"]
     ]
 
+    class Meta:
+        ordering = ["name"]
+        permissions = (
+            ("share_surface", "Can share surface"),
+            ("publish_surface", "Can publish surface"),
+        )
+
+    #
+    # Manager
+    #
     objects = SurfaceManager()
 
+    #
+    # Model permissions
+    #
+    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+
+    #
+    # Model data
+    #
     name = models.CharField(max_length=80, blank=True)
     creator = models.ForeignKey(User, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
@@ -343,13 +361,6 @@ class Surface(models.Model, SubjectMixin):
     tags = tm.TagField(to=Tag)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
-
-    class Meta:
-        ordering = ["name"]
-        permissions = (
-            ("share_surface", "Can share surface"),
-            ("publish_surface", "Can publish surface"),
-        )
 
     def __str__(self):
         s = self.name
@@ -592,13 +603,21 @@ class Property(models.Model):
         unique_together = (("surface", "name"),)
         verbose_name_plural = "properties"
 
+    #
+    # Model hierarchy and permissions
+    #
+    surface = models.ForeignKey(
+        Surface, on_delete=models.CASCADE, related_name="properties"
+    )
+    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+
+    #
+    # Model data
+    #
     name = models.TextField(default="prop")
     value_categorical = models.CharField(blank=True, null=True)
     value_numerical = models.FloatField(blank=True, null=True)
     unit = models.TextField(null=True, blank=True)
-    surface = models.ForeignKey(
-        Surface, on_delete=models.CASCADE, related_name="properties"
-    )
 
     @property
     def value(self):
@@ -722,12 +741,6 @@ class Topography(TaskStateModel, SubjectMixin):
     A single topography measurement of a surface of a specimen.
     """
 
-    # TODO After upgrade to Django 2.2, use constraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
-    class Meta:
-        ordering = ["measurement_date", "pk"]
-        unique_together = (("surface", "name"),)
-        verbose_name_plural = "topographies"
-
     celery_queue = settings.TOPOBANK_MANAGER_QUEUE
 
     LENGTH_UNIT_CHOICES = [
@@ -782,13 +795,21 @@ class Topography(TaskStateModel, SubjectMixin):
         ),
     ]
 
-    verbose_name = "measurement"
-    verbose_name_plural = "measurements"
+    class Meta:
+        ordering = ["measurement_date", "pk"]
+        unique_together = (("surface", "name"),)
+        verbose_name = "measurement"
+        verbose_name_plural = "measurements"
+
+    #
+    # Model hierarchy and permissions
+    #
+    surface = models.ForeignKey(Surface, on_delete=models.CASCADE)
+    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
 
     #
     # Descriptive fields
     #
-    surface = models.ForeignKey("Surface", on_delete=models.CASCADE)
     name = models.TextField(
         blank=True
     )  # This must be identical to the file name on upload

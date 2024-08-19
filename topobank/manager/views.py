@@ -30,6 +30,7 @@ from trackstats.models import Metric, Period
 from topobank.manager.file_upload import FileUploadService
 
 from ..authorization.utils import api_to_guardian
+from ..authorization.permissions import Permission
 from ..supplib.versions import get_versions
 from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
@@ -83,7 +84,7 @@ class PropertyViewSet(
 ):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
-    permission_classes = [ParentObjectPermissions]
+    permission_classes = [Permission]
 
 
 class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -116,7 +117,7 @@ class SurfaceViewSet(
     viewsets.GenericViewSet,
 ):
     serializer_class = SurfaceSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermissions]
+    permission_classes = [Permission]
 
     def _notify(self, instance, verb):
         user = self.request.user
@@ -168,7 +169,7 @@ class TopographyViewSet(
     EXPIRE_UPLOAD = 100  # Presigned key for uploading expires after 10 seconds
 
     serializer_class = TopographySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, ParentObjectPermissions]
+    permission_classes = [Permission]
 
     def _notify(self, instance, verb):
         user = self.request.user
