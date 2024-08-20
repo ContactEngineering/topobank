@@ -6,13 +6,13 @@ and other things in topobank.manager.utils
 import pytest
 
 from topobank.manager.models import Surface, Topography
-from topobank.testing.factories import SurfaceFactory, UserFactory
 from topobank.manager.utils import (
     subjects_from_base64,
     subjects_from_dict,
     subjects_to_base64,
     subjects_to_dict,
 )
+from topobank.testing.factories import SurfaceFactory, UserFactory
 
 
 def test_subjects_to_dict(user_three_topographies_three_surfaces_three_tags):
@@ -59,12 +59,12 @@ def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
     )
     assert_same_surface_lists(Surface.objects.for_user(user2), [surface4, surface5])
     assert_same_surface_lists(
-        Surface.objects.for_user(user1, perms=["view_surface", "change_surface"]),
+        Surface.objects.for_user(user1, "edit"),
         [surface1, surface2, surface3],
     )
 
     surface4.set_permissions(user1, "edit")
     assert_same_surface_lists(
-        Surface.objects.for_user(user1, perms=["view_surface", "change_surface"]),
+        Surface.objects.for_user(user1, "edit"),
         [surface1, surface2, surface3, surface4],
     )

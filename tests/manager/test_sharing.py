@@ -63,9 +63,7 @@ def test_individual_read_access_permissions(
     # Now grant access and user 2 should be able to access
     #
 
-    from guardian.shortcuts import assign_perm
-
-    assign_perm("view_surface", user_2, surface)
+    surface.grant_permission_for_user(user_2, "view")
 
     assert api_client.login(username=username_2, password=password)
     response = api_client.get(surface_detail_url)

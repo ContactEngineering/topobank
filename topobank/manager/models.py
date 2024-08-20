@@ -26,32 +26,20 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
 from django.db import models
-from rest_framework.reverse import reverse
 from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
-from guardian.shortcuts import (
-    assign_perm,
-    get_perms,
-    get_users_with_perms,
-    remove_perm,
-    get_objects_for_user,
-)
 from notifications.signals import notify
+from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
-from ..authorization.models import PermissionSet
-from ..authorization.utils import api_to_guardian, guardian_to_api
+from ..authorization.mixins import PermissionMixin
+from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFullNone
+from ..supplib.storage import recursive_delete
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
-from ..supplib.storage import recursive_delete
 from ..users.models import User
-from .utils import (
-    dzi_exists,
-    generate_upload_path,
-    get_topography_reader,
-    make_dzi
-)
+from .utils import dzi_exists, generate_upload_path, get_topography_reader, make_dzi
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -117,7 +105,7 @@ class SubjectMixin:
         """Returns a human readable name for this subject type."""
         return cls._meta.model_name
 
-    def is_shared(self, with_user, allow_change=False):
+    def is_shared(self, user: User) -> bool:
         """Returns True, if this subject is shared with a given user.
 
         Always returns True if user is the creator of the related surface.
@@ -140,19 +128,6 @@ class SubjectMixin:
         """
         raise NotImplementedError()
 
-    def get_users_with_perms(self):
-        """Return users with any permission on this subject.
-
-        Returns
-        -------
-        users : Queryset of users
-            All users that have some form of permission (view, full, etc.) on
-            this subject.
-        """
-        return User.objects.intersection(
-            *tuple(get_users_with_perms(s) for s in self.get_related_surfaces())
-        )
-
 
 class Tag(tm.TagTreeModel, SubjectMixin):
     """This is the common tag model for surfaces and topographies."""
@@ -167,7 +142,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
     def authorize_user(self, user):
         self._user = user
 
-    def is_shared(self, with_user, allow_change=False):
+    def is_shared(self, user: User) -> bool:
         return True  # Tags are generally shared, but the surfaces may not
 
     def get_related_surfaces(self):
@@ -301,20 +276,7 @@ class TopobankLazySurfaceContainer(SurfaceContainer):
         return self._topographies[item].read()
 
 
-class SurfaceManager(models.Manager):
-    def for_user(self, user: User, perms: list[str] = ["view_surface"]):
-        """Return a queryset of all surfaces, the user has *all* given permissions.
-
-        :param user: user for which we want to know the surfaces
-        :param perms: list of permission codenames, default is ['view_surface']
-        :return: queryset of surfaces
-        """
-        return get_objects_for_user(
-            user, perms, klass=Surface, accept_global_perms=False
-        )
-
-
-class Surface(models.Model, SubjectMixin):
+class Surface(PermissionMixin, models.Model, SubjectMixin):
     """
     A physical surface of a specimen.
 
@@ -342,10 +304,10 @@ class Surface(models.Model, SubjectMixin):
     #
     # Manager
     #
-    objects = SurfaceManager()
+    objects = AuthorizedManager()
 
     #
-    # Model permissions
+    # Permissions
     #
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
 
@@ -378,10 +340,6 @@ class Surface(models.Model, SubjectMixin):
             return []
         return self.fileparent.get_valid_files()
 
-    def authorize_user(self, user):
-        if not user.has_perm("view_surface", self):
-            raise PermissionError(f"User {user} does not have permission to view this surface")
-
     def get_related_surfaces(self):
         return [self]
 
@@ -396,20 +354,13 @@ class Surface(models.Model, SubjectMixin):
 
     def save(self, *args, **kwargs):
         created = self.pk is None
+        if created:
+            # Create a new permission set for this dataset
+            self.permissions = PermissionSet.objects.create()
         super().save(*args, **kwargs)
         if created:
-            self.grant_permissions_to_creator()
-
-    def grant_permissions_to_creator(self):
-        """Grant all permissions for this surface to its creator."""
-        for perm in [
-            "view_surface",
-            "change_surface",
-            "delete_surface",
-            "share_surface",
-            "publish_surface",
-        ]:
-            assign_perm(perm, self.creator, self)
+            # Grant permissions to creator
+            self.permissions.grant_for_user(self.creator, "full")
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml.
@@ -449,31 +400,28 @@ class Surface(models.Model, SubjectMixin):
             d["properties"] = [p.to_dict() for p in self.properties.all()]
         return d
 
-    def get_permissions(self, with_user):
+    def get_permissions(self, user):
         """
         Return current access permissions.
 
 
         Parameters
         ----------
-        with_user : User object
+        user : User object
             User to share the surface with.
 
         Returns
         -------
         permissions : str
             Permissions string
-                'no-access': No access to the dataset
-                'view': Basic view access, corresponding to 'view_surface'
-                'edit': Edit access, corresponding to 'view_surface' and
-                    'change_surface'
-                'full': Full access (essentially transfer), corresponding to
-                    'view_surface', 'change_surface', 'delete_surface',
-                    'share_surface' and 'publish_surface':
+                None: No access to the dataset
+                'view': Basic view access
+                'edit': Edit access
+                'full': Full access (essentially transfer)
         """
-        return guardian_to_api(get_perms(with_user, self))
+        self.permissions.get_for_user(user)
 
-    def is_shared(self, with_user):
+    def is_shared(self, user: User) -> bool:
         """
         Returns True if this surface is shared with a given user.
 
@@ -481,7 +429,7 @@ class Surface(models.Model, SubjectMixin):
 
         Parameters
         ----------
-        with_user : User
+        user : User
             The user to check for sharing status.
 
         Returns
@@ -489,46 +437,38 @@ class Surface(models.Model, SubjectMixin):
         bool
             True if the surface is shared with the given user, False otherwise.
         """
-        return self.get_permissions(with_user) != "no-access"
+        return self.get_permissions(user) is not None
 
-    def set_permissions(self, with_user, permissions):
+    def set_permissions(self, user: User, allow: ViewEditFullNone):
         """
         Set permissions for access to this surface for a given user.
         This is equivalent to sharing the dataset.
 
         Parameters
         ----------
-        with_user : User object
+        user : User object
             User to share the surface with.
-        permissions : str
+        allow : str
             Permissions string
-                'no-access': No access to the dataset
-                'view': Basic view access, corresponding to 'view_surface'
-                'edit': Edit access, corresponding to 'view_surface' and
-                    'change_surface'
-                'full': Full access (essentially transfer), corresponding to
-                    'view_surface', 'change_surface', 'delete_surface',
-                    'share_surface' and 'publish_surface'
+                Nonw: No access to the dataset
+                'view': Basic view access
+                'edit': Edit access
+                'full': Full access (essentially transfer)
         """
         if self.is_published:
             raise PermissionError(
-                "Permissions of a published digital surface twin cannot be changed."
+                "Permissions of a published dataset cannot be changed."
             )
 
-        all_perms = set(api_to_guardian("full"))
-        user_perms = set(api_to_guardian(permissions))
+        if allow is None:
+            self.permissions.revoke_from_user(user)
+        else:
+            self.permissions.grant_for_user(user, allow)
 
-        # Revoke all permissions not in the set
-        for perm in all_perms - user_perms:
-            remove_perm(perm, with_user, self)
-
-        # Assign all permissions
-        for perm in user_perms:
-            assign_perm(perm, with_user, self)
-
-    def share(self, with_user):
-        """Set permissions for read-only access to this surface for a given
-        user. This is equivalent to sharing the dataset.
+    def share(self, with_user: User):
+        """
+        Set permissions for read-only access to this surface for a given user. This is
+        equivalent to sharing the dataset.
 
         Parameters
         ----------
@@ -537,16 +477,17 @@ class Surface(models.Model, SubjectMixin):
         """
         self.set_permissions(with_user, "view")
 
-    def unshare(self, with_user):
-        """Revoke access to this surface for a given user.
-        This is equivalent to unsharing the dataset.
+    def unshare(self, with_user: User):
+        """
+        Revoke access to this surface for a given user. This is equivalent to
+        unsharing the dataset.
 
         Parameters
         ----------
         with_user : User object
             User to share the surface with.
         """
-        self.set_permissions(with_user, "no-access")
+        self.set_permissions(with_user, None)
 
     def deepcopy(self):
         """Creates a copy of this surface with all topographies and meta data.
@@ -598,7 +539,7 @@ class Surface(models.Model, SubjectMixin):
         return TopobankLazySurfaceContainer(self)
 
 
-class Property(models.Model):
+class Property(PermissionMixin, models.Model):
     class Meta:
         unique_together = (("surface", "name"),)
         verbose_name_plural = "properties"
@@ -736,7 +677,7 @@ def topography_thumbnail_path(instance, filename):
     return f"{instance.storage_prefix}/thumbnail/{filename}"
 
 
-class Topography(TaskStateModel, SubjectMixin):
+class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     """
     A single topography measurement of a surface of a specimen.
     """
@@ -804,8 +745,8 @@ class Topography(TaskStateModel, SubjectMixin):
     #
     # Model hierarchy and permissions
     #
-    surface = models.ForeignKey(Surface, on_delete=models.CASCADE)
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    surface = models.ForeignKey(Surface, on_delete=models.CASCADE)
 
     #
     # Descriptive fields
@@ -924,10 +865,6 @@ class Topography(TaskStateModel, SubjectMixin):
     #
     # Methods
     #
-    def authorize_user(self, user):
-        if not user.has_perm("view_surface", self.surface):
-            raise PermissionError(f"User {user} does not have permission to view this topography")
-
     def save(self, *args, **kwargs):
         if self.creator is None:
             self.creator = self.surface.creator
@@ -1148,17 +1085,17 @@ class Topography(TaskStateModel, SubjectMixin):
             "manager:topography-api-detail", kwargs=dict(pk=self.pk), request=request
         )
 
-    def is_shared(self, with_user):
+    def is_shared(self, user: User) -> bool:
         """Returns True, if this topography is shared with a given user.
 
         Just returns whether the related surface is shared with the user
         or not.
 
-        :param with_user: User to test
+        :param user: User to test
         :param allow_change: If True, only return True if topography can be changed by given user
         :return: True or False
         """
-        return self.surface.is_shared(with_user)
+        return self.permissions.get_for_user(user) is not None
 
     @staticmethod
     def _clean_instrument_parameters(params):
@@ -1610,12 +1547,15 @@ class Topography(TaskStateModel, SubjectMixin):
         )
 
     def notify_users_with_perms(self, verb, description):
-        other_users = get_users_with_perms(self.surface).filter(
-            ~models.Q(id=self.creator.id)
+        other_users = self.permissions.user_permissions.filter(
+            ~models.Q(user=self.creator)
         )
-        for u in other_users:
+        for perm in other_users:
             notify.send(
-                sender=self.creator, recipient=u, verb=verb, description=description
+                sender=self.creator,
+                recipient=perm.user,
+                verb=verb,
+                description=description,
             )
 
     def renew_cache(self):

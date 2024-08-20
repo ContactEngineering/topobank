@@ -2,11 +2,9 @@ import logging
 
 import pint
 from django.utils.translation import gettext_lazy as _
-from guardian.shortcuts import get_users_with_perms
 from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from ..authorization.utils import guardian_to_api
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
 from .models import FileManifest, FileParent, Property, Surface, Tag, Topography
@@ -225,19 +223,19 @@ class TopographySerializer(StrictFieldMixin,
     def get_permissions(self, obj):
         request = self.context["request"]
         current_user = request.user
-        users = get_users_with_perms(obj.surface, attach_perms=True)
+        user_permissions = obj.permissions.user_permissions.all()
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": guardian_to_api(users[current_user]),
+                "permission": obj.get_permission_for_user(current_user)
             },
             "other_users": [
                 {
-                    "user": UserSerializer(key, context=self.context).data,
-                    "permission": guardian_to_api(value),
+                    "user": UserSerializer(perm.user, context=self.context).data,
+                    "permission": perm.allow
                 }
-                for key, value in users.items()
-                if key != current_user
+                for perm in user_permissions
+                if perm.user != current_user
             ],
         }
 
@@ -397,22 +395,18 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     def get_permissions(self, obj):
         request = self.context["request"]
         current_user = request.user
-        users = get_users_with_perms(obj, attach_perms=True)
+        user_permissions = obj.permissions.user_permissions.all()
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": (
-                    guardian_to_api(users[current_user])
-                    if current_user in users
-                    else "no-access"
-                ),
+                "permission": obj.get_permission_for_user(current_user)
             },
             "other_users": [
                 {
-                    "user": UserSerializer(key, context=self.context).data,
-                    "permission": guardian_to_api(value),
+                    "user": UserSerializer(perm.user, context=self.context).data,
+                    "permission": perm.allow
                 }
-                for key, value in users.items()
-                if key != current_user
+                for perm in user_permissions
+                if perm.user != current_user
             ],
         }

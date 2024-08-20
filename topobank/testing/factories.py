@@ -9,11 +9,10 @@ from django.contrib.contenttypes.models import ContentType
 from SurfaceTopography import NonuniformLineScan as STNonuniformLineScan
 from SurfaceTopography import Topography as STTopography
 
-from .data import FIXTURE_DATA_DIR
-
 from ..analysis.models import Analysis, AnalysisFunction, AnalysisSubject
-from ..manager.models import Surface, Topography, Tag, Property
+from ..manager.models import Property, Surface, Tag, Topography
 from ..organizations.models import Organization
+from .data import FIXTURE_DATA_DIR
 
 _log = logging.getLogger(__name__)
 
@@ -115,6 +114,7 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Topography
 
+    permissions = factory.SelfAttribute("surface.permissions")
     surface = factory.SubFactory(SurfaceFactory)
     # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{:05d}".format(n))

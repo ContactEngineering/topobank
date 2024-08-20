@@ -4,7 +4,12 @@ from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from django.db.models import Q
 
-from ..manager.utils import dict_from_base64, subjects_from_dict, subjects_to_base64, subjects_to_dict
+from ..manager.utils import (
+    dict_from_base64,
+    subjects_from_dict,
+    subjects_to_base64,
+    subjects_to_dict,
+)
 from .models import Analysis, AnalysisFunction, AnalysisSubject
 from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
 from .serializers import AnalysisResultSerializer
@@ -57,6 +62,7 @@ def renew_analyses_for_subject(subject, recursive=True, run_analyses=True):
         Actually trigger running the analyses. If not enabled, this function
         will only clear old/stale analyses results (Default: True)
     """
+    return
     analysis_funcs = AnalysisFunction.objects.all()
 
     # collect users which are allowed to use these analyses by default

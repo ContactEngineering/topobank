@@ -12,12 +12,12 @@ from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.manager.models import Topography
 from topobank.testing.factories import (
     FIXTURE_DATA_DIR,
+    SurfaceAnalysisFactory,
     SurfaceFactory,
     Topography1DFactory,
-    UserFactory,
-    SurfaceAnalysisFactory,
     Topography2DFactory,
     TopographyAnalysisFactory,
+    UserFactory,
 )
 from topobank.testing.utils import upload_file
 
@@ -108,7 +108,8 @@ def test_renewal_on_topography_change(
     # Update data
     changed_data_for_post.update(changed_values_dict)  # here is a change at least
 
-    # if we post the initial data, nothing should have been changed, so no actions should be triggered
+    # if we post the initial data, nothing should have been changed, so no actions
+    # should be triggered
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = api_client.patch(
             reverse("manager:topography-api-detail", kwargs=dict(pk=topo.pk)),

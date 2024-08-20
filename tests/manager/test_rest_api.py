@@ -25,10 +25,10 @@ def test_surface_retrieve_routes(
     surface2 = topo2.surface
 
     anonymous_user = get_anonymous_user()
-    assert not anonymous_user.has_perm("view_surface", surface1)
-    assert not anonymous_user.has_perm("view_surface", surface2)
-    assert user.has_perm("view_surface", surface1)
-    assert user.has_perm("view_surface", surface2)
+    assert surface1.get_permission_for_user(anonymous_user) is None
+    assert surface2.get_permission_for_user(anonymous_user) is None
+    assert surface1.get_permission_for_user(user) == "full"
+    assert surface2.get_permission_for_user(user) == "full"
 
     if is_authenticated:
         api_client.force_authenticate(user)
@@ -454,7 +454,7 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     assert Surface.objects.count() == 2
 
     # Delete of a surface of another user is possible with full access
-    surface2.set_permissions(user1, "full")
+    surface2.set_permissions(user, "full")
     response = api_client.delete(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface2.id))
     )

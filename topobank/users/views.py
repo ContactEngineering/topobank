@@ -1,5 +1,4 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
-from django.core.exceptions import PermissionDenied
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, RedirectView, UpdateView
 from rest_framework import mixins, viewsets
@@ -7,7 +6,6 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
 from .models import User
 from .serializers import UserSerializer
-from .utils import are_collaborating
 
 
 class UserViewSet(mixins.RetrieveModelMixin,
@@ -32,10 +30,7 @@ class UserDetailView(LoginRequiredMixin, DetailView):
     slug_url_kwarg = "username"
 
     def dispatch(self, request, *args, **kwargs):
-        user_to_view = User.objects.get(username=kwargs['username'])
-
-        if not are_collaborating(user_to_view, request.user):
-            raise PermissionDenied
+        # FIXME! Raise permission denied error if the two users have no shared datasets
         return super().dispatch(request, *args, **kwargs)
 
     def get_context_data(self, **kwargs):

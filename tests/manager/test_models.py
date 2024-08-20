@@ -258,7 +258,7 @@ def test_other_methods_about_sharing():
     # create surface, at first user 2 has no access
     surface = SurfaceFactory(creator=user1)
     assert not surface.is_shared(user2)
-    assert surface.get_permissions(user2) == "no-access"
+    assert surface.get_permissions(user2) is None
 
     # now share and test access
     surface.share(user2)
@@ -274,7 +274,7 @@ def test_other_methods_about_sharing():
     # .. remove all permissions
     surface.unshare(user2)
     assert not surface.is_shared(user2)
-    assert surface.get_permissions(user2) == "no-access"
+    assert surface.get_permissions(user2) is None
 
 
 @pytest.mark.django_db

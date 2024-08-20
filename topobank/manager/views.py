@@ -15,7 +15,6 @@ from django.http import (
 )
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.text import slugify
-from guardian.shortcuts import assign_perm, get_users_with_perms, remove_perm
 from notifications.signals import notify
 from rest_framework import mixins
 from rest_framework import serializers as drf_serializers
@@ -29,7 +28,6 @@ from trackstats.models import Metric, Period
 
 from topobank.manager.file_upload import FileUploadService
 
-from ..authorization.utils import api_to_guardian
 from ..authorization.permissions import Permission
 from ..supplib.versions import get_versions
 from ..taskapp.utils import run_task
@@ -44,12 +42,7 @@ from .models import (
     Topography,
     topography_datafile_path,
 )
-from .permissions import (
-    FileManifestObjectPermissions,
-    ObjectPermissions,
-    ParentObjectPermissions,
-    TagPermission,
-)
+from .permissions import FileManifestObjectPermissions, TagPermission
 from .serializers import (
     FileManifestSerializer,
     FileUploadSerializer,
@@ -117,16 +110,18 @@ class SurfaceViewSet(
     viewsets.GenericViewSet,
 ):
     serializer_class = SurfaceSerializer
-    permission_classes = [Permission]
+    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
 
     def _notify(self, instance, verb):
         user = self.request.user
-        other_users = get_users_with_perms(instance).filter(~Q(id=user.id))
+        other_users = instance.permissions.user_permissions.filter(
+            ~Q(user__id=user.id)
+        )
         for u in other_users:
             notify.send(
                 sender=user,
                 verb=verb,
-                recipient=u,
+                recipient=u.user,
                 description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.",
             )
 
@@ -169,17 +164,20 @@ class TopographyViewSet(
     EXPIRE_UPLOAD = 100  # Presigned key for uploading expires after 10 seconds
 
     serializer_class = TopographySerializer
-    permission_classes = [Permission]
+    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
 
     def _notify(self, instance, verb):
         user = self.request.user
-        other_users = get_users_with_perms(instance.surface).filter(~Q(id=user.id))
+        other_users = instance.permissions.user_permissions.filter(
+            ~Q(user__id=user.id)
+        )
         for u in other_users:
             notify.send(
                 sender=user,
                 verb=verb,
-                recipient=u,
-                description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.",
+                recipient=u.user,
+                description=f"User '{user.name}' {verb}d digital surface twin "
+                f"'{instance.name}'.",
             )
 
     def get_queryset(self):
@@ -192,22 +190,29 @@ class TopographyViewSet(
         return Topography.objects.filter(surface__in=qs)
 
     def perform_create(self, serializer):
-        # File name is passed in the 'name' field on create. It is the only field that needs to be present for the
-        # create (POST) request.
+        # File name is passed in the 'name' field on create. It is the only field that
+        # needs to be present for them create (POST) request.
         filename = self.request.data["name"]
 
-        # Check whether the user is allowed to write to the parent surface; if not, we cannot add a topography
+        # Check whether the user is allowed to write to the parent surface; if not, we
+        # cannot add a topography
         parent = serializer.validated_data["surface"]
-        if not self.request.user.has_perm(f"change_{parent._meta.model_name}", parent):
-            self.permission_denied(self.request, code=403)
+        try:
+            parent.authorize_user(self.request.user, "edit")
+        except PermissionError as e:
+            self.permission_denied(self.request, message=str(e))
 
-        # Set creator to current user when creating a new topography
-        instance = serializer.save(creator=self.request.user)
+        # Set creator to current user when creating a new topography and permission set
+        # to the parents set
+        instance = serializer.save(
+            creator=self.request.user, permissions=parent.permissions
+        )
 
         # Now we have an id, so populate update path
         datafile_path = topography_datafile_path(instance, filename)
 
-        # Populate upload_url, the presigned key should expire quickly
+        # Populate upload_url with a presigned S3 URL; the presigned key should expire
+        # quickly
         serializer.update(
             instance,
             {
@@ -408,16 +413,7 @@ def set_permissions(request, pk=None):
     obj = Surface.objects.get(pk=pk)
 
     # Check that user has the right to modify permissions
-    if not user.has_perms(
-        [
-            "view_surface",
-            "change_surface",
-            "delete_surface",
-            "share_surface",
-            "publish_surface",
-        ],
-        obj,
-    ):
+    if obj.permissions.get_for_user(user) != "full":
         return HttpResponseForbidden()
 
     # Check that the request does not ask to revoke permissions from the current user
@@ -429,32 +425,12 @@ def set_permissions(request, pk=None):
                     status=405,
                 )  # Not allowed
 
-    # Get all current object permissions
-    users_with_perms = {
-        user.id: perms
-        for user, perms in get_users_with_perms(obj, attach_perms=True).items()
-    }
-
     # Everything looks okay, update permissions
     for permission in request.data:
         user_id = permission["user"]["id"]
         if user_id != user.id:
             other_user = User.objects.get(id=user_id)
-
-            # Get current set of permissions and new permissions
-            try:
-                current_perms = set(users_with_perms[user_id])
-            except KeyError:
-                current_perms = set()
-            new_perms = set(api_to_guardian(permission["permission"]))
-
-            # Assign all perms that are in the new set but not in the old
-            for perm in new_perms - current_perms:
-                assign_perm(perm, other_user, obj)
-
-            # Remove all perms that are in the old set but not in the new
-            for perm in current_perms - new_perms:
-                remove_perm(perm, other_user, obj)
+            obj.permissions.grant_for_user(other_user, permission["permission"])
 
     # Permissions were updated successfully, return 204 No Content
     return Response({}, status=204)

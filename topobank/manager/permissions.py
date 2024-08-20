@@ -1,10 +1,11 @@
-from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
-from guardian.utils import get_user_obj_perms_model
-from rest_framework.filters import BaseFilterBackend
-from rest_framework.permissions import SAFE_METHODS, BasePermission, DjangoObjectPermissions
+from rest_framework.permissions import (
+    SAFE_METHODS,
+    BasePermission,
+    DjangoObjectPermissions,
+)
 
-from .models import FileManifest, Surface
+from .models import FileManifest
 
 
 class ObjectPermissions(DjangoObjectPermissions):

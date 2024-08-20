@@ -2,14 +2,17 @@
 Models related to authorization.
 """
 
+from typing import Literal, Union
+
 from django.db import models
+from django.db.models import QuerySet
 from jedi import InternalError
 
 from ..users.models import User
 
 # The types of permissions
 PERMISSION_CHOICES = [
-    ("read", "Read-only access"),
+    ("view", "Read-only access"),
     ("edit", "Change the model data"),
     ("full", "Grant/revoke permissions of other users"),
 ]
@@ -19,10 +22,20 @@ PERMISSION_CHOICES = [
 # requested level
 ACCESS_LEVELS = {
     None: 0,
-    PERMISSION_CHOICES[0][1]: 1,
-    PERMISSION_CHOICES[1][1]: 2,
-    PERMISSION_CHOICES[2][1]: 3,
+    PERMISSION_CHOICES[0][0]: 1,
+    PERMISSION_CHOICES[1][0]: 2,
+    PERMISSION_CHOICES[2][0]: 3,
 }
+
+ViewEditFull = Literal["view", "edit", "full"]
+ViewEditFullNone = Union[ViewEditFull, None]
+
+
+def levels_with_access(perm: ViewEditFull) -> set:
+    retval = set()
+    for i in range(ACCESS_LEVELS[perm], len(PERMISSION_CHOICES) + 1):
+        retval.add(PERMISSION_CHOICES[i - 1][0])
+    return retval
 
 
 class PermissionSet(models.Model):
@@ -35,7 +48,7 @@ class PermissionSet(models.Model):
     # The following reverse relations exist
     # permissions: Actual permission(s), per user
 
-    def get_for_user(self, user):
+    def get_for_user(self, user: User):
         """Return permissions of a specific user"""
         permissions = self.user_permissions.filter(user=user)
         nb_permissions = len(permissions)
@@ -49,7 +62,7 @@ class PermissionSet(models.Model):
                 "This should not happen."
             )
 
-    def grant_for_user(self, user, allow):
+    def grant_for_user(self, user: User, allow: ViewEditFull):
         """Grant permission to user"""
         existing_permissions = self.user_permissions.filter(user=user)
         nb_existing_permissions = len(existing_permissions)
@@ -60,23 +73,29 @@ class PermissionSet(models.Model):
             # Update permission if it already exists
             (permission,) = existing_permissions
             permission.allow = allow
+            permission.save()
         else:
             raise InternalError(
                 f"More than one permission found for user {user}. "
                 "This should not happen."
             )
 
-    def revoke_from_user(self, user):
+    def revoke_from_user(self, user: User):
         """Revoke all permissions from user"""
         self.user_permissions.filter(user=user).delete()
 
-    def authorize_user(self, user, allow):
+    def has_permission(self, user: User, access_level: ViewEditFullNone) -> bool:
+        """Check if user has permission for access level given by `allow`"""
+        perm = self.get_for_user(user)
+        return ACCESS_LEVELS[perm.allow] >= ACCESS_LEVELS[access_level]
+
+    def authorize_user(self, user: User, access_level: ViewEditFullNone):
         """Authorize user for access level given by `allow`"""
         perm = self.get_for_user(user)
-        if ACCESS_LEVELS[perm] < ACCESS_LEVELS[allow]:
+        if ACCESS_LEVELS[perm.allow] < ACCESS_LEVELS[access_level]:
             raise PermissionError(
-                f"User {user} has permission '{perm}', cannot elevate to permission "
-                f"'{allow}'."
+                f"User {user} has permission '{perm.allow}', cannot elevate to "
+                f"permission '{access_level}'."
             )
 
 
@@ -85,7 +104,7 @@ class UserPermission(models.Model):
 
     class Meta:
         # There can only be one permission per user
-        unique_together = ("user", "allow")
+        unique_together = ("parent", "user")
 
     # The set this permission belongs to
     parent = models.ForeignKey(
@@ -97,3 +116,11 @@ class UserPermission(models.Model):
 
     # The actual permission
     allow = models.CharField(max_length=4, choices=PERMISSION_CHOICES)
+
+
+class AuthorizedManager(models.Manager):
+    def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
+        return self.get_queryset().filter(
+            permissions__user_permissions__user=user,
+            permissions__user_permissions__allow__in=levels_with_access(permission),
+        )
