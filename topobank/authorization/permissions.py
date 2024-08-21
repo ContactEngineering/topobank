@@ -13,6 +13,6 @@ class Permission(BasePermission):
     }
 
     def has_object_permission(self, request, view, obj):
-        return obj.permissions.has_permission(
+        return obj.permissions.user_has_permission(
             request.user, self.METHOD_TO_PERM[request.method]
         )

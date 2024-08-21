@@ -77,7 +77,19 @@ class PropertyViewSet(
 ):
     queryset = Property.objects.all()
     serializer_class = PropertySerializer
-    permission_classes = [Permission]
+    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+
+    def perform_create(self, serializer):
+        # Check whether the user is allowed to write to the parent surface; if not, we
+        # cannot add a topography
+        parent = serializer.validated_data["surface"]
+        if not parent.has_permission(self.request.user, "edit"):
+            self.permission_denied(
+                self.request,
+                message=f"User {self.request.user} has no permission to edit dataset "
+                f"{parent.get_absolute_url()}.",
+            )
+        serializer.save()
 
 
 class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -114,9 +126,7 @@ class SurfaceViewSet(
 
     def _notify(self, instance, verb):
         user = self.request.user
-        other_users = instance.permissions.user_permissions.filter(
-            ~Q(user__id=user.id)
-        )
+        other_users = instance.permissions.user_permissions.filter(~Q(user__id=user.id))
         for u in other_users:
             notify.send(
                 sender=user,
@@ -168,9 +178,7 @@ class TopographyViewSet(
 
     def _notify(self, instance, verb):
         user = self.request.user
-        other_users = instance.permissions.user_permissions.filter(
-            ~Q(user__id=user.id)
-        )
+        other_users = instance.permissions.user_permissions.filter(~Q(user__id=user.id))
         for u in other_users:
             notify.send(
                 sender=user,
@@ -197,16 +205,15 @@ class TopographyViewSet(
         # Check whether the user is allowed to write to the parent surface; if not, we
         # cannot add a topography
         parent = serializer.validated_data["surface"]
-        try:
-            parent.authorize_user(self.request.user, "edit")
-        except PermissionError as e:
-            self.permission_denied(self.request, message=str(e))
+        if not parent.has_permission(self.request.user, "edit"):
+            self.permission_denied(
+                self.request,
+                message=f"User {self.request.user} has no permission to edit dataset "
+                f"{parent.get_absolute_url()}.",
+            )
 
-        # Set creator to current user when creating a new topography and permission set
-        # to the parents set
-        instance = serializer.save(
-            creator=self.request.user, permissions=parent.permissions
-        )
+        # Set creator to current user when creating a new topography
+        instance = serializer.save(creator=self.request.user)
 
         # Now we have an id, so populate update path
         datafile_path = topography_datafile_path(instance, filename)
@@ -297,7 +304,7 @@ def download_surface(request, surface_id):
     except Surface.DoesNotExist:
         raise PermissionDenied()
 
-    if not request.user.has_perm("view_surface", surface):
+    if not surface.has_permission(request.user, "view"):
         raise PermissionDenied()
 
     content_data = None
@@ -379,7 +386,7 @@ def dzi(request, pk, dzi_filename):
     except Topography.DoesNotExist:
         raise Http404()
 
-    if not request.user.has_perm("view_surface", topo.surface):
+    if not topo.has_permission(request.user, "view"):
         raise PermissionDenied()
 
     # okay, we have a valid topography and the user is allowed to see it
@@ -393,7 +400,7 @@ def force_inspect(request, pk=None):
     instance = Topography.objects.get(pk=pk)
 
     # Check that user has the right to modify this measurement
-    if not user.is_staff and not user.has_perms(["change_surface"], instance.surface):
+    if not user.is_staff and not instance.has_permission(user, "edit"):
         return HttpResponseForbidden()
 
     _log.debug(f"Forcing renewal of cache for {instance}...")
@@ -413,7 +420,7 @@ def set_permissions(request, pk=None):
     obj = Surface.objects.get(pk=pk)
 
     # Check that user has the right to modify permissions
-    if obj.permissions.get_for_user(user) != "full":
+    if not obj.has_permission(user, "full"):
         return HttpResponseForbidden()
 
     # Check that the request does not ask to revoke permissions from the current user
@@ -430,7 +437,11 @@ def set_permissions(request, pk=None):
         user_id = permission["user"]["id"]
         if user_id != user.id:
             other_user = User.objects.get(id=user_id)
-            obj.permissions.grant_for_user(other_user, permission["permission"])
+            perm = permission["permission"]
+            if perm is None:
+                obj.revoke_permission(other_user)
+            else:
+                obj.grant_permission(other_user, perm)
 
     # Permissions were updated successfully, return 204 No Content
     return Response({}, status=204)

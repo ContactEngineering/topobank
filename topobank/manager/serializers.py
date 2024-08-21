@@ -227,7 +227,7 @@ class TopographySerializer(StrictFieldMixin,
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": obj.get_permission_for_user(current_user)
+                "permission": obj.get_permission(current_user)
             },
             "other_users": [
                 {
@@ -304,13 +304,7 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
                     "message": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
                 }
             )
-        if not self.context["request"].user.has_perm(
-            "change_surface", attrs.get("surface")
-        ):
-            raise serializers.ValidationError(
-                {"message": "You do not have the permissions to change this surface"}
-            )
-        # If the peoperty changes from a numeric to categoric the unit needs to be 'None'
+        # If the property changes from a numeric to categoric the unit needs to be 'None'
         # This ensures that the unit is set to None when its omitted
         if "unit" not in attrs:
             attrs["unit"] = None
@@ -399,7 +393,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": obj.get_permission_for_user(current_user)
+                "permission": obj.get_permission(current_user)
             },
             "other_users": [
                 {

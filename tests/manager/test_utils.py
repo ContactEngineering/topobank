@@ -63,7 +63,7 @@ def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
         [surface1, surface2, surface3],
     )
 
-    surface4.set_permissions(user1, "edit")
+    surface4.grant_permission(user1, "edit")
     assert_same_surface_lists(
         Surface.objects.for_user(user1, "edit"),
         [surface1, surface2, surface3, surface4],

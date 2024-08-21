@@ -84,12 +84,15 @@ class PermissionSet(models.Model):
         """Revoke all permissions from user"""
         self.user_permissions.filter(user=user).delete()
 
-    def has_permission(self, user: User, access_level: ViewEditFullNone) -> bool:
+    def user_has_permission(self, user: User, access_level: ViewEditFull) -> bool:
         """Check if user has permission for access level given by `allow`"""
         perm = self.get_for_user(user)
-        return ACCESS_LEVELS[perm.allow] >= ACCESS_LEVELS[access_level]
+        if perm:
+            return ACCESS_LEVELS[perm.allow] >= ACCESS_LEVELS[access_level]
+        else:
+            return False
 
-    def authorize_user(self, user: User, access_level: ViewEditFullNone):
+    def authorize_user(self, user: User, access_level: ViewEditFull):
         """Authorize user for access level given by `allow`"""
         perm = self.get_for_user(user)
         if ACCESS_LEVELS[perm.allow] < ACCESS_LEVELS[access_level]:

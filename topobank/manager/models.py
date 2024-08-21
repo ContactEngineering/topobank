@@ -34,7 +34,7 @@ from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..authorization.mixins import PermissionMixin
-from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFullNone
+from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFull
 from ..supplib.storage import recursive_delete
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
@@ -400,27 +400,6 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             d["properties"] = [p.to_dict() for p in self.properties.all()]
         return d
 
-    def get_permissions(self, user):
-        """
-        Return current access permissions.
-
-
-        Parameters
-        ----------
-        user : User object
-            User to share the surface with.
-
-        Returns
-        -------
-        permissions : str
-            Permissions string
-                None: No access to the dataset
-                'view': Basic view access
-                'edit': Edit access
-                'full': Full access (essentially transfer)
-        """
-        self.permissions.get_for_user(user)
-
     def is_shared(self, user: User) -> bool:
         """
         Returns True if this surface is shared with a given user.
@@ -437,33 +416,23 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         bool
             True if the surface is shared with the given user, False otherwise.
         """
-        return self.get_permissions(user) is not None
+        return self.get_permission(user) is not None
 
-    def set_permissions(self, user: User, allow: ViewEditFullNone):
-        """
-        Set permissions for access to this surface for a given user.
-        This is equivalent to sharing the dataset.
-
-        Parameters
-        ----------
-        user : User object
-            User to share the surface with.
-        allow : str
-            Permissions string
-                Nonw: No access to the dataset
-                'view': Basic view access
-                'edit': Edit access
-                'full': Full access (essentially transfer)
-        """
+    def grant_permission(self, user: User, allow: ViewEditFull):
         if self.is_published:
             raise PermissionError(
                 "Permissions of a published dataset cannot be changed."
             )
 
-        if allow is None:
-            self.permissions.revoke_from_user(user)
-        else:
-            self.permissions.grant_for_user(user, allow)
+        super().grant_permission(user, allow)
+
+    def revoke_permission(self, user: User):
+        if self.is_published:
+            raise PermissionError(
+                "Permissions of a published dataset cannot be changed."
+            )
+
+        super().revoke_permission(user)
 
     def share(self, with_user: User):
         """
@@ -475,7 +444,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         with_user : User object
             User to share the surface with.
         """
-        self.set_permissions(with_user, "view")
+        self.grant_permission(with_user, "view")
 
     def unshare(self, with_user: User):
         """
@@ -487,7 +456,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         with_user : User object
             User to share the surface with.
         """
-        self.set_permissions(with_user, None)
+        self.revoke_permission(with_user)
 
     def deepcopy(self):
         """Creates a copy of this surface with all topographies and meta data.
@@ -634,6 +603,9 @@ class Property(PermissionMixin, models.Model):
 
     def save(self, *args, **kwargs):
         self.validate()
+        created = self.pk is None
+        if created:
+            self.permissions = self.surface.permissions
         super().save(*args, **kwargs)
 
     @property
@@ -866,8 +838,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Methods
     #
     def save(self, *args, **kwargs):
-        if self.creator is None:
-            self.creator = self.surface.creator
+        created = self.pk is None
+        if created:
+            if self.creator is None:
+                self.creator = self.surface.creator
+            self.permissions = self.surface.permissions
 
         # Reset to no refresh
         self._refresh_dependent_data = False
