@@ -14,7 +14,6 @@ from django.db.models import Q
 from guardian.core import ObjectPermissionChecker
 from rest_framework.reverse import reverse
 from storages.utils import clean_name
-
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
@@ -510,7 +509,6 @@ def get_upload_instructions(instance, name, expire, method=None):
             "fields": {},
         }
     return upload_instructions
-
 
 
 def generate_upload_path(instance, file_name: str) -> str:
