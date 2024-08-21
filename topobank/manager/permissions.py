@@ -86,7 +86,7 @@ class FileManifestObjectPermissions(ParentObjectPermissions):
 
 class TagPermission(BasePermission):
     def has_object_permission(self, request, view, obj):
-        obj.authorize_user(request.user)
+        obj.authorize_user(request.user, "view")
         # Permissions are granted if authenticated tag returns 1 or more
         # surfaces
         return len(obj.get_descendant_surfaces()) > 0

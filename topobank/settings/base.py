@@ -5,9 +5,9 @@ Base settings to build other settings files upon.
 import importlib.metadata
 import random
 import string
-from backports.entry_points_selectable import entry_points
 
 import environ
+from backports.entry_points_selectable import entry_points
 from django.core.exceptions import ImproperlyConfigured
 from watchman import constants as watchman_constants
 
@@ -713,9 +713,3 @@ REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14
 
 # Upload method
 UPLOAD_METHOD = env("TOPOBANK_UPLOAD_METHOD", default="POST")
-
-# Automatically renew analyses when the topography is upload are changes?
-# (If disabled, analyses will run when requested, i.e. viewed.)
-AUTOMATICALLY_RENEW_ANALYSES = env(
-    "TOPOBANK_AUTOMATICALLY_RENEW_ANALYSES", default=False
-)

@@ -95,7 +95,12 @@ class PermissionSet(models.Model):
     def authorize_user(self, user: User, access_level: ViewEditFull):
         """Authorize user for access level given by `allow`"""
         perm = self.get_for_user(user)
-        if ACCESS_LEVELS[perm.allow] < ACCESS_LEVELS[access_level]:
+        if perm is None:
+            raise PermissionError(
+                f"User {user} has no access permission, cannot elevate to permission "
+                f"'{access_level}'."
+            )
+        elif ACCESS_LEVELS[perm.allow] < ACCESS_LEVELS[access_level]:
             raise PermissionError(
                 f"User {user} has permission '{perm.allow}', cannot elevate to "
                 f"permission '{access_level}'."

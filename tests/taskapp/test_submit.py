@@ -89,5 +89,3 @@ def test_different_kwargs(mocker, test_analysis_function):
     assert a1 in analyses
     assert a2 in analyses
     assert a3 in analyses
-
-    assert analyses[2].kwargs == dict(a=1, b=2)

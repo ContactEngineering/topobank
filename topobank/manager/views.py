@@ -450,7 +450,7 @@ def set_permissions(request, pk=None):
 @api_view(["GET"])
 def tag_numerical_properties(request, pk=None):
     obj = Tag.objects.get(pk=pk)
-    obj.authorize_user(request.user)
+    obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="numerical")
     return Response(list(prop_values.keys()), status=200)
 
@@ -458,7 +458,7 @@ def tag_numerical_properties(request, pk=None):
 @api_view(["GET"])
 def tag_categorical_properties(request, pk=None):
     obj = Tag.objects.get(pk=pk)
-    obj.authorize_user(request.user)
+    obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="categorical")
     return Response(list(prop_values.keys()), status=200)
 

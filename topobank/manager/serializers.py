@@ -15,7 +15,9 @@ _ureg = pint.UnitRegistry()
 
 # From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
 class StrictFieldMixin:
-    """Raises error if read only fields or non-existing fields passed to input data"""
+    """
+    Raises error if read-only fields or non-existing fields are passed as input data
+    """
 
     default_error_messages = {
         "read_only": _("This field is read only"),
@@ -75,7 +77,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
 
     def get_children(self, obj: Tag):
         request = self.context["request"]
-        obj.authorize_user(request.user)
+        obj.authorize_user(request.user, "view")
         return obj.get_children()
 
 

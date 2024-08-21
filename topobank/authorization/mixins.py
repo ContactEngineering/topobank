@@ -16,8 +16,8 @@ class PermissionMixin:
     def revoke_permission(self, user: User):
         self.permissions.revoke_from_user(user)
 
-    def has_permission(self, user: User, access_level: ViewEditFullNone) -> bool:
+    def has_permission(self, user: User, access_level: ViewEditFull) -> bool:
         return self.permissions.user_has_permission(user, access_level)
 
-    def authorize_user(self, user: User, access_level: ViewEditFullNone):
+    def authorize_user(self, user: User, access_level: ViewEditFull):
         self.permissions.authorize_user(user, access_level)

@@ -139,7 +139,12 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     _user = None
 
-    def authorize_user(self, user):
+    def authorize_user(self, user: User, access_level: ViewEditFull):
+        if access_level != "view":
+            raise PermissionError(
+                f"Cannot elevate permission to '{access_level}' because tags are not "
+                "editable."
+            )
         self._user = user
 
     def is_shared(self, user: User) -> bool:

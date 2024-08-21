@@ -38,78 +38,6 @@ def _sanitize_kwargs(sig, **kwargs):
     return sanitized_kwargs
 
 
-# This used only in the `trigger_analyses` management command
-def renew_analyses_for_subject(subject, recursive=True, run_analyses=True):
-    """Renew all analyses for the given subject.
-
-    At first all existing analyses for the given subject
-    will be deleted. Only analyses for the default parameters
-    will be automatically generated at the moment.
-
-    Implementation note:
-
-    This method cannot be easily used in a post_save signal,
-    because the pre_delete signal deletes the datafile and
-    this also then triggers "renew_analyses".
-
-    Parameters
-    ----------
-    subject : Surface or Topography
-        Subject for which to renew all analyses.
-    recursive : bool, optional
-        Also renew analyses for children if enabled. (Default: True)
-    run_analyses : bool, optional
-        Actually trigger running the analyses. If not enabled, this function
-        will only clear old/stale analyses results (Default: True)
-    """
-    return
-    analysis_funcs = AnalysisFunction.objects.all()
-
-    # collect users which are allowed to use these analyses by default
-    users_for_subject = subject.get_users_with_perms()
-
-    def submit_all(subj):
-        """Trigger analyses for this subject for all available analyses functions."""
-        if hasattr(subj, "subject_dispatch"):
-            if subj.subject_dispatch.topography is not None:
-                if not subj.subject_dispatch.topography.is_metadata_complete:
-                    _log.info(
-                        f"Analyses for {subj.get_subject_type()} {subj.id} was not triggered because metadata is "
-                        f"not complete."
-                    )
-                    return
-        _log.info(f"Deleting all analyses for {subj.get_subject_type()} {subj.id}...")
-        Analysis.objects.filter(AnalysisSubject.Q(subj)).delete()
-        if run_analyses:
-            _log.info(
-                f"Triggering analyses for {subj.get_content_type().name} {subj.id} and all analysis functions..."
-            )
-            for af in analysis_funcs:
-                subject_type = subj.get_content_type()
-                if af.is_implemented_for_type(subject_type):
-                    # filter also for users who are allowed to use the function
-                    users = [
-                        u
-                        for u in users_for_subject
-                        if af.get_implementation(subject_type).is_available_for_user(u)
-                    ]
-                    try:
-                        submit_analysis(users, af, subject=subj)
-                    except Exception as err:
-                        _log.error(
-                            f"Cannot submit analysis for function '{af.name}' and subject '{subj}' "
-                            f"({subj.get_content_type().name} {subj.id}). Reason: {str(err)}"
-                        )
-
-    # Submit analyses for current subject
-    submit_all(subject)
-
-    # Also submit analyses for children if this has any and recursion is requested
-    if recursive and hasattr(subject, "topography_set"):
-        for topo in subject.topography_set.all():
-            submit_all(topo)
-
-
 def renew_existing_analysis(analysis, use_default_kwargs=False):
     """
     Delete existing analysis and recreate and submit with same arguments and user.
@@ -189,7 +117,7 @@ def submit_analysis(user, analysis_func, subject, pyfunc_kwargs=None):
     #
     # Check if user can actually access the subject
     #
-    subject.authorize_user(user)
+    subject.authorize_user(user, "view")
 
     #
     # Create new entry in Analysis table
@@ -397,7 +325,7 @@ class AnalysisController:
         self._subjects = []
         for subject in subjects:
             try:
-                subject.authorize_user(self._user)
+                subject.authorize_user(self._user, "view")
                 self._subjects += [subject]
             except PermissionError:
                 pass

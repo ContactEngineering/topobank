@@ -64,6 +64,6 @@ def test_download_view_permission_for_function_from_plugin(
         )
     )
     if user_has_plugin:
-        assert response.status_code == 200, response.content
+        assert response.status_code == 200, response.reason_phrase
     else:
-        assert response.status_code == 403, response.content
+        assert response.status_code == 403, response.reason_phrase
