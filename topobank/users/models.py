@@ -4,8 +4,9 @@ from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.utils import ProgrammingError
 from django.utils.translation import gettext_lazy as _
-from guardian.shortcuts import get_anonymous_user
 from rest_framework.reverse import reverse
+
+from .anonymous import get_anonymous_user
 
 DEFAULT_GROUP_NAME = "all"
 

@@ -3,11 +3,11 @@ import json
 import numpy
 import pytest
 from django.shortcuts import reverse
-from guardian.shortcuts import get_anonymous_user
 
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import TagFactory
 from topobank.testing.utils import assert_dict_equal, assert_dicts_equal
+from topobank.users.anonymous import get_anonymous_user
 
 
 @pytest.mark.django_db
