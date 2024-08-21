@@ -11,7 +11,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db.models import Q
-from guardian.core import ObjectPermissionChecker
 from rest_framework.reverse import reverse
 from storages.utils import clean_name
 from SurfaceTopography import open_topography
@@ -208,10 +207,8 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
         if len(unique_surfaces) == 0:
             # Nothing to check (but should not really happen)
             return []
-        checker = ObjectPermissionChecker(user)
-        checker.prefetch_perms(unique_surfaces)
         permissions = [
-            all([checker.has_perm("view_surface", s) for s in r])
+            all([s.has_permission(user, "view") for s in r])
             for r in related_surfaces
         ]
 

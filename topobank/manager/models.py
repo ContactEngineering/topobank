@@ -26,7 +26,6 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
 from django.db import models
-from guardian.models import GroupObjectPermissionBase, UserObjectPermissionBase
 from notifications.signals import notify
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
@@ -632,14 +631,6 @@ class Property(PermissionMixin, models.Model):
         if self.unit is not None:
             d["unit"] = str(self.unit)
         return d
-
-
-class SurfaceUserObjectPermission(UserObjectPermissionBase):
-    content_object = models.ForeignKey(Surface, on_delete=models.CASCADE)
-
-
-class SurfaceGroupObjectPermission(GroupObjectPermissionBase):
-    content_object = models.ForeignKey(Surface, on_delete=models.CASCADE)
 
 
 def topography_datafile_path(instance, filename):
