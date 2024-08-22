@@ -104,7 +104,7 @@ class Analysis(TaskStateModel):
     )
 
     # User that triggered this analysis
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
 
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
