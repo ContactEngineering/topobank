@@ -28,5 +28,4 @@ jobs:
 
     - name: Flake8
       run: |
-        ls -a
         flake8

@@ -233,6 +233,20 @@ class Analysis(TaskStateModel):
             )
         return "analyses/{}".format(self.id)
 
+    @property
+    def storage_files(self):
+        """Return all file names in analysis id directory.
+
+        List of files names ['<file_prefix_name>/file'].
+        If storage is on filesystem, the prefix should correspond
+        to a real directory.
+        """
+        if self.id is None:
+            raise RuntimeError('This `Analysis` does not have an id yet; the storage file names is not yet known.')
+        dir_tuple = default_storage.listdir(f'analyses/{self.id}')
+        file_lists = dir_tuple[1]
+        return [f'{self.storage_prefix}/{file_name}' for file_name in file_lists]
+
     def get_related_surfaces(self):
         """Returns sequence of surface instances related to the subject of this analysis."""
         return self.subject.get_related_surfaces()
