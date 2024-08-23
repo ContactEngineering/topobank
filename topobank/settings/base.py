@@ -98,6 +98,7 @@ THIRD_PARTY_APPS = [
     "trackstats",
     "watchman",  # system status report
     "request_profiler",  # keep track of response times for selected routes
+    "drf_spectacular",
 ]
 LOCAL_APPS = [
     # Your stuff: custom apps go here
@@ -251,15 +252,16 @@ TEMPLATES = [
             ],
             # https://docs.djangoproject.com/en/dev/ref/settings/#template-context-processors
             "context_processors": [
-                                      "django.template.context_processors.debug",
-                                      "django.template.context_processors.request",
-                                      "django.contrib.auth.context_processors.auth",
-                                      "django.template.context_processors.i18n",
-                                      "django.template.context_processors.media",
-                                      "django.template.context_processors.static",
-                                      "django.template.context_processors.tz",
-                                      "django.contrib.messages.context_processors.messages",
-                                  ] + PLUGIN_CONTEXT_PROCESSORS,
+                "django.template.context_processors.debug",
+                "django.template.context_processors.request",
+                "django.contrib.auth.context_processors.auth",
+                "django.template.context_processors.i18n",
+                "django.template.context_processors.media",
+                "django.template.context_processors.static",
+                "django.template.context_processors.tz",
+                "django.contrib.messages.context_processors.messages",
+            ]
+            + PLUGIN_CONTEXT_PROCESSORS,
         },
     },
 ]
@@ -387,8 +389,16 @@ REST_FRAMEWORK = {
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
+    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
 }
 
+SPECTACULAR_SETTINGS = {
+    "TITLE": "Topobank API",
+    "DESCRIPTION": "Topography Storage and Calculation Service for Contact Mechanics",
+    "VERSION": "1.0.0",
+    "SERVE_INCLUDE_SCHEMA": False,
+    # OTHER SETTINGS
+}
 #
 # Settings for authentication with ORCID
 #
