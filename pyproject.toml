@@ -154,7 +154,10 @@ dependencies = [
     # Got problems with eventlet, see issue #415
 
     # because of problem with AttributeError for 'X509_V_FLAG_CB_ISSUER_CHECK'
-    'pyopenssl>=23.0.0'
+    'pyopenssl>=23.0.0',
+
+    # deprecated, only needed for historic migrations
+    'django-guardian'
 ]
 
 [project.optional-dependencies]

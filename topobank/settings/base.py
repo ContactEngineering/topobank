@@ -92,7 +92,7 @@ THIRD_PARTY_APPS = [
     "allauth.socialaccount.providers.orcid",
     "rest_framework",
     "storages",
-    "guardian",
+    "guardian",  # needed for migrations only
     "notifications",
     "tagulous",  # tag-model with hierarchies
     "trackstats",
@@ -149,7 +149,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
-    "guardian.backends.ObjectPermissionBackend",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
 AUTH_USER_MODEL = "users.User"
@@ -209,7 +208,6 @@ print(f"PLUGIN_MIDDLEWARE: {PLUGIN_MIDDLEWARE}")
 MIDDLEWARE += PLUGIN_MIDDLEWARE
 
 MIDDLEWARE += [
-    "topobank.middleware.anonymous_user_middleware",  # we need guardian's kind of anonymous user for API calls
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -475,14 +473,6 @@ MEDIA_ROOT = ""
 MEDIA_URL = "/media/"
 
 #
-# Settings for django-guardian
-#
-GUARDIAN_MONKEY_PATCH = False
-GUARDIAN_RENDER_403 = True
-# uses template "403.html" by default
-# see https://django-guardian.readthedocs.io/en/stable/configuration.html#guardian-render-403
-
-#
 # Settings for tracking package versions for analyses
 #
 # list of tuples of form (import_name, expression_returning_version_string)
@@ -536,12 +526,6 @@ TRACKED_DEPENDENCIES += [
         "allauth.__version__",
         "BSD 3-Clause",
         "https://django-allauth.readthedocs.io/en/latest/",
-    ),
-    (
-        "guardian",
-        "guardian.__version__",
-        "BSD 3-Clause",
-        "https://django-guardian.readthedocs.io/en/stable/",
     ),
     (
         "storages",
