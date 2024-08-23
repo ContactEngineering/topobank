@@ -72,7 +72,7 @@ class AnalysisResultSerializer(topobank.taskapp.serializers.TaskStateModelSerial
 
     def get_data_prefix(self, obj):
         return reverse('analysis:data', args=(obj.id, ''), request=self.context['request'])
-    
+
     def get_data_urls(self, obj):
         file_dir = {}
         for file_path in obj.storage_files:

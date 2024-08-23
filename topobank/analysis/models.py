@@ -258,7 +258,7 @@ class Analysis(TaskStateModel):
                 "This `Analysis` does not have an id yet; the storage prefix is not yet known."
             )
         return "analyses/{}".format(self.id)
-    
+
     @property
     def storage_files(self):
         """Return all file names in analysis id directory.
