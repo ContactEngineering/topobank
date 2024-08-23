@@ -104,7 +104,7 @@ class Analysis(TaskStateModel):
     )
 
     # User that triggered this analysis
-    user = models.ForeignKey(User, on_delete=models.CASCADE)
+    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
 
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
@@ -269,16 +269,26 @@ class Analysis(TaskStateModel):
         )
 
     def authorize_user(self, user):
-        """Returns an exception if given user should not be able to see this analysis."""
+        """
+        Returns an exception if given user should not be able to see this analysis.
+        """
+        if self.user != user:
+            raise PermissionError(
+                f"User {user} is not allowed to access these analysis results, which "
+                "were computed for a different user."
+            )
+
+        # Double check availability of analysis function
         if not self.get_implementation().is_available_for_user(user):
             raise PermissionError(
                 f"User {user} is not allowed to use this analysis function."
             )
-        if not all(
-            user.has_perm("view_surface", s) for s in self.get_related_surfaces()
-        ):
+
+        # Double check access rights to the underlying measurements
+        if not all(s.has_permission(user, "view") for s in self.get_related_surfaces()):
             raise PermissionError(
-                f"User {user} is not allowed to access some of the surfaces that are the subject of the analysis."
+                f"User {user} is not allowed to access some of the surfaces that are "
+                "the subject of the analysis."
             )
 
     @property

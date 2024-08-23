@@ -92,7 +92,7 @@ THIRD_PARTY_APPS = [
     "allauth.socialaccount.providers.orcid",
     "rest_framework",
     "storages",
-    "guardian",
+    "guardian",  # needed for migrations only
     "notifications",
     "tagulous",  # tag-model with hierarchies
     "trackstats",
@@ -103,6 +103,7 @@ THIRD_PARTY_APPS = [
 LOCAL_APPS = [
     # Your stuff: custom apps go here
     "topobank.users.apps.UsersAppConfig",
+    "topobank.authorization.apps.AuthorizationAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
     "topobank.usage_stats.apps.UsageStatsAppConfig",
@@ -149,7 +150,6 @@ DEFAULT_AUTO_FIELD = "django.db.models.AutoField"
 AUTHENTICATION_BACKENDS = [
     "django.contrib.auth.backends.ModelBackend",
     "allauth.account.auth_backends.AuthenticationBackend",
-    "guardian.backends.ObjectPermissionBackend",
 ]
 # https://docs.djangoproject.com/en/dev/ref/settings/#auth-user-model
 AUTH_USER_MODEL = "users.User"
@@ -209,7 +209,8 @@ print(f"PLUGIN_MIDDLEWARE: {PLUGIN_MIDDLEWARE}")
 MIDDLEWARE += PLUGIN_MIDDLEWARE
 
 MIDDLEWARE += [
-    "topobank.middleware.anonymous_user_middleware",  # we need guardian's kind of anonymous user for API calls
+    # we need guardian's kind of anonymous user for API calls
+    "topobank.middleware.anonymous_user_middleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
@@ -484,14 +485,6 @@ MEDIA_ROOT = ""
 MEDIA_URL = "/media/"
 
 #
-# Settings for django-guardian
-#
-GUARDIAN_MONKEY_PATCH = False
-GUARDIAN_RENDER_403 = True
-# uses template "403.html" by default
-# see https://django-guardian.readthedocs.io/en/stable/configuration.html#guardian-render-403
-
-#
 # Settings for tracking package versions for analyses
 #
 # list of tuples of form (import_name, expression_returning_version_string)
@@ -545,12 +538,6 @@ TRACKED_DEPENDENCIES += [
         "allauth.__version__",
         "BSD 3-Clause",
         "https://django-allauth.readthedocs.io/en/latest/",
-    ),
-    (
-        "guardian",
-        "guardian.__version__",
-        "BSD 3-Clause",
-        "https://django-guardian.readthedocs.io/en/stable/",
     ),
     (
         "storages",
@@ -722,9 +709,3 @@ REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14
 
 # Upload method
 UPLOAD_METHOD = env("TOPOBANK_UPLOAD_METHOD", default="POST")
-
-# Automatically renew analyses when the topography is upload are changes?
-# (If disabled, analyses will run when requested, i.e. viewed.)
-AUTOMATICALLY_RENEW_ANALYSES = env(
-    "TOPOBANK_AUTOMATICALLY_RENEW_ANALYSES", default=False
-)

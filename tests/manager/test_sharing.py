@@ -63,9 +63,7 @@ def test_individual_read_access_permissions(
     # Now grant access and user 2 should be able to access
     #
 
-    from guardian.shortcuts import assign_perm
-
-    assign_perm("view_surface", user_2, surface)
+    surface.grant_permission(user_2, "view")
 
     assert api_client.login(username=username_2, password=password)
     response = api_client.get(surface_detail_url)
@@ -95,7 +93,7 @@ def test_list_surface_permissions(api_client, handle_usage_statistics):
 
     surface = SurfaceFactory(creator=user1)
     surface.share(user2)
-    surface.set_permissions(user3, "edit")
+    surface.grant_permission(user3, "edit")
 
     surface_detail_url = reverse(
         "manager:surface-api-detail", kwargs=dict(pk=surface.pk)
@@ -131,7 +129,7 @@ def test_notification_when_deleting_shared_stuff(api_client):
     surface = SurfaceFactory(creator=user1)
     topography = Topography1DFactory(surface=surface)
 
-    surface.set_permissions(user2, "full")
+    surface.grant_permission(user2, "full")
 
     #
     # First: user2 deletes the topography, user1 should be notified
@@ -177,7 +175,7 @@ def test_notification_when_editing_shared_stuff(api_client, handle_usage_statist
     surface = SurfaceFactory(creator=user1)
     topography = Topography2DFactory(surface=surface, size_y=512)
 
-    surface.set_permissions(user2, "edit")
+    surface.grant_permission(user2, "edit")
 
     #
     # First: user2 edits the topography, user1 should be notified
@@ -265,7 +263,7 @@ def test_upload_topography_for_shared_surface(
     #
     # Now allow to change and get response again
     #
-    surface.set_permissions(user2, "edit")
+    surface.grant_permission(user2, "edit")
     response = upload_file(
         str(input_file_path),
         surface.id,

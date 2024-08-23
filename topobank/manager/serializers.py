@@ -3,14 +3,12 @@ import logging
 import pint
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import OpenApiExample, extend_schema_serializer
-from guardian.shortcuts import get_users_with_perms
 from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
 from .models import FileManifest, FileParent, Property, Surface, Tag, Topography
-from .utils import guardian_to_api
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -18,7 +16,9 @@ _ureg = pint.UnitRegistry()
 
 # From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
 class StrictFieldMixin:
-    """Raises error if read only fields or non-existing fields passed to input data"""
+    """
+    Raises error if read-only fields or non-existing fields are passed as input data
+    """
 
     default_error_messages = {
         "read_only": _("This field is read only"),
@@ -78,7 +78,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
 
     def get_children(self, obj: Tag):
         request = self.context["request"]
-        obj.authorize_user(request.user)
+        obj.authorize_user(request.user, "view")
         return obj.get_children()
 
 
@@ -263,19 +263,19 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     def get_permissions(self, obj):
         request = self.context["request"]
         current_user = request.user
-        users = get_users_with_perms(obj.surface, attach_perms=True)
+        user_permissions = obj.permissions.user_permissions.all()
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": guardian_to_api(users[current_user]),
+                "permission": obj.get_permission(current_user)
             },
             "other_users": [
                 {
-                    "user": UserSerializer(key, context=self.context).data,
-                    "permission": guardian_to_api(value),
+                    "user": UserSerializer(perm.user, context=self.context).data,
+                    "permission": perm.allow
                 }
-                for key, value in users.items()
-                if key != current_user
+                for perm in user_permissions
+                if perm.user != current_user
             ],
         }
 
@@ -385,13 +385,7 @@ class PropertySerializer(serializers.HyperlinkedModelSerializer):
                     "message": "If the value is categorical (int | float), the unit has to be not 'null' (str)"
                 }
             )
-        if not self.context["request"].user.has_perm(
-            "change_surface", attrs.get("surface")
-        ):
-            raise serializers.ValidationError(
-                {"message": "You do not have the permissions to change this surface"}
-            )
-        # If the peoperty changes from a numeric to categoric the unit needs to be 'None'
+        # If the property changes from a numeric to categoric the unit needs to be 'None'
         # This ensures that the unit is set to None when its omitted
         if "unit" not in attrs:
             attrs["unit"] = None
@@ -483,22 +477,18 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     def get_permissions(self, obj):
         request = self.context["request"]
         current_user = request.user
-        users = get_users_with_perms(obj, attach_perms=True)
+        user_permissions = obj.permissions.user_permissions.all()
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": (
-                    guardian_to_api(users[current_user])
-                    if current_user in users
-                    else "no-access"
-                ),
+                "permission": obj.get_permission(current_user)
             },
             "other_users": [
                 {
-                    "user": UserSerializer(key, context=self.context).data,
-                    "permission": guardian_to_api(value),
+                    "user": UserSerializer(perm.user, context=self.context).data,
+                    "permission": perm.allow
                 }
-                for key, value in users.items()
-                if key != current_user
+                for perm in user_permissions
+                if perm.user != current_user
             ],
         }

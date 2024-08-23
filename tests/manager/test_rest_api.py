@@ -3,11 +3,11 @@ import json
 import numpy
 import pytest
 from django.shortcuts import reverse
-from guardian.shortcuts import get_anonymous_user
 
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import TagFactory
 from topobank.testing.utils import assert_dict_equal, assert_dicts_equal
+from topobank.users.anonymous import get_anonymous_user
 
 
 @pytest.mark.django_db
@@ -25,10 +25,10 @@ def test_surface_retrieve_routes(
     surface2 = topo2.surface
 
     anonymous_user = get_anonymous_user()
-    assert not anonymous_user.has_perm("view_surface", surface1)
-    assert not anonymous_user.has_perm("view_surface", surface2)
-    assert user.has_perm("view_surface", surface1)
-    assert user.has_perm("view_surface", surface2)
+    assert surface1.get_permission(anonymous_user) is None
+    assert surface2.get_permission(anonymous_user) is None
+    assert surface1.get_permission(user) == "full"
+    assert surface2.get_permission(user) == "full"
 
     if is_authenticated:
         api_client.force_authenticate(user)
@@ -242,8 +242,8 @@ def test_topography_retrieve_routes(
     assert topo2.creator == user
 
     anonymous_user = get_anonymous_user()
-    assert not anonymous_user.has_perm("view_surface", topo1.surface)
-    assert user.has_perm("view_surface", topo1.surface)
+    assert not topo1.has_permission(anonymous_user, "view")
+    assert topo1.has_permission(user, "view")
 
     topo1_dict = {
         "bandwidth_lower": None,
@@ -433,7 +433,7 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     assert Surface.objects.count() == 2
 
     # Delete of a surface of another user should fail, even if shared
-    surface2.set_permissions(user1, "view")
+    surface2.grant_permission(user1, "view")
     response = api_client.delete(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface2.id))
     )
@@ -444,7 +444,7 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     assert Surface.objects.count() == 2
 
     # Delete of a surface of another user should fail even if shared with write permission
-    surface2.set_permissions(user1, "edit")
+    surface2.grant_permission(user1, "edit")
     response = api_client.delete(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface2.id))
     )
@@ -454,7 +454,7 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     assert Surface.objects.count() == 2
 
     # Delete of a surface of another user is possible with full access
-    surface2.set_permissions(user1, "full")
+    surface2.grant_permission(user, "full")
     response = api_client.delete(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface2.id))
     )
@@ -570,7 +570,7 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     assert Topography.objects.count() == 3
 
     # Patch of a topography of another user should fail, even if shared
-    topo2.surface.set_permissions(user1, "view")
+    topo2.surface.grant_permission(user1, "view")
     response = api_client.patch(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topo2.id)),
         {"name": new_name},
@@ -582,7 +582,7 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     assert Topography.objects.count() == 3
 
     # Patch of a surface of another user should succeed if shared with write permission
-    topo2.surface.set_permissions(user1, "edit")
+    topo2.surface.grant_permission(user1, "edit")
     response = api_client.patch(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topo2.id)),
         {"name": new_name},

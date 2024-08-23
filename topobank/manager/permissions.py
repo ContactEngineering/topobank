@@ -1,10 +1,11 @@
-from django.contrib.contenttypes.models import ContentType
 from django.http import Http404
-from guardian.utils import get_user_obj_perms_model
-from rest_framework.filters import BaseFilterBackend
-from rest_framework.permissions import SAFE_METHODS, BasePermission, DjangoObjectPermissions
+from rest_framework.permissions import (
+    SAFE_METHODS,
+    BasePermission,
+    DjangoObjectPermissions,
+)
 
-from .models import FileManifest, Surface
+from .models import FileManifest
 
 
 class ObjectPermissions(DjangoObjectPermissions):
@@ -83,69 +84,9 @@ class FileManifestObjectPermissions(ParentObjectPermissions):
             raise ValueError("The parent type should be one of `surface` or `topography`")
 
 
-# From django-rest-framework-guardian:
-# https://github.com/rpkilby/django-rest-framework-guardian/blob/master/src/rest_framework_guardian/filters.py
-# Licensed under 3-clause BSD:
-# https://github.com/rpkilby/django-rest-framework-guardian/blob/master/LICENSE
-class ObjectPermissionsFilter(BaseFilterBackend):
-    """
-    A filter backend that limits results to those where the requesting user
-    has read object level permissions.
-    """
-    perm_format = '%(app_label)s.view_%(model_name)s'
-    shortcut_kwargs = {
-        'accept_global_perms': False,
-    }
-
-    def filter_queryset(self, request, queryset, view):
-        # We want to defer this import until runtime, rather than import-time.
-        # See https://github.com/encode/django-rest-framework/issues/4608
-        # (Also see #1624 for why we need to make this import explicitly)
-        from guardian.shortcuts import get_objects_for_user
-
-        user = request.user
-        permission = self.perm_format % {
-            'app_label': queryset.model._meta.app_label,
-            'model_name': queryset.model._meta.model_name,
-        }
-
-        return get_objects_for_user(
-            user, permission, queryset,
-            **self.shortcut_kwargs)
-
-
-# Adopted from django-rest-framework-guardian:
-# https://github.com/rpkilby/django-rest-framework-guardian/blob/master/src/rest_framework_guardian/filters.py
-# Licensed under 3-clause BSD:
-# https://github.com/rpkilby/django-rest-framework-guardian/blob/master/LICENSE
-class ParentObjectPermissionsFilter(BaseFilterBackend):
-    """
-    A filter backend that limits results to those where the requesting user
-    has read object level permissions to a parent object.
-    """
-    perm_format = '%(app_label)s.view_%(model_name)s'
-    shortcut_kwargs = {
-        'accept_global_perms': False,
-    }
-    parent_property = 'surface'
-    parent_model = Surface
-
-    def filter_queryset(self, request, queryset, view):
-        user = request.user
-
-        # User model stores the per-object permissions
-        ctype = ContentType.objects.get_for_model(self.parent_model)
-        user_model = get_user_obj_perms_model(queryset.model)
-        user_obj_perms_queryset = user_model.objects.filter(user=user).filter(permission__content_type=ctype)
-
-        # Construct filter arguments that search for pk of parent model
-        filter_kwargs = {f'{self.parent_property}__pk__in': user_obj_perms_queryset}
-        return queryset.filter(**filter_kwargs)
-
-
 class TagPermission(BasePermission):
     def has_object_permission(self, request, view, obj):
-        obj.authorize_user(request.user)
+        obj.authorize_user(request.user, "view")
         # Permissions are granted if authenticated tag returns 1 or more
         # surfaces
         return len(obj.get_descendant_surfaces()) > 0

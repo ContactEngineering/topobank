@@ -58,8 +58,9 @@ def save_landing_page_statistics():
     # Number of users
     #
     from django.db.models import Q
-    from guardian.compat import get_user_model as guardian_user_model
-    anon = guardian_user_model().get_anonymous()
+
+    from topobank.users.anonymous import get_anonymous_user
+    anon = get_anonymous_user()
     num_users = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()
 
     StatisticByDate.objects.record(

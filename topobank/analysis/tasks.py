@@ -10,7 +10,10 @@ from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
-from ..usage_stats.utils import increase_statistics_by_date, increase_statistics_by_date_and_object
+from ..usage_stats.utils import (
+    increase_statistics_by_date,
+    increase_statistics_by_date_and_object,
+)
 from .models import RESULT_FILE_BASENAME, Analysis, Configuration
 
 _log = logging.getLogger(__name__)
@@ -110,7 +113,7 @@ def perform_analysis(self, analysis_id: int):
         _log.debug(f"Evaluating analysis function '{analysis.function.name}' on subject '{subject}' with "
                    f"kwargs {kwargs} and storage prefix '{analysis.storage_prefix}'...")
         # tell subject to restrict to specific user
-        subject.authorize_user(analysis.user)
+        subject.authorize_user(analysis.user, "view")
         # also request citation information
         dois = set()
         # start tracing of memory usage

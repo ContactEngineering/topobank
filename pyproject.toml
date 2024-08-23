@@ -75,9 +75,6 @@ dependencies = [
     'boto3',           # S3
     'django-storages',
 
-    # Permissions on object level
-    'django-guardian>=2.4.0',
-
     # Endpoint status
     'django-watchman',
 
@@ -161,6 +158,9 @@ dependencies = [
 
     # because of problem with AttributeError for 'X509_V_FLAG_CB_ISSUER_CHECK'
     'pyopenssl>=23.0.0',
+
+    # deprecated, only needed for historic migrations
+    'django-guardian',
 ]
 
 [project.optional-dependencies]
