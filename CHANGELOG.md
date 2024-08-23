@@ -4,6 +4,9 @@
 
 - ENH: Surfaces are now returned for all tag children
 - BUG: Avoid properties of identical name
+- BUG: Tag analysis only runs on subject to which the specific user has access
+- MAINT: Replace `django-guardian` with simpler authorization system (#1110)
+- MAINT: Analysis results are now per-user and no longer shared
 - TST: Refactored all tests into a new toplevel directory (#1123)
 - TST: Testing with sqlite (#1124)
 

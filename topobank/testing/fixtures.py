@@ -3,19 +3,24 @@
 #
 
 import datetime
-import factory
 import logging
-import pytest
 import tempfile
 
+import factory
+import pytest
 from django.core.management import call_command
 from pytest_django.lazy_django import skip_if_no_django
 from trackstats.models import Domain, Metric
 
 from ..manager.models import Surface
-
 from .data import FIXTURE_DATA_DIR
-from .factories import UserFactory, SurfaceFactory, Topography2DFactory, Topography1DFactory, TagFactory
+from .factories import (
+    SurfaceFactory,
+    TagFactory,
+    Topography1DFactory,
+    Topography2DFactory,
+    UserFactory,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -190,9 +195,9 @@ def user_three_topographies_three_surfaces_three_tags():
     tag2 = TagFactory()
     tag3 = TagFactory()
 
-    tag1.authorize_user(user)
-    tag2.authorize_user(user)
-    tag3.authorize_user(user)
+    tag1.authorize_user(user, "view")
+    tag2.authorize_user(user, "view")
+    tag3.authorize_user(user, "view")
 
     surface1 = SurfaceFactory(creator=user, tags=[tag1])
     topo1a = Topography1DFactory(surface=surface1)

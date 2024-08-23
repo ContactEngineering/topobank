@@ -11,11 +11,11 @@ from topobank.analysis.registry import ImplementationMissingAnalysisFunctionExce
 from topobank.analysis.tasks import current_configuration
 from topobank.manager.models import Topography
 from topobank.testing.factories import (
+    SurfaceAnalysisFactory,
     SurfaceFactory,
+    TagAnalysisFactory,
     TagFactory,
     Topography1DFactory,
-    SurfaceAnalysisFactory,
-    TagAnalysisFactory,
     TopographyAnalysisFactory,
 )
 
@@ -42,7 +42,7 @@ def test_tag_as_analysis_subject():
     s2 = SurfaceFactory()
     s3 = SurfaceFactory()
     st = TagFactory.create(surfaces=[s1, s2, s3])
-    st.authorize_user(s1.creator)
+    st.authorize_user(s1.creator, "view")
     func = AnalysisFunction.objects.get(name="test")
     analysis = TagAnalysisFactory(subject_tag=st, function=func)
     assert analysis.subject == st

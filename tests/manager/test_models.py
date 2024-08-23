@@ -208,43 +208,39 @@ def test_surface_share_and_unshare():
     #
     # no permissions at beginning
     #
-    assert not user2.has_perm("view_surface", surface)
+    assert not surface.has_permission(user2, "view")
 
     #
     # first: share, but only with view access
     #
     surface.share(user2)  # default: only view access
-    assert user2.has_perm("view_surface", surface)
-    assert not user2.has_perm("change_surface", surface)
-    assert not user2.has_perm("delete_surface", surface)
-    assert not user2.has_perm("share_surface", surface)
+    assert surface.has_permission(user2, "view")
+    assert not surface.has_permission(user2, "edit")
+    assert not surface.has_permission(user2, "full")
 
     #
     # second: share, but also with right access
     #
-    surface.set_permissions(user2, "edit")
-    assert user2.has_perm("view_surface", surface)
-    assert user2.has_perm("change_surface", surface)
-    assert not user2.has_perm("delete_surface", surface)
-    assert not user2.has_perm("share_surface", surface)
+    surface.grant_permission(user2, "edit")
+    assert surface.has_permission(user2, "view")
+    assert surface.has_permission(user2, "edit")
+    assert not surface.has_permission(user2, "full")
 
     #
     # second: share, but also with full access
     #
-    surface.set_permissions(user2, "full")
-    assert user2.has_perm("view_surface", surface)
-    assert user2.has_perm("change_surface", surface)
-    assert user2.has_perm("delete_surface", surface)
-    assert user2.has_perm("share_surface", surface)
+    surface.grant_permission(user2, "full")
+    assert surface.has_permission(user2, "view")
+    assert surface.has_permission(user2, "edit")
+    assert surface.has_permission(user2, "full")
 
     #
     # third: remove all shares again
     #
     surface.unshare(user2)
-    assert not user2.has_perm("view_surface", surface)
-    assert not user2.has_perm("change_surface", surface)
-    assert not user2.has_perm("delete_surface", surface)
-    assert not user2.has_perm("share_surface", surface)
+    assert not surface.has_permission(user2, "view")
+    assert not surface.has_permission(user2, "edit")
+    assert not surface.has_permission(user2, "full")
 
     # no problem to call this removal again
     surface.unshare(user2)
@@ -258,23 +254,25 @@ def test_other_methods_about_sharing():
     # create surface, at first user 2 has no access
     surface = SurfaceFactory(creator=user1)
     assert not surface.is_shared(user2)
-    assert surface.get_permissions(user2) == "no-access"
+    assert surface.get_permission(user2) is None
 
     # now share and test access
     surface.share(user2)
 
     assert surface.is_shared(user2)
-    assert surface.get_permissions(user2) == "view"
+    assert surface.get_permission(user2) == "view"
+    assert surface.has_permission(user2, "view")
 
     # .. add permission to change
-    surface.set_permissions(user2, "edit")
+    surface.grant_permission(user2, "edit")
     assert surface.is_shared(user2)
-    assert surface.get_permissions(user2) == "edit"
+    assert surface.get_permission(user2) == "edit"
+    assert surface.has_permission(user2, "edit")
 
     # .. remove all permissions
     surface.unshare(user2)
     assert not surface.is_shared(user2)
-    assert surface.get_permissions(user2) == "no-access"
+    assert surface.get_permission(user2) is None
 
 
 @pytest.mark.django_db

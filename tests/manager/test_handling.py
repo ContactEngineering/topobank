@@ -66,7 +66,7 @@ def test_upload_topography_di(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface_id)),
         {"name": "surface1", "category": category, "description": description},
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
 
     response = upload_file(
         str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks
@@ -91,7 +91,7 @@ def test_upload_topography_di(
             "description": description,
         },
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
     assert response.data["measurement_date"] == "2018-06-21"
     assert response.data["description"] == description
 
@@ -110,7 +110,7 @@ def test_upload_topography_di(
             "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
         },
     )
-    assert response.status_code == 400, response.reason
+    assert response.status_code == 400, response.content
 
     # Check that updating fixed metadata leads to an error
     response = api_client.patch(
@@ -119,7 +119,7 @@ def test_upload_topography_di(
             "size_x": "1.0",
         },
     )
-    assert response.status_code == 400, response.reason
+    assert response.status_code == 400, response.content
 
     response = api_client.patch(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id)),
@@ -128,7 +128,7 @@ def test_upload_topography_di(
             "height_scale": 1.3,
         },
     )
-    assert response.status_code == 400, response.reason
+    assert response.status_code == 400, response.content
 
     response = api_client.patch(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id)),
@@ -136,7 +136,7 @@ def test_upload_topography_di(
             "resolution_x": 300,
         },
     )
-    assert response.status_code == 400, response.reason  # resolution_x is read only
+    assert response.status_code == 400, response.content  # resolution_x is read only
 
     surface = Surface.objects.get(name="surface1")
     topos = surface.topography_set.all()
@@ -187,7 +187,7 @@ def test_upload_topography_npy(
             "description": description,
         },
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
     assert response.data["measurement_date"] == "2020-10-21"
     assert response.data["description"] == description
 
@@ -208,7 +208,7 @@ def test_upload_topography_npy(
     )
     assert (
         response.status_code == 400
-    ), response.reason  # resolution_x and resolution_y are read only
+    ), response.content  # resolution_x and resolution_y are read only
 
     # Update more metadata
     response = api_client.patch(
@@ -225,7 +225,7 @@ def test_upload_topography_npy(
     )
     assert (
         response.status_code == 200
-    ), response.reason  # without resolution_x and resolution_y
+    ), response.content  # without resolution_x and resolution_y
 
     surface = Surface.objects.get(name="surface1")
     topos = surface.topography_set.all()
@@ -360,7 +360,7 @@ def test_upload_topography_txt(
                 "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
             },
         )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
 
     surface = Surface.objects.get(name="surface1")
     topos = surface.topography_set.all()
@@ -623,7 +623,7 @@ def test_upload_topography_fill_undefined_data(
                 "fill_undefined_data_mode": fill_undefined_data_mode,
             },
         )
-        assert response.status_code == 200, response.reason
+        assert response.status_code == 200, response.content
         assert response.data["task_state"] in ["su", "pe"]
 
     surface = Surface.objects.get(name="surface1")
@@ -671,7 +671,7 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(
     )
     assert (
         response.status_code == 400
-    ), response.reason  # There can only be one topography with the same name
+    ), response.content  # There can only be one topography with the same name
 
     # topo2 = Topography.objects.get(pk=response.data['id'])
     # Both can have same name
@@ -706,7 +706,7 @@ def test_trying_upload_of_topography_file_with_unknown_format(
             "category": "dum",
         },
     )
-    assert response.status_code == 201, response.reason
+    assert response.status_code == 201, response.content
 
     surface = Surface.objects.get(name="surface1")
 
@@ -759,7 +759,7 @@ def test_trying_upload_of_topography_file_with_too_long_format_name(
     response = upload_file(
         str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
 
 
 @pytest.mark.django_db
@@ -791,7 +791,7 @@ def test_trying_upload_of_corrupted_topography_file(
             "category": category,
         },
     )
-    assert response.status_code == 201, response.reason
+    assert response.status_code == 201, response.content
 
     surface = Surface.objects.get(name="surface1")
 
@@ -899,7 +899,7 @@ def test_topography_list(
     response = api_client.get(
         f"{url}?children=yes"
     )  # We need children=yes to get the topography set
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
 
     topo_names = [t["name"] for t in response.data["topography_set"]]
     topo_urls = [t["url"] for t in response.data["topography_set"]]
@@ -941,7 +941,7 @@ def test_edit_topography(
     response = api_client.get(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topo_example3.pk))
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
 
     assert response.data["name"] == topo_example3.name
     assert response.data["measurement_date"] == str(datetime.date(2018, 1, 1))
@@ -970,7 +970,7 @@ def test_edit_topography(
             "has_undefined_data": False,
         },
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
 
     #
     # let's check whether it has been changed
@@ -1016,7 +1016,7 @@ def test_edit_line_scan(
     response = api_client.get(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topo_id))
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
 
     assert response.data["name"] == "Simple Line Scan"
     assert response.data["measurement_date"] == str(datetime.date(2018, 1, 1))
@@ -1045,7 +1045,7 @@ def test_edit_line_scan(
             "has_undefined_data": False,
         },
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
 
     # due to the changed topography editing, we should stay on update page
     url = reverse("manager:topography-api-detail", kwargs=dict(pk=topo_id))
@@ -1200,7 +1200,7 @@ def test_topography_detail(
     response = api_client.get(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topo_pk))
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
 
     # resolution should be written somewhere
     assert response.data["resolution_x"] == 305
@@ -1337,7 +1337,7 @@ def test_only_positive_size_values_on_edit(api_client, handle_usage_statistics):
             "instrument_name": "",
         },
     )
-    assert response.status_code == 400, response.reason
+    assert response.status_code == 400, response.content
     assert (
         response.data["size_x"][0].title()
         == "Ensure This Value Is Greater Than Or Equal To 0.0."
@@ -1386,7 +1386,7 @@ def test_delete_surface(api_client, handle_usage_statistics):
     response = api_client.delete(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface.id))
     )
-    assert response.status_code == 204, response.reason
+    assert response.status_code == 204, response.content
 
     assert Surface.objects.all().count() == 0
 
@@ -1442,7 +1442,7 @@ def test_automatic_extraction_of_measurement_date(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id)),
         {"measurement_date": "2018-06-21"},
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
     assert response.data["measurement_date"] == "2018-06-21"
 
     # Force reparsing the data file
@@ -1450,14 +1450,14 @@ def test_automatic_extraction_of_measurement_date(
         response = api_client.post(
             reverse("manager:force-inspect", kwargs=dict(pk=topography_id))
         )
-        assert response.status_code == 200, response.reason
+        assert response.status_code == 200, response.content
     assert len(callbacks) == 1
 
     # Check that measurement date was not overriden
     response = api_client.get(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id))
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
     assert response.data["measurement_date"] == "2018-06-21"
 
 
@@ -1499,7 +1499,7 @@ def test_automatic_extraction_of_instrument_parameters(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id)),
         {"instrument_parameters": new_instrument_parameters},
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
     assert response.data["instrument_parameters"] == new_instrument_parameters
     assert response.data["instrument_type"] == Topography.INSTRUMENT_TYPE_CONTACT_BASED
 
@@ -1508,13 +1508,13 @@ def test_automatic_extraction_of_instrument_parameters(
         response = api_client.post(
             reverse("manager:force-inspect", kwargs=dict(pk=topography_id))
         )
-        assert response.status_code == 200, response.reason
+        assert response.status_code == 200, response.content
     assert len(callbacks) == 1
 
     # Check that instrument parameters were not overriden
     response = api_client.get(
         reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id))
     )
-    assert response.status_code == 200, response.reason
+    assert response.status_code == 200, response.content
     assert response.data["instrument_parameters"] == new_instrument_parameters
     assert response.data["instrument_type"] == Topography.INSTRUMENT_TYPE_CONTACT_BASED

@@ -2,23 +2,20 @@ import os
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
-from django.db.models.signals import pre_save
 from django.db.utils import ProgrammingError
-from django.dispatch import receiver
 from django.utils.translation import gettext_lazy as _
-from guardian.core import ObjectPermissionChecker
-from guardian.mixins import GuardianUserMixin
-from guardian.shortcuts import get_anonymous_user, get_objects_for_user
 from rest_framework.reverse import reverse
 
-DEFAULT_GROUP_NAME = 'all'
+from .anonymous import get_anonymous_user
+
+DEFAULT_GROUP_NAME = "all"
 
 
 class ORCIDException(Exception):
     pass
 
 
-class User(GuardianUserMixin, AbstractUser):
+class User(AbstractUser):
     # First Name and Last Name do not cover name patterns
     # around the globe.
     name = models.CharField(_("Name of User"), max_length=255)
@@ -28,10 +25,16 @@ class User(GuardianUserMixin, AbstractUser):
 
     def __str__(self):
         orcid_id = self.orcid_id
-        if orcid_id is None or orcid_id == '':
-            return self.name
-        else:
+        if orcid_id:
             return "{} ({})".format(self.name, orcid_id)
+        else:
+            return self.name
+
+    def save(self, *args, **kwargs):
+        # ensure the full name field is set
+        if not self.name:
+            self.name = f"{self.first_name} {self.last_name}"
+        super().save(*args, **kwargs)
 
     def _get_anonymous_user(self):
         if self.anonymous_user is None:
@@ -40,18 +43,11 @@ class User(GuardianUserMixin, AbstractUser):
 
     def get_absolute_url(self, request=None):
         """URL of API endpoint for this user"""
-        return reverse("users:user-api-detail", kwargs={"pk": self.pk},
-                       request=request)
+        return reverse("users:user-api-detail", kwargs={"pk": self.pk}, request=request)
 
     def get_media_path(self):
         """Return relative path of directory for files of this user."""
-        return os.path.join('topographies', 'user_{}'.format(self.id))
-
-    def has_obj_perms(self, perm, objs):
-        """Return permission for list of objects"""
-        checker = ObjectPermissionChecker(self)
-        checker.prefetch_perms(objs)
-        return [checker.has_perm(perm, obj) for obj in objs]
+        return os.path.join("topographies", "user_{}".format(self.id))
 
     def _orcid_info(self):  # TODO use local cache
         try:
@@ -65,9 +61,11 @@ class User(GuardianUserMixin, AbstractUser):
             raise ORCIDException("No ORCID account existing for this user.") from exc
 
         try:
-            orcid_info = social_account.extra_data['orcid-identifier']
+            orcid_info = social_account.extra_data["orcid-identifier"]
         except Exception as exc:
-            raise ORCIDException("Cannot retrieve ORCID info from local database.") from exc
+            raise ORCIDException(
+                "Cannot retrieve ORCID info from local database."
+            ) from exc
 
         return orcid_info
 
@@ -87,7 +85,7 @@ class User(GuardianUserMixin, AbstractUser):
             The ORCID iD as a string if available, otherwise None.
         """
         try:
-            return self._orcid_info()['path']
+            return self._orcid_info()["path"]
         except ORCIDException:
             return None
 
@@ -108,23 +106,14 @@ class User(GuardianUserMixin, AbstractUser):
             The ORCID URI as a string if available, otherwise None.
         """
         try:
-            return self._orcid_info()['uri']
+            return self._orcid_info()["uri"]
         except ORCIDException:  # noqa: E722
             return None
 
-    def is_sharing_with(self, user):
-        """Returns True if this user is sharing sth. with given user."""
-        from topobank.manager.models import Surface
-
-        objs = get_objects_for_user(user, 'view_surface', klass=Surface)
-        for o in objs:
-            if o.creator == self:  # this surface is shared by this user
-                return True
-        return False  # nothing shared
-
     @property
     def is_anonymous(self):
-        """Return whether user is anonymous.
+        """
+        Return whether user is anonymous.
 
         We have a piece of middleware, that replaces the default anymous
         user with django-guardian `AnonymousUser`. This is needed to give
@@ -164,12 +153,3 @@ class User(GuardianUserMixin, AbstractUser):
         permissions = (
             ("can_skip_terms", "Can skip all checkings for terms and conditions."),
         )
-
-
-#
-# ensure the full name field is set
-#
-@receiver(pre_save, sender=User)
-def ensure_name_field_set(sender, instance, **kwargs):
-    if not instance.name:
-        instance.name = f"{instance.first_name} {instance.last_name}"

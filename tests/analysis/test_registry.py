@@ -2,7 +2,6 @@ import pytest
 from django.contrib.auth.models import Group
 from django.contrib.contenttypes.models import ContentType
 
-from topobank.analysis.urls import app_name
 from topobank.analysis.functions import (
     VIZ_SERIES,
     surface_analysis_function_for_tests,
@@ -14,12 +13,13 @@ from topobank.analysis.registry import (
     AnalysisRegistry,
     register_implementation,
 )
+from topobank.analysis.urls import app_name
 from topobank.manager.models import Surface, Tag, Topography
 from topobank.testing.factories import (
+    OrganizationFactory,
     SurfaceFactory,
     TagFactory,
     Topography1DFactory,
-    OrganizationFactory,
     UserFactory,
 )
 
@@ -106,7 +106,7 @@ def test_analysis_function_implementation_for_tag():
     assert impl.is_available_for_user(u)
 
     sc = TagFactory(surfaces=[s1, s2, s3])
-    sc.authorize_user(u)
+    sc.authorize_user(u, "view")
     result = impl.eval(sc, a=2, b="bar")
     assert result["comment"] == "a is 2 and b is bar"
 

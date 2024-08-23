@@ -5,15 +5,14 @@ import django.db.models.deletion
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import migrations, models
-from guardian.shortcuts import GroupObjectPermission, UserObjectPermission
-
-from topobank.manager.models import SurfaceGroupObjectPermission, SurfaceUserObjectPermission
 
 _log = logging.getLogger(__name__)
 
 
 def forward_func(apps, schema_editor):
     # Migrating user permissions
+    UserObjectPermission = apps.get_model("guardian", "UserObjectPermission")
+    SurfaceUserObjectPermission = apps.get_model("manager", "SurfaceUserObjectPermission")
     user_object_perms = UserObjectPermission.objects.all()  # 'old' user perms
     _log.info(f"Migrating {user_object_perms.count()} UserObjectPermissions...")
     for user_object_perm in user_object_perms:
@@ -26,6 +25,8 @@ def forward_func(apps, schema_editor):
     _log.info(f"{SurfaceUserObjectPermission.objects.count()} SurfaceUserObjectPermissions after migration.")
 
     # Migrating group permissions
+    GroupObjectPermission = apps.get_model("guardian", "GroupObjectPermission")
+    SurfaceGroupObjectPermission = apps.get_model("manager", "SurfaceGroupObjectPermission")
     group_object_perms = GroupObjectPermission.objects.all()  # 'old' group perms
     _log.info(f"Migrating {group_object_perms.count()} GroupObjectPermissions...")
     for group_object_perm in group_object_perms:
@@ -38,6 +39,8 @@ def forward_func(apps, schema_editor):
     _log.info(f"{SurfaceGroupObjectPermission.objects.count()} SurfaceGroupObjectPermissions after migration.")
 
 def reverse_func(apps, schema_editor):
+    UserObjectPermission = apps.get_model("guardian", "UserObjectPermission")
+    SurfaceUserObjectPermission = apps.get_model("manager", "SurfaceUserObjectPermission")
     surface_content_type = ContentType.objects.get(app_label='manager', model='surface')
     # Reversing User permission migration
     user_object_perms = SurfaceUserObjectPermission.objects.all()  # 'old' user perms
@@ -48,6 +51,8 @@ def reverse_func(apps, schema_editor):
                                                    object_pk= user_object_perm.content_object.id,
                                                    permission=user_object_perm.permission)
     # Migrating group permissions
+    GroupObjectPermission = apps.get_model("guardian", "GroupObjectPermission")
+    SurfaceGroupObjectPermission = apps.get_model("manager", "SurfaceGroupObjectPermission")
     group_object_perms = SurfaceGroupObjectPermission.objects.all()  # 'old' group perms
     _log.info(f"Migrating {group_object_perms.count()} SurfaceGroupObjectPermissions")
     for group_object_perm in group_object_perms:

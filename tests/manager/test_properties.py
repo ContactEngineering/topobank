@@ -4,6 +4,7 @@ from django.core.exceptions import ValidationError
 from rest_framework.reverse import reverse
 
 from topobank.manager.models import Property
+from topobank.testing.factories import UserFactory
 
 
 @pytest.mark.django_db(transaction=True)
@@ -23,6 +24,13 @@ def test_categorical_value_cannot_have_units(api_client, one_line_scan):
 
     surface_id = one_line_scan.surface.id
     surface_api_url = reverse("manager:surface-api-detail", [surface_id])
+
+    # creating a categorical property without logging in should fail
+    response = api_client.post(
+        reverse("manager:property-api-list"),
+        data=dict(name="color", value="brown", surface=surface_api_url),
+    )
+    assert response.status_code == 403
 
     assert api_client.login(username=username, password=password)
 
@@ -46,6 +54,28 @@ def test_categorical_value_cannot_have_units(api_client, one_line_scan):
         data=dict(name="color", value="brown", unit="", surface=surface_api_url),
     )
     assert response.status_code == 400
+
+    # Create another user and login
+    user2 = UserFactory()
+    api_client.force_login(user2)
+
+    # Creating a categorical property should fail because user2 has no access to the
+    # dataset
+    response = api_client.post(
+        reverse("manager:property-api-list"),
+        data=dict(name="smell", value="flowery", surface=surface_api_url),
+    )
+    assert response.status_code == 403
+
+    # Share surface
+    one_line_scan.surface.grant_permission(user2, "edit")
+
+    # Creating a categorical property should succeed now
+    response = api_client.post(
+        reverse("manager:property-api-list"),
+        data=dict(name="smell", value="flowery", surface=surface_api_url),
+    )
+    assert response.status_code == 201
 
 
 @pytest.mark.django_db

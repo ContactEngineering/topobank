@@ -14,17 +14,16 @@ import SurfaceTopography
 from django.urls import reverse
 
 import topobank
-
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.tasks import current_configuration, perform_analysis
 from topobank.manager.models import Surface, Topography
 from topobank.manager.utils import subjects_to_base64
 from topobank.testing.factories import (
+    SurfaceAnalysisFactory,
     SurfaceFactory,
     Topography1DFactory,
-    UserFactory,
-    SurfaceAnalysisFactory,
     TopographyAnalysisFactory,
+    UserFactory,
 )
 
 
@@ -637,15 +636,17 @@ def test_download_analysis_results_without_permission(
     response = client.get(download_url)
     assert response.status_code == 403  # Permission denied
 
-    # when user_2 has view permissions for one topography of both, it's still not okay to download
+    # when user_2 has view permissions for one topography of both, it's still not okay
+    # to download
     two_topos[0].surface.share(user_2)
     response = client.get(download_url)
     assert response.status_code == 403  # Permission denied
 
-    # when user_2 has view permissions for all related surfaces, it's okay to download
+    # when user_2 has view permissions for all related surfaces, it's still not okay
+    # to download as analyses are per user
     two_topos[1].surface.share(user_2)
     response = client.get(download_url)
-    assert response.status_code == 200
+    assert response.status_code == 403
 
 
 @pytest.mark.django_db
