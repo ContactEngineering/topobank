@@ -6,7 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("manager", "0056_alter_topography_options_property_permissions_and_more"),
+        ("manager", "0054_alter_topography_options_property_permissions_and_more"),
     ]
 
     operations = [

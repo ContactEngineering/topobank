@@ -3,8 +3,6 @@
 import django.db.models.deletion
 from django.db import migrations, models
 
-from topobank.authorization.permissions import Permission
-
 
 def api_to_guardian(api_permission):
     """
@@ -77,7 +75,7 @@ def forward_func(apps, schema_editor):
         permset = PermissionSet()
         permset.save()
         users_with_access = [
-            User.objects.get(pk=x['user'])
+            User.objects.get(pk=x["user"])
             for x in SurfaceUserObjectPermission.objects.filter(content_object=surface)
             .order_by("user")
             .distinct("user")
@@ -112,7 +110,8 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("authorization", "0001_initial"),
-        ("manager", "0055_remove_fileparent_tag"),
+        ("files", "0001_initial"),
+        ("manager", "0053_alter_property_options_and_more"),
     ]
 
     operations = [

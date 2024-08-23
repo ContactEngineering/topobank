@@ -104,6 +104,7 @@ LOCAL_APPS = [
     # Your stuff: custom apps go here
     "topobank.users.apps.UsersAppConfig",
     "topobank.authorization.apps.AuthorizationAppConfig",
+    "topobank.files.apps.FilesAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
     "topobank.usage_stats.apps.UsageStatsAppConfig",

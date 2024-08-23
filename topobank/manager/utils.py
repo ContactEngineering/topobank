@@ -12,7 +12,6 @@ from django.core.files import File
 from django.core.files.storage import default_storage
 from django.db.models import Q
 from rest_framework.reverse import reverse
-from storages.utils import clean_name
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
@@ -208,8 +207,7 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
             # Nothing to check (but should not really happen)
             return []
         permissions = [
-            all([s.has_permission(user, "view") for s in r])
-            for r in related_surfaces
+            all([s.has_permission(user, "view") for s in r]) for r in related_surfaces
         ]
 
         # Filter only those subjects that have view permissions
@@ -460,54 +458,8 @@ def make_dzi(
             )
         for filename in filenames:
             # Strip tmp directory
-            storage_filename = filename[len(tmpdirname) + 1:]
+            storage_filename = filename[len(tmpdirname) + 1 :]
             # Delete (possibly existing) old data files
             target_name = f"{path_prefix}/{storage_filename}"
             # Upload to S3
             default_storage_replace(target_name, File(open(filename, mode="rb")))
-
-
-def get_upload_instructions(instance, name, expire, method=None):
-    """Generate a presigned URL for an upload direct to S3"""
-    # Preserve the trailing slash after normalizing the path.
-    if method is None:
-        method = settings.UPLOAD_METHOD
-
-    if settings.USE_S3_STORAGE:
-        name = default_storage._normalize_name(clean_name(name))
-        if method == "POST":
-            upload_instructions = (
-                default_storage.bucket.meta.client.generate_presigned_post(
-                    Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=name, ExpiresIn=expire
-                )
-            )
-            upload_instructions["method"] = "POST"
-        elif method == "PUT":
-            upload_instructions = {
-                "method": "PUT",
-                "url": default_storage.bucket.meta.client.generate_presigned_url(
-                    ClientMethod="put_object",
-                    Params={
-                        "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                        "Key": name,
-                        "ContentType": "binary/octet-stream",  # must match content type of put request
-                    },
-                    ExpiresIn=expire,
-                ),
-            }
-        else:
-            raise RuntimeError(f"Unknown upload method: {method}")
-    else:
-        if method != "POST":
-            raise RuntimeError("Only POST uploads are supported without S3")
-        upload_instructions = {
-            "method": "POST",
-            "url": reverse("manager:upload-topography", kwargs=dict(pk=instance.id)),
-            "fields": {},
-        }
-    return upload_instructions
-
-
-def generate_upload_path(instance, file_name: str) -> str:
-    owner_type, owner_obj = instance.parent.get_owner()
-    return f"{owner_type}/{owner_obj.id}/{instance.kind}/{instance.id}/{file_name}"
