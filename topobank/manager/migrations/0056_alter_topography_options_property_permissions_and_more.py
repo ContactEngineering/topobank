@@ -62,6 +62,7 @@ def guardian_to_api(guardian_permissions):
 
 
 def forward_func(apps, schema_editor):
+    User = apps.get_model("users", "User")
     Surface = apps.get_model("manager", "Surface")
     Topography = apps.get_model("manager", "Topography")
     Property = apps.get_model("manager", "Property")
@@ -74,13 +75,17 @@ def forward_func(apps, schema_editor):
     for surface in Surface.objects.all():
         # Create new permset representing the guardian permissions
         permset = PermissionSet()
-        users_with_access = SurfaceUserObjectPermission.objects.filter(
-            content_object=surface
-        ).order_by("user").distinct("user").values("user")
+        permset.save()
+        users_with_access = [
+            User.objects.get(pk=x['user'])
+            for x in SurfaceUserObjectPermission.objects.filter(content_object=surface)
+            .order_by("user")
+            .distinct("user")
+            .values("user")
+        ]
         for user in users_with_access:
-            user = user["user"]
             guardian_permissions = [
-                PermissionDictionary.objects.get(pk=x.permission.id)
+                PermissionDictionary.objects.get(pk=x.permission.id).codename
                 for x in SurfaceUserObjectPermission.objects.filter(
                     content_object=surface, user=user
                 )
@@ -90,7 +95,6 @@ def forward_func(apps, schema_editor):
                 UserPermission.objects.create(
                     parent=permset, user=user, allow=access_level
                 )
-        permset.save()
         # Attach permset to surface
         surface.permissions = permset
         surface.save()
