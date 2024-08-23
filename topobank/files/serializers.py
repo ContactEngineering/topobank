@@ -8,7 +8,7 @@ from .models import Folder, Manifest
 _log = logging.getLogger(__name__)
 
 
-class FileUploadSerializer(serializers.Serializer):
+class UploadSerializer(serializers.Serializer):
     surface = serializers.HyperlinkedRelatedField(
         view_name="manager:surface-api-detail",
         queryset=Surface.objects.all(),
@@ -48,7 +48,7 @@ class FileUploadSerializer(serializers.Serializer):
         return data
 
 
-class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
+class ManifestSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Manifest
         fields = [

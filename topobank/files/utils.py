@@ -1,12 +1,12 @@
 from django.conf import settings
 from django.core.files.storage import default_storage
+from django.utils.text import slugify
 from rest_framework.reverse import reverse
 from storages.utils import clean_name
 
 
 def generate_upload_path(instance, file_name: str) -> str:
-    owner_type, owner_obj = instance.parent.get_owner()
-    return f"{owner_type}/{owner_obj.id}/{instance.kind}/{instance.id}/{file_name}"
+    return f"{slugify(str(instance))}/{instance.id}/{file_name}"
 
 
 def get_upload_instructions(instance, name, expire, method=None):

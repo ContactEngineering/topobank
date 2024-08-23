@@ -6,7 +6,7 @@ from drf_spectacular.utils import OpenApiExample, extend_schema_serializer
 from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from ..files.serializers import FileManifestSerializer
+from ..files.serializers import ManifestSerializer
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
 from .models import Property, Surface, Tag, Topography
@@ -143,7 +143,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         view_name="manager:surface-api-detail", queryset=Surface.objects.all()
     )
 
-    attachments = FileManifestSerializer(many=True)
+    attachments = ManifestSerializer(many=True)
 
     tags = TagRelatedManagerField(required=False)
 
@@ -390,7 +390,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
 
     topography_set = TopographySerializer(many=True, read_only=True)
     properties = PropertySerializer(many=True)
-    attachments = FileManifestSerializer(many=True)
+    attachments = ManifestSerializer(many=True)
     tags = TagRelatedManagerField(required=False)
     permissions = serializers.SerializerMethodField()
 

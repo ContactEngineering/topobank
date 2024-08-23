@@ -2,14 +2,15 @@ from django.shortcuts import get_object_or_404
 from rest_framework import mixins
 from rest_framework import serializers as drf_serializers
 from rest_framework import viewsets
+from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from rest_framework.views import APIView
 
 from topobank.files.file_upload import FileUploadService
 
+from ..authorization.permissions import Permission
 from .models import Manifest
-from .permissions import FileManifestObjectPermissions
-from .serializers import FileManifestSerializer, FileUploadSerializer
+from .serializers import ManifestSerializer, UploadSerializer
 
 
 class FileManifestViewSet(
@@ -19,15 +20,15 @@ class FileManifestViewSet(
     viewsets.GenericViewSet,
 ):
     queryset = Manifest.objects.all()
-    serializer_class = FileManifestSerializer
-    permission_classes = [FileManifestObjectPermissions]
+    serializer_class = ManifestSerializer
+    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
 
 
 class FileDirectUploadStartApi(APIView):
 
     # ToDo Permissions and Auth
     def post(self, request):
-        serializer = FileUploadSerializer(data=request.data)
+        serializer = UploadSerializer(data=request.data)
         serializer.is_valid(raise_exception=True)
         service = FileUploadService(request.user)
         presigned_data = service.start(**serializer.validated_data)
