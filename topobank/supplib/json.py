@@ -41,7 +41,6 @@ class ExtendedJSONEncoder(DjangoJSONEncoder):
         np.uint16: int,
         np.uint32: int,
         np.uint64: int,
-        np.float_: float,
         np.float16: float,
         np.float32: float,
         np.float64: float,

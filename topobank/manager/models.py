@@ -353,17 +353,26 @@ class Surface(models.Model,
         return guardian_to_api(get_perms(with_user, self))
 
     def is_shared(self, with_user):
-        """Returns True, if this surface is shared with a given user.
+        """
+        Returns True if this surface is shared with a given user.
 
-        Always returns True if user is the creator.
+        Always returns True if the user is the creator of the surface.
 
-        :param with_user: User to test
-        :return: True or False
+        Parameters
+        ----------
+        with_user : User
+            The user to check for sharing status.
+
+        Returns
+        -------
+        bool
+            True if the surface is shared with the given user, False otherwise.
         """
         return self.get_permissions(with_user) != 'no-access'
 
     def set_permissions(self, with_user, permissions):
-        """Set permissions for access to this surface for a given user.
+        """
+        Set permissions for access to this surface for a given user.
         This is equivalent to sharing the dataset.
 
         Parameters
@@ -378,7 +387,7 @@ class Surface(models.Model,
                     'change_surface'
                 'full': Full access (essentially transfer), corresponding to
                     'view_surface', 'change_surface', 'delete_surface',
-                    'share_surface' and 'publish_surface':
+                    'share_surface' and 'publish_surface'
         """
         if self.is_published:
             raise PermissionError('Permissions of a published digital surface twin cannot be changed.')

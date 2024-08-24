@@ -42,6 +42,7 @@ dependencies = [
     'django==4.2.14',    #  does this work with pyup?  # https://www.djangoproject.com/
     'django-environ',  # https://github.com/joke2k/django-environ
     'django-allauth>=0.56.0',  # https://github.com/pennersr/django-allauth
+    'fido2',  # required by django-allauth
     'django-crispy-forms',  # https://github.com/django-crispy-forms/django-crispy-forms
     'crispy-bootstrap5',  # https://stackoverflow.com/questions/75495403/django-returns-templatedoesnotexist-when-using-crispy-forms
 
@@ -217,18 +218,6 @@ dev = [
 
     # Debugging
     # ------------------------------------------------------------------------------
-
-    # just for interactive use to try things (not necessary)
-    'ipython>=7.31.1',
-
-    # additional for browser test
-    'pytest-splinter',
-    'splinter[django]',
-    'selenium',
-    'pytest-selenium',
-
-    # for parsing html
-    'beautifulsoup4',
 
     # for testing functions depending on date functions
     'freezegun',

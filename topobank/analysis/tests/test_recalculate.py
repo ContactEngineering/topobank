@@ -26,12 +26,16 @@ def test_renew_analyses_api(client, test_analysis_function):
     with transaction.atomic():
         # trigger "renew" for two specific analyses
 
-        response = client.put(reverse('analysis:result-detail', kwargs=dict(pk=analysis1a.pk)),
-                              format='json')  # we need an AJAX request
+        response = client.put(
+            reverse("analysis:result-detail", kwargs=dict(pk=analysis1a.pk)),
+            format="json",
+        )  # we need an AJAX request
         assert response.status_code == 201
 
-        response = client.put(reverse('analysis:result-detail', kwargs=dict(pk=analysis2a.pk)),
-                              format='json')  # we need an AJAX request
+        response = client.put(
+            reverse("analysis:result-detail", kwargs=dict(pk=analysis2a.pk)),
+            format="json",
+        )  # we need an AJAX request
         assert response.status_code == 201
 
     #

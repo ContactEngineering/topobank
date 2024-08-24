@@ -106,6 +106,21 @@ class Analysis(TaskStateModel):
         return "Task {} with state {}".format(self.task_id, self.get_task_state_display())
 
     def delete(self, *args, **kwargs):
+        """
+        Delete the analysis instance, including its associated task and storage files.
+
+        This method performs the following steps:
+        1. Cancels the task if it is currently running.
+        2. Removes associated files from the storage backend.
+        3. Deletes the database entry for the analysis instance.
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+        """
         # Cancel task (if running)
         self.cancel_task()
 
@@ -116,6 +131,21 @@ class Analysis(TaskStateModel):
         super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
+        """
+        Save the analysis instance to the database.
+
+        This method performs the following steps:
+        1. Sets the creation time if the instance does not have an ID.
+        2. Calls the parent class's save method to save the instance.
+        3. Stores the result dictionary in the storage backend if it is provided.
+
+        Parameters
+        ----------
+        *args : tuple
+            Variable length argument list.
+        **kwargs : dict
+            Arbitrary keyword arguments.
+        """
         if not self.id:
             self.creation_time = timezone.now()
         super().save(*args, **kwargs)
@@ -127,19 +157,48 @@ class Analysis(TaskStateModel):
 
     @property
     def subject(self):
-        """Return the subject of the analysis, which can be a Tag, a Topography or a Surface"""
+        """
+        Return the subject of the analysis, which can be a Tag, a Topography, or a Surface.
+
+        Returns
+        -------
+        Tag, Topography, or Surface
+            The subject of the analysis.
+        """
         return self.subject_dispatch.get()
 
     @property
     def result(self):
-        """Return result object or None if there is nothing yet."""
+        """
+        Return the result object or None if there is nothing yet.
+
+        This property checks if the result cache is empty. If it is, it loads the result
+        from the storage backend using the storage prefix and result file basename.
+        The loaded result is then cached for future access.
+
+        Returns
+        -------
+        dict or None
+            The result object if available, otherwise None.
+        """
         if self._result_cache is None:
             self._result_cache = load_split_dict(self.storage_prefix, RESULT_FILE_BASENAME)
         return self._result_cache
 
     @property
     def result_metadata(self):
-        """Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it"""
+        """
+        Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it.
+
+        This property checks if the result metadata cache is empty. If it is, it loads the metadata
+        from the storage backend using the storage prefix and result file basename.
+        The loaded metadata is then cached for future access.
+
+        Returns
+        -------
+        dict
+            The toplevel result object without series data.
+        """
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
                 default_storage.open(f'{self.storage_prefix}/{RESULT_FILE_BASENAME}.json')
@@ -199,7 +258,7 @@ class Analysis(TaskStateModel):
         """Return list of users which should naturally be able to see this analysis.
 
         This is based on the permissions of the subjects and of the analysis function.
-        The users re returned in a queryset sorted by name.
+        The users are returned in a queryset sorted by name.
         """
         # Find all users having access to all related surfaces
         users_allowed_by_surfaces = self.subject.get_users_with_perms()
