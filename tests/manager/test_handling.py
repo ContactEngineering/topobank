@@ -1465,8 +1465,6 @@ def test_automatic_extraction_of_measurement_date(
 def test_automatic_extraction_of_instrument_parameters(
     api_client, settings, handle_usage_statistics, django_capture_on_commit_callbacks
 ):
-    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
-
     name = "dektak-1.csv"
     input_file_path = Path(
         f"{FIXTURE_DATA_DIR}/{name}"
