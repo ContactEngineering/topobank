@@ -2,7 +2,7 @@ import logging
 import sys
 
 from django.db.models import Q
-from django.db.models.signals import post_delete, pre_save
+from django.db.models.signals import pre_delete, pre_save
 from django.dispatch import receiver
 
 from ..manager.models import Topography, post_renew_cache
@@ -18,7 +18,7 @@ _IN_CELERY_WORKER_PROCESS = (
 )
 
 
-@receiver(post_delete, sender=Analysis)
+@receiver(pre_delete, sender=Analysis)
 def pre_delete_analysis(sender, instance, **kwargs):
     """
     Delete the analysis instance, including its associated task and storage files.
@@ -69,8 +69,8 @@ def pre_measurement_save(sender, instance, **kwargs):
         Analysis.objects.filter(subject_dispatch__surface=instance.surface).delete()
 
 
-@receiver(post_delete, sender=Topography)
-def post_measurement_delete(sender, instance, **kwargs):
+@receiver(pre_delete, sender=Topography)
+def pre_delete_topography(sender, instance, **kwargs):
     # The topography analysis is automatically deleted, but we have to delete the
     # corresponding surface analysis; we do this after the transaction has finished
     # so we can check whether the surface still exists.

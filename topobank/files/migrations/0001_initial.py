@@ -25,7 +25,7 @@ class Migration(migrations.Migration):
             name='Manifest',
             fields=[
                 ('id', models.AutoField(auto_created=True, primary_key=True, serialize=False, verbose_name='ID')),
-                ('file', models.FileField(blank=True, null=True, upload_to=topobank.files.utils.generate_upload_path)),
+                ('file', models.FileField(blank=True, null=True, upload_to=topobank.files.utils.generate_storage_path)),
                 ('file_name', models.CharField(max_length=255)),
                 ('file_type', models.CharField(blank=True, max_length=255, null=True)),
                 ('kind', models.CharField(choices=[('att', 'Attachment'), ('raw', 'Raw data file')], max_length=3)),

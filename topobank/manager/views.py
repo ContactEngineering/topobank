@@ -24,7 +24,7 @@ from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
 from ..authorization.permissions import Permission
-from ..files.utils import get_upload_instructions
+from ..manager.utils import get_upload_instructions
 from ..supplib.versions import get_versions
 from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
@@ -410,7 +410,8 @@ def upload_topography(request, pk=None):
         _log.debug(
             f"Received uploaded file and stored it at path '{instance.datafile.name}'."
         )
-        instance.notify_users_with_perms(
+        instance.notify_users(
+            request.user,
             "create",
             f"User '{instance.creator}' uploaded the measurement '{instance.name}' to "
             f"digital surface twin '{instance.surface.name}'.",

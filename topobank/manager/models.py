@@ -25,7 +25,6 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
 from django.db import models
-from notifications.signals import notify
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
@@ -1512,17 +1511,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             and self.height_scale is not None
         )
 
-    def notify_users_with_perms(self, verb, description):
-        other_users = self.permissions.user_permissions.filter(
-            ~models.Q(user=self.creator)
-        )
-        for perm in other_users:
-            notify.send(
-                sender=self.creator,
-                recipient=perm.user,
-                verb=verb,
-                description=description,
-            )
+    def notify_users(self, sender, verb, description):
+        self.permissions.notify_users(sender, verb, description)
 
     def renew_cache(self):
         """
@@ -1544,7 +1534,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             # Data file exists; path the datafile field to point to the correct file
             self.datafile.name = file_path
             # Notify users that a new file has been uploaded
-            self.notify_users_with_perms(
+            self.notify_users(
                 "create",
                 f"User '{self.creator}' uploaded the measurement '{self.name}' to "
                 f"digital surface twin '{self.surface.name}'.",

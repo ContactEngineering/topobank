@@ -7,6 +7,7 @@ from typing import Literal, Union
 from django.db import models
 from django.db.models import QuerySet
 from jedi import InternalError
+from notifications.signals import notify
 
 from ..users.models import User
 
@@ -104,6 +105,15 @@ class PermissionSet(models.Model):
             raise PermissionError(
                 f"User {user} has permission '{perm.allow}', cannot elevate to "
                 f"permission '{access_level}'."
+            )
+
+    def notify_users(self, sender, verb, description):
+        for permission in self.user_permissions.exclude(user=sender):
+            notify.send(
+                sender=sender,
+                recipient=permission.user,
+                verb=verb,
+                description=description,
             )
 
 

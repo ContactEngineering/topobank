@@ -13,7 +13,7 @@ from topobank.testing.factories import (
     Topography2DFactory,
     UserFactory,
 )
-from topobank.testing.utils import upload_file
+from topobank.testing.utils import upload_topography_file
 
 
 def test_individual_read_access_permissions(
@@ -264,7 +264,7 @@ def test_upload_topography_for_shared_surface(
     # Now allow to change and get response again
     #
     surface.grant_permission(user2, "edit")
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path),
         surface.id,
         api_client,

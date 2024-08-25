@@ -9,11 +9,9 @@ from operator import itemgetter
 
 import numpy as np
 import requests
-
 from django.conf import settings
 from django.test import SimpleTestCase
 from django.utils import formats
-
 from rest_framework.reverse import reverse
 
 _log = logging.getLogger(__name__)
@@ -122,7 +120,26 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
 assert_redirects = SimpleTestCase().assertRedirects
 
 
-def upload_file(
+def upload_file(api_client, upload_instructions, fn):
+    _log.debug(f"Upload post url: {upload_instructions['url']}")
+    with open(fn, mode="rb") as fp:
+        if settings.USE_S3_STORAGE:
+            # We need to use `requests` as the upload is directly to S3, not to the Django app
+            response = requests.post(
+                upload_instructions["url"],
+                data={**upload_instructions["fields"]},
+                files={"file": fp},
+            )
+        else:
+            response = api_client.post(
+                upload_instructions["url"],
+                {**upload_instructions["fields"], "name": fp},
+                format="multipart",
+            )
+    assert response.status_code == 204, response.data  # Created
+
+
+def upload_topography_file(
     fn,
     surface_id,
     api_client,
@@ -150,22 +167,7 @@ def upload_file(
     upload_instructions = response.data[
         "upload_instructions"
     ]  # The POST request above informs us how to upload the file
-    _log.debug(f"Upload post url: {upload_instructions['url']}")
-    with open(fn, mode="rb") as fp:
-        if settings.USE_S3_STORAGE:
-            # We need to use `requests` as the upload is directly to S3, not to the Django app
-            response = requests.post(
-                upload_instructions["url"],
-                data={**upload_instructions["fields"]},
-                files={"file": fp},
-            )
-        else:
-            response = api_client.post(
-                upload_instructions["url"],
-                {**upload_instructions["fields"], name: fp},
-                format="multipart",
-            )
-    assert response.status_code == 204, response.data  # Created
+    upload_file(api_client, upload_instructions)
 
     # We need to execute on commit actions, because this is where the renew_cache task is triggered
     with django_capture_on_commit_callbacks(execute=True):

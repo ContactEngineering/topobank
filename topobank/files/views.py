@@ -1,16 +1,20 @@
+import logging
+
+from django.conf import settings
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
-from rest_framework import mixins
-from rest_framework import serializers as drf_serializers
-from rest_framework import viewsets
+from rest_framework import mixins, viewsets
+from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-from rest_framework.views import APIView
-
-from topobank.files.file_upload import FileUploadService
 
 from ..authorization.permissions import Permission
 from .models import Manifest
-from .serializers import ManifestSerializer, UploadSerializer
+from .serializers import ManifestSerializer
+from .upload import FileUploadService
+from .utils import generate_storage_path
+
+_log = logging.getLogger(__name__)
 
 
 class FileManifestViewSet(
@@ -24,38 +28,47 @@ class FileManifestViewSet(
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
 
 
-class FileDirectUploadStartApi(APIView):
+@api_view(["POST"])
+def upload_finished(request, manifest_id: int):
+    # Get manifest instance and authorize
+    manifest = get_object_or_404(Manifest, id=manifest_id)
+    manifest.authorize_user(request.user, "edit")
 
-    # ToDo Permissions and Auth
-    def post(self, request):
-        serializer = UploadSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        service = FileUploadService(request.user)
-        presigned_data = service.start(**serializer.validated_data)
-        return Response(data=presigned_data)
+    if settings.USE_S3_STORAGE:
+        # Check if there already is a file
+        if manifest.file:
+            return HttpResponseBadRequest(
+                f"A file already exists for manifest {manifest}. Cannot finalize upload."
+            )
 
+        # Set storage location to file that was just uploaded
+        storage_path = generate_storage_path(manifest, manifest.file_name)
+        manifest.file = manifest.file.field.attr_class(
+            manifest, manifest.file.field, storage_path
+        )
 
-class FileDirectUploadFinishApi(APIView):
-
-    class InputSerializer(drf_serializers.Serializer):
-        file_id = drf_serializers.CharField()
-
-    # ToDo Permissions and Auth
-    def post(self, request):
-        serializer = self.InputSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        file_id = serializer.validated_data["file_id"]
-        service = FileUploadService(request.user)
-        file_manifest = get_object_or_404(Manifest, id=file_id)
-        service.finish(file_manifest=file_manifest)
-        return Response({"id": file_id})
+    FileUploadService(request.user).finish(manifest=manifest)
+    return Response({}, status=204)
 
 
-class FileDirectUploadLocalApi(APIView):
-    def post(self, request, file_id):
-        file_manifest = get_object_or_404(Manifest, id=file_id)
-        file = request.FILES["file"]
-        service = FileUploadService(request.user)
-        file = service.upload_local(file_manifest=file_manifest, file=file)
+@api_view(["POST"])
+def upload_local(request, manifest_id: int):
+    # Get manifest instance and authorize
+    manifest = get_object_or_404(Manifest, id=manifest_id)
+    manifest.authorize_user(request.user, "edit")
 
-        return Response({"id": file_id})
+    # Check if there already is a file
+    if manifest.file:
+        return HttpResponseBadRequest(
+            f"A file already exists for manifest {manifest}. Cannot accept upload."
+        )
+
+    _log.debug(f"Receiving uploaded files for {manifest}...")
+    nb_files = 0
+    for filename, file in request.FILES.items():
+        nb_files += 1
+        if nb_files > 1:
+            return HttpResponseBadRequest("Upload can only accept single files.")
+        FileUploadService(request.user).upload_local(manifest=manifest, file=file)
+
+    return Response({}, status=204)

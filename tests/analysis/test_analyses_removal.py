@@ -141,6 +141,8 @@ def test_analysis_removal_on_topography_deletion(
     assert Analysis.objects.filter(subject_dispatch__topography=topo.id).count() == 1
     assert Analysis.objects.filter(subject_dispatch__surface=surface.id).count() == 2
 
+    assert surface.topography_set.count() == 1
+
     #
     # Now remove topography and see whether all analyses are deleted
     #
