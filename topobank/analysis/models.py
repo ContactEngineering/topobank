@@ -12,7 +12,6 @@ from django.utils import timezone
 
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
-from ..supplib.storage import recursive_delete
 from ..taskapp.models import Configuration, TaskStateModel
 from ..users.models import User
 from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
@@ -130,31 +129,6 @@ class Analysis(TaskStateModel):
         return "Task {} with state {}".format(
             self.task_id, self.get_task_state_display()
         )
-
-    def delete(self, *args, **kwargs):
-        """
-        Delete the analysis instance, including its associated task and storage files.
-
-        This method performs the following steps:
-        1. Cancels the task if it is currently running.
-        2. Removes associated files from the storage backend.
-        3. Deletes the database entry for the analysis instance.
-
-        Parameters
-        ----------
-        *args : tuple
-            Variable length argument list.
-        **kwargs : dict
-            Arbitrary keyword arguments.
-        """
-        # Cancel task (if running)
-        self.cancel_task()
-
-        # Remove files from storage
-        recursive_delete(self.storage_prefix)
-
-        # Delete database entry
-        super().delete(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         """

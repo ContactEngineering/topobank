@@ -12,7 +12,14 @@ _log = logging.getLogger(__name__)
 
 def _remove_notifications(instance):
     ct = ContentType.objects.get_for_model(instance)
-    Notification.objects.filter(target_object_id=instance.id, target_content_type=ct).delete()
+    Notification.objects.filter(
+        target_object_id=instance.id, target_content_type=ct
+    ).delete()
+
+
+@receiver(post_delete, sender=Topography)
+def pre_delete_topography(sender, instance, **kwargs):
+    instance.remove_files()
 
 
 @receiver(post_delete, sender=Surface)

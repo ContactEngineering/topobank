@@ -6,8 +6,6 @@ import logging
 
 from django.conf import settings
 from django.db import models
-from django.db.models.signals import pre_delete
-from django.dispatch import receiver
 
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet
@@ -71,9 +69,6 @@ class Manifest(PermissionMixin, models.Model):
     def __str__(self):
         return f"Manifest:\n\tfile -> {self.file}\n\tfolder -> {self.folder}\n\tkind -> {self.kind}"
 
-    def delete(self, *args, **kwargs):
-        return super().delete(*args, **kwargs)
-
     @property
     def is_valid(self):
         return bool(self.upload_finished)
@@ -81,10 +76,3 @@ class Manifest(PermissionMixin, models.Model):
     @property
     def url(self):
         return self.file.url
-
-
-@receiver(pre_delete, sender=Manifest)
-def pre_delete_manifest(sender, instance, **kwargs):
-    # File must be deleted in signal, as the delete method is not triggered in a CASCADE
-    # delete
-    instance.file.delete(save=False)

@@ -921,11 +921,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Reset to no refresh
         self._refresh_dependent_data = False
 
-    def delete(self, *args, **kwargs):
-        self._remove_files()
-        super().delete(*args, **kwargs)
-
-    def _remove_files(self):
+    def remove_files(self):
         """Remove files associated with a topography instance before removal of the topography."""
 
         # ideally, we would reuse datafiles if possible, e.g. for
