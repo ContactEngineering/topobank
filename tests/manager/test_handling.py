@@ -46,10 +46,8 @@ filelist = [
 #
 @pytest.mark.django_db
 def test_upload_topography_di(
-    api_client, settings, handle_usage_statistics, django_capture_on_commit_callbacks
+    api_client, handle_usage_statistics, django_capture_on_commit_callbacks
 ):
-    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
-
     name = "example3.di"
     input_file_path = Path(
         f"{FIXTURE_DATA_DIR}/{name}"

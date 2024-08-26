@@ -65,7 +65,7 @@ def upload_local(request, manifest_id: int):
 
     _log.debug(f"Receiving uploaded files for {manifest}...")
     nb_files = 0
-    for filename, file in request.FILES.items():
+    for key, file in request.FILES.items():
         nb_files += 1
         if nb_files > 1:
             return HttpResponseBadRequest("Upload can only accept single files.")

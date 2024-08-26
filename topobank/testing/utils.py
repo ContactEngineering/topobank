@@ -133,7 +133,7 @@ def upload_file(api_client, upload_instructions, fn):
         else:
             response = api_client.post(
                 upload_instructions["url"],
-                {**upload_instructions["fields"], "name": fp},
+                {**upload_instructions["fields"], "file": fp},
                 format="multipart",
             )
     assert response.status_code == 204, response.data  # Created
@@ -167,7 +167,7 @@ def upload_topography_file(
     upload_instructions = response.data[
         "upload_instructions"
     ]  # The POST request above informs us how to upload the file
-    upload_file(api_client, upload_instructions)
+    upload_file(api_client, upload_instructions, fn)
 
     # We need to execute on commit actions, because this is where the renew_cache task is triggered
     with django_capture_on_commit_callbacks(execute=True):

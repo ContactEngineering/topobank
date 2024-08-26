@@ -405,8 +405,8 @@ def tag_categorical_properties(request, pk=None):
 def upload_topography(request, pk=None):
     instance = Topography.objects.get(pk=pk)
     _log.debug(f"Receiving uploaded file for {instance}...")
-    for filename, file in request.FILES.items():
-        instance.datafile.save(filename, file)
+    for key, file in request.FILES.items():
+        instance.datafile.save(file.name, file)
         _log.debug(
             f"Received uploaded file and stored it at path '{instance.datafile.name}'."
         )
