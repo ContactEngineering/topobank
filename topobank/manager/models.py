@@ -1535,6 +1535,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.datafile.name = file_path
             # Notify users that a new file has been uploaded
             self.notify_users(
+                self.creator,
                 "create",
                 f"User '{self.creator}' uploaded the measurement '{self.name}' to "
                 f"digital surface twin '{self.surface.name}'.",
