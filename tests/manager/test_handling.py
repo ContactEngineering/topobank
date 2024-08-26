@@ -302,7 +302,7 @@ def test_upload_topography_txt(
         reverse("manager:surface-api-list"),
         data={"name": "surface1", "category": "sim"},
     )
-    assert response.status_code == 201, response.data
+    assert response.status_code == 201, response.content
 
     # populate surface with some info
     surface_id = response.data["id"]
@@ -310,7 +310,7 @@ def test_upload_topography_txt(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface_id)),
         {"category": "exp", "description": description},
     )
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
 
     response = upload_topography_file(
         str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks
@@ -327,7 +327,7 @@ def test_upload_topography_txt(
             "description": description,
         },
     )
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
     assert response.data["measurement_date"] == "2018-06-21"
     assert response.data["description"] == description
 

@@ -196,7 +196,7 @@ def test_notification_when_editing_shared_stuff(api_client, handle_usage_statist
             "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
         },
     )
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
 
     note = Notification.objects.get(
         recipient=user1, verb="change", description__contains=topography.name
@@ -218,7 +218,7 @@ def test_notification_when_editing_shared_stuff(api_client, handle_usage_statist
         {"name": new_name, "description": new_description, "category": new_category},
     )
 
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
 
     assert (
         Notification.objects.filter(

@@ -51,7 +51,7 @@ def test_renewal_on_topography_detrend_mode_change(
         )
 
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
     assert len(callbacks) == 1  # single callback for cache renewal
     assert renew_cache_mock.called
 
@@ -84,6 +84,6 @@ def test_no_renewal_on_measurement_date_change(
         )
 
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
     assert len(callbacks) == 0  # single callback for cache renewal
     assert not renew_cache_mock.called

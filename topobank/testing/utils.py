@@ -151,7 +151,7 @@ def upload_file(api_client, upload_instructions, fn):
                 raise RuntimeError("PUT uploads not supported without S3")
         else:
             raise RuntimeError(f"Unknown upload method {method}")
-    assert response.status_code == 204, response.data  # Created
+    assert response.status_code == 204, response.content  # Created
 
 
 def upload_topography_file(
@@ -175,7 +175,7 @@ def upload_topography_file(
             **kwargs,
         },
     )
-    assert response.status_code == 201, response.data  # Created
+    assert response.status_code == 201, response.content  # Created
     topography_id = response.data["id"]
 
     # upload file
@@ -192,7 +192,7 @@ def upload_topography_file(
         response = api_client.get(
             reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id))
         )
-        assert response.status_code == 200, response.data
+        assert response.status_code == 200, response.content
         assert response.data["task_state"] == "pe"
         # We need to close the commit capture here because the file inspection runs on commit
 
@@ -201,7 +201,7 @@ def upload_topography_file(
         response = api_client.get(
             reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id))
         )
-        assert response.status_code == 200, response.data
+        assert response.status_code == 200, response.content
         assert response.data["task_state"] == final_task_state
 
     return response
