@@ -145,7 +145,7 @@ def upload_file(api_client, upload_instructions, fn):
                 # We need to use `requests` as the upload is directly to S3, not to the
                 # Django app
                 response = requests.put(
-                    url, data=fp.read(), headers={"Content-Type": "binary/octet-stream"}
+                    url, data=fp, headers={"Content-Type": "binary/octet-stream"}
                 )
             else:
                 raise RuntimeError("PUT uploads not supported without S3")
