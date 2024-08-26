@@ -53,16 +53,9 @@ jobs:
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: secret12
       AWS_STORAGE_BUCKET_NAME: topobank-test
-      AWS_S3_ENDPOINT_URL: http://topobank-minio-alias:9000
+      AWS_S3_ENDPOINT_URL: http://localhost:9000
 
     steps:
-    - name: Patch hosts
-      if: matrix.storage[2] == 'PUT'
-      run: |
-        cat /etc/hosts
-        sudo sed -i 's/localhost/localhost topobank-minio-alias/' /etc/hosts
-        cat /etc/hosts
-
     - name: Create bucket
       if: matrix.storage[2] == 'PUT'
       run: |
