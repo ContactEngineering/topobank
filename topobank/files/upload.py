@@ -54,10 +54,6 @@ class FileUploadService:
 
     @transaction.atomic
     def upload_local(self, *, manifest: Manifest, file) -> Manifest:
-        if file.name != self.name:
-            raise RuntimeError(
-                "The names of the file in the manifest and the upload differ."
-            )
         manifest.file = file
         manifest.full_clean()
         manifest.save()

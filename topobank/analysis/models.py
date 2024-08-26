@@ -149,8 +149,8 @@ class Analysis(TaskStateModel):
         if not self.id:
             self.creation_time = timezone.now()
         super().save(*args, **kwargs)
-        # If a result dict is given on input, we store it. However, we can only do this once we have an id.
-        # This happens during testing.
+        # If a result dict is given on input, we store it. However, we can only do this
+        # once we have an id. This happens during testing.
         if self._result is not None:
             store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
             self._result = None
@@ -158,7 +158,8 @@ class Analysis(TaskStateModel):
     @property
     def subject(self):
         """
-        Return the subject of the analysis, which can be a Tag, a Topography, or a Surface.
+        Return the subject of the analysis, which can be a Tag, a Topography, or a
+        Surface.
 
         Returns
         -------
@@ -190,11 +191,12 @@ class Analysis(TaskStateModel):
     @property
     def result_metadata(self):
         """
-        Return the toplevel result object without series data, i.e. the raw result.json without unsplitting it.
+        Return the toplevel result object without series data, i.e. the raw result.json
+        without unsplitting it.
 
-        This property checks if the result metadata cache is empty. If it is, it loads the metadata
-        from the storage backend using the storage prefix and result file basename.
-        The loaded metadata is then cached for future access.
+        This property checks if the result metadata cache is empty. If it is, it loads
+        the metadata from the storage backend using the storage prefix and result file
+        basename. The loaded metadata is then cached for future access.
 
         Returns
         -------
@@ -229,7 +231,8 @@ class Analysis(TaskStateModel):
         """
         if self.id is None:
             raise RuntimeError(
-                "This `Analysis` does not have an id yet; the storage prefix is not yet known."
+                "This `Analysis` does not have an id yet; the storage prefix is not "
+                "yet known."
             )
         return "analyses/{}".format(self.id)
 
@@ -242,10 +245,18 @@ class Analysis(TaskStateModel):
         to a real directory.
         """
         if self.id is None:
-            raise RuntimeError('This `Analysis` does not have an id yet; the storage file names is not yet known.')
-        dir_tuple = default_storage.listdir(f'analyses/{self.id}')
-        file_lists = dir_tuple[1]
-        return [f'{self.storage_prefix}/{file_name}' for file_name in file_lists]
+            raise RuntimeError(
+                "This `Analysis` does not have an id yet; the storage file names is "
+                "not yet known."
+            )
+        try:
+            dir_tuple = default_storage.listdir(self.storage_prefix)
+            file_lists = dir_tuple[1]
+            return [f"{self.storage_prefix}/{file_name}" for file_name in file_lists]
+        # FIXME!!! InMemoryStorage raise a PathDoesNotExist error, but I don't know
+        # how to check for this generically
+        except:  # noqa: E722
+            return []
 
     def get_related_surfaces(self):
         """Returns sequence of surface instances related to the subject of this analysis."""
@@ -344,8 +355,8 @@ class AnalysisFunction(models.Model):
 
         Returns
         -------
-        Python function which implements the analysis, where first argument must be the given type,
-        and there maybe more arguments needed.
+        Python function which implements the analysis, where first argument must be the
+        given type, and there maybe more arguments needed.
 
         Raises
         ------

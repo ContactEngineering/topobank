@@ -49,7 +49,7 @@ USE_TZ = True
 postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
     DATABASES = {
-        "default": env.db("DATABASE_URL", default="postgres:///test_topobank-test")
+        "default": env.db("DATABASE_URL", default="postgres:///topobank-test")
     }
 else:
     DATABASES = {
@@ -441,6 +441,10 @@ STORAGES = {
     "default": {"BACKEND": STORAGE_BACKEND},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+print(f"STORAGES: {STORAGES}")
+print(f"USE_S3_STORAGE: {USE_S3_STORAGE}")
+
 AWS_LOCATION = env.str("AWS_MEDIA_PREFIX", default="media")
 
 AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY_ID", default=None)
