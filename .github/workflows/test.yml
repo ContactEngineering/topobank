@@ -22,8 +22,8 @@ jobs:
           - ['postgres:13', 'postgres://postgres:secret@localhost/topobank-test']
           - ['postgres:16', 'postgres://postgres:secret@localhost/topobank-test']
         storage:
-          - ['hello-world', 'inmemorystorage.InMemoryStorage']
-          - ['minio/minio:latest', 'storages.backends.s3boto3.S3Boto3Storage']
+          - ['hello-world', 'inmemorystorage.InMemoryStorage', 'POST']
+          - ['minio/minio:latest', 'storages.backends.s3boto3.S3Boto3Storage', 'PUT']
         python-version: ['3.9', '3.10', '3.11', '3.12']
 
     services:
@@ -47,6 +47,11 @@ jobs:
     env:
       DATABASE_URL: ${{ matrix.database[1] }}
       STORAGE_BACKEND: ${{ matrix.storage[1] }}
+      TOPOBANK_UPLOAD_METHOD: ${{ matrix.storage[2] }}
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: secret12
+      AWS_STORAGE_BUCKET_NAME: topobank-test
+      AWS_S3_ENDPOINT_URL: http://localhost:9000
 
     steps:
     - name: Checkout source code
