@@ -57,7 +57,7 @@ jobs:
     - name: Create bucket
       if: matrix.storage[2] == 'PUT'
       run: |
-        wget curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
+        curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
         chmod +x $HOME/minio-binaries/mc
         export PATH=$PATH:$HOME/minio-binaries/
         mc config host add minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY
