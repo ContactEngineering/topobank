@@ -21,6 +21,9 @@ jobs:
           # - ['hello-world', 'sqlite:///topobank.sqlite3']
           - ['postgres:13', 'postgres://postgres:secret@localhost/topobank-test']
           - ['postgres:16', 'postgres://postgres:secret@localhost/topobank-test']
+        storage:
+          - ['hello-world', 'inmemorystorage.InMemoryStorage']
+          - ['minio:latest', 'storages.backends.s3boto3.S3Boto3Storage']
         python-version: ['3.9', '3.10', '3.11', '3.12']
 
     services:
@@ -33,8 +36,17 @@ jobs:
         ports:
           - 5432:5432
 
+      minio:
+        image: ${{ matrix.storage[0] }}
+        env:
+          MINIO_ROOT_USER: admin
+          MINIO_ROOT_PASSWORD: secret12
+        ports:
+          - 9000:9000
+
     env:
       DATABASE_URL: ${{ matrix.database[1] }}
+      STORAGE_BACKEND: ${{ matrix.storage[1] }}
 
     steps:
     - name: Checkout source code
