@@ -58,7 +58,7 @@ jobs:
       if: matrix.storage[2] == 'PUT'
       run: |
         cat /etc/hosts
-        sed -i 's/localhost/localhost topobank-minio-alias/' /etc/hosts
+        sudo sed -i 's/localhost/localhost topobank-minio-alias/' /etc/hosts
         cat /etc/hosts
 
     - name: Create bucket
