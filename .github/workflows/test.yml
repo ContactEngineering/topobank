@@ -71,4 +71,4 @@ jobs:
         python manage.py collectstatic
 
     - name: Test
-      run: pytest -v
+      run: pytest -v -s
