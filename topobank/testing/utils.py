@@ -123,7 +123,7 @@ assert_redirects = SimpleTestCase().assertRedirects
 def upload_file(api_client, upload_instructions, fn):
     url = upload_instructions["url"]
     method = upload_instructions["method"]
-    _log.debug(f"Upload post url: {url}, method: {method}")
+    _log.debug(f"Upload to url: {url}, method: {method}")
     with open(fn, mode="rb") as fp:
         if method == "POST":
             if settings.USE_S3_STORAGE:
