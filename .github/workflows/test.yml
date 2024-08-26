@@ -51,7 +51,7 @@ jobs:
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: secret12
       AWS_STORAGE_BUCKET_NAME: topobank-test
-      AWS_S3_ENDPOINT_URL: https://localhost:9000
+      AWS_S3_ENDPOINT_URL: http://0.0.0.0:9000
 
     steps:
     - name: Create bucket
