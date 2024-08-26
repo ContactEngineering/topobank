@@ -121,21 +121,36 @@ assert_redirects = SimpleTestCase().assertRedirects
 
 
 def upload_file(api_client, upload_instructions, fn):
-    _log.debug(f"Upload post url: {upload_instructions['url']}")
+    url = upload_instructions["url"]
+    method = upload_instructions["method"]
+    _log.debug(f"Upload post url: {url}, method: {method}")
     with open(fn, mode="rb") as fp:
-        if settings.USE_S3_STORAGE:
-            # We need to use `requests` as the upload is directly to S3, not to the Django app
-            response = requests.post(
-                upload_instructions["url"],
-                data={**upload_instructions["fields"]},
-                files={"file": fp},
-            )
+        if method == "POST":
+            if settings.USE_S3_STORAGE:
+                # We need to use `requests` as the upload is directly to S3, not to the
+                # Django app
+                response = requests.post(
+                    url,
+                    data={**upload_instructions["fields"]},
+                    files={"file": fp},
+                )
+            else:
+                response = api_client.post(
+                    url,
+                    {**upload_instructions["fields"], "file": fp},
+                    format="multipart",
+                )
+        elif method == "PUT":
+            if settings.USE_S3_STORAGE:
+                # We need to use `requests` as the upload is directly to S3, not to the
+                # Django app
+                response = requests.put(
+                    url, data=fp.read(), headers={"Content-Type": "binary/octet-stream"}
+                )
+            else:
+                raise RuntimeError("PUT uploads not supported without S3")
         else:
-            response = api_client.post(
-                upload_instructions["url"],
-                {**upload_instructions["fields"], "file": fp},
-                format="multipart",
-            )
+            raise RuntimeError(f"Unknown upload method {method}")
     assert response.status_code == 204, response.data  # Created
 
 

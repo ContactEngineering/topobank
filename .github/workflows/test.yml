@@ -57,7 +57,7 @@ jobs:
 
     steps:
     - name: Create bucket
-      if: matrix.storage[2] == 'PUT'
+      if: endsWith(matrix.storage[1], 'S3Boto3Storage')
       run: |
         curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
         chmod +x $HOME/minio-binaries/mc
