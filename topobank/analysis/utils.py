@@ -14,15 +14,7 @@ def mangle_sheet_name(s: str) -> str:
     :return: string which should be suitable for sheet names
     """
 
-    replacements = {
-        ':': '',
-        '[': '(',
-        ']': ')',
-        '*': '',
-        '?': '',
-        "'": '"',
-        "\\": ""
-    }
+    replacements = {":": "", "[": "(", "]": ")", "*": "", "?": "", "'": '"', "\\": ""}
 
     for x, y in replacements.items():
         s = s.replace(x, y)
@@ -77,9 +69,13 @@ def filter_and_order_analyses(analyses):
     # Order analyses by surface
     # such that for each surface the analyses are ordered by subject id
     #
-    analysis_groups = OrderedDict()  # always the same order of surfaces for same list of subjects
-    for topography_analysis in sorted([a for a in analyses if a.subject_dispatch.topography is not None],
-                                      key=lambda a: a.subject_dispatch.topography_id):
+    analysis_groups = (
+        OrderedDict()
+    )  # always the same order of surfaces for same list of subjects
+    for topography_analysis in sorted(
+        [a for a in analyses if a.subject_dispatch.topography is not None],
+        key=lambda a: a.subject_dispatch.topography_id,
+    ):
         surface = topography_analysis.subject_dispatch.topography.surface
         if surface not in analysis_groups:
             analysis_groups[surface] = []
@@ -88,9 +84,13 @@ def filter_and_order_analyses(analyses):
     #
     # Process groups and collect analyses which are implicitly sorted
     #
-    analyses_of_surfaces = sorted([a for a in analyses if a.subject_dispatch.surface is not None],
-                                  key=lambda a: a.subject_dispatch.surface_id)
-    surfaces_of_surface_analyses = [a.subject_dispatch.surface for a in analyses_of_surfaces]
+    analyses_of_surfaces = sorted(
+        [a for a in analyses if a.subject_dispatch.surface is not None],
+        key=lambda a: a.subject_dispatch.surface_id,
+    )
+    surfaces_of_surface_analyses = [
+        a.subject_dispatch.surface for a in analyses_of_surfaces
+    ]
     for surface, topography_analyses in analysis_groups.items():
         try:
             # Is there an analysis for the corresponding surface?
@@ -112,14 +112,19 @@ def filter_and_order_analyses(analyses):
             sorted_analyses.extend(topography_analyses)
         else:
             # Insert corresponding topography analyses after surface analyses
-            sorted_analyses = sorted_analyses[:surface_analysis_index + 1] + topography_analyses \
-                              + sorted_analyses[surface_analysis_index + 1:]
+            sorted_analyses = (
+                sorted_analyses[: surface_analysis_index + 1]
+                + topography_analyses
+                + sorted_analyses[surface_analysis_index + 1 :]
+            )
 
     #
     # Finally add analyses for surface collections, if any
     #
-    for tag_analysis in sorted([a for a in analyses if a.subject_dispatch.tag is not None],
-                               key=lambda a: a.subject_dispatch.tag_id):
+    for tag_analysis in sorted(
+        [a for a in analyses if a.subject_dispatch.tag is not None],
+        key=lambda a: a.subject_dispatch.tag_id,
+    ):
         sorted_analyses.append(tag_analysis)
 
     return sorted_analyses
