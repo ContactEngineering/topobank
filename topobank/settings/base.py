@@ -431,10 +431,14 @@ TERMS_STORE_IP_ADDRESS = False
 #
 # Storage Settings
 #
-USE_S3_STORAGE = True
+STORAGE_BACKEND = env.str(
+    "STORAGE_BACKEND", default="storages.backends.s3boto3.S3Boto3Storage"
+)
+
+USE_S3_STORAGE = STORAGE_BACKEND.endswith("s3boto3.S3Boto3Storage")
 
 STORAGES = {
-    "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+    "default": {"BACKEND": STORAGE_BACKEND},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 AWS_LOCATION = env.str("AWS_MEDIA_PREFIX", default="media")
