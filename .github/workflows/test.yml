@@ -54,6 +54,16 @@ jobs:
       AWS_S3_ENDPOINT_URL: http://localhost:9000
 
     steps:
+    - name: Create bucket
+      if: matrix.storage[2] == 'PUT'
+      run: |
+        wget curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
+        chmod +x $HOME/minio-binaries/mc
+        export PATH=$PATH:$HOME/minio-binaries/
+        mc config host add minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY
+        mc mb --ignore-existing minio/$AWS_STORAGE_BUCKET_NAME
+        mc anonymous set public minio/$AWS_STORAGE_BUCKET_NAME
+
     - name: Checkout source code
       uses: actions/checkout@v4
       with:
@@ -69,16 +79,6 @@ jobs:
       run: |
         pip install .[dev]
         python manage.py collectstatic
-
-    - name: Create bucket
-      if: matrix.storage[2] == 'PUT'
-      run: |
-        wget curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
-        chmod +x $HOME/minio-binaries/mc
-        export PATH=$PATH:$HOME/minio-binaries/
-        mc config host add minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY
-        mc mb --ignore-existing minio/$AWS_STORAGE_BUCKET_NAME
-        mc anonymous set public minio/$AWS_STORAGE_BUCKET_NAME
 
     - name: Test
       run: pytest -v -s
