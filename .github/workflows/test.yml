@@ -23,7 +23,7 @@ jobs:
           - ['postgres:16', 'postgres://postgres:secret@localhost/topobank-test']
         storage:
           - ['hello-world', 'inmemorystorage.InMemoryStorage']
-          - ['minio:latest', 'storages.backends.s3boto3.S3Boto3Storage']
+          - ['minio/minio:latest', 'storages.backends.s3boto3.S3Boto3Storage']
         python-version: ['3.9', '3.10', '3.11', '3.12']
 
     services:
