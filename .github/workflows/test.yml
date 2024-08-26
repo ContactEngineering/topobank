@@ -25,8 +25,9 @@ jobs:
           - ['hello-world', 'inmemorystorage.InMemoryStorage', 'POST']
           # We need the bitnami image because minios standard image does not start the
           # server without a custom command, which we cannot pass in gh-actions
+          - ['bitnami/minio:latest', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
           - ['bitnami/minio:latest', 'storages.backends.s3boto3.S3Boto3Storage', 'PUT']
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        python-version: ['3.9', '3.12']
 
     services:
       postgres:
