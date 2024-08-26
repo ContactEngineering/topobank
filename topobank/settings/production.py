@@ -212,4 +212,10 @@ MIDDLEWARE.insert(  # noqa: F405
     "whitenoise.middleware.WhiteNoiseMiddleware",
 )
 
-STORAGES["staticfiles"]["BACKEND"] = "whitenoise.storage.ManifestStaticFilesStorage"  # noqa: F405
+# STORAGE
+# ------------------------------------------------------------------------------
+USE_S3_STORAGE = True
+STORAGES = {
+    "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+    "staticfiles": {"BACKEND": "whitenoise.storage.ManifestStaticFilesStorage"},
+}

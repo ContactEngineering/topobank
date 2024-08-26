@@ -55,12 +55,6 @@ EMAIL_HOST = "localhost"
 # https://docs.djangoproject.com/en/dev/ref/settings/#email-port
 EMAIL_PORT = 1025
 
-# STORAGE
-# ------------------------------------------------------------------------------
-# We want to use a storage driver in memory in order to be able to use it in supplib
-USE_S3_STORAGE = False
-STORAGES["default"]["BACKEND"] = "inmemorystorage.InMemoryStorage"  # noqa: F405
-
 # CELERY
 # ------------------------------------------------------------------------------
 # All celery tasks need to execute immediately because we want to run supplib
@@ -134,3 +128,19 @@ if not ENABLE_USAGE_STATS:  # noqa: F405
     MIDDLEWARE += [  # noqa: F405
         "topobank.usage_stats.middleware.count_request_middleware"
     ]
+
+# STORAGE
+# ------------------------------------------------------------------------------
+STORAGE_BACKEND = env.str(
+    "STORAGE_BACKEND", default="inmemorystorage.InMemoryStorage"
+)
+
+USE_S3_STORAGE = STORAGE_BACKEND.endswith("s3boto3.S3Boto3Storage")
+
+STORAGES = {
+    "default": {"BACKEND": STORAGE_BACKEND},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}
+
+print(f"STORAGES: {STORAGES}")
+print(f"USE_S3_STORAGE: {USE_S3_STORAGE}")

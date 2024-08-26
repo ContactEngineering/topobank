@@ -141,3 +141,11 @@ BOKEH_OUTPUT_BACKEND = "svg"
 
 # Settings for watchman
 # WATCHMAN_AUTH_DECORATOR = 'django.contrib.admin.views.decorators.staff_member_required'
+
+# STORAGE
+# ------------------------------------------------------------------------------
+USE_S3_STORAGE = True
+STORAGES = {
+    "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
+    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
+}

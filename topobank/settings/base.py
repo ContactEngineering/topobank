@@ -428,23 +428,6 @@ TERMS_EXCLUDE_URL_LIST = {"/accounts/logout/"}
 TERMS_EXCLUDE_USERS_WITH_PERM = "users.can_skip_terms"
 TERMS_STORE_IP_ADDRESS = False
 
-#
-# Storage Settings
-#
-STORAGE_BACKEND = env.str(
-    "STORAGE_BACKEND", default="storages.backends.s3boto3.S3Boto3Storage"
-)
-
-USE_S3_STORAGE = STORAGE_BACKEND.endswith("s3boto3.S3Boto3Storage")
-
-STORAGES = {
-    "default": {"BACKEND": STORAGE_BACKEND},
-    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
-}
-
-print(f"STORAGES: {STORAGES}")
-print(f"USE_S3_STORAGE: {USE_S3_STORAGE}")
-
 AWS_LOCATION = env.str("AWS_MEDIA_PREFIX", default="media")
 
 AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY_ID", default=None)
