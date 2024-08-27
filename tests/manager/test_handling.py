@@ -9,6 +9,7 @@ from django.shortcuts import reverse
 from django.utils.text import slugify
 from pytest import approx
 
+from topobank.authorization.models import PermissionSet
 from topobank.manager.models import MAX_LENGTH_DATAFILE_FORMAT, Surface, Topography
 from topobank.testing.factories import (
     FIXTURE_DATA_DIR,
@@ -17,7 +18,11 @@ from topobank.testing.factories import (
     Topography2DFactory,
     UserFactory,
 )
-from topobank.testing.utils import assert_form_error, assert_no_form_errors, upload_file
+from topobank.testing.utils import (
+    assert_form_error,
+    assert_no_form_errors,
+    upload_topography_file,
+)
 
 filelist = [
     "10x10.txt",
@@ -41,10 +46,8 @@ filelist = [
 #
 @pytest.mark.django_db
 def test_upload_topography_di(
-    api_client, settings, handle_usage_statistics, django_capture_on_commit_callbacks
+    api_client, handle_usage_statistics, django_capture_on_commit_callbacks
 ):
-    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
-
     name = "example3.di"
     input_file_path = Path(
         f"{FIXTURE_DATA_DIR}/{name}"
@@ -68,7 +71,7 @@ def test_upload_topography_di(
     )
     assert response.status_code == 200, response.content
 
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks
     )
 
@@ -170,7 +173,7 @@ def test_upload_topography_npy(
     input_file_path = Path(
         f"{FIXTURE_DATA_DIR}/{name}"
     )  # maybe use package 'pytest-datafiles' here instead
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks
     )
 
@@ -299,7 +302,7 @@ def test_upload_topography_txt(
         reverse("manager:surface-api-list"),
         data={"name": "surface1", "category": "sim"},
     )
-    assert response.status_code == 201, response.data
+    assert response.status_code == 201, response.content
 
     # populate surface with some info
     surface_id = response.data["id"]
@@ -307,9 +310,9 @@ def test_upload_topography_txt(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface_id)),
         {"category": "exp", "description": description},
     )
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
 
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path), surface_id, api_client, django_capture_on_commit_callbacks
     )
     assert response.data["name"] == expected_toponame
@@ -324,7 +327,7 @@ def test_upload_topography_txt(
             "description": description,
         },
     )
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
     assert response.data["measurement_date"] == "2018-06-21"
     assert response.data["description"] == description
 
@@ -459,7 +462,7 @@ def test_upload_topography_instrument_parameters(
 
     surface = Surface.objects.get(name="surface1")
 
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks
     )
     assert response.data["name"] == expected_toponame
@@ -607,7 +610,7 @@ def test_upload_topography_fill_undefined_data(
 
     surface = Surface.objects.get(name="surface1")
 
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks
     )
     assert response.data["name"] == expected_toponame
@@ -655,7 +658,7 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(
 
     api_client.force_login(user)
 
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path),
         surface.id,
         api_client,
@@ -711,7 +714,7 @@ def test_trying_upload_of_topography_file_with_unknown_format(
     surface = Surface.objects.get(name="surface1")
 
     # upload file
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path),
         surface.id,
         api_client,
@@ -756,7 +759,7 @@ def test_trying_upload_of_topography_file_with_too_long_format_name(
 
     surface = SurfaceFactory(creator=user)
 
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks
     )
     assert response.status_code == 200, response.content
@@ -796,7 +799,7 @@ def test_trying_upload_of_corrupted_topography_file(
     surface = Surface.objects.get(name="surface1")
 
     # file upload
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path),
         surface.id,
         api_client,
@@ -838,7 +841,7 @@ def test_upload_opd_file_check(
     input_file_path = Path(
         FIXTURE_DATA_DIR + "/example.opd"
     )  # maybe use package 'pytest-datafiles' here instead
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path),
         surface.id,
         api_client,
@@ -1381,7 +1384,8 @@ def test_delete_surface(api_client, handle_usage_statistics):
     surface = SurfaceFactory(creator=user)
     api_client.force_login(user)
 
-    assert Surface.objects.all().count() == 1
+    assert Surface.objects.count() == 1
+    assert PermissionSet.objects.count() == 1
 
     response = api_client.delete(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface.id))
@@ -1389,6 +1393,7 @@ def test_delete_surface(api_client, handle_usage_statistics):
     assert response.status_code == 204, response.content
 
     assert Surface.objects.all().count() == 0
+    assert PermissionSet.objects.count() == 0
 
 
 @pytest.mark.django_db
@@ -1428,7 +1433,7 @@ def test_automatic_extraction_of_measurement_date(
     api_client.force_login(user)
 
     # Upload file
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks
     )
 
@@ -1465,8 +1470,6 @@ def test_automatic_extraction_of_measurement_date(
 def test_automatic_extraction_of_instrument_parameters(
     api_client, settings, handle_usage_statistics, django_capture_on_commit_callbacks
 ):
-    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
-
     name = "dektak-1.csv"
     input_file_path = Path(
         f"{FIXTURE_DATA_DIR}/{name}"
@@ -1478,7 +1481,7 @@ def test_automatic_extraction_of_instrument_parameters(
     api_client.force_login(user)
 
     # Upload file
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks
     )
 

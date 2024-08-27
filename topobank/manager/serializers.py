@@ -6,9 +6,10 @@ from drf_spectacular.utils import OpenApiExample, extend_schema_serializer
 from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
+from ..files.serializers import ManifestSerializer
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
-from .models import FileManifest, FileParent, Property, Surface, Tag, Topography
+from .models import Property, Surface, Tag, Topography
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -82,72 +83,6 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
         return obj.get_children()
 
 
-class FileUploadSerializer(serializers.Serializer):
-    surface = serializers.HyperlinkedRelatedField(
-        view_name="manager:surface-api-detail",
-        queryset=Surface.objects.all(),
-        required=False,
-    )
-    topography = serializers.HyperlinkedRelatedField(
-        view_name="manager:topography-api-detail",
-        queryset=Topography.objects.all(),
-        required=False,
-    )
-    kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
-    file_name = serializers.CharField()
-    file_type = serializers.CharField(allow_blank=True)
-
-    def validate(self, data):
-        surface_value = data.get("surface")
-        topography_value = data.get("topography")
-
-        if surface_value is None and topography_value is None:
-            raise serializers.ValidationError(
-                "Exactly one of surface or topography must be provided."
-            )
-        elif surface_value is not None and topography_value is not None:
-            raise serializers.ValidationError(
-                "Only one of surface or topography should be provided, not both."
-            )
-
-        if surface_value is not None:
-            data["parent"], _ = FileParent.objects.get_or_create(surface=surface_value)
-            del data["surface"]
-        elif topography_value is not None:
-            data["parent"], _ = FileParent.objects.get_or_create(
-                topography=topography_value
-            )
-            del data["topography"]
-
-        return data
-
-
-class FileManifestSerializer(serializers.HyperlinkedModelSerializer):
-    class Meta:
-        model = FileManifest
-        fields = [
-            "url",
-            "file_name",
-            "file",
-            "kind",
-            "created",
-            "updated",
-            "creator_name",
-        ]
-
-    url = serializers.HyperlinkedIdentityField(
-        view_name="manager:file-api-detail", read_only=True
-    )
-    file = serializers.FileField(read_only=True)
-    kind = serializers.ChoiceField(choices=FileManifest.FILE_KIND_CHOICES)
-    created = serializers.DateTimeField(read_only=True)
-    updated = serializers.DateTimeField(read_only=True)
-    creator_name = serializers.SerializerMethodField()
-
-    def get_creator_name(self, obj):
-        return obj.uploaded_by.name
-
-
 class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     class Meta:
         model = Topography
@@ -208,7 +143,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         view_name="manager:surface-api-detail", queryset=Surface.objects.all()
     )
 
-    attachments = FileManifestSerializer(many=True)
+    attachments = ManifestSerializer(many=True)
 
     tags = TagRelatedManagerField(required=False)
 
@@ -267,12 +202,12 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": obj.get_permission(current_user)
+                "permission": obj.get_permission(current_user),
             },
             "other_users": [
                 {
                     "user": UserSerializer(perm.user, context=self.context).data,
-                    "permission": perm.allow
+                    "permission": perm.allow,
                 }
                 for perm in user_permissions
                 if perm.user != current_user
@@ -455,7 +390,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
 
     topography_set = TopographySerializer(many=True, read_only=True)
     properties = PropertySerializer(many=True)
-    attachments = FileManifestSerializer(many=True)
+    attachments = ManifestSerializer(many=True)
     tags = TagRelatedManagerField(required=False)
     permissions = serializers.SerializerMethodField()
 
@@ -481,12 +416,12 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         return {
             "current_user": {
                 "user": UserSerializer(current_user, context=self.context).data,
-                "permission": obj.get_permission(current_user)
+                "permission": obj.get_permission(current_user),
             },
             "other_users": [
                 {
                     "user": UserSerializer(perm.user, context=self.context).data,
-                    "permission": perm.allow
+                    "permission": perm.allow,
                 }
                 for perm in user_permissions
                 if perm.user != current_user

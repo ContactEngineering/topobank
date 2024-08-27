@@ -7,9 +7,12 @@ import logging
 import tempfile
 
 import factory
+import numpy as np
 import pytest
 from django.core.management import call_command
 from pytest_django.lazy_django import skip_if_no_django
+from SurfaceTopography import NonuniformLineScan as STNonuniformLineScan
+from SurfaceTopography import Topography as STTopography
 from trackstats.models import Domain, Metric
 
 from ..manager.models import Surface
@@ -299,3 +302,59 @@ def api_client():
     from rest_framework.test import APIClient
 
     return APIClient()
+
+
+@pytest.fixture
+def simple_linear_2d_topography():
+    """Simple 2D topography, which is linear in y"""
+    unit = "nm"
+    y = np.arange(10).reshape((1, -1))
+    x = np.arange(5).reshape((-1, 1))
+    arr = -2 * y + 0 * x  # only slope in y direction
+    t = STTopography(arr, (5, 10), unit=unit).detrend("center")
+    return t
+
+
+@pytest.fixture
+def simple_surface():
+    class WrapTopography:
+        def __init__(self, t):
+            self._t = t
+
+        def topography(self):
+            return self._t
+
+    class WrapRequest:
+        def __init__(self, c):
+            self._c = c
+
+        def all(self):
+            return self._c
+
+    class WrapSurface:
+        def __init__(self, c):
+            self._c = c
+
+        @property
+        def topography_set(self):
+            return WrapRequest(self._c)
+
+    nx, ny = 113, 123
+    sx, sy = 1, 1
+    lx = 0.3
+    topographies = [
+        STTopography(
+            np.resize(np.sin(np.arange(nx) * sx * 2 * np.pi / (nx * lx)), (nx, ny)),
+            (sx, sy),
+            periodic=False,
+            unit="um",
+        )
+    ]
+
+    nx = 278
+    sx = 100
+    lx = 2
+    x = np.arange(nx) * sx / nx
+    topographies += [STNonuniformLineScan(x, np.cos(x * np.pi / lx), unit="nm")]
+
+    return WrapSurface([WrapTopography(t) for t in topographies])

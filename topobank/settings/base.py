@@ -49,7 +49,7 @@ USE_TZ = True
 postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
     DATABASES = {
-        "default": env.db("DATABASE_URL", default="postgres:///test_topobank-test")
+        "default": env.db("DATABASE_URL", default="postgres:///topobank-test")
     }
 else:
     DATABASES = {
@@ -104,6 +104,7 @@ LOCAL_APPS = [
     # Your stuff: custom apps go here
     "topobank.users.apps.UsersAppConfig",
     "topobank.authorization.apps.AuthorizationAppConfig",
+    "topobank.files.apps.FilesAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
     "topobank.usage_stats.apps.UsageStatsAppConfig",
@@ -427,15 +428,6 @@ TERMS_EXCLUDE_URL_LIST = {"/accounts/logout/"}
 TERMS_EXCLUDE_USERS_WITH_PERM = "users.can_skip_terms"
 TERMS_STORE_IP_ADDRESS = False
 
-#
-# Storage Settings
-#
-USE_S3_STORAGE = True
-
-STORAGES = {
-    "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
-    "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
-}
 AWS_LOCATION = env.str("AWS_MEDIA_PREFIX", default="media")
 
 AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY_ID", default=None)

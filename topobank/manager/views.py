@@ -13,59 +13,34 @@ from django.http import (
     HttpResponseBadRequest,
     HttpResponseForbidden,
 )
-from django.shortcuts import get_object_or_404, redirect
+from django.shortcuts import redirect
 from django.utils.text import slugify
 from notifications.signals import notify
-from rest_framework import mixins
-from rest_framework import serializers as drf_serializers
-from rest_framework import viewsets
+from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.exceptions import ParseError
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
-from rest_framework.views import APIView
 from trackstats.models import Metric, Period
 
-from topobank.manager.file_upload import FileUploadService
-
 from ..authorization.permissions import Permission
+from ..manager.utils import get_upload_instructions
 from ..supplib.versions import get_versions
 from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
-from .models import (
-    FileManifest,
-    Property,
-    Surface,
-    Tag,
-    Topography,
-    topography_datafile_path,
-)
-from .permissions import FileManifestObjectPermissions, TagPermission
+from .models import Property, Surface, Tag, Topography, topography_datafile_path
+from .permissions import TagPermission
 from .serializers import (
-    FileManifestSerializer,
-    FileUploadSerializer,
     PropertySerializer,
     SurfaceSerializer,
     TagSerializer,
     TopographySerializer,
 )
 from .tasks import import_container_from_url
-from .utils import get_upload_instructions
 
 _log = logging.getLogger(__name__)
-
-
-class FileManifestViewSet(
-    mixins.CreateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
-    queryset = FileManifest.objects.all()
-    serializer_class = FileManifestSerializer
-    permission_classes = [FileManifestObjectPermissions]
 
 
 class PropertyViewSet(
@@ -251,43 +226,6 @@ class TopographyViewSet(
         return Response(serializer.data)
 
 
-class FileDirectUploadStartApi(APIView):
-
-    # ToDo Permissions and Auth
-    def post(self, request):
-        serializer = FileUploadSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        service = FileUploadService(request.user)
-        presigned_data = service.start(**serializer.validated_data)
-        return Response(data=presigned_data)
-
-
-class FileDirectUploadFinishApi(APIView):
-
-    class InputSerializer(drf_serializers.Serializer):
-        file_id = drf_serializers.CharField()
-
-    # ToDo Permissions and Auth
-    def post(self, request):
-        serializer = self.InputSerializer(data=request.data)
-        serializer.is_valid(raise_exception=True)
-        file_id = serializer.validated_data["file_id"]
-        service = FileUploadService(request.user)
-        file_manifest = get_object_or_404(FileManifest, id=file_id)
-        service.finish(file_manifest=file_manifest)
-        return Response({"id": file_id})
-
-
-class FileDirectUploadLocalApi(APIView):
-    def post(self, request, file_id):
-        file_manifest = get_object_or_404(FileManifest, id=file_id)
-        file = request.FILES["file"]
-        service = FileUploadService(request.user)
-        file = service.upload_local(file_manifest=file_manifest, file=file)
-
-        return Response({"id": file_id})
-
-
 def download_surface(request, surface_id):
     """Returns a file or redirect comprised from topographies contained in a surface.
 
@@ -467,12 +405,13 @@ def tag_categorical_properties(request, pk=None):
 def upload_topography(request, pk=None):
     instance = Topography.objects.get(pk=pk)
     _log.debug(f"Receiving uploaded file for {instance}...")
-    for filename, file in request.FILES.items():
-        instance.datafile.save(filename, file)
+    for key, file in request.FILES.items():
+        instance.datafile.save(file.name, file)
         _log.debug(
             f"Received uploaded file and stored it at path '{instance.datafile.name}'."
         )
-        instance.notify_users_with_perms(
+        instance.notify_users(
+            request.user,
             "create",
             f"User '{instance.creator}' uploaded the measurement '{instance.name}' to "
             f"digital surface twin '{instance.surface.name}'.",

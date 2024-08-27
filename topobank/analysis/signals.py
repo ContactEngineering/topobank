@@ -2,10 +2,11 @@ import logging
 import sys
 
 from django.db.models import Q
-from django.db.models.signals import post_delete, pre_save
+from django.db.models.signals import pre_delete, pre_save
 from django.dispatch import receiver
 
 from ..manager.models import Topography, post_renew_cache
+from ..supplib.storage import recursive_delete
 from .models import Analysis
 
 _log = logging.getLogger(__name__)
@@ -17,6 +18,30 @@ _IN_CELERY_WORKER_PROCESS = (
 )
 
 
+@receiver(pre_delete, sender=Analysis)
+def pre_delete_analysis(sender, instance, **kwargs):
+    """
+    Delete the analysis instance, including its associated task and storage files.
+
+    This method performs the following steps:
+    1. Cancels the task if it is currently running.
+    2. Removes associated files from the storage backend.
+    3. Deletes the database entry for the analysis instance.
+
+    Parameters
+    ----------
+    *args : tuple
+        Variable length argument list.
+    **kwargs : dict
+        Arbitrary keyword arguments.
+    """
+    # Cancel task (if running)
+    instance.cancel_task()
+
+    # Remove files from storage
+    recursive_delete(instance.storage_prefix)
+
+
 @receiver(post_renew_cache, sender=Topography)
 def post_renew_measurement_cache(sender, instance, **kwargs):
     # Cache is renewed, this means something significant changed and we need to remove
@@ -26,7 +51,8 @@ def post_renew_measurement_cache(sender, instance, **kwargs):
         "analyses..."
     )
     Analysis.objects.filter(
-        Q(subject_dispatch__topography=instance) | Q(subject_dispatch__surface=instance.surface)
+        Q(subject_dispatch__topography=instance)
+        | Q(subject_dispatch__surface=instance.surface)
     ).delete()
 
 
@@ -43,12 +69,10 @@ def pre_measurement_save(sender, instance, **kwargs):
         Analysis.objects.filter(subject_dispatch__surface=instance.surface).delete()
 
 
-@receiver(post_delete, sender=Topography)
-def post_measurement_delete(sender, instance, **kwargs):
+@receiver(pre_delete, sender=Topography)
+def pre_delete_topography(sender, instance, **kwargs):
     # The topography analysis is automatically deleted, but we have to delete the
     # corresponding surface analysis; we do this after the transaction has finished
     # so we can check whether the surface still exists.
-    _log.debug(
-        f"Measurement {instance} was deleted: Deleting all affected analyses..."
-    )
+    _log.debug(f"Measurement {instance} was deleted: Deleting all affected analyses...")
     Analysis.objects.filter(subject_dispatch__surface=instance.surface).delete()

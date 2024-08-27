@@ -13,7 +13,7 @@ from topobank.testing.factories import (
     Topography2DFactory,
     UserFactory,
 )
-from topobank.testing.utils import upload_file
+from topobank.testing.utils import upload_topography_file
 
 
 def test_individual_read_access_permissions(
@@ -196,7 +196,7 @@ def test_notification_when_editing_shared_stuff(api_client, handle_usage_statist
             "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
         },
     )
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
 
     note = Notification.objects.get(
         recipient=user1, verb="change", description__contains=topography.name
@@ -218,7 +218,7 @@ def test_notification_when_editing_shared_stuff(api_client, handle_usage_statist
         {"name": new_name, "description": new_description, "category": new_category},
     )
 
-    assert response.status_code == 200, response.data
+    assert response.status_code == 200, response.content
 
     assert (
         Notification.objects.filter(
@@ -264,7 +264,7 @@ def test_upload_topography_for_shared_surface(
     # Now allow to change and get response again
     #
     surface.grant_permission(user2, "edit")
-    response = upload_file(
+    response = upload_topography_file(
         str(input_file_path),
         surface.id,
         api_client,

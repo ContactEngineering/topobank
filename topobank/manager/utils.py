@@ -208,8 +208,7 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
             # Nothing to check (but should not really happen)
             return []
         permissions = [
-            all([s.has_permission(user, "view") for s in r])
-            for r in related_surfaces
+            all([s.has_permission(user, "view") for s in r]) for r in related_surfaces
         ]
 
         # Filter only those subjects that have view permissions
@@ -460,7 +459,7 @@ def make_dzi(
             )
         for filename in filenames:
             # Strip tmp directory
-            storage_filename = filename[len(tmpdirname) + 1:]
+            storage_filename = filename[len(tmpdirname) + 1 :]
             # Delete (possibly existing) old data files
             target_name = f"{path_prefix}/{storage_filename}"
             # Upload to S3
@@ -506,8 +505,3 @@ def get_upload_instructions(instance, name, expire, method=None):
             "fields": {},
         }
     return upload_instructions
-
-
-def generate_upload_path(instance, file_name: str) -> str:
-    owner_type, owner_obj = instance.parent.get_owner()
-    return f"{owner_type}/{owner_obj.id}/{instance.kind}/{instance.id}/{file_name}"

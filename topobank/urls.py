@@ -29,6 +29,10 @@ urlpatterns = [
     # Core topobank applications
     #
     path(
+        "files/",
+        include("topobank.files.urls", namespace="files"),
+    ),
+    path(
         "manager/",
         include("topobank.manager.urls", namespace="manager"),
     ),

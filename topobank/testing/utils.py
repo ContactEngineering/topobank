@@ -9,11 +9,9 @@ from operator import itemgetter
 
 import numpy as np
 import requests
-
 from django.conf import settings
 from django.test import SimpleTestCase
 from django.utils import formats
-
 from rest_framework.reverse import reverse
 
 _log = logging.getLogger(__name__)
@@ -122,7 +120,42 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
 assert_redirects = SimpleTestCase().assertRedirects
 
 
-def upload_file(
+def upload_file(api_client, upload_instructions, fn):
+    url = upload_instructions["url"]
+    method = upload_instructions["method"]
+    _log.debug(f"Upload to url: {url}, method: {method}")
+    with open(fn, mode="rb") as fp:
+        if method == "POST":
+            if settings.USE_S3_STORAGE:
+                # We need to use `requests` as the upload is directly to S3, not to the
+                # Django app
+                response = requests.post(
+                    url,
+                    data={**upload_instructions["fields"]},
+                    files={"file": fp},
+                )
+            else:
+                response = api_client.post(
+                    url,
+                    {**upload_instructions["fields"], "file": fp},
+                    format="multipart",
+                )
+            assert response.status_code == 204, response.content  # Created
+        elif method == "PUT":
+            if settings.USE_S3_STORAGE:
+                # We need to use `requests` as the upload is directly to S3, not to the
+                # Django app
+                response = requests.put(
+                    url, data=fp, headers={"Content-Type": "binary/octet-stream"}
+                )
+            else:
+                raise RuntimeError("PUT uploads not supported without S3")
+            assert response.status_code == 200, response.content  # OK
+        else:
+            raise RuntimeError(f"Unknown upload method {method}")
+
+
+def upload_topography_file(
     fn,
     surface_id,
     api_client,
@@ -143,29 +176,14 @@ def upload_file(
             **kwargs,
         },
     )
-    assert response.status_code == 201, response.data  # Created
+    assert response.status_code == 201, response.content  # Created
     topography_id = response.data["id"]
 
     # upload file
     upload_instructions = response.data[
         "upload_instructions"
     ]  # The POST request above informs us how to upload the file
-    _log.debug(f"Upload post url: {upload_instructions['url']}")
-    with open(fn, mode="rb") as fp:
-        if settings.USE_S3_STORAGE:
-            # We need to use `requests` as the upload is directly to S3, not to the Django app
-            response = requests.post(
-                upload_instructions["url"],
-                data={**upload_instructions["fields"]},
-                files={"file": fp},
-            )
-        else:
-            response = api_client.post(
-                upload_instructions["url"],
-                {**upload_instructions["fields"], name: fp},
-                format="multipart",
-            )
-    assert response.status_code == 204, response.data  # Created
+    upload_file(api_client, upload_instructions, fn)
 
     # We need to execute on commit actions, because this is where the renew_cache task is triggered
     with django_capture_on_commit_callbacks(execute=True):
@@ -175,7 +193,7 @@ def upload_file(
         response = api_client.get(
             reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id))
         )
-        assert response.status_code == 200, response.data
+        assert response.status_code == 200, response.content
         assert response.data["task_state"] == "pe"
         # We need to close the commit capture here because the file inspection runs on commit
 
@@ -184,7 +202,7 @@ def upload_file(
         response = api_client.get(
             reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id))
         )
-        assert response.status_code == 200, response.data
+        assert response.status_code == 200, response.content
         assert response.data["task_state"] == final_task_state
 
     return response

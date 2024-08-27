@@ -10,7 +10,6 @@ router.register(r'api/tag', views.TagViewSet, basename='tag-api')
 router.register(r'api/topography', views.TopographyViewSet, basename='topography-api')
 router.register(r'api/surface', views.SurfaceViewSet, basename='surface-api')
 router.register(r'api/property', views.PropertyViewSet, basename='property-api')
-router.register(r'api/file', views.FileManifestViewSet, basename='file-api')
 
 urlpatterns = router.urls
 
@@ -20,8 +19,6 @@ urlpatterns = router.urls
 
 app_name = "manager"
 urlpatterns += [
-    path('api/upload/direct/start/', view=views.FileDirectUploadStartApi.as_view()),
-    path('api/upload/direct/finish/', view=views.FileDirectUploadFinishApi.as_view()),
     #
     # Data routes
     #
@@ -87,9 +84,4 @@ if not settings.USE_S3_STORAGE:
         'api/topography/<pk>/upload/',
         view=login_required(views.upload_topography),
         name='upload-topography'
-    )]
-    urlpatterns += [path(
-        'api/upload/direct/local/<str:file_id>/',
-        view=views.FileDirectUploadLocalApi.as_view(),
-        name="upload-direct-local"
     )]

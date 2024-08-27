@@ -21,7 +21,13 @@ jobs:
           # - ['hello-world', 'sqlite:///topobank.sqlite3']
           - ['postgres:13', 'postgres://postgres:secret@localhost/topobank-test']
           - ['postgres:16', 'postgres://postgres:secret@localhost/topobank-test']
-        python-version: ['3.9', '3.10', '3.11', '3.12']
+        storage:
+          - ['hello-world', 'inmemorystorage.InMemoryStorage', 'POST']
+          # We need the bitnami image because minios standard image does not start the
+          # server without a custom command, which we cannot pass in gh-actions
+          - ['bitnami/minio:latest', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
+          - ['bitnami/minio:latest', 'storages.backends.s3boto3.S3Boto3Storage', 'PUT']
+        python-version: ['3.9', '3.12']
 
     services:
       postgres:
@@ -33,10 +39,33 @@ jobs:
         ports:
           - 5432:5432
 
+      minio:
+        image: ${{ matrix.storage[0] }}
+        env:
+          MINIO_ROOT_USER: admin
+          MINIO_ROOT_PASSWORD: secret12
+        ports:
+          - 9000:9000
+
     env:
       DATABASE_URL: ${{ matrix.database[1] }}
+      STORAGE_BACKEND: ${{ matrix.storage[1] }}
+      TOPOBANK_UPLOAD_METHOD: ${{ matrix.storage[2] }}
+      AWS_ACCESS_KEY_ID: admin
+      AWS_SECRET_ACCESS_KEY: secret12
+      AWS_STORAGE_BUCKET_NAME: topobank-test
+      AWS_S3_ENDPOINT_URL: http://localhost:9000
 
     steps:
+    - name: Create bucket
+      if: endsWith(matrix.storage[1], 'S3Boto3Storage')
+      run: |
+        curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
+        chmod +x $HOME/minio-binaries/mc
+        export PATH=$PATH:$HOME/minio-binaries/
+        mc config host add minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY
+        mc mb --ignore-existing minio/$AWS_STORAGE_BUCKET_NAME
+
     - name: Checkout source code
       uses: actions/checkout@v4
       with:

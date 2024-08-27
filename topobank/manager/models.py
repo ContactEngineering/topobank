@@ -9,7 +9,6 @@ import os.path
 import sys
 import tempfile
 from collections import defaultdict
-from typing import Union
 
 import dateutil.parser
 import django.dispatch
@@ -26,7 +25,6 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
 from django.db import models
-from notifications.signals import notify
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
@@ -38,7 +36,7 @@ from ..supplib.storage import recursive_delete
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-from .utils import dzi_exists, generate_upload_path, get_topography_reader, make_dzi
+from .utils import dzi_exists, get_topography_reader, make_dzi
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -85,6 +83,20 @@ class DZIGenerationException(ThumbnailGenerationException):
     """Failure while generating DZI files for a topography."""
 
     pass
+
+
+class TopobankLazySurfaceContainer(SurfaceContainer):
+    """Wraps a `Surface` with lazy loading of topography data"""
+
+    def __init__(self, surface):
+        self._surface = surface
+        self._topographies = self._surface.topography_set.all()
+
+    def __len__(self):
+        return len(self._topographies)
+
+    def __getitem__(self, item):
+        return self._topographies[item].read()
 
 
 class SubjectMixin:
@@ -161,7 +173,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     def get_children(self):
         def make_child(tag_name):
-            tag_suffix = tag_name[len(self.path) + 1:]
+            tag_suffix = tag_name[len(self.path) + 1 :]
             name, rest = (tag_suffix + "/").split("/", maxsplit=1)
             return f"{self.path}/{name}"
 
@@ -264,20 +276,6 @@ class Tag(tm.TagTreeModel, SubjectMixin):
                 }
 
         return property_values, property_infos
-
-
-class TopobankLazySurfaceContainer(SurfaceContainer):
-    """Wraps a `Surface` with lazy loading of topography data"""
-
-    def __init__(self, surface):
-        self._surface = surface
-        self._topographies = self._surface.topography_set.all()
-
-    def __len__(self):
-        return len(self._topographies)
-
-    def __getitem__(self, item):
-        return self._topographies[item].read()
 
 
 class Surface(PermissionMixin, models.Model, SubjectMixin):
@@ -922,11 +920,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Reset to no refresh
         self._refresh_dependent_data = False
 
-    def delete(self, *args, **kwargs):
-        self._remove_files()
-        super().delete(*args, **kwargs)
-
-    def _remove_files(self):
+    def remove_files(self):
         """Remove files associated with a topography instance before removal of the topography."""
 
         # ideally, we would reuse datafiles if possible, e.g. for
@@ -1517,17 +1511,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             and self.height_scale is not None
         )
 
-    def notify_users_with_perms(self, verb, description):
-        other_users = self.permissions.user_permissions.filter(
-            ~models.Q(user=self.creator)
-        )
-        for perm in other_users:
-            notify.send(
-                sender=self.creator,
-                recipient=perm.user,
-                verb=verb,
-                description=description,
-            )
+    def notify_users(self, sender, verb, description):
+        self.permissions.notify_users(sender, verb, description)
 
     def renew_cache(self):
         """
@@ -1549,7 +1534,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             # Data file exists; path the datafile field to point to the correct file
             self.datafile.name = file_path
             # Notify users that a new file has been uploaded
-            self.notify_users_with_perms(
+            self.notify_users(
+                self.creator,
                 "create",
                 f"User '{self.creator}' uploaded the measurement '{self.name}' to "
                 f"digital surface twin '{self.surface.name}'.",
@@ -1726,85 +1712,3 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
     def task_worker(self):
         self.renew_cache()
-
-
-class FileParent(models.Model):
-    surface = models.OneToOneField(
-        Surface, on_delete=models.CASCADE, null=True, blank=True
-    )
-    topography = models.OneToOneField(
-        Topography, on_delete=models.CASCADE, null=True, blank=True
-    )
-
-    def get_owner(self) -> tuple[str, Union[Surface, Topography]]:
-        for field in self._meta.fields:
-            if field.is_relation and (fk := getattr(self, field.name)) is not None:
-                return (field.name, fk)
-        raise ValueError("Exactly one field has to be not null")
-
-    def validate(self):
-        """
-        Checks the invariants of this Model.
-        If any invariant is broken, a ValidationError is raised
-
-        Invariants:
-        - 1. `surface` or `topography` are `None`
-        - 2. `surface` or `topography` are not `None`
-        This results in a 'XOR' logic and exaclty one of the value fields has to hold a value
-        """
-
-        # Invariant 1
-        if not (self.surface is None or self.topography is None):
-            raise ValidationError("Either 'surface' or 'topography' must be None.")
-        # Invariant 2
-        if not (self.surface is not None or self.topography is not None):
-            raise ValidationError("Either 'surface' or 'topography' must be not None.")
-
-    def save(self, *args, **kwargs):
-        self.validate()
-        super().save(*args, **kwargs)
-
-    def get_valid_files(self) -> models.QuerySet["FileManifest"]:
-        # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
-        return self.files.filter(upload_finished__isnull=False)
-
-    def __str__(self) -> str:
-        owner_type, owner_obj = self.get_owner()
-        return f"FileParent : {owner_type} - {owner_obj}"
-
-
-# The Flow for "direct file upload" is heavily inspired from here:
-# https://www.hacksoft.io/blog/direct-to-s3-file-upload-with-django
-class FileManifest(models.Model):
-    FILE_KIND_CHOICES = [("att", "Attachment"), ("raw", "Raw data file")]
-
-    file = models.FileField(upload_to=generate_upload_path, blank=True, null=True)
-
-    file_name = models.CharField(max_length=255)
-    file_type = models.CharField(max_length=255, blank=True, null=True)
-
-    uploaded_by = models.ForeignKey(User, on_delete=models.CASCADE)
-
-    parent = models.ForeignKey(
-        FileParent, related_name="files", on_delete=models.CASCADE
-    )
-    kind = models.CharField(max_length=3, choices=FILE_KIND_CHOICES)
-
-    upload_finished = models.DateTimeField(blank=True, null=True)
-    created = models.DateTimeField(auto_now_add=True)
-    updated = models.DateTimeField(auto_now=True)
-
-    def __str__(self):
-        return f"FileManifest:\n\tfile -> {self.file}\n\tparent -> {self.parent}\n\tkind -> {self.kind}"
-
-    def delete(self, *args, **kwargs):
-        self.file.delete(save=False)
-        return super().delete(*args, **kwargs)
-
-    @property
-    def is_valid(self):
-        return bool(self.upload_finished)
-
-    @property
-    def url(self):
-        return self.file.url
