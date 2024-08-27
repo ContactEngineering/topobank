@@ -140,6 +140,7 @@ def upload_file(api_client, upload_instructions, fn):
                     {**upload_instructions["fields"], "file": fp},
                     format="multipart",
                 )
+            assert response.status_code == 204, response.content  # Created
         elif method == "PUT":
             if settings.USE_S3_STORAGE:
                 # We need to use `requests` as the upload is directly to S3, not to the
@@ -149,9 +150,9 @@ def upload_file(api_client, upload_instructions, fn):
                 )
             else:
                 raise RuntimeError("PUT uploads not supported without S3")
+            assert response.status_code == 200, response.content  # OK
         else:
             raise RuntimeError(f"Unknown upload method {method}")
-    assert response.status_code == 204, response.content  # Created
 
 
 def upload_topography_file(
