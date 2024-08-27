@@ -102,8 +102,6 @@ dependencies = [
 
     # xarray is used to write analysis data to netcdf files
     'xarray',
-    'netcdf4',
-    'h5netcdf',
 
     # notifications
     # (static/js/notify.js appears to be missing from 1.8.0 and above)

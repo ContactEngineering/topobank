@@ -513,12 +513,6 @@ TRACKED_DEPENDENCIES += [
     ("scipy", "scipy.__version__", "BSD 3-Clause", "https://scipy.org/"),
     ("pandas", "pandas.__version__", "BSD 3-Clause", "https://pandas.pydata.org/"),
     (
-        "netCDF4",
-        "netCDF4.__version__",
-        "MIT",
-        "https://unidata.github.io/netcdf4-python/",
-    ),
-    (
         "xarray",
         "xarray.__version__",
         "BSD 3-Clause",
