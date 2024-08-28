@@ -5,6 +5,7 @@ from rest_framework.reverse import reverse
 
 from topobank.authorization.models import PermissionSet, UserPermission
 from topobank.files.models import Folder, Manifest
+from topobank.files.utils import generate_storage_path
 from topobank.testing.data import FIXTURE_DATA_DIR
 from topobank.testing.utils import upload_file
 
@@ -18,10 +19,10 @@ def test_upload_file(api_client, user_alice, user_bob):
     UserPermission.objects.create(parent=permissions, user=user_alice, allow="full")
     folder = Folder.objects.create(permissions=permissions)
     manifest = Manifest.objects.create(
+        filename=name,
         permissions=permissions,
         folder=folder,
         uploaded_by=user_alice,
-        file_name=name,
         kind="raw",
     )
 
@@ -56,3 +57,5 @@ def test_upload_file(api_client, user_alice, user_bob):
 
     manifest = Manifest.objects.get(id=manifest.id)
     assert manifest.file
+    assert manifest.filename == name
+    assert manifest.file.name == generate_storage_path(manifest, name)

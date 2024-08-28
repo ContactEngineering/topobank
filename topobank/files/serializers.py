@@ -12,7 +12,7 @@ class ManifestSerializer(serializers.HyperlinkedModelSerializer):
         model = Manifest
         fields = [
             "url",
-            "file_name",
+            "filename",
             "file",
             "kind",
             "created",

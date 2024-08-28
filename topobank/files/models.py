@@ -49,12 +49,15 @@ class Manifest(PermissionMixin, models.Model):
     #
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
 
-    FILE_KIND_CHOICES = [("att", "Attachment"), ("raw", "Raw data file")]
+    FILE_KIND_CHOICES = [
+        ("N/A", "Kind is unknown"),
+        ("att", "Attachment"),  # Attachments are not processed by the system
+        ("der", "Data derived from a raw data file"),
+        ("raw", "Raw data file as uploaded by a user"),
+    ]
 
     file = models.FileField(upload_to=generate_storage_path, blank=True, null=True)
-
-    file_name = models.CharField(max_length=255)
-    file_type = models.CharField(max_length=255, blank=True, null=True)
+    filename = models.CharField(max_length=255)
 
     uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
@@ -63,14 +66,14 @@ class Manifest(PermissionMixin, models.Model):
     folder = models.ForeignKey(
         Folder, related_name="files", on_delete=models.CASCADE, null=True
     )
-    kind = models.CharField(max_length=3, choices=FILE_KIND_CHOICES)
+    kind = models.CharField(max_length=3, choices=FILE_KIND_CHOICES, default="N/A")
 
     upload_finished = models.DateTimeField(blank=True, null=True)
     created = models.DateTimeField(auto_now_add=True)
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"File {self.file_name}"
+        return f"File {self.filename}"
 
     @property
     def is_valid(self):

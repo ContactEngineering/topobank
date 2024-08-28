@@ -42,7 +42,7 @@ def upload_finished(request, manifest_id: int):
             )
 
         # Set storage location to file that was just uploaded
-        storage_path = generate_storage_path(manifest, manifest.file_name)
+        storage_path = generate_storage_path(manifest, manifest.filename)
         manifest.file = manifest.file.field.attr_class(
             manifest, manifest.file.field, storage_path
         )

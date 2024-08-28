@@ -20,14 +20,12 @@ class FileUploadService:
     def start(
         self,
         *,
-        file_name: str,
-        file_type: str = None,
+        filename: str,
         folder: Union[Folder, None] = None,
-        kind: str = "raw",
+        kind: str = "raw"
     ):
         manifest = Manifest(
-            file_name=file_name,
-            file_type=file_type,
+            filename=filename,
             kind=kind,
             uploaded_by=self.user,
             folder=folder,
