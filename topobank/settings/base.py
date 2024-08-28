@@ -210,7 +210,7 @@ print(f"PLUGIN_MIDDLEWARE: {PLUGIN_MIDDLEWARE}")
 MIDDLEWARE += PLUGIN_MIDDLEWARE
 
 MIDDLEWARE += [
-    # we need guardian's kind of anonymous user for API calls
+    # we need an anonymous user with a user id for API calls
     "topobank.middleware.anonymous_user_middleware",
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",

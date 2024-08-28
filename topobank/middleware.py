@@ -32,7 +32,7 @@ def anonymous_user_middleware(get_response):
         ):
             request.user = get_anonymous_user()
 
-        # mostly, we replace the anonymous user with guardian's AnonymousUser,
+        # mostly, we replace the anonymous user with our own anonymous user,
         # except when the URL for account signup is called. This is needed
         # for a test. Same for account login, this is needed for the browser
         # supplib, because we don't wont to login with an orcid there.
