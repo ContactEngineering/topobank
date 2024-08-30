@@ -1,5 +1,7 @@
 from topobank.authorization.models import PermissionSet
 from topobank.files.models import Folder, Manifest
+from topobank.files.utils import generate_storage_path
+from topobank.testing.factories import ManifestFactory
 
 
 def test_direct_file_delete(user_alice, mocker):
@@ -27,3 +29,23 @@ def test_file_delete_via_folder(user_alice, mocker):
     folder.delete()
     assert Manifest.objects.count() == 0
     assert m.call_count == 2
+
+
+def test_deepcopy():
+    manifest = ManifestFactory(permissions=PermissionSet.objects.create())
+    assert manifest.exists()
+    assert manifest.file.name == generate_storage_path(manifest, manifest.filename)
+    assert PermissionSet.objects.count() == 1
+
+    manifest2 = manifest.deepcopy()
+    assert PermissionSet.objects.count() == 1
+    assert manifest2.exists()
+    assert manifest2.file.name == generate_storage_path(manifest2, manifest2.filename)
+
+    manifest.delete()
+    assert PermissionSet.objects.count() == 1
+    assert manifest2.exists()
+
+    manifest3 = manifest2.deepcopy(manifest2.permissions)
+    assert PermissionSet.objects.count() == 1
+    assert manifest3.exists()

@@ -1142,7 +1142,7 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py renew_squeezed
+     docker-compose -f production.yml run --rm django python manage.py make_squeezed
 
   This may take some time. You could use the switch `-b` to do it in the task queue,
   but then you don't know at the end whether it was successful.

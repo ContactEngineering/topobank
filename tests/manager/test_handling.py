@@ -150,7 +150,7 @@ def test_upload_topography_di(
 
     assert t.measurement_date == datetime.date(2018, 6, 21)
     assert t.description == description
-    assert "example3" in t.datafile.name
+    assert "example3" in t.datafile.filename
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
     assert t.creator == user
@@ -239,7 +239,7 @@ def test_upload_topography_npy(
 
     assert t.measurement_date == datetime.date(2020, 10, 21)
     assert t.description == description
-    assert "example-2d" in t.datafile.name
+    assert "example-2d" in t.datafile.filename
     assert 2 == t.resolution_x
     assert 2 == t.resolution_y
     assert t.creator == user
@@ -374,7 +374,7 @@ def test_upload_topography_txt(
 
     assert t.measurement_date == datetime.date(2018, 6, 21)
     assert t.description == description
-    assert input_file_path.stem in t.datafile.name
+    assert input_file_path.stem in t.datafile.filename
     assert exp_resolution_x == t.resolution_x
     assert exp_resolution_y == t.resolution_y
     assert t.datafile_format == exp_datafile_format
@@ -531,7 +531,7 @@ def test_upload_topography_instrument_parameters(
 
     assert t.measurement_date == datetime.date(2018, 6, 21)
     assert t.description == description
-    assert input_file_path.stem in t.datafile.name
+    assert input_file_path.stem in t.datafile.filename
     assert t.instrument_type == instrument_type
     expected_instrument_parameters = {}
     clean_instrument_parameters = {}
@@ -868,7 +868,7 @@ def test_upload_opd_file_check(
 
     assert t.measurement_date == datetime.date(2021, 6, 9)
     assert t.description == description
-    assert "example" in t.datafile.name
+    assert "example" in t.datafile.filename
     assert t.size_x == approx(0.1485370245)
     assert t.size_y == approx(0.1500298589)
     assert t.resolution_x == approx(199)
@@ -987,7 +987,7 @@ def test_edit_topography(
     assert t.measurement_date == datetime.date(2018, 7, 1)
     assert t.description == new_description
     assert t.name == new_name
-    assert "example3" in t.datafile.name
+    assert "example3" in t.datafile.filename
     assert t.size_x == approx(500)
     assert t.size_y == approx(1000)
     assert t.tags == ["ab", "bc"]
@@ -1065,7 +1065,7 @@ def test_edit_line_scan(
     assert t.measurement_date == datetime.date(2018, 7, 1)
     assert t.description == new_description
     assert t.name == new_name
-    assert "line_scan_1" in t.datafile.name
+    assert "line_scan_1" in t.datafile.filename
     assert t.size_x == approx(500)
     assert t.size_y is None
 
@@ -1232,13 +1232,13 @@ def test_delete_topography(
     topo = topo_example3
 
     # make squeezed datafile
-    topo.renew_cache()
+    topo.refresh_cache()
 
     # store names of files in storage system
     pk = topo.pk
-    topo_datafile_name = topo.datafile.name
-    squeezed_datafile_name = topo.squeezed_datafile.name
-    thumbnail_name = topo.thumbnail.name
+    topo_datafile_name = topo.datafile.file.name
+    squeezed_datafile_name = topo.squeezed_datafile.file.name
+    thumbnail_name = topo.thumbnail.file.name
     dzi_name = f"{topo.storage_prefix}/dzi"
 
     # check that files actually exist

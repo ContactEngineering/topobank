@@ -11,6 +11,7 @@ from notifications.models import Notification
 from notifications.signals import notify
 from numpy.testing import assert_allclose
 
+from topobank.authorization.models import PermissionSet
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import (
     SurfaceFactory,
@@ -121,6 +122,7 @@ def test_topography_to_dict():
         instrument_type=instrument["type"],
         instrument_parameters=instrument["parameters"],
     )
+    topo.refresh_cache()
 
     assert topo.to_dict() == {
         "name": name,
@@ -128,8 +130,8 @@ def test_topography_to_dict():
         "height_scale": height_scale,
         "detrend_mode": detrend_mode,
         "datafile": {
-            "original": topo.datafile.name,
-            "squeezed-netcdf": topo.squeezed_datafile.name,
+            "original": topo.datafile.filename,
+            "squeezed-netcdf": topo.squeezed_datafile.filename,
         },
         "description": description,
         "unit": unit,
@@ -140,7 +142,7 @@ def test_topography_to_dict():
         "tags": tags,
         "instrument": instrument,
         "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-        "has_undefined_data": None,
+        "has_undefined_data": False,
     }
 
 
@@ -388,7 +390,7 @@ def test_squeezed_datafile(
     assert topo.height_scale == height_scale_factor
     assert topo.detrend_mode == detrend_mode
 
-    assert not topo.has_squeezed_datafile
+    assert not topo.squeezed_datafile
     st_topo = topo.topography(allow_squeezed=False)
     orig_heights = (
         st_topo.heights()
@@ -418,8 +420,8 @@ def test_squeezed_datafile(
     #
     # Using the squeezed data file should result in same heights
 
-    topo.renew_squeezed_datafile()
-    assert topo.has_squeezed_datafile
+    topo.make_squeezed()
+    assert topo.squeezed_datafile
 
     sdf = topo.squeezed_datafile.open(mode="rb")
     reader = open_topography(sdf)
@@ -433,3 +435,25 @@ def test_squeezed_datafile(
 
     df.close()
     sdf.close()
+
+
+@pytest.mark.django_db
+def test_deepcopy_delete_does_not_delete_files(user_bob, handle_usage_statistics):
+    surface = SurfaceFactory(creator=user_bob)
+    topo = Topography2DFactory(surface=surface)
+    surface_copy = surface.deepcopy()
+    assert surface.topography_set.all().first().datafile
+    assert surface_copy.topography_set.all().first().datafile
+
+    assert PermissionSet.objects.count() == 2
+
+    topo.delete()
+
+    assert surface.topography_set.count() == 0
+    assert surface_copy.topography_set.all().first().datafile
+
+    assert PermissionSet.objects.count() == 2
+
+    surface.delete()
+    assert PermissionSet.objects.count() == 1
+    assert surface_copy.topography_set.all().first().datafile

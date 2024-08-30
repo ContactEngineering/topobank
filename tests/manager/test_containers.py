@@ -11,18 +11,16 @@ import yaml
 from notifications.models import Notification
 
 import topobank
-
 from topobank.manager.containers import write_surface_container
 from topobank.manager.models import Surface, Topography
 from topobank.manager.tasks import import_container_from_url
 from topobank.testing.factories import (
-    FIXTURE_DATA_DIR,
     PropertyFactory,
     SurfaceFactory,
     TagFactory,
     Topography1DFactory,
     Topography2DFactory,
-    UserFactory
+    UserFactory,
 )
 
 
@@ -51,11 +49,11 @@ def test_surface_container(example_authors):
 
     topo1a = Topography1DFactory(surface=surface1)
     topo1b = Topography2DFactory(surface=surface1,
-                                 datafile__from_path=FIXTURE_DATA_DIR + "/example4.txt",
+                                 datafile__filename="example4.txt",
                                  height_scale_editable=False)
     # for topo1b we use a datafile which has an height_scale_factor defined - this is needed in order
     # to test that this factor is NOT exported to meta.yaml -
-    # for the initialisation syntax (datafile__from_path) here see:
+    # for the initialisation syntax (datafile__filename) here see:
     # https://factoryboy.readthedocs.io/en/stable/orms.html
 
     topo2a = Topography2DFactory(surface=surface2,
@@ -67,13 +65,13 @@ def test_surface_container(example_authors):
                                  instrument_parameters=instrument_params,
                                  has_undefined_data=has_undefined_data,
                                  fill_undefined_data_mode=fill_undefined_data_mode)
-    # surface 3 is empty
 
+    # surface 3 is empty
     surfaces = [surface1, surface2, surface3]
 
     # make sure all squeezed files have been generated
     for t in [topo1a, topo1b, topo2a]:
-        t.renew_squeezed_datafile()
+        t.make_squeezed(save=True)
 
     #
     # Create container file

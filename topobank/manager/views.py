@@ -24,13 +24,13 @@ from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
 from ..authorization.permissions import Permission
-from ..manager.utils import get_upload_instructions
+from ..files.models import Manifest
 from ..supplib.versions import get_versions
 from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
-from .models import Property, Surface, Tag, Topography, topography_datafile_path
+from .models import Property, Surface, Tag, Topography
 from .permissions import TagPermission
 from .serializers import (
     PropertySerializer,
@@ -173,10 +173,6 @@ class TopographyViewSet(
         return Topography.objects.filter(surface__in=qs)
 
     def perform_create(self, serializer):
-        # File name is passed in the 'name' field on create. It is the only field that
-        # needs to be present for them create (POST) request.
-        filename = self.request.data["name"]
-
         # Check whether the user is allowed to write to the parent surface; if not, we
         # cannot add a topography
         parent = serializer.validated_data["surface"]
@@ -190,19 +186,13 @@ class TopographyViewSet(
         # Set creator to current user when creating a new topography
         instance = serializer.save(creator=self.request.user)
 
-        # Now we have an id, so populate update path
-        datafile_path = topography_datafile_path(instance, filename)
-
-        # Populate upload_url with a presigned S3 URL; the presigned key should expire
-        # quickly
-        serializer.update(
-            instance,
-            {
-                "upload_instructions": get_upload_instructions(
-                    instance, datafile_path, self.EXPIRE_UPLOAD
-                )
-            },
+        # File name is passed in the 'name' field on create. It is the only field that
+        # needs to be present for them create (POST) request.
+        filename = self.request.data["name"]
+        instance.datafile = Manifest.objects.create(
+            permissions=instance.permissions, filename=filename, kind="raw"
         )
+        instance.save()
 
     def perform_update(self, serializer):
         super().perform_update(serializer)
@@ -399,26 +389,6 @@ def tag_categorical_properties(request, pk=None):
     obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="categorical")
     return Response(list(prop_values.keys()), status=200)
-
-
-@api_view(["POST"])
-def upload_topography(request, pk=None):
-    instance = Topography.objects.get(pk=pk)
-    _log.debug(f"Receiving uploaded file for {instance}...")
-    for key, file in request.FILES.items():
-        instance.datafile.save(file.name, file)
-        _log.debug(
-            f"Received uploaded file and stored it at path '{instance.datafile.name}'."
-        )
-        instance.notify_users(
-            request.user,
-            "create",
-            f"User '{instance.creator}' uploaded the measurement '{instance.name}' to "
-            f"digital surface twin '{instance.surface.name}'.",
-        )
-
-    # Return 204 No Content
-    return Response({}, status=204)
 
 
 @api_view(["POST"])

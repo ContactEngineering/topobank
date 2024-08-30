@@ -50,10 +50,11 @@ def test_upload_file(api_client, user_alice, user_bob):
     upload_file(api_client, upload_instructions, input_file_path)
 
     # Confirm file upload
-    response = api_client.post(
-        reverse("files:upload-finished", kwargs={"manifest_id": manifest.id})
+    response = api_client.get(
+        reverse("files:manifest-api-detail", kwargs={"pk": manifest.id})
     )
-    assert response.status_code == 204, response.content
+    assert response.status_code == 200, response.content
+    assert response.data["file"] is not None
 
     manifest = Manifest.objects.get(id=manifest.id)
     assert manifest.file

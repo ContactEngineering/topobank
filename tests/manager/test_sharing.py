@@ -298,7 +298,7 @@ def test_upload_topography_for_shared_surface(
 
     assert t.measurement_date == datetime.date(2018, 6, 21)
     assert t.description == description
-    assert "example3" in t.datafile.name
+    assert "example3" in t.datafile.filename
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
     assert t.creator == user2
@@ -322,7 +322,7 @@ def test_upload_topography_for_shared_surface(
     #
     # There should be a notification of the user
     #
-    exp_mesg = f"User '{user2}' uploaded the measurement '{t.name}' to digital surface twin '{t.surface.name}'."
+    exp_mesg = f"User '{user2}' added the measurement '{t.name}' to digital surface twin '{t.surface.name}'."
     assert (
         Notification.objects.filter(
             unread=True, recipient=user1, verb="create", description__contains=exp_mesg

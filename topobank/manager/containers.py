@@ -14,13 +14,13 @@ import SurfaceTopography
 import yaml
 from django.conf import settings
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.utils.text import slugify
 from django.utils.timezone import now
 
 import topobank
 
-from .models import Property, Surface, Topography, topography_datafile_path
+from ..files.models import Manifest
+from .models import Property, Surface, Topography
 
 _log = logging.getLogger(__name__)
 
@@ -104,15 +104,11 @@ def import_topography(topo_dict, topo_file, surface, ignore_missing=False):
         # applied because of file contents while loading
         pass
 
-    topo_kwargs["datafile"] = topo_name
     topography = Topography(**topo_kwargs)
-
-    # We need to save the topography to get an id...
-    topography.save()
-    # ...which we need for the storage prefix
-    new_topo_file_path = topography_datafile_path(topography, topo_name)
-    actual_topo_file_path = default_storage.save(new_topo_file_path, File(topo_file))
-    topography.datafile = actual_topo_file_path
+    topography.datafile = Manifest.objects.create(
+        filename=topo_name, permissions=surface.permissions, uploaded_by=user
+    )
+    topography.datafile.save_file(File(topo_file))
     # We need to save again to store the new file name
     topography.save()
 
@@ -292,15 +288,7 @@ def write_surface_container(file, surfaces):
             #
             # Also add squeezed netcdf file, if possible
             #
-            if not topography.has_squeezed_datafile:
-                try:
-                    topography.renew_squeezed_datafile()
-                except Exception as exc:
-                    _log.error(
-                        f"Cannot generate squeezed datafile of topography id {topography.id} "
-                        f"for download: {exc}"
-                    )
-            if topography.has_squeezed_datafile:
+            if topography.squeezed_datafile:
                 squeezed_name_in_container = (
                     f"{surface_prefix}{topography_prefix}{slugified_name}-squeezed.nc"
                 )

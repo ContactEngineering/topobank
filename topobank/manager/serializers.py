@@ -119,7 +119,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             "instrument_name",
             "instrument_type",
             "instrument_parameters",
-            "upload_instructions",
             "is_metadata_complete",
             "thumbnail",
             "creation_datetime",
@@ -143,15 +142,14 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         view_name="manager:surface-api-detail", queryset=Surface.objects.all()
     )
 
+    datafile = ManifestSerializer(required=False)
+    squeezed_datafile = ManifestSerializer(required=False)
+    thumbnail = ManifestSerializer(required=False)
     attachments = ManifestSerializer(many=True)
 
     tags = TagRelatedManagerField(required=False)
 
     is_metadata_complete = serializers.SerializerMethodField()
-
-    upload_instructions = serializers.DictField(
-        default=None, read_only=True
-    )  # Pre-signed upload location
 
     permissions = serializers.SerializerMethodField()
 

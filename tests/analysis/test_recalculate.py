@@ -4,15 +4,15 @@ from django.shortcuts import reverse
 
 from topobank.analysis.models import Analysis
 from topobank.testing.factories import (
-    TopographyAnalysisFactory,
     SurfaceFactory,
     Topography1DFactory,
+    TopographyAnalysisFactory,
     UserFactory,
 )
 
 
 @pytest.mark.django_db
-def test_renew_analyses_api(client, test_analysis_function):
+def test_refresh_analyses_api(client, test_analysis_function):
     """Test whether existing analyses can be renewed by API call."""
 
     user = UserFactory()

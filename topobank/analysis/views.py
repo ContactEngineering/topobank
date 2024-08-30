@@ -16,10 +16,14 @@ from trackstats.models import Metric
 from ..manager.models import Surface
 from ..manager.utils import demangle_content_type
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from .controller import AnalysisController, renew_existing_analysis
+from .controller import AnalysisController, run_existing_analysis_again
 from .models import Analysis, AnalysisFunction, Configuration
 from .permissions import AnalysisFunctionPermissions
-from .serializers import AnalysisFunctionSerializer, AnalysisResultSerializer, ConfigurationSerializer
+from .serializers import (
+    AnalysisFunctionSerializer,
+    AnalysisResultSerializer,
+    ConfigurationSerializer,
+)
 from .utils import filter_and_order_analyses
 
 _log = logging.getLogger(__name__)
@@ -81,7 +85,7 @@ class AnalysisResultView(viewsets.GenericViewSet,
         """Renew existing analysis (PUT)."""
         analysis = self.get_object()
         analysis.authorize_user(request.user)
-        new_analysis = renew_existing_analysis(analysis)
+        new_analysis = run_existing_analysis_again(analysis)
         serializer = self.get_serializer(new_analysis)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

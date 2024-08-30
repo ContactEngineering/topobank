@@ -48,7 +48,7 @@ class Command(BaseCommand):
                 if options['background']:
                     run_task(topo)
                 else:
-                    topo.renew_cache()
+                    topo.refresh_cache()
                 num_success += 1
             except Exception as exc:
                 _log.error(f"Cannot renew cache for topography {topo.id}, reason: {exc}")

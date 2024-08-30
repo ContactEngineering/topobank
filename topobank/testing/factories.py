@@ -4,6 +4,8 @@ from dataclasses import dataclass
 
 import factory
 from django.contrib.contenttypes.models import ContentType
+from django.core.files import File
+from factory import post_generation
 from SurfaceTopography import Topography as STTopography
 
 from ..analysis.models import Analysis, AnalysisFunction, AnalysisSubject
@@ -49,6 +51,17 @@ class UserFactory(factory.django.DjangoModelFactory):
     @factory.post_generation
     def create_orcid_account(self, create, value, **kwargs):
         OrcidSocialAccountFactory(user_id=self.id)
+
+
+class ManifestFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = "files.Manifest"
+
+    filename = '10x10.txt'
+
+    @post_generation
+    def upload_file(obj, create, value, **kwargs):
+        obj.save_file(File(open(f"{FIXTURE_DATA_DIR}/{obj.filename}", "rb")))
 
 
 #
@@ -115,7 +128,7 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     surface = factory.SubFactory(SurfaceFactory)
     # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
-    datafile = factory.django.FileField(from_path=FIXTURE_DATA_DIR + "/line_scan_1.asc")
+    datafile = factory.SubFactory(ManifestFactory, filename="line_scan_1.asc")
     data_source = 0
     measurement_date = factory.Sequence(
         lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n)
@@ -137,7 +150,7 @@ class Topography2DFactory(Topography1DFactory):
     """
 
     size_y = 512
-    datafile = factory.django.FileField(from_path=FIXTURE_DATA_DIR + "/10x10.txt")
+    datafile = factory.SubFactory(ManifestFactory, filename="10x10.txt")
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:

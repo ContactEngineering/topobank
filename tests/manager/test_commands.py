@@ -66,10 +66,10 @@ def test_import_downloaded_surface_archive(client):
 
 
 @pytest.mark.django_db
-def test_renew_cache(mocker):
+def test_refresh_cache(mocker):
     Topography2DFactory()
-    renew_cache_mock = mocker.patch('topobank.manager.models.Topography.renew_cache')
+    refresh_cache_mock = mocker.patch('topobank.manager.models.Topography.refresh_cache')
 
-    call_command('renew_cache', background=False)
+    call_command('refresh_cache', background=False)
 
-    assert renew_cache_mock.called
+    assert refresh_cache_mock.called
