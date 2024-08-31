@@ -1,8 +1,8 @@
 import pytest
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import AnalysisFunction
-from topobank.manager.utils import subjects_to_base64
+from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
     SurfaceAnalysisFactory,
     SurfaceFactory,
@@ -66,4 +66,35 @@ def test_query_task_with_wrong_kwargs(
         f"{subjects_to_base64([one_line_scan])}&function_id={test_analysis_function.id}"
     )
     assert response.status_code == 200
-    print(response.data)
+    assert len(response.data["analyses"]) == 0
+
+    # Login
+    api_client.force_login(user)
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([one_line_scan])}"
+        f"&function_id={test_analysis_function.id}"
+    )
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+
+    # Get a different set of parameters
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([one_line_scan])}"
+        f"&function_id={test_analysis_function.id}"
+        f"&function_kwargs={dict_to_base64(dict(a=2, b='abc'))}"
+    )
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    assert Analysis.objects.count() == 2
+
+    # Try a parameter set that does not validate
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([one_line_scan])}"
+        f"&function_id={test_analysis_function.id}"
+        f"&function_kwargs={dict_to_base64(dict(a=2, c=7))}"
+    )
+    assert response.status_code == 400
+    assert Analysis.objects.count() == 2

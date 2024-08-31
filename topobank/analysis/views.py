@@ -1,6 +1,7 @@
 import logging
 from collections import defaultdict
 
+import pydantic
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
@@ -87,7 +88,13 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         #
         # Trigger missing analyses
         #
-        controller.trigger_missing_analyses()
+        try:
+            controller.trigger_missing_analyses()
+        except pydantic.ValidationError:
+            # The kwargs that were provided do not match the function
+            return HttpResponseBadRequest(
+                "Error validating kwargs for analysis function"
+            )
 
         #
         # Get context from controller and return
