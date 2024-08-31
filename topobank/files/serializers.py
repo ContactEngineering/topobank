@@ -2,19 +2,21 @@ import logging
 
 from rest_framework import serializers
 
-from .models import Manifest
+from ..supplib.serializers import StrictFieldMixin
+from .models import Folder, Manifest
 from .upload import get_upload_instructions
 
 _log = logging.getLogger(__name__)
 
 
-class ManifestSerializer(serializers.HyperlinkedModelSerializer):
+class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Manifest
         fields = [
             "url",
             "filename",
             "file",
+            "folder",
             "kind",
             "created",
             "updated",
@@ -27,6 +29,9 @@ class ManifestSerializer(serializers.HyperlinkedModelSerializer):
         view_name="files:manifest-api-detail", read_only=True
     )
     file = serializers.FileField(read_only=True)
+    folder = serializers.HyperlinkedRelatedField(
+        view_name="files:folder-api-detail", queryset=Folder.objects.all()
+    )
     kind = serializers.ChoiceField(choices=Manifest.FILE_KIND_CHOICES, read_only=True)
     created = serializers.DateTimeField(read_only=True)
     updated = serializers.DateTimeField(read_only=True)

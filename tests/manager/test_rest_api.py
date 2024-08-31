@@ -675,6 +675,9 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "tags": [st.name],
                 "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
                 "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
+                "attachments": surface2.attachments.get_absolute_url(
+                    response.wsgi_request
+                ),
             },
             {
                 "url": surface3.get_absolute_url(response.wsgi_request),
@@ -686,6 +689,9 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "tags": [st.name],
                 "creation_datetime": surface3.creation_datetime.astimezone().isoformat(),
                 "modification_datetime": surface3.modification_datetime.astimezone().isoformat(),
+                "attachments": surface3.attachments.get_absolute_url(
+                    response.wsgi_request
+                ),
             },
         ],
     )

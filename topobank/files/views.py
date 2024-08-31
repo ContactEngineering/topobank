@@ -1,6 +1,6 @@
 import logging
 
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view
@@ -17,12 +17,46 @@ _log = logging.getLogger(__name__)
 class FileManifestViewSet(
     mixins.CreateModelMixin,
     mixins.RetrieveModelMixin,
+    mixins.UpdateModelMixin,
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
     queryset = Manifest.objects.all()
     serializer_class = ManifestSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ManifestPermission]
+
+    def perform_create(self, serializer):
+        if "folder" in serializer.validated_data:
+            folder = serializer.validated_data["folder"]
+            if folder.read_only:
+                self.permission_denied(
+                    self.request,
+                    message="This folder is read-only.",
+                )
+            serializer.save(permissions=folder.permissions, folder=folder)
+        else:
+            self.permission_denied(
+                self.request,
+                message="A new file manifest cannot be created without specifying a "
+                "folder.",
+            )
+
+    def perform_update(self, serializer):
+        if "folder" in serializer.validated_data:
+            folder = serializer.validated_data["folder"]
+            if folder.read_only:
+                self.permission_denied(
+                    self.request,
+                    message="You are trying to move a file to a folder which is "
+                    "read-only.",
+                )
+            if not folder.has_permission(self.request.user, "edit"):
+                self.permission_denied(
+                    self.request,
+                    message="You are trying to move a file. The user does not have "
+                            "write access to the target folder.",
+                )
+        serializer.save()
 
 
 @api_view(["POST"])
@@ -51,6 +85,7 @@ def upload_local(request, manifest_id: int):
 @api_view(["GET"])
 def list_manifests(request, pk=None):
     """List all manifests in a folder"""
-    obj = Folder.objects.get(pk=pk)
-    obj.authorize_user(request.user, "view")
+    obj = get_object_or_404(Folder, pk=pk)
+    if not obj.has_permission(request.user, "view"):
+        return HttpResponseForbidden()
     return [ManifestSerializer(manifest).data for manifest in obj.files]

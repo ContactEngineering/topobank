@@ -194,7 +194,7 @@ class TopographyViewSet(
 
         # File name is passed in the 'name' field on create. It is the only field that
         # needs to be present for them create (POST) request.
-        filename = self.request.data["name"]
+        filename = serializer.validated_data["name"]
         instance.datafile = Manifest.objects.create(
             permissions=instance.permissions, filename=filename, kind="raw"
         )

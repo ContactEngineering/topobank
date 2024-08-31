@@ -67,7 +67,7 @@ def test_upload_file(api_client, user_alice, user_bob):
 @pytest.mark.parametrize("read_only", [True, False])
 def test_delete_file(api_client, user_alice, read_only, handle_usage_statistics):
     permissions = PermissionSet.objects.create()
-    UserPermission.objects.create(parent=permissions, user=user_alice, allow="view")
+    permissions.grant_for_user(user_alice, "view")
     folder = Folder.objects.create(permissions=permissions, read_only=read_only)
     manifest1 = Manifest.objects.create(
         permissions=permissions,
@@ -89,19 +89,32 @@ def test_delete_file(api_client, user_alice, read_only, handle_usage_statistics)
     # Login user
     api_client.force_login(user_alice)
 
-    # Try deleting file - permission only if folder is not read only
+    # Try deleting file - still no permission because alice only has "view" access
     response = api_client.delete(
         reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id})
     )
-    assert response.status_code == 403 if read_only else 200
-    assert Manifest.objects.count() == 2 if read_only else 1
+    assert response.status_code == 403
+    assert Manifest.objects.count() == 2
+
+    # Try deleting file - alice needs full access and permission is granted only if
+    # folder is not read only
+    permissions.grant_for_user(user_alice, "full")
+    response = api_client.delete(
+        reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id})
+    )
+    assert response.status_code == (403 if read_only else 204)
+    assert Manifest.objects.count() == (2 if read_only else 1)
 
 
 @pytest.mark.django_db
-@pytest.mark.parametrize("read_only", [True, False])
-def test_modify_file(api_client, user_alice, read_only, handle_usage_statistics):
+@pytest.mark.parametrize(
+    "read_only,read_only2", [[True, True], [True, False], [False, True], [False, False]]
+)
+def test_modify_file(
+    api_client, user_alice, read_only, read_only2, handle_usage_statistics
+):
     permissions = PermissionSet.objects.create()
-    UserPermission.objects.create(parent=permissions, user=user_alice, allow="view")
+    permissions.grant_for_user(user_alice, "view")
     folder = Folder.objects.create(permissions=permissions, read_only=read_only)
     manifest1 = Manifest.objects.create(
         permissions=permissions,
@@ -133,17 +146,22 @@ def test_modify_file(api_client, user_alice, read_only, handle_usage_statistics)
     # Login user
     api_client.force_login(user_alice)
 
-    # Try deleting file - permission only if folder is not read only
+    # Try patching file - should always fail because alice has view permission
     response = api_client.patch(
         reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id}),
         {"filename": new_filename},
     )
-    # 405 is "Method not allowed"
-    assert response.status_code == 405 if read_only else 200, response.status_code
-    assert (
-        Manifest.objects.get(pk=manifest1.pk).filename == old_filename
-        if read_only
-        else new_filename
+    assert response.status_code == 403
+
+    # If we give alice edit permission, it should only fail if the folder is read-only
+    permissions.grant_for_user(user_alice, "edit")
+    response = api_client.patch(
+        reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id}),
+        {"filename": new_filename},
+    )
+    assert response.status_code == (403 if read_only else 200)
+    assert Manifest.objects.get(pk=manifest1.pk).filename == (
+        old_filename if read_only else new_filename
     )
 
     # Check that modifying other fields always fails
@@ -151,4 +169,74 @@ def test_modify_file(api_client, user_alice, read_only, handle_usage_statistics)
         reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id}),
         {"upload_confirmed": "2022-02-02"},
     )
-    assert response.status_code == 405
+    assert response.status_code == (403 if read_only else 400)
+
+    # We make a new folder for which alice has "view" access
+    permissions = PermissionSet.objects.create()
+    permissions.grant_for_user(user_alice, "view")
+    folder2 = Folder.objects.create(permissions=permissions, read_only=read_only2)
+
+    # Alice should not be able to move the file to that folder
+    response = api_client.patch(
+        reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id}),
+        {"folder": folder2.get_absolute_url(response.wsgi_request)},
+    )
+    assert response.status_code == 403
+
+    # Alice should be able to move the file only if she has "edit" access
+    permissions.grant_for_user(user_alice, "edit")
+    response = api_client.patch(
+        reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id}),
+        {"folder": folder2.get_absolute_url(response.wsgi_request)},
+    )
+    assert response.status_code == (403 if read_only or read_only2 else 200)
+
+    # Check that the files appear to have moved
+    assert folder.files.count() == (2 if read_only or read_only2 else 1)
+    assert folder2.files.count() == (0 if read_only or read_only2 else 1)
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("read_only", [True, False])
+def test_create_file(api_client, user_alice, read_only, handle_usage_statistics):
+    permissions = PermissionSet.objects.create()
+    permissions.grant_for_user(user_alice, "view")
+    folder = Folder.objects.create(permissions=permissions, read_only=read_only)
+
+    filename = "my_created_file.testing"
+
+    response = api_client.get(
+        reverse("files:folder-api-detail", kwargs={"pk": folder.id})
+    )
+    assert response.status_code == 403
+
+    # Try creating a file - no permission
+    response = api_client.post(
+        reverse("files:manifest-api-list"),
+        {
+            "filename": filename,
+            "folder": folder.get_absolute_url(response.wsgi_request),
+        },
+    )
+    assert response.status_code == 403
+
+    # Login user
+    api_client.force_login(user_alice)
+
+    # Try creating file without folder - show always fail
+    response = api_client.post(
+        reverse("files:manifest-api-list"),
+        {"filename": filename},
+    )
+    assert response.status_code == 400, response.status_code
+
+    # Try creating file - permission only if folder is not read only
+    response = api_client.post(
+        reverse("files:manifest-api-list"),
+        {
+            "filename": filename,
+            "folder": folder.get_absolute_url(response.wsgi_request),
+        },
+    )
+    assert response.status_code == (403 if read_only else 201)
+    assert Manifest.objects.count() == (0 if read_only else 1)
