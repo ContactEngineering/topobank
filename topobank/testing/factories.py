@@ -64,6 +64,15 @@ class ManifestFactory(factory.django.DjangoModelFactory):
         obj.save_file(File(open(f"{FIXTURE_DATA_DIR}/{obj.filename}", "rb")))
 
 
+class FolderFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = "files.Folder"
+
+    @post_generation
+    def filenames(obj, create, value, **kwargs):
+        print(obj, create, value, kwargs)
+
+
 #
 # Define factories for creating test objects
 #
