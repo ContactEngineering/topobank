@@ -9,7 +9,6 @@ import markdown2
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.db.models import Q
 from rest_framework.reverse import reverse
 from SurfaceTopography import open_topography
@@ -365,23 +364,6 @@ def bandwidths_data(topographies):
     bandwidths_data.sort(key=lambda entry: weight(entry))
 
     return bandwidths_data
-
-
-def dzi_exists(path_prefix):
-    """
-    Decides whether DZI data exists under the given path_prefix.
-    Current heuristics: If '{path_prefix}/dzi.json' exists, the deep
-    zoom images are expected to be available. This could be further improved.
-
-    Parameters
-    ----------
-    path_prefix
-
-    Returns
-    -------
-    True, if DZI data is expected to be available, else False.
-    """
-    return default_storage.exists(f"{path_prefix}/dzi.json")
 
 
 def render_deepzoom(
