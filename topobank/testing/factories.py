@@ -57,7 +57,7 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "files.Manifest"
 
-    filename = '10x10.txt'
+    filename = "10x10.txt"
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):
@@ -142,6 +142,11 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     instrument_name = ""
     instrument_type = Topography.INSTRUMENT_TYPE_UNDEFINED
     instrument_parameters = {}
+
+    @factory.post_generation
+    def fix_permissions(self, create, value, **kwargs):
+        self.datafile.permissions = self.permissions
+        self.datafile.save()
 
 
 class Topography2DFactory(Topography1DFactory):

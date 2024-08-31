@@ -270,16 +270,7 @@ def test_upload_topography_for_shared_surface(
         api_client,
         django_capture_on_commit_callbacks,
         **{
-            "measurement_date": "2018-06-21",
-            "data_source": 0,
             "description": description,
-            "size_x": "9000",
-            "size_y": "9000",
-            "unit": "nm",
-            "height_scale": 0.3,
-            "detrend_mode": "height",
-            "instrument_type": Topography.INSTRUMENT_TYPE_UNDEFINED,
-            "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
         },
     )
     assert response.data["name"] == "example3.di"
@@ -296,7 +287,7 @@ def test_upload_topography_for_shared_surface(
 
     t = topos[0]
 
-    assert t.measurement_date == datetime.date(2018, 6, 21)
+    assert t.measurement_date == datetime.date(2014, 12, 15)
     assert t.description == description
     assert "example3" in t.datafile.filename
     assert 256 == t.resolution_x
@@ -322,7 +313,10 @@ def test_upload_topography_for_shared_surface(
     #
     # There should be a notification of the user
     #
-    exp_mesg = f"User '{user2}' added the measurement '{t.name}' to digital surface twin '{t.surface.name}'."
+    exp_mesg = (
+        f"User '{user2}' added the measurement '{t.name}' to digital surface twin "
+        f"'{t.surface.name}'."
+    )
     assert (
         Notification.objects.filter(
             unread=True, recipient=user1, verb="create", description__contains=exp_mesg

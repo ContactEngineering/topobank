@@ -29,7 +29,11 @@ class Folder(PermissionMixin, models.Model):
 
     def save_file(self, filename, kind, fobj):
         Manifest.objects.create(
-            permissions=self.permissions, filename=filename, kind=kind, file=fobj
+            permissions=self.permissions,
+            folder=self,
+            filename=filename,
+            kind=kind,
+            file=fobj,
         )
 
     def get_files(self) -> models.QuerySet["Manifest"]:
@@ -38,6 +42,9 @@ class Folder(PermissionMixin, models.Model):
     def get_valid_files(self) -> models.QuerySet["Manifest"]:
         # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
         return self.get_files().filter(upload_confirmed__isnull=False)
+
+    def find_files(self, filename):
+        return Manifest.objects.filter(folder=self, filename=filename)
 
     def __str__(self) -> str:
         return "Folder"

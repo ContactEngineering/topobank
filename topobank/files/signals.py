@@ -8,4 +8,4 @@ from .models import Manifest
 def pre_delete_manifest(sender, instance, **kwargs):
     # File must be deleted in signal, as the delete method is not triggered in a CASCADE
     # delete
-    instance.file.delete(save=False)
+    instance.file.delete()

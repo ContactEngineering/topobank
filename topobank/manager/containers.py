@@ -106,7 +106,7 @@ def import_topography(topo_dict, topo_file, surface, ignore_missing=False):
 
     topography = Topography(**topo_kwargs)
     topography.datafile = Manifest.objects.create(
-        filename=topo_name, permissions=surface.permissions, uploaded_by=user
+        permissions=surface.permissions, filename=topo_name, uploaded_by=user
     )
     topography.datafile.save_file(File(topo_file))
     # We need to save again to store the new file name

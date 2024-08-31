@@ -911,15 +911,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def remove_files(self):
         """Remove files associated with a topography instance before removal of the topography."""
 
-        # Everything that has
-
+        # Store datafiles
         datafile_path = self.datafile.file.name if self.datafile else None
         squeezed_datafile_path = (
             self.squeezed_datafile.file.name if self.squeezed_datafile else None
         )
         thumbnail_path = self.thumbnail.file.name if self.thumbnail else None
 
-        # Delete everything else after idiot check: Make sure files are actually stored under the storage prefix.
+        # Delete everything under the storage prefix else after this idiot check:
+        # Make sure files are actually stored under the storage prefix.
         # Otherwise we abort deletion.
         if datafile_path is not None and not datafile_path.startswith(
             self.storage_prefix
@@ -1326,12 +1326,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Save the contents of in-memory file in Django image field
         if self.thumbnail is not None:
             self.thumbnail.delete()
+        filename = "thumbnail.png"
         self.thumbnail = Manifest.objects.create(
-            permissions=self.permissions,
-            filename="thumbnail.png",
-            kind="der"
+            permissions=self.permissions, filename=filename, kind="der"
         )
-        self.thumbnail.save(ContentFile(image_file.getvalue()))
+        self.thumbnail.save_file(ContentFile(image_file.getvalue()))
 
     def _dzi_storage_prefix(self):
         """Return prefix for storing DZI images."""

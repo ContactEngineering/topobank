@@ -1223,13 +1223,17 @@ def test_topography_detail(
 
 @pytest.mark.django_db
 def test_delete_topography(
-    api_client, two_topos, django_user_model, topo_example3, handle_usage_statistics
+    api_client, two_topos, topo_example3, handle_usage_statistics
 ):
     username = "testuser"
     password = "abcd$1234"
 
     # topography 1 is still in database
     topo = topo_example3
+
+    # single surface, hence there should be on permission set
+    assert Surface.objects.count() == 2
+    assert PermissionSet.objects.count() == 2
 
     # make squeezed datafile
     topo.refresh_cache()
@@ -1239,18 +1243,25 @@ def test_delete_topography(
     topo_datafile_name = topo.datafile.file.name
     squeezed_datafile_name = topo.squeezed_datafile.file.name
     thumbnail_name = topo.thumbnail.file.name
-    dzi_name = f"{topo.storage_prefix}/dzi"
 
     # check that files actually exist
     assert default_storage.exists(topo_datafile_name)
     assert default_storage.exists(squeezed_datafile_name)
     assert default_storage.exists(thumbnail_name)
-    assert default_storage.exists(f"{dzi_name}/dzi.json")
-    assert default_storage.exists(f"{dzi_name}/dzi_files/0/0_0.jpg")
+    files = topo.deepzoom.find_files("dzi.json")
+    assert files.count() == 1
+    dzi_json = files.first().file.name
+    assert default_storage.exists(dzi_json)
+    files = topo.deepzoom.find_files("dzi_files/0/0_0.jpg")
+    assert files.count() == 1
+    dzi_0_0 = files.first().file.name
+    assert default_storage.exists(dzi_0_0)
 
     assert api_client.login(username=username, password=password)
 
     api_client.delete(reverse("manager:topography-api-detail", kwargs=dict(pk=pk)))
+
+    assert PermissionSet.objects.count() == 1
 
     # topography topo_id is no more in database
     assert not Topography.objects.filter(pk=pk).exists()
@@ -1259,8 +1270,12 @@ def test_delete_topography(
     assert not default_storage.exists(topo_datafile_name)
     assert not default_storage.exists(squeezed_datafile_name)
     assert not default_storage.exists(thumbnail_name)
-    assert not default_storage.exists(f"{dzi_name}/dzi.json")
-    assert not default_storage.exists(f"{dzi_name}/dzi_files/0/0_0.jpg")
+    files = topo.deepzoom.find_files("dzi.json")
+    assert files.count() == 0
+    assert not default_storage.exists(dzi_json)
+    files = topo.deepzoom.find_files("dzi_files/0/0_0.jpg")
+    assert files.count() == 0
+    assert not default_storage.exists(dzi_0_0)
 
 
 @pytest.mark.skip(
