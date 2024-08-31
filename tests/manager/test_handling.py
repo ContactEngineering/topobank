@@ -1241,9 +1241,7 @@ def test_edit_surface(api_client):
 
 @pytest.mark.django_db
 def test_delete_surface(api_client, one_topography, handle_usage_statistics):
-    topo = one_topography
-    surface = topo.surface
-    user = surface.creator
+    user, surface, topo = one_topography
     api_client.force_login(user)
 
     topo.refresh_cache()

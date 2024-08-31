@@ -182,12 +182,13 @@ def one_topography():
 
     datafile = ManifestFactory(filename="example.opd")
 
-    return Topography1DFactory(
+    topo = Topography1DFactory(
         surface=surface,
         name="Topography Map",
         description="description1",
         datafile=datafile,
     )
+    return user, surface, topo
 
 
 @pytest.fixture
