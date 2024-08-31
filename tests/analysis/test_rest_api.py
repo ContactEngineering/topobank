@@ -1,15 +1,18 @@
-from django.urls import reverse
+import pytest
+from rest_framework.reverse import reverse
 
 from topobank.analysis.models import AnalysisFunction
+from topobank.manager.utils import subjects_to_base64
 from topobank.testing.factories import (
     SurfaceAnalysisFactory,
-    TopographyAnalysisFactory,
     SurfaceFactory,
     Topography1DFactory,
+    TopographyAnalysisFactory,
     UserFactory,
 )
 
 
+@pytest.mark.django_db
 def test_statistics(api_client, handle_usage_statistics):
     user = UserFactory()
     surf1 = SurfaceFactory(creator=user)
@@ -50,3 +53,17 @@ def test_statistics(api_client, handle_usage_statistics):
 
     response = api_client.get(reverse("analysis:statistics"))
     assert response.data["nb_analyses"] == 5
+
+
+@pytest.mark.django_db
+def test_query_task_with_wrong_kwargs(
+    api_client, one_line_scan, test_analysis_function
+):
+    user = one_line_scan.creator
+    one_line_scan.grant_permission(user, "view")
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}?subjects="
+        f"{subjects_to_base64([one_line_scan])}&function_id={test_analysis_function.id}"
+    )
+    assert response.status_code == 200
+    print(response.data)

@@ -29,38 +29,53 @@ from .utils import filter_and_order_analyses
 _log = logging.getLogger(__name__)
 
 SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
-MAX_NUM_POINTS_FOR_SYMBOLS = 10000  # Don't show symbols if more than number of data points total
+MAX_NUM_POINTS_FOR_SYMBOLS = (
+    10000  # Don't show symbols if more than number of data points total
+)
 LINEWIDTH_FOR_SURFACE_AVERAGE = 4
 
 
 class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
-    queryset = Configuration.objects.prefetch_related('versions')
+    queryset = Configuration.objects.prefetch_related("versions")
     serializer_class = ConfigurationSerializer
 
 
-class AnalysisFunctionView(viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin):
+class AnalysisFunctionView(
+    viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin
+):
     serializer_class = AnalysisFunctionSerializer
     permission_classes = [AnalysisFunctionPermissions]
 
     def get_queryset(self):
         # We need to filter the queryset to exclude functions in the list view
         user = self.request.user
-        subject_type = self.request.query_params.get('subject_type', None)
+        subject_type = self.request.query_params.get("subject_type", None)
         # FIXME!!! This is a hack!!! The analysis function permission system needs to be refactored.
         if subject_type is None:
-            ids = [f.id for f in AnalysisFunction.objects.all()
-                   if f.is_available_for_user(user)]
+            ids = [
+                f.id
+                for f in AnalysisFunction.objects.all()
+                if f.is_available_for_user(user)
+            ]
         else:
-            ids = [f.id for f in AnalysisFunction.objects.all()
-                   if f.is_available_for_user(user) and f.is_implemented_for_type(demangle_content_type(subject_type))]
+            ids = [
+                f.id
+                for f in AnalysisFunction.objects.all()
+                if f.is_available_for_user(user)
+                and f.is_implemented_for_type(demangle_content_type(subject_type))
+            ]
         return AnalysisFunction.objects.filter(pk__in=ids)
 
 
-class AnalysisResultView(viewsets.GenericViewSet,
-                         mixins.RetrieveModelMixin):
+class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
-    queryset = Analysis.objects.select_related('function', 'subject_dispatch__tag', 'subject_dispatch__topography',
-                                               'subject_dispatch__surface')
+
+    queryset = Analysis.objects.select_related(
+        "function",
+        "subject_dispatch__tag",
+        "subject_dispatch__topography",
+        "subject_dispatch__surface",
+    )
     serializer_class = AnalysisResultSerializer
 
     def list(self, request, *args, **kwargs):
@@ -90,14 +105,16 @@ class AnalysisResultView(viewsets.GenericViewSet,
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 def series_card_view(request, **kwargs):
     controller = AnalysisController.from_request(request, **kwargs)
 
     #
     # for statistics, count views per function
     #
-    increase_statistics_by_date_and_object(Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=controller.function)
+    increase_statistics_by_date_and_object(
+        Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=controller.function
+    )
 
     #
     # Trigger missing analyses
@@ -107,7 +124,7 @@ def series_card_view(request, **kwargs):
     #
     # Filter only successful ones
     #
-    analyses_success = controller.get(task_states=['su'])
+    analyses_success = controller.get(task_states=["su"])
 
     #
     # order analyses such that surface analyses are coming last (plotted on top)
@@ -121,33 +138,33 @@ def series_card_view(request, **kwargs):
 
     context = controller.get_context(request=request)
 
-    plot_configuration = {
-        'title': controller.function.name
-    }
+    plot_configuration = {"title": controller.function.name}
 
     nb_analyses_success = len(analyses_success_list)
     if nb_analyses_success == 0:
         #
         # Prepare plot, controls, and table with special values..
         #
-        plot_configuration['dataSources'] = []
-        plot_configuration['categories'] = [
+        plot_configuration["dataSources"] = []
+        plot_configuration["categories"] = [
             {
-                'title': "Averages / Measurements",
-                'key': "subjectName",
+                "title": "Averages / Measurements",
+                "key": "subjectName",
             },
             {
-                'title': "Data Series",
-                'key': "seriesName",
+                "title": "Data Series",
+                "key": "seriesName",
             },
         ]
-        context['plotConfiguration'] = plot_configuration
+        context["plotConfiguration"] = plot_configuration
         return Response(context)
 
     #
     # Extract subject names for display
     #
-    subject_names = []  # will be shown under category with key "subject_name" (see plot.js)
+    subject_names = (
+        []
+    )  # will be shown under category with key "subject_name" (see plot.js)
     has_at_least_one_surface_subject = False
     for a in analyses_success_list:
         s = a.subject
@@ -161,20 +178,22 @@ def series_card_view(request, **kwargs):
     # Use first analysis to determine some properties for the whole plot
     #
     first_analysis_result = analyses_success_list[0].result
-    xunit = first_analysis_result['xunit'] if 'xunit' in first_analysis_result else 'm'
-    yunit = first_analysis_result['yunit'] if 'yunit' in first_analysis_result else 'm'
+    xunit = first_analysis_result["xunit"] if "xunit" in first_analysis_result else "m"
+    yunit = first_analysis_result["yunit"] if "yunit" in first_analysis_result else "m"
 
-    ureg = UnitRegistry()  # for unit conversion for each analysis individually, see below
+    ureg = (
+        UnitRegistry()
+    )  # for unit conversion for each analysis individually, see below
 
     #
     # Determine axes labels
     #
-    x_axis_label = first_analysis_result['xlabel']
+    x_axis_label = first_analysis_result["xlabel"]
     if xunit is not None:
-        x_axis_label += f' ({xunit})'
-    y_axis_label = first_analysis_result['ylabel']
+        x_axis_label += f" ({xunit})"
+    y_axis_label = first_analysis_result["ylabel"]
     if yunit is not None:
-        y_axis_label += f' ({yunit})'
+        y_axis_label += f" ({yunit})"
 
     #
     # Context information for the figure
@@ -182,13 +201,15 @@ def series_card_view(request, **kwargs):
     def _get_axis_type(key):
         return first_analysis_result.get(key) or "linear"
 
-    plot_configuration.update({
-        'xAxisLabel': x_axis_label,
-        'yAxisLabel': y_axis_label,
-        'xAxisType': _get_axis_type('xscale'),
-        'yAxisType': _get_axis_type('yscale'),
-        'outputBackend': settings.BOKEH_OUTPUT_BACKEND
-    })
+    plot_configuration.update(
+        {
+            "xAxisLabel": x_axis_label,
+            "yAxisLabel": y_axis_label,
+            "xAxisType": _get_axis_type("xscale"),
+            "yAxisType": _get_axis_type("yscale"),
+            "outputBackend": settings.BOKEH_OUTPUT_BACKEND,
+        }
+    )
 
     #
     # First traversal: find all available series names and sort them
@@ -208,8 +229,13 @@ def series_card_view(request, **kwargs):
         if analysis.task_state != analysis.SUCCESS:
             continue  # should not happen if only called with successful analyses
 
-        series_metadata = analysis.result_metadata.get('series', [])
-        series_names.update([s['name'] if 'name' in s else f'{i}' for i, s in enumerate(series_metadata)])
+        series_metadata = analysis.result_metadata.get("series", [])
+        series_names.update(
+            [
+                s["name"] if "name" in s else f"{i}"
+                for i, s in enumerate(series_metadata)
+            ]
+        )
 
         if analysis.subject_dispatch.tag is not None:
             nb_tags += 1
@@ -220,8 +246,12 @@ def series_card_view(request, **kwargs):
         else:
             nb_others += 1
 
-    series_names = sorted(list(series_names))  # index of a name in this list is the "series_name_index"
-    visible_series_indices = set()  # elements: series indices, decides whether a series is visible
+    series_names = sorted(
+        list(series_names)
+    )  # index of a name in this list is the "series_name_index"
+    visible_series_indices = (
+        set()
+    )  # elements: series indices, decides whether a series is visible
 
     #
     # Prepare helpers
@@ -247,11 +277,17 @@ def series_card_view(request, **kwargs):
         # Change display name depending on whether there is a parent analysis or not
         #
         parent_analysis = None
-        if is_topography_analysis and analysis.subject_dispatch.topography.surface.num_topographies() > 1:
+        if (
+            is_topography_analysis
+            and analysis.subject_dispatch.topography.surface.num_topographies() > 1
+        ):
             for a in analyses_success_list:
-                if a.subject_dispatch.surface is not None and \
-                        a.subject_dispatch.surface.id == analysis.subject_dispatch.topography.surface.id and \
-                        a.function.id == analysis.function.id:
+                if (
+                    a.subject_dispatch.surface is not None
+                    and a.subject_dispatch.surface.id
+                    == analysis.subject_dispatch.topography.surface.id
+                    and a.function.id == analysis.function.id
+                ):
                     parent_analysis = a
 
         subject_display_name = subject_names[analysis_idx]
@@ -267,7 +303,7 @@ def series_card_view(request, **kwargs):
         # Find out scale for data
         #
         result_metadata = analysis.result_metadata
-        series_metadata = result_metadata.get('series', [])
+        series_metadata = result_metadata.get("series", [])
 
         messages = []
 
@@ -275,29 +311,31 @@ def series_card_view(request, **kwargs):
             analysis_xscale = 1
         else:
             try:
-                analysis_xscale = ureg.convert(1, result_metadata.get('xunit', 'm'), xunit)
-            except (UndefinedUnitError, DimensionalityError) as exc:
-                err_msg = f"Cannot convert x units when displaying results for analysis with id {analysis.id}. " \
-                          f"Cause: {exc}"
-                _log.error(err_msg)
-                messages.append(
-                    dict(alertClass='alert-danger',
-                         message=err_msg)
+                analysis_xscale = ureg.convert(
+                    1, result_metadata.get("xunit", "m"), xunit
                 )
+            except (UndefinedUnitError, DimensionalityError) as exc:
+                err_msg = (
+                    f"Cannot convert x units when displaying results for analysis with id {analysis.id}. "
+                    f"Cause: {exc}"
+                )
+                _log.error(err_msg)
+                messages.append(dict(alertClass="alert-danger", message=err_msg))
                 continue
         if yunit is None:
             analysis_yscale = 1
         else:
             try:
-                analysis_yscale = ureg.convert(1, result_metadata.get('yunit', 'm'), yunit)
-            except (UndefinedUnitError, DimensionalityError) as exc:
-                err_msg = f"Cannot convert y units when displaying results for analysis with id {analysis.id}. " \
-                          f"Cause: {exc}"
-                _log.error(err_msg)
-                messages.append(
-                    dict(alertClass='alert-danger',
-                         message=err_msg)
+                analysis_yscale = ureg.convert(
+                    1, result_metadata.get("yunit", "m"), yunit
                 )
+            except (UndefinedUnitError, DimensionalityError) as exc:
+                err_msg = (
+                    f"Cannot convert y units when displaying results for analysis with id {analysis.id}. "
+                    f"Cause: {exc}"
+                )
+                _log.error(err_msg)
+                messages.append(dict(alertClass="alert-danger", message=err_msg))
                 continue
 
         for series_idx, s in enumerate(series_metadata):
@@ -306,11 +344,13 @@ def series_card_view(request, **kwargs):
             # revert this back if we ever solve the redirect issue
             # series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'), request=request)
             # we want to return the aws s3 links directly
-            series_url = default_storage.url(f'{analysis.storage_prefix}/series-{series_idx}.json')
-            series_name = s['name'] if 'name' in s else f'{series_idx}'
+            series_url = default_storage.url(
+                f"{analysis.storage_prefix}/series-{series_idx}.json"
+            )
+            series_name = s["name"] if "name" in s else f"{series_idx}"
             series_name_idx = series_names.index(series_name)
 
-            is_visible = s['visible'] if 'visible' in s else True
+            is_visible = s["visible"] if "visible" in s else True
             if is_visible:
                 visible_series_indices.add(series_name_idx)
                 # as soon as one dataset wants this series to be visible,
@@ -319,61 +359,65 @@ def series_card_view(request, **kwargs):
             #
             # Actually plot the line
             #
-            nb_data_points += s['nbDataPoints'] if 'nbDataPoints' in s else 0
+            nb_data_points += s["nbDataPoints"] if "nbDataPoints" in s else 0
 
             # hover_name = "{} for '{}'".format(series_name, topography_name)
             line_width = LINEWIDTH_FOR_SURFACE_AVERAGE if is_surface_analysis else 1
-            alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.
+            alpha = DEFAULT_ALPHA_FOR_TOPOGRAPHIES if is_topography_analysis else 1.0
 
             #
             # Find out whether this dataset for this special series has a parent dataset
             # in the parent_analysis, which means whether the same series is available there
             #
             has_parent = (parent_analysis is not None) and any(
-                s['name'] == series_name if 'name' in s else f'{i}' == series_name for i, s in
-                enumerate(parent_analysis.result_metadata.get('series', [])))
+                s["name"] == series_name if "name" in s else f"{i}" == series_name
+                for i, s in enumerate(parent_analysis.result_metadata.get("series", []))
+            )
 
             #
             # Context information for this data source, will be interpreted by client JS code
             #
-            data_sources_dict += [{
-                'sourceName': f'analysis-{analysis.id}',
-                'subjectName': subject_display_name,
-                'subjectNameIndex': analysis_idx,
-                'subjectNameHasParent': parent_analysis is not None,
-                'seriesName': series_name,
-                'seriesNameIndex': series_name_idx,
-                'hasParent': has_parent,  # can be used for the legend
-                'xScaleFactor': analysis_xscale,
-                'yScaleFactor': analysis_yscale,
-                'url': series_url,
-                'width': line_width,
-                'alpha': alpha,
-                'visible': series_name_idx in visible_series_indices,  # independent of subject
-                'isSurfaceAnalysis': is_surface_analysis,
-                'isTopographyAnalysis': is_topography_analysis
-            }]
+            data_sources_dict += [
+                {
+                    "sourceName": f"analysis-{analysis.id}",
+                    "subjectName": subject_display_name,
+                    "subjectNameIndex": analysis_idx,
+                    "subjectNameHasParent": parent_analysis is not None,
+                    "seriesName": series_name,
+                    "seriesNameIndex": series_name_idx,
+                    "hasParent": has_parent,  # can be used for the legend
+                    "xScaleFactor": analysis_xscale,
+                    "yScaleFactor": analysis_yscale,
+                    "url": series_url,
+                    "width": line_width,
+                    "alpha": alpha,
+                    "visible": series_name_idx
+                    in visible_series_indices,  # independent of subject
+                    "isSurfaceAnalysis": is_surface_analysis,
+                    "isTopographyAnalysis": is_topography_analysis,
+                }
+            ]
 
-    plot_configuration['dataSources'] = data_sources_dict
-    plot_configuration['categories'] = [
+    plot_configuration["dataSources"] = data_sources_dict
+    plot_configuration["categories"] = [
         {
-            'title': "Averages / Measurements",
-            'key': "subjectName",
+            "title": "Averages / Measurements",
+            "key": "subjectName",
         },
         {
-            'title': "Data series",
-            'key': "seriesName",
+            "title": "Data series",
+            "key": "seriesName",
         },
     ]
-    plot_configuration['showSymbols'] = nb_data_points < MAX_NUM_POINTS_FOR_SYMBOLS
+    plot_configuration["showSymbols"] = nb_data_points < MAX_NUM_POINTS_FOR_SYMBOLS
 
-    context['plotConfiguration'] = plot_configuration
-    context['messages'] = messages
+    context["plotConfiguration"] = plot_configuration
+    context["messages"] = messages
 
     return Response(context)
 
 
-@api_view(['POST'])
+@api_view(["POST"])
 def submit_analyses_view(request):
     """Requests analyses.
     :param request:
@@ -392,9 +436,9 @@ def submit_analyses_view(request):
     #    if not allowed:
     #        break
 
-    return Response({
-        'analyses': controller.to_representation(request=request)
-    }, status=200)
+    return Response(
+        {"analyses": controller.to_representation(request=request)}, status=200
+    )
 
 
 def data(request, pk, location):
@@ -431,56 +475,94 @@ def data(request, pk, location):
 
     # okay, we have a valid analysis and the user is allowed to see it
 
-    name = f'{analysis.storage_prefix}/{location}'
+    name = f"{analysis.storage_prefix}/{location}"
     url = default_storage.url(name)
     return redirect(url)
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 def statistics(request):
-    return Response({
-        'nb_analyses': Analysis.objects.count(),
-    }, status=200)
+    return Response(
+        {
+            "nb_analyses": Analysis.objects.count(),
+        },
+        status=200,
+    )
 
 
-@api_view(['GET'])
+@api_view(["GET"])
 def memory_usage(request):
     m = defaultdict(list)
-    for function_id, function_name in AnalysisFunction.objects.values_list('id', 'name'):
-        max_nb_data_pts = Case(When(subject_dispatch__surface__isnull=False,
-                                    then=Max(
-                                        F('subject_dispatch__surface__topography__resolution_x') * Case(
-                                            When(
-                                                subject_dispatch__surface__topography__resolution_y__isnull=False,
-                                                then=F(
-                                                    'subject_dispatch__surface__topography__resolution_y')),
-                                            default=1))),
-                               default=F('subject_dispatch__topography__resolution_x') * Case(
-                                   When(subject_dispatch__topography__resolution_y__isnull=False,
-                                        then=F('subject_dispatch__topography__resolution_y')),
-                                   default=1))
-        sum_nb_data_pts = Case(When(subject_dispatch__surface__isnull=False,
-                                    then=Sum(
-                                        F('subject_dispatch__surface__topography__resolution_x') * Case(
-                                            When(
-                                                subject_dispatch__surface__topography__resolution_y__isnull=False,
-                                                then=F(
-                                                    'subject_dispatch__surface__topography__resolution_y')),
-                                            default=1))),
-                               default=F('subject_dispatch__topography__resolution_x') * Case(
-                                   When(subject_dispatch__topography__resolution_y__isnull=False,
-                                        then=F('subject_dispatch__topography__resolution_y')),
-                                   default=1))
-        for x in Analysis.objects \
-                .filter(function_id=function_id) \
-                .values('task_memory') \
-                .annotate(resolution_x=F('subject_dispatch__topography__resolution_x'),
-                          resolution_y=F('subject_dispatch__topography__resolution_y'),
-                          duration=F('end_time') - F('start_time'),
-                          subject=Case(When(subject_dispatch__tag__isnull=False, then=Value('tag')),
-                                       When(subject_dispatch__surface__isnull=False, then=Value('surface')),
-                                       default=Value('topography')),
-                          max_nb_data_pts=max_nb_data_pts,
-                          sum_nb_data_pts=sum_nb_data_pts):
+    for function_id, function_name in AnalysisFunction.objects.values_list(
+        "id", "name"
+    ):
+        max_nb_data_pts = Case(
+            When(
+                subject_dispatch__surface__isnull=False,
+                then=Max(
+                    F("subject_dispatch__surface__topography__resolution_x")
+                    * Case(
+                        When(
+                            subject_dispatch__surface__topography__resolution_y__isnull=False,
+                            then=F(
+                                "subject_dispatch__surface__topography__resolution_y"
+                            ),
+                        ),
+                        default=1,
+                    )
+                ),
+            ),
+            default=F("subject_dispatch__topography__resolution_x")
+            * Case(
+                When(
+                    subject_dispatch__topography__resolution_y__isnull=False,
+                    then=F("subject_dispatch__topography__resolution_y"),
+                ),
+                default=1,
+            ),
+        )
+        sum_nb_data_pts = Case(
+            When(
+                subject_dispatch__surface__isnull=False,
+                then=Sum(
+                    F("subject_dispatch__surface__topography__resolution_x")
+                    * Case(
+                        When(
+                            subject_dispatch__surface__topography__resolution_y__isnull=False,
+                            then=F(
+                                "subject_dispatch__surface__topography__resolution_y"
+                            ),
+                        ),
+                        default=1,
+                    )
+                ),
+            ),
+            default=F("subject_dispatch__topography__resolution_x")
+            * Case(
+                When(
+                    subject_dispatch__topography__resolution_y__isnull=False,
+                    then=F("subject_dispatch__topography__resolution_y"),
+                ),
+                default=1,
+            ),
+        )
+        for x in (
+            Analysis.objects.filter(function_id=function_id)
+            .values("task_memory")
+            .annotate(
+                resolution_x=F("subject_dispatch__topography__resolution_x"),
+                resolution_y=F("subject_dispatch__topography__resolution_y"),
+                duration=F("end_time") - F("start_time"),
+                subject=Case(
+                    When(subject_dispatch__tag__isnull=False, then=Value("tag")),
+                    When(
+                        subject_dispatch__surface__isnull=False, then=Value("surface")
+                    ),
+                    default=Value("topography"),
+                ),
+                max_nb_data_pts=max_nb_data_pts,
+                sum_nb_data_pts=sum_nb_data_pts,
+            )
+        ):
             m[function_name] += [x]
     return Response(m, status=200)
