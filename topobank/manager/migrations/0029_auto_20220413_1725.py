@@ -2,29 +2,45 @@
 
 from django.db import migrations, models
 
-import topobank.manager.models
+
+def storage_prefix(instance):
+    return f"topographies/{instance.id}"
+
+
+def topography_datafile_path(instance, filename):
+    return f"{storage_prefix(instance)}/raw/{filename}"
+
+
+def topography_squeezed_datafile_path(instance, filename):
+    return f"{storage_prefix(instance)}/nc/{filename}"
+
+
+def topography_thumbnail_path(instance, filename):
+    return f"{storage_prefix(instance)}/thumbnail/{filename}"
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('manager', '0028_auto_20211209_1239'),
+        ("manager", "0028_auto_20211209_1239"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='topography',
-            name='datafile',
-            field=models.FileField(max_length=250, upload_to=topobank.manager.models.topography_datafile_path),
+            model_name="topography",
+            name="datafile",
+            field=models.FileField(max_length=250, upload_to=topography_datafile_path),
         ),
         migrations.AlterField(
-            model_name='topography',
-            name='squeezed_datafile',
-            field=models.FileField(max_length=260, null=True, upload_to=topobank.manager.models.topography_squeezed_datafile_path),
+            model_name="topography",
+            name="squeezed_datafile",
+            field=models.FileField(
+                max_length=260, null=True, upload_to=topography_squeezed_datafile_path
+            ),
         ),
         migrations.AlterField(
-            model_name='topography',
-            name='thumbnail',
-            field=models.ImageField(null=True, upload_to=topobank.manager.models.topography_thumbnail_path),
+            model_name="topography",
+            name="thumbnail",
+            field=models.ImageField(null=True, upload_to=topography_thumbnail_path),
         ),
     ]

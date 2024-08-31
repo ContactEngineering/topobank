@@ -5,10 +5,12 @@ import os
 from django.db import migrations
 
 
+def storage_prefix(instance):
+    return f"topographies/{instance.id}"
+
 def generate_manifest(
     name: str,
     nb_grid_pts: tuple[int, int],
-    root_directory: str = ".",
     tile_size: int = 256,
     format: str = "jpg",
     meta_format: str = "xml",
@@ -25,9 +27,6 @@ def generate_manifest(
         `name`_files that contains the rendered image files at different levels.
     nb_grid_pts : tuple of ints
         Number of grid points.
-    root_directory : str, optional
-        Root directory where to place `name`.xml and `name`_files.
-        (Default: '.')
     tile_size : int, optional
         Size of individual tiles. (Default: 256)
     format : str, optional
@@ -49,9 +48,9 @@ def generate_manifest(
 
     # Write configuration file
     if meta_format == "xml":
-        fn = os.path.join(root_directory, name + ".xml")
+        fn = name + ".xml"
     elif meta_format == "json":
-        fn = os.path.join(root_directory, name + ".json")
+        fn = name + ".json"
     else:
         raise ValueError(f"Unknown metadata format {meta_format}.")
     manifest = [fn]
@@ -60,7 +59,7 @@ def generate_manifest(
     max_level = math.ceil(math.log2(max(width, height)))
 
     # Loop over levels and write tiles
-    root_directory = os.path.join(root_directory, name + "_files")
+    root_directory = name + "_files"
     for level in range(max_level, -1, -1):
         level_root_directory = os.path.join(root_directory, str(level))
 
@@ -84,31 +83,49 @@ def generate_manifest(
 def forward_func(apps, schema_editor):
     Topography = apps.get_model("manager", "Topography")
     Manifest = apps.get_model("files", "Manifest")
+    Folder = apps.get_model("files", "Folder")
     for topography in Topography.objects.all():
         topography.datafile_manifest = Manifest.create(
+            permissions=topography.permissions,
             filename=os.path.split(topography.file.name)[1],
             kind="raw",
             uploaded_by=topography.creator,
             file=topography.datafile.file,
         )
         topography.squeezed_datafile_manifest = Manifest.create(
+            permissions=topography.permissions,
             filename=os.path.split(topography.squeezed_file.name)[1],
             kind="der",
             uploaded_by=topography.creator,
             file=topography.squeezed_datafile.file,
         )
         topography.thumbnail_manifest = Manifest.create(
+            permissions=topography.permissions,
             filename=os.path.split(topography.thumbnail.name)[1],
             kind="der",
             uploaded_by=topography.creator,
             file=topography.thumbnail.file,
         )
+        if topography.resolution_y:
+            # 2D map
+            nb_grid_pts = (topography.resolution_x, topography.resolution_y)
+            deepzoom_files = generate_manifest("dzi", nb_grid_pts, meta_format="json")
+            folder = Folder.objects.create(permissions=topography.permissions)
+            prefix = f"topographies/{topography.id}/{storage_prefix(topography)}/dzi"
+            for fn in deepzoom_files:
+                Manifest.objects.create(
+                    permissions=topography.permissions,
+                    folder=folder,
+                    filename=os.path.join(prefix, fn),
+                    kind="der",
+                    file=fn,
+                )
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("files", "0004_alter_manifest_uploaded_by"),
+        ("files", "0006_folder_read_only"),
         ("manager", "0056_topography_datafile_manifest_topography_deepzoom_and_more"),
     ]
 

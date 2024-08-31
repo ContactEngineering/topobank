@@ -36,7 +36,7 @@ from ..supplib.storage import recursive_delete
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-from .utils import dzi_exists, get_topography_reader, render_deepzoom
+from .utils import get_topography_reader, render_deepzoom
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -53,12 +53,6 @@ SQUEEZED_DATAFILE_FORMAT = "nc"
 _IN_CELERY_WORKER_PROCESS = (
     sys.argv and sys.argv[0].endswith("celery") and "worker" in sys.argv
 )
-
-
-# Deprecated, but needed for migrations
-def user_directory_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
-    return "topographies/user_{0}/{1}".format(instance.surface.creator.id, filename)
 
 
 def _get_unit(channel):
@@ -631,18 +625,6 @@ class Property(PermissionMixin, models.Model):
         return d
 
 
-def topography_datafile_path(instance, filename):
-    return f"{instance.storage_prefix}/raw/{filename}"
-
-
-def topography_squeezed_datafile_path(instance, filename):
-    return f"{instance.storage_prefix}/nc/{filename}"
-
-
-def topography_thumbnail_path(instance, filename):
-    return f"{instance.storage_prefix}/thumbnail/{filename}"
-
-
 class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     """
     A single topography measurement of a surface of a specimen.
@@ -973,14 +955,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def label(self):
         """Return a string which can be used in the UI."""
         return self.name
-
-    @property
-    def has_dzi(self):
-        """If True, this topography is expected to have dzi data.
-
-        For 1D topography data this is always False.
-        """
-        return (self.size_y is not None) and dzi_exists(self._dzi_storage_prefix())
 
     @property
     def storage_prefix(self):
@@ -1343,10 +1317,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             permissions=self.permissions, filename=filename, kind="der"
         )
         self.thumbnail.save_file(ContentFile(image_file.getvalue()))
-
-    def _dzi_storage_prefix(self):
-        """Return prefix for storing DZI images."""
-        return f"{self.storage_prefix}/dzi"
 
     def _make_deepzoom(self, st_topo=None):
         """Renew deep zoom images.

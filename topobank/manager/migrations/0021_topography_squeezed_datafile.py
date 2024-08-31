@@ -2,19 +2,24 @@
 
 from django.db import migrations, models
 
-import topobank.manager.models
+
+def user_directory_path(instance, filename):
+    # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
+    return "topographies/user_{0}/{1}".format(instance.surface.creator.id, filename)
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('manager', '0020_topography_thumbnail'),
+        ("manager", "0020_topography_thumbnail"),
     ]
 
     operations = [
         migrations.AddField(
-            model_name='topography',
-            name='squeezed_datafile',
-            field=models.FileField(max_length=260, null=True, upload_to=topobank.manager.models.user_directory_path),
+            model_name="topography",
+            name="squeezed_datafile",
+            field=models.FileField(
+                max_length=260, null=True, upload_to=user_directory_path
+            ),
         ),
     ]
