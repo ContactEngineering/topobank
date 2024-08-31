@@ -1,5 +1,4 @@
 import datetime
-import os.path
 from pathlib import Path
 
 import pytest
@@ -18,11 +17,7 @@ from topobank.testing.factories import (
     Topography2DFactory,
     UserFactory,
 )
-from topobank.testing.utils import (
-    assert_form_error,
-    assert_no_form_errors,
-    upload_topography_file,
-)
+from topobank.testing.utils import upload_topography_file
 
 filelist = [
     "10x10.txt",
@@ -1077,116 +1072,6 @@ def test_edit_line_scan(
     assert response.data["topography_set"][0]["name"] == new_name
 
 
-@pytest.mark.skip(
-    "Currently you can set detrending on any topography, even periodic ones"
-)
-@pytest.mark.django_db
-def test_edit_topography_only_detrend_center_when_periodic(client, django_user_model):
-    input_file_path = Path(FIXTURE_DATA_DIR + "/10x10.txt")
-    user = UserFactory()
-    surface = SurfaceFactory(creator=user)
-    client.force_login(user)
-
-    #
-    # Create a topography without sizes given in original file
-    #
-    # Step 1
-    with input_file_path.open(mode="rb") as fp:
-        response = client.post(
-            reverse("manager:topography-create", kwargs=dict(surface_id=surface.id)),
-            data={
-                "topography_create_wizard-current_step": "upload",
-                "upload-datafile": fp,
-                "upload-surface": surface.id,
-            },
-            follow=True,
-        )
-
-    assert response.status_code == 200
-    assert_no_form_errors(response)
-
-    #
-    # Step 2
-    #
-    response = client.post(
-        reverse("manager:topography-create", kwargs=dict(surface_id=surface.id)),
-        data={
-            "topography_create_wizard-current_step": "metadata",
-            "metadata-name": "topo1",
-            "metadata-measurement_date": "2019-11-22",
-            "metadata-data_source": 0,
-            "metadata-description": "only for test",
-        },
-    )
-
-    assert response.status_code == 200
-    assert_no_form_errors(response)
-
-    #
-    # Step 3
-    #
-    response = client.post(
-        reverse("manager:topography-create", kwargs=dict(surface_id=surface.id)),
-        data={
-            "topography_create_wizard-current_step": "units",
-            "units-size_x": "9",
-            "units-size_y": "9",
-            "units-unit": "nm",
-            "units-height_scale": 1,
-            "units-detrend_mode": "height",
-            "units-resolution_x": 10,
-            "units-resolution_y": 10,
-            "units-instrument_type": Topography.INSTRUMENT_TYPE_UNDEFINED,
-            "units-instrument_name": "",
-            "units-instrument_parameters": {},
-            "units-fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-        },
-    )
-
-    assert response.status_code == 302
-
-    # there should be only one topography now
-    topo = Topography.objects.get(surface=surface)
-
-    #
-    # First get the form and look whether all the expected data is in there
-    #
-    response = client.get(reverse("manager:topography-update", kwargs=dict(pk=topo.pk)))
-    assert response.status_code == 200
-    assert "form" in response.context
-
-    #
-    # Then send a post with updated data
-    #
-    response = client.post(
-        reverse("manager:topography-update", kwargs=dict(pk=topo.pk)),
-        data={
-            "name": topo.name,
-            "measurement_date": topo.measurement_date,
-            "description": topo.description,
-            "size_x": 500,
-            "size_y": 1000,
-            "unit": "nm",
-            "height_scale": 0.1,
-            "detrend_mode": "height",
-            "is_periodic": True,  # <--------- this should not be allowed with detrend_mode 'height'
-            "instrument_type": Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED,
-            "instrument_parameters": "{'resolution': { 'value': 1, 'unit':'mm'}}",
-            "instrument_name": "AFM",
-            "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-            "has_undefined_data": False,
-        },
-        follow=True,
-    )
-
-    assert Topography.DETREND_MODE_CHOICES[0][0] == "center"
-    # this asserts that the clean() method of form has the correct reference
-
-    assert_form_error(
-        response, "When enabling periodicity only detrend mode", "detrend_mode"
-    )
-
-
 @pytest.mark.django_db
 def test_topography_detail(
     api_client, two_topos, django_user_model, topo_example4, handle_usage_statistics
@@ -1278,48 +1163,6 @@ def test_delete_topography(
     files = topo.deepzoom.find_files("dzi_files/0/0_0.jpg")
     assert files.count() == 0
     assert not default_storage.exists(dzi_0_0)
-
-
-@pytest.mark.skip(
-    "Cannot be implemented up to now, because don't know how to reuse datafile"
-)
-@pytest.mark.django_db
-def test_delete_topography_with_its_datafile_used_by_others(
-    client, two_topos, django_user_model
-):
-    username = "testuser"
-    password = "abcd$1234"
-    topo_id = 1
-
-    # topography 1 is still in database
-    topo = Topography.objects.get(pk=topo_id)
-    surface = topo.surface
-
-    topo_datafile_path = topo.datafile.path
-
-    # make topography 2 use the same datafile
-    topo2 = Topography.objects.get(pk=2)
-    topo2.datafile.path = topo_datafile_path  # This does not work
-
-    assert client.login(username=username, password=password)
-
-    response = client.get(reverse("manager:topography-delete", kwargs=dict(pk=topo_id)))
-
-    # user should be asked if he/she is sure
-    assert b"Are you sure" in response.content
-
-    response = client.post(
-        reverse("manager:topography-delete", kwargs=dict(pk=topo_id))
-    )
-
-    # user should be redirected to surface details
-    assert reverse("manager:surface-detail", kwargs=dict(pk=surface.pk)) == response.url
-
-    # topography topo_id is no more in database
-    assert not Topography.objects.filter(pk=topo_id).exists()
-
-    # topography file should **not** have been deleted, because still used by topo2
-    assert os.path.exists(topo_datafile_path)
 
 
 @pytest.mark.django_db
