@@ -918,6 +918,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         )
         thumbnail_path = self.thumbnail.file.name if self.thumbnail else None
 
+        # Delete all files
+        def delete(x):
+            if x:
+                x.delete()
+        delete(self.datafile)
+        delete(self.squeezed_datafile)
+        delete(self.thumbnail)
+        delete(self.deepzoom)
+
         # Delete everything under the storage prefix else after this idiot check:
         # Make sure files are actually stored under the storage prefix.
         # Otherwise we abort deletion.

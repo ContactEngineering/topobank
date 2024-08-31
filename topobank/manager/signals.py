@@ -23,14 +23,6 @@ def pre_delete_topography(sender, instance, using, **kwargs):
     instance.remove_files()
 
 
-@receiver(post_delete, sender=Topography)
-def post_delete_topography(sender, instance, using, **kwargs):
-    _remove_notifications(instance)
-    # Delete permission set, which triggers deletion of all other associated data.
-    # Needs to be in post_delete to avoid recursion.
-    instance.permissions.delete()
-
-
 @receiver(post_delete, sender=Surface)
 def post_delete_surface(sender, instance, using, **kwargs):
     _remove_notifications(instance)

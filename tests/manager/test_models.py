@@ -449,9 +449,11 @@ def test_deepcopy_delete_does_not_delete_files(user_bob, handle_usage_statistics
 
     topo.delete()
 
+    # Not topography left for surface but one left for surface_copy
     assert surface.topography_set.count() == 0
     assert surface_copy.topography_set.all().first().datafile
 
+    # Both surfaces are still there so we should have two permission sets
     assert PermissionSet.objects.count() == 2
 
     surface.delete()

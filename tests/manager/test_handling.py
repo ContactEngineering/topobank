@@ -1261,7 +1261,9 @@ def test_delete_topography(
 
     api_client.delete(reverse("manager:topography-api-detail", kwargs=dict(pk=pk)))
 
-    assert PermissionSet.objects.count() == 1
+    # We delete a topography; permission sets are only removed when the surface is
+    # removed
+    assert PermissionSet.objects.count() == 2
 
     # topography topo_id is no more in database
     assert not Topography.objects.filter(pk=pk).exists()
