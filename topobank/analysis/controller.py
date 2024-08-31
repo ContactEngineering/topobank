@@ -531,7 +531,7 @@ class AnalysisController:
             if subject.is_shared(self._user):
                 try:
                     triggered_analysis = submit_analysis_if_missing(
-                        self._user, self._function, subject, **function_kwargs
+                        self._user, self._function, subject, function_kwargs
                     )
                     subjects_triggered += [subject]
                     _log.info(
