@@ -132,7 +132,12 @@ class Manifest(PermissionMixin, models.Model):
                 # that provides the file here
                 return
             storage_path = file_storage_path(self, self.filename)
+            _log.debug(
+                f"Manifest {self.id} has not file associated with it. Checking if one "
+                f"exists at the likely storage location '{storage_path}'..."
+            )
             if default_storage.exists(storage_path):
+                _log.debug("Found file, updating manifest...")
                 # Set storage location to file that was just uploaded
                 self.file = self.file.field.attr_class(
                     self, self.file.field, storage_path
