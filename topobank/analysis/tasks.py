@@ -20,16 +20,20 @@ _log = logging.getLogger(__name__)
 
 
 def current_configuration():
-    """Determine current configuration (package versions) and create appropriate database entries.
+    """
+    Determine current configuration (package versions) and create appropriate
+    database entries.
 
-    The configuration is needed in order to track down analysis results
-    to specific module and package versions. Like this it is possible to
-    find all analyses which have been calculated with buggy packages.
+    The configuration is needed in order to track down analysis results to specific
+    module and package versions. Like this it is possible to find all analyses which
+    have been calculated with buggy packages.
 
     :return: Configuration instance which can be used for analyses
     """
-    versions = [get_package_version(pkg_name, version_expr)
-                for pkg_name, version_expr, license, homepage in settings.TRACKED_DEPENDENCIES]
+    versions = [
+        get_package_version(pkg_name, version_expr)
+        for pkg_name, version_expr, license, homepage in settings.TRACKED_DEPENDENCIES
+    ]
 
     def make_config_from_versions():
         c = Configuration.objects.create()
@@ -42,7 +46,7 @@ def current_configuration():
     #
     # Find out whether the latest configuration has exactly these versions
     #
-    latest_config = Configuration.objects.latest('valid_since')
+    latest_config = Configuration.objects.latest("valid_since")
 
     current_version_ids = set(v.id for v in versions)
     latest_version_ids = set(v.id for v in latest_config.versions.all())
@@ -89,10 +93,16 @@ def perform_analysis(self, analysis_id: int):
 
     def save_result(result, task_state, peak_memory=None, dois=set()):
         if peak_memory is not None:
-            _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}' and peak memory usage "
-                       f"of {int(peak_memory / 1024 / 1024)} MB to storage...")
+            _log.debug(
+                f"Saving result of analysis {analysis_id} with task state "
+                f"'{task_state}' and peak memory usage of "
+                f"{int(peak_memory / 1024 / 1024)} MB to storage..."
+            )
         else:
-            _log.debug(f"Saving result of analysis {analysis_id} with task state '{task_state}'...")
+            _log.debug(
+                f"Saving result of analysis {analysis_id} with task state "
+                f"'{task_state}'..."
+            )
         analysis.task_state = task_state
         store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
         analysis.end_time = timezone.now()  # with timezone
@@ -101,8 +111,12 @@ def perform_analysis(self, analysis_id: int):
         analysis.save()
 
     @doi()
-    def evaluate_function(subject, **kwargs):
-        return analysis.function.eval(subject, **kwargs)
+    def evaluate_function(progress_recorder, storage_prefix, kwargs):
+        return analysis.eval_self(
+            progress_recorder=progress_recorder,
+            storage_prefix=storage_prefix,
+            kwargs=kwargs,
+        )
 
     #
     # actually perform analysis
@@ -110,8 +124,11 @@ def perform_analysis(self, analysis_id: int):
     try:
         kwargs = analysis.kwargs
         subject = analysis.subject
-        _log.debug(f"Evaluating analysis function '{analysis.function.name}' on subject '{subject}' with "
-                   f"kwargs {kwargs} and storage prefix '{analysis.storage_prefix}'...")
+        _log.debug(
+            f"Evaluating analysis function '{analysis.function.name}' on subject "
+            f"'{subject}' with kwargs {kwargs} and storage prefix "
+            f"'{analysis.storage_prefix}'..."
+        )
         # tell subject to restrict to specific user
         subject.authorize_user(analysis.user, "view")
         # also request citation information
@@ -120,19 +137,25 @@ def perform_analysis(self, analysis_id: int):
         tracemalloc.start()
         tracemalloc.reset_peak()
         # run actual function
-        result = evaluate_function(subject, progress_recorder=progress_recorder, storage_prefix=analysis.storage_prefix,
-                                   dois=dois, **kwargs)
+        result = evaluate_function(
+            progress_recorder=progress_recorder,
+            storage_prefix=analysis.storage_prefix,
+            dois=dois,
+            kwargs=kwargs,
+        )
         # collect memory usage
         size, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        _log.debug(f"...done evaluating analysis function '{analysis.function.name}' on subject '{subject}'; peak "
-                   f"memory usage was {int(peak / 1024 / 1024)} MB.")
+        _log.debug(
+            f"...done evaluating analysis function '{analysis.function.name}' on "
+            f"subject '{subject}'; peak memory usage was {int(peak / 1024 / 1024)} MB."
+        )
         save_result(result, Analysis.SUCCESS, peak_memory=peak, dois=dois)
     except Exception as exc:
         _log.warning(f"Exception while performing analysis {analysis_id}: {exc}")
-        save_result(dict(message=str(exc),
-                         traceback=traceback.format_exc()),
-                    Analysis.FAILURE)
+        save_result(
+            dict(message=str(exc), traceback=traceback.format_exc()), Analysis.FAILURE
+        )
         # we want a real exception here so celery's flower can show the task as failure
         raise
     finally:
@@ -149,14 +172,19 @@ def perform_analysis(self, analysis_id: int):
 
             td = analysis.duration
             if td is not None:
-                increase_statistics_by_date(metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                                            increment=1000 * td.total_seconds())
+                increase_statistics_by_date(
+                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
+                    increment=1000 * td.total_seconds(),
+                )
                 increase_statistics_by_date_and_object(
                     metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
                     obj=analysis.function,
-                    increment=1000 * td.total_seconds())
+                    increment=1000 * td.total_seconds(),
+                )
             else:
-                _log.warning(f'Duration for analysis with {analysis_id} could not be computed.')
+                _log.warning(
+                    f"Duration for analysis with {analysis_id} could not be computed."
+                )
 
         except Analysis.DoesNotExist:
             _log.debug(f"Analysis with {analysis_id} does not exist.")

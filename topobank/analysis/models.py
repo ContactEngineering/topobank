@@ -4,7 +4,7 @@ Models related to analyses.
 
 import json
 
-from django.contrib.contenttypes.models import ContentType
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models
@@ -14,7 +14,7 @@ from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
 from ..users.models import User
-from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
+from .registry import get_implementation, get_implementation_types
 
 RESULT_FILE_BASENAME = "result"
 
@@ -263,9 +263,7 @@ class Analysis(TaskStateModel):
         return self.subject.get_related_surfaces()
 
     def get_implementation(self):
-        return self.function.get_implementation(
-            ContentType.objects.get_for_model(self.subject)
-        )
+        return self.function.get_implementation()
 
     def authorize_user(self, user):
         """
@@ -278,7 +276,7 @@ class Analysis(TaskStateModel):
             )
 
         # Double check availability of analysis function
-        if not self.get_implementation().is_available_for_user(user):
+        if not self.get_implementation().has_permission(user):
             raise PermissionError(
                 f"User {user} is not allowed to use this analysis function."
             )
@@ -305,16 +303,19 @@ class Analysis(TaskStateModel):
         """Returns True, if the analysis subject is a tag, else False."""
         return self.subject_dispatch.tag is not None
 
+    def eval_self(self, progress_recorder=None, storage_prefix=None, kwargs=None):
+        return self.function.eval(
+            self.subject,
+            progress_recorder=progress_recorder,
+            storage_prefix=storage_prefix,
+            kwargs=kwargs,
+        )
+
 
 class AnalysisFunction(models.Model):
-    """Represents an analysis function from a user perspective.
-
-    Examples:
-        - name: 'Height distribution'
-        - name: 'Contact mechanics'
-
-    These functions are referenced by the analyses. Each function "knows"
-    how to find the appropriate implementation for given arguments.
+    """
+    A convenience wrapper around the AnalysisRunner that has representation in the
+    SQL database.
     """
 
     name = models.CharField(
@@ -324,129 +325,53 @@ class AnalysisFunction(models.Model):
     def __str__(self):
         return self.name
 
-    def get_implementation(self, subject_type):
+    def get_implementation(self):
         """Return implementation for given subject type.
-
-        Parameters
-        ----------
-        subject_type: ContentType
-            Type of first argument of analysis function
 
         Returns
         -------
-        AnalysisFunctionImplementation instance
+        AnalysisRunner instance
 
         Raises
         ------
         ImplementationMissingException
             in case the implementation is missing
         """
-        return AnalysisRegistry().get_implementation(
-            self.name, subject_type=subject_type
-        )
-
-    def get_python_function(self, subject_type):
-        """Return function for given first argument type.
-
-        Parameters
-        ----------
-        subject_type: ContentType
-            Type of first argument of analysis function
-
-        Returns
-        -------
-        Python function which implements the analysis, where first argument must be the
-        given type, and there maybe more arguments needed.
-
-        Raises
-        ------
-        ImplementationMissingException
-            if implementation for given subject type does not exist
-        """
-        return self.get_implementation(subject_type).python_function
-
-    def get_signature(self, subject_type):
-        """Return signature of function for given first argument type.
-
-        Parameters
-        ----------
-        subject_type: ContentType
-            Type of first argument of analysis function
-
-        Returns
-        -------
-        inspect.signature
-
-        Raises
-        ------
-        ImplementationMissingException
-            if implementation for given subject type does not exist
-        """
-        return self.get_implementation(subject_type).signature
+        return get_implementation(self.name)
 
     def get_implementation_types(self):
         """Return list of content types for which this function is implemented."""
-        return AnalysisRegistry().get_implementation_types(self.name)
+        return get_implementation_types(self.name)
 
     def is_implemented_for_type(self, subject_type):
         """Returns True if function is implemented for given content type, else False"""
-        try:
-            self.get_python_function(subject_type)
-        except ImplementationMissingAnalysisFunctionException:
-            return False
-        return True
+        runner_class = self.get_implementation()
+        return subject_type in runner_class.keys()
 
-    def is_available_for_user(self, user, models=None):
+    def has_permission(self, user: settings.AUTH_USER_MODEL):
         """
         Check if this analysis function is available to the user. The function
         is available to `user` if it is available for any of the `models`
         specified.
         """
-        if models is None:
-            from ..manager.models import Surface, Tag, Topography
+        return self.get_implementation().has_permission(user)
 
-            models = set([Tag, Topography, Surface])
-
-        is_available_to_user = False
-        for model in models:
-            try:
-                impl = self.get_implementation(ContentType.objects.get_for_model(model))
-                is_available_to_user |= impl.is_available_for_user(user)
-            except ImplementationMissingAnalysisFunctionException:
-                pass
-        return is_available_to_user
-
-    def get_default_kwargs(self, subject_type):
-        """Return default keyword arguments as dict.
-
-        Administrative arguments like
-        'storage_prefix' and 'progress_recorder'
-        which are common to all functions, are excluded.
-
-        Parameters
-        ----------
-        subject_type: ContentType
-            Type of first argument of analysis function
-
-        Returns
-        -------
-
-        dict
+    def get_default_kwargs(self):
         """
-        return self.get_implementation(subject_type).default_kwargs
-
-    def eval(self, subject, **kwargs):
-        """Call appropriate python function.
-
-        First argument is the subject of the analysis (topography or surface),
-        all other arguments are keyword arguments.
+        Return default keyword arguments as a dictionary.
         """
-        if subject is None:
-            raise ValueError(
-                f"Cannot evaluate analysis function '{self.name}' with None as subject."
-            )
-        try:
-            subject_type = ContentType.objects.get_for_model(subject)
-        except Exception:
-            raise ValueError(f"Cannot find content type for subject '{subject}'.")
-        return self.get_implementation(subject_type).eval(subject, **kwargs)
+        return self.get_implementation().Parameters().dict()
+
+    def validate_kwargs(self, kwargs):
+        raise ValidationError
+
+    def eval(self, subject, progress_recorder=None, storage_prefix=None, kwargs=None):
+        """
+        First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
+        """
+        runner_class = self.get_implementation()
+        if kwargs is None:
+            # Get default parameters
+            kwargs = runner_class.Parameters().dict()
+        runner = runner_class(kwargs)
+        return runner.eval(subject, progress_recorder, storage_prefix)

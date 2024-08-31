@@ -8,7 +8,7 @@ import topobank.taskapp.serializers
 
 from ..supplib.serializers import StrictFieldMixin
 from .models import Analysis, AnalysisFunction, AnalysisSubject, Configuration
-from .registry import AnalysisRegistry
+from .registry import get_visualization_type_for_function_name
 
 _log = logging.getLogger(__name__)
 
@@ -42,13 +42,13 @@ class AnalysisFunctionSerializer(
     visualization_type = serializers.SerializerMethodField()
 
     def get_visualization_app_name(self, obj):
-        app_name, type = AnalysisRegistry().get_visualization_type_for_function_name(
+        app_name, type = get_visualization_type_for_function_name(
             obj.name
         )
         return app_name
 
     def get_visualization_type(self, obj):
-        app_name, type = AnalysisRegistry().get_visualization_type_for_function_name(
+        app_name, type = get_visualization_type_for_function_name(
             obj.name
         )
         return type

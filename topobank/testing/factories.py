@@ -3,7 +3,6 @@ import logging
 from dataclasses import dataclass
 
 import factory
-from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
 from factory import post_generation
 from SurfaceTopography import Topography as STTopography
@@ -183,11 +182,7 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    func = analysis.function.get_python_function(
-        ContentType.objects.get_for_model(analysis.subject_dispatch.get())
-    )
-    result = func(analysis.subject_dispatch.get(), **analysis.kwargs)
-    return result
+    return analysis.function.eval(analysis.subject_dispatch.get())
 
 
 def _failed_analysis_result(analysis):
@@ -195,8 +190,7 @@ def _failed_analysis_result(analysis):
 
 
 def _analysis_default_kwargs(analysis):
-    subject_type = ContentType.objects.get_for_model(analysis.subject_dispatch.get())
-    return analysis.function.get_default_kwargs(subject_type)
+    return analysis.function.get_default_kwargs()
 
 
 class AnalysisSubjectFactory(factory.django.DjangoModelFactory):

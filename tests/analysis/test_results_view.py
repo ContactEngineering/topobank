@@ -300,7 +300,7 @@ def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocke
 
 @pytest.mark.django_db
 def test_analysis_download_as_txt(
-    client, two_topos, ids_downloadable_analyses, settings, handle_usage_statistics
+    client, two_topos, ids_downloadable_analyses, handle_usage_statistics
 ):
     user = two_topos[0].surface.creator  # we need a user which is allowed to download
     client.force_login(user)

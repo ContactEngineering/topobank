@@ -97,6 +97,9 @@ dependencies = [
     # Surface topography I/O and analysis
     'SurfaceTopography>=1.14.0',
 
+    # Validation
+    'pydantic',
+
     # pandas is currently needed for downloading xlsx files from analyses
     'pandas',
 

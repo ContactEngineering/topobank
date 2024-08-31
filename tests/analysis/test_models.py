@@ -1,11 +1,10 @@
 import datetime
 
 import pytest
-from django.contrib.contenttypes.models import ContentType
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from topobank.analysis.functions import topography_analysis_function_for_tests
+from topobank.analysis.functions import TestRunner
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
 from topobank.analysis.tasks import current_configuration
@@ -62,16 +61,13 @@ def test_exception_implementation_missing():
 
 @pytest.mark.django_db
 def test_analysis_function(test_analysis_function):
-    ct = ContentType.objects.get_for_model(Topography)
     assert (
-        test_analysis_function.get_python_function(ct)
-        == topography_analysis_function_for_tests
+        test_analysis_function.get_implementation() == TestRunner
     )
-    assert test_analysis_function.get_default_kwargs(ct) == dict(a=1, b="foo")
 
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
-    result = test_analysis_function.eval(t, a=2, b="bar")
+    result = test_analysis_function.eval(t, kwargs=dict(a=2, b="bar"))
     assert result["comment"] == "Arguments: a is 2 and b is bar"
 
 
@@ -128,8 +124,7 @@ def test_default_function_kwargs():
     func = AnalysisFunction.objects.get(name="test")
 
     expected_kwargs = dict(a=1, b="foo")
-    ct = ContentType.objects.get_for_model(Topography)
-    assert func.get_default_kwargs(ct) == expected_kwargs
+    assert func.get_default_kwargs() == expected_kwargs
 
 
 @pytest.mark.django_db
