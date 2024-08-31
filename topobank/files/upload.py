@@ -15,7 +15,7 @@ def get_upload_instructions(manifest, expire=10, method=None):
         method = settings.UPLOAD_METHOD
 
     if settings.USE_S3_STORAGE:
-        name = default_storage._normalize_name(clean_name(manifest.file_name))
+        name = default_storage._normalize_name(clean_name(manifest.filename))
         if method == "POST":
             upload_instructions = (
                 default_storage.bucket.meta.client.generate_presigned_post(
