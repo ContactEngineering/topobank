@@ -733,7 +733,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     datafile = models.ForeignKey(
         Manifest,
-        blank=True,
         null=True,
         on_delete=models.SET_NULL,
         related_name="topography_datafiles",

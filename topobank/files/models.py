@@ -136,6 +136,7 @@ class Manifest(PermissionMixin, models.Model):
         if not bool(self.file):
             self.finish_upload()
         return bool(self.file)
+    is_valid = exists
 
     def assert_exists(self):
         if not self.exists():
