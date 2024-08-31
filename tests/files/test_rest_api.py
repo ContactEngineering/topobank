@@ -114,6 +114,12 @@ def test_modify_file(api_client, user_alice, read_only, handle_usage_statistics)
         file=File(open(f"{FIXTURE_DATA_DIR}/dummy.txt", "rb")),
     )
 
+    # We should not be able to see the manifest when not logged in
+    response = api_client.get(
+        reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id})
+    )
+    assert response.status_code == 403
+
     old_filename = manifest1.filename
     new_filename = "new_filename.testing"
 
