@@ -7,8 +7,8 @@ from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
-from ..authorization.permissions import Permission
-from .models import Manifest
+from .models import Folder, Manifest
+from .permissions import ManifestPermission
 from .serializers import ManifestSerializer
 
 _log = logging.getLogger(__name__)
@@ -22,7 +22,7 @@ class FileManifestViewSet(
 ):
     queryset = Manifest.objects.all()
     serializer_class = ManifestSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    permission_classes = [IsAuthenticatedOrReadOnly, ManifestPermission]
 
 
 @api_view(["POST"])
@@ -46,3 +46,11 @@ def upload_local(request, manifest_id: int):
         manifest.finish_upload(file)
 
     return Response({}, status=204)
+
+
+@api_view(["GET"])
+def list_manifests(request, pk=None):
+    """List all manifests in a folder"""
+    obj = Folder.objects.get(pk=pk)
+    obj.authorize_user(request.user, "view")
+    return [ManifestSerializer(manifest).data for manifest in obj.files]

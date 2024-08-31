@@ -5,7 +5,7 @@ import pytest
 from django.shortcuts import reverse
 
 from topobank.manager.models import Surface, Topography
-from topobank.testing.factories import TagFactory
+from topobank.testing.factories import SurfaceFactory, TagFactory
 from topobank.testing.utils import assert_dict_equal, assert_dicts_equal
 from topobank.users.anonymous import get_anonymous_user
 
@@ -46,6 +46,7 @@ def test_surface_retrieve_routes(
         "url": f"http://testserver/manager/api/surface/{surface1.id}/",
         "creation_datetime": surface1.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
+        "attachments": surface1.attachments.get_absolute_url(response.wsgi_request),
     }
     if hasattr(Surface, "publication"):
         surface1_dict["publication"] = None
@@ -64,7 +65,8 @@ def test_surface_retrieve_routes(
                 },
                 "other_users": [],
             },
-            "attachments": [],
+            "attachments": topo1.attachments.get_absolute_url(response.wsgi_request),
+            "deepzoom": None,
             "bandwidth_lower": None,
             "bandwidth_upper": None,
             "creator": f"http://testserver/users/api/user/{user.id}/",
@@ -117,6 +119,7 @@ def test_surface_retrieve_routes(
         "url": f"http://testserver/manager/api/surface/{surface2.id}/",
         "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
+        "attachments": surface2.attachments.get_absolute_url(response.wsgi_request),
     }
     if hasattr(Surface, "publication"):
         surface2_dict["publication"] = None
@@ -135,7 +138,8 @@ def test_surface_retrieve_routes(
                 },
                 "other_users": [],
             },
-            "attachments": [],
+            "attachments": topo2.attachments.get_absolute_url(response.wsgi_request),
+            "deepzoom": None,
             "bandwidth_lower": None,
             "bandwidth_upper": None,
             "creator": f"http://testserver/users/api/user/{user.id}/",
@@ -243,6 +247,16 @@ def test_topography_retrieve_routes(
     assert not topo1.has_permission(anonymous_user, "view")
     assert topo1.has_permission(user, "view")
 
+    if is_authenticated:
+        api_client.force_authenticate(user)
+
+    response = api_client.get(reverse("manager:topography-api-list"))
+    assert response.status_code == 400
+
+    response = api_client.get(
+        reverse("manager:topography-api-detail", kwargs=dict(pk=topo1.id))
+    )
+
     topo1_dict = {
         "bandwidth_lower": None,
         "bandwidth_upper": None,
@@ -284,6 +298,8 @@ def test_topography_retrieve_routes(
         "channel_names": [],
         "creation_datetime": topo1.creation_datetime.astimezone().isoformat(),
         "modification_datetime": topo1.modification_datetime.astimezone().isoformat(),
+        "attachments": topo1.attachments.get_absolute_url(response.wsgi_request),
+        "deepzoom": None,
     }
     topo2_dict = {
         "bandwidth_lower": None,
@@ -326,17 +342,10 @@ def test_topography_retrieve_routes(
         "channel_names": [],
         "creation_datetime": topo2.creation_datetime.astimezone().isoformat(),
         "modification_datetime": topo2.modification_datetime.astimezone().isoformat(),
+        "attachments": topo2.attachments.get_absolute_url(response.wsgi_request),
+        "deepzoom": None,
     }
 
-    if is_authenticated:
-        api_client.force_authenticate(user)
-
-    response = api_client.get(reverse("manager:topography-api-list"))
-    assert response.status_code == 400
-
-    response = api_client.get(
-        reverse("manager:topography-api-detail", kwargs=dict(pk=topo1.id))
-    )
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
@@ -725,3 +734,45 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     response = api_client.get(reverse("manager:tag-api-list"))
     assert response.status_code == 200
     assert response.data == []
+
+
+def test_create_topography(api_client, user_alice, handle_usage_statistics):
+    surface = SurfaceFactory(creator=user_alice)
+
+    # Not logged in
+    response = api_client.post(
+        reverse("manager:topography-api-list"),
+        {
+            "surface": reverse(
+                "manager:surface-api-detail", kwargs=dict(pk=surface.id)
+            ),
+            "name": "My name",
+        },
+    )
+    assert response.status_code == 403
+
+    api_client.force_login(user_alice)
+
+    # Existing surface id
+    response = api_client.post(
+        reverse("manager:topography-api-list"),
+        {
+            "surface": reverse(
+                "manager:surface-api-detail", kwargs=dict(pk=surface.id)
+            ),
+            "name": "My name",
+        },
+    )
+    assert response.status_code == 201
+
+    # Nonexisting surface id
+    response = api_client.post(
+        reverse("manager:topography-api-list"),
+        {
+            "surface": reverse(
+                "manager:surface-api-detail", kwargs=dict(pk=surface.id + 101)
+            ),
+            "name": "My name",
+        },
+    )
+    assert response.status_code == 400

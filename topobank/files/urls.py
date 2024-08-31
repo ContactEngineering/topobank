@@ -11,6 +11,9 @@ router = DefaultRouter()
 router.register(r"manifest", views.FileManifestViewSet, basename="manifest-api")
 
 urlpatterns = router.urls
+urlpatterns += [
+    path("folder/<int:pk>/", view=views.list_manifests, name="folder-api-detail")
+]
 
 if not settings.USE_S3_STORAGE:
     # If we don't have S3, we need to be able to receive files directly within the

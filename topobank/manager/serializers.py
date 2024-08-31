@@ -130,6 +130,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             "tags",  # TaskStateModelSerializer
             "attachments",
             "permissions",
+            "deepzoom",
         ]
 
     url = serializers.HyperlinkedIdentityField(
@@ -145,13 +146,18 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     datafile = ManifestSerializer(required=False)
     squeezed_datafile = ManifestSerializer(required=False)
     thumbnail = ManifestSerializer(required=False)
-    attachments = ManifestSerializer(many=True)
 
     tags = TagRelatedManagerField(required=False)
 
     is_metadata_complete = serializers.SerializerMethodField()
 
     permissions = serializers.SerializerMethodField()
+    deepzoom = serializers.HyperlinkedRelatedField(
+        view_name="files:folder-api-detail", read_only=True
+    )
+    attachments = serializers.HyperlinkedRelatedField(
+        view_name="files:folder-api-detail", read_only=True
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -159,7 +165,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         if "request" not in self.context:
             return
         # We only return permissions and attachments if requested to do so
-        optional_fields = ["permissions", "attachments"]
+        optional_fields = ["permissions"]
         for field in optional_fields:
             param = self.context["request"].query_params.get(field)
             requested = param is not None and param.lower() in ["yes", "true"]
@@ -388,9 +394,11 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
 
     topography_set = TopographySerializer(many=True, read_only=True)
     properties = PropertySerializer(many=True)
-    attachments = ManifestSerializer(many=True)
     tags = TagRelatedManagerField(required=False)
     permissions = serializers.SerializerMethodField()
+    attachments = serializers.HyperlinkedRelatedField(
+        view_name="files:folder-api-detail", read_only=True
+    )
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -399,7 +407,6 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             ("children", "topography_set"),
             ("permissions", "permissions"),
             ("properties", "properties"),
-            ("attachments", "attachments"),
         ]
         for option, field in optional_fields:
             param = self.context["request"].query_params.get(option)

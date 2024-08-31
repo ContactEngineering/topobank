@@ -8,10 +8,11 @@ from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import models
 from django.utils import timezone
+from rest_framework.reverse import reverse
 
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet
-from .utils import generate_storage_path
+from .utils import file_storage_path
 
 _log = logging.getLogger(__name__)
 
@@ -26,6 +27,11 @@ class Folder(PermissionMixin, models.Model):
     # Permissions
     #
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+
+    #
+    # Folder parameters
+    #
+    read_only = models.BooleanField("read_only", default=True)
 
     def save_file(self, filename, kind, fobj):
         Manifest.objects.create(
@@ -48,6 +54,12 @@ class Folder(PermissionMixin, models.Model):
 
     def __str__(self) -> str:
         return "Folder"
+
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this folder"""
+        return reverse(
+            "files:folder-api-detail", kwargs=dict(pk=self.pk), request=request
+        )
 
 
 # The Flow for "direct file upload" is heavily inspired from here:
@@ -75,7 +87,7 @@ class Manifest(PermissionMixin, models.Model):
     ]
 
     # The actual file
-    file = models.FileField(upload_to=generate_storage_path, blank=True, null=True)
+    file = models.FileField(upload_to=file_storage_path, blank=True, null=True)
     # The name of the file without any storage location
     filename = models.CharField(max_length=255)  # The filename
 
@@ -119,7 +131,7 @@ class Manifest(PermissionMixin, models.Model):
                 # Do nothing; without S3 uploads are finished through a special route
                 # that provides the file here
                 return
-            storage_path = generate_storage_path(self, self.filename)
+            storage_path = file_storage_path(self, self.filename)
             if default_storage.exists(storage_path):
                 # Set storage location to file that was just uploaded
                 self.file = self.file.field.attr_class(
@@ -136,6 +148,7 @@ class Manifest(PermissionMixin, models.Model):
         if not bool(self.file):
             self.finish_upload()
         return bool(self.file)
+
     is_valid = exists
 
     def assert_exists(self):
@@ -178,3 +191,9 @@ class Manifest(PermissionMixin, models.Model):
         copy.save()
 
         return copy
+
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this manifest"""
+        return reverse(
+            "manifest:folder-api-detail", kwargs=dict(pk=self.pk), request=request
+        )

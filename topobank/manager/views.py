@@ -117,7 +117,10 @@ class SurfaceViewSet(
             qs = qs.filter(tags__name=tag)
         elif self.action == "list":
             # We do not allow simply listing all surfaces
-            raise ParseError("Please limit you request with query parameters.")
+            raise ParseError(
+                "Please limit you request with query parameters. Possible parameters "
+                "are: tag"
+            )
         return qs
 
     def perform_create(self, serializer):
@@ -164,13 +167,16 @@ class TopographyViewSet(
             )
 
     def get_queryset(self):
-        qs = Surface.objects.for_user(self.request.user)
+        qs = Topography.objects.for_user(self.request.user)
         surface = self.request.query_params.get("surface", None)
         if surface is not None:
-            qs = qs.filter(id=surface)
+            qs = qs.filter(surface__id=surface)
         elif self.action == "list":
-            raise ParseError("Please limit you request with query parameters.")
-        return Topography.objects.filter(surface__in=qs)
+            raise ParseError(
+                "Please limit your request with query parameters. Possible parameters "
+                "are: 'surface'"
+            )
+        return qs
 
     def perform_create(self, serializer):
         # Check whether the user is allowed to write to the parent surface; if not, we

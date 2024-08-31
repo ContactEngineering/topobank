@@ -323,6 +323,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False
     )
     tags = tm.TagField(to=Tag)
+    attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
@@ -335,12 +336,6 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     @property
     def label(self):
         return str(self)
-
-    @property
-    def attachments(self):
-        if not hasattr(self, "fileparent"):
-            return []
-        return self.fileparent.get_valid_files()
 
     def get_related_surfaces(self):
         return [self]
@@ -359,6 +354,10 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         if created:
             # Create a new permission set for this dataset
             self.permissions = PermissionSet.objects.create()
+        if not self.attachments:
+            self.attachments = Folder.objects.create(
+                permissions=self.permissions, read_only=False
+            )
         super().save(*args, **kwargs)
         if created:
             # Grant permissions to creator
@@ -710,6 +709,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         verbose_name_plural = "measurements"
 
     #
+    # Manager
+    #
+    objects = AuthorizedManager()
+
+    #
     # Model hierarchy and permissions
     #
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
@@ -725,6 +729,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=Tag)
+    attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
@@ -850,6 +855,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             if self.creator is None:
                 self.creator = self.surface.creator
             self.permissions = self.surface.permissions
+        if not self.attachments:
+            self.attachments = Folder.objects.create(
+                permissions=self.permissions, read_only=False
+            )
 
         # Reset to no refresh
         refresh_dependent_data = False
@@ -921,6 +930,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         def delete(x):
             if x:
                 x.delete()
+
         delete(self.datafile)
         delete(self.squeezed_datafile)
         delete(self.thumbnail)
@@ -958,12 +968,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
     def __str__(self):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
-
-    @property
-    def attachments(self):
-        if not hasattr(self, "fileparent"):
-            return []
-        return self.fileparent.get_valid_files()
 
     @property
     def label(self):
