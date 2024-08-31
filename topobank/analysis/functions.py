@@ -136,7 +136,8 @@ class AnalysisRunner:
         runners = {}
 
     class Parameters(pydantic.BaseModel):
-        pass
+        class Config:
+            extra = "forbid"
 
     def __init__(self, parameters: dict):
         self._parameters = self.Parameters(**parameters)
@@ -227,7 +228,7 @@ class TestRunner(AnalysisRunner):
             Tag: "tag_runner",
         }
 
-    class Parameters(pydantic.BaseModel):
+    class Parameters(AnalysisRunner.Parameters):
         a: int = 1
         b: str = "foo"
 

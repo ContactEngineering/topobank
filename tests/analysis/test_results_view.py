@@ -241,8 +241,6 @@ def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocke
     """Returns ids of analyses which can be downloaded as list."""
     config = current_configuration()
 
-    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
-
     #
     # create two analyses with results
     #

@@ -1,3 +1,4 @@
+import pydantic
 import pytest
 
 from topobank.analysis.controller import submit_analysis_if_missing
@@ -24,27 +25,31 @@ def test_request_analysis(mocker, test_analysis_function):
 
     # test case 1
     analysis = submit_analysis_if_missing(
-        user, test_analysis_function, topo, dict(a=13, b=24)
+        user, test_analysis_function, topo, dict(a=13, b="24")
     )
-    assert_correct_args(analysis, dict(a=13, b=24))
+    assert_correct_args(analysis, dict(a=13, b="24"))
 
     # test case 2
     analysis = submit_analysis_if_missing(
-        user, test_analysis_function, topo, dict(a=1, b=2)
+        user, test_analysis_function, topo, dict(a=1, b="2")
     )
-    assert_correct_args(analysis, dict(a=1, b=2))
+    assert_correct_args(analysis, dict(a=1, b="2"))
 
     # test case 3
     analysis = submit_analysis_if_missing(
-        user, test_analysis_function, topo, dict(a=2, b=1)
+        user, test_analysis_function, topo, dict(a=2, b="1")
     )
-    assert_correct_args(analysis, dict(a=2, b=1))
+    assert_correct_args(analysis, dict(a=2, b="1"))
 
     # test case 4
-    analysis = submit_analysis_if_missing(
-        user, test_analysis_function, topo, dict(a=1, c=24)
-    )  # Parameter c does not exist and will be sanitized
-    assert_correct_args(analysis, dict(a=1, b="foo"))  # this is the default parameter
+    with pytest.raises(pydantic.ValidationError):
+        submit_analysis_if_missing(
+            user, test_analysis_function, topo, dict(a=1, c=24)
+        )
+
+    # test case 4
+    with pytest.raises(pydantic.ValidationError):
+        submit_analysis_if_missing(user, test_analysis_function, topo, dict(a=1, b=2))
 
 
 @pytest.mark.django_db
@@ -54,11 +59,8 @@ def test_different_kwargs(mocker, test_analysis_function):
     (at the moment, maybe delete later analyses without user),
     but only the latest one should be marked as "used" by the user
     """
-    m = mocker.patch(
-        "topobank.analysis.registry.AnalysisFunctionImplementation.python_function",
-        new_callable=mocker.PropertyMock,
-    )
-    m.return_value = lambda topography, a, b, bins=15, window="hann": None
+    m = mocker.patch("topobank.analysis.models.AnalysisFunction.eval")
+    m.return_value = {"result1": 1, "result2": 2}
 
     topo = Topography1DFactory()
     user = topo.creator
@@ -76,7 +78,9 @@ def test_different_kwargs(mocker, test_analysis_function):
         user=user,
     )
 
-    a3 = submit_analysis_if_missing(user, test_analysis_function, topo, a=1, b=2)
+    a3 = submit_analysis_if_missing(
+        user, test_analysis_function, topo, {"a": 1, "b": "2"}
+    )
 
     #
     # Now there are three analyses for af+topo

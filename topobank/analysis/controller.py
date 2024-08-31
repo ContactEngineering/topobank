@@ -79,8 +79,10 @@ def submit_analysis(user, func, subject, kwargs=None):
     if kwargs is None:
         kwargs = func.get_default_kwargs()
 
-    # delete all completed old analyses for same function and subject and arguments
-    # There should be only one analysis per function, subject and arguments
+    # Delete all completed old analyses for same function and subject and arguments
+    # There should be only one analysis per function, subject and arguments. We delete
+    # before validation because if the kwargs don't validate, then this database entry
+    # is likely incorrect and cannot be retrieved.
     Analysis.objects.filter(
         Q(user=user)
         & AnalysisSubject.Q(subject)
