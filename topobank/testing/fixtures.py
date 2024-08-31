@@ -175,6 +175,22 @@ def one_line_scan():
 
 
 @pytest.fixture
+def one_topography():
+    user = UserFactory(username="testuser", password="abcd$1234")
+    surface = Surface(name="Line Scans", creator=user)
+    surface.save()
+
+    datafile = ManifestFactory(filename="example.opd")
+
+    return Topography1DFactory(
+        surface=surface,
+        name="Topography Map",
+        description="description1",
+        datafile=datafile,
+    )
+
+
+@pytest.fixture
 def topography_loaded_from_broken_file():
     topo = Topography1DFactory()
 

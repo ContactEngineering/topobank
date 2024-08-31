@@ -9,6 +9,7 @@ from django.utils.text import slugify
 from pytest import approx
 
 from topobank.authorization.models import PermissionSet
+from topobank.files.models import Folder, Manifest
 from topobank.manager.models import MAX_LENGTH_DATAFILE_FORMAT, Surface, Topography
 from topobank.testing.factories import (
     FIXTURE_DATA_DIR,
@@ -1239,13 +1240,18 @@ def test_edit_surface(api_client):
 
 
 @pytest.mark.django_db
-def test_delete_surface(api_client, handle_usage_statistics):
-    user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+def test_delete_surface(api_client, one_topography, handle_usage_statistics):
+    topo = one_topography
+    surface = topo.surface
+    user = surface.creator
     api_client.force_login(user)
+
+    topo.refresh_cache()
 
     assert Surface.objects.count() == 1
     assert PermissionSet.objects.count() == 1
+    assert Folder.objects.count() == 1
+    assert Manifest.objects.count() > 0
 
     response = api_client.delete(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface.id))
@@ -1254,6 +1260,8 @@ def test_delete_surface(api_client, handle_usage_statistics):
 
     assert Surface.objects.all().count() == 0
     assert PermissionSet.objects.count() == 0
+    assert Folder.objects.count() == 0
+    assert Manifest.objects.count() == 0
 
 
 @pytest.mark.django_db
