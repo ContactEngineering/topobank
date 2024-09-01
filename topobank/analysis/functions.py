@@ -154,7 +154,7 @@ class AnalysisImplementation:
         )
 
     @classmethod
-    def clean_kwargs(cls, kwargs: dict):
+    def clean_kwargs(cls, kwargs: Union[dict, None]):
         """
         Validate keyword arguments (parameters) and return validated dictionary
 
@@ -162,7 +162,10 @@ class AnalysisImplementation:
         ------
         pydantic.ValidationError if validation fails
         """
-        return cls.Parameters(**kwargs).model_dump()
+        if kwargs is None:
+            return cls.Parameters().model_dump()
+        else:
+            return cls.Parameters(**kwargs).model_dump()
 
     def get_dependent_analyses(self):
         return []  # Default is no dependencies

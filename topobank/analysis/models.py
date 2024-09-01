@@ -376,8 +376,8 @@ class AnalysisFunction(models.Model):
         self,
         user: settings.AUTH_USER_MODEL,
         subject: Union[Tag, Surface, Topography],
-        kwargs=None,
-        force_submit=False,
+        kwargs: dict = None,
+        force_submit: bool = False,
     ):
         """
         user : topobank.users.models.User
@@ -426,6 +426,7 @@ class AnalysisFunction(models.Model):
             # pytest.mark.django_db
             def do_submit():
                 from .tasks import perform_analysis
+
                 _log.debug(f"Submitting task for analysis {analysis.id}...")
                 perform_analysis.delay(analysis.id)
 
