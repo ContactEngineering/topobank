@@ -2,16 +2,19 @@
 
 from django.conf import settings
 from django.db import migrations
+from django.db.models import Count
 
 
 def forward_func(apps, schema_editor):
     Analysis = apps.get_model("analysis", "analysis")
+    # Delete all analyses without a user (this will leave dangling files in the S3)
+    Analysis.objects.select_related("users").annotate(nb_users=Count("users")).filter(
+        nb_users=0
+    ).delete()
+    # Randomly assign some user for remaining analyses
     for analysis in Analysis.objects.all():
-        if analysis.users.count() == 0:
-            analysis.delete()
-        else:
-            analysis.user = analysis.users.first()
-            analysis.save()
+        analysis.user = analysis.users.first()
+        analysis.save(update_fields=["user"])
 
 
 def reverse_func(apps, schema_editor):

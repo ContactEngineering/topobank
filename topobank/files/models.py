@@ -88,7 +88,9 @@ class Manifest(PermissionMixin, models.Model):
     ]
 
     # The actual file
-    file = models.FileField(upload_to=file_storage_path, blank=True, null=True)
+    file = models.FileField(
+        upload_to=file_storage_path, max_length=512, blank=True, null=True
+    )
     # The name of the file without any storage location
     filename = models.CharField(max_length=255)  # The filename
 

@@ -82,32 +82,41 @@ def generate_manifest(
     return manifest
 
 
+def patch_storage_path(manifest, storage_path):
+    manifest.file = manifest.file.field.attr_class(
+        manifest, manifest.file.field, storage_path
+    )
+    manifest.save()
+
+
 def forward_func(apps, schema_editor):
     Topography = apps.get_model("manager", "Topography")
     Manifest = apps.get_model("files", "Manifest")
     Folder = apps.get_model("files", "Folder")
     for topography in Topography.objects.all():
-        topography.datafile_manifest = Manifest.create(
+        topography.datafile_manifest = Manifest.objects.create(
             permissions=topography.permissions,
-            filename=os.path.split(topography.file.name)[1],
+            filename=os.path.split(topography.datafile.name)[1],
             kind="raw",
             uploaded_by=topography.creator,
-            file=topography.datafile.file,
         )
-        topography.squeezed_datafile_manifest = Manifest.create(
+        patch_storage_path(topography.datafile_manifest, topography.datafile.name)
+        topography.squeezed_datafile_manifest = Manifest.objects.create(
             permissions=topography.permissions,
-            filename=os.path.split(topography.squeezed_file.name)[1],
+            filename=os.path.split(topography.squeezed_datafile.name)[1],
             kind="der",
             uploaded_by=topography.creator,
-            file=topography.squeezed_datafile.file,
         )
-        topography.thumbnail_manifest = Manifest.create(
+        patch_storage_path(
+            topography.squeezed_datafile_manifest, topography.squeezed_datafile.name
+        )
+        topography.thumbnail_manifest = Manifest.objects.create(
             permissions=topography.permissions,
             filename=os.path.split(topography.thumbnail.name)[1],
             kind="der",
             uploaded_by=topography.creator,
-            file=topography.thumbnail.file,
         )
+        patch_storage_path(topography.thumbnail_manifest, topography.thumbnail.name)
         if topography.resolution_y:
             # 2D map
             nb_grid_pts = (topography.resolution_x, topography.resolution_y)
@@ -125,9 +134,7 @@ def forward_func(apps, schema_editor):
                 full_path = manifest.file.field.generate_filename(
                     manifest, clean_name(manifest.filename)
                 )
-                manifest.file = manifest.file.field.attr_class(
-                    manifest, manifest.file.field, full_path
-                )
+                patch_storage_path(manifest, full_path)
 
 
 class Migration(migrations.Migration):
