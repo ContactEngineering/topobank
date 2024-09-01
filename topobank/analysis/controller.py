@@ -38,7 +38,7 @@ def _sanitize_kwargs(sig, **kwargs):
     return sanitized_kwargs
 
 
-def renew_existing_analysis(analysis, use_default_kwargs=False):
+def run_existing_analysis_again(analysis, use_default_kwargs=False):
     """
     Delete existing analysis and recreate and submit with same arguments and user.
 

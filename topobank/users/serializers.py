@@ -1,9 +1,10 @@
 from rest_framework import serializers
 
+from ..supplib.serializers import StrictFieldMixin
 from .models import ORCIDException, User
 
 
-class UserSerializer(serializers.HyperlinkedModelSerializer):
+class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = User
         fields = ['url', 'id', 'name', 'username', 'orcid']

@@ -1,5 +1,5 @@
 """
-Basic models for the web app for handling topography data.
+Basic models for handling files and folders, including upload/download logic.
 """
 
 import logging
@@ -7,12 +7,13 @@ import logging
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import models
+from django.utils import timezone
 from rest_framework.reverse import reverse
 from storages.utils import clean_name
 
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet
-from .utils import generate_storage_path
+from .utils import file_storage_path
 
 _log = logging.getLogger(__name__)
 
@@ -28,12 +29,38 @@ class Folder(PermissionMixin, models.Model):
     #
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
 
+    #
+    # Folder parameters
+    #
+    read_only = models.BooleanField("read_only", default=True)
+
+    def save_file(self, filename, kind, fobj):
+        Manifest.objects.create(
+            permissions=self.permissions,
+            folder=self,
+            filename=filename,
+            kind=kind,
+            file=fobj,
+        )
+
+    def get_files(self) -> models.QuerySet["Manifest"]:
+        return self.files.all()
+
     def get_valid_files(self) -> models.QuerySet["Manifest"]:
         # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
-        return self.files.filter(upload_finished__isnull=False)
+        return self.get_files().filter(upload_confirmed__isnull=False)
+
+    def find_files(self, filename):
+        return Manifest.objects.filter(folder=self, filename=filename)
 
     def __str__(self) -> str:
         return "Folder"
+
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this folder"""
+        return reverse(
+            "files:folder-api-detail", kwargs=dict(pk=self.pk), request=request
+        )
 
 
 # The Flow for "direct file upload" is heavily inspired from here:
@@ -49,36 +76,156 @@ class Manifest(PermissionMixin, models.Model):
     #
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
 
-    FILE_KIND_CHOICES = [("att", "Attachment"), ("raw", "Raw data file")]
+    #
+    # Model data
+    #
 
-    file = models.FileField(upload_to=generate_storage_path, blank=True, null=True)
+    FILE_KIND_CHOICES = [
+        ("N/A", "Kind is unknown"),
+        ("att", "Attachment"),  # Attachments are not processed by the system
+        ("der", "Data derived from a raw data file"),
+        ("raw", "Raw data file as uploaded by a user"),
+    ]
 
-    file_name = models.CharField(max_length=255)
-    file_type = models.CharField(max_length=255, blank=True, null=True)
+    # The actual file
+    file = models.FileField(
+        upload_to=file_storage_path, max_length=512, blank=True, null=True
+    )
+    # The name of the file without any storage location
+    filename = models.CharField(max_length=255)  # The filename
 
-    uploaded_by = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
+    # User that uploaded this file (if the file is not automatically generated as
+    # indicated by file kind "der")
+    uploaded_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
+    )
 
     # Folder can be null, in which case this is a single file that belongs to some
     # model (e.g. a raw data file or a thumbnail of a measurement)
     folder = models.ForeignKey(
         Folder, related_name="files", on_delete=models.CASCADE, null=True
     )
-    kind = models.CharField(max_length=3, choices=FILE_KIND_CHOICES)
 
-    upload_finished = models.DateTimeField(blank=True, null=True)
+    # File kind, indicating where the file came from
+    kind = models.CharField(max_length=3, choices=FILE_KIND_CHOICES, default="N/A")
+
+    #
+    # Dates - all three dates are typically similar
+    #
+
+    # The date the upload was confirmed by the `finish_upload` method. This is typically
+    # the date the file was uploaded.
+    upload_confirmed = models.DateTimeField(blank=True, null=True)
+    # The date the manifest was created
     created = models.DateTimeField(auto_now_add=True)
+    # The date the manifest was last updated
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"File {self.file_name}"
-
-    @property
-    def is_valid(self):
-        return bool(self.upload_finished)
+        return f"Manifest <{self.filename}>"
 
     @property
     def url(self):
         return self.file.url
+
+    def finish_upload(self, file=None):
+        if file is None:
+            if not settings.USE_S3_STORAGE:
+                # Do nothing; without S3 uploads are finished through a special route
+                # that provides the file here
+                return
+            storage_path = self.generate_storage_path()
+            _log.debug(
+                f"Manifest {self.id} has no file associated with it. Checking if one "
+                f"exists at the likely storage location '{storage_path}'..."
+            )
+            if default_storage.exists(storage_path):
+                _log.debug("Found file, updating manifest...")
+                # Set storage location to file that was just uploaded
+                self.file = self.file.field.attr_class(
+                    self, self.file.field, storage_path
+                )
+        else:
+            self.file.save(self.filename, file, save=False)
+
+        self.upload_confirmed = timezone.now()
+        self.save()
+
+    def exists(self):
+        """Check if a file exists"""
+        if not self.file:
+            self.finish_upload()
+        return bool(self.file)
+
+    is_valid = exists
+
+    def assert_exists(self):
+        if not self.exists():
+            raise OSError(
+                f"Manifest {self.id} does not have a file associated with it."
+            )
+
+    def open(self, *args, **kwargs):
+        self.assert_exists()
+        return self.file.open(*args, **kwargs)
+
+    def read(self, *args, **kwargs):
+        self.assert_exists()
+        return self.file.read(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        created = self.pk is None  # True on creation of the manifest
+        super().save(*args, **kwargs)
+        # Make sure no file already exists at the targeted storage location.
+        if created and not self.file and self.filename:
+            # We just created this manifest and no file was passed on creation
+            storage_path = self.generate_storage_path()
+            if default_storage.exists(storage_path):
+                if settings.DELETE_EXISTING_FILES:
+                    default_storage.delete(storage_path)
+                else:
+                    raise RuntimeError(
+                        "A new manifest was generated, but an existing file was found "
+                        f"at the storage path {storage_path}. Set "
+                        f"TOPOBANK_DELETE_EXISTING_FILES to True to ignore this error."
+                    )
+
+    def save_file(self, fobj):
+        if self.exists():
+            self.file.delete()
+        self.file.save(self.filename, fobj)
+
+    def deepcopy(self, permissions=None):
+        copy = Manifest.objects.get(pk=self.pk)
+        copy.pk = None  # This will lead to the creation of a new instance on save
+        copy.file = None
+        copy.folder = None
+
+        # Set permissions
+        if permissions is not None:
+            copy.permissions = permissions
+
+        # Save to get a pk
+        copy.save()
+
+        # Copy the actual data file
+        with self.file.open(mode="rb") as file:
+            copy.save_file(file)
+
+        # Save again
+        copy.save()
+
+        return copy
+
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this manifest"""
+        return reverse(
+            "manifest:folder-api-detail", kwargs=dict(pk=self.pk), request=request
+        )
+
+    def generate_storage_path(self):
+        """Full path of the file on the storage backend"""
+        return self.file.field.generate_filename(self, clean_name(self.filename))
 
     def get_upload_instructions(self, expire=10, method=None):
         """Generate a presigned URL for an upload directly to S3"""
@@ -87,12 +234,15 @@ class Manifest(PermissionMixin, models.Model):
             method = settings.UPLOAD_METHOD
 
         if settings.USE_S3_STORAGE:
-            name = default_storage._normalize_name(clean_name(self.file_name))
+            # _normalize_name attaches the MEDIA_ROOT to the path. This is
+            # typically done by default_storage.path, but S3 complains that
+            # it does not support absolute paths if we use this method.
+            storage_path = default_storage._normalize_name(self.generate_storage_path())
             if method == "POST":
                 upload_instructions = (
                     default_storage.bucket.meta.client.generate_presigned_post(
                         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
-                        Key=name,
+                        Key=storage_path,
                         ExpiresIn=expire,
                     )
                 )
@@ -104,7 +254,7 @@ class Manifest(PermissionMixin, models.Model):
                         ClientMethod="put_object",
                         Params={
                             "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                            "Key": name,
+                            "Key": storage_path,
                             # ContentType must match content type of put request
                             "ContentType": "binary/octet-stream",
                         },

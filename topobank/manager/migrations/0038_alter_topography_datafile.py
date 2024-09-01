@@ -2,19 +2,27 @@
 
 from django.db import migrations, models
 
-import topobank.manager.models
+
+def storage_prefix(instance):
+    return f"topographies/{instance.id}"
+
+
+def topography_datafile_path(instance, filename):
+    return f"{storage_prefix(instance)}/raw/{filename}"
 
 
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('manager', '0037_alter_surface_category'),
+        ("manager", "0037_alter_surface_category"),
     ]
 
     operations = [
         migrations.AlterField(
-            model_name='topography',
-            name='datafile',
-            field=models.FileField(blank=True, max_length=250, upload_to=topobank.manager.models.topography_datafile_path),
+            model_name="topography",
+            name="datafile",
+            field=models.FileField(
+                blank=True, max_length=250, upload_to=topography_datafile_path
+            ),
         ),
     ]

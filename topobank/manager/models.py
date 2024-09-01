@@ -22,7 +22,6 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.base import ContentFile
-from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
 from django.db import models
 from rest_framework.reverse import reverse
@@ -32,16 +31,17 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFull
+from ..files.models import Folder, Manifest
 from ..supplib.storage import recursive_delete
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-from .utils import dzi_exists, get_topography_reader, make_dzi
+from .utils import get_topography_reader, render_deepzoom
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
 
-post_renew_cache = django.dispatch.Signal()
+post_refresh_cache = django.dispatch.Signal()
 
 MAX_LENGTH_DATAFILE_FORMAT = (
     15  # some more characters than currently needed, we may have sub formats in future
@@ -53,12 +53,6 @@ SQUEEZED_DATAFILE_FORMAT = "nc"
 _IN_CELERY_WORKER_PROCESS = (
     sys.argv and sys.argv[0].endswith("celery") and "worker" in sys.argv
 )
-
-
-# Deprecated, but needed for migrations
-def user_directory_path(instance, filename):
-    # file will be uploaded to MEDIA_ROOT/user_<id>/<filename>
-    return "topographies/user_{0}/{1}".format(instance.surface.creator.id, filename)
 
 
 def _get_unit(channel):
@@ -323,6 +317,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False
     )
     tags = tm.TagField(to=Tag)
+    attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
@@ -335,12 +330,6 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     @property
     def label(self):
         return str(self)
-
-    @property
-    def attachments(self):
-        if not hasattr(self, "fileparent"):
-            return []
-        return self.fileparent.get_valid_files()
 
     def get_related_surfaces(self):
         return [self]
@@ -359,6 +348,10 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         if created:
             # Create a new permission set for this dataset
             self.permissions = PermissionSet.objects.create()
+        if not self.attachments:
+            self.attachments = Folder.objects.create(
+                permissions=self.permissions, read_only=False
+            )
         super().save(*args, **kwargs)
         if created:
             # Grant permissions to creator
@@ -483,13 +476,14 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         surface.pk = None
         surface.task_id = None  # We need to indicate that no tasks have run
         surface.tags = self.tags.get_tag_list()
-        surface.save()
+        surface.save()  # This will create a new PermissionSet
 
         for topography in self.topography_set.all():
             topography.deepcopy(surface)
-            # we pass the surface here because there is a constraint that (surface_id + topography name)
-            # must be unique, i.e. a surface should never have two topographies of the same name,
-            # so we can't set the new surface as the second step
+            # we pass the surface here because there is a constraint that (surface_id +
+            # topography name) must be unique, i.e. a surface should never have two
+            # topographies of the same name, so we can't set the new surface as the
+            # second step
 
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, surface.pk)
         return surface
@@ -631,18 +625,6 @@ class Property(PermissionMixin, models.Model):
         return d
 
 
-def topography_datafile_path(instance, filename):
-    return f"{instance.storage_prefix}/raw/{filename}"
-
-
-def topography_squeezed_datafile_path(instance, filename):
-    return f"{instance.storage_prefix}/nc/{filename}"
-
-
-def topography_thumbnail_path(instance, filename):
-    return f"{instance.storage_prefix}/thumbnail/{filename}"
-
-
 class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     """
     A single topography measurement of a surface of a specimen.
@@ -709,6 +691,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         verbose_name_plural = "measurements"
 
     #
+    # Manager
+    #
+    objects = AuthorizedManager()
+
+    #
     # Model hierarchy and permissions
     #
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
@@ -724,30 +711,38 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=Tag)
+    attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
     #
     # Fields related to raw data
     #
-    datafile = models.FileField(
-        max_length=250, upload_to=topography_datafile_path, blank=True
-    )  # currently upload_to not used in forms
+    datafile = models.ForeignKey(
+        Manifest,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="topography_datafiles",
+    )
     datafile_format = models.CharField(
         max_length=MAX_LENGTH_DATAFILE_FORMAT, null=True, default=None, blank=True
     )
     channel_names = models.JSONField(default=list)
     data_source = models.IntegerField(null=True)  # Channel index
-    # Django documentation discourages the use of null=True on a CharField. I'll use it here
-    # nevertheless, because I need this values as argument to a function where None has
-    # a special meaning (autodetection of format). If I would use an empty string
-    # as proposed in the docs, I would have to implement extra logic everywhere the field
+    # Django documentation discourages the use of null=True on a CharField. We use it
+    # here nevertheless, because we need this values as argument to a function where
+    # None has a special meaning (autodetection of format). If we used an empty string
+    # as proposed in the docs, we would need extra logic everywhere the field
     # 'datafile_format' is used.
 
-    # All data is also stored in a 'squeezed' format for faster loading and processing
-    # This is probably netCDF3. Scales and detrend has already been applied here.
-    squeezed_datafile = models.FileField(
-        max_length=260, upload_to=topography_squeezed_datafile_path, null=True
+    # All data is also stored in a standardized and "squeezed" (all filters, e.g.
+    # scaling and detrending, applied) format for faster loading and processing. This
+    # file is a netCDF3 file.
+    squeezed_datafile = models.ForeignKey(
+        Manifest,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="topography_squeezed_datafiles",
     )
 
     #
@@ -805,15 +800,20 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     instrument_parameters = models.JSONField(default=dict)
 
     #
-    # Other fields
+    # Thumnbnail and deep zoom files
     #
-    thumbnail = models.ImageField(null=True, upload_to=topography_thumbnail_path)
-
-    #
-    # _refresh_dependent_data indicates whether caches (thumbnail, DZI) and analyses need to be refreshed after a call
-    # to save()
-    #
-    _refresh_dependent_data = False
+    thumbnail = models.ForeignKey(
+        Manifest,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="topography_thumbnails",
+    )
+    deepzoom = models.ForeignKey(
+        Folder,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="topography_deepzooms",
+    )
 
     # Changes in these fields trigger a refresh of the topography cache and of all analyses
     _significant_fields = {
@@ -837,9 +837,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             if self.creator is None:
                 self.creator = self.surface.creator
             self.permissions = self.surface.permissions
+        if not self.attachments:
+            self.attachments = Folder.objects.create(
+                permissions=self.permissions, read_only=False
+            )
 
         # Reset to no refresh
-        self._refresh_dependent_data = False
+        refresh_dependent_data = False
 
         # Strategies to detect changes in significant fields:
         # https://stackoverflow.com/questions/1355150/when-saving-how-can-you-check-if-a-field-has-changed
@@ -868,9 +872,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 changed_fields += ["instrument_parameters"]
 
             # We need to refresh if any of the significant fields changed during this save
-            self._refresh_dependent_data = any(changed_fields)
+            refresh_dependent_data = any(changed_fields)
 
-            if self._refresh_dependent_data:
+            if refresh_dependent_data:
                 _log.debug(
                     f"The following significant fields of topography {self.id} changed: "
                 )
@@ -879,78 +883,43 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                         f"{name}: was '{getattr(old_obj, name)}', is now '{getattr(self, name)}'"
                     )
 
-        # Save to data base
-        _log.debug("Saving model...")
-        if self.id is None and (
-            self.datafile is not None
-            or self.squeezed_datafile is not None
-            or self.thumbnail is not None
-        ):
-            # We don't have an `id` but are trying to save a model with a data file; this does not work because the
-            # `storage_prefix`  contains the `id`. (The `id` only becomes available once the model instance has
-            # been saved.) Note that this situation is only relevant for supplib.
-            datafile = self.datafile
-            squeezed_datafile = self.squeezed_datafile
-            thumbnail = self.thumbnail
-            # Since we do not have an id yet, we cannot store the file since we don't know where to put it
-            self.datafile = None
-            self.squeezed_datafile = None
-            self.thumbnail = None
-            # Save to get an id
-            super().save(*args, **kwargs)
-            # Now we have an id, so we can now save the files
-            self.datafile = datafile
-            self.squeezed_datafile = squeezed_datafile
-            self.thumbnail = thumbnail
-            kwargs.update(
-                dict(
-                    update_fields=["datafile", "squeezed_datafile", "thumbnail"],
-                    force_insert=False,
-                    force_update=True,
-                )
-            )  # The next save must be an update
-
         # Check if we need to run the update task
-        if self._refresh_dependent_data:
+        if refresh_dependent_data:
             run_task(self)
 
         # Save after run task, because run task may update the task state
         super().save(*args, **kwargs)
 
-        # Reset to no refresh
-        self._refresh_dependent_data = False
+    def save_datafile(self, fobj):
+        self.datafile = Manifest.objects.create(
+            permissions=self.permissions,
+            filename=self.name,
+            kind="raw",
+            file=File(fobj),
+        )
 
     def remove_files(self):
         """Remove files associated with a topography instance before removal of the topography."""
 
-        # ideally, we would reuse datafiles if possible, e.g. for
-        # the example topographies. Currently I'm not sure how
-        # to do it, because the file storage API always ensures to
-        # have unique filenames for every new stored file.
+        # Store datafiles
+        datafile_path = self.datafile.file.name if self.datafile else None
+        squeezed_datafile_path = (
+            self.squeezed_datafile.file.name if self.squeezed_datafile else None
+        )
+        thumbnail_path = self.thumbnail.file.name if self.thumbnail else None
 
-        def delete_datafile(datafile_attr_name):
-            """Delete datafile attached to the given attribute name."""
-            try:
-                datafile = getattr(self, datafile_attr_name)
-                _log.info(f"Deleting {datafile.name}...")
-                datafile.delete()
-            except Exception as exc:
-                _log.warning(
-                    f"Topography id {self.id}, attribute '{datafile_attr_name}': Cannot delete data file "
-                    f"{self.name}', reason: {str(exc)}"
-                )
+        # Delete all files
+        def delete(x):
+            if x:
+                x.delete()
 
-        datafile_path = self.datafile.name
-        squeezed_datafile_path = self.squeezed_datafile.name
-        thumbnail_path = self.thumbnail.name
+        delete(self.datafile)
+        delete(self.squeezed_datafile)
+        delete(self.thumbnail)
+        delete(self.deepzoom)
 
-        delete_datafile("datafile")
-        if self.has_squeezed_datafile:
-            delete_datafile("squeezed_datafile")
-        if self.has_thumbnail:
-            delete_datafile("thumbnail")
-
-        # Delete everything else after idiot check: Make sure files are actually stored under the storage prefix.
+        # Delete everything under the storage prefix else after this idiot check:
+        # Make sure files are actually stored under the storage prefix.
         # Otherwise we abort deletion.
         if datafile_path is not None and not datafile_path.startswith(
             self.storage_prefix
@@ -983,45 +952,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
 
     @property
-    def attachments(self):
-        if not hasattr(self, "fileparent"):
-            return []
-        return self.fileparent.get_valid_files()
-
-    @property
     def label(self):
         """Return a string which can be used in the UI."""
         return self.name
-
-    @property
-    def has_squeezed_datafile(self):
-        """If True, a squeezed data file can be retrieved via self.squeezed_datafile"""
-        return bool(self.squeezed_datafile)
-
-    @property
-    def has_thumbnail(self):
-        """If True, a thumbnail can be retrieved via self.thumbnail"""
-        if not bool(self.thumbnail):
-            # thumbnail is not set
-            return False
-        # check whether it is a valid file
-        from PIL import Image
-
-        try:
-            image = Image.open(self.thumbnail)
-            image.verify()
-        except Exception as exc:
-            _log.warning(f"Topography {self.id} has no thumbnail. Reason: {exc}")
-            return False
-        return True
-
-    @property
-    def has_dzi(self):
-        """If True, this topography is expected to have dzi data.
-
-        For 1D topography data this is always False.
-        """
-        return (self.size_y is not None) and dzi_exists(self._dzi_storage_prefix())
 
     @property
     def storage_prefix(self):
@@ -1195,7 +1128,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         #
         toporeader = None
         topo = None
-        if allow_squeezed and self.has_squeezed_datafile:
+        if allow_squeezed and self.squeezed_datafile:
             if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
                 _log.warning(
                     "You are requesting to load a (2D) topography and you are not within in a Celery worker "
@@ -1205,7 +1138,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
             # Okay, we can use the squeezed datafile, it's already there.
             toporeader = get_topography_reader(
-                self.squeezed_datafile, format=SQUEEZED_DATAFILE_FORMAT
+                self.squeezed_datafile.file, format=SQUEEZED_DATAFILE_FORMAT
             )
             topo = toporeader.topography(info=self._instrument_info)
             # In the squeezed format, these things are already applied/included:
@@ -1218,7 +1151,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if topo is None:
             # Read raw file if squeezed file is unavailable
             toporeader = get_topography_reader(
-                self.datafile, format=self.datafile_format
+                self.datafile.file, format=self.datafile_format
             )
             topo = self._read(toporeader)
 
@@ -1235,8 +1168,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         result = {
             "name": self.name,
             "datafile": {
-                "original": self.datafile.name,
-                "squeezed-netcdf": self.squeezed_datafile.name,
+                "original": self.datafile.filename,
+                "squeezed-netcdf": (
+                    self.squeezed_datafile.filename if self.squeezed_datafile else None
+                ),
             },
             "data_source": self.data_source,
             "has_undefined_data": self.has_undefined_data,
@@ -1277,21 +1212,23 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         The reference to an instrument is not copied, it is always None.
 
         """
-
         copy = Topography.objects.get(pk=self.pk)
-        copy.pk = None
+        copy.pk = None  # This will lead to the creation of a new instance on save
         copy.task_id = None  # We need to indicate that no tasks have run
         copy.surface = to_surface
+
+        # Set permissions
+        copy.permissions = to_surface.permissions
+
+        # Copy datafile
+        copy.datafile = self.datafile.deepcopy(to_surface.permissions)
 
         # Set file names of derived data to None, otherwise they will be deleted and become unavailable to the
         # original topography
         copy.thumbnail = None
         copy.squeezed_datafile = None
 
-        # Copy the actual data file
-        with self.datafile.open(mode="rb") as datafile:
-            copy.datafile = default_storage.save(self.datafile.name, File(datafile))
-
+        # Copy tags
         copy.tags = self.tags.get_tag_list()
 
         # Recreate cache to recreate derived files
@@ -1303,7 +1240,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         return copy
 
-    def get_thumbnail(self, width=400, height=400, cmap=None, st_topo=None):
+    def _render_thumbnail(self, width=400, height=400, cmap=None, st_topo=None):
         """
         Make thumbnail image.
 
@@ -1360,7 +1297,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             )
         return image_file
 
-    def _renew_thumbnail(self, st_topo=None):
+    def _make_thumbnail(self, st_topo=None):
         """Renews thumbnail.
 
         Returns
@@ -1370,21 +1307,18 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if st_topo is None:
             st_topo = self.read()
 
-        image_file = self.get_thumbnail(st_topo=st_topo)
-
-        # Remove old thumbnail
-        self.thumbnail.delete()
+        image_file = self._render_thumbnail(st_topo=st_topo)
 
         # Save the contents of in-memory file in Django image field
-        self.thumbnail.save(
-            "thumbnail.png", ContentFile(image_file.getvalue()), save=False
-        )  # Do NOT trigger a model save
+        if self.thumbnail is not None:
+            self.thumbnail.delete()
+        filename = "thumbnail.png"
+        self.thumbnail = Manifest.objects.create(
+            permissions=self.permissions, filename=filename, kind="der"
+        )
+        self.thumbnail.save_file(ContentFile(image_file.getvalue()))
 
-    def _dzi_storage_prefix(self):
-        """Return prefix for storing DZI images."""
-        return f"{self.storage_prefix}/dzi"
-
-    def _renew_dzi(self, st_topo=None):
+    def _make_deepzoom(self, st_topo=None):
         """Renew deep zoom images.
 
         Returns
@@ -1395,9 +1329,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             st_topo = self.read()
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            make_dzi(st_topo, self._dzi_storage_prefix())
+            if self.deepzoom is not None:
+                self.deepzoom.delete()
+            self.deepzoom = Folder.objects.create(permissions=self.permissions)
+            render_deepzoom(st_topo, self.deepzoom)
 
-    def renew_thumbnail(self, none_on_error=True, st_topo=None):
+    def make_thumbnail(self, none_on_error=True, st_topo=None):
         """Renew thumbnail field.
 
         Parameters
@@ -1415,14 +1352,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         ThumbnailGenerationException
         """
         try:
-            self._renew_thumbnail(st_topo=st_topo)
+            self._make_thumbnail(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
                 self.thumbnail = None
                 self.save()
                 _log.warning(
-                    f"Problems while generating thumbnail for topography {self.id}: {exc}. "
-                    "Saving <None> instead."
+                    f"Problems while generating thumbnail for topography {self.id}:"
+                    f" {exc}. Saving <None> instead."
                 )
                 import traceback
 
@@ -1430,7 +1367,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             else:
                 raise ThumbnailGenerationException(self, str(exc)) from exc
 
-    def renew_dzi(self, none_on_error=True, st_topo=None):
+    def make_deepzoom(self, none_on_error=True, st_topo=None):
         """Renew deep zoom image files.
 
         Parameters
@@ -1448,7 +1385,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         DZIGenerationException
         """
         try:
-            self._renew_dzi(st_topo=st_topo)
+            self._make_deepzoom(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
                 _log.warning(
@@ -1460,23 +1397,29 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             else:
                 raise DZIGenerationException(self, str(exc)) from exc
 
-    def renew_squeezed_datafile(self, st_topo=None):
+    def make_squeezed(self, st_topo=None, save=False):
         if st_topo is None:
             st_topo = self.read()
         with tempfile.NamedTemporaryFile() as tmp:
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)
             # Delete old squeezed file
-            self.squeezed_datafile.delete()
+            if self.squeezed_datafile:
+                self.squeezed_datafile.delete()
             # Upload new squeezed file
-            dirname, basename = os.path.split(self.datafile.name)
+            dirname, basename = os.path.split(self.datafile.filename)
             orig_stem, orig_ext = os.path.splitext(basename)
             squeezed_name = f"{orig_stem}-squeezed.nc"
-            self.squeezed_datafile.save(
-                squeezed_name, File(open(tmp.name, mode="rb")), save=False
-            )  # Do NOT trigger a model save
+            self.squeezed_datafile = Manifest.objects.create(
+                permissions=self.permissions,
+                filename=squeezed_name,
+                kind="der",
+                file=File(open(tmp.name, mode="rb")),
+            )
+        if save:
+            self.save()
 
-    def renew_bandwidth_cache(self, st_topo=None):
+    def refresh_bandwidth_cache(self, st_topo=None):
         """Renew bandwidth cache.
 
         Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
@@ -1514,43 +1457,38 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def notify_users(self, sender, verb, description):
         self.permissions.notify_users(sender, verb, description)
 
-    def renew_cache(self):
+    def refresh_cache(self):
         """
-        Inspect datafile and renew cached properties, in particular database entries on resolution, size etc. and the
-        squeezed NetCDF representation of the data.
+        Inspect datafile and renew cached properties, in particular database entries on
+        resolution, size etc. and the squeezed NetCDF representation of the data.
         """
         # First check if we have a datafile
-        if not self.datafile:
-            # No datafile; this may mean a datafile has been uploaded to S3
-            file_path = topography_datafile_path(
-                self, self.name
-            )  # name and filename are identical at this point
-            if not default_storage.exists(file_path):
-                raise RuntimeError(
-                    f"Topography {self.id} does not appear to have a data file (expected at path "
-                    f"'{file_path}')."
-                )
-            _log.info(f"Found newly uploaded file: {file_path}")
-            # Data file exists; path the datafile field to point to the correct file
-            self.datafile.name = file_path
-            # Notify users that a new file has been uploaded
-            self.notify_users(
-                self.creator,
-                "create",
-                f"User '{self.creator}' uploaded the measurement '{self.name}' to "
-                f"digital surface twin '{self.surface.name}'.",
+        if not self.datafile.exists():
+            raise RuntimeError(
+                f"Topography {self.id} does not appear to have a data file (expected "
+                f"at path '{self.datafile.file.path}'). Cannot refresh cached data."
             )
 
         # Check if this is the first time we are opening this file...
         populate_initial_metadata = self.data_source is None
 
+        if populate_initial_metadata:
+            # Notify users that a new file has been uploaded
+            self.notify_users(
+                self.creator,
+                "create",
+                f"User '{self.creator}' added the measurement '{self.name}' to "
+                f"digital surface twin '{self.surface.name}'.",
+            )
+
         # Populate datafile information in the database.
-        # (We never load the topography, so we don't know this until here.
-        # Fields that are undefined are autodetected.)
+        # (We never load the topography in the web server, so we don't know this until
+        # the Celery task refreshes the cache. Fields that are undefined are
+        # autodetected.)
         _log.info(f"Caching properties of topography {self.id}...")
 
         # Open topography file
-        reader = get_topography_reader(self.datafile)
+        reader = get_topography_reader(self.datafile.file)
         self.datafile_format = reader.format()
 
         # Update channel names
@@ -1561,10 +1499,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Idiot check
         if len(self.channel_names) == 0:
             raise RuntimeError(
-                "Datafile could be opened, but it appears to contain no valid data."
+                f"Datafile of measurement '{self.name}' could be opened, but it "
+                "appears to contain no valid data."
             )
 
-        # Check whether the user already selected a (valid) channel, if not set to default channel
+        # Check whether the user already selected a (valid) channel, if not set to
+        # default channel
         if (
             self.data_source is None
             or self.data_source < 0
@@ -1576,8 +1516,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         channel = reader.channels[self.data_source]
 
         #
-        # Look for necessary metadata. We override values in the database. This may be necessary if the underlying
-        # reader changes (e.g. through bug fixes).
+        # Look for necessary metadata. We override values in the database. This may be
+        # necessary if the underlying reader changes (e.g. through bug fixes).
         #
 
         # Populate resolution information in the database
@@ -1587,6 +1527,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         elif channel.dim == 2:
             self.resolution_x, self.resolution_y = channel.nb_grid_pts
         else:
+            # This should not happen
             raise NotImplementedError(
                 f"Cannot handle topographies of dimension {channel.dim}."
             )
@@ -1605,6 +1546,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             elif channel.dim == 2:
                 self.size_x, self.size_y = channel.physical_sizes
             else:
+                # This should not happen
                 raise NotImplementedError(
                     f"Cannot handle topographies of dimension {channel.dim}."
                 )
@@ -1619,7 +1561,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             # Reset unit information here
             if isinstance(channel.unit, tuple):
                 raise NotImplementedError(
-                    f"Data channel '{channel.name}' contains information that is not height."
+                    f"Data channel '{channel.name}' contains information that is not "
+                    "height."
                 )
             self.unit = channel.unit
 
@@ -1644,8 +1587,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.is_periodic = channel.is_periodic
 
         #
-        # We now look for optional metadata. Only import it from the file on first read, otherwise we may override
-        # what the user has painfully adjusted when refreshing the cache.
+        # We now look for optional metadata. Only import it from the file on first read,
+        # otherwise we may override what the user has painfully adjusted when refreshing
+        # the cache.
         #
 
         if populate_initial_metadata:
@@ -1678,22 +1622,23 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             _log.info(f"Metadata of {self} is complete. Generating images.")
             st_topo = self._read(reader)
 
-            # Check whether original data file has undefined data point and update database accordingly.
-            # (`has_undefined_data` can be undefined if undetermined.)
+            # Check whether original data file has undefined data point and update
+            # database accordingly. (`has_undefined_data` can be undefined if
+            # undetermined.)
             self.has_undefined_data = st_topo.has_undefined_data
 
             # Refresh other cached quantities
-            self.renew_bandwidth_cache(st_topo=st_topo)
-            self.renew_thumbnail(st_topo=st_topo)
-            self.renew_dzi(st_topo=st_topo)
-            self.renew_squeezed_datafile(st_topo=st_topo)
+            self.refresh_bandwidth_cache(st_topo=st_topo)
+            self.make_thumbnail(st_topo=st_topo)
+            self.make_deepzoom(st_topo=st_topo)
+            self.make_squeezed(st_topo=st_topo)
 
         # Save dataset
         self.save()
 
         # Send signal
-        _log.debug(f"Sending `post_renew_cache` signal from {self}...")
-        post_renew_cache.send(sender=Topography, instance=self)
+        _log.debug(f"Sending `post_refresh_cache` signal from {self}...")
+        post_refresh_cache.send(sender=Topography, instance=self)
 
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""
@@ -1707,8 +1652,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.fill_undefined_data_mode
             == Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC
         ):
-            s += " Undefined/missing values are filled in with values obtained from a harmonic interpolation."
+            s += (
+                " Undefined/missing values are filled in with values obtained from a "
+                "harmonic interpolation."
+            )
         return s
 
     def task_worker(self):
-        self.renew_cache()
+        self.refresh_cache()

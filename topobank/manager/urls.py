@@ -1,4 +1,3 @@
-from django.conf import settings
 from django.contrib.auth.decorators import login_required
 from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter
@@ -78,10 +77,3 @@ urlpatterns += [
         name='memory-usage'
     )
 ]
-
-if not settings.USE_S3_STORAGE:
-    urlpatterns += [path(
-        'api/topography/<pk>/upload/',
-        view=login_required(views.upload_topography),
-        name='upload-topography'
-    )]

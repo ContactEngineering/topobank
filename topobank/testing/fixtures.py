@@ -6,7 +6,6 @@ import datetime
 import logging
 import tempfile
 
-import factory
 import numpy as np
 import pytest
 from django.core.management import call_command
@@ -16,8 +15,8 @@ from SurfaceTopography import Topography as STTopography
 from trackstats.models import Domain, Metric
 
 from ..manager.models import Surface
-from .data import FIXTURE_DATA_DIR
 from .factories import (
+    ManifestFactory,
     SurfaceFactory,
     TagFactory,
     Topography1DFactory,
@@ -112,8 +111,8 @@ def two_topos():
     surface1 = SurfaceFactory(name="Surface 1", creator=user)
     surface2 = SurfaceFactory(name="Surface 2", creator=user)
 
-    datafile1 = factory.django.FileField(from_path=FIXTURE_DATA_DIR + "/example3.di")
-    datafile2 = factory.django.FileField(from_path=FIXTURE_DATA_DIR + "/example4.txt")
+    datafile1 = ManifestFactory(filename="example3.di")
+    datafile2 = ManifestFactory(filename="example4.txt")
 
     topos1 = Topography2DFactory(
         surface=surface1,
@@ -161,7 +160,7 @@ def one_line_scan():
     surface = Surface(name="Line Scans", creator=user)
     surface.save()
 
-    datafile = factory.django.FileField(from_path=FIXTURE_DATA_DIR + "/line_scan_1.asc")
+    datafile = ManifestFactory(filename="line_scan_1.asc")
 
     return Topography1DFactory(
         surface=surface,
@@ -173,6 +172,23 @@ def one_line_scan():
         detrend_mode="height",
         datafile=datafile,
     )
+
+
+@pytest.fixture
+def one_topography():
+    user = UserFactory(username="testuser", password="abcd$1234")
+    surface = Surface(name="Line Scans", creator=user)
+    surface.save()
+
+    datafile = ManifestFactory(filename="example.opd")
+
+    topo = Topography1DFactory(
+        surface=surface,
+        name="Topography Map",
+        description="description1",
+        datafile=datafile,
+    )
+    return user, surface, topo
 
 
 @pytest.fixture

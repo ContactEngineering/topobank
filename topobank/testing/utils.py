@@ -179,13 +179,11 @@ def upload_topography_file(
     assert response.status_code == 201, response.content  # Created
     topography_id = response.data["id"]
 
-    # upload file
-    upload_instructions = response.data[
-        "upload_instructions"
-    ]  # The POST request above informs us how to upload the file
+    # The POST request above informs us how to upload the file
+    upload_instructions = response.data["datafile"]["upload_instructions"]
     upload_file(api_client, upload_instructions, fn)
 
-    # We need to execute on commit actions, because this is where the renew_cache task is triggered
+    # We need to execute on commit actions, because this is where the refresh_cache task is triggered
     with django_capture_on_commit_callbacks(execute=True):
         # Get info on file (this will trigger the inspection). In the production instance, the first GET triggers a
         # background (Celery) task and always returns a 'pe'nding state. In this testing environment, this is run

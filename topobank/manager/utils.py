@@ -9,15 +9,11 @@ import markdown2
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
-from django.core.files.storage import default_storage
 from django.db.models import Q
 from rest_framework.reverse import reverse
-from storages.utils import clean_name
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
-
-from ..supplib.storage import default_storage_replace
 
 _log = logging.getLogger(__name__)
 
@@ -104,8 +100,9 @@ def get_topography_reader(filefield, format=None):
     -------
         Instance of a `ReaderBase` subclass according to the format.
     """
-    # Workaround such that SurfaceTopography module recognizes this a binary stream
     if not hasattr(filefield, "mode"):
+        # Workaround such that the SurfaceTopography module recognizes this as a binary
+        # stream
         filefield.mode = "rb"
     if hasattr(filefield.file, "seek"):
         # make sure the file is rewound
@@ -369,26 +366,9 @@ def bandwidths_data(topographies):
     return bandwidths_data
 
 
-def dzi_exists(path_prefix):
-    """
-    Decides whether DZI data exists under the given path_prefix.
-    Current heuristics: If '{path_prefix}/dzi.json' exists, the deep
-    zoom images are expected to be available. This could be further improved.
-
-    Parameters
-    ----------
-    path_prefix
-
-    Returns
-    -------
-    True, if DZI data is expected to be available, else False.
-    """
-    return default_storage.exists(f"{path_prefix}/dzi.json")
-
-
-def make_dzi(
+def render_deepzoom(
     data,
-    path_prefix,
+    folder,
     physical_sizes=None,
     unit=None,
     quality=95,
@@ -406,10 +386,8 @@ def make_dzi(
     ----------
     data : :obj:SurfaceTopography.Topogaphy or :obj:numpy.ndarray
         Data container holding the 2D data set.
-    path_prefix : str
-        Prefix for creating the Deep Zoom Image files. In particular, the
-        writer will use '{path_prefix}/dzi.json' for structural metadata and
-        store the image files under the prefix '{path_prefix}/dzi_files/'.
+    folder : topobank.files.models.Folder
+        Folder containing the Deep Zoom Image files.
     physical_sizes : tuple of float, optional
         Physical sizes of the two-dimensional map, if not specified by `data`.
         (Default: None)
@@ -428,9 +406,6 @@ def make_dzi(
         (Default: None)
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
-        _log.debug(
-            f"Making DZI files under path prefix {path_prefix} using temp dir {tmpdirname}..."
-        )
         try:
             # This is a Topography
             filenames = data.to_dzi(
@@ -444,7 +419,8 @@ def make_dzi(
             # This is likely just a numpy array
             if physical_sizes is None or unit is None:
                 raise ValueError(
-                    "You need to provide `physical_sizes` and `unit` when visualizing numpy arrays."
+                    "You need to provide `physical_sizes` and `unit` when visualizing "
+                    "numpy arrays."
                 )
             filenames = write_dzi(
                 data,
@@ -460,48 +436,5 @@ def make_dzi(
         for filename in filenames:
             # Strip tmp directory
             storage_filename = filename[len(tmpdirname) + 1 :]
-            # Delete (possibly existing) old data files
-            target_name = f"{path_prefix}/{storage_filename}"
             # Upload to S3
-            default_storage_replace(target_name, File(open(filename, mode="rb")))
-
-
-def get_upload_instructions(instance, name, expire, method=None):
-    """Generate a presigned URL for an upload direct to S3"""
-    # Preserve the trailing slash after normalizing the path.
-    if method is None:
-        method = settings.UPLOAD_METHOD
-
-    if settings.USE_S3_STORAGE:
-        name = default_storage._normalize_name(clean_name(name))
-        if method == "POST":
-            upload_instructions = (
-                default_storage.bucket.meta.client.generate_presigned_post(
-                    Bucket=settings.AWS_STORAGE_BUCKET_NAME, Key=name, ExpiresIn=expire
-                )
-            )
-            upload_instructions["method"] = "POST"
-        elif method == "PUT":
-            upload_instructions = {
-                "method": "PUT",
-                "url": default_storage.bucket.meta.client.generate_presigned_url(
-                    ClientMethod="put_object",
-                    Params={
-                        "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
-                        "Key": name,
-                        "ContentType": "binary/octet-stream",  # must match content type of put request
-                    },
-                    ExpiresIn=expire,
-                ),
-            }
-        else:
-            raise RuntimeError(f"Unknown upload method: {method}")
-    else:
-        if method != "POST":
-            raise RuntimeError("Only POST uploads are supported without S3")
-        upload_instructions = {
-            "method": "POST",
-            "url": reverse("manager:upload-topography", kwargs=dict(pk=instance.id)),
-            "fields": {},
-        }
-    return upload_instructions
+            folder.save_file(storage_filename, "der", File(open(filename, mode="rb")))

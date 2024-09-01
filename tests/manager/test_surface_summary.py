@@ -43,7 +43,7 @@ def test_bandwidths_data(two_topos_mock_for_bandwidth):
     topoB, topoA = two_topos_mock_for_bandwidth
 
     for topo in two_topos_mock_for_bandwidth:
-        topo.renew_bandwidth_cache()
+        topo.refresh_bandwidth_cache()
 
     bd = bandwidths_data(two_topos_mock_for_bandwidth)
 

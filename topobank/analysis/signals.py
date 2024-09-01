@@ -5,7 +5,7 @@ from django.db.models import Q
 from django.db.models.signals import pre_delete, pre_save
 from django.dispatch import receiver
 
-from ..manager.models import Topography, post_renew_cache
+from ..manager.models import Topography, post_refresh_cache
 from ..supplib.storage import recursive_delete
 from .models import Analysis
 
@@ -42,8 +42,8 @@ def pre_delete_analysis(sender, instance, **kwargs):
     recursive_delete(instance.storage_prefix)
 
 
-@receiver(post_renew_cache, sender=Topography)
-def post_renew_measurement_cache(sender, instance, **kwargs):
+@receiver(post_refresh_cache, sender=Topography)
+def post_refresh_measurement_cache(sender, instance, **kwargs):
     # Cache is renewed, this means something significant changed and we need to remove
     # the analyses
     _log.debug(

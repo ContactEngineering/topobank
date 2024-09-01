@@ -17,6 +17,7 @@ from topobank.testing.factories import (
 @pytest.mark.django_db
 def test_thumbnail_exists_for_new_topography():
     topo = Topography2DFactory(size_x=1, size_y=1)
+    topo.refresh_cache()
     # should have a thumbnail picture
     assert topo.thumbnail is not None
 
@@ -26,7 +27,7 @@ def test_renewal_on_topography_detrend_mode_change(
     api_client, mocker, settings, django_capture_on_commit_callbacks
 ):
     """Check whether thumbnail is renewed if detrend mode changes for a topography"""
-    renew_cache_mock = mocker.patch("topobank.manager.models.Topography.renew_cache")
+    refresh_cache_mock = mocker.patch("topobank.manager.models.Topography.refresh_cache")
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -53,7 +54,7 @@ def test_renewal_on_topography_detrend_mode_change(
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
     assert response.status_code == 200, response.content
     assert len(callbacks) == 1  # single callback for cache renewal
-    assert renew_cache_mock.called
+    assert refresh_cache_mock.called
 
 
 @pytest.mark.django_db
@@ -67,7 +68,7 @@ def test_no_renewal_on_measurement_date_change(
     """Check whether thumbnail is renewed if detrend mode changes for a topography"""
     settings.CELERY_TASK_ALWAYS_EAGER = True
 
-    renew_cache_mock = mocker.patch("topobank.manager.models.Topography.renew_cache")
+    refresh_cache_mock = mocker.patch("topobank.manager.models.Topography.refresh_cache")
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -86,4 +87,4 @@ def test_no_renewal_on_measurement_date_change(
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
     assert response.status_code == 200, response.content
     assert len(callbacks) == 0  # single callback for cache renewal
-    assert not renew_cache_mock.called
+    assert not refresh_cache_mock.called
