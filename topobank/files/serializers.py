@@ -4,7 +4,6 @@ from rest_framework import serializers
 
 from ..supplib.serializers import StrictFieldMixin
 from .models import Folder, Manifest
-from .upload import get_upload_instructions
 
 _log = logging.getLogger(__name__)
 
@@ -47,7 +46,4 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
         super().__init__(instance=instance, data=data, **kwargs)
 
     def get_upload_instructions(self, obj: Manifest):
-        if not obj.exists():
-            return get_upload_instructions(obj)
-        else:
-            return None
+        return None if obj.exists() else obj.get_upload_instructions()

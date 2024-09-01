@@ -9,6 +9,7 @@ from django.core.files.storage import default_storage
 from django.db import models
 from django.utils import timezone
 from rest_framework.reverse import reverse
+from storages.utils import clean_name
 
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet
@@ -119,7 +120,7 @@ class Manifest(PermissionMixin, models.Model):
     updated = models.DateTimeField(auto_now=True)
 
     def __str__(self):
-        return f"Manifest for file {self.filename}"
+        return f"Manifest <{self.filename}>"
 
     @property
     def url(self):
@@ -131,9 +132,9 @@ class Manifest(PermissionMixin, models.Model):
                 # Do nothing; without S3 uploads are finished through a special route
                 # that provides the file here
                 return
-            storage_path = file_storage_path(self, self.filename)
+            storage_path = self.generate_storage_path()
             _log.debug(
-                f"Manifest {self.id} has not file associated with it. Checking if one "
+                f"Manifest {self.id} has no file associated with it. Checking if one "
                 f"exists at the likely storage location '{storage_path}'..."
             )
             if default_storage.exists(storage_path):
@@ -150,7 +151,7 @@ class Manifest(PermissionMixin, models.Model):
 
     def exists(self):
         """Check if a file exists"""
-        if not bool(self.file):
+        if not self.file:
             self.finish_upload()
         return bool(self.file)
 
@@ -169,6 +170,23 @@ class Manifest(PermissionMixin, models.Model):
     def read(self, *args, **kwargs):
         self.assert_exists()
         return self.file.read(*args, **kwargs)
+
+    def save(self, *args, **kwargs):
+        created = self.pk is None  # True on creation of the manifest
+        super().save(*args, **kwargs)
+        # Make sure no file already exists at the targeted storage location.
+        if created and not self.file and self.filename:
+            # We just created this manifest and no file was passed on creation
+            storage_path = self.generate_storage_path()
+            if default_storage.exists(storage_path):
+                if settings.DELETE_EXISTING_FILES:
+                    default_storage.delete(storage_path)
+                else:
+                    raise RuntimeError(
+                        "A new manifest was generated, but an existing file was found "
+                        f"at the storage path {storage_path}. Set "
+                        f"TOPOBANK_DELETE_EXISTING_FILES to True to ignore this error."
+                    )
 
     def save_file(self, fobj):
         if self.exists():
@@ -202,3 +220,55 @@ class Manifest(PermissionMixin, models.Model):
         return reverse(
             "manifest:folder-api-detail", kwargs=dict(pk=self.pk), request=request
         )
+
+    def generate_storage_path(self):
+        """Full path of the file on the storage backend"""
+        return self.file.field.generate_filename(self, clean_name(self.filename))
+
+    def get_upload_instructions(self, expire=10, method=None):
+        """Generate a presigned URL for an upload directly to S3"""
+        # Preserve the trailing slash after normalizing the path.
+        if method is None:
+            method = settings.UPLOAD_METHOD
+
+        if settings.USE_S3_STORAGE:
+            # _normalize_name attaches the MEDIA_ROOT to the path. This is
+            # typically done by default_storage.path, but S3 complains that
+            # it does not support absolute paths if we use this method.
+            storage_path = default_storage._normalize_name(self.generate_storage_path())
+            if method == "POST":
+                upload_instructions = (
+                    default_storage.bucket.meta.client.generate_presigned_post(
+                        Bucket=settings.AWS_STORAGE_BUCKET_NAME,
+                        Key=storage_path,
+                        ExpiresIn=expire,
+                    )
+                )
+                upload_instructions["method"] = "POST"
+            elif method == "PUT":
+                upload_instructions = {
+                    "method": "PUT",
+                    "url": default_storage.bucket.meta.client.generate_presigned_url(
+                        ClientMethod="put_object",
+                        Params={
+                            "Bucket": settings.AWS_STORAGE_BUCKET_NAME,
+                            "Key": storage_path,
+                            # ContentType must match content type of put request
+                            "ContentType": "binary/octet-stream",
+                        },
+                        ExpiresIn=expire,
+                    ),
+                }
+            else:
+                raise RuntimeError(f"Unknown upload method: {method}")
+        else:
+            if method != "POST":
+                raise RuntimeError("Only POST uploads are supported without S3")
+            upload_instructions = {
+                "method": "POST",
+                "url": reverse(
+                    "files:upload-direct-local", kwargs=dict(manifest_id=self.id)
+                ),
+                "fields": {},
+            }
+        return upload_instructions
