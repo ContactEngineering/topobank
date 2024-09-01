@@ -1,5 +1,5 @@
 """
-Basic models for the web app for handling topography data.
+Basic models for handling files and folders, including upload/download logic.
 """
 
 import logging
