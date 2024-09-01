@@ -3,10 +3,12 @@ import math
 import os
 
 from django.db import migrations
+from storages.utils import clean_name
 
 
 def storage_prefix(instance):
     return f"topographies/{instance.id}"
+
 
 def generate_manifest(
     name: str,
@@ -111,14 +113,20 @@ def forward_func(apps, schema_editor):
             nb_grid_pts = (topography.resolution_x, topography.resolution_y)
             deepzoom_files = generate_manifest("dzi", nb_grid_pts, meta_format="json")
             folder = Folder.objects.create(permissions=topography.permissions)
-            prefix = f"topographies/{topography.id}/{storage_prefix(topography)}/dzi"
             for fn in deepzoom_files:
-                Manifest.objects.create(
+                manifest = Manifest.objects.create(
                     permissions=topography.permissions,
                     folder=folder,
-                    filename=os.path.join(prefix, fn),
+                    # DZI files were under the "dzi" prefix
+                    filename=os.path.join("dzi", fn),
                     kind="der",
-                    file=fn,
+                )
+                # Manually patch storage location
+                full_path = manifest.file.field.generate_filename(
+                    manifest, clean_name(manifest.filename)
+                )
+                manifest.file = manifest.file.field.attr_class(
+                    manifest, manifest.file.field, full_path
                 )
 
 
