@@ -19,7 +19,7 @@ def forward_func(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("manager", "0058_rename_datafile_manifest_topography_datafile_and_more"),
+        ("manager", "0059_rename_datafile_manifest_topography_datafile_and_more"),
     ]
 
     operations = [

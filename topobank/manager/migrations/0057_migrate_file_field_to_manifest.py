@@ -3,7 +3,6 @@ import math
 import os
 
 from django.db import migrations
-from storages.utils import clean_name
 
 
 def storage_prefix(instance):
@@ -86,7 +85,7 @@ def patch_storage_path(manifest, storage_path):
     manifest.file = manifest.file.field.attr_class(
         manifest, manifest.file.field, storage_path
     )
-    manifest.save()
+    manifest.save(update_fields=["file"])
 
 
 def forward_func(apps, schema_editor):
@@ -122,19 +121,33 @@ def forward_func(apps, schema_editor):
             nb_grid_pts = (topography.resolution_x, topography.resolution_y)
             deepzoom_files = generate_manifest("dzi", nb_grid_pts, meta_format="json")
             folder = Folder.objects.create(permissions=topography.permissions)
+            topography.deepzoom = folder
             for fn in deepzoom_files:
                 manifest = Manifest.objects.create(
                     permissions=topography.permissions,
                     folder=folder,
-                    # DZI files were under the "dzi" prefix
-                    filename=os.path.join("dzi", fn),
+                    filename=fn,
                     kind="der",
                 )
                 # Manually patch storage location
-                full_path = manifest.file.field.generate_filename(
-                    manifest, clean_name(manifest.filename)
-                )
+                full_path = f"{storage_prefix(topography)}/dzi/{fn}"
                 patch_storage_path(manifest, full_path)
+            topography.save(
+                update_fields=[
+                    "datafile_manifest",
+                    "squeezed_datafile_manifest",
+                    "thumbnail_manifest",
+                    "deepzoom",
+                ]
+            )
+        else:
+            topography.save(
+                update_fields=[
+                    "datafile_manifest",
+                    "squeezed_datafile_manifest",
+                    "thumbnail_manifest",
+                ]
+            )
 
 
 class Migration(migrations.Migration):
@@ -146,16 +159,4 @@ class Migration(migrations.Migration):
 
     operations = [
         migrations.RunPython(forward_func),
-        migrations.RemoveField(
-            model_name="topography",
-            name="datafile",
-        ),
-        migrations.RemoveField(
-            model_name="topography",
-            name="squeezed_datafile",
-        ),
-        migrations.RemoveField(
-            model_name="topography",
-            name="thumbnail",
-        ),
     ]
