@@ -1,7 +1,7 @@
 import pytest
 
 from topobank.analysis.models import Analysis
-from topobank.analysis.tasks import current_configuration, perform_analysis
+from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Topography
 from topobank.testing.factories import TopographyAnalysisFactory
 
@@ -26,7 +26,7 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
     assert analysis.result["comment"] == "Arguments: a is 1 and b is hamming"
 
     # Analysis object should remember current configuration
-    first_config = current_configuration()
+    first_config = get_current_configuration()
     assert analysis.configuration == first_config
 
     #

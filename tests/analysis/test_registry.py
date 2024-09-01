@@ -1,7 +1,7 @@
 import pytest
 from django.contrib.auth.models import Group
 
-from topobank.analysis.functions import TestRunner
+from topobank.analysis.functions import TestImplementation
 from topobank.analysis.registry import get_implementation
 from topobank.testing.factories import OrganizationFactory, UserFactory
 
@@ -66,12 +66,12 @@ def test_availability_of_implementation_in_plugin(
         # User is now part of the organization with defined available plugins
 
     impl = get_implementation("test")
-    assert impl == TestRunner
+    assert impl == TestImplementation
 
     # mock .__module__ for runner class such we can test for different fake origins
     # for the underlying runner
     mocker.patch.object(
-        TestRunner, "__module__", fake_func_module
+        TestImplementation, "__module__", fake_func_module
     )
 
     def my_get_app_config(x):

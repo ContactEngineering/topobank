@@ -6,6 +6,7 @@ The first argument is either a Topography or Surface instance (model).
 
 import collections
 import logging
+from typing import Union
 
 import numpy as np
 import pydantic
@@ -129,38 +130,47 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     return dict(alert_class=f"alert-{level}", message=message)
 
 
-class AnalysisRunner:
+class AnalysisImplementation:
     """Class that holds the actual implementation of an analysis function"""
 
     class Meta:
-        runners = {}
+        implementations = {}
 
     class Parameters(pydantic.BaseModel):
         class Config:
             extra = "forbid"
 
-    def __init__(self, parameters: dict):
-        self._parameters = self.Parameters(**parameters)
+    def __init__(self, kwargs: Union[dict, None]):
+        if kwargs:
+            self._kwargs = self.Parameters(**kwargs)
+        else:
+            # Use default parameters
+            self._kwargs = self.Parameters()
 
     def eval(self, subject, progress_recorder, storage_prefix):
-        runner = self.get_runner(subject.__class__)
-        return runner(
+        implementation = self.get_implementation_for_subject(subject.__class__)
+        return implementation(
             subject, progress_recorder=progress_recorder, storage_prefix=storage_prefix
         )
 
     @classmethod
-    def validate(cls, parameters):
-        cls.Parameters(**parameters)
+    def clean_kwargs(cls, kwargs: dict):
+        """
+        Validate keyword arguments (parameters) and return validated dictionary
+
+        Raises
+        ------
+        pydantic.ValidationError if validation fails
+        """
+        return cls.Parameters(**kwargs).model_dump()
 
     def get_dependent_analyses(self):
         return []  # Default is no dependencies
 
-    def run_analysis(self, *args, **kwargs):
-        raise NotImplementedError
-
-    def get_runner(self, model):
+    def get_implementation_for_subject(self, model):
+        """Returns the implementation function for a specific subject model"""
         try:
-            name = self.Meta.runners[model]
+            name = self.Meta.implementations[model]
         except KeyError:
             raise ImplementationMissingAnalysisFunctionException(self.Meta.name, model)
         return getattr(self, name)
@@ -211,7 +221,7 @@ class AnalysisRunner:
         return app.name in plugins_available
 
 
-class TestRunner(AnalysisRunner):
+class TestImplementation(AnalysisImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
     meaning. Result are two series.
@@ -222,17 +232,17 @@ class TestRunner(AnalysisRunner):
         visualization_app_name = "analysis"
         visualization_type = VIZ_SERIES
 
-        runners = {
-            Topography: "topography_runner",
-            Surface: "surface_runner",
-            Tag: "tag_runner",
+        implementations = {
+            Topography: "topography_implementation",
+            Surface: "surface_implementation",
+            Tag: "tag_implementation",
         }
 
-    class Parameters(AnalysisRunner.Parameters):
+    class Parameters(AnalysisImplementation.Parameters):
         a: int = 1
         b: str = "foo"
 
-    def topography_runner(
+    def topography_implementation(
         self, topography: Topography, progress_recorder=None, storage_prefix=None
     ):
         return {
@@ -262,11 +272,11 @@ class TestRunner(AnalysisRunner):
                     message="This is a test for a measurement alert.",
                 )
             ],
-            "comment": f"Arguments: a is {self._parameters.a} and b is "
-            f"{self._parameters.b}",
+            "comment": f"Arguments: a is {self._kwargs.a} and b is "
+            f"{self._kwargs.b}",
         }
 
-    def surface_runner(
+    def surface_implementation(
         self,
         surface: Surface,
         progress_recorder=None,
@@ -288,10 +298,10 @@ class TestRunner(AnalysisRunner):
                     message="This is a test for a surface alert.",
                 )
             ],
-            "comment": f"a is {self._parameters.a} and b is {self._parameters.b}",
+            "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
         }
 
-    def tag_runner(self, tag: Tag, progress_recorder=None, storage_prefix=None):
+    def tag_implementation(self, tag: Tag, progress_recorder=None, storage_prefix=None):
         name = (
             f"Test result for test function called for tag {tag}, "
             ", which is built from surfaces {}".format(
@@ -310,5 +320,5 @@ class TestRunner(AnalysisRunner):
                 dict(alert_class="alert-info", message="This is a test for an alert.")
             ],
             "surfaces": [surface.name for surface in tag.get_related_surfaces()],
-            "comment": f"a is {self._parameters.a} and b is {self._parameters.b}",
+            "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
         }

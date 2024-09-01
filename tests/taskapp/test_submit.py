@@ -1,7 +1,6 @@
 import pydantic
 import pytest
 
-from topobank.analysis.controller import submit_analysis_if_missing
 from topobank.analysis.models import Analysis
 from topobank.testing.factories import Topography1DFactory, TopographyAnalysisFactory
 
@@ -24,32 +23,24 @@ def test_request_analysis(mocker, test_analysis_function):
         assert analysis.user == user  # make sure the user has been set
 
     # test case 1
-    analysis = submit_analysis_if_missing(
-        user, test_analysis_function, topo, dict(a=13, b="24")
-    )
+    analysis = test_analysis_function.submit(user, topo, dict(a=13, b="24"))
     assert_correct_args(analysis, dict(a=13, b="24"))
 
     # test case 2
-    analysis = submit_analysis_if_missing(
-        user, test_analysis_function, topo, dict(a=1, b="2")
-    )
+    analysis = test_analysis_function.submit(user, topo, dict(a=1, b="2"))
     assert_correct_args(analysis, dict(a=1, b="2"))
 
     # test case 3
-    analysis = submit_analysis_if_missing(
-        user, test_analysis_function, topo, dict(a=2, b="1")
-    )
+    analysis = test_analysis_function.submit(user, topo, dict(a=2, b="1"))
     assert_correct_args(analysis, dict(a=2, b="1"))
 
     # test case 4
     with pytest.raises(pydantic.ValidationError):
-        submit_analysis_if_missing(
-            user, test_analysis_function, topo, dict(a=1, c=24)
-        )
+        test_analysis_function.submit(user, topo, dict(a=1, c=24))
 
     # test case 4
     with pytest.raises(pydantic.ValidationError):
-        submit_analysis_if_missing(user, test_analysis_function, topo, dict(a=1, b=2))
+        test_analysis_function.submit(user, topo, dict(a=1, b=2))
 
 
 @pytest.mark.django_db
@@ -78,8 +69,8 @@ def test_different_kwargs(mocker, test_analysis_function):
         user=user,
     )
 
-    a3 = submit_analysis_if_missing(
-        user, test_analysis_function, topo, {"a": 1, "b": "2"}
+    a3 = test_analysis_function.submit(
+        user, topo, {"a": 1, "b": "2"}
     )
 
     #

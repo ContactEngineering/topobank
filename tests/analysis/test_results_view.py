@@ -15,7 +15,7 @@ from django.urls import reverse
 
 import topobank
 from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.tasks import current_configuration, perform_analysis
+from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Surface, Topography
 from topobank.manager.utils import subjects_to_base64
 from topobank.testing.factories import (
@@ -239,7 +239,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
 @pytest.fixture
 def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocker):
     """Returns ids of analyses which can be downloaded as list."""
-    config = current_configuration()
+    config = get_current_configuration()
 
     #
     # create two analyses with results

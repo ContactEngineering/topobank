@@ -17,7 +17,7 @@ from trackstats.models import Metric
 from ..manager.models import Surface
 from ..manager.utils import demangle_content_type
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from .controller import AnalysisController, run_existing_analysis_again
+from .controller import AnalysisController
 from .models import Analysis, AnalysisFunction, Configuration
 from .permissions import AnalysisFunctionPermissions
 from .serializers import (
@@ -107,7 +107,7 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         """Renew existing analysis (PUT)."""
         analysis = self.get_object()
         analysis.authorize_user(request.user)
-        new_analysis = run_existing_analysis_again(analysis)
+        new_analysis = analysis.submit_again()
         serializer = self.get_serializer(new_analysis)
         return Response(serializer.data, status=status.HTTP_201_CREATED)
 

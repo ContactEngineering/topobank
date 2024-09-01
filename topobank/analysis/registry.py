@@ -19,8 +19,6 @@ Frontend apps are implemented as Vue.js components.
 
 import logging
 
-from django.contrib.contenttypes.models import ContentType
-
 _log = logging.getLogger(__name__)
 
 
@@ -232,20 +230,6 @@ def get_analysis_function_names(user=None):
         }
 
     return list(runner_classes.keys())
-
-
-def get_implementation_types(name):
-    """
-    Returns list of ContentType which can be given as first argument to function with
-    given name.
-    """
-    runner_class = _analysis_functions[name]
-    return [
-        ContentType.objects.get_by_natural_key(
-            runner_class.Meta.subject_app_name, subject_model
-        )
-        for subject_model, method_name in runner_class.Meta.runners.items()
-    ]
 
 
 def get_visualization_type_for_function_name(requested_name):

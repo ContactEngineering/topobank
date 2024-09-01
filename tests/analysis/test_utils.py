@@ -4,7 +4,7 @@ import math
 import pytest
 from django.contrib.contenttypes.models import ContentType
 
-from topobank.analysis.controller import AnalysisController, submit_analysis_if_missing
+from topobank.analysis.controller import AnalysisController
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import (
     find_children,
@@ -25,9 +25,7 @@ def test_request_analysis(two_topos, test_analysis_function):
 
     user = topo1.creator
 
-    analysis = submit_analysis_if_missing(
-        user=user, subject=topo1, func=test_analysis_function
-    )
+    analysis = test_analysis_function.submit(user=user, subject=topo1)
 
     assert analysis.subject == topo1
     assert analysis.function == test_analysis_function

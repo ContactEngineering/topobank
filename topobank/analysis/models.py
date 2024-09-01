@@ -3,18 +3,23 @@ Models related to analyses.
 """
 
 import json
+import logging
+from typing import Union
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
 from ..users.models import User
-from .registry import get_implementation, get_implementation_types
+from .registry import get_implementation
+
+_log = logging.getLogger(__name__)
 
 RESULT_FILE_BASENAME = "result"
 
@@ -306,10 +311,13 @@ class Analysis(TaskStateModel):
     def eval_self(self, progress_recorder=None, storage_prefix=None, kwargs=None):
         return self.function.eval(
             self.subject,
+            kwargs=kwargs,
             progress_recorder=progress_recorder,
             storage_prefix=storage_prefix,
-            kwargs=kwargs,
         )
+
+    def submit_again(self):
+        self.function.submit_again(self)
 
 
 class AnalysisFunction(models.Model):
@@ -339,15 +347,6 @@ class AnalysisFunction(models.Model):
         """
         return get_implementation(self.name)
 
-    def get_implementation_types(self):
-        """Return list of content types for which this function is implemented."""
-        return get_implementation_types(self.name)
-
-    def is_implemented_for_type(self, subject_type):
-        """Returns True if function is implemented for given content type, else False"""
-        runner_class = self.get_implementation()
-        return subject_type in runner_class.keys()
-
     def has_permission(self, user: settings.AUTH_USER_MODEL):
         """
         Check if this analysis function is available to the user. The function
@@ -363,15 +362,101 @@ class AnalysisFunction(models.Model):
         return self.get_implementation().Parameters().dict()
 
     def validate_kwargs(self, kwargs):
-        raise ValidationError
+        raise self.get_implementation().Parameters().dict()
 
-    def eval(self, subject, progress_recorder=None, storage_prefix=None, kwargs=None):
+    def eval(self, subject, kwargs=None, progress_recorder=None, storage_prefix=None):
         """
         First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
         """
         runner_class = self.get_implementation()
-        if kwargs is None:
-            # Get default parameters
-            kwargs = runner_class.Parameters().dict()
         runner = runner_class(kwargs)
         return runner.eval(subject, progress_recorder, storage_prefix)
+
+    def submit(
+        self,
+        user: settings.AUTH_USER_MODEL,
+        subject: Union[Tag, Surface, Topography],
+        kwargs=None,
+        force_submit=False,
+    ):
+        """
+        user : topobank.users.models.User
+            Users which should see the analysis.
+        subject : Tag or Topography or Surface
+            Instance which will be subject of the analysis (first argument of analysis
+            function).
+        kwargs : dict, optional
+            Keyword arguments for the function which should be saved to database. If
+            None is given, the default arguments for the given analysis function are
+            used. The default arguments are the ones used in the function
+            implementation (python function). (Default: None)
+        force_submit : bool, optional
+            Submit even if analysis already exists. (Default: False)
+        """
+        # Check if user can actually access the subject
+        subject.authorize_user(user, "view")
+
+        # Make sure the parameters are correct and fill in missing values from defaults
+        kwargs = self.get_implementation().clean_kwargs(kwargs)
+
+        # Delete all completed old analyses for same function and subject and arguments
+        # There should be only one analysis per function, subject and arguments.
+        existing_analyses = Analysis.objects.filter(
+            Q(user=user)
+            & AnalysisSubject.Q(subject)
+            & Q(function=self)
+            & Q(kwargs=kwargs)
+            & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])
+        )
+
+        if force_submit or existing_analyses.count() == 0:
+            existing_analyses.delete()
+
+            # Create new entry in the Analysis table
+            analysis = Analysis.objects.create(
+                user=user,
+                subject_dispatch=AnalysisSubject.create(subject),
+                function=self,
+                task_state=Analysis.PENDING,
+                kwargs=kwargs,
+            )
+
+            # Send task to the queue if the analysis has been created
+            # Note: on_commit will not execute in tests, unless transaction=True is added to
+            # pytest.mark.django_db
+            def do_submit():
+                from .tasks import perform_analysis
+                _log.debug(f"Submitting task for analysis {analysis.id}...")
+                perform_analysis.delay(analysis.id)
+
+            transaction.on_commit(do_submit)
+        else:
+            analysis = existing_analyses.order_by("start_time").last()
+
+        return analysis
+
+    def submit_again(self, analysis: Analysis):
+        """
+        Delete existing analysis and recreate and submit with same arguments and user.
+
+        Parameters
+        ----------
+        analysis: Analysis
+            Analysis instance to be renewed.
+        use_default_kwargs: boolean
+            If True, use default arguments of the corresponding analysis function implementation.
+            If False (default), use the keyword arguments of the given analysis.
+
+        Returns
+        -------
+        New analysis object.
+        """
+        _log.info(
+            f"Renewing analysis {analysis.id}: User {analysis.user}, function {self}, "
+            f"subject {analysis.subject}, kwargs: {analysis.kwargs}"
+        )
+        new_analysis = self.submit(
+            analysis.user, analysis.subject, kwargs=analysis.kwargs, force_submit=True
+        )
+        analysis.delete()
+        return new_analysis

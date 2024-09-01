@@ -4,10 +4,10 @@ import pytest
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from topobank.analysis.functions import TestRunner
+from topobank.analysis.functions import TestImplementation
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
-from topobank.analysis.tasks import current_configuration
+from topobank.analysis.tasks import get_current_configuration
 from topobank.manager.models import Topography
 from topobank.testing.factories import (
     SurfaceAnalysisFactory,
@@ -62,7 +62,7 @@ def test_exception_implementation_missing():
 @pytest.mark.django_db
 def test_analysis_function(test_analysis_function):
     assert (
-        test_analysis_function.get_implementation() == TestRunner
+        test_analysis_function.get_implementation() == TestImplementation
     )
 
     surface = SurfaceFactory()
@@ -157,7 +157,7 @@ def test_current_configuration(settings):
         ("numpy", "numpy.version.full_version", "BSD 3-Clause", "https://numpy.org/"),
     ]
 
-    config = current_configuration()
+    config = get_current_configuration()
 
     versions = config.versions.order_by(Lower("dependency__import_name"))
     # Lower: Just to have a defined order independent of database used
