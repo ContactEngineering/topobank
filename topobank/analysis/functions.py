@@ -306,3 +306,33 @@ class TestImplementation(AnalysisImplementation):
             "surfaces": [surface.name for surface in tag.get_related_surfaces()],
             "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
         }
+
+
+class SecondTestImplementation(AnalysisImplementation):
+    """
+    This function will be registered in conftest.py by a fixture. The arguments have no
+    meaning. Result are two series.
+    """
+
+    class Meta:
+        name = "test2"
+        visualization_app_name = "analysis"
+        visualization_type = VIZ_SERIES
+
+        implementations = {
+            Topography: "topography_implementation",
+        }
+
+    class Parameters(AnalysisImplementation.Parameters):
+        c: int = 1
+        d: float = 1.3
+
+    def get_dependent_analyses(self):
+        pass
+
+    def topography_implementation(
+        self, topography: Topography, folder: Folder, progress_recorder=None
+    ):
+        return {
+            "name": "Test with dependencies"
+        }

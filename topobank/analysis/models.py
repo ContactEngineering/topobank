@@ -66,6 +66,35 @@ class AnalysisSubject(models.Model):
                 f"not {type(subject)}."
             )
 
+    def Qs(user, subjects):
+        tag_ids = []
+        topography_ids = []
+        surface_ids = []
+        for subject in subjects:
+            if isinstance(subject, Tag):
+                tag_ids += [subject.id]
+            elif isinstance(subject, Topography):
+                topography_ids += [subject.id]
+            elif isinstance(subject, Surface):
+                surface_ids += [subject.id]
+            else:
+                raise ValueError(
+                    "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
+                    f"not {type(subject)}."
+                )
+        query = None
+        if len(tag_ids) > 0:
+            query = models.Q(subject_dispatch__tag_id__in=tag_ids) & Q(
+                permissions__user_permissions__user=user
+            )
+        elif isinstance(subject, Topography):
+            q = models.Q(subject_dispatch__topography_id=topography_ids)
+            query = query | q if query else q
+        elif isinstance(subject, Surface):
+            q = models.Q(subject_dispatch__surface_id=surface_ids)
+            query = query | q if query else q
+        return query
+
     def get(self):
         if self.tag is not None:
             return self.tag
@@ -93,6 +122,38 @@ class AnalysisSubject(models.Model):
         super().save(*args, **kwargs)
 
 
+class AnalysisResultManager(models.Manager):
+    def filter_and_create_missing(self, user, function, subjects, kwargs):
+        # Query for user, function and subjects
+        query = (
+            Q(function=function) & AnalysisSubject.Qs(user, subjects) & Q(kwargs=kwargs)
+        )
+
+        # Construct query set
+        qs = (
+            self.queryset.filter(query)
+            .order_by(
+                "subject_dispatch__topography_id",
+                "subject_dispatch__surface_id",
+                "subject_dispatch__tag_id",
+                "-start_time",
+            )
+            .distinct(
+                "subject_dispatch__topography_id",
+                "subject_dispatch__surface_id",
+                "subject_dispatch__tag_id",
+            )
+        )
+
+        # This is part of the migrations. For any analysis that has no folder,
+        # traverse the S3 and find all files. This will only run once.
+        for analysis in qs.filter(folder__isnull=True).all():
+            analysis.fix_folder()
+            analysis.grant_permission(user)
+
+        return qs
+
+
 class Analysis(PermissionMixin, TaskStateModel):
     """
     Concrete Analysis with state, function reference, arguments, and results.
@@ -100,6 +161,11 @@ class Analysis(PermissionMixin, TaskStateModel):
     Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
+
+    #
+    # Manager
+    #
+    objects = AnalysisResultManager()
 
     #
     # Permissions
@@ -199,9 +265,7 @@ class Analysis(PermissionMixin, TaskStateModel):
             The result object if available, otherwise None.
         """
         if self._result_cache is None:
-            self._result_cache = load_split_dict(
-                self.folder, RESULT_FILE_BASENAME
-            )
+            self._result_cache = load_split_dict(self.folder, RESULT_FILE_BASENAME)
         return self._result_cache
 
     @property
@@ -221,9 +285,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
-                self.folder.open_file(
-                    f"{RESULT_FILE_BASENAME}.json"
-                )
+                self.folder.open_file(f"{RESULT_FILE_BASENAME}.json")
             )
         return self._result_metadata_cache
 
@@ -274,7 +336,7 @@ class Analysis(PermissionMixin, TaskStateModel):
                 permissions=self.permissions,
                 parent=self.folder,
                 filename=filename,
-                kind="der"
+                kind="der",
             )
             manifest.file.name = f"{self.storage_prefix}/{filename}"
             manifest.save(update_fields=["file"])
