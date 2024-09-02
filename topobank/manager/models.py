@@ -32,7 +32,6 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFull
 from ..files.models import Folder, Manifest
-from ..supplib.storage import recursive_delete
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
@@ -878,14 +877,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def remove_files(self):
         """Remove files associated with a topography instance before removal of the topography."""
 
-        # Store datafiles
-        datafile_path = self.datafile.file.name if self.datafile else None
-        squeezed_datafile_path = (
-            self.squeezed_datafile.file.name if self.squeezed_datafile else None
-        )
-        thumbnail_path = self.thumbnail.file.name if self.thumbnail else None
-
-        # Delete all files
         def delete(x):
             if x:
                 x.delete()
@@ -894,36 +885,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         delete(self.squeezed_datafile)
         delete(self.thumbnail)
         delete(self.deepzoom)
-
-        # Delete everything under the storage prefix else after this idiot check:
-        # Make sure files are actually stored under the storage prefix.
-        # Otherwise we abort deletion.
-        if datafile_path is not None and not datafile_path.startswith(
-            self.storage_prefix
-        ):
-            _log.warning(
-                f"Datafile is stored at location {datafile_path}, but storage prefix is "
-                f"{self.storage_prefix}. I will not attempt to delete everything at this prefix."
-            )
-            return
-        if (
-            squeezed_datafile_path is not None
-            and not squeezed_datafile_path.startswith(self.storage_prefix)
-        ):
-            _log.warning(
-                f"Squeezed datafile is stored at location {squeezed_datafile_path}, but storage prefix is "
-                f"{self.storage_prefix}. I will not attempt to delete everything at this prefix."
-            )
-            return
-        if thumbnail_path is not None and not thumbnail_path.startswith(
-            self.storage_prefix
-        ):
-            _log.warning(
-                f"Thumbnail is stored at location {thumbnail_path}, but storage prefix is "
-                f"{self.storage_prefix}. I will not attempt to delete everything at this prefix."
-            )
-            return
-        recursive_delete(self.storage_prefix)
 
     def __str__(self):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
