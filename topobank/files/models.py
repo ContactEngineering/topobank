@@ -80,6 +80,10 @@ class Folder(PermissionMixin, models.Model):
             "files:folder-api-detail", kwargs=dict(pk=self.pk), request=request
         )
 
+    def remove_files(self):
+        """Clear this folder by removing all files"""
+        self.files.all().delete()
+
 
 # The Flow for "direct file upload" is heavily inspired from here:
 # https://www.hacksoft.io/blog/direct-to-s3-file-upload-with-django
