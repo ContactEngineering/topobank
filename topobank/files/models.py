@@ -34,7 +34,7 @@ class Folder(PermissionMixin, models.Model):
     #
     read_only = models.BooleanField("read_only", default=True)
 
-    def open_file(self, filename, mode="r"):
+    def open_file(self, filename: str, mode: str = "r"):
         manifests = self.files.filter(folder=self, filename=filename)
         if manifests.count() == 0:
             raise RuntimeError(f"File '{filename}' not found in folder {self.id}.")
@@ -47,10 +47,10 @@ class Folder(PermissionMixin, models.Model):
             manifest = manifests.first()
             return manifest.open(mode)
 
-    def save_file(self, filename, kind, fobj):
+    def save_file(self, filename: str, kind: str, fobj):
         print("save_file", self.id, filename)
         fobj.name = filename  # Make sure the filenames are the same
-        Manifest.objects.create(
+        return Manifest.objects.create(
             permissions=self.permissions,
             folder=self,
             filename=filename,
@@ -58,7 +58,7 @@ class Folder(PermissionMixin, models.Model):
             file=fobj,
         )
 
-    def exists(self, filename):
+    def exists(self, filename: str) -> bool:
         return self.files.filter(filename=filename).count() > 1
 
     def get_files(self) -> models.QuerySet["Manifest"]:
@@ -68,13 +68,13 @@ class Folder(PermissionMixin, models.Model):
         # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
         return self.get_files().filter(upload_confirmed__isnull=False)
 
-    def find_files(self, filename):
+    def find_files(self, filename: str) -> models.QuerySet["Manifest"]:
         return Manifest.objects.filter(folder=self, filename=filename)
 
     def __str__(self) -> str:
         return "Folder"
 
-    def get_absolute_url(self, request=None):
+    def get_absolute_url(self, request=None) -> str:
         """URL of API endpoint for this folder"""
         return reverse(
             "files:folder-api-detail", kwargs=dict(pk=self.pk), request=request
