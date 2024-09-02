@@ -20,7 +20,7 @@ def test_request_analysis(mocker, test_analysis_function):
     def assert_correct_args(analysis, expected_kwargs):
         kwargs = analysis.kwargs
         assert kwargs == expected_kwargs
-        assert analysis.user == user  # make sure the user has been set
+        assert analysis.has_permission(user, "view")  # make sure the user has been set
 
     # test case 1
     analysis = test_analysis_function.submit(user, topo, dict(a=13, b="24"))
@@ -69,9 +69,7 @@ def test_different_kwargs(mocker, test_analysis_function):
         user=user,
     )
 
-    a3 = test_analysis_function.submit(
-        user, topo, {"a": 1, "b": "2"}
-    )
+    a3 = test_analysis_function.submit(user, topo, {"a": 1, "b": "2"})
 
     #
     # Now there are three analyses for af+topo
@@ -87,7 +85,9 @@ def test_different_kwargs(mocker, test_analysis_function):
     # Only one analysis is marked for user 'user'
     #
     analyses = Analysis.objects.filter(
-        subject_dispatch__topography=topo, function=test_analysis_function, user=user
+        subject_dispatch__topography=topo,
+        function=test_analysis_function,
+        permissions__user_permissions__user=user,
     )
 
     assert len(analyses) == 3

@@ -189,7 +189,7 @@ def register_implementation(func):
 
     Parameters
     ----------
-    func: AnalysisRunner
+    func: AnalysisImplementation
         Runner class that has the Python function which implements the analysis, and
         additional metadata
     """
@@ -207,7 +207,7 @@ def get_implementation(name):
 
     Returns
     -------
-    runner : AnalysisRunner
+    runner : AnalysisImplementation
         The analysis function
     """
     return _analysis_functions[name]

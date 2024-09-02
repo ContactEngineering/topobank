@@ -134,7 +134,9 @@ class AnalysisController:
         function_id = data.get("function_id")
         if function_id is None:
             function_id = q.get("function_id")
-        if function_id is not None:
+        if function_id is None:
+            raise ValueError("You need to provide a function id")
+        else:
             function_id = int(function_id)
 
         subjects = data.get("subjects")
@@ -143,9 +145,9 @@ class AnalysisController:
         if subjects is not None and isinstance(subjects, str):
             subjects = dict_from_base64(subjects)
 
-        kwargs = data.get("kwargs")
+        kwargs = data.get("function_kwargs")
         if kwargs is None:
-            kwargs = q.get("kwargs")
+            kwargs = q.get("function_kwargs")
         if kwargs is not None and isinstance(kwargs, str):
             kwargs = dict_from_base64(kwargs)
 
@@ -268,7 +270,9 @@ class AnalysisController:
             return []
 
         # Query for user, function and subjects
-        query = Q(user=self._user) & Q(function=self._function)
+        query = Q(permissions__user_permissions__user=self._user) & Q(
+            function=self._function
+        )
 
         # Query for subjects
         subjects_query = None

@@ -87,7 +87,6 @@ def perform_analysis(self, analysis_id: int):
     # update entry in Analysis table
     #
     analysis = Analysis.objects.get(id=analysis_id)
-
     analysis.task_state = Analysis.STARTED
     analysis.task_id = self.request.id
     analysis.start_time = timezone.now()  # with timezone
@@ -131,8 +130,6 @@ def perform_analysis(self, analysis_id: int):
         f"'{subject}' with parameters {kwargs}..."
     )
     try:
-        # tell subject to restrict to specific user
-        subject.authorize_user(analysis.user, "view")
         # also request citation information
         dois = set()
         # start tracing of memory usage

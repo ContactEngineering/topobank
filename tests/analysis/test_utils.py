@@ -29,7 +29,7 @@ def test_request_analysis(two_topos, test_analysis_function):
 
     assert analysis.subject == topo1
     assert analysis.function == test_analysis_function
-    assert analysis.user == user
+    assert analysis.has_permission(user, "view")
 
 
 @pytest.mark.django_db
@@ -130,7 +130,10 @@ def test_latest_analyses(two_topos, test_analysis_function):
 def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
     assert (
-        Analysis.objects.filter(user=user, function=test_analysis_function).count() == 0
+        Analysis.objects.filter(
+            permissions__user_permissions__user=user, function=test_analysis_function
+        ).count()
+        == 0
     )
 
 

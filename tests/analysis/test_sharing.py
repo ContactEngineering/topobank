@@ -32,7 +32,7 @@ def test_topography_analysis(two_users, test_analysis_function):
     controller.trigger_missing_analyses()
     assert len(controller) == 0  # user2 has no access to surface1
 
-    surface1.share(user2)
+    surface1.grant_permission(user2)
 
     controller = AnalysisController(
         user2, subjects=[topography1], function=test_analysis_function
@@ -69,7 +69,7 @@ def test_surface_analysis(two_users, test_analysis_function):
     controller.trigger_missing_analyses()
     assert len(controller) == 0  # user2 has no access to surface1
 
-    surface1.share(user2)
+    surface1.grant_permission(user2)
 
     controller = AnalysisController(
         user2, subjects=[surface1], function=test_analysis_function
@@ -125,7 +125,7 @@ def test_tag_analysis(two_users, django_capture_on_commit_callbacks, test_analys
         assert r.task_state == "su"
         assert len(r.result["surfaces"]) == 0  # user1 has no access to any surface inside this tag
 
-    surface2.share(user1)
+    surface2.grant_permission(user1)
 
     # User1 again, but now (one of the) surfaces is shared
     controller = AnalysisController(

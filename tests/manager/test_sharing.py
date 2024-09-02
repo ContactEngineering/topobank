@@ -92,7 +92,7 @@ def test_list_surface_permissions(api_client, handle_usage_statistics):
     user3 = UserFactory(name="Alice Cooper")
 
     surface = SurfaceFactory(creator=user1)
-    surface.share(user2)
+    surface.grant_permission(user2)
     surface.grant_permission(user3, "edit")
 
     surface_detail_url = reverse(
@@ -242,7 +242,7 @@ def test_upload_topography_for_shared_surface(
     user2 = UserFactory(password=password)
 
     surface = SurfaceFactory(creator=user1)
-    surface.share(user2)  # first without allowing change
+    surface.grant_permission(user2)  # first without allowing change
 
     assert api_client.login(username=user2.username, password=password)
 

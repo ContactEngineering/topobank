@@ -10,14 +10,14 @@ class PermissionMixin:
         else:
             return perm.allow
 
-    def grant_permission(self, user: User, allow: ViewEditFull):
+    def grant_permission(self, user: User, allow: ViewEditFull = "view"):
         self.permissions.grant_for_user(user, allow)
 
     def revoke_permission(self, user: User):
         self.permissions.revoke_from_user(user)
 
-    def has_permission(self, user: User, access_level: ViewEditFull) -> bool:
+    def has_permission(self, user: User, access_level: ViewEditFull = "view") -> bool:
         return self.permissions.user_has_permission(user, access_level)
 
-    def authorize_user(self, user: User, access_level: ViewEditFull):
+    def authorize_user(self, user: User, access_level: ViewEditFull = "view"):
         self.permissions.authorize_user(user, access_level)

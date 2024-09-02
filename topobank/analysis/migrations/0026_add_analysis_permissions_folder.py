@@ -8,19 +8,27 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        migrations.swappable_dependency(settings.AUTH_USER_MODEL),
+        ("files", "0006_folder_read_only"),
+        ("authorization", "0001_initial"),
         ("analysis", "0025_remove_analysissubject_collection_and_more"),
     ]
 
     operations = [
         migrations.AddField(
             model_name="analysis",
-            name="user",
+            name="folder",
             field=models.ForeignKey(
                 null=True,
                 on_delete=django.db.models.deletion.CASCADE,
-                to=settings.AUTH_USER_MODEL,
+                to="files.folder",
             ),
-            preserve_default=False,
         ),
-    ]
+        migrations.AddField(
+            model_name="analysis",
+            name="permissions",
+            field=models.ForeignKey(
+                null=True,
+                on_delete=django.db.models.deletion.CASCADE,
+                to="authorization.permissionset",
+            ),
+        ),    ]

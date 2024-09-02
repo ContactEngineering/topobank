@@ -116,6 +116,10 @@ class PermissionSet(models.Model):
                 description=description,
             )
 
+    def get_users(self):
+        """Return all users with their permissions"""
+        return [(perm.user, perm.allow) for perm in self.user_permissions.all()]
+
 
 class UserPermission(models.Model):
     """Single permission for a specific user"""

@@ -43,18 +43,10 @@ def test_refresh_analyses_api(client, test_analysis_function):
         assert response.status_code == 201
 
     #
-    # Old analyses should be deleted
-    #
-    with pytest.raises(Analysis.DoesNotExist):
-        Analysis.objects.get(id=analysis1a.id)
-    with pytest.raises(Analysis.DoesNotExist):
-        Analysis.objects.get(id=analysis2a.id)
-
-    #
     # New Analysis objects should be there and marked for the user
     #
     analysis1b = Analysis.objects.get(function=func, subject_dispatch__topography=topo1)
     analysis2b = Analysis.objects.get(function=func, subject_dispatch__topography=topo2)
 
-    assert analysis1b.user == user
-    assert analysis2b.user == user
+    assert analysis1b.has_permission(user, "view")
+    assert analysis2b.has_permission(user, "view")

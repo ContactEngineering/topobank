@@ -636,19 +636,21 @@ def test_download_analysis_results_without_permission(
 
     # when user_2 has view permissions for one topography of both, it's still not okay
     # to download
-    two_topos[0].surface.share(user_2)
+    two_topos[0].surface.grant_permission(user_2)
     response = client.get(download_url)
     assert response.status_code == 403  # Permission denied
 
     # when user_2 has view permissions for all related surfaces, it's still not okay
     # to download as analyses are per user
-    two_topos[1].surface.share(user_2)
+    two_topos[1].surface.grant_permission(user_2)
     response = client.get(download_url)
     assert response.status_code == 403
 
 
 @pytest.mark.django_db
-def test_shared_topography_triggers_new_analysis(api_client, handle_usage_statistics):
+def test_shared_topography_triggers_no_new_analysis(
+    api_client, handle_usage_statistics
+):
     password = "abcd$1234"
 
     #
@@ -693,7 +695,7 @@ def test_shared_topography_triggers_new_analysis(api_client, handle_usage_statis
     assert all(a.task_state == "su" for a in func1.analysis_set.all())
 
     # user2 shares surfaces, so user 1 should see surface1+surface2
-    surface2.share(user1)
+    surface2.grant_permission(user1)
 
     #
     # Now we change to the analysis card view and look what we get
@@ -705,19 +707,19 @@ def test_shared_topography_triggers_new_analysis(api_client, handle_usage_statis
         f"&subjects={subjects_to_base64([topo1a, topo1b, topo2a])}"
     )
 
-    # Function should have another analysis, topo2a for user1
-    assert func1.analysis_set.count() == 4
-    assert all(a.task_state == "su" for a in func1.analysis_set.all()[0:3])
-    assert func1.analysis_set.all()[3].task_state == "pe"
+    # Since analyses is shared, the user should get the same analysis
+    assert func1.analysis_set.count() == 3
+    assert all(a.task_state == "su" for a in func1.analysis_set.all())
 
     assert response.status_code == 200
 
-    # We should see start times of only two analysis because the third one was just triggered and not yet started
+    # We should see start times of only two analysis because the third one was just
+    # triggered and not yet started
     analyses = response.data["analyses"]
     assert len(analyses) == 3
     assert analyses[0]["start_time"] == "2019-01-01T12:00:00+01:00"  # topo1a
     assert analyses[1]["start_time"] == "2019-01-01T13:00:00+01:00"  # topo1b
-    assert analyses[2]["start_time"] is None  # topo1b
+    assert analyses[2]["start_time"] == "2019-01-01T14:00:00+01:00"  # topo1b
 
     api_client.logout()
 

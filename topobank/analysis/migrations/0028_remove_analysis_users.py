@@ -9,7 +9,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("analysis", "0027_analysis_users_to_user"),
+        ("analysis", "0027_analysis_users_to_permissions"),
     ]
 
     operations = [

@@ -13,10 +13,12 @@ from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 
+from ..authorization.mixins import PermissionMixin
+from ..authorization.models import PermissionSet
+from ..files.models import Folder
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
-from ..users.models import User
 from .registry import get_implementation
 
 _log = logging.getLogger(__name__)
@@ -91,13 +93,22 @@ class AnalysisSubject(models.Model):
         super().save(*args, **kwargs)
 
 
-class Analysis(TaskStateModel):
+class Analysis(PermissionMixin, TaskStateModel):
     """
     Concrete Analysis with state, function reference, arguments, and results.
 
     Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
+
+    #
+    # Permissions
+    #
+    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+
+    #
+    # Analysis parameters
+    #
 
     # Actual implementation of the analysis as a Python function
     function = models.ForeignKey("AnalysisFunction", on_delete=models.CASCADE)
@@ -107,11 +118,11 @@ class Analysis(TaskStateModel):
         AnalysisSubject, null=True, on_delete=models.CASCADE
     )
 
-    # User that triggered this analysis
-    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
-
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
+
+    # Results
+    folder = models.ForeignKey(Folder, on_delete=models.CASCADE, null=True)
 
     # Bibliography
     dois = models.JSONField(default=list)
@@ -274,17 +285,14 @@ class Analysis(TaskStateModel):
         """
         Returns an exception if given user should not be able to see this analysis.
         """
-        if self.user != user:
-            raise PermissionError(
-                f"User {user} is not allowed to access these analysis results, which "
-                "were computed for a different user."
-            )
-
-        # Double check availability of analysis function
+        # Check availability of analysis function
         if not self.get_implementation().has_permission(user):
             raise PermissionError(
                 f"User {user} is not allowed to use this analysis function."
             )
+
+        # Check if the user can access this analysis
+        super().authorize_user(user, "view")
 
         # Double check access rights to the underlying measurements
         if not all(s.has_permission(user, "view") for s in self.get_related_surfaces()):
@@ -309,6 +317,15 @@ class Analysis(TaskStateModel):
         return self.subject_dispatch.tag is not None
 
     def eval_self(self, progress_recorder=None, storage_prefix=None, kwargs=None):
+        if self.is_tag_related:
+            users = self.permissions.user_permissions.all()
+            if users.count() != 1:
+                raise PermissionError(
+                    "This is a tag analysis, which should only be assigned to a single "
+                    "user."
+                )
+            self.subject.authorize_user(users.first().user, "view")
+
         return self.function.eval(
             self.subject,
             kwargs=kwargs,
@@ -322,7 +339,7 @@ class Analysis(TaskStateModel):
 
 class AnalysisFunction(models.Model):
     """
-    A convenience wrapper around the AnalysisRunner that has representation in the
+    A convenience wrapper around the AnalysisImplementation that has representation in the
     SQL database.
     """
 
@@ -338,7 +355,7 @@ class AnalysisFunction(models.Model):
 
         Returns
         -------
-        AnalysisRunner instance
+        AnalysisImplementation instance
 
         Raises
         ------
@@ -399,31 +416,55 @@ class AnalysisFunction(models.Model):
         # Make sure the parameters are correct and fill in missing values from defaults
         kwargs = self.get_implementation().clean_kwargs(kwargs)
 
-        # Delete all completed old analyses for same function and subject and arguments
-        # There should be only one analysis per function, subject and arguments.
-        existing_analyses = Analysis.objects.filter(
-            Q(user=user)
-            & AnalysisSubject.Q(subject)
-            & Q(function=self)
-            & Q(kwargs=kwargs)
-            & Q(task_state__in=[Analysis.FAILURE, Analysis.SUCCESS])
+        # Query for all existing analyses with the same parameters
+        q = AnalysisSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
+
+        # If subject is tag, we need to restrict this to the current user because those
+        # analyses cannot be shared
+        if isinstance(subject, Tag):
+            q &= Q(permissions__user_permissions__user=user)
+
+        # All existing analyses
+        existing_analyses = Analysis.objects.filter(q)
+
+        # Analyses, excluding those that have failed or that have not been submitted
+        # to the task queue for some reason (state "no"t run)
+        successful_or_running_analyses = existing_analyses.filter(
+            task_state__in=[
+                Analysis.PENDING,
+                Analysis.RETRY,
+                Analysis.STARTED,
+                Analysis.SUCCESS,
+            ]
         )
 
-        if force_submit or existing_analyses.count() == 0:
+        # We submit a new analysis only if we are either forced to do so or if there is
+        # no analysis with the same parameter pending, running or successfully completed.
+        if force_submit or successful_or_running_analyses.count() == 0:
+            # Delete *all* existing analyses (which now may only contain failed ones)
             existing_analyses.delete()
 
-            # Create new entry in the Analysis table
+            # New analysis needs its own permissions
+            permissions = PermissionSet.objects.create()
+            permissions.grant_for_user(user, "view")  # analysis can never be edited
+
+            # Folder will store results
+            folder = Folder.objects.create(permissions=permissions, read_only=True)
+
+            # Create new entry in the analysis table and grant access to current user
             analysis = Analysis.objects.create(
-                user=user,
+                permissions=permissions,
                 subject_dispatch=AnalysisSubject.create(subject),
                 function=self,
                 task_state=Analysis.PENDING,
                 kwargs=kwargs,
+                folder=folder,
             )
+            analysis.grant_permission(user, "view")
 
             # Send task to the queue if the analysis has been created
-            # Note: on_commit will not execute in tests, unless transaction=True is added to
-            # pytest.mark.django_db
+            # Note: on_commit will not execute in tests, unless transaction=True is
+            # added to pytest.mark.django_db
             def do_submit():
                 from .tasks import perform_analysis
 
@@ -432,7 +473,10 @@ class AnalysisFunction(models.Model):
 
             transaction.on_commit(do_submit)
         else:
+            # There seem to be viable analyses. Fetch the latest one.
             analysis = existing_analyses.order_by("start_time").last()
+            # Grant access to current user
+            analysis.grant_permission(user, "view")
 
         return analysis
 
@@ -453,11 +497,21 @@ class AnalysisFunction(models.Model):
         New analysis object.
         """
         _log.info(
-            f"Renewing analysis {analysis.id}: User {analysis.user}, function {self}, "
-            f"subject {analysis.subject}, kwargs: {analysis.kwargs}"
+            f"Renewing analysis {analysis.id}: Users "
+            f"{[user for user, allow in analysis.permissions.get_users()]}, "
+            f"function {self}, subject {analysis.subject}, kwargs: {analysis.kwargs}"
         )
-        new_analysis = self.submit(
-            analysis.user, analysis.subject, kwargs=analysis.kwargs, force_submit=True
-        )
-        analysis.delete()
-        return new_analysis
+        analysis.task_state = Analysis.PENDING
+        analysis.save()
+
+        # Send task to the queue if the analysis has been created
+        # Note: on_commit will not execute in tests, unless transaction=True is
+        # added to pytest.mark.django_db
+        def do_submit():
+            from .tasks import perform_analysis
+
+            _log.debug(f"Submitting task for analysis {analysis.id}...")
+            perform_analysis.delay(analysis.id)
+
+        transaction.on_commit(do_submit)
+        return analysis
