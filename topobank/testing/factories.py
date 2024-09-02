@@ -1,12 +1,10 @@
 import datetime
 import logging
-from dataclasses import dataclass
 
 import factory
 from django.core.files import File
 from django.db.models.signals import post_save
 from factory import post_generation
-from SurfaceTopography import Topography as STTopography
 
 from ..analysis.models import Analysis, AnalysisFunction, AnalysisSubject
 from ..manager.models import Property, Surface, Tag, Topography
@@ -329,28 +327,6 @@ class TagAnalysisFactory(AnalysisFactory):
         model = Analysis
 
     subject_tag = factory.SubFactory(TagFactory)
-
-
-@dataclass(frozen=True)
-class FakeTopographyModel:
-    """This model is used to create a Topography for being passed to analysis functions."""
-
-    t: STTopography
-    name: str = "mytopo"
-    is_periodic: bool = False
-
-    def topography(self):
-        """Return low level topography."""
-        return self.t
-
-    def get_absolute_url(self):
-        return "some/url/"
-
-
-class DummyProgressRecorder:
-    def set_progress(self, a, nsteps):
-        """Do nothing."""
-        pass  # dummy
 
 
 class OrganizationFactory(factory.django.DjangoModelFactory):
