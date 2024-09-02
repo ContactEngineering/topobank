@@ -210,7 +210,9 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    return analysis.function.eval(analysis.subject_dispatch.get())
+    return analysis.function.eval(
+        analysis.subject_dispatch.get(), analysis.kwargs, analysis.folder
+    )
 
 
 def _failed_analysis_result(analysis):
@@ -269,6 +271,12 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
         topography=factory.SelfAttribute("..subject_topography"),
         surface=factory.SelfAttribute("..subject_surface"),
         tag=factory.SelfAttribute("..subject_tag"),
+    )
+
+    folder = factory.SubFactory(
+        FolderFactory,
+        permissions=factory.SelfAttribute("..permissions"),
+        read_only=True,
     )
 
     kwargs = factory.LazyAttribute(_analysis_default_kwargs)

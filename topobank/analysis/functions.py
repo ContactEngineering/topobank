@@ -231,7 +231,7 @@ class TestImplementation(AnalysisImplementation):
     def topography_implementation(
         self, topography: Topography, folder: Folder, progress_recorder=None
     ):
-        folder.save_file("test.txt", ContentFile("Test!!!"))
+        folder.save_file("test.txt", "der", ContentFile("Test!!!"))
         return {
             "name": "Test result for test function called for topography "
             f"{topography}.",

@@ -286,7 +286,7 @@ class AnalysisController:
             query = Q(kwargs=self._kwargs) & query
 
         # Find and return analyses
-        return (
+        qs = (
             self.queryset.filter(query)
             .order_by(
                 "subject_dispatch__topography_id",
@@ -300,6 +300,13 @@ class AnalysisController:
                 "subject_dispatch__tag_id",
             )
         )
+
+        # This is part of the migrations. For any analysis that has no folder,
+        # traverse the S3 and find all files. This will only run once.
+        for analysis in qs.filter(folder__isnull=True).all():
+            analysis.fix_folder()
+
+        return qs
 
     def _get_subjects_without_analysis_results(self):
         """Find analyses that are missing (i.e. have not yet run)"""

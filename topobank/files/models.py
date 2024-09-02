@@ -35,16 +35,20 @@ class Folder(PermissionMixin, models.Model):
     read_only = models.BooleanField("read_only", default=True)
 
     def open_file(self, filename, mode="r"):
-        manifests = self.files.filter(filename=filename)
+        manifests = self.files.filter(folder=self, filename=filename)
         if manifests.count() == 0:
             raise RuntimeError(f"File '{filename}' not found in folder {self.id}.")
         elif manifests.count() > 1:
-            raise RuntimeError(f"More than one file with '{filename}' found in folder {self.id}.")
+            raise RuntimeError(
+                f"More than one file with name '{filename}' was found in folder "
+                f"{self.id}."
+            )
         else:
             manifest = manifests.first()
             return manifest.open(mode)
 
     def save_file(self, filename, kind, fobj):
+        print("save_file", self.id, filename)
         fobj.name = filename  # Make sure the filenames are the same
         Manifest.objects.create(
             permissions=self.permissions,
@@ -53,6 +57,9 @@ class Folder(PermissionMixin, models.Model):
             kind=kind,
             file=fobj,
         )
+
+    def exists(self, filename):
+        return self.files.filter(filename=filename).count() > 1
 
     def get_files(self) -> models.QuerySet["Manifest"]:
         return self.files.all()
@@ -77,6 +84,9 @@ class Folder(PermissionMixin, models.Model):
 # The Flow for "direct file upload" is heavily inspired from here:
 # https://www.hacksoft.io/blog/direct-to-s3-file-upload-with-django
 class Manifest(PermissionMixin, models.Model):
+    class Meta:
+        unique_together = ("folder", "filename")
+
     #
     # Manager
     #
@@ -186,8 +196,19 @@ class Manifest(PermissionMixin, models.Model):
 
     def save(self, *args, **kwargs):
         created = self.pk is None  # True on creation of the manifest
+        file = None
+        if created and self.file:
+            # We have a file but no id yet hence cannot create a storage path
+            file = self.file
+            self.file = None
         super().save(*args, **kwargs)
-        # Make sure no file already exists at the targeted storage location.
+        if file:
+            # No set the file name; we have an id and can create a storaga path and
+            # upload the file
+            self.file = file
+            super().save(update_fields=["file"])
+        # We have no file but a file name; make sure no file with the same name already
+        # exists at the targeted storage location
         if created and not self.file and self.filename:
             # We just created this manifest and no file was passed on creation
             storage_path = self.generate_storage_path()

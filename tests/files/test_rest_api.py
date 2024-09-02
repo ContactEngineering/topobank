@@ -72,11 +72,13 @@ def test_delete_file(api_client, user_alice, read_only, handle_usage_statistics)
     manifest1 = Manifest.objects.create(
         permissions=permissions,
         folder=folder,
+        filename="dektak-1.csv",
         file=File(open(f"{FIXTURE_DATA_DIR}/dektak-1.csv", "rb")),
     )
     Manifest.objects.create(
         permissions=permissions,
         folder=folder,
+        filename="dummy.txt",
         file=File(open(f"{FIXTURE_DATA_DIR}/dummy.txt", "rb")),
     )
 
@@ -119,11 +121,13 @@ def test_modify_file(
     manifest1 = Manifest.objects.create(
         permissions=permissions,
         folder=folder,
+        filename="dektak-1.csv",
         file=File(open(f"{FIXTURE_DATA_DIR}/dektak-1.csv", "rb")),
     )
     Manifest.objects.create(
         permissions=permissions,
         folder=folder,
+        filename="dummy.txt",
         file=File(open(f"{FIXTURE_DATA_DIR}/dummy.txt", "rb")),
     )
 

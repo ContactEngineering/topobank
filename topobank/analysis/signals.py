@@ -2,11 +2,10 @@ import logging
 import sys
 
 from django.db.models import Q
-from django.db.models.signals import pre_delete, pre_save
+from django.db.models.signals import post_delete, pre_delete, pre_save
 from django.dispatch import receiver
 
 from ..manager.models import Topography, post_refresh_cache
-from ..supplib.storage import recursive_delete
 from .models import Analysis
 
 _log = logging.getLogger(__name__)
@@ -18,8 +17,8 @@ _IN_CELERY_WORKER_PROCESS = (
 )
 
 
-@receiver(pre_delete, sender=Analysis)
-def pre_delete_analysis(sender, instance, **kwargs):
+@receiver(post_delete, sender=Analysis)
+def post_delete_analysis(sender, instance, **kwargs):
     """
     Delete the analysis instance, including its associated task and storage files.
 
@@ -38,8 +37,9 @@ def pre_delete_analysis(sender, instance, **kwargs):
     # Cancel task (if running)
     instance.cancel_task()
 
-    # Remove files from storage
-    recursive_delete(instance.storage_prefix)
+    # Delete permission set, which triggers deletion of all other associated data.
+    # Needs to be in post_delete to avoid recursion.
+    instance.permissions.delete()
 
 
 @receiver(post_refresh_cache, sender=Topography)

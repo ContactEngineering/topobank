@@ -26,8 +26,8 @@ def test_statistics(api_client, handle_usage_statistics):
     #
     # Generate analyses for topographies with differing arguments
     #
-    kwargs_1a = dict(a=1, b=2)
-    kwargs_1b = dict(a=1, b=3)  # differing from kwargs_1a!
+    kwargs_1a = dict(a=1, b="abc")
+    kwargs_1b = dict(a=1, b="def")  # differing from kwargs_1a!
     TopographyAnalysisFactory(
         subject_topography=topo1a, function=func, kwargs=kwargs_1a
     )
@@ -41,8 +41,8 @@ def test_statistics(api_client, handle_usage_statistics):
     #
     # Generate analyses for surfaces with differing arguments
     #
-    kwargs_1 = dict(a=2, b=2)
-    kwargs_2 = dict(a=2, b=3)  # differing from kwargs_1a!
+    kwargs_1 = dict(a=2, b="abc")
+    kwargs_2 = dict(a=2, b="def")  # differing from kwargs_1a!
     SurfaceAnalysisFactory(subject_surface=surf1, function=func, kwargs=kwargs_1)
     SurfaceAnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_2)
 

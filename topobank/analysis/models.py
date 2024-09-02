@@ -15,7 +15,7 @@ from django.utils import timezone
 
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import PermissionSet
-from ..files.models import Folder
+from ..files.models import Folder, Manifest
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
@@ -200,7 +200,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """
         if self._result_cache is None:
             self._result_cache = load_split_dict(
-                self.storage_prefix, RESULT_FILE_BASENAME
+                self.folder, RESULT_FILE_BASENAME
             )
         return self._result_cache
 
@@ -221,8 +221,8 @@ class Analysis(PermissionMixin, TaskStateModel):
         """
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
-                default_storage.open(
-                    f"{self.storage_prefix}/{RESULT_FILE_BASENAME}.json"
+                self.folder.open_file(
+                    f"{RESULT_FILE_BASENAME}.json"
                 )
             )
         return self._result_metadata_cache
@@ -230,12 +230,12 @@ class Analysis(PermissionMixin, TaskStateModel):
     @property
     def result_file_name(self):
         """Returns name of the result file in storage backend as string."""
-        return f"{self.storage_prefix}/{RESULT_FILE_BASENAME}.json"
+        return f"{RESULT_FILE_BASENAME}.json"
 
     @property
     def has_result_file(self):
         """Returns True if result file exists in storage backend, else False."""
-        return default_storage.exists(self.result_file_name)
+        return self.folder.exists(self.result_file_name)
 
     @property
     def storage_prefix(self):
@@ -252,27 +252,32 @@ class Analysis(PermissionMixin, TaskStateModel):
             )
         return "analyses/{}".format(self.id)
 
-    @property
-    def storage_files(self):
-        """Return all file names in analysis id directory.
+    def fix_folder(self):
+        """
+        Fill folder, if yet unfilled.
 
         List of files names ['<file_prefix_name>/file'].
         If storage is on filesystem, the prefix should correspond
         to a real directory.
         """
+        if self.folder:
+            return
         if self.id is None:
             raise RuntimeError(
                 "This `Analysis` does not have an id yet; the storage file names is "
                 "not yet known."
             )
-        try:
-            dir_tuple = default_storage.listdir(self.storage_prefix)
-            file_lists = dir_tuple[1]
-            return [f"{self.storage_prefix}/{file_name}" for file_name in file_lists]
-        # FIXME!!! InMemoryStorage raise a PathDoesNotExist error, but I don't know
-        # how to check for this generically
-        except:  # noqa: E722
-            return []
+        self.folder = Folder.objects.create(read_only=True)
+        dir_tuple = default_storage.listdir(self.storage_prefix)
+        for filename in dir_tuple[1]:
+            manifest = Manifest.objects.create(
+                permissions=self.permissions,
+                parent=self.folder,
+                filename=filename,
+                kind="der"
+            )
+            manifest.file.name = f"{self.storage_prefix}/{filename}"
+            manifest.save(update_fields=["file"])
 
     def get_related_surfaces(self):
         """Returns sequence of surface instances related to the subject of this analysis."""

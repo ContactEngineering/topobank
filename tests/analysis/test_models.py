@@ -10,6 +10,7 @@ from topobank.analysis.registry import ImplementationMissingAnalysisFunctionExce
 from topobank.analysis.tasks import get_current_configuration
 from topobank.manager.models import Topography
 from topobank.testing.factories import (
+    FolderFactory,
     SurfaceAnalysisFactory,
     SurfaceFactory,
     TagAnalysisFactory,
@@ -54,20 +55,24 @@ def test_exception_implementation_missing():
     surface = topo.surface
     function = AnalysisFunction.objects.get(name="test")
     analysis = TopographyAnalysisFactory(function=function)
-    function.eval(surface)  # that's okay, it's implemented
+    function.eval(
+        surface, analysis.kwargs, analysis.folder
+    )  # that's okay, it's implemented
     with pytest.raises(ImplementationMissingAnalysisFunctionException):
-        function.eval(analysis)  # that's not implemented
+        function.eval(
+            analysis, analysis.kwargs, analysis.folder
+        )  # that's not implemented
 
 
 @pytest.mark.django_db
 def test_analysis_function(test_analysis_function):
-    assert (
-        test_analysis_function.get_implementation() == TestImplementation
-    )
+    assert test_analysis_function.get_implementation() == TestImplementation
 
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
-    result = test_analysis_function.eval(t, kwargs=dict(a=2, b="bar"))
+    result = test_analysis_function.eval(
+        t, kwargs=dict(a=2, b="bar"), folder=FolderFactory()
+    )
     assert result["comment"] == "Arguments: a is 2 and b is bar"
 
 
@@ -79,7 +84,7 @@ def test_analysis_times(two_topos, test_analysis_function):
         subject_topography=Topography.objects.first(),
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs={"a": 2, "b": 4},
+        kwargs={"a": 2, "b": "abcdef"},
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13),
     )
@@ -90,7 +95,7 @@ def test_analysis_times(two_topos, test_analysis_function):
     assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.duration == datetime.timedelta(0, 3600)
 
-    assert analysis.kwargs == {"a": 2, "b": 4}
+    assert analysis.kwargs == {"a": 2, "b": "abcdef"}
 
 
 @pytest.mark.django_db

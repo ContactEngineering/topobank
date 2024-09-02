@@ -3,11 +3,9 @@ from collections import defaultdict
 
 import pydantic
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
 from django.core.files.storage import default_storage
 from django.db.models import Case, F, Max, Sum, Value, When
-from django.http import Http404, HttpResponseBadRequest
-from django.shortcuts import redirect
+from django.http import HttpResponseBadRequest
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
@@ -422,69 +420,6 @@ def series_card_view(request, **kwargs):
     context["messages"] = messages
 
     return Response(context)
-
-
-@api_view(["POST"])
-def submit_analyses_view(request):
-    """Requests analyses.
-    :param request:
-    :return: HTTPResponse
-    """
-    controller = AnalysisController.from_request(request)
-
-    #
-    # Trigger missing analyses
-    #
-    controller.trigger_missing_analyses()
-
-    # allowed = True
-    # for subject in subjects:
-    #    allowed &= subject.is_shared(user)
-    #    if not allowed:
-    #        break
-
-    return Response(
-        {"analyses": controller.to_representation(request=request)}, status=200
-    )
-
-
-def data(request, pk, location):
-    """Request data stored for a particular analysis.
-
-    Before redirecting to the data, the permissions
-    of the current user are checked for the given analysis.
-    The user needs permissions for the data as well as
-    the analysis function performed should be available.
-
-    Parameters
-    ----------
-
-    pk: int
-        id of Analysis instance
-    location: str
-        path underneath given analysis where file can be found
-
-    Returns
-    -------
-    Redirects to file on storage.
-    """
-    try:
-        pk = int(pk)
-    except ValueError:
-        raise Http404()
-
-    try:
-        analysis = Analysis.objects.get(id=pk)
-    except Analysis.DoesNotExist:
-        raise PermissionDenied()  # This should be shown independent of whether the surface exists
-
-    analysis.authorize_user(request.user)
-
-    # okay, we have a valid analysis and the user is allowed to see it
-
-    name = f"{analysis.storage_prefix}/{location}"
-    url = default_storage.url(name)
-    return redirect(url)
 
 
 @api_view(["GET"])

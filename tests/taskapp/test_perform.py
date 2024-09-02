@@ -13,11 +13,12 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
     func_kwargs = dict(a=1, b="hamming")
 
     analysis = TopographyAnalysisFactory.create(
-        subject_topography=topo, function=test_analysis_function, kwargs=func_kwargs
+        subject_topography=topo,
+        function=test_analysis_function,
+        kwargs=func_kwargs,
+        result=None,
     )
     analysis.save()
-
-    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
 
     perform_analysis(analysis.id)
 
@@ -25,7 +26,7 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
     analysis = Analysis.objects.get(id=analysis.id)
     assert analysis.result["comment"] == "Arguments: a is 1 and b is hamming"
 
-    # Analysis object should remember current configuration
+    # Analysis object should remember the current configuration
     first_config = get_current_configuration()
     assert analysis.configuration == first_config
 
@@ -45,7 +46,10 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
 
     topo2 = Topography.objects.last()
     analysis2 = TopographyAnalysisFactory.create(
-        subject_topography=topo2, function=test_analysis_function, kwargs=func_kwargs
+        subject_topography=topo2,
+        function=test_analysis_function,
+        kwargs=func_kwargs,
+        result=None,
     )
 
     analysis2.save()

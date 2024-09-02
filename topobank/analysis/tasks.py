@@ -106,18 +106,17 @@ def perform_analysis(self, analysis_id: int):
                 f"'{task_state}'..."
             )
         analysis.task_state = task_state
-        store_split_dict(analysis.storage_prefix, RESULT_FILE_BASENAME, result)
+        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
         analysis.end_time = timezone.now()  # with timezone
         analysis.task_memory = peak_memory
         analysis.dois = list(dois)  # dois is a set, we need to convert it
         analysis.save()
 
     @doi()
-    def evaluate_function(progress_recorder, storage_prefix, kwargs):
+    def evaluate_function(progress_recorder, kwargs):
         return analysis.eval_self(
-            progress_recorder=progress_recorder,
-            storage_prefix=storage_prefix,
             kwargs=kwargs,
+            progress_recorder=progress_recorder,
         )
 
     #
@@ -138,7 +137,6 @@ def perform_analysis(self, analysis_id: int):
         # run actual function
         result = evaluate_function(
             progress_recorder=progress_recorder,
-            storage_prefix=analysis.storage_prefix,
             dois=dois,
             kwargs=kwargs,
         )
