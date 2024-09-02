@@ -48,7 +48,6 @@ class Folder(PermissionMixin, models.Model):
             return manifest.open(mode)
 
     def save_file(self, filename: str, kind: str, fobj):
-        print("save_file", self.id, filename)
         fobj.name = filename  # Make sure the filenames are the same
         return Manifest.objects.create(
             permissions=self.permissions,
