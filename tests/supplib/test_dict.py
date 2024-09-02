@@ -59,7 +59,7 @@ def test_store_split_dict_with_nan():
     # as value in JSON, because than JSON.parse fails to load it.
     # So `NaN` should be represented as `"NaN"` which is JSON compatible and seems
     # to work with bokehjs
-    series_0_json_file = folder.open_file("series-0.json")
+    series_0_json_file = folder.open_file("series-0.json", "rb")
     assert b"null" in series_0_json_file.read()
 
     #
