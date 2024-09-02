@@ -487,15 +487,12 @@ class AnalysisFunction(models.Model):
 
     def submit_again(self, analysis: Analysis):
         """
-        Delete existing analysis and recreate and submit with same arguments and user.
+        Submit analysis with same arguments and users.
 
         Parameters
         ----------
         analysis: Analysis
             Analysis instance to be renewed.
-        use_default_kwargs: boolean
-            If True, use default arguments of the corresponding analysis function implementation.
-            If False (default), use the keyword arguments of the given analysis.
 
         Returns
         -------
