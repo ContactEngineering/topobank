@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from django.core.files.storage import default_storage
 from django.db.models.functions import Lower
 from django.utils import timezone
 
@@ -195,3 +196,14 @@ def test_current_configuration(settings):
 
     assert v5.dependency.import_name == "topobank"
     assert v5.number_as_string() == topobank.__version__
+
+
+@pytest.mark.django_db
+def test_analysis_delete_removes_files(test_analysis_function):
+    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+    assert analysis.folder.get_files().count() == 2
+    file_path = analysis.folder.files.first().file.name
+    assert default_storage.exists(file_path)
+    analysis.delete()
+    assert analysis.folder.get_files().count() == 0
+    assert not default_storage.exists(file_path)
