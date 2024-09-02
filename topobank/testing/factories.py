@@ -96,10 +96,6 @@ class FolderFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "files.Folder"
 
-    @post_generation
-    def filenames(obj, create, value, **kwargs):
-        print(obj, create, value, kwargs)
-
 
 #
 # Define factories for creating test objects

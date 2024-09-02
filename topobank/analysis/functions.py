@@ -11,7 +11,9 @@ from typing import Union
 import numpy as np
 import pydantic
 from django.conf import settings
+from django.core.files.base import ContentFile
 
+from ..files.models import Folder
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import SplitDictionaryHere
 from .registry import ImplementationMissingAnalysisFunctionException
@@ -88,23 +90,6 @@ def wrap_series(series, primary_key="x"):
     return wrapped_series
 
 
-#
-# Use this during development if you need a long running task with failures
-#
-# @register_implementation(ART_GENERIC, 'long')
-# def long_running_task(topography, progress_recorder=None, storage_prefix=None):
-#     topography = topography.topography()
-#     import time, random
-#     n = 10 + random.randint(1,10)
-#     F = 30
-#     for i in range(n):
-#         time.sleep(0.5)
-#         if random.randint(1, F) == 1:
-#             raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
-#         progress_recorder.set_progress(i+1, n)
-#     return dict(message="done", physical_sizes=topography.physical_sizes, n=n)
-
-
 def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_mesg):
     """Build string with alert message often used in the functions.
 
@@ -147,11 +132,9 @@ class AnalysisImplementation:
             # Use default parameters
             self._kwargs = self.Parameters()
 
-    def eval(self, subject, progress_recorder, storage_prefix):
+    def eval(self, subject, folder, progress_recorder):
         implementation = self.get_implementation_for_subject(subject.__class__)
-        return implementation(
-            subject, progress_recorder=progress_recorder, storage_prefix=storage_prefix
-        )
+        return implementation(subject, folder, progress_recorder=progress_recorder)
 
     @classmethod
     def clean_kwargs(cls, kwargs: Union[dict, None]):
@@ -246,8 +229,9 @@ class TestImplementation(AnalysisImplementation):
         b: str = "foo"
 
     def topography_implementation(
-        self, topography: Topography, progress_recorder=None, storage_prefix=None
+        self, topography: Topography, folder: Folder, progress_recorder=None
     ):
+        folder.save_file("test.txt", ContentFile("Test!!!"))
         return {
             "name": "Test result for test function called for topography "
             f"{topography}.",
@@ -280,10 +264,7 @@ class TestImplementation(AnalysisImplementation):
         }
 
     def surface_implementation(
-        self,
-        surface: Surface,
-        progress_recorder=None,
-        storage_prefix=None,
+        self, surface: Surface, folder: Folder, progress_recorder=None
     ):
         """This function can be registered for supplib."""
         return {
@@ -304,7 +285,7 @@ class TestImplementation(AnalysisImplementation):
             "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
         }
 
-    def tag_implementation(self, tag: Tag, progress_recorder=None, storage_prefix=None):
+    def tag_implementation(self, tag: Tag, folder: Folder, progress_recorder=None):
         name = (
             f"Test result for test function called for tag {tag}, "
             ", which is built from surfaces {}".format(

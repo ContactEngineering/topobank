@@ -1,10 +1,8 @@
-import io
 import json
 
-from django.core.files.storage import default_storage
+from django.core.files.base import ContentFile
 
 from .json import ExtendedJSONEncoder
-from .storage import default_storage_replace
 
 JSON_CONSTANTS = {
     "NaN": float("nan"),
@@ -57,26 +55,28 @@ class SplitDictionaryHere:
         return self._supplementary
 
 
-def store_split_dict(storage_prefix, name, src_dict):
+def store_split_dict(folder, name, src_dict):
     """Store a dictionary in storage with optional splitting into several files.
 
     Parameters
     ----------
-    storage_prefix: str
-        prefix in storage
-    name: str
-        determines the files name under which the dict is stored, the extension '.json' is appended automatically.
-    src_dict: dict
-        dictionary to store, if it contains elements which are instances of `SplitDictionaryHere`,
-        the corresponding dictionary is saved into a separate file, not in the root file which
-        represents `src_dict`.
+    folder : topobank.files.models.Folder
+        Folder that contains the dictionary files
+    name : str
+        Determines the files name under which the dict is stored, the extension '.json'
+        is appended automatically.
+    src_dict : dict
+        Dictionary to store, if it contains elements which are instances of
+        `SplitDictionaryHere`, the corresponding dictionary is saved into a separate
+        file, not in the root file which represents `src_dict`.
 
     Returns
     -------
     None
 
-    The stored data can be retrieved again from multiple files by using `load_split_dict`,
-    given the `storage prefix` and `name` used here to store the dict.
+    The stored data can be retrieved again from multiple files by using
+    `load_split_dict`, given the `storage prefix` and `name` used here to store the
+    dict.
 
     Caution: Don't use the string literals "NaN" and "Infinity" and "-Infinity" as
              values, unless you want them decoded as the corresponding float values.
@@ -91,9 +91,10 @@ def store_split_dict(storage_prefix, name, src_dict):
     def _split_dict(d):
         if isinstance(d, SplitDictionaryHere):
             split_d = _split_dict(d.dict)
-            default_storage_replace(
-                f"{storage_prefix}/{d.name}.json",
-                io.BytesIO(json.dumps(split_d, cls=encoder_cls).encode("utf-8")),
+            folder.save_file(
+                f"{d.name}.json",
+                "der",
+                ContentFile(json.dumps(split_d, cls=encoder_cls).encode("utf-8")),
             )
             # Include supplementary dictionary in the toplevel JSON
             return {**{"__external__": f"{d.name}.json"}, **d.supplementary}
@@ -111,19 +112,20 @@ def store_split_dict(storage_prefix, name, src_dict):
             return d
 
     split_d = _split_dict(src_dict)
-    default_storage_replace(
-        f"{storage_prefix}/{name}.json",
-        io.BytesIO(json.dumps(split_d, cls=encoder_cls).encode("utf-8")),
+    folder.save_file(
+        f"{name}.json",
+        "der",
+        ContentFile(json.dumps(split_d, cls=encoder_cls).encode("utf-8")),
     )
 
 
-def load_split_dict(storage_prefix, name):
+def load_split_dict(folder, name):
     """Load split dicts from storage, previously written by `store_split_dict`.
 
     Parameters
     ----------
-    storage_prefix: str
-        Storage prefix used as parameter of `store_split_dict`.
+    folder : topobank.files.models.Folder
+        Folder that contains the dictionary files written by `store_split_dict`.
     name: str
         Name used as parameter of `store_split_dict`.
 
@@ -139,9 +141,7 @@ def load_split_dict(storage_prefix, name):
             for key, value in d.items():
                 if key == "__external__":
                     # '__external__' will override anything that is at this level in the dictionary
-                    return _unsplit_dict(
-                        json.load(default_storage.open(f"{storage_prefix}/{value}"))
-                    )
+                    return _unsplit_dict(json.load(folder.open_file(value)))
                 new_d[key] = _unsplit_dict(value)
             return new_d
         elif isinstance(d, list):
@@ -155,7 +155,7 @@ def load_split_dict(storage_prefix, name):
         else:
             return d
 
-    d = json.load(default_storage.open(f"{storage_prefix}/{name}.json"))
+    d = json.load(folder.open_file(f"{name}.json"))
     return _unsplit_dict(d)
 
 

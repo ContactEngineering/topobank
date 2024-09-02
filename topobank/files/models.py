@@ -34,7 +34,18 @@ class Folder(PermissionMixin, models.Model):
     #
     read_only = models.BooleanField("read_only", default=True)
 
+    def open_file(self, filename, mode="r"):
+        manifests = self.files.filter(filename=filename)
+        if manifests.count() == 0:
+            raise RuntimeError(f"File '{filename}' not found in folder {self.id}.")
+        elif manifests.count() > 1:
+            raise RuntimeError(f"More than one file with '{filename}' found in folder {self.id}.")
+        else:
+            manifest = manifests.first()
+            return manifest.open(mode)
+
     def save_file(self, filename, kind, fobj):
+        fobj.name = filename  # Make sure the filenames are the same
         Manifest.objects.create(
             permissions=self.permissions,
             folder=self,

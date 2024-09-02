@@ -168,7 +168,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         # If a result dict is given on input, we store it. However, we can only do this
         # once we have an id. This happens during testing.
         if self._result is not None:
-            store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
+            store_split_dict(self.folder, RESULT_FILE_BASENAME, self._result)
             self._result = None
 
     @property
@@ -316,7 +316,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """Returns True, if the analysis subject is a tag, else False."""
         return self.subject_dispatch.tag is not None
 
-    def eval_self(self, progress_recorder=None, storage_prefix=None, kwargs=None):
+    def eval_self(self, kwargs=None, progress_recorder=None):
         if self.is_tag_related:
             users = self.permissions.user_permissions.all()
             if users.count() != 1:
@@ -329,8 +329,8 @@ class Analysis(PermissionMixin, TaskStateModel):
         return self.function.eval(
             self.subject,
             kwargs=kwargs,
+            folder=self.folder,
             progress_recorder=progress_recorder,
-            storage_prefix=storage_prefix,
         )
 
     def submit_again(self):
@@ -381,13 +381,13 @@ class AnalysisFunction(models.Model):
     def validate_kwargs(self, kwargs):
         raise self.get_implementation().Parameters().dict()
 
-    def eval(self, subject, kwargs=None, progress_recorder=None, storage_prefix=None):
+    def eval(self, subject, kwargs, folder, progress_recorder=None):
         """
         First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
         """
         runner_class = self.get_implementation()
         runner = runner_class(kwargs)
-        return runner.eval(subject, progress_recorder, storage_prefix)
+        return runner.eval(subject, folder, progress_recorder)
 
     def submit(
         self,
