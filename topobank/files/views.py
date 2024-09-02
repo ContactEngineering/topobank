@@ -54,7 +54,7 @@ class FileManifestViewSet(
                 self.permission_denied(
                     self.request,
                     message="You are trying to move a file. The user does not have "
-                            "write access to the target folder.",
+                    "write access to the target folder.",
                 )
         serializer.save()
 
@@ -88,4 +88,7 @@ def list_manifests(request, pk=None):
     obj = get_object_or_404(Folder, pk=pk)
     if not obj.has_permission(request.user, "view"):
         return HttpResponseForbidden()
-    return [ManifestSerializer(manifest).data for manifest in obj.files]
+    return [
+        ManifestSerializer(manifest, context={"request": request}).data
+        for manifest in obj.files
+    ]

@@ -49,7 +49,7 @@ def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
     surface4 = SurfaceFactory(creator=user2)
     surface5 = SurfaceFactory(creator=user2)
 
-    surface4.share(user1)
+    surface4.grant_permission(user1)
 
     def assert_same_surface_lists(l1, l2):
         assert sorted(l1, key=lambda s: s.id) == sorted(l2, key=lambda s: s.id)

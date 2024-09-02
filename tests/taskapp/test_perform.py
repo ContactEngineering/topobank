@@ -1,69 +1,56 @@
 import pytest
 
 from topobank.analysis.models import Analysis
-from topobank.analysis.tasks import current_configuration, perform_analysis
+from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Topography
 from topobank.testing.factories import TopographyAnalysisFactory
 
 
 @pytest.mark.django_db
 def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
-    def my_func(topography, a=0, b=1, bins=15, window='hann', progress_recorder=None, storage_prefix=None):
-        return {
-            'topotype': str(type(topography.topography())),
-            'x': (a + b) * bins,
-            's': window
-        }
-
-    m = mocker.patch('topobank.analysis.registry.AnalysisFunctionImplementation.python_function',
-                     new_callable=mocker.PropertyMock)
-    m.return_value = my_func
-
-    af = test_analysis_function
     topo = Topography.objects.first()  # doesn't matter
 
-    func_kwargs = dict(a=1,
-                       b=2,
-                       bins=10,
-                       window="hamming")
+    func_kwargs = dict(a=1, b="hamming")
 
     analysis = TopographyAnalysisFactory.create(
         subject_topography=topo,
-        function=af,
-        kwargs=func_kwargs)
+        function=test_analysis_function,
+        kwargs=func_kwargs,
+        result=None,
+    )
     analysis.save()
 
-    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
-
-    # with mocker.patch('django.conf.settings.CELERY_ALWAYS_EAGER', True, create=True):
     perform_analysis(analysis.id)
 
     # now check result
     analysis = Analysis.objects.get(id=analysis.id)
-    assert analysis.result == {
-        'topotype': str(type(topo.topography())),
-        'x': 30,
-        's': 'hamming'
-    }
+    assert analysis.result["comment"] == "Arguments: a is 1 and b is hamming"
 
-    # Analysis object should remember current configuration
-    first_config = current_configuration()
+    # Analysis object should remember the current configuration
+    first_config = get_current_configuration()
     assert analysis.configuration == first_config
 
     #
     # No let's change the version of SurfaceTopography
     #
     settings.TRACKED_DEPENDENCIES = [
-        ('SurfaceTopography', '"0.89.1"', 'MIT', 'abc'),  # this version does not exist, so should be unknown here
-        ('topobank', 'topobank.__version__', 'MIT', 'def'),
-        ('numpy', 'numpy.version.full_version', 'BSD 3-Clause', 'ghi')
+        (
+            "SurfaceTopography",
+            '"0.89.1"',
+            "MIT",
+            "abc",
+        ),  # this version does not exist, so should be unknown here
+        ("topobank", "topobank.__version__", "MIT", "def"),
+        ("numpy", "numpy.version.full_version", "BSD 3-Clause", "ghi"),
     ]
 
     topo2 = Topography.objects.last()
     analysis2 = TopographyAnalysisFactory.create(
         subject_topography=topo2,
-        function=af,
-        kwargs=func_kwargs)
+        function=test_analysis_function,
+        kwargs=func_kwargs,
+        result=None,
+    )
 
     analysis2.save()
     perform_analysis(analysis2.id)
@@ -74,15 +61,23 @@ def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
     assert analysis2.configuration is not None
     assert analysis2.configuration != first_config
 
-    new_st_version = analysis2.configuration.versions.get(dependency__import_name='SurfaceTopography')
+    new_st_version = analysis2.configuration.versions.get(
+        dependency__import_name="SurfaceTopography"
+    )
 
     assert new_st_version.major == 0
     assert new_st_version.minor == 89
     assert new_st_version.micro == 1
 
     # other versions stay the same
-    numpy_version = analysis2.configuration.versions.get(dependency__import_name='numpy')
-    assert numpy_version == first_config.versions.get(dependency__import_name='numpy')
+    numpy_version = analysis2.configuration.versions.get(
+        dependency__import_name="numpy"
+    )
+    assert numpy_version == first_config.versions.get(dependency__import_name="numpy")
 
-    topobank_version = analysis2.configuration.versions.get(dependency__import_name='topobank')
-    assert topobank_version == first_config.versions.get(dependency__import_name='topobank')
+    topobank_version = analysis2.configuration.versions.get(
+        dependency__import_name="topobank"
+    )
+    assert topobank_version == first_config.versions.get(
+        dependency__import_name="topobank"
+    )

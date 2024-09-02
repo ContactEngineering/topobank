@@ -255,10 +255,9 @@ def two_users():
 @pytest.fixture(scope="function", autouse=True)
 def sync_analysis_functions(db):
     _log.info("Syncing analysis functions in registry with database objects..")
-    from ..analysis.registry import AnalysisRegistry
+    from ..analysis.registry import sync_analysis_functions
 
-    reg = AnalysisRegistry()
-    reg.sync_analysis_functions(cleanup=True)
+    sync_analysis_functions(cleanup=True)
     _log.info("Done synchronizing registry with database.")
 
 

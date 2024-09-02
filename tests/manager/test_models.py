@@ -215,7 +215,7 @@ def test_surface_share_and_unshare():
     #
     # first: share, but only with view access
     #
-    surface.share(user2)  # default: only view access
+    surface.grant_permission(user2)  # default: only view access
     assert surface.has_permission(user2, "view")
     assert not surface.has_permission(user2, "edit")
     assert not surface.has_permission(user2, "full")
@@ -239,13 +239,13 @@ def test_surface_share_and_unshare():
     #
     # third: remove all shares again
     #
-    surface.unshare(user2)
+    surface.revoke_permission(user2)
     assert not surface.has_permission(user2, "view")
     assert not surface.has_permission(user2, "edit")
     assert not surface.has_permission(user2, "full")
 
     # no problem to call this removal again
-    surface.unshare(user2)
+    surface.revoke_permission(user2)
 
 
 @pytest.mark.django_db
@@ -259,7 +259,7 @@ def test_other_methods_about_sharing():
     assert surface.get_permission(user2) is None
 
     # now share and test access
-    surface.share(user2)
+    surface.grant_permission(user2)
 
     assert surface.is_shared(user2)
     assert surface.get_permission(user2) == "view"
@@ -272,7 +272,7 @@ def test_other_methods_about_sharing():
     assert surface.has_permission(user2, "edit")
 
     # .. remove all permissions
-    surface.unshare(user2)
+    surface.revoke_permission(user2)
     assert not surface.is_shared(user2)
     assert surface.get_permission(user2) is None
 
@@ -441,6 +441,9 @@ def test_squeezed_datafile(
 def test_deepcopy_delete_does_not_delete_files(user_bob, handle_usage_statistics):
     surface = SurfaceFactory(creator=user_bob)
     topo = Topography2DFactory(surface=surface)
+
+    assert PermissionSet.objects.count() == 1
+
     surface_copy = surface.deepcopy()
     assert surface.topography_set.all().first().datafile
     assert surface_copy.topography_set.all().first().datafile

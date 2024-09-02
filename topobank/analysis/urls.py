@@ -48,11 +48,6 @@ urlpatterns += [
     # redirects to the storage. It is up to the visualization application to
     # request the correct files.
     re_path(
-        r'data/(?P<pk>\d+)/(?P<location>.*)$',
-        view=views.data,
-        name='data'
-    ),
-    re_path(
         r'download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$',
         view=downloads.download_analyses,
         name='download'

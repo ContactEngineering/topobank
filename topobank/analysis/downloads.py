@@ -22,7 +22,12 @@ from openpyxl.worksheet.hyperlink import Hyperlink
 
 from .functions import VIZ_SERIES
 from .models import Analysis
-from .registry import AnalysisRegistry, UnknownKeyException, register_download_function
+from .registry import (
+    UnknownKeyException,
+    get_download_function,
+    get_visualization_type_for_function_name,
+    register_download_function,
+)
 from .utils import filter_and_order_analyses
 
 
@@ -50,7 +55,6 @@ def download_analyses(request, ids, file_format):
 
     analyses = []
 
-    registry = AnalysisRegistry()
     visualization_type = None
     for aid in analyses_ids:
         analysis = Analysis.objects.get(id=aid)
@@ -59,7 +63,7 @@ def download_analyses(request, ids, file_format):
         # Get visualization configuration
         #
         _visualization_app_name, _visualization_type = (
-            registry.get_visualization_type_for_function_name(analysis.function.name)
+            get_visualization_type_for_function_name(analysis.function.name)
         )
         if visualization_type is None:
             visualization_type = _visualization_type
@@ -94,7 +98,7 @@ def download_analyses(request, ids, file_format):
     spec = "results"  # could be used to download different things
     key = (visualization_type, spec, file_format)
     try:
-        download_function = AnalysisRegistry().get_download_function(*key)
+        download_function = get_download_function(*key)
     except UnknownKeyException:
         return HttpResponseBadRequest(
             f"Cannot provide a download for '{spec}' as analysis result type "

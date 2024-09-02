@@ -15,7 +15,7 @@ from django.urls import reverse
 
 import topobank
 from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.tasks import current_configuration, perform_analysis
+from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Surface, Topography
 from topobank.manager.utils import subjects_to_base64
 from topobank.testing.factories import (
@@ -201,8 +201,8 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     #
     # Generate analyses for topographies with differing arguments
     #
-    kwargs_1a = dict(a=1, b=2)
-    kwargs_1b = dict(a=1, b=3)  # differing from kwargs_1a!
+    kwargs_1a = dict(a=1, b="abc")
+    kwargs_1b = dict(a=1, b="def")  # differing from kwargs_1a!
     TopographyAnalysisFactory(
         subject_topography=topo1a, function=func, kwargs=kwargs_1a
     )
@@ -216,8 +216,8 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     #
     # Generate analyses for surfaces with differing arguments
     #
-    kwargs_1 = dict(a=2, b=2)
-    kwargs_2 = dict(a=2, b=3)  # differing from kwargs_1a!
+    kwargs_1 = dict(a=2, b="abc")
+    kwargs_2 = dict(a=2, b="def")  # differing from kwargs_1a!
     SurfaceAnalysisFactory(subject_surface=surf1, function=func, kwargs=kwargs_1)
     SurfaceAnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_2)
 
@@ -239,9 +239,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
 @pytest.fixture
 def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocker):
     """Returns ids of analyses which can be downloaded as list."""
-    config = current_configuration()
-
-    settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
+    config = get_current_configuration()
 
     #
     # create two analyses with results
@@ -284,6 +282,7 @@ def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocke
             function=test_analysis_function,
             kwargs={},
             configuration=config,
+            result=None,
         )
 
         # we insert our result instead of the real function's result
@@ -300,7 +299,7 @@ def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocke
 
 @pytest.mark.django_db
 def test_analysis_download_as_txt(
-    client, two_topos, ids_downloadable_analyses, settings, handle_usage_statistics
+    client, two_topos, ids_downloadable_analyses, handle_usage_statistics
 ):
     user = two_topos[0].surface.creator  # we need a user which is allowed to download
     client.force_login(user)
@@ -638,19 +637,21 @@ def test_download_analysis_results_without_permission(
 
     # when user_2 has view permissions for one topography of both, it's still not okay
     # to download
-    two_topos[0].surface.share(user_2)
+    two_topos[0].surface.grant_permission(user_2)
     response = client.get(download_url)
     assert response.status_code == 403  # Permission denied
 
     # when user_2 has view permissions for all related surfaces, it's still not okay
     # to download as analyses are per user
-    two_topos[1].surface.share(user_2)
+    two_topos[1].surface.grant_permission(user_2)
     response = client.get(download_url)
     assert response.status_code == 403
 
 
 @pytest.mark.django_db
-def test_shared_topography_triggers_new_analysis(api_client, handle_usage_statistics):
+def test_shared_topography_triggers_no_new_analysis(
+    api_client, handle_usage_statistics
+):
     password = "abcd$1234"
 
     #
@@ -695,7 +696,7 @@ def test_shared_topography_triggers_new_analysis(api_client, handle_usage_statis
     assert all(a.task_state == "su" for a in func1.analysis_set.all())
 
     # user2 shares surfaces, so user 1 should see surface1+surface2
-    surface2.share(user1)
+    surface2.grant_permission(user1)
 
     #
     # Now we change to the analysis card view and look what we get
@@ -707,19 +708,19 @@ def test_shared_topography_triggers_new_analysis(api_client, handle_usage_statis
         f"&subjects={subjects_to_base64([topo1a, topo1b, topo2a])}"
     )
 
-    # Function should have another analysis, topo2a for user1
-    assert func1.analysis_set.count() == 4
-    assert all(a.task_state == "su" for a in func1.analysis_set.all()[0:3])
-    assert func1.analysis_set.all()[3].task_state == "pe"
+    # Since analyses is shared, the user should get the same analysis
+    assert func1.analysis_set.count() == 3
+    assert all(a.task_state == "su" for a in func1.analysis_set.all())
 
     assert response.status_code == 200
 
-    # We should see start times of only two analysis because the third one was just triggered and not yet started
+    # We should see start times of only two analysis because the third one was just
+    # triggered and not yet started
     analyses = response.data["analyses"]
     assert len(analyses) == 3
     assert analyses[0]["start_time"] == "2019-01-01T12:00:00+01:00"  # topo1a
     assert analyses[1]["start_time"] == "2019-01-01T13:00:00+01:00"  # topo1b
-    assert analyses[2]["start_time"] is None  # topo1b
+    assert analyses[2]["start_time"] == "2019-01-01T14:00:00+01:00"  # topo1b
 
     api_client.logout()
 

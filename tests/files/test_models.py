@@ -20,10 +20,16 @@ def test_file_delete_via_folder(user_alice, mocker):
     permissions = PermissionSet.objects.create()
     folder = Folder.objects.create(permissions=permissions)
     Manifest.objects.create(
-        permissions=permissions, folder=folder, uploaded_by=user_alice
+        permissions=permissions,
+        folder=folder,
+        uploaded_by=user_alice,
+        filename="file1.txt",
     )
     Manifest.objects.create(
-        permissions=permissions, folder=folder, uploaded_by=user_alice
+        permissions=permissions,
+        folder=folder,
+        uploaded_by=user_alice,
+        filename="file2.txt",
     )
     assert Manifest.objects.count() == 2
     folder.delete()

@@ -11,10 +11,6 @@ def test_api():
         reverse("analysis:configuration-detail", kwargs=dict(pk=123))
         == "/analysis/api/configuration/123/"
     )
-    assert (
-        reverse("analysis:data", kwargs=dict(pk=123, location="abc"))
-        == "/analysis/data/123/abc"
-    )
     assert reverse("analysis:function-list") == "/analysis/api/function/"
     assert (
         reverse("analysis:function-detail", kwargs=dict(pk=123))

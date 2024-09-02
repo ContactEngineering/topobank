@@ -3,18 +3,25 @@ Models related to analyses.
 """
 
 import json
+import logging
+from typing import Union
 
-from django.contrib.contenttypes.models import ContentType
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
-from django.db import models
+from django.db import models, transaction
+from django.db.models import Q
 from django.utils import timezone
 
+from ..authorization.mixins import PermissionMixin
+from ..authorization.models import PermissionSet
+from ..files.models import Folder, Manifest
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
-from ..users.models import User
-from .registry import AnalysisRegistry, ImplementationMissingAnalysisFunctionException
+from .registry import get_implementation
+
+_log = logging.getLogger(__name__)
 
 RESULT_FILE_BASENAME = "result"
 
@@ -86,13 +93,22 @@ class AnalysisSubject(models.Model):
         super().save(*args, **kwargs)
 
 
-class Analysis(TaskStateModel):
+class Analysis(PermissionMixin, TaskStateModel):
     """
     Concrete Analysis with state, function reference, arguments, and results.
 
     Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
+
+    #
+    # Permissions
+    #
+    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+
+    #
+    # Analysis parameters
+    #
 
     # Actual implementation of the analysis as a Python function
     function = models.ForeignKey("AnalysisFunction", on_delete=models.CASCADE)
@@ -102,11 +118,11 @@ class Analysis(TaskStateModel):
         AnalysisSubject, null=True, on_delete=models.CASCADE
     )
 
-    # User that triggered this analysis
-    user = models.ForeignKey(User, null=True, on_delete=models.CASCADE)
-
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
+
+    # Results
+    folder = models.ForeignKey(Folder, on_delete=models.CASCADE, null=True)
 
     # Bibliography
     dois = models.JSONField(default=list)
@@ -152,7 +168,7 @@ class Analysis(TaskStateModel):
         # If a result dict is given on input, we store it. However, we can only do this
         # once we have an id. This happens during testing.
         if self._result is not None:
-            store_split_dict(self.storage_prefix, RESULT_FILE_BASENAME, self._result)
+            store_split_dict(self.folder, RESULT_FILE_BASENAME, self._result)
             self._result = None
 
     @property
@@ -184,7 +200,7 @@ class Analysis(TaskStateModel):
         """
         if self._result_cache is None:
             self._result_cache = load_split_dict(
-                self.storage_prefix, RESULT_FILE_BASENAME
+                self.folder, RESULT_FILE_BASENAME
             )
         return self._result_cache
 
@@ -205,8 +221,8 @@ class Analysis(TaskStateModel):
         """
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
-                default_storage.open(
-                    f"{self.storage_prefix}/{RESULT_FILE_BASENAME}.json"
+                self.folder.open_file(
+                    f"{RESULT_FILE_BASENAME}.json"
                 )
             )
         return self._result_metadata_cache
@@ -214,12 +230,12 @@ class Analysis(TaskStateModel):
     @property
     def result_file_name(self):
         """Returns name of the result file in storage backend as string."""
-        return f"{self.storage_prefix}/{RESULT_FILE_BASENAME}.json"
+        return f"{RESULT_FILE_BASENAME}.json"
 
     @property
     def has_result_file(self):
         """Returns True if result file exists in storage backend, else False."""
-        return default_storage.exists(self.result_file_name)
+        return self.folder.exists(self.result_file_name)
 
     @property
     def storage_prefix(self):
@@ -236,52 +252,52 @@ class Analysis(TaskStateModel):
             )
         return "analyses/{}".format(self.id)
 
-    @property
-    def storage_files(self):
-        """Return all file names in analysis id directory.
+    def fix_folder(self):
+        """
+        Fill folder, if yet unfilled.
 
         List of files names ['<file_prefix_name>/file'].
         If storage is on filesystem, the prefix should correspond
         to a real directory.
         """
+        if self.folder:
+            return
         if self.id is None:
             raise RuntimeError(
                 "This `Analysis` does not have an id yet; the storage file names is "
                 "not yet known."
             )
-        try:
-            dir_tuple = default_storage.listdir(self.storage_prefix)
-            file_lists = dir_tuple[1]
-            return [f"{self.storage_prefix}/{file_name}" for file_name in file_lists]
-        # FIXME!!! InMemoryStorage raise a PathDoesNotExist error, but I don't know
-        # how to check for this generically
-        except:  # noqa: E722
-            return []
+        self.folder = Folder.objects.create(read_only=True)
+        dir_tuple = default_storage.listdir(self.storage_prefix)
+        for filename in dir_tuple[1]:
+            manifest = Manifest.objects.create(
+                permissions=self.permissions,
+                parent=self.folder,
+                filename=filename,
+                kind="der"
+            )
+            manifest.file.name = f"{self.storage_prefix}/{filename}"
+            manifest.save(update_fields=["file"])
 
     def get_related_surfaces(self):
         """Returns sequence of surface instances related to the subject of this analysis."""
         return self.subject.get_related_surfaces()
 
     def get_implementation(self):
-        return self.function.get_implementation(
-            ContentType.objects.get_for_model(self.subject)
-        )
+        return self.function.get_implementation()
 
     def authorize_user(self, user):
         """
         Returns an exception if given user should not be able to see this analysis.
         """
-        if self.user != user:
-            raise PermissionError(
-                f"User {user} is not allowed to access these analysis results, which "
-                "were computed for a different user."
-            )
-
-        # Double check availability of analysis function
-        if not self.get_implementation().is_available_for_user(user):
+        # Check availability of analysis function
+        if not self.get_implementation().has_permission(user):
             raise PermissionError(
                 f"User {user} is not allowed to use this analysis function."
             )
+
+        # Check if the user can access this analysis
+        super().authorize_user(user, "view")
 
         # Double check access rights to the underlying measurements
         if not all(s.has_permission(user, "view") for s in self.get_related_surfaces()):
@@ -305,16 +321,31 @@ class Analysis(TaskStateModel):
         """Returns True, if the analysis subject is a tag, else False."""
         return self.subject_dispatch.tag is not None
 
+    def eval_self(self, kwargs=None, progress_recorder=None):
+        if self.is_tag_related:
+            users = self.permissions.user_permissions.all()
+            if users.count() != 1:
+                raise PermissionError(
+                    "This is a tag analysis, which should only be assigned to a single "
+                    "user."
+                )
+            self.subject.authorize_user(users.first().user, "view")
+
+        return self.function.eval(
+            self.subject,
+            kwargs=kwargs,
+            folder=self.folder,
+            progress_recorder=progress_recorder,
+        )
+
+    def submit_again(self):
+        self.function.submit_again(self)
+
 
 class AnalysisFunction(models.Model):
-    """Represents an analysis function from a user perspective.
-
-    Examples:
-        - name: 'Height distribution'
-        - name: 'Contact mechanics'
-
-    These functions are referenced by the analyses. Each function "knows"
-    how to find the appropriate implementation for given arguments.
+    """
+    A convenience wrapper around the AnalysisImplementation that has representation in the
+    SQL database.
     """
 
     name = models.CharField(
@@ -324,129 +355,166 @@ class AnalysisFunction(models.Model):
     def __str__(self):
         return self.name
 
-    def get_implementation(self, subject_type):
+    def get_implementation(self):
         """Return implementation for given subject type.
-
-        Parameters
-        ----------
-        subject_type: ContentType
-            Type of first argument of analysis function
 
         Returns
         -------
-        AnalysisFunctionImplementation instance
+        AnalysisImplementation instance
 
         Raises
         ------
         ImplementationMissingException
             in case the implementation is missing
         """
-        return AnalysisRegistry().get_implementation(
-            self.name, subject_type=subject_type
-        )
+        return get_implementation(self.name)
 
-    def get_python_function(self, subject_type):
-        """Return function for given first argument type.
-
-        Parameters
-        ----------
-        subject_type: ContentType
-            Type of first argument of analysis function
-
-        Returns
-        -------
-        Python function which implements the analysis, where first argument must be the
-        given type, and there maybe more arguments needed.
-
-        Raises
-        ------
-        ImplementationMissingException
-            if implementation for given subject type does not exist
-        """
-        return self.get_implementation(subject_type).python_function
-
-    def get_signature(self, subject_type):
-        """Return signature of function for given first argument type.
-
-        Parameters
-        ----------
-        subject_type: ContentType
-            Type of first argument of analysis function
-
-        Returns
-        -------
-        inspect.signature
-
-        Raises
-        ------
-        ImplementationMissingException
-            if implementation for given subject type does not exist
-        """
-        return self.get_implementation(subject_type).signature
-
-    def get_implementation_types(self):
-        """Return list of content types for which this function is implemented."""
-        return AnalysisRegistry().get_implementation_types(self.name)
-
-    def is_implemented_for_type(self, subject_type):
-        """Returns True if function is implemented for given content type, else False"""
-        try:
-            self.get_python_function(subject_type)
-        except ImplementationMissingAnalysisFunctionException:
-            return False
-        return True
-
-    def is_available_for_user(self, user, models=None):
+    def has_permission(self, user: settings.AUTH_USER_MODEL):
         """
         Check if this analysis function is available to the user. The function
         is available to `user` if it is available for any of the `models`
         specified.
         """
-        if models is None:
-            from ..manager.models import Surface, Tag, Topography
+        return self.get_implementation().has_permission(user)
 
-            models = set([Tag, Topography, Surface])
+    def get_default_kwargs(self):
+        """
+        Return default keyword arguments as a dictionary.
+        """
+        return self.get_implementation().Parameters().dict()
 
-        is_available_to_user = False
-        for model in models:
-            try:
-                impl = self.get_implementation(ContentType.objects.get_for_model(model))
-                is_available_to_user |= impl.is_available_for_user(user)
-            except ImplementationMissingAnalysisFunctionException:
-                pass
-        return is_available_to_user
+    def validate_kwargs(self, kwargs):
+        raise self.get_implementation().Parameters().dict()
 
-    def get_default_kwargs(self, subject_type):
-        """Return default keyword arguments as dict.
+    def eval(self, subject, kwargs, folder, progress_recorder=None):
+        """
+        First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
+        """
+        runner_class = self.get_implementation()
+        runner = runner_class(kwargs)
+        return runner.eval(subject, folder, progress_recorder)
 
-        Administrative arguments like
-        'storage_prefix' and 'progress_recorder'
-        which are common to all functions, are excluded.
+    def submit(
+        self,
+        user: settings.AUTH_USER_MODEL,
+        subject: Union[Tag, Surface, Topography],
+        kwargs: dict = None,
+        force_submit: bool = False,
+    ):
+        """
+        user : topobank.users.models.User
+            Users which should see the analysis.
+        subject : Tag or Topography or Surface
+            Instance which will be subject of the analysis (first argument of analysis
+            function).
+        kwargs : dict, optional
+            Keyword arguments for the function which should be saved to database. If
+            None is given, the default arguments for the given analysis function are
+            used. The default arguments are the ones used in the function
+            implementation (python function). (Default: None)
+        force_submit : bool, optional
+            Submit even if analysis already exists. (Default: False)
+        """
+        # Check if user can actually access the subject
+        subject.authorize_user(user, "view")
+
+        # Make sure the parameters are correct and fill in missing values from defaults
+        kwargs = self.get_implementation().clean_kwargs(kwargs)
+
+        # Query for all existing analyses with the same parameters
+        q = AnalysisSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
+
+        # If subject is tag, we need to restrict this to the current user because those
+        # analyses cannot be shared
+        if isinstance(subject, Tag):
+            q &= Q(permissions__user_permissions__user=user)
+
+        # All existing analyses
+        existing_analyses = Analysis.objects.filter(q)
+
+        # Analyses, excluding those that have failed or that have not been submitted
+        # to the task queue for some reason (state "no"t run)
+        successful_or_running_analyses = existing_analyses.filter(
+            task_state__in=[
+                Analysis.PENDING,
+                Analysis.RETRY,
+                Analysis.STARTED,
+                Analysis.SUCCESS,
+            ]
+        )
+
+        # We submit a new analysis only if we are either forced to do so or if there is
+        # no analysis with the same parameter pending, running or successfully completed.
+        if force_submit or successful_or_running_analyses.count() == 0:
+            # Delete *all* existing analyses (which now may only contain failed ones)
+            existing_analyses.delete()
+
+            # New analysis needs its own permissions
+            permissions = PermissionSet.objects.create()
+            permissions.grant_for_user(user, "view")  # analysis can never be edited
+
+            # Folder will store results
+            folder = Folder.objects.create(permissions=permissions, read_only=True)
+
+            # Create new entry in the analysis table and grant access to current user
+            analysis = Analysis.objects.create(
+                permissions=permissions,
+                subject_dispatch=AnalysisSubject.create(subject),
+                function=self,
+                task_state=Analysis.PENDING,
+                kwargs=kwargs,
+                folder=folder,
+            )
+            analysis.grant_permission(user, "view")
+
+            # Send task to the queue if the analysis has been created
+            # Note: on_commit will not execute in tests, unless transaction=True is
+            # added to pytest.mark.django_db
+            def do_submit():
+                from .tasks import perform_analysis
+
+                _log.debug(f"Submitting task for analysis {analysis.id}...")
+                perform_analysis.delay(analysis.id)
+
+            transaction.on_commit(do_submit)
+        else:
+            # There seem to be viable analyses. Fetch the latest one.
+            analysis = existing_analyses.order_by("start_time").last()
+            # Grant access to current user
+            analysis.grant_permission(user, "view")
+
+        return analysis
+
+    def submit_again(self, analysis: Analysis):
+        """
+        Submit analysis with same arguments and users.
 
         Parameters
         ----------
-        subject_type: ContentType
-            Type of first argument of analysis function
+        analysis: Analysis
+            Analysis instance to be renewed.
 
         Returns
         -------
-
-        dict
+        New analysis object.
         """
-        return self.get_implementation(subject_type).default_kwargs
+        _log.info(
+            f"Renewing analysis {analysis.id}: Users "
+            f"{[user for user, allow in analysis.permissions.get_users()]}, "
+            f"function {self}, subject {analysis.subject}, kwargs: {analysis.kwargs}"
+        )
+        analysis.folder.remove_files()  # Delete all files
+        analysis.task_state = Analysis.PENDING
+        analysis.save()
 
-    def eval(self, subject, **kwargs):
-        """Call appropriate python function.
+        # Send task to the queue if the analysis has been created
+        # Note: on_commit will not execute in tests, unless transaction=True is
+        # added to pytest.mark.django_db
+        def do_submit():
+            from .tasks import perform_analysis
 
-        First argument is the subject of the analysis (topography or surface),
-        all other arguments are keyword arguments.
-        """
-        if subject is None:
-            raise ValueError(
-                f"Cannot evaluate analysis function '{self.name}' with None as subject."
-            )
-        try:
-            subject_type = ContentType.objects.get_for_model(subject)
-        except Exception:
-            raise ValueError(f"Cannot find content type for subject '{subject}'.")
-        return self.get_implementation(subject_type).eval(subject, **kwargs)
+            _log.debug(f"Submitting task for analysis {analysis.id}...")
+            perform_analysis.delay(analysis.id)
+
+        transaction.on_commit(do_submit)
+        return analysis

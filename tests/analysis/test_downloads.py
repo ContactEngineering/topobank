@@ -52,7 +52,7 @@ def test_download_view_permission_for_function_from_plugin(
     analysis = TopographyAnalysisFactory(function=func)
 
     m = mocker.patch(
-        "topobank.analysis.registry.AnalysisFunctionImplementation.is_available_for_user"
+        "topobank.analysis.functions.AnalysisImplementation.has_permission"
     )
     m.return_value = user_has_plugin
 
