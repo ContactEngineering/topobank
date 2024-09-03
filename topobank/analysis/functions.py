@@ -121,6 +121,20 @@ class AnalysisImplementation:
     class Meta:
         implementations = {}
 
+    class Dependency(pydantic.BaseModel):
+        class Config:
+            extra = "forbid"
+
+        # We don't allow tags as dependencies
+        subject_topography_id: int
+        subject_surface_id: int
+
+        # Analysis function
+        function_id: int
+
+        # Parameters
+        kwargs: dict
+
     class Parameters(pydantic.BaseModel):
         class Config:
             extra = "forbid"
@@ -150,7 +164,7 @@ class AnalysisImplementation:
         else:
             return cls.Parameters(**kwargs).model_dump()
 
-    def get_dependent_analyses(self):
+    def get_dependencies(self) -> list[Dependency]:
         return []  # Default is no dependencies
 
     def get_implementation_for_subject(self, model):

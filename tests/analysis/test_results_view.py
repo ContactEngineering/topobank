@@ -237,7 +237,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
 
 
 @pytest.fixture
-def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocker):
+def ids_downloadable_analyses(two_topos, test_analysis_function, mocker):
     """Returns ids of analyses which can be downloaded as list."""
     config = get_current_configuration()
 
@@ -248,6 +248,7 @@ def ids_downloadable_analyses(two_topos, settings, test_analysis_function, mocke
         Topography.objects.get(name="Example 3 - ZSensor"),
         Topography.objects.get(name="Example 4 - Default"),
     ]
+    topos[0].creator
 
     v = np.arange(5)
     ids = []

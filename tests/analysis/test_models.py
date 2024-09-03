@@ -67,7 +67,7 @@ def test_exception_implementation_missing():
 
 @pytest.mark.django_db
 def test_analysis_function(test_analysis_function):
-    assert test_analysis_function.get_implementation() == TestImplementation
+    assert test_analysis_function.implementation == TestImplementation
 
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)

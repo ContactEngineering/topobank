@@ -419,27 +419,6 @@ class AnalysisController:
             )
         ]
 
-    def get_analysis_ids(self, task_states=None, has_result_file=None):
-        """
-        Return list of serialized analyses filtered by arguments (if present).
-
-        Parameters
-        ----------
-        task_states : list of str, optional
-            List of task states to filter for, e.g. ['su', 'fa'] to filter for
-            success and failure. (Default: None)
-        has_result_file : boolean, optional
-            If true, only return analyses that have a results file. If false,
-            return analyses without a results file. Don't filter for results
-            file if unset. (Default: None)
-        """
-        return [
-            analysis.id
-            for analysis in self.get(
-                task_states=task_states, has_result_file=has_result_file
-            )
-        ]
-
     def get_context(self, task_states=None, has_result_file=None, request=None):
         """
         Construct a standardized context dictionary.

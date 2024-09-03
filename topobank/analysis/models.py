@@ -122,38 +122,6 @@ class AnalysisSubject(models.Model):
         super().save(*args, **kwargs)
 
 
-class AnalysisResultManager(models.Manager):
-    def filter_and_create_missing(self, user, function, subjects, kwargs):
-        # Query for user, function and subjects
-        query = (
-            Q(function=function) & AnalysisSubject.Qs(user, subjects) & Q(kwargs=kwargs)
-        )
-
-        # Construct query set
-        qs = (
-            self.queryset.filter(query)
-            .order_by(
-                "subject_dispatch__topography_id",
-                "subject_dispatch__surface_id",
-                "subject_dispatch__tag_id",
-                "-start_time",
-            )
-            .distinct(
-                "subject_dispatch__topography_id",
-                "subject_dispatch__surface_id",
-                "subject_dispatch__tag_id",
-            )
-        )
-
-        # This is part of the migrations. For any analysis that has no folder,
-        # traverse the S3 and find all files. This will only run once.
-        for analysis in qs.filter(folder__isnull=True).all():
-            analysis.fix_folder()
-            analysis.grant_permission(user)
-
-        return qs
-
-
 class Analysis(PermissionMixin, TaskStateModel):
     """
     Concrete Analysis with state, function reference, arguments, and results.
@@ -161,11 +129,6 @@ class Analysis(PermissionMixin, TaskStateModel):
     Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
-
-    #
-    # Manager
-    #
-    objects = AnalysisResultManager()
 
     #
     # Permissions
@@ -345,15 +308,16 @@ class Analysis(PermissionMixin, TaskStateModel):
         """Returns sequence of surface instances related to the subject of this analysis."""
         return self.subject.get_related_surfaces()
 
-    def get_implementation(self):
-        return self.function.get_implementation()
+    @property
+    def implementation(self):
+        return self.function.implementation
 
-    def authorize_user(self, user):
+    def authorize_user(self, user: settings.AUTH_USER_MODEL):
         """
         Returns an exception if given user should not be able to see this analysis.
         """
         # Check availability of analysis function
-        if not self.get_implementation().has_permission(user):
+        if not self.implementation.has_permission(user):
             raise PermissionError(
                 f"User {user} is not allowed to use this analysis function."
             )
@@ -417,7 +381,8 @@ class AnalysisFunction(models.Model):
     def __str__(self):
         return self.name
 
-    def get_implementation(self):
+    @property
+    def implementation(self):
         """Return implementation for given subject type.
 
         Returns
@@ -437,23 +402,32 @@ class AnalysisFunction(models.Model):
         is available to `user` if it is available for any of the `models`
         specified.
         """
-        return self.get_implementation().has_permission(user)
+        return self.implementation.has_permission(user)
 
     def get_default_kwargs(self):
         """
         Return default keyword arguments as a dictionary.
         """
-        return self.get_implementation().Parameters().dict()
+        return self.implementation.Parameters().dict()
 
-    def validate_kwargs(self, kwargs):
-        raise self.get_implementation().Parameters().dict()
+    def clean_kwargs(self, kwargs: Union[dict, None]):
+        """
+        Validate keyword arguments (parameters) and return validated dictionary
+
+        Raises
+        ------
+        pydantic.ValidationError if validation fails
+        """
+        return self.implementation.clean_kwargs(kwargs)
+
+    def get_dependencies(self, kwargs: dict):
+        return self.implementation(kwargs).get_dependencies()
 
     def eval(self, subject, kwargs, folder, progress_recorder=None):
         """
         First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
         """
-        runner_class = self.get_implementation()
-        runner = runner_class(kwargs)
+        runner = self.implementation(kwargs)
         return runner.eval(subject, folder, progress_recorder)
 
     def submit(
@@ -481,7 +455,7 @@ class AnalysisFunction(models.Model):
         subject.authorize_user(user, "view")
 
         # Make sure the parameters are correct and fill in missing values from defaults
-        kwargs = self.get_implementation().clean_kwargs(kwargs)
+        kwargs = self.clean_kwargs(kwargs)
 
         # Query for all existing analyses with the same parameters
         q = AnalysisSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
@@ -527,7 +501,6 @@ class AnalysisFunction(models.Model):
                 kwargs=kwargs,
                 folder=folder,
             )
-            analysis.grant_permission(user, "view")
 
             # Send task to the queue if the analysis has been created
             # Note: on_commit will not execute in tests, unless transaction=True is

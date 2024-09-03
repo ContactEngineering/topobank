@@ -3,6 +3,7 @@ import traceback
 import tracemalloc
 from datetime import date
 
+import celery
 from django.conf import settings
 from django.db import transaction
 from django.db.models import F
@@ -10,12 +11,15 @@ from django.utils import timezone
 from SurfaceTopography.Support import doi
 from trackstats.models import Period, StatisticByDate, StatisticByDateAndObject
 
+from ..authorization.models import PermissionSet
+from ..files.models import Folder
 from ..manager.models import Surface, Topography
 from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
+from .functions import AnalysisImplementation
 
 _log = logging.getLogger(__name__)
 
@@ -80,13 +84,39 @@ def perform_analysis(self, analysis_id: int):
     """
     from .models import RESULT_FILE_BASENAME, Analysis
 
-    _log.debug(f"Starting task {self.request.id} for analysis {analysis_id}...")
+    _log.debug(f"{self.request.id}: Task for analysis {analysis_id} started...")
     progress_recorder = ProgressRecorder(self)
+
+    #
+    # Check analysis dependencies
+    #
+    analysis = Analysis.objects.get(id=analysis_id)
+    _log.debug(
+        f"{self.request.id}: Function: '{analysis.function.name}', "
+        f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}"
+    )
+
+    dependencies = analysis.function.get_dependencies(analysis.kwargs)
+    if len(dependencies) > 0:
+        _log.debug(f"{self.request.id}: Checking analysis dependencies...")
+        dependency_tasks = prepare_dependency_tasks(dependencies)
+        if dependency_tasks is not None:
+            # Submit dependencies and request that this task is rerun once all
+            # dependencies have finished.
+            dependency_tasks.apply_async(
+                dependency_tasks, link=perform_analysis.si(analysis_id)
+            )
+            _log.debug(
+                f"{self.request.id}: Submitted {len(dependency_tasks)} dependencies and "
+                "finishing the current task until dependencies are resolved."
+            )
+            return
+    else:
+        _log.debug(f"{self.request.id}: Analysis has no dependencies.")
 
     #
     # update entry in Analysis table
     #
-    analysis = Analysis.objects.get(id=analysis_id)
     analysis.task_state = Analysis.STARTED
     analysis.task_id = self.request.id
     analysis.start_time = timezone.now()  # with timezone
@@ -96,14 +126,12 @@ def perform_analysis(self, analysis_id: int):
     def save_result(result, task_state, peak_memory=None, dois=set()):
         if peak_memory is not None:
             _log.debug(
-                f"Saving result of analysis {analysis_id} with task state "
-                f"'{task_state}' and peak memory usage of "
-                f"{int(peak_memory / 1024 / 1024)} MB to storage..."
+                f"{self.request.id}: Task state '{task_state}', peak memory usage: "
+                f"{int(peak_memory / 1024 / 1024)} MB; saving results..."
             )
         else:
             _log.debug(
-                f"Saving result of analysis {analysis_id} with task state "
-                f"'{task_state}'..."
+                f"{self.request.id}: Task state '{task_state}'; saving results..."
             )
         analysis.task_state = task_state
         store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
@@ -123,11 +151,7 @@ def perform_analysis(self, analysis_id: int):
     # actually perform the analysis
     #
     kwargs = analysis.kwargs
-    subject = analysis.subject
-    _log.debug(
-        f"Evaluating analysis function '{analysis.function.name}' on subject "
-        f"'{subject}' with parameters {kwargs}..."
-    )
+    _log.debug(f"{self.request.id}: Starting evaluation of analysis function...")
     try:
         # also request citation information
         dois = set()
@@ -144,16 +168,12 @@ def perform_analysis(self, analysis_id: int):
         size, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
         _log.debug(
-            f"Analysis function '{analysis.function.name}' on subject '{subject}' "
-            "evaluated without error; peak memory usage was "
-            f"{int(peak / 1024 / 1024)} MB."
+            f"{self.request.id}: Evaluation finished without error; peak memory usage: "
+            f"{int(peak / 1024 / 1024)} MB"
         )
         save_result(result, Analysis.SUCCESS, peak_memory=peak, dois=dois)
     except Exception as exc:
-        _log.warning(
-            f"Exception while evaluating analysis function '{analysis.function.name}' "
-            f"on subject '{subject}': {exc}"
-        )
+        _log.warning(f"{self.request.id}: Exception during evaluation: {exc}")
         save_result(
             dict(error=str(exc), traceback=traceback.format_exc()), Analysis.FAILURE
         )
@@ -184,15 +204,15 @@ def perform_analysis(self, analysis_id: int):
                 )
             else:
                 _log.warning(
-                    f"Duration for analysis with {analysis_id} could not be computed."
+                    f"{self.request.id}: Duration of task could not be computed."
                 )
 
         except Analysis.DoesNotExist:
-            _log.debug(f"Analysis {analysis_id} does not exist.")
+            _log.debug(f"{self.request.id}: Analysis {analysis_id} does not exist.")
             # Analysis was deleted, e.g. because topography or surface was missing, we
             # simply ignore this case.
             pass
-    _log.debug(f"Task {self.request.id} finished.")
+    _log.debug(f"{self.request.id}: Task finished.")
 
 
 @transaction.atomic
@@ -338,4 +358,67 @@ def current_statistics(user=None):
         num_surfaces_excluding_publications=unpublished_surfaces.count(),
         num_topographies_excluding_publications=unpublished_topographies.count(),
         num_analyses_excluding_publications=unpublished_analyses.count(),
+    )
+
+
+def prepare_dependency_tasks(dependencies: list[AnalysisImplementation.Dependency]):
+    from .models import Analysis, AnalysisFunction, AnalysisSubject
+
+    pending_analyses = []
+    for dependency in dependencies:
+        # Get analysis function
+        function = AnalysisFunction.objects.get(id=dependency.function_id)
+        kwargs = function.clean_kwargs(dependency.kwargs)
+
+        # Filter latest result
+        all_results = (
+            Analysis.objects.filter(
+                function=dependency.function_id,
+                subject_dispatch__topography=dependency.subject_topography_id,
+                subject_dispatch__surface=dependency.subject_surface_id,
+                kwargs=kwargs,
+            )
+            .order_by(
+                "subject_dispatch__topography_id",
+                "subject_dispatch__surface_id",
+                "subject_dispatch__tag_id",
+                "-start_time",
+            )
+            .distinct(
+                "subject_dispatch__topography_id",
+                "subject_dispatch__surface_id",
+                "subject_dispatch__tag_id",
+            )
+        )
+
+        if all_results.count() == 0:
+            # New analysis needs its own permissions
+            permissions = PermissionSet.objects.create()
+            # Nobody can formally access this analysis, but access will be granted
+            # automatically when requesting it directly (through the GET route)
+
+            # Folder will store results
+            folder = Folder.objects.create(permissions=permissions, read_only=True)
+
+            # Create new entry in the analysis table
+            analysis = Analysis.objects.create(
+                permissions=permissions,
+                subject_dispatch=AnalysisSubject.objects.create(
+                    surface=dependency.subject_surface_id,
+                    topography=dependency.subject_topography_id,
+                ),
+                function=function,
+                task_state=Analysis.PENDING,
+                kwargs=kwargs,
+                folder=folder,
+            )
+            pending_analyses += [analysis]
+
+    # Return None if there are no pending dependencies
+    if len(pending_analyses) == 0:
+        return None
+
+    # Create celery group that contains all analyses that have not yet run
+    return celery.group(
+        perform_analysis.si(analysis.id) for analysis in pending_analyses
     )
