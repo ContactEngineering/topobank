@@ -113,9 +113,9 @@ class SurfaceViewSet(
     def get_queryset(self):
         qs = Surface.objects.for_user(self.request.user)
         tag = self.request.query_params.get("tag", None)
-        if tag is not None or (tag == 'None' or tag == 'null'):
-            if tag == 'None' or tag == 'null':
-                tag = None
+        if tag == 'None' or tag == 'null':
+            qs = qs.filter(tags__name=None)
+        elif tag is not None:
             qs = qs.filter(tags__name=tag)
         elif self.action == "list":
             # We do not allow simply listing all surfaces
