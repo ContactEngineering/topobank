@@ -7,8 +7,11 @@ from topobank.testing.factories import TopographyAnalysisFactory
 
 
 @pytest.mark.django_db
-def test_perform_analysis(mocker, two_topos, test_analysis_function, settings):
+def test_perform_analysis(
+    two_topos, test_analysis_function, settings, handle_usage_statistics
+):
     topo = Topography.objects.first()  # doesn't matter
+    topo.creator
 
     func_kwargs = dict(a=1, b="hamming")
 

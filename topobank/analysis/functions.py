@@ -6,6 +6,7 @@ The first argument is either a Topography or Surface instance (model).
 
 import collections
 import logging
+from dataclasses import dataclass
 from typing import Union
 
 import numpy as np
@@ -16,6 +17,7 @@ from django.core.files.base import ContentFile
 from ..files.models import Folder
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import SplitDictionaryHere
+from .models import AnalysisFunction
 from .registry import ImplementationMissingAnalysisFunctionException
 
 _log = logging.getLogger(__name__)
@@ -115,11 +117,24 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     return dict(alert_class=f"alert-{level}", message=message)
 
 
+@dataclass
+class AnalysisInputData:
+    # We don't allow tags as dependencies
+    subject: Union[Surface, Topography] = None
+
+    # Analysis function
+    function: AnalysisFunction = None
+
+    # Parameters
+    kwargs: dict = None
+
+
 class AnalysisImplementation:
     """Class that holds the actual implementation of an analysis function"""
 
     class Meta:
         implementations = {}
+        dependencies = {}
 
     class Parameters(pydantic.BaseModel):
         class Config:
@@ -132,9 +147,9 @@ class AnalysisImplementation:
             # Use default parameters
             self._kwargs = self.Parameters()
 
-    def eval(self, subject, folder, progress_recorder):
-        implementation = self.get_implementation_for_subject(subject.__class__)
-        return implementation(subject, folder, progress_recorder=progress_recorder)
+    def eval(self, subject, folder, **auxiliary_kwargs):
+        implementation = self.get_implementation(subject.__class__)
+        return implementation(subject, folder, **auxiliary_kwargs)
 
     @classmethod
     def clean_kwargs(cls, kwargs: Union[dict, None]):
@@ -150,16 +165,26 @@ class AnalysisImplementation:
         else:
             return cls.Parameters(**kwargs).model_dump()
 
-    def get_dependent_analyses(self):
-        return []  # Default is no dependencies
-
-    def get_implementation_for_subject(self, model):
+    def get_implementation(self, model_class):
         """Returns the implementation function for a specific subject model"""
         try:
-            name = self.Meta.implementations[model]
+            name = self.Meta.implementations[model_class]
         except KeyError:
-            raise ImplementationMissingAnalysisFunctionException(self.Meta.name, model)
+            raise ImplementationMissingAnalysisFunctionException(
+                self.Meta.name, model_class
+            )
         return getattr(self, name)
+
+    def get_dependencies(self, subject):
+        """Return dependencies required for running analysis for `subject`"""
+        try:
+            dependency_func = getattr(self, self.Meta.dependencies[subject.__class__])
+            dependencies = dependency_func(subject)
+        except AttributeError:
+            dependencies = []
+        except KeyError:
+            dependencies = []
+        return dependencies
 
     @staticmethod
     def _get_app_config_for_obj(klass):
@@ -305,4 +330,55 @@ class TestImplementation(AnalysisImplementation):
             ],
             "surfaces": [surface.name for surface in tag.get_related_surfaces()],
             "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
+        }
+
+
+class SecondTestImplementation(AnalysisImplementation):
+    """
+    This function will be registered in conftest.py by a fixture. The arguments have no
+    meaning. Result are two series.
+    """
+
+    class Meta:
+        name = "test2"
+        visualization_app_name = "analysis"
+        visualization_type = VIZ_SERIES
+
+        implementations = {
+            Topography: "topography_implementation",
+        }
+
+        dependencies = {Topography: "topography_dependencies"}
+
+    class Parameters(AnalysisImplementation.Parameters):
+        c: int = 1
+        d: float = 1.3
+
+    def topography_dependencies(
+        self, topography: Topography
+    ) -> list[AnalysisInputData]:
+        return [
+            AnalysisInputData(
+                subject=topography,
+                function=AnalysisFunction.objects.get(name="test"),
+                kwargs=dict(a=self._kwargs.c),
+            ),
+            AnalysisInputData(
+                subject=topography,
+                function=AnalysisFunction.objects.get(name="test"),
+                kwargs=dict(b=self._kwargs.c * "A"),
+            ),
+        ]
+
+    def topography_implementation(
+        self,
+        topography: Topography,
+        folder: Folder,
+        dependencies: list = None,
+        progress_recorder=None,
+    ):
+        (dep1, dep2) = dependencies
+        return {
+            "name": "Test with dependencies",
+            "result_from_dep": dep1.result["xunit"],
         }

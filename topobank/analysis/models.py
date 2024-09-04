@@ -26,8 +26,27 @@ _log = logging.getLogger(__name__)
 RESULT_FILE_BASENAME = "result"
 
 
+class AnalysisSubjectManager(models.Manager):
+    def create(self, subject=None, *args, **kwargs):
+        if subject:
+            if isinstance(subject, Tag):
+                kwargs["tag"] = subject
+            elif isinstance(subject, Topography):
+                kwargs["topography"] = subject
+            elif isinstance(subject, Surface):
+                kwargs["surface"] = subject
+            else:
+                raise ValueError(
+                    "`subject` argument must be of type `Tag`, `Topography` or "
+                    "`Surface`."
+                )
+        return super().create(*args, **kwargs)
+
+
 class AnalysisSubject(models.Model):
     """Analysis subject, which can be either a Tag, a Topography or a Surface"""
+
+    objects = AnalysisSubjectManager()
 
     tag = models.ForeignKey(Tag, null=True, blank=True, on_delete=models.CASCADE)
     topography = models.ForeignKey(
@@ -36,21 +55,6 @@ class AnalysisSubject(models.Model):
     surface = models.ForeignKey(
         Surface, null=True, blank=True, on_delete=models.CASCADE
     )
-
-    @classmethod
-    def create(cls, subject):
-        tag = topography = surface = None
-        if isinstance(subject, Tag):
-            tag = subject
-        elif isinstance(subject, Topography):
-            topography = subject
-        elif isinstance(subject, Surface):
-            surface = subject
-        else:
-            raise ValueError(
-                "`subject` argument must be of type `Tag`, `Topography` or `Surface`."
-            )
-        return cls.objects.create(tag=tag, topography=topography, surface=surface)
 
     @staticmethod
     def Q(subject):
@@ -65,6 +69,35 @@ class AnalysisSubject(models.Model):
                 "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
                 f"not {type(subject)}."
             )
+
+    def Qs(user, subjects):
+        tag_ids = []
+        topography_ids = []
+        surface_ids = []
+        for subject in subjects:
+            if isinstance(subject, Tag):
+                tag_ids += [subject.id]
+            elif isinstance(subject, Topography):
+                topography_ids += [subject.id]
+            elif isinstance(subject, Surface):
+                surface_ids += [subject.id]
+            else:
+                raise ValueError(
+                    "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
+                    f"not {type(subject)}."
+                )
+        query = None
+        if len(tag_ids) > 0:
+            query = models.Q(subject_dispatch__tag_id__in=tag_ids) & Q(
+                permissions__user_permissions__user=user
+            )
+        elif isinstance(subject, Topography):
+            q = models.Q(subject_dispatch__topography_id=topography_ids)
+            query = query | q if query else q
+        elif isinstance(subject, Surface):
+            q = models.Q(subject_dispatch__surface_id=surface_ids)
+            query = query | q if query else q
+        return query
 
     def get(self):
         if self.tag is not None:
@@ -199,9 +232,7 @@ class Analysis(PermissionMixin, TaskStateModel):
             The result object if available, otherwise None.
         """
         if self._result_cache is None:
-            self._result_cache = load_split_dict(
-                self.folder, RESULT_FILE_BASENAME
-            )
+            self._result_cache = load_split_dict(self.folder, RESULT_FILE_BASENAME)
         return self._result_cache
 
     @property
@@ -221,9 +252,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
-                self.folder.open_file(
-                    f"{RESULT_FILE_BASENAME}.json"
-                )
+                self.folder.open_file(f"{RESULT_FILE_BASENAME}.json")
             )
         return self._result_metadata_cache
 
@@ -274,7 +303,7 @@ class Analysis(PermissionMixin, TaskStateModel):
                 permissions=self.permissions,
                 parent=self.folder,
                 filename=filename,
-                kind="der"
+                kind="der",
             )
             manifest.file.name = f"{self.storage_prefix}/{filename}"
             manifest.save(update_fields=["file"])
@@ -283,15 +312,16 @@ class Analysis(PermissionMixin, TaskStateModel):
         """Returns sequence of surface instances related to the subject of this analysis."""
         return self.subject.get_related_surfaces()
 
-    def get_implementation(self):
-        return self.function.get_implementation()
+    @property
+    def implementation(self):
+        return self.function.implementation
 
-    def authorize_user(self, user):
+    def authorize_user(self, user: settings.AUTH_USER_MODEL):
         """
         Returns an exception if given user should not be able to see this analysis.
         """
         # Check availability of analysis function
-        if not self.get_implementation().has_permission(user):
+        if not self.implementation.has_permission(user):
             raise PermissionError(
                 f"User {user} is not allowed to use this analysis function."
             )
@@ -321,7 +351,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """Returns True, if the analysis subject is a tag, else False."""
         return self.subject_dispatch.tag is not None
 
-    def eval_self(self, kwargs=None, progress_recorder=None):
+    def eval_self(self, kwargs=None, **auxiliary_kwargs):
         if self.is_tag_related:
             users = self.permissions.user_permissions.all()
             if users.count() != 1:
@@ -335,7 +365,7 @@ class Analysis(PermissionMixin, TaskStateModel):
             self.subject,
             kwargs=kwargs,
             folder=self.folder,
-            progress_recorder=progress_recorder,
+            **auxiliary_kwargs,
         )
 
     def submit_again(self):
@@ -355,7 +385,8 @@ class AnalysisFunction(models.Model):
     def __str__(self):
         return self.name
 
-    def get_implementation(self):
+    @property
+    def implementation(self):
         """Return implementation for given subject type.
 
         Returns
@@ -375,24 +406,33 @@ class AnalysisFunction(models.Model):
         is available to `user` if it is available for any of the `models`
         specified.
         """
-        return self.get_implementation().has_permission(user)
+        return self.implementation.has_permission(user)
 
     def get_default_kwargs(self):
         """
         Return default keyword arguments as a dictionary.
         """
-        return self.get_implementation().Parameters().dict()
+        return self.implementation.Parameters().dict()
 
-    def validate_kwargs(self, kwargs):
-        raise self.get_implementation().Parameters().dict()
+    def clean_kwargs(self, kwargs: Union[dict, None]):
+        """
+        Validate keyword arguments (parameters) and return validated dictionary
 
-    def eval(self, subject, kwargs, folder, progress_recorder=None):
+        Raises
+        ------
+        pydantic.ValidationError if validation fails
+        """
+        return self.implementation.clean_kwargs(kwargs)
+
+    def get_dependencies(self, subject: Union[Surface, Topography], kwargs: dict):
+        return self.implementation(kwargs).get_dependencies(subject)
+
+    def eval(self, subject, kwargs, folder, **auxiliary_kwargs):
         """
         First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
         """
-        runner_class = self.get_implementation()
-        runner = runner_class(kwargs)
-        return runner.eval(subject, folder, progress_recorder)
+        runner = self.implementation(kwargs)
+        return runner.eval(subject, folder, **auxiliary_kwargs)
 
     def submit(
         self,
@@ -419,7 +459,7 @@ class AnalysisFunction(models.Model):
         subject.authorize_user(user, "view")
 
         # Make sure the parameters are correct and fill in missing values from defaults
-        kwargs = self.get_implementation().clean_kwargs(kwargs)
+        kwargs = self.clean_kwargs(kwargs)
 
         # Query for all existing analyses with the same parameters
         q = AnalysisSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
@@ -459,13 +499,12 @@ class AnalysisFunction(models.Model):
             # Create new entry in the analysis table and grant access to current user
             analysis = Analysis.objects.create(
                 permissions=permissions,
-                subject_dispatch=AnalysisSubject.create(subject),
+                subject_dispatch=AnalysisSubject.objects.create(subject),
                 function=self,
                 task_state=Analysis.PENDING,
                 kwargs=kwargs,
                 folder=folder,
             )
-            analysis.grant_permission(user, "view")
 
             # Send task to the queue if the analysis has been created
             # Note: on_commit will not execute in tests, unless transaction=True is
