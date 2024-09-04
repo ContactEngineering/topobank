@@ -96,25 +96,36 @@ def perform_analysis(self, analysis_id: int):
         f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}"
     )
 
+    # Get parameters for all dependencies
     dependencies = analysis.function.get_dependencies(analysis.subject, analysis.kwargs)
-    finished_analyses = []
+    finished_dependencies = []  # Will contain dependencies that finished
     if len(dependencies) > 0:
+        # Okay, we have dependencies so let us check what their states are
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
-        finished_analyses, pending_analyses = prepare_dependency_tasks(
-            analysis, dependencies
+        finished_dependencies, pending_dependencies, created_dependencies = (
+            prepare_dependency_tasks(analysis, dependencies)
         )
-        if len(pending_analyses) > 0:
-            # Submit dependencies and request that this task is rerun once all
-            # dependencies have finished.
+        if len(created_dependencies) > 0:
+            # We just created new `Analysis` instances for dependencies. Those tasks
+            # are not yet running. Submit dependencies and request that this task is
+            # rerun once all dependencies have finished.
             celery.chord(
-                (perform_analysis.si(dep.id) for dep in pending_analyses),
+                (perform_analysis.si(dep.id) for dep in created_dependencies),
                 perform_analysis.si(analysis.id),
             ).apply_async()
             _log.debug(
-                f"{self.request.id}: Submitted {len(pending_analyses)} "
-                "dependencies and finishing the current task until dependencies are "
+                f"{self.request.id}: Submitted {len(created_dependencies)} "
+                "dependencies; finishing the current task until dependencies are "
                 "resolved."
             )
+            return
+        if len(pending_dependencies) > 0:
+            # There are dependencies that are in state pending or running, but that
+            # were not started by us because otherwise they would have run as part of
+            # the chord above. This can happen is another user is simultaneously
+            # requesting the same analyses. In this case, we suspend the task for
+            # 30 seconds and then check again.
+            perform_analysis.apply_async(args=(analysis.id,), countdown=30)
             return
     else:
         _log.debug(f"{self.request.id}: Analysis has no dependencies.")
@@ -175,7 +186,7 @@ def perform_analysis(self, analysis_id: int):
             dois=dois,
             progress_recorder=progress_recorder,
             kwargs=kwargs,
-            finished_analyses=finished_analyses,
+            finished_analyses=finished_dependencies,
         )
         # collect memory usage
         size, peak = tracemalloc.get_traced_memory()
@@ -377,8 +388,9 @@ def current_statistics(user=None):
 def prepare_dependency_tasks(analysis: int, dependencies: list[AnalysisInputData]):
     from .models import Analysis, AnalysisSubject
 
-    finished_analyses = []
-    pending_analyses = []
+    finished_dependent_analyses = []  # Everything that finished or failed
+    pending_dependent_analyses = []  # Everything that is pending or running
+    created_dependent_analyses = []  # Everything that has not yet been scheduled
     for dependency in dependencies:
         # Get analysis function
         function = dependency.function
@@ -423,7 +435,7 @@ def prepare_dependency_tasks(analysis: int, dependencies: list[AnalysisInputData
             folder = Folder.objects.create(permissions=permissions, read_only=True)
 
             # Create new entry in the analysis table
-            analysis = Analysis.objects.create(
+            dependent_analysis = Analysis.objects.create(
                 permissions=permissions,
                 subject_dispatch=AnalysisSubject.objects.create(dependency.subject),
                 function=function,
@@ -431,8 +443,16 @@ def prepare_dependency_tasks(analysis: int, dependencies: list[AnalysisInputData
                 kwargs=kwargs,
                 folder=folder,
             )
-            pending_analyses += [analysis]
+            created_dependent_analyses += [dependent_analysis]
         elif all_results.count() == 1:
-            finished_analyses += [all_results.first()]
+            dependent_analysis = all_results.first()
+            if dependent_analysis.task_state in [Analysis.PENDING, Analysis.STARTED]:
+                pending_dependent_analyses += [dependent_analysis]
+            else:
+                finished_dependent_analyses += [dependent_analysis]
 
-    return finished_analyses, pending_analyses
+    return (
+        finished_dependent_analyses,
+        pending_dependent_analyses,
+        created_dependent_analyses,
+    )
