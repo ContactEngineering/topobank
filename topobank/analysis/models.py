@@ -26,8 +26,27 @@ _log = logging.getLogger(__name__)
 RESULT_FILE_BASENAME = "result"
 
 
+class AnalysisSubjectManager(models.Manager):
+    def create(self, subject=None, *args, **kwargs):
+        if subject:
+            if isinstance(subject, Tag):
+                kwargs["tag"] = subject
+            elif isinstance(subject, Topography):
+                kwargs["topography"] = subject
+            elif isinstance(subject, Surface):
+                kwargs["surface"] = subject
+            else:
+                raise ValueError(
+                    "`subject` argument must be of type `Tag`, `Topography` or "
+                    "`Surface`."
+                )
+        return super().create(*args, **kwargs)
+
+
 class AnalysisSubject(models.Model):
     """Analysis subject, which can be either a Tag, a Topography or a Surface"""
+
+    objects = AnalysisSubjectManager()
 
     tag = models.ForeignKey(Tag, null=True, blank=True, on_delete=models.CASCADE)
     topography = models.ForeignKey(
@@ -36,21 +55,6 @@ class AnalysisSubject(models.Model):
     surface = models.ForeignKey(
         Surface, null=True, blank=True, on_delete=models.CASCADE
     )
-
-    @classmethod
-    def create(cls, subject):
-        tag = topography = surface = None
-        if isinstance(subject, Tag):
-            tag = subject
-        elif isinstance(subject, Topography):
-            topography = subject
-        elif isinstance(subject, Surface):
-            surface = subject
-        else:
-            raise ValueError(
-                "`subject` argument must be of type `Tag`, `Topography` or `Surface`."
-            )
-        return cls.objects.create(tag=tag, topography=topography, surface=surface)
 
     @staticmethod
     def Q(subject):
@@ -347,7 +351,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """Returns True, if the analysis subject is a tag, else False."""
         return self.subject_dispatch.tag is not None
 
-    def eval_self(self, kwargs=None, progress_recorder=None):
+    def eval_self(self, kwargs=None, **auxiliary_kwargs):
         if self.is_tag_related:
             users = self.permissions.user_permissions.all()
             if users.count() != 1:
@@ -361,7 +365,7 @@ class Analysis(PermissionMixin, TaskStateModel):
             self.subject,
             kwargs=kwargs,
             folder=self.folder,
-            progress_recorder=progress_recorder,
+            **auxiliary_kwargs,
         )
 
     def submit_again(self):
@@ -420,15 +424,15 @@ class AnalysisFunction(models.Model):
         """
         return self.implementation.clean_kwargs(kwargs)
 
-    def get_dependencies(self, kwargs: dict):
-        return self.implementation(kwargs).get_dependencies()
+    def get_dependencies(self, subject: Union[Surface, Topography], kwargs: dict):
+        return self.implementation(kwargs).get_dependencies(subject)
 
-    def eval(self, subject, kwargs, folder, progress_recorder=None):
+    def eval(self, subject, kwargs, folder, **auxiliary_kwargs):
         """
         First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
         """
         runner = self.implementation(kwargs)
-        return runner.eval(subject, folder, progress_recorder)
+        return runner.eval(subject, folder, **auxiliary_kwargs)
 
     def submit(
         self,
@@ -495,7 +499,7 @@ class AnalysisFunction(models.Model):
             # Create new entry in the analysis table and grant access to current user
             analysis = Analysis.objects.create(
                 permissions=permissions,
-                subject_dispatch=AnalysisSubject.create(subject),
+                subject_dispatch=AnalysisSubject.objects.create(subject),
                 function=self,
                 task_state=Analysis.PENDING,
                 kwargs=kwargs,

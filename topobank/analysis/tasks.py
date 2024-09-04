@@ -19,7 +19,7 @@ from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
-from .functions import AnalysisImplementation
+from .functions import AnalysisInputData
 
 _log = logging.getLogger(__name__)
 
@@ -96,19 +96,24 @@ def perform_analysis(self, analysis_id: int):
         f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}"
     )
 
-    dependencies = analysis.function.get_dependencies(analysis.kwargs)
+    dependencies = analysis.function.get_dependencies(analysis.subject, analysis.kwargs)
+    finished_analyses = []
     if len(dependencies) > 0:
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
-        dependency_tasks = prepare_dependency_tasks(dependencies)
-        if dependency_tasks is not None:
+        finished_analyses, pending_analyses = prepare_dependency_tasks(
+            analysis, dependencies
+        )
+        if len(pending_analyses) > 0:
             # Submit dependencies and request that this task is rerun once all
             # dependencies have finished.
-            dependency_tasks.apply_async(
-                dependency_tasks, link=perform_analysis.si(analysis_id)
-            )
+            celery.chord(
+                (perform_analysis.si(dep.id) for dep in pending_analyses),
+                perform_analysis.si(analysis.id),
+            ).apply_async()
             _log.debug(
-                f"{self.request.id}: Submitted {len(dependency_tasks)} dependencies and "
-                "finishing the current task until dependencies are resolved."
+                f"{self.request.id}: Submitted {len(pending_analyses)} "
+                "dependencies and finishing the current task until dependencies are "
+                "resolved."
             )
             return
     else:
@@ -141,11 +146,18 @@ def perform_analysis(self, analysis_id: int):
         analysis.save()
 
     @doi()
-    def evaluate_function(progress_recorder, kwargs):
-        return analysis.eval_self(
-            kwargs=kwargs,
-            progress_recorder=progress_recorder,
-        )
+    def evaluate_function(progress_recorder, kwargs, finished_analyses):
+        if len(finished_analyses) > 0:
+            return analysis.eval_self(
+                kwargs=kwargs,
+                dependencies=finished_analyses,
+                progress_recorder=progress_recorder,
+            )
+        else:
+            return analysis.eval_self(
+                kwargs=kwargs,
+                progress_recorder=progress_recorder,
+            )
 
     #
     # actually perform the analysis
@@ -160,9 +172,10 @@ def perform_analysis(self, analysis_id: int):
         tracemalloc.reset_peak()
         # run actual function
         result = evaluate_function(
-            progress_recorder=progress_recorder,
             dois=dois,
+            progress_recorder=progress_recorder,
             kwargs=kwargs,
+            finished_analyses=finished_analyses,
         )
         # collect memory usage
         size, peak = tracemalloc.get_traced_memory()
@@ -361,21 +374,30 @@ def current_statistics(user=None):
     )
 
 
-def prepare_dependency_tasks(dependencies: list[AnalysisImplementation.Dependency]):
-    from .models import Analysis, AnalysisFunction, AnalysisSubject
+def prepare_dependency_tasks(analysis: int, dependencies: list[AnalysisInputData]):
+    from .models import Analysis, AnalysisSubject
 
+    finished_analyses = []
     pending_analyses = []
     for dependency in dependencies:
         # Get analysis function
-        function = AnalysisFunction.objects.get(id=dependency.function_id)
+        function = dependency.function
         kwargs = function.clean_kwargs(dependency.kwargs)
 
         # Filter latest result
         all_results = (
             Analysis.objects.filter(
-                function=dependency.function_id,
-                subject_dispatch__topography=dependency.subject_topography_id,
-                subject_dispatch__surface=dependency.subject_surface_id,
+                function=dependency.function,
+                subject_dispatch__surface=(
+                    dependency.subject
+                    if isinstance(dependency.subject, Surface)
+                    else None
+                ),
+                subject_dispatch__topography=(
+                    dependency.subject
+                    if isinstance(dependency.subject, Topography)
+                    else None
+                ),
                 kwargs=kwargs,
             )
             .order_by(
@@ -403,22 +425,14 @@ def prepare_dependency_tasks(dependencies: list[AnalysisImplementation.Dependenc
             # Create new entry in the analysis table
             analysis = Analysis.objects.create(
                 permissions=permissions,
-                subject_dispatch=AnalysisSubject.objects.create(
-                    surface=dependency.subject_surface_id,
-                    topography=dependency.subject_topography_id,
-                ),
+                subject_dispatch=AnalysisSubject.objects.create(dependency.subject),
                 function=function,
                 task_state=Analysis.PENDING,
                 kwargs=kwargs,
                 folder=folder,
             )
             pending_analyses += [analysis]
+        elif all_results.count() == 1:
+            finished_analyses += [all_results.first()]
 
-    # Return None if there are no pending dependencies
-    if len(pending_analyses) == 0:
-        return None
-
-    # Create celery group that contains all analyses that have not yet run
-    return celery.group(
-        perform_analysis.si(analysis.id) for analysis in pending_analyses
-    )
+    return finished_analyses, pending_analyses
