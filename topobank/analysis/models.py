@@ -431,7 +431,7 @@ class AnalysisFunction(models.Model):
         """
         First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
         """
-        runner = self.implementation(kwargs)
+        runner = self.implementation(**kwargs)
         return runner.eval(subject, folder, **auxiliary_kwargs)
 
     def submit(

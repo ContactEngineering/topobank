@@ -140,12 +140,12 @@ class AnalysisImplementation:
         class Config:
             extra = "forbid"
 
-    def __init__(self, kwargs: Union[dict, None]):
-        if kwargs:
-            self._kwargs = self.Parameters(**kwargs)
-        else:
-            # Use default parameters
-            self._kwargs = self.Parameters()
+    def __init__(self, **kwargs):
+        self._kwargs = self.Parameters(**kwargs)
+
+    @property
+    def kwargs(self):
+        return self._kwargs
 
     def eval(self, subject, folder, **auxiliary_kwargs):
         implementation = self.get_implementation(subject.__class__)

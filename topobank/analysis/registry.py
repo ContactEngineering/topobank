@@ -164,7 +164,7 @@ class UnknownKeyException(RegistryException):
 # Handling of analysis function implementations
 #
 
-_analysis_functions = {}
+_implementation_classes = {}
 # key: (name, subject_app_name, subject_model)
 #      where
 #      name: str, Unique function name,
@@ -183,17 +183,17 @@ _visualization_type_by_function_name = {}
 # value: visualization_type: str, visualization type
 
 
-def register_implementation(func):
+def register_implementation(klass):
     """
     Register implementation of an analysis function.
 
     Parameters
     ----------
-    func: AnalysisImplementation
+    klass: AnalysisImplementation
         Runner class that has the Python function which implements the analysis, and
         additional metadata
     """
-    _analysis_functions[func.Meta.name] = func
+    _implementation_classes[klass.Meta.display_name] = klass
 
 
 def get_implementation(name):
@@ -210,7 +210,7 @@ def get_implementation(name):
     runner : AnalysisImplementation
         The analysis function
     """
-    return _analysis_functions[name]
+    return _implementation_classes[name]
 
 
 def get_analysis_function_names(user=None):
@@ -220,7 +220,7 @@ def get_analysis_function_names(user=None):
     If given a user, only the functions are returned
     which have at least one implementation for the given user.
     """
-    runner_classes = _analysis_functions
+    runner_classes = _implementation_classes
     if user is not None:
         # filter for user
         runner_classes = {
@@ -234,14 +234,14 @@ def get_analysis_function_names(user=None):
 
 def get_visualization_type_for_function_name(requested_name):
     """Return visualization type for given function name."""
-    runner_class = _analysis_functions[requested_name]
+    runner_class = _implementation_classes[requested_name]
     return (
         runner_class.Meta.visualization_app_name,
         runner_class.Meta.visualization_type,
     )
 
 
-def sync_analysis_functions(cleanup=False):
+def sync_implementation_classes(cleanup=False):
     """
     Make sure all analysis functions are represented in database.
 
@@ -264,7 +264,7 @@ def sync_analysis_functions(cleanup=False):
         funcs_deleted=0,
     )
 
-    function_names_used = list(_analysis_functions.keys())
+    function_names_used = list(_implementation_classes.keys())
 
     #
     # Ensure all analysis functions needed to exist in database

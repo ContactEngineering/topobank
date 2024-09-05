@@ -104,13 +104,14 @@ def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statisti
 # Define fixtures
 #
 @pytest.fixture
-def two_topos():
+def two_topos(settings):
     call_command("register_analysis_functions")
 
     user = UserFactory(username="testuser", password="abcd$1234")
     surface1 = SurfaceFactory(name="Surface 1", creator=user)
     surface2 = SurfaceFactory(name="Surface 2", creator=user)
 
+    settings.DELETE_EXISTING_FILES = True  # There can be remnants from failed tests
     datafile1 = ManifestFactory(filename="example3.di")
     datafile2 = ManifestFactory(filename="example4.txt")
 
@@ -255,9 +256,9 @@ def two_users():
 @pytest.fixture(scope="function", autouse=True)
 def sync_analysis_functions(db):
     _log.info("Syncing analysis functions in registry with database objects..")
-    from ..analysis.registry import sync_analysis_functions
+    from ..analysis.registry import sync_implementation_classes
 
-    sync_analysis_functions(cleanup=True)
+    sync_implementation_classes(cleanup=True)
     _log.info("Done synchronizing registry with database.")
 
 

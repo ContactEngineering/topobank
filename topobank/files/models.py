@@ -222,7 +222,7 @@ class Manifest(PermissionMixin, models.Model):
                     raise RuntimeError(
                         "A new manifest was generated, but an existing file was found "
                         f"at the storage path {storage_path}. Set "
-                        f"TOPOBANK_DELETE_EXISTING_FILES to True to ignore this error."
+                        f"DELETE_EXISTING_FILES to True to ignore this error."
                     )
 
     def save_file(self, fobj):

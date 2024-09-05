@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 
 from topobank.analysis.registry import (
     get_analysis_function_names,
-    sync_analysis_functions,
+    sync_implementation_classes,
 )
 
 
@@ -24,7 +24,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        counts = sync_analysis_functions(cleanup=options['cleanup'])
+        counts = sync_implementation_classes(cleanup=options['cleanup'])
 
         func_count = counts['funcs_created'] + counts['funcs_updated']
 
