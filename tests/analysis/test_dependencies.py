@@ -35,11 +35,11 @@ def test_dependencies(api_client, django_capture_on_commit_callbacks):
     # New Analysis objects should be there and marked for the user
     #
     assert Analysis.objects.count() == 3
-    test_ana1, test_ana2, test2_ana = Analysis.objects.all().order_by("function__name")
+    test2_ana, test_ana1, test_ana2 = Analysis.objects.all().order_by("function__name")
     assert test_ana1.task_state == Analysis.SUCCESS
     assert test_ana2.task_state == Analysis.SUCCESS
     assert test2_ana.task_state == Analysis.SUCCESS
-    assert test2_ana.kwargs == {"c": 33, "d": 7.5}
     assert test_ana1.kwargs == {"a": 1, "b": 33 * "A"}  # b is c from test2 passed on
     assert test_ana2.kwargs == {"a": 33, "b": "foo"}  # a is c from test2 passed on
+    assert test2_ana.kwargs == {"c": 33, "d": 7.5}
     assert test2_ana.result["result_from_dep"] == test_ana1.result["xunit"]
