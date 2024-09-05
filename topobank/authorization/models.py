@@ -2,33 +2,40 @@
 Models related to authorization.
 """
 
+from enum import Enum
 from typing import Literal, Union
 
 from django.db import models
-from django.db.models import QuerySet
+from django.db.models import Q, QuerySet
 from jedi import InternalError
 from notifications.signals import notify
 
+from ..users.anonymous import get_anonymous_user
 from ..users.models import User
 
+
 # The types of permissions
+class Permissions(Enum):
+    view = 1
+    edit = 2
+    full = 3
+
+
+# Choices for database field
 PERMISSION_CHOICES = [
-    ("view", "Read-only access"),
-    ("edit", "Change the model data"),
-    ("full", "Grant/revoke permissions of other users"),
+    (Permissions.view.name, "Read-only access"),
+    (Permissions.edit.name, "Change the model data"),
+    (Permissions.full.name, "Grant/revoke permissions of other users"),
 ]
 
 # Integers for access levels for comparisons in authorization:
 # Access is granted if the access level is higher or equal to the
 # requested level
-ACCESS_LEVELS = {
-    None: 0,
-    PERMISSION_CHOICES[0][0]: 1,
-    PERMISSION_CHOICES[1][0]: 2,
-    PERMISSION_CHOICES[2][0]: 3,
-}
+ACCESS_LEVELS = {None: 0, **{p.name: p.value for p in Permissions}}
 
-ViewEditFull = Literal["view", "edit", "full"]
+ViewEditFull = Literal[
+    Permissions.view.name, Permissions.edit.name, Permissions.full.name
+]
 ViewEditFullNone = Union[ViewEditFull, None]
 
 
@@ -51,17 +58,21 @@ class PermissionSet(models.Model):
 
     def get_for_user(self, user: User):
         """Return permissions of a specific user"""
-        permissions = self.user_permissions.filter(user=user)
+        anonymous_user = get_anonymous_user()
+        permissions = self.user_permissions.filter(
+            Q(user=user) | Q(user=anonymous_user)
+        )
         nb_permissions = len(permissions)
-        if nb_permissions == 0:
-            return None
-        elif nb_permissions == 1:
-            return permissions.first()
-        else:
+        if len(permissions) > 2:
             raise InternalError(
                 f"More than one permission found for user {user}. "
                 "This should not happen."
             )
+        elif nb_permissions > 1:
+            max_access_level = max(ACCESS_LEVELS[perm.allow] for perm in permissions)
+            return PERMISSION_CHOICES[max_access_level - 1][0]
+        else:
+            return None
 
     def grant_for_user(self, user: User, allow: ViewEditFull):
         """Grant permission to user"""
@@ -89,7 +100,7 @@ class PermissionSet(models.Model):
         """Check if user has permission for access level given by `allow`"""
         perm = self.get_for_user(user)
         if perm:
-            return ACCESS_LEVELS[perm.allow] >= ACCESS_LEVELS[access_level]
+            return ACCESS_LEVELS[perm] >= ACCESS_LEVELS[access_level]
         else:
             return False
 
