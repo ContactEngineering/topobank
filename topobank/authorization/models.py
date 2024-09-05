@@ -68,7 +68,7 @@ class PermissionSet(models.Model):
                 f"More than one permission found for user {user}. "
                 "This should not happen."
             )
-        elif nb_permissions > 1:
+        elif nb_permissions > 0:
             max_access_level = max(ACCESS_LEVELS[perm.allow] for perm in permissions)
             return PERMISSION_CHOICES[max_access_level - 1][0]
         else:
