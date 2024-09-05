@@ -14,7 +14,7 @@ def test_dependencies(api_client, django_capture_on_commit_callbacks):
     surface = SurfaceFactory(creator=user)
     topo1 = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunction.objects.get(name="test2")
+    func = AnalysisFunction.objects.get(name="Second test implementation")
 
     api_client.force_login(user)
 

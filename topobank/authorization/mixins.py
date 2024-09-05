@@ -8,7 +8,7 @@ class PermissionMixin:
         if perm is None:
             return None
         else:
-            return perm.allow
+            return perm
 
     def grant_permission(self, user: User, allow: ViewEditFull = "view"):
         self.permissions.grant_for_user(user, allow)

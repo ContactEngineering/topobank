@@ -21,7 +21,7 @@ def test_statistics(api_client, handle_usage_statistics):
     topo1b = Topography1DFactory(surface=surf1)
     topo2a = Topography1DFactory(surface=surf2)
 
-    func = AnalysisFunction.objects.get(name="test")
+    func = AnalysisFunction.objects.get(name="Test implementation")
 
     #
     # Generate analyses for topographies with differing arguments

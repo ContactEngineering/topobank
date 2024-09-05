@@ -425,7 +425,7 @@ class AnalysisFunction(models.Model):
         return self.implementation.clean_kwargs(kwargs)
 
     def get_dependencies(self, subject: Union[Surface, Topography], kwargs: dict):
-        return self.implementation(kwargs).get_dependencies(subject)
+        return self.implementation(**kwargs).get_dependencies(subject)
 
     def eval(self, subject, kwargs, folder, **auxiliary_kwargs):
         """

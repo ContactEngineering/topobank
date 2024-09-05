@@ -363,12 +363,12 @@ class SecondTestImplementation(AnalysisImplementation):
         return [
             AnalysisInputData(
                 subject=topography,
-                function=AnalysisFunction.objects.get(name="test"),
+                function=AnalysisFunction.objects.get(name="Test implementation"),
                 kwargs=dict(a=self._kwargs.c),
             ),
             AnalysisInputData(
                 subject=topography,
-                function=AnalysisFunction.objects.get(name="test"),
+                function=AnalysisFunction.objects.get(name="Test implementation"),
                 kwargs=dict(b=self._kwargs.c * "A"),
             ),
         ]

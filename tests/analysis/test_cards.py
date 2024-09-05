@@ -7,13 +7,13 @@ from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.manager.models import Surface, Topography
 from topobank.manager.utils import subjects_to_base64
 from topobank.testing.factories import (
+    AnalysisSubjectFactory,
+    SurfaceAnalysisFactory,
     SurfaceFactory,
     Topography1DFactory,
     Topography2DFactory,
-    UserFactory,
-    AnalysisSubjectFactory,
-    SurfaceAnalysisFactory,
     TopographyAnalysisFactory,
+    UserFactory,
 )
 
 
@@ -26,7 +26,7 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
     password = "secret"
     user = UserFactory(password=password)
     surface = SurfaceFactory(creator=user)
-    func1 = AnalysisFunction.objects.get(name="test")
+    func1 = AnalysisFunction.objects.get(name="Test implementation")
 
     topo1 = Topography2DFactory(surface=surface)
 
@@ -107,7 +107,7 @@ def test_series_card_if_no_successful_topo_analysis(
     user = UserFactory(password=password)
     ContentType.objects.get_for_model(Topography)
     ContentType.objects.get_for_model(Surface)
-    func1 = AnalysisFunction.objects.get(name="test")
+    func1 = AnalysisFunction.objects.get(name="Test implementation")
 
     surf = SurfaceFactory(creator=user)
     topo = Topography1DFactory(surface=surf)  # also generates the surface

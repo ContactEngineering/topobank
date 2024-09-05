@@ -196,7 +196,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     topo1b = Topography1DFactory(surface=surf1)
     topo2a = Topography1DFactory(surface=surf2)
 
-    func = AnalysisFunction.objects.get(name="test")
+    func = AnalysisFunction.objects.get(name="Test implementation")
 
     #
     # Generate analyses for topographies with differing arguments
@@ -318,7 +318,7 @@ def test_analysis_download_as_txt(
 
     txt = response.content.decode()
 
-    assert "test" in txt  # function name should be in there
+    assert "Test implementation" in txt  # function name should be in there
 
     # check whether version numbers are in there
     assert SurfaceTopography.__version__.split("+")[0] in txt
@@ -665,7 +665,7 @@ def test_shared_topography_triggers_no_new_analysis(
     surface2 = SurfaceFactory(creator=user2)
 
     # create topographies + functions + analyses
-    func1 = AnalysisFunction.objects.get(name="test")
+    func1 = AnalysisFunction.objects.get(name="Test implementation")
     # func2 = AnalysisFunctionFactory()
 
     # Two topographies for surface1

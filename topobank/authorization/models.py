@@ -112,9 +112,9 @@ class PermissionSet(models.Model):
                 f"User {user} has no access permission, cannot elevate to permission "
                 f"'{access_level}'."
             )
-        elif ACCESS_LEVELS[perm.allow] < ACCESS_LEVELS[access_level]:
+        elif ACCESS_LEVELS[perm] < ACCESS_LEVELS[access_level]:
             raise PermissionError(
-                f"User {user} has permission '{perm.allow}', cannot elevate to "
+                f"User {user} has permission '{perm}', cannot elevate to "
                 f"permission '{access_level}'."
             )
 

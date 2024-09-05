@@ -24,7 +24,7 @@ from topobank.testing.factories import (
 @pytest.mark.django_db
 def test_topography_as_analysis_subject():
     topo = Topography1DFactory()
-    func = AnalysisFunction.objects.get(name="test")
+    func = AnalysisFunction.objects.get(name="Test implementation")
     analysis = TopographyAnalysisFactory(subject_topography=topo, function=func)
     assert analysis.subject == topo
 
@@ -32,7 +32,7 @@ def test_topography_as_analysis_subject():
 @pytest.mark.django_db
 def test_surface_as_analysis_subject():
     surf = SurfaceFactory()
-    func = AnalysisFunction.objects.get(name="test")
+    func = AnalysisFunction.objects.get(name="Test implementation")
     analysis = SurfaceAnalysisFactory(subject_surface=surf, function=func)
     assert analysis.subject == surf
 
@@ -44,7 +44,7 @@ def test_tag_as_analysis_subject():
     s3 = SurfaceFactory()
     st = TagFactory.create(surfaces=[s1, s2, s3])
     st.authorize_user(s1.creator, "view")
-    func = AnalysisFunction.objects.get(name="test")
+    func = AnalysisFunction.objects.get(name="Test implementation")
     analysis = TagAnalysisFactory(subject_tag=st, function=func)
     assert analysis.subject == st
 
@@ -54,7 +54,7 @@ def test_exception_implementation_missing():
     # We create an implementation for surfaces, but not for analyses
     topo = Topography1DFactory()
     surface = topo.surface
-    function = AnalysisFunction.objects.get(name="test")
+    function = AnalysisFunction.objects.get(name="Test implementation")
     analysis = TopographyAnalysisFactory(function=function)
     function.eval(
         surface, analysis.kwargs, analysis.folder
@@ -112,7 +112,7 @@ def test_autoload_analysis_functions():
     num_funcs = AnalysisFunction.objects.count()
 
     # "test" function should be there
-    AnalysisFunction.objects.get(name="test")
+    AnalysisFunction.objects.get(name="Test implementation")
 
     #
     # Call should be idempotent
@@ -127,7 +127,7 @@ def test_default_function_kwargs():
 
     call_command("register_analysis_functions")
 
-    func = AnalysisFunction.objects.get(name="test")
+    func = AnalysisFunction.objects.get(name="Test implementation")
 
     expected_kwargs = dict(a=1, b="foo")
     assert func.get_default_kwargs() == expected_kwargs
