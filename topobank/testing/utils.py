@@ -5,6 +5,7 @@ Some helper functions
 import datetime
 import json
 import logging
+from dataclasses import dataclass
 from operator import itemgetter
 
 import numpy as np
@@ -13,6 +14,8 @@ from django.conf import settings
 from django.test import SimpleTestCase
 from django.utils import formats
 from rest_framework.reverse import reverse
+
+from topobank.manager.models import Topography
 
 _log = logging.getLogger(__name__)
 
@@ -258,3 +261,30 @@ def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
 def assert_dicts_equal(a, b):
     for x, y in zip(a, b):
         assert_dict_equal(x, y)
+
+
+###############################################################################
+# Helpers for doing tests
+###############################################################################
+
+
+@dataclass(frozen=True)
+class FakeTopographyModel:
+    """This model is used to create a Topography for being passed to analysis functions."""
+
+    t: Topography
+    name: str = "mytopo"
+    is_periodic: bool = False
+
+    def topography(self):
+        """Return low level topography."""
+        return self.t
+
+    def get_absolute_url(self):
+        return "some/url/"
+
+
+class DummyProgressRecorder:
+    def set_progress(self, a, nsteps):
+        """Do nothing."""
+        pass  # dummy

@@ -2,6 +2,7 @@ import base64
 import functools
 import json
 import logging
+import os
 import tempfile
 import traceback
 
@@ -374,6 +375,7 @@ def render_deepzoom(
     quality=95,
     colorbar_title=None,
     cmap=None,
+    storage_prefix="",
 ):
     """
     Make JPG Deep Zoom Image (DZI) files given data on a two-dimensional grid.
@@ -404,6 +406,8 @@ def render_deepzoom(
         Name of colormap; this information is dumped into the metadata json
         and a proprietary extension to the official DZI format.
         (Default: None)
+    storage_prefix : str, optional
+        Prefix to attach in front of the DZI filenames. (Default: '')
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
         try:
@@ -435,6 +439,8 @@ def render_deepzoom(
             )
         for filename in filenames:
             # Strip tmp directory
-            storage_filename = filename[len(tmpdirname) + 1 :]
+            storage_filename = os.path.join(
+                storage_prefix, filename[len(tmpdirname) + 1 :]
+            )
             # Upload to S3
             folder.save_file(storage_filename, "der", File(open(filename, mode="rb")))

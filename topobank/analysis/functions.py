@@ -239,7 +239,8 @@ class TestImplementation(AnalysisImplementation):
     """
 
     class Meta:
-        name = "test"
+        name = "topobank.analysis.test"
+        display_name = "Test implementation"
         visualization_app_name = "analysis"
         visualization_type = VIZ_SERIES
 
@@ -340,7 +341,9 @@ class SecondTestImplementation(AnalysisImplementation):
     """
 
     class Meta:
-        name = "test2"
+        name = "topobank.analysis.test2"
+        display_name = "Second test implementation"
+
         visualization_app_name = "analysis"
         visualization_type = VIZ_SERIES
 
