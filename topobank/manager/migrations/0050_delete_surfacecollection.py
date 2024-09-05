@@ -6,6 +6,7 @@ from django.db import migrations
 class Migration(migrations.Migration):
 
     dependencies = [
+        ('analysis', '0025_remove_analysissubject_collection_and_more'),
         ('manager', '0049_rename_tagmodel_tag'),
     ]
 

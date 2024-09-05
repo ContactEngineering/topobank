@@ -6,11 +6,19 @@ The first argument is either a Topography or Surface instance (model).
 
 import collections
 import logging
+from dataclasses import dataclass
+from typing import Union
 
 import numpy as np
+import pydantic
+from django.conf import settings
+from django.core.files.base import ContentFile
 
-from ..manager.models import Tag, Topography, Surface
+from ..files.models import Folder
+from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import SplitDictionaryHere
+from .models import AnalysisFunction
+from .registry import ImplementationMissingAnalysisFunctionException
 
 _log = logging.getLogger(__name__)
 
@@ -84,23 +92,6 @@ def wrap_series(series, primary_key="x"):
     return wrapped_series
 
 
-#
-# Use this during development if you need a long running task with failures
-#
-# @register_implementation(ART_GENERIC, 'long')
-# def long_running_task(topography, progress_recorder=None, storage_prefix=None):
-#     topography = topography.topography()
-#     import time, random
-#     n = 10 + random.randint(1,10)
-#     F = 30
-#     for i in range(n):
-#         time.sleep(0.5)
-#         if random.randint(1, F) == 1:
-#             raise ValueError("This error is intended and happens with probability 1/{}.".format(F))
-#         progress_recorder.set_progress(i+1, n)
-#     return dict(message="done", physical_sizes=topography.physical_sizes, n=n)
-
-
 def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_mesg):
     """Build string with alert message often used in the functions.
 
@@ -126,114 +117,268 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
     return dict(alert_class=f"alert-{level}", message=message)
 
 
-# This function will be registered in supplib by a fixture
-def topography_analysis_function_for_tests(
-    topography: Topography,
-    a: int = 1,
-    b: str = "foo",
-    progress_recorder=None,
-    storage_prefix=None,
-):
-    """This function can be registered for supplib.
+@dataclass
+class AnalysisInputData:
+    # We don't allow tags as dependencies
+    subject: Union[Surface, Topography] = None
 
-    The arguments have no meaning. Result are two series.
-    """
-    return {
-        "name": "Test result for test function called for topography {}.".format(
-            topography
-        ),
-        "xunit": "m",
-        "yunit": "m",
-        "xlabel": "x",
-        "ylabel": "y",
-        "series": [
-            dict(
-                name="Fibonacci series",
-                x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
-                std_err_y=np.zeros(8),
-            ),
-            dict(
-                name="Geometric series",
-                x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                std_err_y=np.zeros(8),
-            ),
-        ],
-        "alerts": [
-            dict(
-                alert_class="alert-info",
-                message="This is a test for a measurement alert.",
+    # Analysis function
+    function: AnalysisFunction = None
+
+    # Parameters
+    kwargs: dict = None
+
+
+class AnalysisImplementation:
+    """Class that holds the actual implementation of an analysis function"""
+
+    class Meta:
+        implementations = {}
+        dependencies = {}
+
+    class Parameters(pydantic.BaseModel):
+        class Config:
+            extra = "forbid"
+
+    def __init__(self, kwargs: Union[dict, None]):
+        if kwargs:
+            self._kwargs = self.Parameters(**kwargs)
+        else:
+            # Use default parameters
+            self._kwargs = self.Parameters()
+
+    def eval(self, subject, folder, **auxiliary_kwargs):
+        implementation = self.get_implementation(subject.__class__)
+        return implementation(subject, folder, **auxiliary_kwargs)
+
+    @classmethod
+    def clean_kwargs(cls, kwargs: Union[dict, None]):
+        """
+        Validate keyword arguments (parameters) and return validated dictionary
+
+        Raises
+        ------
+        pydantic.ValidationError if validation fails
+        """
+        if kwargs is None:
+            return cls.Parameters().model_dump()
+        else:
+            return cls.Parameters(**kwargs).model_dump()
+
+    def get_implementation(self, model_class):
+        """Returns the implementation function for a specific subject model"""
+        try:
+            name = self.Meta.implementations[model_class]
+        except KeyError:
+            raise ImplementationMissingAnalysisFunctionException(
+                self.Meta.name, model_class
             )
-        ],
-        "comment": f"Arguments: a is {a} and b is {b}",
-    }
+        return getattr(self, name)
+
+    def get_dependencies(self, subject):
+        """Return dependencies required for running analysis for `subject`"""
+        try:
+            dependency_func = getattr(self, self.Meta.dependencies[subject.__class__])
+            dependencies = dependency_func(subject)
+        except AttributeError:
+            dependencies = []
+        except KeyError:
+            dependencies = []
+        return dependencies
+
+    @staticmethod
+    def _get_app_config_for_obj(klass):
+        """For given object, find out app config it belongs to."""
+        from django.apps import apps
+
+        search_path = klass.__module__
+        if search_path.startswith("topobank."):
+            search_path = search_path[9:]  # otherwise app from topobank are not found
+        app = None
+        while app is None:
+            try:
+                app = apps.get_app_config(search_path)
+            except LookupError:
+                if ("." not in search_path) or app:
+                    break
+                search_path, _ = search_path.rsplit(".", 1)
+        # FIXME: `app` should not be None, except in certain supplib. Can we add some form of guard here?
+        # if app is None:
+        #    raise RuntimeError(f'Could not find app config for {obj.__module__}. Is the Django app installed and '
+        #                       f'registered? This is likely a misconfigured Django installation.')
+        return app
+
+    @classmethod
+    def has_permission(cls, user: settings.AUTH_USER_MODEL):
+        """Return whether this implementation is available for the given user."""
+
+        app = cls._get_app_config_for_obj(cls)
+
+        if app is None:
+            return False
+        elif (
+            app.name == "topobank.analysis"
+        ):  # special case, should be always available
+            return True
+        elif (
+            hasattr(app, "TopobankPluginMeta") and not app.TopobankPluginMeta.restricted
+        ):
+            # This plugin is marked as being available to everyone
+            return True
+
+        from ..organizations.models import Organization
+
+        plugins_available = Organization.objects.get_plugins_available(user)
+        return app.name in plugins_available
 
 
-# This function will be registered in supplib by a fixture
-def surface_analysis_function_for_tests(
-    surface: Surface,
-    a: int = 1,
-    b: str = "foo",
-    progress_recorder=None,
-    storage_prefix=None,
-):
-    """This function can be registered for supplib."""
-    return {
-        "name": "Test result for test function called for surface {}.".format(surface),
-        "xunit": "m",
-        "yunit": "m",
-        "xlabel": "x",
-        "ylabel": "y",
-        "series": [],
-        "alerts": [
-            dict(
-                alert_class="alert-info", message="This is a test for a surface alert."
-            )
-        ],
-        "comment": f"a is {a} and b is {b}",
-    }
-
-
-# This function will be registered in supplib by a fixture
-def tag_analysis_function_for_tests(
-    tag: Tag, a: int = 1, b: str = "foo", progress_recorder=None, storage_prefix=None
-):
-    """This function can be registered for supplib.
-
-    Parameters
-    ----------
-    tag : Tag
-        Analysis subject.
-    a: int
-        Just a parameter as example.
-    d: str
-        Another example parameter.
-    progress_recorder: ProgressRecorder instance
-        If given, a progress recorder used as callback for reporting progress to
-        user interface.
-    storage_prefix: str or None
-        If given, prefix for files in storage which should be used to store
-        files related to this analysis.
+class TestImplementation(AnalysisImplementation):
+    """
+    This function will be registered in conftest.py by a fixture. The arguments have no
+    meaning. Result are two series.
     """
 
-    name = (
-        f"Test result for test function called for tag {tag}, "
-        ", which is built from surfaces {}".format(
-            [s.name for s in tag.surface_set.all()]
+    class Meta:
+        name = "test"
+        visualization_app_name = "analysis"
+        visualization_type = VIZ_SERIES
+
+        implementations = {
+            Topography: "topography_implementation",
+            Surface: "surface_implementation",
+            Tag: "tag_implementation",
+        }
+
+    class Parameters(AnalysisImplementation.Parameters):
+        a: int = 1
+        b: str = "foo"
+
+    def topography_implementation(
+        self, topography: Topography, folder: Folder, progress_recorder=None
+    ):
+        folder.save_file("test.txt", "der", ContentFile("Test!!!"))
+        return {
+            "name": "Test result for test function called for topography "
+            f"{topography}.",
+            "xunit": "m",
+            "yunit": "m",
+            "xlabel": "x",
+            "ylabel": "y",
+            "series": [
+                dict(
+                    name="Fibonacci series",
+                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                    y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
+                    std_err_y=np.zeros(8),
+                ),
+                dict(
+                    name="Geometric series",
+                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                    y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                    std_err_y=np.zeros(8),
+                ),
+            ],
+            "alerts": [
+                dict(
+                    alert_class="alert-info",
+                    message="This is a test for a measurement alert.",
+                )
+            ],
+            "comment": f"Arguments: a is {self._kwargs.a} and b is "
+            f"{self._kwargs.b}",
+        }
+
+    def surface_implementation(
+        self, surface: Surface, folder: Folder, progress_recorder=None
+    ):
+        """This function can be registered for supplib."""
+        return {
+            "name": "Test result for test function called for surface {}.".format(
+                surface
+            ),
+            "xunit": "m",
+            "yunit": "m",
+            "xlabel": "x",
+            "ylabel": "y",
+            "series": [],
+            "alerts": [
+                dict(
+                    alert_class="alert-info",
+                    message="This is a test for a surface alert.",
+                )
+            ],
+            "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
+        }
+
+    def tag_implementation(self, tag: Tag, folder: Folder, progress_recorder=None):
+        name = (
+            f"Test result for test function called for tag {tag}, "
+            ", which is built from surfaces {}".format(
+                [s.name for s in tag.surface_set.all()]
+            )
         )
-    )
 
-    return {
-        "name": name,
-        "xunit": "m",
-        "yunit": "m",
-        "xlabel": "x",
-        "ylabel": "y",
-        "series": [],
-        "alerts": [
-            dict(alert_class="alert-info", message="This is a test for an alert.")
-        ],
-        "surfaces": [surface.name for surface in tag.get_related_surfaces()],
-        "comment": f"a is {a} and b is {b}",
-    }
+        return {
+            "name": name,
+            "xunit": "m",
+            "yunit": "m",
+            "xlabel": "x",
+            "ylabel": "y",
+            "series": [],
+            "alerts": [
+                dict(alert_class="alert-info", message="This is a test for an alert.")
+            ],
+            "surfaces": [surface.name for surface in tag.get_related_surfaces()],
+            "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
+        }
+
+
+class SecondTestImplementation(AnalysisImplementation):
+    """
+    This function will be registered in conftest.py by a fixture. The arguments have no
+    meaning. Result are two series.
+    """
+
+    class Meta:
+        name = "test2"
+        visualization_app_name = "analysis"
+        visualization_type = VIZ_SERIES
+
+        implementations = {
+            Topography: "topography_implementation",
+        }
+
+        dependencies = {Topography: "topography_dependencies"}
+
+    class Parameters(AnalysisImplementation.Parameters):
+        c: int = 1
+        d: float = 1.3
+
+    def topography_dependencies(
+        self, topography: Topography
+    ) -> list[AnalysisInputData]:
+        return [
+            AnalysisInputData(
+                subject=topography,
+                function=AnalysisFunction.objects.get(name="test"),
+                kwargs=dict(a=self._kwargs.c),
+            ),
+            AnalysisInputData(
+                subject=topography,
+                function=AnalysisFunction.objects.get(name="test"),
+                kwargs=dict(b=self._kwargs.c * "A"),
+            ),
+        ]
+
+    def topography_implementation(
+        self,
+        topography: Topography,
+        folder: Folder,
+        dependencies: list = None,
+        progress_recorder=None,
+    ):
+        (dep1, dep2) = dependencies
+        return {
+            "name": "Test with dependencies",
+            "result_from_dep": dep1.result["xunit"],
+        }

@@ -4,7 +4,10 @@ Making the functions available in the database.
 """
 from django.core.management.base import BaseCommand
 
-from topobank.analysis.registry import AnalysisRegistry
+from topobank.analysis.registry import (
+    get_analysis_function_names,
+    sync_analysis_functions,
+)
 
 
 class Command(BaseCommand):
@@ -21,8 +24,7 @@ class Command(BaseCommand):
         )
 
     def handle(self, *args, **options):
-        reg = AnalysisRegistry()
-        counts = reg.sync_analysis_functions(cleanup=options['cleanup'])
+        counts = sync_analysis_functions(cleanup=options['cleanup'])
 
         func_count = counts['funcs_created'] + counts['funcs_updated']
 
@@ -30,7 +32,7 @@ class Command(BaseCommand):
         self.stdout.write(self.style.SUCCESS("   created: {}".format(counts['funcs_created'])))
         self.stdout.write(self.style.SUCCESS("   updated: {}".format(counts['funcs_updated'])))
         self.stdout.write(self.style.SUCCESS("List of current functions: {}\n".format(
-            ', '.join(reg.get_analysis_function_names()))))
+            ', '.join(get_analysis_function_names()))))
         self.stdout.write(self.style.SUCCESS("Deleted {} analysis functions. Cleanup flag set? {}".format(
             counts['funcs_deleted'], options['cleanup'])))
         self.stdout.write(self.style.SUCCESS("Done."))

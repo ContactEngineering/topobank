@@ -6,15 +6,20 @@ from django.db.models import Count
 
 
 def forward_func(apps, schema_editor):
-    Analysis = apps.get_model("analysis", "analysis")
+    Analysis = apps.get_model("analysis", "Analysis")
+    PermissionSet = apps.get_model("authorization", "PermissionSet")
+    UserPermission = apps.get_model("authorization", "UserPermission")
     # Delete all analyses without a user (this will leave dangling files in the S3)
     Analysis.objects.select_related("users").annotate(nb_users=Count("users")).filter(
         nb_users=0
     ).delete()
-    # Randomly assign some user for remaining analyses
+    # Create permission sets for the remaining users
     for analysis in Analysis.objects.all():
-        analysis.user = analysis.users.first()
-        analysis.save(update_fields=["user"])
+        permissions = PermissionSet.objects.create()
+        analysis.permissions = permissions
+        for user in analysis.users:
+            UserPermission.objects.create(parent=permissions, user=user, allow="view")
+        analysis.save(update_fields=["permissions"])
 
 
 def reverse_func(apps, schema_editor):
@@ -28,7 +33,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
-        ("analysis", "0026_add_analysis_users"),
+        ("analysis", "0026_add_analysis_permissions_folder"),
     ]
 
     operations = [

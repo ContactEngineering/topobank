@@ -4,11 +4,15 @@ import math
 import pytest
 from django.contrib.contenttypes.models import ContentType
 
-from topobank.analysis.controller import AnalysisController, submit_analysis_if_missing
+from topobank.analysis.controller import AnalysisController
 from topobank.analysis.models import Analysis
-from topobank.analysis.utils import find_children, mangle_sheet_name, round_to_significant_digits
+from topobank.analysis.utils import (
+    find_children,
+    mangle_sheet_name,
+    round_to_significant_digits,
+)
 from topobank.manager.models import Surface, Topography
-from topobank.testing.factories import UserFactory, TopographyAnalysisFactory
+from topobank.testing.factories import TopographyAnalysisFactory, UserFactory
 
 
 @pytest.mark.django_db
@@ -21,13 +25,11 @@ def test_request_analysis(two_topos, test_analysis_function):
 
     user = topo1.creator
 
-    analysis = submit_analysis_if_missing(
-        user=user, subject=topo1, analysis_func=test_analysis_function
-    )
+    analysis = test_analysis_function.submit(user=user, subject=topo1)
 
     assert analysis.subject == topo1
     assert analysis.function == test_analysis_function
-    assert analysis.user == user
+    assert analysis.has_permission(user, "view")
 
 
 @pytest.mark.django_db
@@ -128,7 +130,10 @@ def test_latest_analyses(two_topos, test_analysis_function):
 def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
     assert (
-        Analysis.objects.filter(user=user, function=test_analysis_function).count() == 0
+        Analysis.objects.filter(
+            permissions__user_permissions__user=user, function=test_analysis_function
+        ).count()
+        == 0
     )
 
 

@@ -1,12 +1,10 @@
 import datetime
 import logging
-from dataclasses import dataclass
 
 import factory
-from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
+from django.db.models.signals import post_save
 from factory import post_generation
-from SurfaceTopography import Topography as STTopography
 
 from ..analysis.models import Analysis, AnalysisFunction, AnalysisSubject
 from ..manager.models import Property, Surface, Tag, Topography
@@ -53,6 +51,34 @@ class UserFactory(factory.django.DjangoModelFactory):
         OrcidSocialAccountFactory(user_id=self.id)
 
 
+@factory.django.mute_signals(post_save)
+class UserPermissionFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = "authorization.UserPermission"
+
+    user = factory.SubFactory(UserFactory)
+    allow = "full"
+
+
+@factory.django.mute_signals(post_save)
+class PermissionSetFactory(factory.django.DjangoModelFactory):
+    class Meta:
+        model = "authorization.PermissionSet"
+        exclude = (
+            "user",
+            "allow",
+        )
+
+    user = factory.SubFactory(UserFactory)
+    allow = "full"
+    permissions = factory.RelatedFactory(
+        UserPermissionFactory,
+        factory_related_name="parent",
+        user=factory.SelfAttribute("..user"),
+        allow=factory.SelfAttribute("..allow"),
+    )
+
+
 class ManifestFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "files.Manifest"
@@ -68,10 +94,6 @@ class FolderFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "files.Folder"
 
-    @post_generation
-    def filenames(obj, create, value, **kwargs):
-        print(obj, create, value, kwargs)
-
 
 #
 # Define factories for creating test objects
@@ -86,6 +108,9 @@ class SurfaceFactory(factory.django.DjangoModelFactory):
         lambda n: "surface-{:05d}".format(n)
     )  # format because of defined order by name
     creator = factory.SubFactory(UserFactory)
+    permissions = factory.SubFactory(
+        PermissionSetFactory, user=factory.SelfAttribute("..creator")
+    )
 
 
 class TagFactory(factory.django.DjangoModelFactory):
@@ -183,11 +208,9 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    func = analysis.function.get_python_function(
-        ContentType.objects.get_for_model(analysis.subject_dispatch.get())
+    return analysis.function.eval(
+        analysis.subject_dispatch.get(), analysis.kwargs, analysis.folder
     )
-    result = func(analysis.subject_dispatch.get(), **analysis.kwargs)
-    return result
 
 
 def _failed_analysis_result(analysis):
@@ -195,8 +218,7 @@ def _failed_analysis_result(analysis):
 
 
 def _analysis_default_kwargs(analysis):
-    subject_type = ContentType.objects.get_for_model(analysis.subject_dispatch.get())
-    return analysis.function.get_default_kwargs(subject_type)
+    return analysis.function.get_default_kwargs()
 
 
 class AnalysisSubjectFactory(factory.django.DjangoModelFactory):
@@ -215,19 +237,17 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     class Meta:
         # model = Analysis
         abstract = True
-        exclude = ["subject_topography", "subject_surface", "subject_tag"]
+        exclude = (
+            "subject_topography",
+            "subject_surface",
+            "subject_tag",
+            "user",
+        )
 
     subject_topography = None  # factory.SubFactory(Topography2DFactory)
     subject_surface = None
     subject_tag = None
 
-    function = factory.SubFactory(AnalysisFunctionFactory)
-    subject_dispatch = factory.SubFactory(
-        AnalysisSubjectFactory,
-        topography=factory.SelfAttribute("..subject_topography"),
-        surface=factory.SelfAttribute("..subject_surface"),
-        tag=factory.SelfAttribute("..subject_tag"),
-    )
     user = factory.LazyAttribute(
         lambda obj: (
             obj.subject_surface.creator
@@ -238,6 +258,23 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
                 else obj.subject_tag.get_related_surfaces().first().creator
             )
         )
+    )
+
+    permissions = factory.SubFactory(
+        PermissionSetFactory, user=factory.SelfAttribute("..user"), allow="view"
+    )
+    function = factory.SubFactory(AnalysisFunctionFactory)
+    subject_dispatch = factory.SubFactory(
+        AnalysisSubjectFactory,
+        topography=factory.SelfAttribute("..subject_topography"),
+        surface=factory.SelfAttribute("..subject_surface"),
+        tag=factory.SelfAttribute("..subject_tag"),
+    )
+
+    folder = factory.SubFactory(
+        FolderFactory,
+        permissions=factory.SelfAttribute("..permissions"),
+        read_only=True,
     )
 
     kwargs = factory.LazyAttribute(_analysis_default_kwargs)
@@ -290,28 +327,6 @@ class TagAnalysisFactory(AnalysisFactory):
         model = Analysis
 
     subject_tag = factory.SubFactory(TagFactory)
-
-
-@dataclass(frozen=True)
-class FakeTopographyModel:
-    """This model is used to create a Topography for being passed to analysis functions."""
-
-    t: STTopography
-    name: str = "mytopo"
-    is_periodic: bool = False
-
-    def topography(self):
-        """Return low level topography."""
-        return self.t
-
-    def get_absolute_url(self):
-        return "some/url/"
-
-
-class DummyProgressRecorder:
-    def set_progress(self, a, nsteps):
-        """Do nothing."""
-        pass  # dummy
 
 
 class OrganizationFactory(factory.django.DjangoModelFactory):

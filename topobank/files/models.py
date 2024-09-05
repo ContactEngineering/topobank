@@ -34,14 +34,31 @@ class Folder(PermissionMixin, models.Model):
     #
     read_only = models.BooleanField("read_only", default=True)
 
-    def save_file(self, filename, kind, fobj):
-        Manifest.objects.create(
+    def open_file(self, filename: str, mode: str = "r"):
+        manifests = self.files.filter(folder=self, filename=filename)
+        if manifests.count() == 0:
+            raise RuntimeError(f"File '{filename}' not found in folder {self.id}.")
+        elif manifests.count() > 1:
+            raise RuntimeError(
+                f"More than one file with name '{filename}' was found in folder "
+                f"{self.id}."
+            )
+        else:
+            manifest = manifests.first()
+            return manifest.open(mode)
+
+    def save_file(self, filename: str, kind: str, fobj):
+        fobj.name = filename  # Make sure the filenames are the same
+        return Manifest.objects.create(
             permissions=self.permissions,
             folder=self,
             filename=filename,
             kind=kind,
             file=fobj,
         )
+
+    def exists(self, filename: str) -> bool:
+        return self.files.filter(filename=filename).count() > 1
 
     def get_files(self) -> models.QuerySet["Manifest"]:
         return self.files.all()
@@ -50,22 +67,29 @@ class Folder(PermissionMixin, models.Model):
         # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
         return self.get_files().filter(upload_confirmed__isnull=False)
 
-    def find_files(self, filename):
+    def find_files(self, filename: str) -> models.QuerySet["Manifest"]:
         return Manifest.objects.filter(folder=self, filename=filename)
 
     def __str__(self) -> str:
         return "Folder"
 
-    def get_absolute_url(self, request=None):
+    def get_absolute_url(self, request=None) -> str:
         """URL of API endpoint for this folder"""
         return reverse(
             "files:folder-api-detail", kwargs=dict(pk=self.pk), request=request
         )
 
+    def remove_files(self):
+        """Clear this folder by removing all files"""
+        self.files.all().delete()
+
 
 # The Flow for "direct file upload" is heavily inspired from here:
 # https://www.hacksoft.io/blog/direct-to-s3-file-upload-with-django
 class Manifest(PermissionMixin, models.Model):
+    class Meta:
+        unique_together = ("folder", "filename")
+
     #
     # Manager
     #
@@ -175,8 +199,19 @@ class Manifest(PermissionMixin, models.Model):
 
     def save(self, *args, **kwargs):
         created = self.pk is None  # True on creation of the manifest
+        file = None
+        if created and self.file:
+            # We have a file but no id yet hence cannot create a storage path
+            file = self.file
+            self.file = None
         super().save(*args, **kwargs)
-        # Make sure no file already exists at the targeted storage location.
+        if file:
+            # No set the file name; we have an id and can create a storaga path and
+            # upload the file
+            self.file = file
+            super().save(update_fields=["file"])
+        # We have no file but a file name; make sure no file with the same name already
+        # exists at the targeted storage location
         if created and not self.file and self.filename:
             # We just created this manifest and no file was passed on creation
             storage_path = self.generate_storage_path()

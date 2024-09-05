@@ -1,0 +1,4 @@
+from topobank.analysis.functions import TestImplementation
+from topobank.analysis.registry import register_implementation
+
+register_implementation(TestImplementation)

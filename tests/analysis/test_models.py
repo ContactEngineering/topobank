@@ -1,16 +1,17 @@
 import datetime
 
 import pytest
-from django.contrib.contenttypes.models import ContentType
+from django.core.files.storage import default_storage
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from topobank.analysis.functions import topography_analysis_function_for_tests
+from topobank.analysis.functions import TestImplementation
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
-from topobank.analysis.tasks import current_configuration
+from topobank.analysis.tasks import get_current_configuration
 from topobank.manager.models import Topography
 from topobank.testing.factories import (
+    FolderFactory,
     SurfaceAnalysisFactory,
     SurfaceFactory,
     TagAnalysisFactory,
@@ -55,23 +56,24 @@ def test_exception_implementation_missing():
     surface = topo.surface
     function = AnalysisFunction.objects.get(name="test")
     analysis = TopographyAnalysisFactory(function=function)
-    function.eval(surface)  # that's okay, it's implemented
+    function.eval(
+        surface, analysis.kwargs, analysis.folder
+    )  # that's okay, it's implemented
     with pytest.raises(ImplementationMissingAnalysisFunctionException):
-        function.eval(analysis)  # that's not implemented
+        function.eval(
+            analysis, analysis.kwargs, analysis.folder
+        )  # that's not implemented
 
 
 @pytest.mark.django_db
 def test_analysis_function(test_analysis_function):
-    ct = ContentType.objects.get_for_model(Topography)
-    assert (
-        test_analysis_function.get_python_function(ct)
-        == topography_analysis_function_for_tests
-    )
-    assert test_analysis_function.get_default_kwargs(ct) == dict(a=1, b="foo")
+    assert test_analysis_function.implementation == TestImplementation
 
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
-    result = test_analysis_function.eval(t, a=2, b="bar")
+    result = test_analysis_function.eval(
+        t, kwargs=dict(a=2, b="bar"), folder=FolderFactory()
+    )
     assert result["comment"] == "Arguments: a is 2 and b is bar"
 
 
@@ -83,7 +85,7 @@ def test_analysis_times(two_topos, test_analysis_function):
         subject_topography=Topography.objects.first(),
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        kwargs={"a": 2, "b": 4},
+        kwargs={"a": 2, "b": "abcdef"},
         start_time=datetime.datetime(2018, 1, 1, 12),
         end_time=datetime.datetime(2018, 1, 1, 13),
     )
@@ -94,7 +96,7 @@ def test_analysis_times(two_topos, test_analysis_function):
     assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.duration == datetime.timedelta(0, 3600)
 
-    assert analysis.kwargs == {"a": 2, "b": 4}
+    assert analysis.kwargs == {"a": 2, "b": "abcdef"}
 
 
 @pytest.mark.django_db
@@ -128,8 +130,7 @@ def test_default_function_kwargs():
     func = AnalysisFunction.objects.get(name="test")
 
     expected_kwargs = dict(a=1, b="foo")
-    ct = ContentType.objects.get_for_model(Topography)
-    assert func.get_default_kwargs(ct) == expected_kwargs
+    assert func.get_default_kwargs() == expected_kwargs
 
 
 @pytest.mark.django_db
@@ -162,7 +163,7 @@ def test_current_configuration(settings):
         ("numpy", "numpy.version.full_version", "BSD 3-Clause", "https://numpy.org/"),
     ]
 
-    config = current_configuration()
+    config = get_current_configuration()
 
     versions = config.versions.order_by(Lower("dependency__import_name"))
     # Lower: Just to have a defined order independent of database used
@@ -195,3 +196,14 @@ def test_current_configuration(settings):
 
     assert v5.dependency.import_name == "topobank"
     assert v5.number_as_string() == topobank.__version__
+
+
+@pytest.mark.django_db
+def test_analysis_delete_removes_files(test_analysis_function):
+    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+    assert analysis.folder.get_files().count() == 2
+    file_path = analysis.folder.files.first().file.name
+    assert default_storage.exists(file_path)
+    analysis.delete()
+    assert analysis.folder.get_files().count() == 0
+    assert not default_storage.exists(file_path)
