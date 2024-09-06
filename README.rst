@@ -3,13 +3,6 @@ TopoBank
 
 A surface metrology cloud database.
 
-Settings
---------
-
-Moved to settings_.
-
-.. _settings: http://cookiecutter-django.readthedocs.io/en/latest/settings.html
-
 User Accounts
 -------------
 
@@ -64,20 +57,17 @@ Docker
 ------
 
 The full application can be run in Docker containers, for development and production.
-This also includes the database, message brokers, celery workers and more. It is currently the easiest way
-to run the full stack.
+This also includes the database, message brokers, celery workers and more. It is
+currently the easiest way to run the full stack.
 
-See the Sphinx documentation how to install docker and how to start the application using docker,
-for deployment (see chapter "Deploy") or local development
+See the Sphinx documentation how to install docker and how to start the application
+using docker, for deployment (see chapter "Deploy") or local development
 (see "Installation on development machine / Starting Topobank in Docker").
-
 
 Celery
 ------
 
-This app comes with Celery.
-
-To run a celery worker:
+This app comes with Celery. To run a celery worker:
 
 .. code-block:: bash
 
@@ -88,6 +78,11 @@ Please note: For Celery's import magic to work, it is important *where* the cele
 
 There is a bash script :code:`start-celery.sh` which also sets some environment variables needed in order to connect to the message broker
 and to the result backend.
+
+API documentation
+-----------------
+
+API documentation is exposed at the URL: api/schema/swagger-ui/
 
 Funding
 -------
