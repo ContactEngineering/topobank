@@ -272,24 +272,30 @@ class TestImplementation(AnalysisImplementation):
             "xlabel": "x",
             "ylabel": "y",
             "series": [
-                dict(
-                    name="Fibonacci series",
-                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                    y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
-                    std_err_y=np.zeros(8),
+                SplitDictionaryHere(
+                    "series-0.json",
+                    dict(
+                        name="Fibonacci series",
+                        x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                        y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
+                        std_err_y=np.zeros(8),
+                    ),
                 ),
-                dict(
-                    name="Geometric series",
-                    x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                    y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                    std_err_y=np.zeros(8),
+                SplitDictionaryHere(
+                    "series-1.json",
+                    dict(
+                        name="Geometric series",
+                        x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                        y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+                        std_err_y=np.zeros(8),
+                    ),
                 ),
             ],
             "alerts": [
                 dict(
                     alert_class="alert-info",
                     message="This is a test for a measurement alert.",
-                )
+                ),
             ],
             "comment": f"Arguments: a is {self._kwargs.a} and b is "
             f"{self._kwargs.b}",

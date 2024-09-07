@@ -83,7 +83,12 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "files.Manifest"
 
-    filename = "10x10.txt"
+    filename = factory.Iterator(
+        ["10x10.txt", "dektak-1.csv", "example.opd", "example3.di", "plux-1.plux"]
+    )
+    permissions = factory.LazyAttribute(
+        lambda obj: obj.folder.permissions if hasattr(obj, "folder") else None
+    )
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):
@@ -93,6 +98,15 @@ class ManifestFactory(factory.django.DjangoModelFactory):
 class FolderFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "files.Folder"
+        exclude = ("user",)
+
+    read_only = True
+
+    user = factory.SubFactory(UserFactory)
+    permissions = factory.SubFactory(
+        PermissionSetFactory,
+        user=factory.SelfAttribute("..user"),
+    )
 
 
 #

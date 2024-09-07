@@ -72,7 +72,7 @@ def test_analysis_function(test_analysis_function):
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
     result = test_analysis_function.eval(
-        t, kwargs=dict(a=2, b="bar"), folder=FolderFactory()
+        t, kwargs=dict(a=2, b="bar"), folder=FolderFactory(user=surface.creator)
     )
     assert result["comment"] == "Arguments: a is 2 and b is bar"
 
@@ -201,9 +201,9 @@ def test_current_configuration(settings):
 @pytest.mark.django_db
 def test_analysis_delete_removes_files(test_analysis_function):
     analysis = TopographyAnalysisFactory(function=test_analysis_function)
-    assert analysis.folder.get_files().count() == 2
+    assert len(analysis.folder) == 2
     file_path = analysis.folder.files.first().file.name
     assert default_storage.exists(file_path)
     analysis.delete()
-    assert analysis.folder.get_files().count() == 0
+    assert len(analysis.folder) == 0
     assert not default_storage.exists(file_path)

@@ -8,7 +8,8 @@ from topobank.authorization.models import PermissionSet, UserPermission
 from topobank.files.models import Folder, Manifest
 from topobank.files.utils import file_storage_path
 from topobank.testing.data import FIXTURE_DATA_DIR
-from topobank.testing.utils import upload_file
+from topobank.testing.factories import FolderFactory, ManifestFactory
+from topobank.testing.utils import assert_dict_equal, upload_file
 
 
 @pytest.mark.django_db
@@ -244,3 +245,45 @@ def test_create_file(api_client, user_alice, read_only, handle_usage_statistics)
     )
     assert response.status_code == (403 if read_only else 201)
     assert Manifest.objects.count() == (0 if read_only else 1)
+
+
+def test_list_folder(api_client, user_alice):
+    folder = FolderFactory(user=user_alice)
+    manifest1 = ManifestFactory(folder=folder)
+    manifest2 = ManifestFactory(folder=folder)
+
+    api_client.force_login(user_alice)
+
+    response = api_client.get(
+        reverse("files:folder-api-detail", kwargs={"pk": folder.id})
+    )
+
+    assert_dict_equal(
+        response.data,
+        {
+            manifest1.filename: {
+                "url": f"http://testserver/files/manifest/{manifest1.id}/",
+                "filename": manifest1.filename,
+                "file": f"http://testserver/media/data-lake/{manifest1.id}/{manifest1.filename}",
+                "folder": f"http://testserver/files/folder/{folder.id}/",
+                "kind": "N/A",
+                "created": manifest1.created.astimezone().isoformat(),
+                "updated": manifest1.updated.astimezone().isoformat(),
+                "upload_confirmed": None,
+                "uploaded_by": None,
+                "upload_instructions": None,
+            },
+            manifest2.filename: {
+                "url": f"http://testserver/files/manifest/{manifest2.id}/",
+                "filename": manifest2.filename,
+                "file": f"http://testserver/media/data-lake/{manifest2.id}/{manifest2.filename}",
+                "folder": f"http://testserver/files/folder/{folder.id}/",
+                "kind": "N/A",
+                "created": manifest2.created.astimezone().isoformat(),
+                "updated": manifest2.updated.astimezone().isoformat(),
+                "upload_confirmed": None,
+                "uploaded_by": None,
+                "upload_instructions": None,
+            },
+        },
+    )

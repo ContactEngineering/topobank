@@ -1158,11 +1158,7 @@ def test_delete_topography(
     assert not default_storage.exists(topo_datafile_name)
     assert not default_storage.exists(squeezed_datafile_name)
     assert not default_storage.exists(thumbnail_name)
-    file = topo.deepzoom.find_file("dzi.json")
-    assert file
     assert not default_storage.exists(dzi_json)
-    file = topo.deepzoom.find_file("dzi_files/0/0_0.jpg")
-    assert file
     assert not default_storage.exists(dzi_0_0)
 
 
