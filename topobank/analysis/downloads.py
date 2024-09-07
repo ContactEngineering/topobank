@@ -62,9 +62,7 @@ def download_analyses(request, ids, file_format):
         #
         # Get visualization configuration
         #
-        _visualization_app_name, _visualization_type = (
-            get_visualization_type(analysis.function.name)
-        )
+        _visualization_type = get_visualization_type(analysis.function.name)
         if visualization_type is None:
             visualization_type = _visualization_type
         else:

@@ -175,11 +175,12 @@ class AnalysisImplementation:
             )
         return getattr(self, name)
 
-    def has_implementation(self, model_class):
+    @classmethod
+    def has_implementation(cls, model_class):
         """
         Returns whether implementation function for a specific subject model exists
         """
-        return model_class in self.Meta.implementations
+        return model_class in cls.Meta.implementations
 
     def get_dependencies(self, subject):
         """Return dependencies required for running analysis for `subject`"""

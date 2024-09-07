@@ -54,13 +54,12 @@ class AnalysisFunctionView(
                 f.id for f in AnalysisFunction.objects.all() if f.has_permission(user)
             ]
         else:
+            subject_class = demangle_content_type(subject_type)
             ids = [
                 f.id
                 for f in AnalysisFunction.objects.all()
                 if f.has_permission(user)
-                and f.implementation.has_implementation(
-                    demangle_content_type(subject_type)
-                )
+                and f.implementation.has_implementation(subject_class.model_class())
             ]
         return AnalysisFunction.objects.filter(pk__in=ids)
 

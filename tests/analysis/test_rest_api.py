@@ -104,6 +104,25 @@ def test_query_task_with_wrong_kwargs(
 def test_function_info(api_client, user_alice, handle_usage_statistics):
     api_client.force_login(user_alice)
 
-    response = api_client.get(reverse("analysis:function-list"))
+    response = api_client.get(
+        f"{reverse('analysis:function-list')}?subject_type=topography"
+    )
 
     assert response.status_code == 200
+    assert len(response.data) > 0
+
+    id = AnalysisFunction.objects.get(name="Test implementation").id
+
+    response = api_client.get(reverse("analysis:function-detail", kwargs=dict(pk=id)))
+
+    assert response.status_code == 200
+    assert response.data == {
+        "id": id,
+        "url": f"http://testserver/analysis/api/function/{id}/",
+        "name": "Test implementation",
+        "visualization_type": "series",
+        "kwargs_schema": {
+            "a": {"default": 1, "title": "A", "type": "integer"},
+            "b": {"default": "foo", "title": "B", "type": "string"},
+        },
+    }

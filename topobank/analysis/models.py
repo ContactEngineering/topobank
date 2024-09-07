@@ -418,7 +418,7 @@ class AnalysisFunction(models.Model):
         """
         JSON schema describing the keyword arguments.
         """
-        return self.implementation.Parameters().model_json_schema()
+        return self.implementation.Parameters().model_json_schema()['properties']
 
     def clean_kwargs(self, kwargs: Union[dict, None]):
         """
