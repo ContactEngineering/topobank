@@ -67,7 +67,7 @@ class Folder(PermissionMixin, models.Model):
         )
 
     def exists(self, filename: str) -> bool:
-        return self.files.filter(filename=filename).count() > 1
+        return self.files.filter(filename=filename).count() > 0
 
     def get_files(self) -> models.QuerySet["Manifest"]:
         return self.files.all()
