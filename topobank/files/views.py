@@ -88,7 +88,7 @@ def list_manifests(request, pk=None):
     obj = get_object_or_404(Folder, pk=pk)
     if not obj.has_permission(request.user, "view"):
         return HttpResponseForbidden()
-    return [
-        ManifestSerializer(manifest, context={"request": request}).data
+    return {
+        obj.filename: ManifestSerializer(manifest, context={"request": request}).data
         for manifest in obj.files
-    ]
+    }
