@@ -1134,13 +1134,13 @@ def test_delete_topography(
     assert default_storage.exists(topo_datafile_name)
     assert default_storage.exists(squeezed_datafile_name)
     assert default_storage.exists(thumbnail_name)
-    files = topo.deepzoom.find_files("dzi.json")
-    assert files.count() == 1
-    dzi_json = files.first().file.name
+    file = topo.deepzoom.find_file("dzi.json")
+    assert file
+    dzi_json = file.file.name
     assert default_storage.exists(dzi_json)
-    files = topo.deepzoom.find_files("dzi_files/0/0_0.jpg")
-    assert files.count() == 1
-    dzi_0_0 = files.first().file.name
+    file = topo.deepzoom.find_file("dzi_files/0/0_0.jpg")
+    assert file
+    dzi_0_0 = file.file.name
     assert default_storage.exists(dzi_0_0)
 
     assert api_client.login(username=username, password=password)
@@ -1158,11 +1158,11 @@ def test_delete_topography(
     assert not default_storage.exists(topo_datafile_name)
     assert not default_storage.exists(squeezed_datafile_name)
     assert not default_storage.exists(thumbnail_name)
-    files = topo.deepzoom.find_files("dzi.json")
-    assert files.count() == 0
+    file = topo.deepzoom.find_file("dzi.json")
+    assert file
     assert not default_storage.exists(dzi_json)
-    files = topo.deepzoom.find_files("dzi_files/0/0_0.jpg")
-    assert files.count() == 0
+    file = topo.deepzoom.find_file("dzi_files/0/0_0.jpg")
+    assert file
     assert not default_storage.exists(dzi_0_0)
 
 

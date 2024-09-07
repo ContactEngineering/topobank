@@ -3,7 +3,6 @@ from collections import defaultdict
 
 import pydantic
 from django.conf import settings
-from django.core.files.storage import default_storage
 from django.db.models import Case, F, Max, Sum, Value, When
 from django.http import HttpResponseBadRequest
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
@@ -12,6 +11,7 @@ from rest_framework.decorators import api_view
 from rest_framework.response import Response
 from trackstats.models import Metric
 
+from ..files.serializers import ManifestSerializer
 from ..manager.models import Surface
 from ..manager.utils import demangle_content_type
 from ..usage_stats.utils import increase_statistics_by_date_and_object
@@ -342,13 +342,8 @@ def series_card_view(request, **kwargs):
                 continue
 
         for series_idx, s in enumerate(series_metadata):
-            #
-            # Collect data for visibility of the corresponding series
-            # revert this back if we ever solve the redirect issue
-            # series_url = reverse('analysis:data', args=(analysis.pk, f'series-{series_idx}.json'), request=request)
-            # we want to return the aws s3 links directly
-            series_url = default_storage.url(
-                f"{analysis.storage_prefix}/series-{series_idx}.json"
+            series_json_manifest = analysis.folder.find_file(
+                f"series-{series_idx}.json"
             )
             series_name = s["name"] if "name" in s else f"{series_idx}"
             series_name_idx = series_names.index(series_name)
@@ -380,6 +375,7 @@ def series_card_view(request, **kwargs):
             #
             # Context information for this data source, will be interpreted by client JS code
             #
+            print(series_json_manifest.file)
             data_sources_dict += [
                 {
                     "sourceName": f"analysis-{analysis.id}",
@@ -391,7 +387,9 @@ def series_card_view(request, **kwargs):
                     "hasParent": has_parent,  # can be used for the legend
                     "xScaleFactor": analysis_xscale,
                     "yScaleFactor": analysis_yscale,
-                    "url": series_url,
+                    "url": ManifestSerializer(
+                        series_json_manifest, context={'request': request}
+                    ).data["file"],
                     "width": line_width,
                     "alpha": alpha,
                     "visible": series_name_idx

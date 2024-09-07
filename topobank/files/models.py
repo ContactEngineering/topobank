@@ -67,8 +67,8 @@ class Folder(PermissionMixin, models.Model):
         # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
         return self.get_files().filter(upload_confirmed__isnull=False)
 
-    def find_files(self, filename: str) -> models.QuerySet["Manifest"]:
-        return Manifest.objects.filter(folder=self, filename=filename)
+    def find_file(self, filename: str) -> models.QuerySet["Manifest"]:
+        return Manifest.objects.get(folder=self, filename=filename)
 
     def __str__(self) -> str:
         return "Folder"
