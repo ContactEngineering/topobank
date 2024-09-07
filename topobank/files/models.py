@@ -34,6 +34,15 @@ class Folder(PermissionMixin, models.Model):
     #
     read_only = models.BooleanField("read_only", default=True)
 
+    def __str__(self) -> str:
+        return "Folder"
+
+    def __len__(self) -> int:
+        return self.files.count()
+
+    def __getitem__(self, item):
+        return self.files.all()[item]
+
     def open_file(self, filename: str, mode: str = "r"):
         manifests = self.files.filter(folder=self, filename=filename)
         if manifests.count() == 0:
@@ -69,9 +78,6 @@ class Folder(PermissionMixin, models.Model):
 
     def find_file(self, filename: str) -> models.QuerySet["Manifest"]:
         return Manifest.objects.get(folder=self, filename=filename)
-
-    def __str__(self) -> str:
-        return "Folder"
 
     def get_absolute_url(self, request=None) -> str:
         """URL of API endpoint for this folder"""
