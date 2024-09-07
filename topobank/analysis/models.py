@@ -414,6 +414,12 @@ class AnalysisFunction(models.Model):
         """
         return self.implementation.Parameters().dict()
 
+    def get_kwargs_schema(self):
+        """
+        JSON schema describing the keyword arguments.
+        """
+        return self.implementation.Parameters().model_json_schema()
+
     def clean_kwargs(self, kwargs: Union[dict, None]):
         """
         Validate keyword arguments (parameters) and return validated dictionary

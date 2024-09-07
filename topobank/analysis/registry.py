@@ -232,13 +232,10 @@ def get_analysis_function_names(user=None):
     return list(runner_classes.keys())
 
 
-def get_visualization_type_for_function_name(requested_name):
+def get_visualization_type(name):
     """Return visualization type for given function name."""
-    runner_class = _implementation_classes[requested_name]
-    return (
-        runner_class.Meta.visualization_app_name,
-        runner_class.Meta.visualization_type,
-    )
+    runner_class = _implementation_classes[name]
+    return runner_class.Meta.visualization_type
 
 
 def sync_implementation_classes(cleanup=False):

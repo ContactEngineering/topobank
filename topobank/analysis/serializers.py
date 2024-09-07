@@ -6,7 +6,7 @@ import topobank.taskapp.serializers
 
 from ..supplib.serializers import StrictFieldMixin
 from .models import Analysis, AnalysisFunction, AnalysisSubject, Configuration
-from .registry import get_visualization_type_for_function_name
+from .registry import get_visualization_type
 
 _log = logging.getLogger(__name__)
 
@@ -30,26 +30,21 @@ class AnalysisFunctionSerializer(
 ):
     class Meta:
         model = AnalysisFunction
-        fields = ["id", "url", "name", "visualization_app_name", "visualization_type"]
+        fields = ["id", "url", "name", "visualization_type", "kwargs_schema"]
 
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:function-detail", read_only=True
     )
 
-    visualization_app_name = serializers.SerializerMethodField()
     visualization_type = serializers.SerializerMethodField()
 
-    def get_visualization_app_name(self, obj):
-        app_name, type = get_visualization_type_for_function_name(
-            obj.name
-        )
-        return app_name
+    kwargs_schema = serializers.SerializerMethodField()
 
     def get_visualization_type(self, obj):
-        app_name, type = get_visualization_type_for_function_name(
-            obj.name
-        )
-        return type
+        return get_visualization_type(obj.name)
+
+    def get_kwargs_schema(self, obj):
+        return obj.get_kwargs_schema()
 
 
 class AnalysisSubjectSerializer(

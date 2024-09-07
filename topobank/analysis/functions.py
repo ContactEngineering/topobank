@@ -175,6 +175,12 @@ class AnalysisImplementation:
             )
         return getattr(self, name)
 
+    def has_implementation(self, model_class):
+        """
+        Returns whether implementation function for a specific subject model exists
+        """
+        return model_class in self.Meta.implementations
+
     def get_dependencies(self, subject):
         """Return dependencies required for running analysis for `subject`"""
         try:
@@ -241,7 +247,6 @@ class TestImplementation(AnalysisImplementation):
     class Meta:
         name = "topobank.analysis.test"
         display_name = "Test implementation"
-        visualization_app_name = "analysis"
         visualization_type = VIZ_SERIES
 
         implementations = {
@@ -343,8 +348,6 @@ class SecondTestImplementation(AnalysisImplementation):
     class Meta:
         name = "topobank.analysis.test2"
         display_name = "Second test implementation"
-
-        visualization_app_name = "analysis"
         visualization_type = VIZ_SERIES
 
         implementations = {

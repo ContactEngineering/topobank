@@ -25,7 +25,7 @@ from .models import Analysis
 from .registry import (
     UnknownKeyException,
     get_download_function,
-    get_visualization_type_for_function_name,
+    get_visualization_type,
     register_download_function,
 )
 from .utils import filter_and_order_analyses
@@ -63,7 +63,7 @@ def download_analyses(request, ids, file_format):
         # Get visualization configuration
         #
         _visualization_app_name, _visualization_type = (
-            get_visualization_type_for_function_name(analysis.function.name)
+            get_visualization_type(analysis.function.name)
         )
         if visualization_type is None:
             visualization_type = _visualization_type

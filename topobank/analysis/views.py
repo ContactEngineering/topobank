@@ -49,19 +49,18 @@ class AnalysisFunctionView(
         # We need to filter the queryset to exclude functions in the list view
         user = self.request.user
         subject_type = self.request.query_params.get("subject_type", None)
-        # FIXME!!! This is a hack!!! The analysis function permission system needs to be refactored.
         if subject_type is None:
             ids = [
-                f.id
-                for f in AnalysisFunction.objects.all()
-                if f.is_available_for_user(user)
+                f.id for f in AnalysisFunction.objects.all() if f.has_permission(user)
             ]
         else:
             ids = [
                 f.id
                 for f in AnalysisFunction.objects.all()
-                if f.is_available_for_user(user)
-                and f.is_implemented_for_type(demangle_content_type(subject_type))
+                if f.has_permission(user)
+                and f.implementation.has_implementation(
+                    demangle_content_type(subject_type)
+                )
             ]
         return AnalysisFunction.objects.filter(pk__in=ids)
 
