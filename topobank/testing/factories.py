@@ -249,8 +249,7 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        # model = Analysis
-        abstract = True
+        model = Analysis
         exclude = (
             "subject_topography",
             "subject_surface",
