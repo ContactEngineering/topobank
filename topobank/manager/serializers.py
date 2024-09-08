@@ -112,7 +112,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
         if "request" not in self.context:
             return
-        # We only return permissions and attachments if requested to do so
+        # We only return permissions if requested to do so
         optional_fields = ["permissions"]
         for field in optional_fields:
             param = self.context["request"].query_params.get(field)

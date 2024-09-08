@@ -344,10 +344,18 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
     def save(self, *args, **kwargs):
         created = self.pk is None
-        if created and not self.permissions:
+        if created and self.permissions is None:
             # Create a new permission set for this dataset
+            _log.debug(
+                f"Creating an empty permission set for surface {self.id} which was "
+                f"just created."
+            )
             self.permissions = PermissionSet.objects.create()
-        if not self.attachments:
+        if self.attachments is None:
+            # Create a new folder for attachments
+            _log.debug(
+                f"Creating an empty folder for attachments to surface {self.id}."
+            )
             self.attachments = Folder.objects.create(
                 permissions=self.permissions, read_only=False
             )
@@ -813,7 +821,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             if self.creator is None:
                 self.creator = self.surface.creator
             self.permissions = self.surface.permissions
-        if not self.attachments:
+        if self.attachments is None:
+            _log.debug(
+                f"Creating an empty folder for attachments to topography {self.id}."
+            )
             self.attachments = Folder.objects.create(
                 permissions=self.permissions, read_only=False
             )
@@ -1403,8 +1414,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # First check if we have a datafile
         if not self.datafile.exists():
             raise RuntimeError(
-                f"Topography {self.id} does not appear to have a data file (expected "
-                f"at path '{self.datafile.file.path}'). Cannot refresh cached data."
+                f"Topography {self.id} does not appear to have a data file. Cannot "
+                f"refresh cached data."
             )
 
         # Check if this is the first time we are opening this file...

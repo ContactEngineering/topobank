@@ -131,9 +131,7 @@ if not ENABLE_USAGE_STATS:  # noqa: F405
 
 # STORAGE
 # ------------------------------------------------------------------------------
-STORAGE_BACKEND = env.str(
-    "STORAGE_BACKEND", default="inmemorystorage.InMemoryStorage"
-)
+STORAGE_BACKEND = env.str("STORAGE_BACKEND", default="inmemorystorage.InMemoryStorage")
 
 USE_S3_STORAGE = STORAGE_BACKEND.endswith("s3boto3.S3Boto3Storage")
 

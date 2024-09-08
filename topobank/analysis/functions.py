@@ -5,6 +5,7 @@ The first argument is either a Topography or Surface instance (model).
 """
 
 import collections
+import json
 import logging
 from dataclasses import dataclass
 from typing import Union
@@ -17,6 +18,7 @@ from django.core.files.base import ContentFile
 from ..files.models import Folder
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import SplitDictionaryHere
+from ..supplib.json import ExtendedJSONEncoder
 from .models import AnalysisFunction
 from .registry import ImplementationMissingAnalysisFunctionException
 
@@ -264,6 +266,28 @@ class TestImplementation(AnalysisImplementation):
         self, topography: Topography, folder: Folder, progress_recorder=None
     ):
         folder.save_file("test.txt", "der", ContentFile("Test!!!"))
+        fib = dict(
+            name="Fibonacci series",
+            x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+            y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
+            std_err_y=np.zeros(8),
+        )
+        geo = dict(
+            name="Geometric series",
+            x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+            y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
+            std_err_y=np.zeros(8),
+        )
+        folder.save_file(
+            "series-0.json",
+            "der",
+            ContentFile(json.dumps(fib, cls=ExtendedJSONEncoder)),
+        )
+        folder.save_file(
+            "series-1.json",
+            "der",
+            ContentFile(json.dumps(geo, cls=ExtendedJSONEncoder)),
+        )
         return {
             "name": "Test result for test function called for topography "
             f"{topography}.",
@@ -271,26 +295,7 @@ class TestImplementation(AnalysisImplementation):
             "yunit": "m",
             "xlabel": "x",
             "ylabel": "y",
-            "series": [
-                SplitDictionaryHere(
-                    "series-0.json",
-                    dict(
-                        name="Fibonacci series",
-                        x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                        y=np.array((0, 1, 1, 2, 3, 5, 8, 13)),
-                        std_err_y=np.zeros(8),
-                    ),
-                ),
-                SplitDictionaryHere(
-                    "series-1.json",
-                    dict(
-                        name="Geometric series",
-                        x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                        y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
-                        std_err_y=np.zeros(8),
-                    ),
-                ),
-            ],
+            "series": [fib, geo],
             "alerts": [
                 dict(
                     alert_class="alert-info",
