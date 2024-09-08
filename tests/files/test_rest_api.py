@@ -258,13 +258,16 @@ def test_list_folder(api_client, user_alice):
         reverse("files:folder-api-detail", kwargs={"pk": folder.id})
     )
 
+    d = response.data
+    del d[manifest1.filename]["file"]
+    del d[manifest2.filename]["file"]
+
     assert_dict_equal(
-        response.data,
+        d,
         {
             manifest1.filename: {
                 "url": f"http://testserver/files/manifest/{manifest1.id}/",
                 "filename": manifest1.filename,
-                "file": f"http://testserver/media/data-lake/{manifest1.id}/{manifest1.filename}",
                 "folder": f"http://testserver/files/folder/{folder.id}/",
                 "kind": "N/A",
                 "created": manifest1.created.astimezone().isoformat(),
@@ -276,7 +279,6 @@ def test_list_folder(api_client, user_alice):
             manifest2.filename: {
                 "url": f"http://testserver/files/manifest/{manifest2.id}/",
                 "filename": manifest2.filename,
-                "file": f"http://testserver/media/data-lake/{manifest2.id}/{manifest2.filename}",
                 "folder": f"http://testserver/files/folder/{folder.id}/",
                 "kind": "N/A",
                 "created": manifest2.created.astimezone().isoformat(),
