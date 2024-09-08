@@ -235,7 +235,7 @@ def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
         keys_a = set(a.keys())
         keys_b = set(b.keys())
     except AttributeError:
-        assert a == b, f"The value of the following key differs: {key}"
+        assert a == b, f"The values of key '{key}' differ: {a} != {b}"
         return
 
     assert (
@@ -250,12 +250,14 @@ def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
                 b[key],
                 rtol=rtol,
                 atol=atol,
-                err_msg=f"The value of the following key differs: {key}",
+                err_msg=f"The values of key '{key}' differ: {a[key]} != {b[key]}",
             )
         elif isinstance(a[key], list):
             assert_dicts_equal(a[key], b[key])
         else:
-            assert a[key] == b[key], f"The value of the following key differs: {key}"
+            assert (
+                a[key] == b[key]
+            ), f"The values key '{key}' differ: {a[key]} != {b[key]}"
 
 
 def assert_dicts_equal(a, b):
