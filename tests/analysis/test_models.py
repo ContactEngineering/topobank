@@ -201,7 +201,7 @@ def test_current_configuration(settings):
 @pytest.mark.django_db
 def test_analysis_delete_removes_files(test_analysis_function):
     analysis = TopographyAnalysisFactory(function=test_analysis_function)
-    assert len(analysis.folder) == 2
+    assert len(analysis.folder) == 4
     file_path = analysis.folder.files.first().file.name
     assert default_storage.exists(file_path)
     analysis.delete()
