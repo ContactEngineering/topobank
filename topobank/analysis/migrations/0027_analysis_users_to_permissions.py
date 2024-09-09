@@ -17,7 +17,7 @@ def forward_func(apps, schema_editor):
     for analysis in Analysis.objects.all():
         permissions = PermissionSet.objects.create()
         analysis.permissions = permissions
-        for user in analysis.users:
+        for user in analysis.users.all():
             UserPermission.objects.create(parent=permissions, user=user, allow="view")
         analysis.save(update_fields=["permissions"])
 
