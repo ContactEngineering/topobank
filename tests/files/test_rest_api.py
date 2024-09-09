@@ -260,9 +260,7 @@ def test_list_folder(api_client, user_alice):
 
     d = response.data
     del d[manifest1.filename]["file"]
-    del d[manifest1.filename]["upload_confirmed"]
     del d[manifest2.filename]["file"]
-    del d[manifest2.filename]["upload_confirmed"]
 
     assert_dict_equal(
         d,
@@ -275,6 +273,7 @@ def test_list_folder(api_client, user_alice):
                 "created": manifest1.created.astimezone().isoformat(),
                 "updated": manifest1.updated.astimezone().isoformat(),
                 "uploaded_by": None,
+                "upload_confirmed": manifest1.upload_confirmed.astimezone().isoformat(),
                 "upload_instructions": None,
             },
             manifest2.filename: {
@@ -285,6 +284,7 @@ def test_list_folder(api_client, user_alice):
                 "created": manifest2.created.astimezone().isoformat(),
                 "updated": manifest2.updated.astimezone().isoformat(),
                 "uploaded_by": None,
+                "upload_confirmed": manifest2.upload_confirmed.astimezone().isoformat(),
                 "upload_instructions": None,
             },
         },

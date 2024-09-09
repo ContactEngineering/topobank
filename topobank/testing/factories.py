@@ -89,6 +89,7 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     permissions = factory.LazyAttribute(
         lambda obj: obj.folder.permissions if hasattr(obj, "folder") else None
     )
+    upload_confirmed = factory.LazyFunction(datetime.datetime.now)
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):
