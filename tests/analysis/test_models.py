@@ -229,5 +229,5 @@ def test_fix_folder(test_analysis_function):
 
     analysis.fix_folder()
     assert len(analysis.folder) == 2
-    assert analysis.folder.open_file("test1.txt").read() == b"Hello world!"
-    assert analysis.folder.open_file("test2.txt").read() == b"Alles auf Horst!"
+    assert analysis.folder.open_file("test1.txt", "rb").read() == b"Hello world!"
+    assert analysis.folder.open_file("test2.txt", "rb").read() == b"Alles auf Horst!"
