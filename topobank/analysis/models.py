@@ -301,7 +301,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         for filename in dir_tuple[1]:
             manifest = Manifest.objects.create(
                 permissions=self.permissions,
-                parent=self.folder,
+                folder=self.folder,
                 filename=filename,
                 kind="der",
             )

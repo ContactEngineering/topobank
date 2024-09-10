@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db.models.functions import Lower
 from django.utils import timezone
@@ -207,3 +208,20 @@ def test_analysis_delete_removes_files(test_analysis_function):
     analysis.delete()
     assert len(analysis.folder) == 0
     assert not default_storage.exists(file_path)
+
+
+@pytest.mark.django_db
+def test_fix_folder(test_analysis_function):
+    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+    analysis.folder.delete()
+    analysis.save()
+
+    default_storage.save(
+        f"{analysis.storage_prefix}/test1.txt", ContentFile(b"Hello world!")
+    )
+    default_storage.save(
+        f"{analysis.storage_prefix}/test2.txt", ContentFile(b"Alles auf Horst!")
+    )
+
+    analysis.fix_folder()
+    assert len(analysis.folder) == 2
