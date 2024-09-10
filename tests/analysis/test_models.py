@@ -10,6 +10,7 @@ from topobank.analysis.functions import TestImplementation
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
 from topobank.analysis.tasks import get_current_configuration
+from topobank.files.models import Manifest
 from topobank.manager.models import Topography
 from topobank.testing.factories import (
     FolderFactory,
@@ -212,9 +213,12 @@ def test_analysis_delete_removes_files(test_analysis_function):
 
 @pytest.mark.django_db
 def test_fix_folder(test_analysis_function):
-    analysis = TopographyAnalysisFactory(function=test_analysis_function)
-    analysis.folder.delete()
-    analysis.save()
+    # Old analyses do not have folders
+    analysis = TopographyAnalysisFactory(
+        function=test_analysis_function, folder=None,
+    )
+    assert Manifest.objects.count() == 1
+    assert analysis.folder is None
 
     default_storage.save(
         f"{analysis.storage_prefix}/test1.txt", ContentFile(b"Hello world!")
@@ -225,3 +229,5 @@ def test_fix_folder(test_analysis_function):
 
     analysis.fix_folder()
     assert len(analysis.folder) == 2
+    assert analysis.folder.open_file("test1.txt").read() == b"Hello world!"
+    assert analysis.folder.open_file("test2.txt").read() == b"Alles auf Horst!"

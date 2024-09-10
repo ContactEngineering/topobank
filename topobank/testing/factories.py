@@ -223,9 +223,12 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    return analysis.function.eval(
-        analysis.subject_dispatch.get(), analysis.kwargs, analysis.folder
-    )
+    if analysis.folder is not None:
+        return analysis.function.eval(
+            analysis.subject_dispatch.get(), analysis.kwargs, analysis.folder
+        )
+    else:
+        return {"test_result": 1.23}
 
 
 def _failed_analysis_result(analysis):

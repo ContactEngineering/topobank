@@ -200,7 +200,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         super().save(*args, **kwargs)
         # If a result dict is given on input, we store it. However, we can only do this
         # once we have an id. This happens during testing.
-        if self._result is not None:
+        if self._result is not None and self.folder is not None:
             store_split_dict(self.folder, RESULT_FILE_BASENAME, self._result)
             self._result = None
 
@@ -296,7 +296,9 @@ class Analysis(PermissionMixin, TaskStateModel):
                 "This `Analysis` does not have an id yet; the storage file names is "
                 "not yet known."
             )
-        self.folder = Folder.objects.create(read_only=True)
+        self.folder = Folder.objects.create(
+            permissions=self.permissions, read_only=True
+        )
         dir_tuple = default_storage.listdir(self.storage_prefix)
         for filename in dir_tuple[1]:
             manifest = Manifest.objects.create(
@@ -418,7 +420,7 @@ class AnalysisFunction(models.Model):
         """
         JSON schema describing the keyword arguments.
         """
-        return self.implementation.Parameters().model_json_schema()['properties']
+        return self.implementation.Parameters().model_json_schema()["properties"]
 
     def clean_kwargs(self, kwargs: Union[dict, None]):
         """
