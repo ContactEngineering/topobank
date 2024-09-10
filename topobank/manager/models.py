@@ -34,7 +34,6 @@ from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFul
 from ..files.models import Folder, Manifest
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
-from ..users.models import User
 from .utils import get_topography_reader, render_deepzoom
 
 _log = logging.getLogger(__name__)
@@ -109,7 +108,7 @@ class SubjectMixin:
         """Returns a human readable name for this subject type."""
         return cls._meta.model_name
 
-    def is_shared(self, user: User) -> bool:
+    def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
         """Returns True, if this subject is shared with a given user.
 
         Always returns True if user is the creator of the related surface.
@@ -143,7 +142,9 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     _user = None
 
-    def authorize_user(self, user: User, access_level: ViewEditFull):
+    def authorize_user(
+        self, user: settings.AUTH_USER_MODEL, access_level: ViewEditFull
+    ):
         if access_level != "view":
             raise PermissionError(
                 f"Cannot elevate permission to '{access_level}' because tags are not "
@@ -151,7 +152,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
             )
         self._user = user
 
-    def is_shared(self, user: User) -> bool:
+    def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
         return True  # Tags are generally shared, but the surfaces may not
 
     def get_related_surfaces(self):
@@ -310,7 +311,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     # Model data
     #
     name = models.CharField(max_length=80, blank=True)
-    creator = models.ForeignKey(User, on_delete=models.CASCADE)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.CharField(
         max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False
@@ -402,7 +403,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             d["properties"] = [p.to_dict() for p in self.properties.all()]
         return d
 
-    def is_shared(self, user: User) -> bool:
+    def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
         """
         Returns True if this surface is shared with a given user.
 
@@ -420,7 +421,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         """
         return self.get_permission(user) is not None
 
-    def grant_permission(self, user: User, allow: ViewEditFull = "view"):
+    def grant_permission(self, user: settings.AUTH_USER_MODEL, allow: ViewEditFull = "view"):
         if self.is_published:
             raise PermissionError(
                 "Permissions of a published dataset cannot be changed."
@@ -428,7 +429,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
         super().grant_permission(user, allow)
 
-    def revoke_permission(self, user: User):
+    def revoke_permission(self, user: settings.AUTH_USER_MODEL):
         if self.is_published:
             raise PermissionError(
                 "Permissions of a published dataset cannot be changed."
@@ -691,7 +692,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     name = models.TextField(
         blank=True
     )  # This must be identical to the file name on upload
-    creator = models.ForeignKey(User, null=True, on_delete=models.SET_NULL)
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=Tag)
@@ -932,7 +933,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             "manager:topography-api-detail", kwargs=dict(pk=self.pk), request=request
         )
 
-    def is_shared(self, user: User) -> bool:
+    def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
         """Returns True, if this topography is shared with a given user.
 
         Just returns whether the related surface is shared with the user
