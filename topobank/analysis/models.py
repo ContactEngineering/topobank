@@ -231,6 +231,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         dict or None
             The result object if available, otherwise None.
         """
+        self.fix_folder()
         if self._result_cache is None:
             self._result_cache = load_split_dict(self.folder, RESULT_FILE_BASENAME)
         return self._result_cache
@@ -250,6 +251,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         dict
             The toplevel result object without series data.
         """
+        self.fix_folder()
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
                 self.folder.open_file(f"{RESULT_FILE_BASENAME}.json")
@@ -264,6 +266,7 @@ class Analysis(PermissionMixin, TaskStateModel):
     @property
     def has_result_file(self):
         """Returns True if result file exists in storage backend, else False."""
+        self.fix_folder()
         return self.folder.exists(self.result_file_name)
 
     @property
@@ -299,6 +302,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         self.folder = Folder.objects.create(
             permissions=self.permissions, read_only=True
         )
+        self.save(update_fields=["folder"])
         dir_tuple = default_storage.listdir(self.storage_prefix)
         for filename in dir_tuple[1]:
             manifest = Manifest.objects.create(
