@@ -19,6 +19,8 @@ Frontend apps are implemented as Vue.js components.
 
 import logging
 
+from analysis.functions import VIZ_GENERIC
+
 _log = logging.getLogger(__name__)
 
 
@@ -235,7 +237,10 @@ def get_analysis_function_names(user=None):
 def get_visualization_type(name):
     """Return visualization type for given function name."""
     runner_class = _implementation_classes[name]
-    return runner_class.Meta.visualization_type
+    try:
+        return runner_class.Meta.visualization_type
+    except AttributeError:
+        return VIZ_GENERIC
 
 
 def sync_implementation_classes(cleanup=False):
