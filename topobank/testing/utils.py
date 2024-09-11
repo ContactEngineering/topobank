@@ -7,6 +7,7 @@ import json
 import logging
 from dataclasses import dataclass
 from operator import itemgetter
+from typing import Union
 
 import numpy as np
 import requests
@@ -15,7 +16,8 @@ from django.test import SimpleTestCase
 from django.utils import formats
 from rest_framework.reverse import reverse
 
-from topobank.manager.models import Topography
+from topobank.files.models import Folder
+from topobank.manager.models import Surface, Tag, Topography
 
 _log = logging.getLogger(__name__)
 
@@ -284,6 +286,17 @@ class FakeTopographyModel:
 
     def get_absolute_url(self):
         return "some/url/"
+
+
+class AnalysisResultMock:
+    subject: Union[Tag, Surface, Topography] = None
+    folder: Folder = None
+
+    def __init__(self, subject: Union[Tag, Surface, Topography], folder: Folder = None):
+        self.subject = subject
+        self.folder = folder
+        if self.folder is None and hasattr(self.subject, "permissions"):
+            self.folder = Folder.objects.create(permissions=self.subject.permissions)
 
 
 class DummyProgressRecorder:
