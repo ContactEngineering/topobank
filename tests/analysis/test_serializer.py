@@ -51,4 +51,26 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
         subject_tag=tag, user=topo.creator, function=test_analysis_function
     )
     data = AnalysisResultSerializer(analysis, context={"request": request}).data
-    assert data == {}
+    assert data == {
+        "id": analysis.id,
+        "url": f"http://testserver/analysis/api/result/{analysis.id}/",
+        "function": f"http://testserver/analysis/api/function/{test_analysis_function.id}/",
+        "subject": {
+            "id": analysis.subject_dispatch.id,
+            "tag": f"http://testserver/manager/api/tag/{tag.name}/",
+            "topography": None,
+            "surface": None,
+        },
+        "kwargs": {"a": 1, "b": "foo"},
+        "task_progress": 1.0,
+        "task_state": "su",
+        "task_memory": None,
+        "creation_time": analysis.creation_time.astimezone().isoformat(),
+        "start_time": analysis.start_time.astimezone().isoformat(),
+        "end_time": analysis.end_time.astimezone().isoformat(),
+        "dois": [],
+        "configuration": None,
+        "duration": analysis.duration,
+        "error": None,
+        "folder": f"http://testserver/files/folder/{analysis.folder.id}/",
+    }
