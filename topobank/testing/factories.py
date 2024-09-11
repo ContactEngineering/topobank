@@ -224,9 +224,7 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 def _analysis_result(analysis):
     if analysis.folder is not None:
-        return analysis.function.eval(
-            analysis.subject_dispatch.get(), analysis.kwargs, analysis.folder
-        )
+        return analysis.function.eval(analysis)
     else:
         return {"test_result": 1.23}
 
@@ -258,6 +256,7 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
             "subject_topography",
             "subject_surface",
             "subject_tag",
+            "subject",
             "user",
         )
 
@@ -286,6 +285,13 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
         topography=factory.SelfAttribute("..subject_topography"),
         surface=factory.SelfAttribute("..subject_surface"),
         tag=factory.SelfAttribute("..subject_tag"),
+    )
+    subject = factory.LazyAttribute(
+        lambda obj: (
+            obj.subject_surface
+            if obj.subject_surface
+            else (obj.subject_topography if obj.subject_topography else obj.subject_tag)
+        )
     )
 
     folder = factory.SubFactory(

@@ -97,7 +97,7 @@ def perform_analysis(self, analysis_id: int):
     )
 
     # Get parameters for all dependencies
-    dependencies = analysis.function.get_dependencies(analysis.subject, analysis.kwargs)
+    dependencies = analysis.function.get_dependencies(analysis)
     finished_dependencies = []  # Will contain dependencies that finished
     if len(dependencies) > 0:
         # Okay, we have dependencies so let us check what their states are
@@ -160,13 +160,11 @@ def perform_analysis(self, analysis_id: int):
     def evaluate_function(progress_recorder, kwargs, finished_analyses):
         if len(finished_analyses) > 0:
             return analysis.eval_self(
-                kwargs=kwargs,
                 dependencies=finished_analyses,
                 progress_recorder=progress_recorder,
             )
         else:
             return analysis.eval_self(
-                kwargs=kwargs,
                 progress_recorder=progress_recorder,
             )
 

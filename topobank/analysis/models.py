@@ -353,7 +353,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """Returns True, if the analysis subject is a tag, else False."""
         return self.subject_dispatch.tag is not None
 
-    def eval_self(self, kwargs=None, **auxiliary_kwargs):
+    def eval_self(self, **auxiliary_kwargs):
         if self.is_tag_related:
             users = self.permissions.user_permissions.all()
             if users.count() != 1:
@@ -364,9 +364,7 @@ class Analysis(PermissionMixin, TaskStateModel):
             self.subject.authorize_user(users.first().user, "view")
 
         return self.function.eval(
-            self.subject,
-            kwargs=kwargs,
-            folder=self.folder,
+            self,
             **auxiliary_kwargs,
         )
 
@@ -432,15 +430,15 @@ class AnalysisFunction(models.Model):
         """
         return self.implementation.clean_kwargs(kwargs)
 
-    def get_dependencies(self, subject: Union[Surface, Topography], kwargs: dict):
-        return self.implementation(**kwargs).get_dependencies(subject)
+    def get_dependencies(self, analysis):
+        return self.implementation(**analysis.kwargs).get_dependencies(analysis)
 
-    def eval(self, subject, kwargs, folder, **auxiliary_kwargs):
+    def eval(self, analysis, **auxiliary_kwargs):
         """
         First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
         """
-        runner = self.implementation(**kwargs)
-        return runner.eval(subject, folder, **auxiliary_kwargs)
+        runner = self.implementation(**analysis.kwargs)
+        return runner.eval(analysis, **auxiliary_kwargs)
 
     def submit(
         self,

@@ -15,7 +15,6 @@ import pydantic
 from django.conf import settings
 from django.core.files.base import ContentFile
 
-from ..files.models import Folder
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import SplitDictionaryHere
 from ..supplib.json import ExtendedJSONEncoder
@@ -149,9 +148,9 @@ class AnalysisImplementation:
     def kwargs(self):
         return self._kwargs
 
-    def eval(self, subject, folder, **auxiliary_kwargs):
-        implementation = self.get_implementation(subject.__class__)
-        return implementation(subject, folder, **auxiliary_kwargs)
+    def eval(self, analysis, **auxiliary_kwargs):
+        implementation = self.get_implementation(analysis.subject.__class__)
+        return implementation(analysis, **auxiliary_kwargs)
 
     @classmethod
     def clean_kwargs(cls, kwargs: Union[dict, None]):
@@ -184,11 +183,13 @@ class AnalysisImplementation:
         """
         return model_class in cls.Meta.implementations
 
-    def get_dependencies(self, subject):
+    def get_dependencies(self, analysis):
         """Return dependencies required for running analysis for `subject`"""
         try:
-            dependency_func = getattr(self, self.Meta.dependencies[subject.__class__])
-            dependencies = dependency_func(subject)
+            dependency_func = getattr(
+                self, self.Meta.dependencies[analysis.subject.__class__]
+            )
+            dependencies = dependency_func(analysis)
         except AttributeError:
             dependencies = []
         except KeyError:
@@ -262,10 +263,9 @@ class TestImplementation(AnalysisImplementation):
         a: int = 1
         b: str = "foo"
 
-    def topography_implementation(
-        self, topography: Topography, folder: Folder, progress_recorder=None
-    ):
-        folder.save_file("test.txt", "der", ContentFile("Test!!!"))
+    def topography_implementation(self, analysis, progress_recorder=None):
+        topography = analysis.subject
+        analysis.folder.save_file("test.txt", "der", ContentFile("Test!!!"))
         fib = dict(
             name="Fibonacci series",
             x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
@@ -278,12 +278,12 @@ class TestImplementation(AnalysisImplementation):
             y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
             std_err_y=np.zeros(8),
         )
-        folder.save_file(
+        analysis.folder.save_file(
             "series-0.json",
             "der",
             ContentFile(json.dumps(fib, cls=ExtendedJSONEncoder)),
         )
-        folder.save_file(
+        analysis.folder.save_file(
             "series-1.json",
             "der",
             ContentFile(json.dumps(geo, cls=ExtendedJSONEncoder)),
@@ -306,10 +306,8 @@ class TestImplementation(AnalysisImplementation):
             f"{self._kwargs.b}",
         }
 
-    def surface_implementation(
-        self, surface: Surface, folder: Folder, progress_recorder=None
-    ):
-        """This function can be registered for supplib."""
+    def surface_implementation(self, analysis, progress_recorder=None):
+        surface = analysis.subject
         return {
             "name": "Test result for test function called for surface {}.".format(
                 surface
@@ -328,7 +326,8 @@ class TestImplementation(AnalysisImplementation):
             "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
         }
 
-    def tag_implementation(self, tag: Tag, folder: Folder, progress_recorder=None):
+    def tag_implementation(self, analysis, progress_recorder=None):
+        tag = analysis.subject
         name = (
             f"Test result for test function called for tag {tag}, "
             ", which is built from surfaces {}".format(
@@ -348,6 +347,22 @@ class TestImplementation(AnalysisImplementation):
             ],
             "surfaces": [surface.name for surface in tag.get_related_surfaces()],
             "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
+        }
+
+
+class TopographyOnlyTestImplementation(TestImplementation):
+    """
+    This function will be registered in conftest.py by a fixture. The arguments have no
+    meaning. Result are two series.
+    """
+
+    class Meta:
+        name = "topobank.analysis.topography_only_test"
+        display_name = "Topography-only test implementation"
+        visualization_type = VIZ_SERIES
+
+        implementations = {
+            Topography: "topography_implementation",
         }
 
 
@@ -372,9 +387,8 @@ class SecondTestImplementation(AnalysisImplementation):
         c: int = 1
         d: float = 1.3
 
-    def topography_dependencies(
-        self, topography: Topography
-    ) -> list[AnalysisInputData]:
+    def topography_dependencies(self, analysis) -> list[AnalysisInputData]:
+        topography = analysis.subject
         return [
             AnalysisInputData(
                 subject=topography,
@@ -390,8 +404,7 @@ class SecondTestImplementation(AnalysisImplementation):
 
     def topography_implementation(
         self,
-        topography: Topography,
-        folder: Folder,
+        analysis,
         dependencies: list = None,
         progress_recorder=None,
     ):

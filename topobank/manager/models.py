@@ -143,14 +143,35 @@ class Tag(tm.TagTreeModel, SubjectMixin):
     _user = None
 
     def authorize_user(
-        self, user: settings.AUTH_USER_MODEL, access_level: ViewEditFull
+        self,
+        user: settings.AUTH_USER_MODEL = None,
+        access_level: ViewEditFull = "view",
+        permissions: PermissionSet = None,
     ):
         if access_level != "view":
             raise PermissionError(
                 f"Cannot elevate permission to '{access_level}' because tags are not "
                 "editable."
             )
-        self._user = user
+        if user is not None:
+            if permissions is not None:
+                raise RuntimeError(
+                    "Can authorize with either user name or permission set, not both."
+                )
+            self._user = user
+        elif permissions is not None:
+            users = permissions.get_users()
+            if len(users) == 0:
+                raise RuntimeError(
+                    "Trying to authorize with permission set that has no users."
+                )
+            elif len(users) > 1:
+                raise PermissionError(
+                    "Trying to authorize with permission set with more than one user."
+                )
+            self._user, _ = users[0]
+        else:
+            raise RuntimeError("Need user name or permission set to authorize.")
 
     def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
         return True  # Tags are generally shared, but the surfaces may not
@@ -421,7 +442,9 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         """
         return self.get_permission(user) is not None
 
-    def grant_permission(self, user: settings.AUTH_USER_MODEL, allow: ViewEditFull = "view"):
+    def grant_permission(
+        self, user: settings.AUTH_USER_MODEL, allow: ViewEditFull = "view"
+    ):
         if self.is_published:
             raise PermissionError(
                 "Permissions of a published dataset cannot be changed."
@@ -692,7 +715,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     name = models.TextField(
         blank=True
     )  # This must be identical to the file name on upload
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL)
+    creator = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
+    )
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=Tag)
