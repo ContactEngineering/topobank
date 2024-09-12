@@ -335,12 +335,8 @@ class Analysis(PermissionMixin, TaskStateModel):
         # Check if the user can access this analysis
         super().authorize_user(user, "view")
 
-        # Double check access rights to the underlying measurements
-        if not all(s.has_permission(user, "view") for s in self.get_related_surfaces()):
-            raise PermissionError(
-                f"User {user} is not allowed to access some of the surfaces that are "
-                "the subject of the analysis."
-            )
+        # Check if user can access the subject of this analysis
+        self.subject.authorize_user(user, "view")
 
     @property
     def is_topography_related(self):
