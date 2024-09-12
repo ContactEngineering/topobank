@@ -328,6 +328,7 @@ class TestImplementation(AnalysisImplementation):
 
     def tag_implementation(self, analysis, progress_recorder=None):
         tag = analysis.subject
+        tag.authorize_user(permissions=analysis.permissions)
         name = (
             f"Test result for test function called for tag {tag}, "
             ", which is built from surfaces {}".format(
