@@ -156,9 +156,6 @@ class Dependency(models.Model):
     """A dependency of analysis results, e.g. "SurfaceTopography", "topobank"
     """
 
-    class Meta:
-        db_table = 'analysis_dependency'  # This used to be part of the analysis app
-
     # this is used with "import":
     import_name = models.CharField(max_length=30, unique=True)
 
@@ -174,7 +171,6 @@ class Version(models.Model):
 
     # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
-        db_table = 'analysis_version'  # This used to be part of the analysis app
         unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
 
     dependency = models.ForeignKey(Dependency, on_delete=models.CASCADE)
@@ -204,9 +200,6 @@ class Version(models.Model):
 class Configuration(models.Model):
     """For keeping track which versions were used for an analysis.
     """
-
-    class Meta:
-        db_table = 'analysis_configuration'  # This used to be part of the analysis app
 
     valid_since = models.DateTimeField(auto_now_add=True)
     versions = models.ManyToManyField(Version)
