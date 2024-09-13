@@ -317,8 +317,8 @@ CELERY_RESULT_SERIALIZER = "json"
 # TODO: set to whatever value is adequate in your circumstances
 # CELERYD_TASK_SOFT_TIME_LIMIT = 60
 
-TOPOBANK_MANAGER_QUEUE = "manager"
-TOPOBANK_ANALYSIS_QUEUE = "analysis"
+TOPOBANK_MANAGER_QUEUE = env.str("MANAGER_QUEUE_NAME", default="manager")
+TOPOBANK_ANALYSIS_QUEUE = env.str("ANALYSIS_QUEUE_NAME", default="analysis")
 
 CELERY_TASK_ROUTES = {
     "topobank.analysis.tasks.perform_analysis": {"queue": TOPOBANK_ANALYSIS_QUEUE},
