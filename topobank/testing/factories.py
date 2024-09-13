@@ -89,6 +89,7 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     permissions = factory.LazyAttribute(
         lambda obj: obj.folder.permissions if hasattr(obj, "folder") else None
     )
+    upload_confirmed = factory.LazyFunction(datetime.datetime.now)
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):
@@ -222,9 +223,10 @@ class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
 
 
 def _analysis_result(analysis):
-    return analysis.function.eval(
-        analysis.subject_dispatch.get(), analysis.kwargs, analysis.folder
-    )
+    if analysis.folder is not None:
+        return analysis.function.eval(analysis)
+    else:
+        return {"test_result": 1.23}
 
 
 def _failed_analysis_result(analysis):
@@ -254,6 +256,7 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
             "subject_topography",
             "subject_surface",
             "subject_tag",
+            "subject",
             "user",
         )
 
@@ -282,6 +285,13 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
         topography=factory.SelfAttribute("..subject_topography"),
         surface=factory.SelfAttribute("..subject_surface"),
         tag=factory.SelfAttribute("..subject_tag"),
+    )
+    subject = factory.LazyAttribute(
+        lambda obj: (
+            obj.subject_surface
+            if obj.subject_surface
+            else (obj.subject_topography if obj.subject_topography else obj.subject_tag)
+        )
     )
 
     folder = factory.SubFactory(

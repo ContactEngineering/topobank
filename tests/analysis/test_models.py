@@ -1,6 +1,7 @@
 import datetime
 
 import pytest
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db.models.functions import Lower
 from django.utils import timezone
@@ -9,9 +10,9 @@ from topobank.analysis.functions import TestImplementation
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
 from topobank.analysis.tasks import get_current_configuration
+from topobank.files.models import Manifest
 from topobank.manager.models import Topography
 from topobank.testing.factories import (
-    FolderFactory,
     SurfaceAnalysisFactory,
     SurfaceFactory,
     TagAnalysisFactory,
@@ -50,19 +51,15 @@ def test_tag_as_analysis_subject():
 
 
 @pytest.mark.django_db
-def test_exception_implementation_missing():
+def test_exception_implementation_missing(test_analysis_function):
     # We create an implementation for surfaces, but not for analyses
-    topo = Topography1DFactory()
-    surface = topo.surface
-    function = AnalysisFunction.objects.get(name="Test implementation")
+    function = AnalysisFunction.objects.get(name="Topography-only test implementation")
     analysis = TopographyAnalysisFactory(function=function)
-    function.eval(
-        surface, analysis.kwargs, analysis.folder
-    )  # that's okay, it's implemented
+    analysis.folder.remove_files()
+    function.eval(analysis)  # that's okay, it's implemented
+    analysis = SurfaceAnalysisFactory(function=test_analysis_function)
     with pytest.raises(ImplementationMissingAnalysisFunctionException):
-        function.eval(
-            analysis, analysis.kwargs, analysis.folder
-        )  # that's not implemented
+        function.eval(analysis)  # that's not implemented
 
 
 @pytest.mark.django_db
@@ -71,9 +68,13 @@ def test_analysis_function(test_analysis_function):
 
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
-    result = test_analysis_function.eval(
-        t, kwargs=dict(a=2, b="bar"), folder=FolderFactory(user=surface.creator)
+    analysis = TopographyAnalysisFactory.create(
+        subject_topography=t,
+        function=test_analysis_function,
+        kwargs=dict(a=2, b="bar"),
     )
+    analysis.folder.remove_files()  # Make sure there are no files
+    result = test_analysis_function.eval(analysis)
     assert result["comment"] == "Arguments: a is 2 and b is bar"
 
 
@@ -207,3 +208,26 @@ def test_analysis_delete_removes_files(test_analysis_function):
     analysis.delete()
     assert len(analysis.folder) == 0
     assert not default_storage.exists(file_path)
+
+
+@pytest.mark.django_db
+def test_fix_folder(test_analysis_function):
+    # Old analyses do not have folders
+    analysis = TopographyAnalysisFactory(
+        function=test_analysis_function,
+        folder=None,
+    )
+    assert Manifest.objects.count() == 1
+    assert analysis.folder is None
+
+    default_storage.save(
+        f"{analysis.storage_prefix}/test1.txt", ContentFile(b"Hello world!")
+    )
+    default_storage.save(
+        f"{analysis.storage_prefix}/test2.txt", ContentFile(b"Alles auf Horst!")
+    )
+
+    analysis.fix_folder()
+    assert len(analysis.folder) == 3  # fix_folder implicitly creates result.json
+    assert analysis.folder.open_file("test1.txt", "rb").read() == b"Hello world!"
+    assert analysis.folder.open_file("test2.txt", "rb").read() == b"Alles auf Horst!"

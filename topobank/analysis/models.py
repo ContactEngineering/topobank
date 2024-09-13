@@ -200,7 +200,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         super().save(*args, **kwargs)
         # If a result dict is given on input, we store it. However, we can only do this
         # once we have an id. This happens during testing.
-        if self._result is not None:
+        if self._result is not None and self.folder is not None:
             store_split_dict(self.folder, RESULT_FILE_BASENAME, self._result)
             self._result = None
 
@@ -231,6 +231,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         dict or None
             The result object if available, otherwise None.
         """
+        self.fix_folder()
         if self._result_cache is None:
             self._result_cache = load_split_dict(self.folder, RESULT_FILE_BASENAME)
         return self._result_cache
@@ -250,6 +251,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         dict
             The toplevel result object without series data.
         """
+        self.fix_folder()
         if self._result_metadata_cache is None:
             self._result_metadata_cache = json.load(
                 self.folder.open_file(f"{RESULT_FILE_BASENAME}.json")
@@ -264,6 +266,7 @@ class Analysis(PermissionMixin, TaskStateModel):
     @property
     def has_result_file(self):
         """Returns True if result file exists in storage backend, else False."""
+        self.fix_folder()
         return self.folder.exists(self.result_file_name)
 
     @property
@@ -296,12 +299,15 @@ class Analysis(PermissionMixin, TaskStateModel):
                 "This `Analysis` does not have an id yet; the storage file names is "
                 "not yet known."
             )
-        self.folder = Folder.objects.create(read_only=True)
+        self.folder = Folder.objects.create(
+            permissions=self.permissions, read_only=True
+        )
+        self.save(update_fields=["folder"])
         dir_tuple = default_storage.listdir(self.storage_prefix)
         for filename in dir_tuple[1]:
             manifest = Manifest.objects.create(
                 permissions=self.permissions,
-                parent=self.folder,
+                folder=self.folder,
                 filename=filename,
                 kind="der",
             )
@@ -329,12 +335,8 @@ class Analysis(PermissionMixin, TaskStateModel):
         # Check if the user can access this analysis
         super().authorize_user(user, "view")
 
-        # Double check access rights to the underlying measurements
-        if not all(s.has_permission(user, "view") for s in self.get_related_surfaces()):
-            raise PermissionError(
-                f"User {user} is not allowed to access some of the surfaces that are "
-                "the subject of the analysis."
-            )
+        # Check if user can access the subject of this analysis
+        self.subject.authorize_user(user, "view")
 
     @property
     def is_topography_related(self):
@@ -351,7 +353,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """Returns True, if the analysis subject is a tag, else False."""
         return self.subject_dispatch.tag is not None
 
-    def eval_self(self, kwargs=None, **auxiliary_kwargs):
+    def eval_self(self, **auxiliary_kwargs):
         if self.is_tag_related:
             users = self.permissions.user_permissions.all()
             if users.count() != 1:
@@ -362,9 +364,7 @@ class Analysis(PermissionMixin, TaskStateModel):
             self.subject.authorize_user(users.first().user, "view")
 
         return self.function.eval(
-            self.subject,
-            kwargs=kwargs,
-            folder=self.folder,
+            self,
             **auxiliary_kwargs,
         )
 
@@ -418,7 +418,7 @@ class AnalysisFunction(models.Model):
         """
         JSON schema describing the keyword arguments.
         """
-        return self.implementation.Parameters().model_json_schema()['properties']
+        return self.implementation.Parameters().model_json_schema()["properties"]
 
     def clean_kwargs(self, kwargs: Union[dict, None]):
         """
@@ -430,15 +430,15 @@ class AnalysisFunction(models.Model):
         """
         return self.implementation.clean_kwargs(kwargs)
 
-    def get_dependencies(self, subject: Union[Surface, Topography], kwargs: dict):
-        return self.implementation(**kwargs).get_dependencies(subject)
+    def get_dependencies(self, analysis):
+        return self.implementation(**analysis.kwargs).get_dependencies(analysis)
 
-    def eval(self, subject, kwargs, folder, **auxiliary_kwargs):
+    def eval(self, analysis, **auxiliary_kwargs):
         """
         First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
         """
-        runner = self.implementation(**kwargs)
-        return runner.eval(subject, folder, **auxiliary_kwargs)
+        runner = self.implementation(**analysis.kwargs)
+        return runner.eval(analysis, **auxiliary_kwargs)
 
     def submit(
         self,

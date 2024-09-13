@@ -235,7 +235,10 @@ def get_analysis_function_names(user=None):
 def get_visualization_type(name):
     """Return visualization type for given function name."""
     runner_class = _implementation_classes[name]
-    return runner_class.Meta.visualization_type
+    try:
+        return runner_class.Meta.visualization_type
+    except AttributeError:
+        return "generic"
 
 
 def sync_implementation_classes(cleanup=False):

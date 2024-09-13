@@ -1,7 +1,10 @@
 import pytest
+import json
+from django.core.files.storage import default_storage
 from rest_framework.reverse import reverse
 
 from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.manager.models import Tag
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
     AnalysisFactory,
@@ -119,3 +122,71 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
             "b": {"default": "foo", "title": "B", "type": "string"},
         },
     }
+
+
+@pytest.mark.django_db
+def test_query_tag_analysis(
+    api_client, one_line_scan, test_analysis_function,
+    django_capture_on_commit_callbacks
+):
+    user = one_line_scan.creator
+    # Add tag to surface
+    one_line_scan.surface.tags.add("my-tag")
+    tag = Tag.objects.get(name="my-tag")
+
+    assert Analysis.objects.count() == 0
+
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}?subjects="
+            f"{subjects_to_base64([tag])}&function_id={test_analysis_function.id}"
+        )
+    assert len(callbacks) == 1
+    assert Analysis.objects.count() == 1
+    # Tag analyses always succeed...
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    analysis_id = response.data["analyses"][0]["id"]
+    # ...but they may have run on no data
+    folder_url = response.data["analyses"][0]["folder"]
+    response = api_client.get(folder_url)
+    assert response.status_code == 200
+    assert len(response.data) == 1
+    assert "result.json" in response.data
+    # Check that result file actually has no data
+    # response = api_client.get(response.data["result.json"]["file"])
+    # assert response.status_code == 200
+    # assert len(response.data["analyses"]) == 1
+    # file = response.data["result.json"]["file"][23:]
+    analysis = Analysis.objects.get(id=analysis_id)
+    assert len(analysis.result["surfaces"]) == 0
+
+    # Login
+    api_client.force_login(user)
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}"
+            f"?subjects={subjects_to_base64([tag])}"
+            f"&function_id={test_analysis_function.id}"
+        )
+    assert len(callbacks) == 1
+    assert Analysis.objects.count() == 2
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    analysis_id = response.data["analyses"][0]["id"]
+
+    # ...but they may have run on no data
+    folder_url = response.data["analyses"][0]["folder"]
+    response = api_client.get(folder_url)
+    assert response.status_code == 200
+    assert len(response.data) == 1
+    assert "result.json" in response.data
+    # Check that result file actually has data now
+    # response = api_client.get(response.data["result.json"]["file"])
+    # assert response.status_code == 200
+    # assert len(response.data["analyses"]) == 1
+    # file = response.data["result.json"]["file"][23:]
+    # data = json.load(default_storage.open(file))
+    # assert len(data["surfaces"] == 1)
+    analysis = Analysis.objects.get(id=analysis_id)
+    assert len(analysis.result["surfaces"]) == 1

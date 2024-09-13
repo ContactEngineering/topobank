@@ -375,7 +375,6 @@ def series_card_view(request, **kwargs):
             #
             # Context information for this data source, will be interpreted by client JS code
             #
-            print(series_json_manifest.file)
             data_sources_dict += [
                 {
                     "sourceName": f"analysis-{analysis.id}",
