@@ -14,20 +14,20 @@ class TaskStateModel(models.Model):
     class Meta:
         abstract = True
 
-    PENDING = 'pe'
-    STARTED = 'st'
-    RETRY = 're'
-    FAILURE = 'fa'
-    SUCCESS = 'su'
-    NOTRUN = 'no'
+    PENDING = "pe"
+    STARTED = "st"
+    RETRY = "re"
+    FAILURE = "fa"
+    SUCCESS = "su"
+    NOTRUN = "no"
 
     TASK_STATE_CHOICES = (
-        (PENDING, 'pending'),
-        (STARTED, 'started'),
-        (RETRY, 'retry'),
-        (FAILURE, 'failure'),
-        (SUCCESS, 'success'),
-        (NOTRUN, 'not run')
+        (PENDING, "pending"),
+        (STARTED, "started"),
+        (RETRY, "retry"),
+        (FAILURE, "failure"),
+        (SUCCESS, "success"),
+        (NOTRUN, "not run"),
     )
 
     # Mapping Celery states to our state information. Everything not in the
@@ -37,24 +37,26 @@ class TaskStateModel(models.Model):
         celery.states.STARTED: STARTED,
         celery.states.PENDING: PENDING,
         celery.states.RETRY: RETRY,
-        celery.states.FAILURE: FAILURE
+        celery.states.FAILURE: FAILURE,
     }
 
     # This is the Celery task id
     task_id = models.CharField(max_length=155, unique=True, null=True)
-    # Django documentation discourages the use of null=True on a CharField. I'll use it here
-    # nevertheless, because I need this values as argument to a function where None has
-    # a special meaning (task not yet run).
+    # Django documentation discourages the use of null=True on a CharField. I'll use it
+    # here  nevertheless, because I need this values as argument to a function where
+    # None has a special meaning (task not yet run).
 
     # This is the self-reported task state. It can differ from what Celery
     # knows about the task.
-    task_state = models.CharField(max_length=7, choices=TASK_STATE_CHOICES, default=NOTRUN)
+    task_state = models.CharField(
+        max_length=7, choices=TASK_STATE_CHOICES, default=NOTRUN
+    )
 
     # Maxmimum memory usage of the task
     task_memory = models.BigIntegerField(null=True)
 
     # Any error information emitted from the task
-    task_error = models.TextField(default='')
+    task_error = models.TextField(default="")
 
     # Time stamps
     creation_time = models.DateTimeField(null=True)
@@ -137,13 +139,15 @@ class TaskStateModel(models.Model):
             tracemalloc.stop()
             self.task_state = TaskStateModel.SUCCESS
             self.task_memory = peak
-            self.task_error = ''
+            self.task_error = ""
         except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
-            self.task_error = 'The data file is of an unknown or unsupported format.'
+            self.task_error = "The data file is of an unknown or unsupported format."
         except Exception as exc:
             self.task_state = TaskStateModel.FAILURE
-            self.task_error = str(exc)  # store string representation of exception as user-reported error string
+            self.task_error = str(
+                exc
+            )  # store string representation of exception as user-reported error string
             # we want a real exception here so celery's flower can show the task as failure
             raise
         finally:
@@ -153,8 +157,7 @@ class TaskStateModel(models.Model):
 
 
 class Dependency(models.Model):
-    """A dependency of analysis results, e.g. "SurfaceTopography", "topobank"
-    """
+    """A dependency of analysis results, e.g. "SurfaceTopography", "topobank" """
 
     # this is used with "import":
     import_name = models.CharField(max_length=30, unique=True)
@@ -171,7 +174,7 @@ class Version(models.Model):
 
     # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
-        unique_together = (('dependency', 'major', 'minor', 'micro', 'extra'),)
+        unique_together = (("dependency", "major", "minor", "micro", "extra"),)
 
     dependency = models.ForeignKey(Dependency, on_delete=models.CASCADE)
 
@@ -198,8 +201,7 @@ class Version(models.Model):
 
 
 class Configuration(models.Model):
-    """For keeping track which versions were used for an analysis.
-    """
+    """For keeping track which versions were used for an analysis."""
 
     valid_since = models.DateTimeField(auto_now_add=True)
     versions = models.ManyToManyField(Version)
