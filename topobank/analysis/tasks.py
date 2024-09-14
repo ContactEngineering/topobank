@@ -454,7 +454,7 @@ def prepare_dependency_tasks(dependencies: list[AnalysisInputData]):
             # An analysis exists. Check whether it is successful or failed.
             existing_analysis = all_results.first()
             # task_state is the *self reported* state, not the Celery state
-            if existing_analysis.task_state in [Analysis.FAILURE, Analysis.STARTED]:
+            if existing_analysis.task_state in [Analysis.FAILURE, Analysis.SUCCESS]:
                 # This one does not need to be scheduled
                 finished_dependent_analyses += [existing_analysis]
             else:
