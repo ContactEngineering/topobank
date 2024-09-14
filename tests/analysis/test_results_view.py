@@ -237,7 +237,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
 
 
 @pytest.fixture
-def ids_downloadable_analyses(two_topos, test_analysis_function, mocker):
+def ids_downloadable_analyses(two_topos, test_analysis_function, mocker, django_capture_on_commit_callbacks):
     """Returns ids of analyses which can be downloaded as list."""
     config = get_current_configuration()
 
@@ -291,6 +291,8 @@ def ids_downloadable_analyses(two_topos, test_analysis_function, mocker):
         m.return_value = result
 
         # Saving above results in storage
+        analysis.task_state = 'pe'
+        analysis.save()
         perform_analysis(analysis.id)
 
         ids.append(analysis.id)
