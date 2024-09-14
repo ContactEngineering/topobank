@@ -1,6 +1,4 @@
 import pytest
-import json
-from django.core.files.storage import default_storage
 from rest_framework.reverse import reverse
 
 from topobank.analysis.models import Analysis, AnalysisFunction
