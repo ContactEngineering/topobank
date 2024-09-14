@@ -57,6 +57,12 @@ class Folder(PermissionMixin, models.Model):
             return manifest.open(mode)
 
     def save_file(self, filename: str, kind: str, fobj):
+        # Check whether file exists, and delete if it does
+        try:
+            existing_file = Manifest.objects.get(folder=self, filename=filename)
+            existing_file.delete()
+        except Manifest.DoesNotExist:
+            pass  # Simply ignore if file does not exist in database
         fobj.name = filename  # Make sure the filenames are the same
         return Manifest.objects.create(
             permissions=self.permissions,
