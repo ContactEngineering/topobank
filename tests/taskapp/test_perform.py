@@ -19,6 +19,7 @@ def test_perform_analysis(
         function=test_analysis_function,
         kwargs=func_kwargs,
         result=None,
+        task_state=Analysis.PENDING
     )
     analysis.save()
 
@@ -52,6 +53,7 @@ def test_perform_analysis(
         function=test_analysis_function,
         kwargs=func_kwargs,
         result=None,
+        task_state=Analysis.PENDING
     )
 
     analysis2.save()
