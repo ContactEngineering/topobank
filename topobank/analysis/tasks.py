@@ -130,6 +130,17 @@ def perform_analysis(self, analysis_id: int):
                 "pending dependencies. Suspending the current task for 30 seconds to "
                 "wait for completion."
             )
+            for dep in pending_dependencies:
+                _log.debug(
+                    f"{self.request.id}:    Dependent analysis: {dep.id}, task id: "
+                    f"{dep.task_id}, task state: '{dep.task_state}', created: "
+                    f"{dep.creation_time}, started: {dep.start_time}, finished: "
+                    f"{dep.end_time}"
+                )
+            _log.debug(
+                f"{self.request.id}: Resubmitting analysis {analysis.id} and "
+                "terminating task."
+            )
             perform_analysis.apply_async(args=(analysis.id,), countdown=30)
             return
     else:
