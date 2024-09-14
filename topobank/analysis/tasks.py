@@ -71,7 +71,7 @@ def perform_analysis(self, analysis_id: int):
     self : celery.app.task.Task
         Celery task on execution (because of bind=True)
     analysis_id : int
-        ID of Analysis entry in database
+        ID of `topobank.analysis.Analysis` instance
 
     Also alters analysis instance in database saving
 
@@ -88,66 +88,58 @@ def perform_analysis(self, analysis_id: int):
     progress_recorder = ProgressRecorder(self)
 
     #
-    # Check analysis dependencies
+    # Get analysis instance from database
     #
     analysis = Analysis.objects.get(id=analysis_id)
     _log.debug(
         f"{self.request.id}: Function: '{analysis.function.name}', "
-        f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}"
+        f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}, "
+        f"task_state: '{analysis.task_state}'"
     )
 
-    # Get parameters for all dependencies
+    #
+    # Check state
+    #
+    if analysis.task_state in [Analysis.FAILURE, Analysis.SUCCESS]:
+        # Do not rerun this task as it is self-reporting to either have completed
+        # successfully or to have failed.
+        _log.debug(
+            f"{self.request.id}: Terminating analysis task because this analysis has "
+            "either completed successfully or failed in a previous run."
+        )
+        return
+
+    #
+    # Check and run dependencies
+    #
     dependencies = analysis.function.get_dependencies(analysis)
     finished_dependencies = []  # Will contain dependencies that finished
     if len(dependencies) > 0:
         # Okay, we have dependencies so let us check what their states are
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
-        finished_dependencies, pending_dependencies, created_dependencies = (
-            prepare_dependency_tasks(analysis, dependencies)
+        finished_dependencies, scheduled_dependencies = prepare_dependency_tasks(
+            dependencies
         )
-        if len(created_dependencies) > 0:
-            # We just created new `Analysis` instances for dependencies. Those tasks
-            # are not yet running. Submit dependencies and request that this task is
-            # rerun once all dependencies have finished.
+        if len(scheduled_dependencies) > 0:
+            # We just created new `Analysis` instances or decided that an existing
+            # analysis needs to be scheduled. Submit Celery tasks for all
+            # dependencies and request that this task is rerun once all dependencies
+            # have finished.
             celery.chord(
-                (perform_analysis.si(dep.id) for dep in created_dependencies),
+                (perform_analysis.si(dep.id) for dep in scheduled_dependencies),
                 perform_analysis.si(analysis.id),
             ).apply_async()
             _log.debug(
-                f"{self.request.id}: Submitted {len(created_dependencies)} "
+                f"{self.request.id}: Submitted {len(scheduled_dependencies)} "
                 "dependencies; finishing the current task until dependencies are "
                 "resolved."
             )
-            return
-        if len(pending_dependencies) > 0:
-            # There are dependencies that are in state pending or running, but that
-            # were not started by us because otherwise they would have run as part of
-            # the chord above. This can happen is another user is simultaneously
-            # requesting the same analyses. In this case, we suspend the task for
-            # 30 seconds and then check again.
-            _log.debug(
-                f"{self.request.id}: There are {len(pending_dependencies)} "
-                "pending dependencies. Suspending the current task for 30 seconds to "
-                "wait for completion."
-            )
-            for dep in pending_dependencies:
-                _log.debug(
-                    f"{self.request.id}:    Dependent analysis: {dep.id}, task id: "
-                    f"{dep.task_id}, task state: '{dep.task_state}', created: "
-                    f"{dep.creation_time}, started: {dep.start_time}, finished: "
-                    f"{dep.end_time}"
-                )
-            _log.debug(
-                f"{self.request.id}: Resubmitting analysis {analysis.id} and "
-                "terminating task."
-            )
-            perform_analysis.apply_async(args=(analysis.id,), countdown=30)
             return
     else:
         _log.debug(f"{self.request.id}: Analysis has no dependencies.")
 
     #
-    # update entry in Analysis table
+    # Update entry in Analysis table
     #
     analysis.task_state = Analysis.STARTED
     analysis.task_id = self.request.id
@@ -185,7 +177,7 @@ def perform_analysis(self, analysis_id: int):
             )
 
     #
-    # actually perform the analysis
+    # We are good: Actually perform the analysis
     #
     kwargs = analysis.kwargs
     _log.debug(f"{self.request.id}: Starting evaluation of analysis function...")
@@ -215,12 +207,12 @@ def perform_analysis(self, analysis_id: int):
         save_result(
             dict(error=str(exc), traceback=traceback.format_exc()), Analysis.FAILURE
         )
-        # we want a real exception here so celery's flower can show the task as failure
+        # We want a real exception here so celery's flower can show the task as failure
         raise
     finally:
         try:
             #
-            # first check whether analysis is still there
+            # First check whether analysis is still there
             #
             analysis = Analysis.objects.get(id=analysis_id)
 
@@ -250,7 +242,7 @@ def perform_analysis(self, analysis_id: int):
             # Analysis was deleted, e.g. because topography or surface was missing, we
             # simply ignore this case.
             pass
-    _log.debug(f"{self.request.id}: Task finished.")
+    _log.debug(f"{self.request.id}: Task finished normally.")
 
 
 @transaction.atomic
@@ -399,12 +391,11 @@ def current_statistics(user=None):
     )
 
 
-def prepare_dependency_tasks(analysis: int, dependencies: list[AnalysisInputData]):
+def prepare_dependency_tasks(dependencies: list[AnalysisInputData]):
     from .models import Analysis, AnalysisSubject
 
     finished_dependent_analyses = []  # Everything that finished or failed
-    pending_dependent_analyses = []  # Everything that is pending or running
-    created_dependent_analyses = []  # Everything that has not yet been scheduled
+    scheduled_dependent_analyses = []  # Everything that needs to be scheduled
     for dependency in dependencies:
         # Get analysis function
         function = dependency.function
@@ -440,33 +431,38 @@ def prepare_dependency_tasks(analysis: int, dependencies: list[AnalysisInputData
         )
 
         if all_results.count() == 0:
+            # No analysis exists, we create a new one.
             # New analysis needs its own permissions
             permissions = PermissionSet.objects.create()
             # Nobody can formally access this analysis, but access will be granted
             # automatically when requesting it directly (through the GET route)
 
-            # Folder will store results
+            # Folder will store any resulting files
             folder = Folder.objects.create(permissions=permissions, read_only=True)
 
             # Create new entry in the analysis table
-            dependent_analysis = Analysis.objects.create(
+            new_analysis = Analysis.objects.create(
                 permissions=permissions,
                 subject_dispatch=AnalysisSubject.objects.create(dependency.subject),
                 function=function,
-                task_state=Analysis.PENDING,
+                task_state=Analysis.PENDING,  # We are submitting this right away
                 kwargs=kwargs,
                 folder=folder,
             )
-            created_dependent_analyses += [dependent_analysis]
+            scheduled_dependent_analyses += [new_analysis]
         elif all_results.count() == 1:
-            dependent_analysis = all_results.first()
-            if dependent_analysis.task_state in [Analysis.PENDING, Analysis.STARTED]:
-                pending_dependent_analyses += [dependent_analysis]
+            # An analysis exists. Check whether it is successful or failed.
+            existing_analysis = all_results.first()
+            # task_state is the *self reported* state, not the Celery state
+            if existing_analysis.task_state in [Analysis.FAILURE, Analysis.STARTED]:
+                # This one does not need to be scheduled
+                finished_dependent_analyses += [existing_analysis]
             else:
-                finished_dependent_analyses += [dependent_analysis]
+                # We schedule everything else, possibly again. `perform_analysis` will
+                # automatically terminate if an analysis already completed successfully.
+                scheduled_dependent_analyses += [existing_analysis]
 
     return (
         finished_dependent_analyses,
-        pending_dependent_analyses,
-        created_dependent_analyses,
+        scheduled_dependent_analyses,
     )
