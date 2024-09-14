@@ -28,17 +28,20 @@ def _get_package_version_tuple(pkg_name, version_expr):
     try:
         major: int = int(version_tuple[0])
     except:  # noqa: E722
-        raise ConfigurationException("Cannot determine major version of package '{}'. Full version string: {}",
-                                     format(pkg_name, version))
+        raise ConfigurationException(
+            f"Cannot determine major version of package '{pkg_name}'. "
+            f"Full version string: {version}")
 
     try:
         minor: int = int(version_tuple[1])
     except:  # noqa: E722
-        raise ConfigurationException("Cannot determine minor version of package '{}'. Full version string: {}",
-                                     format(pkg_name, version))
+        raise ConfigurationException(
+            "Cannot determine minor version of package '{}'. Full version string: {}",
+            format(pkg_name, version))
 
     try:
-        micro: int = int(version_tuple[2].split('+')[0])  # because of version strings like '0.51.0+0.g2c488bd.dirty'
+        micro: int = int(version_tuple[2].split('+')[
+                             0])  # because of version strings like '0.51.0+0.g2c488bd.dirty'
         s = f'{version_tuple[0]}.{version_tuple[1]}.{micro}'
     except:  # noqa: E722
         micro = None
@@ -79,7 +82,9 @@ def get_package_version(pkg_name, version_expr):
     dep, created = Dependency.objects.get_or_create(import_name=pkg_name)
 
     # make sure the current version of the dependency is available in database
-    version, created = Version.objects.get_or_create(dependency=dep, major=major, minor=minor, micro=micro, extra=extra)
+    version, created = Version.objects.get_or_create(dependency=dep, major=major,
+                                                     minor=minor, micro=micro,
+                                                     extra=extra)
 
     return version
 
@@ -96,7 +101,8 @@ def _celery_worker_check():
     # See https://github.com/mwarkentin/django-watchman/issues/8
     from .celeryapp import app
     MIN_NUM_WORKERS_EXPECTED = 1
-    d = app.control.broadcast('ping', reply=True, timeout=0.5, limit=MIN_NUM_WORKERS_EXPECTED)
+    d = app.control.broadcast('ping', reply=True, timeout=0.5,
+                              limit=MIN_NUM_WORKERS_EXPECTED)
     return {
         'num_workers_available': len(d),
         'min_num_workers_expected': MIN_NUM_WORKERS_EXPECTED,
@@ -125,7 +131,8 @@ def run_task(model_instance, *args, **kwargs):
         celery_kwargs['queue'] = model_instance.celery_queue
     transaction.on_commit(
         lambda: task_dispatch.apply_async(
-            args=[ContentType.objects.get_for_model(model_instance).id, model_instance.id] + list(args),
+            args=[ContentType.objects.get_for_model(model_instance).id,
+                  model_instance.id] + list(args),
             kwargs=kwargs,
             **celery_kwargs
         )
