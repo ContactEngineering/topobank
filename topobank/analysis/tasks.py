@@ -125,10 +125,16 @@ def perform_analysis(self, analysis_id: int):
             # analysis needs to be scheduled. Submit Celery tasks for all
             # dependencies and request that this task is rerun once all dependencies
             # have finished.
-            celery.chord(
-                (perform_analysis.si(dep.id) for dep in scheduled_dependencies),
-                perform_analysis.si(analysis.id),
-            ).apply_async()
+            analysis.task_state = Analysis.STARTED
+            analysis.task_id = (
+                celery.chord(
+                    (perform_analysis.si(dep.id) for dep in scheduled_dependencies),
+                    perform_analysis.si(analysis.id),
+                )
+                .apply_async()
+                .id
+            )
+            analysis.save()
             _log.debug(
                 f"{self.request.id}: Submitted {len(scheduled_dependencies)} "
                 "dependencies; finishing the current task until dependencies are "
