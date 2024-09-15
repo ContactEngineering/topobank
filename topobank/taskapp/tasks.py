@@ -18,7 +18,7 @@ _log = get_task_logger(__name__)
 # From https://github.com/czue/celery-progress/blob/master/celery_progress/backend.py
 # (MIT licensed)
 class ProgressRecorder:
-    PROGRESS_STATE = 'PROGRESS'
+    PROGRESS_STATE = "PROGRESS"
 
     def __init__(self, task):
         self.task = task
@@ -30,22 +30,19 @@ class ProgressRecorder:
             percent = float(round(percent, 2))
         state = self.PROGRESS_STATE
         meta = {
-            'pending': False,
-            'current': current,
-            'total': total,
-            'percent': percent,
-            'description': description
+            "pending": False,
+            "current": current,
+            "total": total,
+            "percent": percent,
+            "description": description,
         }
-        self.task.update_state(
-            state=state,
-            meta=meta
-        )
+        self.task.update_state(state=state, meta=meta)
         return state, meta
 
 
 @after_setup_task_logger.connect
 def setup_task_logger(logger, *args, **kwargs):
-    fmt = '%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - %(message)s'
+    fmt = "%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - %(message)s"
     for handler in logger.handlers:
         handler.setFormatter(TaskFormatter(fmt))
 
@@ -53,6 +50,7 @@ def setup_task_logger(logger, *args, **kwargs):
 @app.task
 def save_landing_page_statistics():
     from trackstats.models import Metric, Period, StatisticByDate
+
     _log.debug("Saving landing page statistics..")
     #
     # Number of users
@@ -60,13 +58,12 @@ def save_landing_page_statistics():
     from django.db.models import Q
 
     from topobank.users.anonymous import get_anonymous_user
+
     anon = get_anonymous_user()
     num_users = User.objects.filter(Q(is_active=True) & ~Q(pk=anon.pk)).count()
 
     StatisticByDate.objects.record(
-        metric=Metric.objects.USER_COUNT,
-        value=num_users,
-        period=Period.DAY
+        metric=Metric.objects.USER_COUNT, value=num_users, period=Period.DAY
     )
 
     #
@@ -78,16 +75,16 @@ def save_landing_page_statistics():
 
     StatisticByDate.objects.record(
         metric=Metric.objects.SURFACE_COUNT,
-        value=current_stats['num_surfaces_excluding_publications'],
-        period=Period.DAY
+        value=current_stats["num_surfaces_excluding_publications"],
+        period=Period.DAY,
     )
     StatisticByDate.objects.record(
         metric=Metric.objects.TOPOGRAPHY_COUNT,
-        value=current_stats['num_topographies_excluding_publications'],
-        period=Period.DAY
+        value=current_stats["num_topographies_excluding_publications"],
+        period=Period.DAY,
     )
     StatisticByDate.objects.record(
         metric=Metric.objects.ANALYSIS_COUNT,
-        value=current_stats['num_analyses_excluding_publications'],
-        period=Period.DAY
+        value=current_stats["num_analyses_excluding_publications"],
+        period=Period.DAY,
     )
