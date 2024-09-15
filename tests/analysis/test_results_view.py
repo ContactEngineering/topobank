@@ -233,7 +233,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     )
 
     assert response.status_code == 200
-    assert response.data["hasNonuniqueKwargs"]
+    assert response.data["has_nonunique_kwargs"]
 
 
 @pytest.fixture

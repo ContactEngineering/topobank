@@ -50,9 +50,7 @@ def test_statistics(api_client, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_query_task_with_wrong_kwargs(
-    api_client, one_line_scan, test_analysis_function
-):
+def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_function):
     user = one_line_scan.creator
     one_line_scan.grant_permission(user, "view")
     response = api_client.get(
@@ -124,8 +122,10 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
 
 @pytest.mark.django_db
 def test_query_tag_analysis(
-    api_client, one_line_scan, test_analysis_function,
-    django_capture_on_commit_callbacks
+    api_client,
+    one_line_scan,
+    test_analysis_function,
+    django_capture_on_commit_callbacks,
 ):
     user = one_line_scan.creator
     # Add tag to surface
@@ -172,6 +172,7 @@ def test_query_tag_analysis(
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
     analysis_id = response.data["analyses"][0]["id"]
+    unique_kwargs = response.data["unique_kwargs"]
 
     # ...but they may have run on no data
     folder_url = response.data["analyses"][0]["folder"]
@@ -188,3 +189,53 @@ def test_query_tag_analysis(
     # assert len(data["surfaces"] == 1)
     analysis = Analysis.objects.get(id=analysis_id)
     assert len(analysis.result["surfaces"]) == 1
+
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([tag])}"
+        f"&function_id={test_analysis_function.id}"
+        f"&function_kwargs={dict_to_base64(unique_kwargs)}"
+    )
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    assert response.data["analyses"][0]["id"] == analysis_id  # Should yield the same
+
+
+@pytest.mark.django_db
+def test_query_with_unique_kwargs(
+    api_client, one_line_scan, test_analysis_function, handle_usage_statistics
+):
+    user = one_line_scan.creator
+    one_line_scan.grant_permission(user, "view")
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}?subjects="
+        f"{subjects_to_base64([one_line_scan])}&function_id={test_analysis_function.id}"
+    )
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 0
+
+    # Login
+    api_client.force_login(user)
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([one_line_scan])}"
+        f"&function_id={test_analysis_function.id}"
+    )
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    assert Analysis.objects.count() == 1
+
+    analysis_id = response.data["analyses"][0]["id"]
+    unique_kwargs = response.data["unique_kwargs"]
+
+    # Query again, but now with unique kwargs
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([one_line_scan])}"
+        f"&function_id={test_analysis_function.id}"
+        f"&function_kwargs={dict_to_base64(unique_kwargs)}"
+    )
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    assert Analysis.objects.count() == 1
+    assert response.data["analyses"][0]["id"] == analysis_id  # Should yield the same
