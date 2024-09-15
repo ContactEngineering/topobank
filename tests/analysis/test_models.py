@@ -231,3 +231,10 @@ def test_fix_folder(test_analysis_function):
     assert len(analysis.folder) == 3  # fix_folder implicitly creates result.json
     assert analysis.folder.open_file("test1.txt", "rb").read() == b"Hello world!"
     assert analysis.folder.open_file("test2.txt", "rb").read() == b"Alles auf Horst!"
+
+
+@pytest.mark.django_db
+def test_submit_again(test_analysis_function):
+    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+    new_analysis = analysis.submit_again()
+    assert new_analysis.task_state == Analysis.PENDING

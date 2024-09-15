@@ -27,7 +27,6 @@ from .utils import filter_and_order_analyses
 
 _log = logging.getLogger(__name__)
 
-SMALLEST_ABSOLUT_NUMBER_IN_LOGPLOTS = 1e-100
 MAX_NUM_POINTS_FOR_SYMBOLS = (
     10000  # Don't show symbols if more than number of data points total
 )

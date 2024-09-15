@@ -369,7 +369,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         )
 
     def submit_again(self):
-        self.function.submit_again(self)
+        return self.function.submit_again(self)
 
 
 class AnalysisFunction(models.Model):
