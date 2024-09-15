@@ -10,11 +10,9 @@ class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         abstract = True
         model = TaskStateModel
-        fields = ['duration', 'error', 'task_progress', 'task_state', 'task_memory']
+        fields = ["duration", "error", "task_progress", "task_state", "task_memory"]
 
-    default_error_messages = {
-        'read_only': 'This field is read only'
-    }
+    default_error_messages = {"read_only": "This field is read only"}
 
     duration = serializers.SerializerMethodField()
     error = serializers.SerializerMethodField()
@@ -28,13 +26,7 @@ class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
         return obj.get_error()
 
     def get_task_progress(self, obj):
-        task_state = self.get_task_state(obj)
-        if task_state == TaskStateModel.STARTED:
-            return obj.get_task_progress()
-        elif task_state == TaskStateModel.SUCCESS:
-            return 1.0
-        else:
-            return 0.0
+        return obj.get_task_progress()
 
     def get_task_state(self, obj):
         """
@@ -47,7 +39,8 @@ class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
         celery_task_state = obj.get_celery_state()
 
         if celery_task_state is None:
-            # There is no Celery state, possibly because the Celery task has not yet been created
+            # There is no Celery state, possibly because the Celery task has not yet
+            # been created
             return self_reported_task_state
 
         if self_reported_task_state == celery_task_state:
@@ -55,18 +48,28 @@ class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
             return self_reported_task_state
         else:
             if self_reported_task_state == TaskStateModel.SUCCESS:
-                # Something is wrong, but we return success if the task self-reports success.
-                _log.info(f"The object with id {obj.id} self-reported the state '{self_reported_task_state}', "
-                          f"but Celery reported '{celery_task_state}'. I am returning a success.")
+                # Something is wrong, but we return success if the task self-reports
+                # success.
+                _log.info(
+                    f"The object with id {obj.id} self-reported the state "
+                    f"'{self_reported_task_state}', but Celery reported "
+                    f"'{celery_task_state}'. I am returning a success."
+                )
                 return TaskStateModel.SUCCESS
             elif celery_task_state == TaskStateModel.FAILURE:
-                # Celery seems to think this task failed, we trust it as the self-reported state will
-                # be unreliable in this case.
-                _log.info(f"The object with id {obj.id} self-reported the state '{self_reported_task_state}', "
-                          f"but Celery reported '{celery_task_state}'. I am returning a failure.")
+                # Celery seems to think this task failed, we trust it as the
+                # self-reported state will be unreliable in this case.
+                _log.info(
+                    f"The object with id {obj.id} self-reported the state "
+                    f"'{self_reported_task_state}', but Celery reported "
+                    f"'{celery_task_state}'. I am returning a failure."
+                )
                 return TaskStateModel.FAILURE
             else:
                 # In all other cases, we trust the self-reported state.
-                _log.info(f"The object with id {obj.id} self-reported the state '{self_reported_task_state}', "
-                          f"but Celery reported '{celery_task_state}'. I am returning the self-reported state.")
+                _log.info(
+                    f"The object with id {obj.id} self-reported the state "
+                    f"'{self_reported_task_state}', but Celery reported "
+                    f"'{celery_task_state}'. I am returning the self-reported state."
+                )
                 return self_reported_task_state

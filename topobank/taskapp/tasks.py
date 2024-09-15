@@ -20,8 +20,9 @@ _log = get_task_logger(__name__)
 class ProgressRecorder:
     PROGRESS_STATE = "PROGRESS"
 
-    def __init__(self, task):
-        self.task = task
+    def __init__(self, task, parent=None):
+        self._task = task
+        self._parent = parent
 
     def set_progress(self, current, total, description=""):
         percent = 0
@@ -36,13 +37,16 @@ class ProgressRecorder:
             "percent": percent,
             "description": description,
         }
-        self.task.update_state(state=state, meta=meta)
+        self._task.update_state(state=state, meta=meta)
+        if self._parent is not None:
+            self._parent.set_progress(state=state, meta=meta)
         return state, meta
 
 
 @after_setup_task_logger.connect
 def setup_task_logger(logger, *args, **kwargs):
-    fmt = "%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - %(message)s"
+    fmt = ("%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - "
+           "%(message)s")
     for handler in logger.handlers:
         handler.setFormatter(TaskFormatter(fmt))
 
