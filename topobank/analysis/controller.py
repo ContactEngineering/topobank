@@ -442,9 +442,9 @@ class AnalysisController:
                 request=request,
             ),
             "dois": self.dois,
-            "functionName": self.function.name,
-            "functionId": self.function.id,
+            "function_name": self.function.name,
+            "function_id": self.function.id,
             "subjects": self.subjects_dict,  # can be used to re-trigger analyses
-            "uniqueKwargs": self.unique_kwargs,
-            "hasNonuniqueKwargs": self.has_nonunique_kwargs,
+            "unique_kwargs": self.unique_kwargs,
+            "has_nonunique_kwargs": self.has_nonunique_kwargs,
         }
