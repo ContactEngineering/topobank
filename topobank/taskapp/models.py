@@ -94,7 +94,8 @@ class TaskStateModel(models.Model):
             return None
         r = celery.result.AsyncResult(self.task_id)
         if isinstance(r.info, Exception):
-            raise r.info  # The Celery process failed with some specific exception, reraise here
+            # The Celery process failed with some specific exception
+            return None
         else:
             return r.info
 
