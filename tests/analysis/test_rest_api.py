@@ -81,6 +81,17 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     assert len(response.data["analyses"]) == 1
     assert Analysis.objects.count() == 2
 
+    # Try passing integer parameters as strings
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([one_line_scan])}"
+        f"&function_id={test_analysis_function.id}"
+        f"&function_kwargs={dict_to_base64(dict(a='2', b='abc'))}"
+    )
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    assert Analysis.objects.count() == 2
+
     # Try a parameter set that does not validate
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
@@ -126,6 +137,7 @@ def test_query_tag_analysis(
     one_line_scan,
     test_analysis_function,
     django_capture_on_commit_callbacks,
+    handle_usage_statistics,
 ):
     user = one_line_scan.creator
     # Add tag to surface

@@ -420,15 +420,22 @@ class AnalysisFunction(models.Model):
         """
         return self.implementation.Parameters().model_json_schema()["properties"]
 
-    def clean_kwargs(self, kwargs: Union[dict, None]):
+    def clean_kwargs(self, kwargs: Union[dict, None], fill_missing: bool = True):
         """
         Validate keyword arguments (parameters) and return validated dictionary
+
+        Parameters
+        ----------
+        kwargs: Union[dict, None]
+            Keyword arguments
+        fill_missing: bool, optional
+            Fill missing keys with default values. (Default: True)
 
         Raises
         ------
         pydantic.ValidationError if validation fails
         """
-        return self.implementation.clean_kwargs(kwargs)
+        return self.implementation.clean_kwargs(kwargs, fill_missing=fill_missing)
 
     def get_dependencies(self, analysis):
         return self.implementation(**analysis.kwargs).get_dependencies(analysis)

@@ -153,18 +153,28 @@ class AnalysisImplementation:
         return implementation(analysis, **auxiliary_kwargs)
 
     @classmethod
-    def clean_kwargs(cls, kwargs: Union[dict, None]):
+    def clean_kwargs(cls, kwargs: Union[dict, None], fill_missing: bool = True):
         """
         Validate keyword arguments (parameters) and return validated dictionary
+
+        Parameters
+        ----------
+        kwargs: Union[dict, None]
+            Keyword arguments
+        fill_missing: bool, optional
+            Fill missing keys with default values. (Default: True)
 
         Raises
         ------
         pydantic.ValidationError if validation fails
         """
         if kwargs is None:
-            return cls.Parameters().model_dump()
+            if fill_missing:
+                return cls.Parameters().model_dump()
+            else:
+                return {}
         else:
-            return cls.Parameters(**kwargs).model_dump()
+            return cls.Parameters(**kwargs).model_dump(exclude_unset=not fill_missing)
 
     def get_implementation(self, model_class):
         """Returns the implementation function for a specific subject model"""

@@ -83,7 +83,10 @@ class AnalysisController:
                 f"User {self._user} does not have access to this analysis function."
             )
 
-        self._kwargs = kwargs
+        # Validate (and type convert) kwargs
+        self._kwargs = self._function.clean_kwargs(kwargs, fill_missing=False)
+        if self._kwargs == {}:
+            self._kwargs = None
 
         # Calculate subjects for the analyses, filtered for those which have an
         # implementation
