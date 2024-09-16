@@ -91,7 +91,7 @@ def perform_analysis(self, analysis_id: int):
     # Get analysis instance from database
     #
     analysis = Analysis.objects.get(id=analysis_id)
-    _log.debug(
+    _log.info(
         f"{self.request.id}: Function: '{analysis.function.name}', "
         f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}, "
         f"task_state: '{analysis.task_state}'"
