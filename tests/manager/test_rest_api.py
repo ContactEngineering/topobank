@@ -642,7 +642,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
 
     # Anonymous user should not be able to see the tag
     response = api_client.get(
-        reverse("manager:tag-api-detail", kwargs=dict(name=st.name))
+        reverse("manager:tag-api-detail", kwargs=dict(path=st.path))
     )
     assert response.status_code == 403
 
@@ -650,14 +650,14 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     # surfaces that are tagged, hence the tag does not exist for her
     api_client.force_login(user1)
     response = api_client.get(
-        f"{reverse('manager:tag-api-detail', kwargs=dict(name=st.name))}?surfaces=yes"
+        f"{reverse('manager:tag-api-detail', kwargs=dict(path=st.path))}?surfaces=yes"
     )
     assert response.status_code == 403
 
     # User 2 has access to all surfaces inside the tag
     api_client.force_login(user2)
     response = api_client.get(
-        reverse("manager:tag-api-detail", kwargs=dict(name=st.name))
+        reverse("manager:tag-api-detail", kwargs=dict(path=st.path))
     )
     assert response.data["name"] == st.name
 
@@ -700,13 +700,13 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     surface3.tags.add("my/fantastic/tag")
     surface2.tags.add("my/fantastic-four/tag")
 
-    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
+    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(path="my")))
     assert response.status_code == 200
     assert response.data["name"] == "my"
     assert set(response.data["children"]) == {"my/fantastic", "my/fantastic-four"}
 
     response = api_client.get(
-        f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic'))}?surfaces=yes"
+        f"{reverse('manager:tag-api-detail', kwargs=dict(path='my/fantastic'))}?surfaces=yes"
     )
     assert response.status_code == 200
     assert response.data["name"] == "my/fantastic"
@@ -716,7 +716,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     assert len(response.data) == 0
 
     response = api_client.get(
-        f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic/tag'))}?surfaces=yes"
+        f"{reverse('manager:tag-api-detail', kwargs=dict(path='my/fantastic/tag'))}?surfaces=yes"
     )
     assert response.status_code == 200
     assert response.data["name"] == "my/fantastic/tag"
@@ -733,7 +733,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     assert response.data == ["my", st.name]
 
     api_client.force_login(user1)
-    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
+    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(path="my")))
     assert response.status_code == 403
 
     # Check top-level tags

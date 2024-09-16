@@ -55,7 +55,7 @@ class AnalysisSubjectSerializer(
         fields = ["id", "tag", "topography", "surface"]
 
     tag = serializers.HyperlinkedRelatedField(
-        view_name="manager:tag-api-detail", read_only=True, lookup_field="name"
+        view_name="manager:tag-api-detail", read_only=True, lookup_field="path"
     )
     topography = serializers.HyperlinkedRelatedField(
         view_name="manager:topography-api-detail", read_only=True

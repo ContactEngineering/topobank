@@ -18,10 +18,20 @@ _ureg = pint.UnitRegistry()
 class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Tag
-        fields = ["url", "id", "name", "children"]
+        fields = [
+            "url",
+            "id",
+            "name",
+            "children",
+            "path",
+            "label",
+            "slug",
+            "level",
+            "count",
+        ]
 
     url = serializers.HyperlinkedIdentityField(
-        view_name="manager:tag-api-detail", lookup_field="name", read_only=True
+        view_name="manager:tag-api-detail", lookup_field="path", read_only=True
     )
     children = serializers.SerializerMethodField()
 

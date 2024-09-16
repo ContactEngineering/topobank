@@ -69,7 +69,7 @@ class PropertyViewSet(
 
 class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     queryset = Tag.objects.all()
-    lookup_field = "name"
+    lookup_field = "path"
     lookup_value_regex = "[^.]+"  # We need to match paths that include slashes
     serializer_class = TagSerializer
     permission_classes = [TagPermission]
@@ -77,7 +77,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     def list(self, request, *args, **kwargs):
         all_tags = set(
             itertools.chain.from_iterable(
-                Surface.objects.for_user(request.user).values_list("tags__name")
+                Surface.objects.for_user(request.user).values_list("tags__path")
             )
         )
 
