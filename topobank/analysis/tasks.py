@@ -134,7 +134,11 @@ def perform_analysis(self, analysis_id: int):
                 .apply_async()
                 .id
             )
-            analysis.save()
+            if not app.conf.task_always_eager:
+                # Only save if task do not run eagerly; otherwise, `perform_task` will
+                # have run on this analysis again through the chord above, and the save
+                # will override the SUCCESS state with a STARTED state.
+                analysis.save()
             _log.debug(
                 f"{self.request.id}: Submitted {len(scheduled_dependencies)} "
                 "dependencies; finishing the current task until dependencies are "
