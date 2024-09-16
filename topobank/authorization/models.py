@@ -153,7 +153,13 @@ class UserPermission(models.Model):
 
 class AuthorizedManager(models.Manager):
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
-        return self.get_queryset().filter(
-            permissions__user_permissions__user=user,
-            permissions__user_permissions__allow__in=levels_with_access(permission),
-        )
+        if permission == "view":
+            # We do not need to filter on permission
+            return self.get_queryset().filter(
+                permissions__user_permissions__user=user,
+            )
+        else:
+            return self.get_queryset().filter(
+                permissions__user_permissions__user=user,
+                permissions__user_permissions__allow__in=levels_with_access(permission),
+            )
