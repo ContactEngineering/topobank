@@ -274,7 +274,7 @@ class Manifest(PermissionMixin, models.Model):
         """Full path of the file on the storage backend"""
         return self.file.field.generate_filename(self, clean_name(self.filename))
 
-    def get_upload_instructions(self, expire=10, method=None):
+    def get_upload_instructions(self, expire=300, method=None):
         """Generate a presigned URL for an upload directly to S3"""
         # Preserve the trailing slash after normalizing the path.
         if method is None:
