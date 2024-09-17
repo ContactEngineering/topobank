@@ -65,11 +65,15 @@ class TaskStateModel(models.Model):
 
     @property
     def duration(self):
-        """Returns duration of computation or None if not finished yet.
+        """
+        Returns duration of computation or None if not finished yet.
 
         Does not take into account the queue time.
 
-        :return: Returns datetime.timedelta or None
+        Returns
+        -------
+        datetime.timedelta or None
+            Returns the duration of the computation or None if not finished yet.
         """
         if self.end_time is None or self.start_time is None:
             return None
@@ -125,7 +129,25 @@ class TaskStateModel(models.Model):
         raise NotImplementedError
 
     def run_task(self, celery_task, *args, **kwargs):
-        """Execute the task worker and store states to database"""
+        """
+        Execute the task worker and store states to database.
+
+        Parameters
+        ----------
+        celery_task : celery.Task
+            The Celery task to be executed.
+        *args : tuple
+            Additional positional arguments for the task.
+        **kwargs : dict
+            Additional keyword arguments for the task.
+
+        Raises
+        ------
+        CannotDetectFileFormat
+            If the data file is of an unknown or unsupported format.
+        Exception
+            For any other exceptions that occur during task execution.
+        """
         self.task_state = TaskStateModel.STARTED
         self.task_id = celery_task.request.id
         self.start_time = timezone.now()  # with timezone
@@ -173,7 +195,6 @@ class Version(models.Model):
     Part of a configuration.
     """
 
-    # TODO After upgrade to Django 2.2, use contraints: https://docs.djangoproject.com/en/2.2/ref/models/constraints/
     class Meta:
         unique_together = (("dependency", "major", "minor", "micro", "extra"),)
 
