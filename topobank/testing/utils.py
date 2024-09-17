@@ -59,8 +59,9 @@ def assert_not_in_content(response, x):
         export_response_as_html(response)  # for debugging
 
     assert not in_content, (
-        f"Unexpectedly, there is '{representation}' in this content:\n{response.content}.\n\n"
-        + f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
+        f"Unexpectedly, there is '{representation}' in this content:"
+        f"\n{response.content}. \n\n"
+        f"See file://{DEFAULT_DEBUG_HTML_FILENAME} in order to view the output."
     )
 
 
@@ -93,7 +94,8 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
     Raises
     ------
     AssertionError
-        If forms hasn't errors or not for the field as expected or the substring was not included.
+        If forms hasn't errors or not for the field as expected or the substring was
+        not included.
     """
     assert ("form" in response.context) and (
         len(response.context["form"].errors) > 0
@@ -116,8 +118,8 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
     errors = response.context["form"].errors[field_name]
 
     assert any((error_msg_fragment in err) for err in errors), (
-        f"Form has errors as expected, but no error contains the given error message fragment "
-        f"'{error_msg_fragment}'. Instead: {errors}"
+        f"Form has errors as expected, but no error contains the given error message "
+        f"fragment '{error_msg_fragment}'. Instead: {errors}"
     )
 
 
@@ -188,17 +190,20 @@ def upload_topography_file(
     upload_instructions = response.data["datafile"]["upload_instructions"]
     upload_file(api_client, upload_instructions, fn)
 
-    # We need to execute on commit actions, because this is where the refresh_cache task is triggered
+    # We need to execute on commit actions, because this is where the refresh_cache task
+    # is triggered
     with django_capture_on_commit_callbacks(execute=True):
-        # Get info on file (this will trigger the inspection). In the production instance, the first GET triggers a
-        # background (Celery) task and always returns a 'pe'nding state. In this testing environment, this is run
-        # immediately after the `save` but not yet reflected in the returned dictionary.
+        # Get info on file (this will trigger the inspection). In the production
+        # instance, the first GET triggers a background (Celery) task and always returns
+        # a 'pe'nding state. In this testing environment, this is run immediately after
+        # the `save` but not yet reflected in the returned dictionary.
         response = api_client.get(
             reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id))
         )
         assert response.status_code == 200, response.content
-        assert response.data["task_state"] == "pe"
-        # We need to close the commit capture here because the file inspection runs on commit
+        assert response.data["task_state"] == "pe", response.data["task_state"]
+        # We need to close the commit capture here because the file inspection runs on
+        # commit
 
     with django_capture_on_commit_callbacks(execute=True):
         # Get info on file again, this should not report a successful file inspection.
@@ -206,7 +211,9 @@ def upload_topography_file(
             reverse("manager:topography-api-detail", kwargs=dict(pk=topography_id))
         )
         assert response.status_code == 200, response.content
-        assert response.data["task_state"] == final_task_state
+        assert response.data["task_state"] == final_task_state, response.data[
+            "task_state"
+        ]
 
     return response
 

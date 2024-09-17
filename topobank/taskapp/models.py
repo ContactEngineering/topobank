@@ -1,11 +1,17 @@
+import json
 import tracemalloc
+from decimal import Decimal
 
 import celery.result
 import celery.states
 import django.db.models as models
+from celery.result import result_from_tuple
 from celery.utils.log import get_task_logger
 from django.utils import timezone
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
+
+from .celeryapp import app
+from .tasks import ProgressRecorder
 
 _log = get_task_logger(__name__)
 
@@ -41,10 +47,14 @@ class TaskStateModel(models.Model):
     }
 
     # This is the Celery task id
-    task_id = models.CharField(max_length=155, unique=True, null=True)
+    task_id = models.UUIDField(unique=True, null=True)
     # Django documentation discourages the use of null=True on a CharField. I'll use it
     # here  nevertheless, because I need this values as argument to a function where
     # None has a special meaning (task not yet run).
+
+    # This is the Celery id of the task that launched the chord (if there are
+    # dependencies)
+    launcher_task_id = models.UUIDField(unique=True, null=True)
 
     # This is the self-reported task state. It can differ from what Celery
     # knows about the task.
@@ -80,28 +90,110 @@ class TaskStateModel(models.Model):
 
         return self.end_time - self.start_time
 
+    def get_async_result(self):
+        """Return the Celery result object"""
+        if self.task_id is None:
+            return None
+        return app.AsyncResult(self.task_id)
+
+    def get_group_result(self):
+        return result_from_tuple(json.loads(app.backend.get(self.task_id)))
+        # return app.GroupResult.restore(self.task_id)
+
     def get_celery_state(self):
         """Return the state of the task as reported by Celery"""
         if self.task_id is None:
             # Cannot get the state
             return TaskStateModel.NOTRUN
-        r = celery.result.AsyncResult(self.task_id)
+        r = self.get_async_result()
         try:
             return self._CELERY_STATE_MAP[r.state]
         except KeyError:
-            # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted as a running task
+            # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted
+            # as a running task
             return TaskStateModel.STARTED
+
+    def get_task_state(self):
+        """
+        Return the most likely state of the task from the self-reported task
+        information in the database and the information obtained from Celery.
+        """
+        # This is self-reported by the task runner
+        self_reported_task_state = self.task_state
+        # This is what Celery reports back
+        celery_task_state = self.get_celery_state()
+
+        if celery_task_state is None:
+            # There is no Celery state, possibly because the Celery task has not yet
+            # been created
+            return self_reported_task_state
+
+        print(self_reported_task_state, celery_task_state)
+
+        if self_reported_task_state == celery_task_state:
+            # We're good!
+            return self_reported_task_state
+        else:
+            if self_reported_task_state == TaskStateModel.SUCCESS:
+                # Something is wrong, but we return success if the task self-reports
+                # success.
+                _log.info(
+                    f"The object with id {self.id} self-reported the state "
+                    f"'{self_reported_task_state}', but Celery reported "
+                    f"'{celery_task_state}'. I am returning a success."
+                )
+                return TaskStateModel.SUCCESS
+            elif celery_task_state in celery.states.EXCEPTION_STATES:
+                # Celery seems to think this task failed, we trust it as the
+                # self-reported state will be unreliable in this case.
+                _log.info(
+                    f"The object with id {self.id} self-reported the state "
+                    f"'{self_reported_task_state}', but Celery reported "
+                    f"'{celery_task_state}'. I am returning a failure."
+                )
+                return TaskStateModel.FAILURE
+            else:
+                # In all other cases, we trust the self-reported state.
+                _log.info(
+                    f"The object with id {self.id} self-reported the state "
+                    f"'{self_reported_task_state}', but Celery reported "
+                    f"'{celery_task_state}'. I am returning the self-reported state."
+                )
+                return self_reported_task_state
 
     def get_task_progress(self):
         """Return progress of task, if running"""
-        if self.task_id is None:
+        task_result = self.get_async_result()
+        if (
+            not task_result
+            or isinstance(task_result.info, Exception)
+            or task_result.state != ProgressRecorder.PROGRESS_STATE
+        ):
+            # The Celery process failed with some specific exception or is not in
+            # PROGRESS state
             return None
-        r = celery.result.AsyncResult(self.task_id)
-        if isinstance(r.info, Exception):
-            # The Celery process failed with some specific exception
-            return None
+
+        # Get task results of all children (if this was run as a chord)
+        if task_result.children:
+            task_results = [*[r for r in task_result.children[0].children], task_result]
         else:
-            return r.info
+            task_results = [task_result]
+
+        # Sum up progress of all children
+        total = 0
+        current = 0
+        for r in task_results:
+            task_progress = ProgressRecorder.Model(**r.info)
+            total += task_progress.total
+            current += task_progress.current
+
+        # Compute percentage
+        percent = 0
+        if total > 0:
+            percent = (Decimal(current) / Decimal(total)) * Decimal(100)
+            percent = float(round(percent, 2))
+
+        return percent
 
     def get_error(self):
         """Return a string representation of any error occurred during task execution"""
@@ -109,19 +201,20 @@ class TaskStateModel(models.Model):
         if self.task_error:
             return self.task_error
         # If there is none, check Celery
-        if self.task_id is None:
-            return None
-        r = celery.result.AsyncResult(self.task_id)
-        if isinstance(r.info, Exception):
-            return str(r.info)
+        r = self.get_async_result()
+        if r:
+            if isinstance(r.info, Exception):
+                return str(r.info)
+            else:
+                # No error occurred
+                return None
         else:
-            # No error occurred
             return None
 
     def cancel_task(self):
         """Cancel task, if running"""
-        if self.task_id is not None:
-            r = celery.result.AsyncResult(self.task_id)
+        r = self.get_async_result()
+        if r:
             r.revoke()
 
     def task_worker(self):

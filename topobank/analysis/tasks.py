@@ -85,7 +85,6 @@ def perform_analysis(self, analysis_id: int):
     from .models import RESULT_FILE_BASENAME, Analysis
 
     _log.debug(f"{self.request.id}: Task for analysis {analysis_id} started...")
-    progress_recorder = ProgressRecorder(self)
 
     #
     # Get analysis instance from database
@@ -110,6 +109,14 @@ def perform_analysis(self, analysis_id: int):
         return
 
     #
+    # Update entry in Analysis table to indicate we started processing it
+    #
+    analysis.task_state = Analysis.STARTED
+    analysis.task_id = self.request.id
+    analysis.start_time = timezone.now()  # with timezone
+    analysis.configuration = get_current_configuration()
+
+    #
     # Check and run dependencies
     #
     dependencies = analysis.function.get_dependencies(analysis)
@@ -121,24 +128,24 @@ def perform_analysis(self, analysis_id: int):
             dependencies
         )
         if len(scheduled_dependencies) > 0:
+            # We are about to launch a chord, store id as launcher id
+            analysis.launcher_task_id = self.request.id
+            analysis.save()
             # We just created new `Analysis` instances or decided that an existing
             # analysis needs to be scheduled. Submit Celery tasks for all
             # dependencies and request that this task is rerun once all dependencies
             # have finished.
-            analysis.task_state = Analysis.STARTED
-            analysis.task_id = (
-                celery.chord(
-                    (perform_analysis.si(dep.id) for dep in scheduled_dependencies),
-                    perform_analysis.si(analysis.id),
-                )
-                .apply_async()
-                .id
+            task = celery.chord(
+                (perform_analysis.si(dep.id) for dep in scheduled_dependencies),
+                perform_analysis.si(analysis.id),
+            ).apply_async()
+            self.update_state(
+                state="CHORD",
+                meta={
+                    "chord": task.id,
+                    "dependent_tasks": [t.task_id for t in task.parent.children],
+                },
             )
-            if not app.conf.task_always_eager:
-                # Only save if task do not run eagerly; otherwise, `perform_task` will
-                # have run on this analysis again through the chord above, and the save
-                # will override the SUCCESS state with a STARTED state.
-                analysis.save()
             _log.debug(
                 f"{self.request.id}: Submitted {len(scheduled_dependencies)} "
                 "dependencies; finishing the current task until dependencies are "
@@ -148,13 +155,7 @@ def perform_analysis(self, analysis_id: int):
     else:
         _log.debug(f"{self.request.id}: Analysis has no dependencies.")
 
-    #
-    # Update entry in Analysis table
-    #
-    analysis.task_state = Analysis.STARTED
-    analysis.task_id = self.request.id
-    analysis.start_time = timezone.now()  # with timezone
-    analysis.configuration = get_current_configuration()
+    # Save analysis state
     analysis.save()
 
     def save_result(result, task_state, peak_memory=None, dois=set()):
@@ -175,7 +176,7 @@ def perform_analysis(self, analysis_id: int):
         analysis.save()
 
     @doi()
-    def evaluate_function(progress_recorder, kwargs, finished_analyses):
+    def evaluate_function(progress_recorder, finished_analyses):
         if len(finished_analyses) > 0:
             return analysis.eval_self(
                 dependencies=finished_analyses,
@@ -189,7 +190,6 @@ def perform_analysis(self, analysis_id: int):
     #
     # We are good: Actually perform the analysis
     #
-    kwargs = analysis.kwargs
     _log.debug(f"{self.request.id}: Starting evaluation of analysis function...")
     try:
         # also request citation information
@@ -200,8 +200,7 @@ def perform_analysis(self, analysis_id: int):
         # run actual function
         result = evaluate_function(
             dois=dois,
-            progress_recorder=progress_recorder,
-            kwargs=kwargs,
+            progress_recorder=ProgressRecorder(self),
             finished_analyses=finished_dependencies,
         )
         # collect memory usage
