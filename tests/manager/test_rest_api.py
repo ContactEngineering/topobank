@@ -654,6 +654,16 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     )
     assert response.status_code == 403
 
+    # List API without query parameters should fail
+    response = api_client.get(reverse('manager:surface-api-list'))
+    assert response.status_code == 400
+
+    # Try to grab all surfaces without tags
+    response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=")
+    assert response.status_code == 200
+    assert len(response.data) == 1
+    assert response.data[0]['id'] == surface1.id
+
     # User 2 has access to all surfaces inside the tag
     api_client.force_login(user2)
     response = api_client.get(
