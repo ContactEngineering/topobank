@@ -10,23 +10,24 @@ class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
     class Meta:
         abstract = True
         model = TaskStateModel
-        fields = ["duration", "error", "task_progress", "task_state", "task_memory"]
+        fields = [
+            "duration",
+            "error",
+            "task_progress",
+            "task_state",
+            "task_memory",
+            "celery_task_state",
+            "self_reported_task_state",
+        ]
 
     default_error_messages = {"read_only": "This field is read only"}
 
-    duration = serializers.SerializerMethodField()
-    error = serializers.SerializerMethodField()
+    duration = serializers.DurationField(read_only=True)
+    error = serializers.CharField(source="get_error")
     task_state = serializers.SerializerMethodField()
-    task_progress = serializers.SerializerMethodField()
-
-    def get_duration(self, obj):
-        return obj.duration
-
-    def get_error(self, obj):
-        return obj.get_error()
-
-    def get_task_progress(self, obj):
-        return obj.get_task_progress()
+    task_progress = serializers.FloatField(source="get_task_progress")
+    celery_task_state = serializers.CharField(source="get_celery_state")
+    self_reported_task_state = serializers.CharField(source="task_state")
 
     def get_task_state(self, obj):
         """
