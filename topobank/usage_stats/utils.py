@@ -5,9 +5,6 @@ from django.db import transaction
 from django.db.models import F
 from trackstats.models import Period, StatisticByDate, StatisticByDateAndObject
 
-from topobank.analysis.models import Analysis
-from topobank.manager.models import Surface, Topography
-
 
 def register_metrics():
     """Registers all metrics used with package 'trackstats'.
@@ -233,6 +230,9 @@ def current_statistics(user=None):
         - num_topographies_excluding_publications
         - num_analyses_excluding_publications
     """
+    from topobank.analysis.models import Analysis
+    from topobank.manager.models import Surface, Topography
+
     if hasattr(Surface, 'publication'):
         if user:
             unpublished_surfaces = Surface.objects.filter(creator=user, publication__isnull=True)

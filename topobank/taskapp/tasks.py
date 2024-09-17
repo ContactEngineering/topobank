@@ -2,8 +2,7 @@
 Definition of celery tasks used in TopoBank.
 """
 
-from decimal import Decimal
-
+import pydantic
 from celery.app.log import TaskFormatter
 from celery.signals import after_setup_task_logger
 from celery.utils.log import get_task_logger
@@ -18,35 +17,35 @@ _log = get_task_logger(__name__)
 # From https://github.com/czue/celery-progress/blob/master/celery_progress/backend.py
 # (MIT licensed)
 class ProgressRecorder:
+    class Model(pydantic.BaseModel):
+        pending: bool
+        current: float
+        total: float
+        description: str
+
     PROGRESS_STATE = "PROGRESS"
 
-    def __init__(self, task, parent=None):
+    def __init__(self, task):
         self._task = task
-        self._parent = parent
 
     def set_progress(self, current, total, description=""):
-        percent = 0
-        if total > 0:
-            percent = (Decimal(current) / Decimal(total)) * Decimal(100)
-            percent = float(round(percent, 2))
         state = self.PROGRESS_STATE
-        meta = {
-            "pending": False,
-            "current": current,
-            "total": total,
-            "percent": percent,
-            "description": description,
-        }
+        meta = self.Model(
+            pending=False,
+            current=current,
+            total=total,
+            description=description,
+        ).model_dump()
         self._task.update_state(state=state, meta=meta)
-        if self._parent is not None:
-            self._parent.set_progress(state=state, meta=meta)
         return state, meta
 
 
 @after_setup_task_logger.connect
 def setup_task_logger(logger, *args, **kwargs):
-    fmt = ("%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - "
-           "%(message)s")
+    fmt = (
+        "%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - "
+        "%(message)s"
+    )
     for handler in logger.handlers:
         handler.setFormatter(TaskFormatter(fmt))
 

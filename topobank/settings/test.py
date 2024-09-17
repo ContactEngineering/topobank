@@ -66,6 +66,7 @@ CELERY_TASK_STORE_EAGER_RESULT = True
 # Use DB backend because we have no broker/results backend running
 INSTALLED_APPS += ["django_celery_results"]  # noqa: F405
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
+CELERY_BROKER_URL = "memory://"
 CELERY_RESULT_BACKEND = "django-db"
 
 
