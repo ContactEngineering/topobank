@@ -1,4 +1,5 @@
 import pytest
+from django.utils.duration import duration_string
 
 from topobank.analysis.serializers import AnalysisResultSerializer
 from topobank.manager.models import Tag
@@ -32,7 +33,7 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
         "end_time": analysis.end_time.astimezone().isoformat(),
         "dois": [],
         "configuration": None,
-        "duration": analysis.duration,
+        "duration": duration_string(analysis.duration),
         "error": None,
         "folder": f"http://testserver/files/folder/{analysis.folder.id}/",
     }
@@ -70,7 +71,7 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
         "end_time": analysis.end_time.astimezone().isoformat(),
         "dois": [],
         "configuration": None,
-        "duration": analysis.duration,
+        "duration": duration_string(analysis.duration),
         "error": None,
         "folder": f"http://testserver/files/folder/{analysis.folder.id}/",
     }

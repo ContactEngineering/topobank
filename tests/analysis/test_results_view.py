@@ -94,7 +94,7 @@ def test_analysis_times(
     analyses = response.data["analyses"]
     assert len(analyses) == 1
     assert analyses[0]["start_time"] == "2018-01-01T12:00:00+01:00"
-    assert analyses[0]["duration"] == datetime.timedelta(seconds=3661)
+    assert analyses[0]["duration"] == "01:01:01"
 
 
 @pytest.mark.django_db
@@ -237,7 +237,9 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
 
 
 @pytest.fixture
-def ids_downloadable_analyses(two_topos, test_analysis_function, mocker, django_capture_on_commit_callbacks):
+def ids_downloadable_analyses(
+    two_topos, test_analysis_function, mocker, django_capture_on_commit_callbacks
+):
     """Returns ids of analyses which can be downloaded as list."""
     config = get_current_configuration()
 
@@ -291,7 +293,7 @@ def ids_downloadable_analyses(two_topos, test_analysis_function, mocker, django_
         m.return_value = result
 
         # Saving above results in storage
-        analysis.task_state = 'pe'
+        analysis.task_state = "pe"
         analysis.save()
         perform_analysis(analysis.id)
 
