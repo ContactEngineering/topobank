@@ -63,15 +63,17 @@ def get_current_configuration():
 
 
 @app.task(bind=True)
-def perform_analysis(self, analysis_id: int):
+def perform_analysis(self, analysis_id: int, force: bool):
     """Perform an analysis which is already present in the database.
 
     Parameters
     ----------
     self : celery.app.task.Task
-        Celery task on execution (because of bind=True)
+        Celery task on execution (because of bind=True).
     analysis_id : int
-        ID of `topobank.analysis.Analysis` instance
+        ID of `topobank.analysis.Analysis` instance.
+    force : bool
+        Submission was forced, which means we need to renew dependencies.
 
     Also alters analysis instance in database saving
 
@@ -125,19 +127,19 @@ def perform_analysis(self, analysis_id: int):
         # Okay, we have dependencies so let us check what their states are
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
         finished_dependencies, scheduled_dependencies = prepare_dependency_tasks(
-            dependencies
+            dependencies, force
         )
         if len(scheduled_dependencies) > 0:
-            # We are about to launch a chord, store id as launcher id
-            analysis.launcher_task_id = self.request.id
-            analysis.save()
             # We just created new `Analysis` instances or decided that an existing
             # analysis needs to be scheduled. Submit Celery tasks for all
             # dependencies and request that this task is rerun once all dependencies
             # have finished.
+            for dep in scheduled_dependencies:
+                dep.task_state = Analysis.PENDING
+                dep.save()
             task = celery.chord(
-                (perform_analysis.si(dep.id) for dep in scheduled_dependencies),
-                perform_analysis.si(analysis.id),
+                (perform_analysis.si(dep.id, False) for dep in scheduled_dependencies),
+                perform_analysis.si(analysis.id, False),
             ).apply_async()
             self.update_state(
                 state="CHORD",
@@ -146,6 +148,11 @@ def perform_analysis(self, analysis_id: int):
                     "dependent_tasks": [t.task_id for t in task.parent.children],
                 },
             )
+            # We just launched a chord, store id as launcher id
+            analysis.launcher_task_id = self.request.id
+            # Store task id so it is reported as pending
+            analysis.task_id = task.id
+            analysis.save()
             _log.debug(
                 f"{self.request.id}: Submitted {len(scheduled_dependencies)} "
                 "dependencies; finishing the current task until dependencies are "
@@ -155,7 +162,7 @@ def perform_analysis(self, analysis_id: int):
     else:
         _log.debug(f"{self.request.id}: Analysis has no dependencies.")
 
-    # Save analysis state
+    # Save analysis
     analysis.save()
 
     def save_result(result, task_state, peak_memory=None, dois=set()):
@@ -400,7 +407,7 @@ def current_statistics(user=None):
     )
 
 
-def prepare_dependency_tasks(dependencies: list[AnalysisInputData]):
+def prepare_dependency_tasks(dependencies: list[AnalysisInputData], force: bool):
     from .models import Analysis, AnalysisSubject
 
     finished_dependent_analyses = []  # Everything that finished or failed
@@ -463,7 +470,10 @@ def prepare_dependency_tasks(dependencies: list[AnalysisInputData]):
             # An analysis exists. Check whether it is successful or failed.
             existing_analysis = all_results.first()
             # task_state is the *self reported* state, not the Celery state
-            if existing_analysis.task_state in [Analysis.FAILURE, Analysis.SUCCESS]:
+            if not force and existing_analysis.task_state in [
+                Analysis.FAILURE,
+                Analysis.SUCCESS,
+            ]:
                 # This one does not need to be scheduled
                 finished_dependent_analyses += [existing_analysis]
             else:

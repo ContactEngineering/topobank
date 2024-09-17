@@ -526,7 +526,7 @@ class AnalysisFunction(models.Model):
                 from .tasks import perform_analysis
 
                 _log.debug(f"Submitting task for analysis {analysis.id}...")
-                perform_analysis.delay(analysis.id)
+                perform_analysis.delay(analysis.id, force_submit)
 
             transaction.on_commit(do_submit)
         else:
@@ -566,7 +566,7 @@ class AnalysisFunction(models.Model):
             from .tasks import perform_analysis
 
             _log.debug(f"Submitting task for analysis {analysis.id}...")
-            perform_analysis.delay(analysis.id)
+            perform_analysis.delay(analysis.id, True)
 
         transaction.on_commit(do_submit)
         return analysis

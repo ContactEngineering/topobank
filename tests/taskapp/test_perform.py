@@ -23,7 +23,7 @@ def test_perform_analysis(
     )
     analysis.save()
 
-    perform_analysis(analysis.id)
+    perform_analysis(analysis.id, False)
 
     # now check result
     analysis = Analysis.objects.get(id=analysis.id)
@@ -57,7 +57,7 @@ def test_perform_analysis(
     )
 
     analysis2.save()
-    perform_analysis(analysis2.id)
+    perform_analysis(analysis2.id, False)
 
     analysis2 = Analysis.objects.get(id=analysis2.id)
 

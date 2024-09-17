@@ -295,7 +295,7 @@ def ids_downloadable_analyses(
         # Saving above results in storage
         analysis.task_state = "pe"
         analysis.save()
-        perform_analysis(analysis.id)
+        perform_analysis(analysis.id, False)
 
         ids.append(analysis.id)
 

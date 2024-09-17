@@ -71,7 +71,7 @@ def test_dependency_status():
     kwargs = {"c": 33, "d": 7.5}
     analysis = func.submit(user, topo1, kwargs)
     # `perform_analysis` is not executed because it is run on commit
-    task = perform_analysis.apply(args=(analysis.id,))
+    task = perform_analysis.apply(args=(analysis.id, False))
     assert task.state == celery.states.SUCCESS
 
     #

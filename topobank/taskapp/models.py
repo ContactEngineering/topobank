@@ -94,6 +94,24 @@ class TaskStateModel(models.Model):
             return None
         return app.AsyncResult(str(self.task_id))
 
+    def get_async_results(self):
+        """Return the Celery result objects of current and depndent tasks"""
+        task_result = self.get_async_result()
+        launcher_task_result = (
+            app.AsyncResult(str(self.launcher_task_id))
+            if self.launcher_task_id
+            else None
+        )
+
+        # Get task results of all children (if this was run as a chord)
+        task_results = [
+            *[r for r in launcher_task_result.children[0].children]
+        ] if launcher_task_result else []
+        if task_result:
+            task_results += [task_result]
+
+        return task_results
+
     def get_celery_state(self):
         """Return the state of the task as reported by Celery"""
         if self.task_id is None:
@@ -117,6 +135,8 @@ class TaskStateModel(models.Model):
         # This is what Celery reports back
         celery_task_state = self.get_celery_state()
 
+        print(self_reported_task_state, celery_task_state)
+
         if celery_task_state is None:
             # There is no Celery state, possibly because the Celery task has not yet
             # been created
@@ -135,7 +155,7 @@ class TaskStateModel(models.Model):
                     f"'{celery_task_state}'. I am returning a success."
                 )
                 return TaskStateModel.SUCCESS
-            elif celery_task_state in celery.states.EXCEPTION_STATES:
+            elif celery_task_state == TaskStateModel.FAILURE:
                 # Celery seems to think this task failed, we trust it as the
                 # self-reported state will be unreliable in this case.
                 _log.info(
@@ -155,29 +175,21 @@ class TaskStateModel(models.Model):
 
     def get_task_progress(self):
         """Return progress of task, if running"""
-        task_result = self.get_async_result()
-        if (
-            not task_result
-            or isinstance(task_result.info, Exception)
-            or task_result.state != ProgressRecorder.PROGRESS_STATE
-        ):
-            # The Celery process failed with some specific exception or is not in
-            # PROGRESS state
-            return None
-
-        # Get task results of all children (if this was run as a chord)
-        if task_result.children:
-            task_results = [*[r for r in task_result.children[0].children], task_result]
-        else:
-            task_results = [task_result]
+        task_results = self.get_async_results()
 
         # Sum up progress of all children
         total = 0
         current = 0
         for r in task_results:
-            task_progress = ProgressRecorder.Model(**r.info)
-            total += task_progress.total
-            current += task_progress.current
+            if r.state == celery.states.SUCCESS:
+                total += 1
+                current += 1
+            elif r.state == celery.states.PENDING:
+                total += 1
+            elif r.info:
+                task_progress = ProgressRecorder.Model(**r.info)
+                total += 1
+                current += task_progress.current / task_progress.total
 
         # Compute percentage
         percent = 0
