@@ -73,7 +73,7 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     # Get a different set of parameters
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
-        f"?subjects={subjects_to_base64([one_line_scan])}"
+        f"?topography={one_line_scan.id}"
         f"&function_id={test_analysis_function.id}"
         f"&function_kwargs={dict_to_base64(dict(a=2, b='abc'))}"
     )

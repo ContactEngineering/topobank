@@ -130,6 +130,8 @@ class AnalysisController:
         controller : AnalysisController
             The analysis controller object
         """
+        _queryable_subjects = ["tag", "surface", "topography"]
+
         user = request.user
         data = request.data | kwargs
         q = request.GET  # Querydict
@@ -147,6 +149,19 @@ class AnalysisController:
             subjects = q.get("subjects")
         if subjects is not None and isinstance(subjects, str):
             subjects = dict_from_base64(subjects)
+
+        if subjects is None:
+            for subject_key in _queryable_subjects:
+                subject = q.get(subject_key)
+                if subject is not None:
+                    if subjects is None:
+                        subjects = {}
+                    try:
+                        subjects[subject_key] = [int(x) for x in subject.split(',')]
+                    except AttributeError:
+                        raise ValueError(f"Malformed subject key '{subject_key}'")
+                    except ValueError:
+                        raise ValueError(f"Malformed subject key '{subject_key}'")
 
         kwargs = data.get("function_kwargs")
         if kwargs is None:
