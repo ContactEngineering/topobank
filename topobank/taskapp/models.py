@@ -1,11 +1,9 @@
-import json
 import tracemalloc
 from decimal import Decimal
 
 import celery.result
 import celery.states
 import django.db.models as models
-from celery.result import result_from_tuple
 from celery.utils.log import get_task_logger
 from django.utils import timezone
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
@@ -94,11 +92,7 @@ class TaskStateModel(models.Model):
         """Return the Celery result object"""
         if self.task_id is None:
             return None
-        return app.AsyncResult(self.task_id)
-
-    def get_group_result(self):
-        return result_from_tuple(json.loads(app.backend.get(self.task_id)))
-        # return app.GroupResult.restore(self.task_id)
+        return app.AsyncResult(str(self.task_id))
 
     def get_celery_state(self):
         """Return the state of the task as reported by Celery"""
@@ -127,8 +121,6 @@ class TaskStateModel(models.Model):
             # There is no Celery state, possibly because the Celery task has not yet
             # been created
             return self_reported_task_state
-
-        print(self_reported_task_state, celery_task_state)
 
         if self_reported_task_state == celery_task_state:
             # We're good!

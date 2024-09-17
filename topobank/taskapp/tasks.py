@@ -19,8 +19,8 @@ _log = get_task_logger(__name__)
 class ProgressRecorder:
     class Model(pydantic.BaseModel):
         pending: bool
-        current: int
-        total: int
+        current: float
+        total: float
         description: str
 
     PROGRESS_STATE = "PROGRESS"
