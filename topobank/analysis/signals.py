@@ -5,6 +5,7 @@ from django.db.models import Q
 from django.db.models.signals import post_delete, pre_delete, pre_save
 from django.dispatch import receiver
 
+from ..authorization.models import PermissionSet
 from ..manager.models import Topography, post_refresh_cache
 from .models import Analysis
 
@@ -24,8 +25,7 @@ def post_delete_analysis(sender, instance, **kwargs):
 
     This method performs the following steps:
     1. Cancels the task if it is currently running.
-    2. Removes associated files from the storage backend.
-    3. Deletes the database entry for the analysis instance.
+    2. Deletes the database entry for the analysis instance.
 
     Parameters
     ----------
@@ -39,7 +39,13 @@ def post_delete_analysis(sender, instance, **kwargs):
 
     # Delete permission set, which triggers deletion of all other associated data.
     # Needs to be in post_delete to avoid recursion.
-    instance.permissions.delete()
+    try:
+        instance.permissions.delete()
+    except PermissionSet.DoesNotExist:
+        # This permissions set may have been deleted when analysis was deleted in
+        # pre_delete_topography. This happens when a surface is deleted, which
+        # trigger pre_delete_topography and this triggers pre_delete_analysis twice
+        pass
 
 
 @receiver(post_refresh_cache, sender=Topography)

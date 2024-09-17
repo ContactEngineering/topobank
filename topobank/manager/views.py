@@ -136,12 +136,12 @@ class SurfaceViewSet(
             instance.save()
 
     def perform_update(self, serializer):
-        super().perform_update(serializer)
+        serializer.save()
         self._notify(serializer.instance, "change")
 
     def perform_destroy(self, instance):
         self._notify(instance, "delete")
-        super().perform_destroy(instance)
+        instance.delete()
 
 
 class TopographyViewSet(
@@ -204,12 +204,12 @@ class TopographyViewSet(
         instance.save()
 
     def perform_update(self, serializer):
-        super().perform_update(serializer)
+        serializer.save()
         self._notify(serializer.instance, "change")
 
     def perform_destroy(self, instance):
         self._notify(instance, "delete")
-        super().perform_destroy(instance)
+        instance.delete()
 
     # From mixins.RetrieveModelMixin
     def retrieve(self, request, *args, **kwargs):
