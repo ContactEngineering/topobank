@@ -78,7 +78,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         all_tags = set(
             itertools.chain.from_iterable(
                 Surface.objects.for_user(request.user)
-                .filter(tags__name__isnull=False)
+                .filter(tags__isnull=False)
                 .values_list("tags__name")
             )
         )

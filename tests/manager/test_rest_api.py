@@ -639,6 +639,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     (user1, user2), (surface1, surface2, surface3) = two_users
 
     st = TagFactory(surfaces=[surface2, surface3])
+    tag1 = surface2.tags.first()
 
     # Anonymous user should not be able to see the tag
     response = api_client.get(
@@ -663,6 +664,11 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     assert response.status_code == 200
     assert len(response.data) == 1
     assert response.data[0]['id'] == surface1.id
+
+    # List top-level tags
+    response = api_client.get(reverse("manager:tag-api-list"))
+    assert response.status_code == 200
+    assert response.data == []
 
     # User 2 has access to all surfaces inside the tag
     api_client.force_login(user2)
@@ -706,6 +712,10 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
         ],
     )
 
+    response = api_client.get(reverse("manager:tag-api-list"))
+    assert response.status_code == 200
+    assert set(response.data) == {surface2.tags.first().name, surface3.tags.first().name}
+
     surface2.tags.add("my/fantastic/tag")
     surface3.tags.add("my/fantastic/tag")
     surface2.tags.add("my/fantastic-four/tag")
@@ -742,14 +752,21 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     assert response.status_code == 200
     assert response.data == ["my", st.name]
 
+    # Login as user1
     api_client.force_login(user1)
     response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
     assert response.status_code == 403
 
+    # Share surface2 with user1
+    surface2.grant_permission(user1, "view")
+    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
+    assert response.status_code == 200
+
     # Check top-level tags
     response = api_client.get(reverse("manager:tag-api-list"))
     assert response.status_code == 200
-    assert response.data == []
+    # Make sure "None" is not in this list
+    assert set(response.data) == {"my", tag1.name}
 
 
 def test_create_topography(api_client, user_alice, handle_usage_statistics):
