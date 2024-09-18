@@ -16,7 +16,7 @@ class TestImplementation(AnalysisImplementation):
     """
 
     class Meta:
-        name = "topobank.analysis.test"
+        name = "topobank.testing.test"
         display_name = "Test implementation"
         visualization_type = VIZ_SERIES
 
@@ -125,7 +125,7 @@ class TopographyOnlyTestImplementation(TestImplementation):
     """
 
     class Meta:
-        name = "topobank.analysis.topography_only_test"
+        name = "topobank.testing.topography_only_test"
         display_name = "Topography-only test implementation"
         visualization_type = VIZ_SERIES
 
@@ -141,7 +141,7 @@ class SecondTestImplementation(AnalysisImplementation):
     """
 
     class Meta:
-        name = "topobank.analysis.test2"
+        name = "topobank.testing.test2"
         display_name = "Second test implementation"
         visualization_type = VIZ_SERIES
 
@@ -190,7 +190,7 @@ class TestImplementationWithError(AnalysisImplementation):
     """
 
     class Meta:
-        name = "topobank.analysis.test_error"
+        name = "topobank.testing.test_error"
         display_name = "Test implementation with error"
         visualization_type = VIZ_SERIES
 
@@ -218,7 +218,7 @@ class TestImplementationWithErrorInDependency(AnalysisImplementation):
     """
 
     class Meta:
-        name = "topobank.analysis.test_error_in_dependency"
+        name = "topobank.testing.test_error_in_dependency"
         display_name = "Test implementation with error in dependency"
         visualization_type = VIZ_SERIES
 

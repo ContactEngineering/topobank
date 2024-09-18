@@ -656,19 +656,19 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     assert response.status_code == 403
 
     # List API without query parameters should fail
-    response = api_client.get(reverse('manager:surface-api-list'))
+    response = api_client.get(reverse("manager:surface-api-list"))
     assert response.status_code == 400
 
     # Try to grab all surfaces without tags
     response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=")
     assert response.status_code == 200
     assert len(response.data) == 1
-    assert response.data[0]['id'] == surface1.id
+    assert response.data[0]["id"] == surface1.id
 
     # List top-level tags
     response = api_client.get(reverse("manager:tag-api-list"))
     assert response.status_code == 200
-    assert response.data == []
+    assert response.data == [""]
 
     # User 2 has access to all surfaces inside the tag
     api_client.force_login(user2)
@@ -714,7 +714,10 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
 
     response = api_client.get(reverse("manager:tag-api-list"))
     assert response.status_code == 200
-    assert set(response.data) == {surface2.tags.first().name, surface3.tags.first().name}
+    assert set(response.data) == {
+        surface2.tags.first().name,
+        surface3.tags.first().name,
+    }
 
     surface2.tags.add("My/fant&astic/tag")
     surface3.tags.add("My/fant&astic/tag")
@@ -732,7 +735,9 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     assert response.data["name"] == "My/fant&astic"
     assert response.data["children"] == ["My/fant&astic/tag"]
 
-    response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=My/fant&astic")
+    response = api_client.get(
+        f"{reverse('manager:surface-api-list')}?tag=My/fant&astic"
+    )
     assert len(response.data) == 0
 
     response = api_client.get(
@@ -766,7 +771,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     response = api_client.get(reverse("manager:tag-api-list"))
     assert response.status_code == 200
     # Make sure "None" is not in this list
-    assert set(response.data) == {"My", tag1.name}
+    assert set(response.data) == {"", "My", tag1.name}
 
 
 def test_create_topography(api_client, user_alice, handle_usage_statistics):

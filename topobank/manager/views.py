@@ -76,15 +76,11 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
 
     def list(self, request, *args, **kwargs):
         all_tags = set(
-            itertools.chain.from_iterable(
-                Surface.objects.for_user(request.user)
-                .filter(tags__isnull=False)
-                .values_list("tags__name")
+            "" if tag_name is None else tag_name
+            for tag_name in itertools.chain.from_iterable(
+                Surface.objects.for_user(request.user).values_list("tags__name")
             )
         )
-
-        if all_tags == {None}:
-            return Response([])
 
         toplevel_tags = set(f"{tag}/".split("/", maxsplit=1)[0] for tag in all_tags)
         return Response(sorted(toplevel_tags))
