@@ -31,7 +31,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
         ]
 
     url = serializers.HyperlinkedIdentityField(
-        view_name="manager:tag-api-detail", lookup_field="path", read_only=True
+        view_name="manager:tag-api-detail", lookup_field="name", read_only=True
     )
     children = serializers.SerializerMethodField()
 
