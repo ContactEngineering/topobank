@@ -190,7 +190,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         def make_child(tag_name):
             tag_suffix = tag_name[len(self.path) + 1 :]
             name, rest = (tag_suffix + "/").split("/", maxsplit=1)
-            return f"{self.path}/{name}"
+            return f"{self.name}/{name}"
 
         if self._user is None:
             raise PermissionError(
@@ -201,12 +201,12 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         all_tags = set(
             itertools.chain.from_iterable(
                 Surface.objects.for_user(self._user)
-                .filter(tags__path__startswith=f"{self.path}/")
+                .filter(tags__name__startswith=f"{self.name}/")
                 .values_list("tags__name")
             )
         )
         return list(
-            set(make_child(tag) for tag in all_tags if tag.startswith(f"{self.path}/"))
+            set(make_child(tag) for tag in all_tags if tag.startswith(f"{self.name}/"))
         )
 
     def get_descendant_surfaces(self):

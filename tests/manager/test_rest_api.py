@@ -716,57 +716,57 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     assert response.status_code == 200
     assert set(response.data) == {surface2.tags.first().name, surface3.tags.first().name}
 
-    surface2.tags.add("my/fantastic/tag")
-    surface3.tags.add("my/fantastic/tag")
-    surface2.tags.add("my/fantastic-four/tag")
+    surface2.tags.add("My/fantastic/tag")
+    surface3.tags.add("My/fantastic/tag")
+    surface2.tags.add("My/fantastic-four/tag")
 
-    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
+    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="My")))
     assert response.status_code == 200
-    assert response.data["name"] == "my"
-    assert set(response.data["children"]) == {"my/fantastic", "my/fantastic-four"}
+    assert response.data["name"] == "My"
+    assert set(response.data["children"]) == {"My/fantastic", "My/fantastic-four"}
 
     response = api_client.get(
-        f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic'))}?surfaces=yes"
+        f"{reverse('manager:tag-api-detail', kwargs=dict(name='My/fantastic'))}?surfaces=yes"
     )
     assert response.status_code == 200
-    assert response.data["name"] == "my/fantastic"
-    assert response.data["children"] == ["my/fantastic/tag"]
+    assert response.data["name"] == "My/fantastic"
+    assert response.data["children"] == ["My/fantastic/tag"]
 
-    response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=my/fantastic")
+    response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=My/fantastic")
     assert len(response.data) == 0
 
     response = api_client.get(
-        f"{reverse('manager:tag-api-detail', kwargs=dict(name='my/fantastic/tag'))}?surfaces=yes"
+        f"{reverse('manager:tag-api-detail', kwargs=dict(name='My/fantastic/tag'))}?surfaces=yes"
     )
     assert response.status_code == 200
-    assert response.data["name"] == "my/fantastic/tag"
+    assert response.data["name"] == "My/fantastic/tag"
     assert response.data["children"] == []
 
     response = api_client.get(
-        f"{reverse('manager:surface-api-list')}?tag=my/fantastic/tag"
+        f"{reverse('manager:surface-api-list')}?tag=My/fantastic/tag"
     )
     assert len(response.data) == 2
 
     # Check top-level tags
     response = api_client.get(reverse("manager:tag-api-list"))
     assert response.status_code == 200
-    assert response.data == ["my", st.name]
+    assert response.data == ["My", st.name]
 
     # Login as user1
     api_client.force_login(user1)
-    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
+    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="My")))
     assert response.status_code == 403
 
     # Share surface2 with user1
     surface2.grant_permission(user1, "view")
-    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="my")))
+    response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="My")))
     assert response.status_code == 200
 
     # Check top-level tags
     response = api_client.get(reverse("manager:tag-api-list"))
     assert response.status_code == 200
     # Make sure "None" is not in this list
-    assert set(response.data) == {"my", tag1.name}
+    assert set(response.data) == {"My", tag1.name}
 
 
 def test_create_topography(api_client, user_alice, handle_usage_statistics):
