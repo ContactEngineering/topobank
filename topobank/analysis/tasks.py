@@ -137,22 +137,17 @@ def perform_analysis(self, analysis_id: int, force: bool):
             for dep in scheduled_dependencies:
                 dep.task_state = Analysis.PENDING
                 dep.save()
+            # We are about to launch a chord, store id as launcher id
+            analysis.launcher_task_id = self.request.id
+            # Save because apply_async never returns in test when a dependency fails
+            analysis.save()
             task = celery.chord(
                 (perform_analysis.si(dep.id, False) for dep in scheduled_dependencies),
                 perform_analysis.si(analysis.id, False),
             ).apply_async()
-            self.update_state(
-                state="CHORD",
-                meta={
-                    "chord": task.id,
-                    "dependent_tasks": [t.task_id for t in task.parent.children],
-                },
-            )
-            # We just launched a chord, store id as launcher id
-            analysis.launcher_task_id = self.request.id
             # Store task id so it is reported as pending
             analysis.task_id = task.id
-            analysis.save()
+            analysis.save(update_fields=["task_id"])
             _log.debug(
                 f"{self.request.id}: Submitted {len(scheduled_dependencies)} "
                 "dependencies; finishing the current task until dependencies are "

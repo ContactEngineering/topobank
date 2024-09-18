@@ -452,3 +452,45 @@ class TestImplementationWithError(AnalysisImplementation):
         progress_recorder=None,
     ):
         raise RuntimeError("An error occurred!")
+
+
+class TestImplementationWithErrorInDependency(AnalysisImplementation):
+    """
+    This function will be registered in conftest.py by a fixture. The arguments have no
+    meaning. Result are two series.
+    """
+
+    class Meta:
+        name = "topobank.analysis.test_error_in_dependency"
+        display_name = "Test implementation with error in dependency"
+        visualization_type = VIZ_SERIES
+
+        implementations = {
+            Topography: "topography_implementation",
+        }
+
+        dependencies = {Topography: "topography_dependencies"}
+
+    class Parameters(AnalysisImplementation.Parameters):
+        c: int = 1
+        d: float = 1.3
+
+    def topography_dependencies(self, analysis) -> list[AnalysisInputData]:
+        topography = analysis.subject
+        return [
+            AnalysisInputData(
+                subject=topography,
+                function=AnalysisFunction.objects.get(
+                    name="Test implementation with error"
+                ),
+                kwargs=self._kwargs.model_dump(),
+            ),
+        ]
+
+    def topography_implementation(
+        self,
+        analysis,
+        dependencies: list = None,
+        progress_recorder=None,
+    ):
+        return

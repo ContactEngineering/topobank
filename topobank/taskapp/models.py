@@ -111,11 +111,13 @@ class TaskStateModel(models.Model):
         )
 
         # Get task results of all children (if this was run as a chord)
-        task_results = (
-            [*[r for r in launcher_task_result.children[0].children]]
-            if launcher_task_result
-            else []
-        )
+        task_results = []
+        if launcher_task_result and len(launcher_task_result.children) > 0:
+            task_results = (
+                [*[r for r in launcher_task_result.children[0].children]]
+                if launcher_task_result
+                else []
+            )
         if task_result:
             task_results += [task_result]
 
@@ -123,16 +125,24 @@ class TaskStateModel(models.Model):
 
     def get_celery_state(self):
         """Return the state of the task as reported by Celery"""
+        # Check if any of the dependent tasks failed
+        for r in self.get_async_results():
+            if r.state in celery.states.EXCEPTION_STATES:
+                return TaskStateModel.FAILURE
+
+        # Check state of current task
         if self.task_id is None:
             # Cannot get the state
             return TaskStateModel.NOTRUN
-        r = self.get_async_result()
-        try:
-            return self._CELERY_STATE_MAP[r.state]
-        except KeyError:
-            # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted
-            # as a running task
-            return TaskStateModel.STARTED
+        else:
+            r = self.get_async_result()
+            try:
+                state = self._CELERY_STATE_MAP[r.state]
+            except KeyError:
+                # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted
+                # as a running task
+                state = TaskStateModel.STARTED
+            return state
 
     def get_task_state(self):
         """
