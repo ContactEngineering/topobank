@@ -188,7 +188,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     def get_children(self):
         def make_child(tag_name):
-            tag_suffix = tag_name[len(self.path) + 1 :]
+            tag_suffix = tag_name[len(self.name) + 1 :]
             name, rest = (tag_suffix + "/").split("/", maxsplit=1)
             return f"{self.name}/{name}"
 

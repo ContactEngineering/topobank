@@ -716,34 +716,34 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     assert response.status_code == 200
     assert set(response.data) == {surface2.tags.first().name, surface3.tags.first().name}
 
-    surface2.tags.add("My/fantastic/tag")
-    surface3.tags.add("My/fantastic/tag")
-    surface2.tags.add("My/fantastic-four/tag")
+    surface2.tags.add("My/fant&astic/tag")
+    surface3.tags.add("My/fant&astic/tag")
+    surface2.tags.add("My/fant&astic-four/tag")
 
     response = api_client.get(reverse("manager:tag-api-detail", kwargs=dict(name="My")))
     assert response.status_code == 200
     assert response.data["name"] == "My"
-    assert set(response.data["children"]) == {"My/fantastic", "My/fantastic-four"}
+    assert set(response.data["children"]) == {"My/fant&astic", "My/fant&astic-four"}
 
     response = api_client.get(
-        f"{reverse('manager:tag-api-detail', kwargs=dict(name='My/fantastic'))}?surfaces=yes"
+        f"{reverse('manager:tag-api-detail', kwargs=dict(name='My/fant&astic'))}?surfaces=yes"
     )
     assert response.status_code == 200
-    assert response.data["name"] == "My/fantastic"
-    assert response.data["children"] == ["My/fantastic/tag"]
+    assert response.data["name"] == "My/fant&astic"
+    assert response.data["children"] == ["My/fant&astic/tag"]
 
-    response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=My/fantastic")
+    response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=My/fant&astic")
     assert len(response.data) == 0
 
     response = api_client.get(
-        f"{reverse('manager:tag-api-detail', kwargs=dict(name='My/fantastic/tag'))}?surfaces=yes"
+        f"{reverse('manager:tag-api-detail', kwargs=dict(name='My/fant&astic/tag'))}?surfaces=yes"
     )
     assert response.status_code == 200
-    assert response.data["name"] == "My/fantastic/tag"
+    assert response.data["name"] == "My/fant&astic/tag"
     assert response.data["children"] == []
 
     response = api_client.get(
-        f"{reverse('manager:surface-api-list')}?tag=My/fantastic/tag"
+        f"{reverse('manager:surface-api-list')}?tag=My/fant%26astic/tag"
     )
     assert len(response.data) == 2
 
