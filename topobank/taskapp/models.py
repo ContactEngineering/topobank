@@ -1,3 +1,4 @@
+import traceback
 import tracemalloc
 from decimal import Decimal
 
@@ -62,14 +63,15 @@ class TaskStateModel(models.Model):
     # This is the self-reported task state. It can differ from what Celery
     # knows about the task.
     task_state = models.CharField(
-        max_length=7, choices=TASK_STATE_CHOICES, default=NOTRUN
+        max_length=2, choices=TASK_STATE_CHOICES, default=NOTRUN
     )
 
-    # Maxmimum memory usage of the task
+    # Maximum memory usage of the task
     task_memory = models.BigIntegerField(null=True)
 
     # Any error information emitted from the task
     task_error = models.TextField(default="")
+    task_traceback = models.TextField(null=True)
 
     # Time stamps
     creation_time = models.DateTimeField(null=True)
@@ -221,7 +223,7 @@ class TaskStateModel(models.Model):
 
         return percent
 
-    def get_error(self):
+    def get_task_error(self):
         """Return a string representation of any error occurred during task execution"""
         # Return self-reported task error, if any
         if self.task_error:
@@ -230,13 +232,12 @@ class TaskStateModel(models.Model):
         # If there is none, check Celery
         for r in self.get_async_results():
             # We simply fail with the first error we encounter
-            if r and (
-                r.state in celery.states.EXCEPTION_STATES
-                or isinstance(r.info, Exception)
-            ):
-                # There seems to be an error, store for future reference
+            if r and isinstance(r.info, Exception):
+                # Generate error string
+                self.task_state = self.FAILURE
                 self.task_error = str(r.info)
-                self.save(update_fields=["task_error"])
+                # There seems to be an error, store for future reference
+                self.save(update_fields=["task_state", "task_error"])
                 return self.task_error
         return None
 
@@ -288,12 +289,15 @@ class TaskStateModel(models.Model):
         except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
             self.task_error = "The data file is of an unknown or unsupported format."
+            self.task_traceback = traceback.format_exc()
         except Exception as exc:
             self.task_state = TaskStateModel.FAILURE
-            self.task_error = str(
-                exc
-            )  # store string representation of exception as user-reported error string
-            # we want a real exception here so celery's flower can show the task as failure
+            # Store string representation of exception and traceback as user-reported
+            # error string
+            self.task_error = str(exc)
+            self.task_traceback = traceback.format_exc()
+            # we want a real exception here so celery's flower can show the task as
+            # failure
             raise
         finally:
             # Store time stamp and save state to database

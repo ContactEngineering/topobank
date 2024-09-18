@@ -251,3 +251,44 @@ def test_query_with_unique_kwargs(
     assert len(response.data["analyses"]) == 1
     assert Analysis.objects.count() == 1
     assert response.data["analyses"][0]["id"] == analysis_id  # Should yield the same
+
+
+@pytest.mark.django_db
+def test_query_with_error(
+    api_client,
+    one_line_scan,
+    django_capture_on_commit_callbacks,
+    handle_usage_statistics,
+):
+    user = one_line_scan.creator
+    function = AnalysisFunction.objects.get(name="Test implementation with error")
+
+    # Login
+    api_client.force_login(user)
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}"
+            f"?topography={one_line_scan.id}"
+            f"&function_id={function.id}"
+        )
+    assert len(callbacks) == 1
+    assert response.status_code == 200
+    assert response.data["analyses"][0]["task_state"] == "pe"
+    assert len(response.data["analyses"]) == 1
+    assert Analysis.objects.count() == 1
+
+    # Second request is required to retrieve error (first is always pending)
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}"
+            f"?topography={one_line_scan.id}"
+            f"&function_id={function.id}"
+        )
+    assert len(callbacks) == 0  # This just return the error
+    assert response.status_code == 200
+    assert response.data["analyses"][0]["task_state"] == "fa"
+    assert len(response.data["analyses"]) == 1
+    assert Analysis.objects.count() == 1
+
+    assert response.data["analyses"][0]["error"] == "An error occurred!"
+    assert "return runner.eval" in response.data["analyses"][0]["task_traceback"]

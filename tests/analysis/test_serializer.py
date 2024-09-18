@@ -35,6 +35,7 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
         "configuration": None,
         "duration": duration_string(analysis.duration),
         "error": None,
+        "task_traceback": None,
         "folder": f"http://testserver/files/folder/{analysis.folder.id}/",
     }
 
@@ -73,5 +74,6 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
         "configuration": None,
         "duration": duration_string(analysis.duration),
         "error": None,
+        "task_traceback": None,
         "folder": f"http://testserver/files/folder/{analysis.folder.id}/",
     }

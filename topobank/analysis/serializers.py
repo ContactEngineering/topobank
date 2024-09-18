@@ -79,13 +79,14 @@ class AnalysisResultSerializer(
             "task_progress",
             "task_state",
             "task_memory",
+            "error",
+            "task_traceback",
             "creation_time",
             "start_time",
             "end_time",
             "dois",
             "configuration",
             "duration",
-            "error",
             "folder",
         ]
 
@@ -102,3 +103,4 @@ class AnalysisResultSerializer(
     configuration = serializers.HyperlinkedRelatedField(
         view_name="analysis:configuration-detail", read_only=True
     )
+    error = serializers.CharField(source="get_task_error", read_only=True)

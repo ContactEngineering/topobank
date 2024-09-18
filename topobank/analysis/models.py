@@ -175,8 +175,8 @@ class Analysis(PermissionMixin, TaskStateModel):
         self._result_metadata_cache = None  # cached toplevel result file
 
     def __str__(self):
-        return "Task {} with state {}".format(
-            self.task_id, self.get_task_state_display()
+        return (
+            f"Analysis {self.id} on subject {self.subject} with state {self.task_state}"
         )
 
     def save(self, *args, **kwargs):

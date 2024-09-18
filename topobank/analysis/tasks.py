@@ -220,9 +220,11 @@ def perform_analysis(self, analysis_id: int, force: bool):
         save_result(result, Analysis.SUCCESS, peak_memory=peak, dois=dois)
     except Exception as exc:
         _log.warning(f"{self.request.id}: Exception during evaluation: {exc}")
-        save_result(
-            dict(error=str(exc), traceback=traceback.format_exc()), Analysis.FAILURE
-        )
+        analysis.task_state = Analysis.FAILURE
+        analysis.task_traceback = traceback.format_exc()
+        # Store string representation of exception as user-reported error string
+        analysis.task_error = str(exc)
+        analysis.save()
         # We want a real exception here so celery's flower can show the task as failure
         raise
     finally:

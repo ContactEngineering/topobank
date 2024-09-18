@@ -424,3 +424,31 @@ class SecondTestImplementation(AnalysisImplementation):
             "name": "Test with dependencies",
             "result_from_dep": dep1.result["xunit"],
         }
+
+
+class TestImplementationWithError(AnalysisImplementation):
+    """
+    This function will be registered in conftest.py by a fixture. The arguments have no
+    meaning. Result are two series.
+    """
+
+    class Meta:
+        name = "topobank.analysis.test_error"
+        display_name = "Test implementation with error"
+        visualization_type = VIZ_SERIES
+
+        implementations = {
+            Topography: "topography_implementation",
+        }
+
+    class Parameters(AnalysisImplementation.Parameters):
+        c: int = 1
+        d: float = 1.3
+
+    def topography_implementation(
+        self,
+        analysis,
+        dependencies: list = None,
+        progress_recorder=None,
+    ):
+        raise RuntimeError("An error occurred!")
