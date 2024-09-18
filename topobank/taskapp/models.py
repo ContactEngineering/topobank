@@ -4,6 +4,7 @@ from decimal import Decimal
 import celery.result
 import celery.states
 import django.db.models as models
+import pydantic
 from celery.utils.log import get_task_logger
 from django.utils import timezone
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
@@ -40,8 +41,12 @@ class TaskStateModel(models.Model):
         celery.states.SUCCESS: SUCCESS,
         celery.states.STARTED: STARTED,
         celery.states.PENDING: PENDING,
-        celery.states.RETRY: RETRY,
+        celery.states.RECEIVED: PENDING,
+        celery.states.RETRY: PENDING,
+        # The following are in celery.states.EXCEPTION_STATES
         celery.states.FAILURE: FAILURE,
+        celery.states.REVOKED: FAILURE,
+        celery.states.REJECTED: FAILURE,
     }
 
     # This is the Celery task id
@@ -104,9 +109,11 @@ class TaskStateModel(models.Model):
         )
 
         # Get task results of all children (if this was run as a chord)
-        task_results = [
-            *[r for r in launcher_task_result.children[0].children]
-        ] if launcher_task_result else []
+        task_results = (
+            [*[r for r in launcher_task_result.children[0].children]]
+            if launcher_task_result
+            else []
+        )
         if task_result:
             task_results += [task_result]
 
@@ -134,8 +141,6 @@ class TaskStateModel(models.Model):
         self_reported_task_state = self.task_state
         # This is what Celery reports back
         celery_task_state = self.get_celery_state()
-
-        print(self_reported_task_state, celery_task_state)
 
         if celery_task_state is None:
             # There is no Celery state, possibly because the Celery task has not yet
@@ -175,21 +180,38 @@ class TaskStateModel(models.Model):
 
     def get_task_progress(self):
         """Return progress of task, if running"""
+        # Get all tasks
         task_results = self.get_async_results()
 
         # Sum up progress of all children
         total = 0
         current = 0
         for r in task_results:
-            if r.state == celery.states.SUCCESS:
+            # First check for errors
+            if r.state in celery.states.EXCEPTION_STATES or isinstance(
+                r.info, Exception
+            ):
+                # Some of the tasks failed, we return no progress
+                return None
+            elif r.state == celery.states.SUCCESS:
                 total += 1
                 current += 1
             elif r.state == celery.states.PENDING:
                 total += 1
             elif r.info:
-                task_progress = ProgressRecorder.Model(**r.info)
-                total += 1
-                current += task_progress.current / task_progress.total
+                # We assume that the state is 'PROGRESS' and we can just extract the
+                # progress dictionary.
+                try:
+                    task_progress = ProgressRecorder.Model(**r.info)
+                except pydantic.ValidationError:
+                    _log.info(
+                        f"Validation of progress dictionary for task {r} of analysis "
+                        f"{self} failed. Ignoring task progress."
+                    )
+                    pass
+                else:
+                    total += 1
+                    current += task_progress.current / task_progress.total
 
         # Compute percentage
         percent = 0
@@ -204,16 +226,19 @@ class TaskStateModel(models.Model):
         # Return self-reported task error, if any
         if self.task_error:
             return self.task_error
+
         # If there is none, check Celery
-        r = self.get_async_result()
-        if r:
-            if isinstance(r.info, Exception):
-                return str(r.info)
-            else:
-                # No error occurred
-                return None
-        else:
-            return None
+        for r in self.get_async_results():
+            # We simply fail with the first error we encounter
+            if r and (
+                r.state in celery.states.EXCEPTION_STATES
+                or isinstance(r.info, Exception)
+            ):
+                # There seems to be an error, store for future reference
+                self.task_error = str(r.info)
+                self.save(update_fields=["task_error"])
+                return self.task_error
+        return None
 
     def cancel_task(self):
         """Cancel task, if running"""
