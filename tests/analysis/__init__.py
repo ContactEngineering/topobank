@@ -1,11 +1,11 @@
-from topobank.analysis.functions import (
+from topobank.analysis.registry import register_implementation
+from topobank.testing.functions import (
     SecondTestImplementation,
     TestImplementation,
     TestImplementationWithError,
     TestImplementationWithErrorInDependency,
     TopographyOnlyTestImplementation,
 )
-from topobank.analysis.registry import register_implementation
 
 register_implementation(SecondTestImplementation)
 register_implementation(TestImplementation)

@@ -1,9 +1,9 @@
 import pytest
 from django.contrib.auth.models import Group
 
-from topobank.analysis.functions import TestImplementation
 from topobank.analysis.registry import get_implementation
 from topobank.testing.factories import OrganizationFactory, UserFactory
+from topobank.testing.functions import TestImplementation
 
 
 @pytest.mark.parametrize(
@@ -18,7 +18,7 @@ from topobank.testing.factories import OrganizationFactory, UserFactory
         (
             [],
             None,
-            "topobank.analysis.functions",
+            "topobank.testing.functions",
             True,
         ),  # None: No organization attached
         ([], "", "topobank_plugin_A", False),
@@ -80,8 +80,8 @@ def test_availability_of_implementation_in_plugin(
 
         a = FakeApp()
 
-        if x == "analysis":
-            a.name = "topobank.analysis"
+        if x == "testing":
+            a.name = "topobank.testing"
             return a
         elif x in plugins_installed:
             a.name = x

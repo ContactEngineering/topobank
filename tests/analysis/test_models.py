@@ -6,7 +6,6 @@ from django.core.files.storage import default_storage
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from topobank.analysis.functions import TestImplementation
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
 from topobank.analysis.tasks import get_current_configuration
@@ -20,6 +19,7 @@ from topobank.testing.factories import (
     Topography1DFactory,
     TopographyAnalysisFactory,
 )
+from topobank.testing.functions import TestImplementation
 
 
 @pytest.mark.django_db
