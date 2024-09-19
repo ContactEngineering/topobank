@@ -814,3 +814,22 @@ def test_create_topography(api_client, user_alice, handle_usage_statistics):
         },
     )
     assert response.status_code == 400
+
+
+def test_create_topography_with_blank_name_fails(
+    api_client, user_alice, handle_usage_statistics
+):
+    surface = SurfaceFactory(creator=user_alice)
+    api_client.force_login(user_alice)
+
+    # Existing surface id
+    response = api_client.post(
+        reverse("manager:topography-api-list"),
+        {
+            "surface": reverse(
+                "manager:surface-api-detail", kwargs=dict(pk=surface.id)
+            ),
+            "name": "",
+        },
+    )
+    assert response.status_code == 400
