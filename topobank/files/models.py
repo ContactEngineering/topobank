@@ -44,33 +44,21 @@ class Folder(PermissionMixin, models.Model):
         return self.files.all()[item]
 
     def open_file(self, filename: str, mode: str = "r"):
-        manifests = self.files.filter(folder=self, filename=filename)
-        if manifests.count() == 0:
-            raise RuntimeError(f"File '{filename}' not found in folder {self.id}.")
-        elif manifests.count() > 1:
-            raise RuntimeError(
-                f"More than one file with name '{filename}' was found in folder "
-                f"{self.id}."
-            )
-        else:
-            manifest = manifests.first()
-            return manifest.open(mode)
+        return self.files.get(folder=self, filename=filename).open(mode)
 
     def save_file(self, filename: str, kind: str, fobj):
         # Check whether file exists, and delete if it does
-        try:
-            existing_file = Manifest.objects.get(folder=self, filename=filename)
-            existing_file.delete()
-        except Manifest.DoesNotExist:
-            pass  # Simply ignore if file does not exist in database
         fobj.name = filename  # Make sure the filenames are the same
-        return Manifest.objects.create(
-            permissions=self.permissions,
-            folder=self,
-            filename=filename,
-            kind=kind,
-            file=fobj,
+        manifest, created = Manifest.objects.get_or_create(
+            folder=self, filename=filename
         )
+        manifest.permissions = self.permissions
+        manifest.folder = self
+        manifest.kind = kind
+        if not created:
+            manifest.file.delete()
+        manifest.file = fobj
+        manifest.save()
 
     def exists(self, filename: str) -> bool:
         return self.files.filter(filename=filename).count() > 0

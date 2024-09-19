@@ -555,7 +555,6 @@ class AnalysisFunction(models.Model):
             f"{[user for user, allow in analysis.permissions.get_users()]}, "
             f"function {self}, subject {analysis.subject}, kwargs: {analysis.kwargs}"
         )
-        analysis.folder.remove_files()  # Delete all files
         analysis.task_state = Analysis.PENDING
         analysis.save()
 
