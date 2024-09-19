@@ -712,9 +712,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     # Descriptive fields
     #
-    name = models.TextField(
-        blank=True
-    )  # This must be identical to the file name on upload
+    name = models.TextField()  # This must be identical to the file name on upload
     creator = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
     )
