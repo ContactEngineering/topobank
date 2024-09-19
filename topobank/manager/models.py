@@ -176,6 +176,9 @@ class Tag(tm.TagTreeModel, SubjectMixin):
     def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
         return True  # Tags are generally shared, but the surfaces may not
 
+    def get_authorized_user(self):
+        return self._user
+
     def get_related_surfaces(self):
         """Return all surfaces with exactly this tag"""
         if self._user is None:
