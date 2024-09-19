@@ -193,13 +193,20 @@ class AnalysisImplementation:
     def get_dependencies(self, analysis):
         """Return dependencies required for running analysis for `subject`"""
         try:
+            _log.debug(
+                f"Checking whether analysis function '{self.Meta.name}' has "
+                f"dependency function for subject 'analysis.subject'..."
+            )
             dependency_func = getattr(
                 self, self.Meta.dependencies[analysis.subject.__class__]
             )
+            _log.debug("Dependency function exists.")
             dependencies = dependency_func(analysis)
         except AttributeError:
+            _log.debug("No dependency function found.")
             dependencies = []
         except KeyError:
+            _log.debug("No dependency function found.")
             dependencies = []
         return dependencies
 
