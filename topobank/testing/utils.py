@@ -240,6 +240,9 @@ def ordereddicts_to_dicts(input_ordered_dict, sorted_by="id"):
 
 
 def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
+    assert isinstance(a, dict), f"{a} is not a dict"
+    assert isinstance(b, dict), f"{b} is not a dict"
+
     try:
         keys_a = set(a.keys())
         keys_b = set(b.keys())
