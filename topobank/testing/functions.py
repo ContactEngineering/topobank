@@ -173,7 +173,7 @@ class SecondTestImplementation(AnalysisImplementation):
     def topography_implementation(
         self,
         analysis,
-        dependencies: list = None,
+        dependencies: list = [],
         progress_recorder=None,
     ):
         (dep1, dep2) = dependencies
@@ -205,7 +205,7 @@ class TestImplementationWithError(AnalysisImplementation):
     def topography_implementation(
         self,
         analysis,
-        dependencies: list = None,
+        dependencies: list = [],
         progress_recorder=None,
     ):
         raise RuntimeError("An error occurred!")
@@ -247,7 +247,7 @@ class TestImplementationWithErrorInDependency(AnalysisImplementation):
     def topography_implementation(
         self,
         analysis,
-        dependencies: list = None,
+        dependencies: list = [],
         progress_recorder=None,
     ):
         return
