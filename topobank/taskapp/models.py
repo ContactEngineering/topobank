@@ -112,7 +112,11 @@ class TaskStateModel(models.Model):
 
         # Get task results of all children (if this was run as a chord)
         task_results = []
-        if launcher_task_result and len(launcher_task_result.children) > 0:
+        if (
+            launcher_task_result
+            and launcher_task_result.children
+            and len(launcher_task_result.children) > 0
+        ):
             task_results = (
                 [*[r for r in launcher_task_result.children[0].children]]
                 if launcher_task_result
