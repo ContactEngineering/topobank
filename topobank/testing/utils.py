@@ -239,42 +239,37 @@ def ordereddicts_to_dicts(input_ordered_dict, sorted_by="id"):
     return result
 
 
-def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
-    assert isinstance(a, dict), f"{a} is not a dict"
-    assert isinstance(b, dict), f"{b} is not a dict"
+def assert_equal(a, b, key=None, rtol=1e-07, atol=0):
+    if isinstance(a, dict):
+        assert_dict_equal(a, b, key=key, rtol=rtol, atol=atol)
+    elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
+        np.testing.assert_allclose(
+            a,
+            b,
+            rtol=rtol,
+            atol=atol,
+            err_msg=f"The values of key '{key}' differ: {a} != {b}",
+        )
+    elif isinstance(a, list):
+        assert_dicts_equal(a, b, key=key, rtol=rtol, atol=atol)
+    else:
+        assert a == b, f"The values key '{key}' differ: {a} != {b}"
 
-    try:
-        keys_a = set(a.keys())
-        keys_b = set(b.keys())
-    except AttributeError:
-        assert a == b, f"The values of key '{key}' differ: {a} != {b}"
-        return
+
+def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
+    keys_a = set(a.keys())
+    keys_b = set(b.keys())
 
     assert (
         keys_a == keys_b
     ), f"The following keys are not present in both dictionaries: {keys_a ^ keys_b}"
     for key in keys_a:
-        if isinstance(a[key], dict):
-            assert_dict_equal(a[key], b[key], key=key)
-        elif isinstance(a[key], np.ndarray) or isinstance(b[key], np.ndarray):
-            np.testing.assert_allclose(
-                a[key],
-                b[key],
-                rtol=rtol,
-                atol=atol,
-                err_msg=f"The values of key '{key}' differ: {a[key]} != {b[key]}",
-            )
-        elif isinstance(a[key], list):
-            assert_dicts_equal(a[key], b[key])
-        else:
-            assert (
-                a[key] == b[key]
-            ), f"The values key '{key}' differ: {a[key]} != {b[key]}"
+        assert_equal(a[key], b[key], key=key, rtol=rtol, atol=atol)
 
 
-def assert_dicts_equal(a, b):
+def assert_dicts_equal(a, b, key=None, rtol=1e-07, atol=0):
     for x, y in zip(a, b):
-        assert_dict_equal(x, y)
+        assert_equal(x, y, key=key, rtol=rtol, atol=atol)
 
 
 ###############################################################################
