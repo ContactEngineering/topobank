@@ -5,14 +5,8 @@ from io import BytesIO
 
 from django.conf import settings
 from django.core.exceptions import PermissionDenied
-from django.core.files.storage import default_storage
 from django.db.models import Case, F, Q, When
-from django.http import (
-    Http404,
-    HttpResponse,
-    HttpResponseBadRequest,
-    HttpResponseForbidden,
-)
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import redirect
 from django.utils.text import slugify
 from notifications.signals import notify
@@ -298,35 +292,6 @@ def download_surface(request, surface_id):
     )
 
     return response
-
-
-def dzi(request, pk, dzi_filename):
-    """Returns deepzoom image data for a topography
-
-    Parameters
-    ----------
-    request
-
-    Returns
-    -------
-    HTML Response with image data
-    """
-    try:
-        pk = int(pk)
-    except ValueError:
-        raise Http404()
-
-    try:
-        topo = Topography.objects.get(pk=pk)
-    except Topography.DoesNotExist:
-        raise Http404()
-
-    if not topo.has_permission(request.user, "view"):
-        raise PermissionDenied()
-
-    # okay, we have a valid topography and the user is allowed to see it
-
-    return redirect(default_storage.url(f"{topo.storage_prefix}/dzi/{dzi_filename}"))
 
 
 @api_view(["POST"])
