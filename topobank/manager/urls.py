@@ -22,11 +22,6 @@ urlpatterns += [
     # Data routes
     #
     re_path(
-        r'api/topography/(?P<pk>\d+)/dzi/(?P<dzi_filename>.*)$',
-        view=views.dzi,
-        name='topography-dzi'
-    ),
-    re_path(
         r'api/surface/(?P<surface_id>\d+)/download/$',
         view=views.download_surface,
         name='surface-download'
