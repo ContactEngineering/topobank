@@ -2,12 +2,7 @@ import logging
 
 from django.db.models import Q
 
-from ..manager.utils import (
-    dict_from_base64,
-    subjects_from_dict,
-    subjects_to_base64,
-    subjects_to_dict,
-)
+from ..manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
 from .models import Analysis, AnalysisFunction, AnalysisSubject
 from .registry import ImplementationMissingAnalysisFunctionException
 from .serializers import AnalysisResultSerializer
@@ -157,7 +152,10 @@ class AnalysisController:
                     if subjects is None:
                         subjects = {}
                     try:
-                        subjects[subject_key] = [int(x) for x in subject.split(',')]
+                        if subject_key == "tag":
+                            subjects[subject_key] = [subject]
+                        else:
+                            subjects[subject_key] = [int(x) for x in subject.split(',')]
                     except AttributeError:
                         raise ValueError(f"Malformed subject key '{subject_key}'")
                     except ValueError:
@@ -222,12 +220,6 @@ class AnalysisController:
         # The following is needed for re-triggering analyses, now filtered
         # in order to trigger only for subjects which have an implementation
         return None if self._subjects is None else subjects_to_dict(self._subjects)
-
-    @property
-    def subjects_b64(self):
-        # The following is needed for re-triggering analyses, now filtered
-        # in order to trigger only for subjects which have an implementation
-        return None if self._subjects is None else subjects_to_base64(self._subjects)
 
     def get(self, task_states=None, has_result_file=None):
         """

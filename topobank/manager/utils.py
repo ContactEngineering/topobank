@@ -181,7 +181,10 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
                 continue
         query = None
         for so_id in subject_ids:
-            q = Q(id=so_id)
+            if ct.name == "tag":
+                q = Q(name=so_id)
+            else:
+                q = Q(id=so_id)
             query = q if query is None else query | q
         if query is None:
             # skip these subjects
