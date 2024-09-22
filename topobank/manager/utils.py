@@ -138,7 +138,10 @@ def subjects_to_dict(subjects):
         ct = ContentType.objects.get_for_model(sub)  # uses cache internally
         if ct not in tmp:
             tmp[ct] = []
-        tmp[ct].append(sub.id)
+        if ct.name == "tag":
+            tmp[ct].append(sub.name)
+        else:
+            tmp[ct].append(sub.id)
 
     return {mangle_content_type(ct): sub_ids for ct, sub_ids in tmp.items()}
 
