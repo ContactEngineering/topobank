@@ -10,7 +10,7 @@ The application uses `ORCID`_ for user authentication,
 so you need an ORCID account to use it.
 
 If you need a super user or staff user during development, e.g. for acccessing the admin page,
-connect to the datbase and set the :code:`is_superuser` or :code:`is_staff` flags manually.
+connect to the database and set the :code:`is_superuser` or :code:`is_staff` flags manually.
 
 .. _ORCID: https://orcid.org/
 
@@ -39,7 +39,7 @@ Then run:
 
     pre-commit install
 
-Thats all you really need to do!
+That is all you really need to do!
 
 To run the `pre-commit` hooks by hand you can run:
 
@@ -57,12 +57,10 @@ Docker
 ------
 
 The full application can be run in Docker containers, for development and production.
-This also includes the database, message brokers, celery workers and more. It is
-currently the easiest way to run the full stack.
-
-See the Sphinx documentation how to install docker and how to start the application
-using docker, for deployment (see chapter "Deploy") or local development
-(see "Installation on development machine / Starting Topobank in Docker").
+This also includes the database, message brokers, celery workers and more. We maintain a
+`full development stack <https://github.com/ContactEngineering/topobank-stack-development>`_
+that uses docker. The develoment stack is currently the simplest way to run TopoBank on
+your local machine.
 
 Celery
 ------
@@ -87,4 +85,4 @@ API documentation is exposed at the URL: api/schema/swagger-ui/
 Funding
 -------
 
-Development of this project is funded by the `European Research Council <https://erc.europa.eu>`_ within `Starting Grant 757343 <https://cordis.europa.eu/project/id/757343>`_.
+Development of this project was funded by the `European Research Council <https://erc.europa.eu>`_ within `Starting Grant 757343 <https://cordis.europa.eu/project/id/757343>`_.
