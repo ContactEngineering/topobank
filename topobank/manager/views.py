@@ -17,6 +17,8 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
+from topobank.properties.models import Property
+
 from ..authorization.permissions import Permission
 from ..files.models import Manifest
 from ..supplib.versions import get_versions
@@ -24,7 +26,7 @@ from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User
 from .containers import write_surface_container
-from .models import Property, Surface, Tag, Topography
+from .models import Surface, Tag, Topography
 from .permissions import TagPermission
 from .serializers import (
     PropertySerializer,

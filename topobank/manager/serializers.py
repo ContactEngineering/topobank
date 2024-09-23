@@ -1,3 +1,4 @@
+import json
 import logging
 
 import pint
@@ -6,11 +7,13 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
+from topobank.properties.models import Property
+
 from ..files.serializers import ManifestSerializer
 from ..supplib.serializers import StrictFieldMixin
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
-from .models import Property, Surface, Tag, Topography
+from .models import Surface, Tag, Topography
 
 _log = logging.getLogger(__name__)
 _ureg = pint.UnitRegistry()
@@ -325,6 +328,37 @@ class PropertySerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
         return attrs
 
 
+# TODO:Validation
+class PropertiesField(serializers.Field):
+    def to_representation(self, properties):
+        ret = {}
+        for prop in properties.all():
+            ret[prop.name] = {"value": prop.value}
+            if prop.unit is not None:
+                ret[prop.name]["unit"] = str(prop.unit)
+        return ret
+
+    def to_internal_value(self, data: str):
+        surface: Surface = self.root.instance
+        # If data is a string, attempt to parse it as JSON
+        if isinstance(data, str):
+            try:
+                # Convert the JSON string to a Python dictionary
+                property_dict = json.loads(data.replace("'", '"'))
+            except json.JSONDecodeError:
+                raise serializers.ValidationError("Invalid JSON format for properties.")
+
+        # Clear ALL currently storred properties
+        surface.properties.all().delete()
+        for property in property_dict:
+            prop = Property(surface=surface, name=property)
+            prop.value = property_dict[property]["value"]
+            prop.unit = property_dict[property].get("unit")
+            prop.save()
+
+        return self.root.instance.properties.all()
+
+
 class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
@@ -353,7 +387,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     )
 
     topography_set = TopographySerializer(many=True, read_only=True)
-    properties = PropertySerializer(many=True)
+    properties = PropertiesField()
     tags = TagRelatedManagerField(required=False)
     permissions = serializers.SerializerMethodField()
     attachments = serializers.HyperlinkedRelatedField(
@@ -367,7 +401,6 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         optional_fields = [
             ("children", "topography_set"),
             ("permissions", "permissions"),
-            ("properties", "properties"),
         ]
         for option, field in optional_fields:
             param = self.context["request"].query_params.get(option)
@@ -396,5 +429,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
 
     def get_topographies(self, obj):
         request = self.context["request"]
-        return (f"{reverse('manager:topography-api-list', request=request)}"
-                f"?surface={obj.id}")
+        return (
+            f"{reverse('manager:topography-api-list', request=request)}"
+            f"?surface={obj.id}"
+        )
