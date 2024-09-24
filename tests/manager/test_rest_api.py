@@ -643,7 +643,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
 
     # Anonymous user should not be able to see the tag
     response = api_client.get(
-        reverse("manager:tag-api-detail", kwargs=dict(name=st.path))
+        reverse("manager:tag-api-detail", kwargs=dict(name=st.name))
     )
     assert response.status_code == 403
 
@@ -651,7 +651,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     # surfaces that are tagged, hence the tag does not exist for her
     api_client.force_login(user1)
     response = api_client.get(
-        f"{reverse('manager:tag-api-detail', kwargs=dict(name=st.path))}?surfaces=yes"
+        f"{reverse('manager:tag-api-detail', kwargs=dict(name=st.name))}?surfaces=yes"
     )
     assert response.status_code == 403
 
@@ -673,7 +673,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     # User 2 has access to all surfaces inside the tag
     api_client.force_login(user2)
     response = api_client.get(
-        reverse("manager:tag-api-detail", kwargs=dict(name=st.path))
+        reverse("manager:tag-api-detail", kwargs=dict(name=st.name))
     )
     assert response.data["name"] == st.name
 

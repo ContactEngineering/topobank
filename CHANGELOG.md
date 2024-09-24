@@ -18,7 +18,7 @@
 
 - MAINT: Bumped dependencies to remove muSpectre and introduce muFFT
 - BUG: Permission denied when analysis does not exists (right now it yields
-  internal server error)
+  an internal server error)
 - BUG: Skip permissions check if there are no surfaces in the subjects
 
 ## 1.8.0 (2024-05-12)

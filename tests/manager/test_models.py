@@ -12,7 +12,7 @@ from notifications.signals import notify
 from numpy.testing import assert_allclose
 
 from topobank.authorization.models import PermissionSet
-from topobank.manager.models import Surface, Topography
+from topobank.manager.models import Surface, Tag, Topography
 from topobank.testing.factories import (
     SurfaceFactory,
     Topography1DFactory,
@@ -462,3 +462,37 @@ def test_deepcopy_delete_does_not_delete_files(user_bob, handle_usage_statistics
     surface.delete()
     assert PermissionSet.objects.count() == 1
     assert surface_copy.topography_set.all().first().datafile
+
+
+@pytest.mark.django_db
+def test_descendant_surfaces(user_alice):
+    surface1 = SurfaceFactory(creator=user_alice)
+    surface2 = SurfaceFactory(creator=user_alice)
+    surface3 = SurfaceFactory(creator=user_alice)
+
+    surface1.tags = ["a&C"]
+    surface1.save()
+    surface2.tags = ["a&C/def"]
+    surface2.save()
+    surface3.tags = ["a&CdeF"]
+    surface3.save()
+
+    abc = Tag.objects.get(name="a&C")
+    abc_slash_def = Tag.objects.get(name="a&C/def")
+    abcdef = Tag.objects.get(name="a&CdeF")
+
+    abc.authorize_user(user_alice)
+    abc_slash_def.authorize_user(user_alice)
+    abcdef.authorize_user(user_alice)
+
+    assert surface1 in abc.get_descendant_surfaces()
+    assert surface2 in abc.get_descendant_surfaces()
+    assert surface3 not in abc.get_descendant_surfaces()
+
+    assert surface1 not in abc_slash_def.get_descendant_surfaces()
+    assert surface2 in abc_slash_def.get_descendant_surfaces()
+    assert surface3 not in abc_slash_def.get_descendant_surfaces()
+
+    assert surface1 not in abcdef.get_descendant_surfaces()
+    assert surface2 not in abcdef.get_descendant_surfaces()
+    assert surface3 in abcdef.get_descendant_surfaces()

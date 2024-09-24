@@ -24,6 +24,7 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
+from django.db.models import Q
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
@@ -135,11 +136,6 @@ class SubjectMixin:
 class Tag(tm.TagTreeModel, SubjectMixin):
     """This is the common tag model for surfaces and topographies."""
 
-    class TagMeta:
-        force_lowercase = True
-        # not needed yet
-        # autocomplete_view = 'manager:autocomplete-tags'
-
     _user = None
 
     def authorize_user(
@@ -221,7 +217,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
                 "to restrict user permissions."
             )
         return Surface.objects.for_user(self._user).filter(
-            tags__path__startswith=self.path
+            Q(tags=self) | Q(tags__name__startswith=f"{self.name}/")
         )
 
     def get_properties(self, kind=None):
