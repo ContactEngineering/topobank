@@ -5,6 +5,7 @@ Basic models for handling files and folders, including upload/download logic.
 import logging
 
 from django.conf import settings
+from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.storage import default_storage
 from django.db import models
 from django.utils import timezone
@@ -158,7 +159,16 @@ class Manifest(PermissionMixin, models.Model):
                 # Do nothing; without S3 uploads are finished through a special route
                 # that provides the file here
                 return
-            storage_path = self.generate_storage_path()
+            try:
+                storage_path = self.generate_storage_path()
+            except SuspiciousFileOperation:
+                # Could not create a storage path! This is likely because the file
+                # name is invalid
+                _log.debug(
+                    f"Manifest {self.id} has no file associated with it, but "
+                    f"the filename '{self.filename}' appears invalid."
+                )
+                return
             _log.debug(
                 f"Manifest {self.id} has no file associated with it. Checking if one "
                 f"exists at the likely storage location '{storage_path}'..."
