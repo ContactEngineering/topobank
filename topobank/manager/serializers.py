@@ -3,6 +3,7 @@ import logging
 import pint
 from drf_spectacular.utils import OpenApiExample, extend_schema_serializer
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
 from ..files.serializers import ManifestSerializer
@@ -341,6 +342,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             "permissions",
             "properties",
             "attachments",
+            "topographies",
         ]
 
     url = serializers.HyperlinkedIdentityField(
@@ -357,6 +359,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     attachments = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
+    topographies = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -390,3 +393,8 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
                 if perm.user != current_user
             ],
         }
+
+    def get_topographies(self, obj):
+        request = self.context["request"]
+        return (f"{reverse('manager:topography-api-list', request=request)}"
+                f"?surface={obj.id}")
