@@ -2,7 +2,7 @@ import json
 
 import numpy
 import pytest
-from django.shortcuts import reverse
+from rest_framework.reverse import reverse
 
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import SurfaceFactory, TagFactory
@@ -36,6 +36,9 @@ def test_surface_retrieve_routes(
     response = api_client.get(reverse("manager:surface-api-list"))
     assert response.status_code == 400
 
+    topography_api_list_url = reverse(
+        "manager:topography-api-list", request=response.wsgi_request
+    )
     surface1_dict = {
         "category": None,
         "creator": f"http://testserver/users/api/user/{user.id}/",
@@ -47,6 +50,7 @@ def test_surface_retrieve_routes(
         "creation_datetime": surface1.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
         "attachments": surface1.attachments.get_absolute_url(response.wsgi_request),
+        "topographies": f"{topography_api_list_url}?surface={surface1.id}",
     }
     if hasattr(Surface, "publication"):
         surface1_dict["publication"] = None
@@ -120,6 +124,7 @@ def test_surface_retrieve_routes(
         "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
         "attachments": surface2.attachments.get_absolute_url(response.wsgi_request),
+        "topographies": f"{topography_api_list_url}?surface={surface2.id}",
     }
     if hasattr(Surface, "publication"):
         surface2_dict["publication"] = None
@@ -678,6 +683,9 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     assert response.data["name"] == st.name
 
     response = api_client.get(f"{reverse('manager:surface-api-list')}?tag={st.name}")
+    topography_api_list_url = reverse(
+        "manager:topography-api-list", request=response.wsgi_request
+    )
     assert_dicts_equal(
         response.data,
         [
@@ -694,6 +702,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "attachments": surface2.attachments.get_absolute_url(
                     response.wsgi_request
                 ),
+                "topographies": f"{topography_api_list_url}?surface={surface2.id}",
             },
             {
                 "url": surface3.get_absolute_url(response.wsgi_request),
@@ -708,6 +717,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "attachments": surface3.attachments.get_absolute_url(
                     response.wsgi_request
                 ),
+                "topographies": f"{topography_api_list_url}?surface={surface3.id}",
             },
         ],
     )

@@ -11,7 +11,6 @@ import tempfile
 from collections import defaultdict
 from typing import Set
 
-import dateutil.parser
 import django.dispatch
 import matplotlib.pyplot
 import numpy as np
@@ -29,6 +28,7 @@ from django.db.models import Q
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
+from SurfaceTopography.Metadata import InstrumentParametersModel
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..authorization.mixins import PermissionMixin
@@ -877,9 +877,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             ]
 
             # `instrument_parameters` is special as it can contain non-significant entries
-            if self._clean_instrument_parameters(
-                self.instrument_parameters
-            ) != self._clean_instrument_parameters(old_obj.instrument_parameters):
+            if InstrumentParametersModel(
+                **self.instrument_parameters
+            ) != InstrumentParametersModel(**old_obj.instrument_parameters):
                 changed_fields += ["instrument_parameters"]
 
             # We need to refresh if any of the significant fields changed during this save
@@ -968,54 +968,16 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         """
         return self.permissions.get_for_user(user) is not None
 
-    @staticmethod
-    def _clean_instrument_parameters(params):
-        cleaned_params = {}
-        if params is None:
-            return cleaned_params
-
-        def _clean_value_unit_pair(r):
-            cleaned_r = None
-            if "value" in r and "unit" in r:
-                # Value/unit pair is complete
-                try:
-                    cleaned_r = {"value": float(r["value"]), "unit": r["unit"]}
-                except KeyError:
-                    # 'value' or 'unit' does not exist - should not happen
-                    pass
-                except TypeError:
-                    # Value is None
-                    pass
-                except ValueError:
-                    # Value cannot be converted to float
-                    pass
-            return cleaned_r
-
-        # Check completeness of resolution parameters
-        for key in ["resolution", "tip_radius"]:
-            try:
-                r = _clean_value_unit_pair(params[key])
-            except KeyError:
-                pass
-            else:
-                if r is not None:
-                    cleaned_params[key] = r
-
-        return cleaned_params
-
     @property
     def _instrument_info(self):
-        # We need to idiot-check the parameters JSON so surface topography does not complain
-        # Would it be better to use JSON Schema for this? Or should we simply have dedicated database fields?
-        params = self._clean_instrument_parameters(self.instrument_parameters)
-
         # Build dictionary with instrument information from database... this may override data provided by the
         # topography reader
         return {
             "instrument": {
                 "name": self.instrument_name,
-                "type": self.instrument_type,
-                "parameters": params,
+                "parameters": InstrumentParametersModel(
+                    **self.instrument_parameters
+                ).model_dump(exclude_none=True),
             }
         }
 
@@ -1568,9 +1530,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if populate_initial_metadata:
             # Measurement time
             try:
-                self.measurement_date = dateutil.parser.parse(
-                    channel.info["acquisition_time"]
-                )
+                self.measurement_date = channel.info["acquisition_time"]
             except:  # noqa: E722
                 pass
 
