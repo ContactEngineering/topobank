@@ -5,6 +5,7 @@
 - API: Tags are now uniquely referred to by their name (not their id) in the API
 - ENH: Generic attachments for digital surface twins and measurements (#331)
 - ENH: Surfaces are now returned for all tag children
+- ENH: Validation of analysis parameters (#1119)
 - ENH: Dependencies for analyses (#1083)
 - ENH: New tag retrieve route
 - BUG: Avoid properties of identical name
@@ -12,6 +13,8 @@
 - MAINT: Replace all bare `FileField`s with `Manifest` models that handle file storage,
   including upload/download logic (#1116, #1117, #1122)
 - MAINT: Replace `django-guardian` with simpler authorization system (#1110)
+- MAINT: Validation of instrument parameters using new pydantic metadata definition in
+  `SurfaceTopography` (1.17.0 and upwards)
 - TST: Refactored all tests into a new toplevel directory (#1123)
 
 ## 1.8.1 (2024-07-13)

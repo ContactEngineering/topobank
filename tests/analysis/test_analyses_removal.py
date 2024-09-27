@@ -18,31 +18,35 @@ from topobank.testing.factories import (
 
 
 @pytest.mark.parametrize(
-    "changed_values_dict",
+    "changed_values_dict,response_code",
     [  # would should be changed in POST request (->str values!)
-        ({"size_y": "100"}),
+        ({"size_y": "100"}, 200),
         (
             {
                 "height_scale": "10",
                 "instrument_type": "microscope-based",
-            }
+            },
+            200,
         ),
         # renew_squeezed should be called because of height_scale, not because of instrument_type
         (
             {
                 "instrument_type": "microscope-based",  # instrument type changed at least
                 "instrument_parameters": {"resolution": {"value": 1.0, "unit": "mm"}},
-            }
+            },
+            200,
         ),
         (
             {
-                "instrument_parameters": {"tip_radius": {"value": 2}},
-            }
+                "instrument_parameters": {"tip_radius": {"value": 2, "unit": "nm"}},
+            },
+            200,
         ),
         (
             {
                 "instrument_parameters": {"tip_radius": {"unit": "nm"}},
-            }
+            },
+            400,  # value is missing
         ),
     ],
 )
@@ -53,6 +57,7 @@ def test_analysis_removal_on_topography_change(
     test_analysis_function,
     handle_usage_statistics,
     changed_values_dict,
+    response_code
 ):
     """Check whether methods for renewal are called on significant topography change."""
 
@@ -116,9 +121,9 @@ def test_analysis_removal_on_topography_change(
             reverse("manager:topography-api-detail", kwargs=dict(pk=topo.pk)),
             changed_data_for_post,
         )
-    assert response.status_code == 200
+    assert response.status_code == response_code, response.content
 
-    assert len(callbacks) == 1
+    assert len(callbacks) == 1 if response_code == 200 else 0
 
     # Check that the analysis has been removed since it is now deprecated
     assert Analysis.objects.filter(subject_dispatch__topography=topo).count() == 0
