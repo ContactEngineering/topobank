@@ -66,9 +66,6 @@ dependencies = [
     # django-statsy  # cannot be used currently because of fixed version in requirements
     'django-trackstats',
 
-    # parsing dates
-    'python-dateutil',
-
     #
     # Storage
     #
@@ -95,7 +92,7 @@ dependencies = [
     # tornado>=4.2.0, <6.0.0
 
     # Surface topography I/O and analysis
-    'SurfaceTopography>=1.14.0',
+    'SurfaceTopography>=1.17.0',
 
     # Validation
     'pydantic',

@@ -11,7 +11,6 @@ import tempfile
 from collections import defaultdict
 from typing import Set
 
-import dateutil.parser
 import django.dispatch
 import matplotlib.pyplot
 import numpy as np
@@ -1568,9 +1567,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if populate_initial_metadata:
             # Measurement time
             try:
-                self.measurement_date = dateutil.parser.parse(
-                    channel.info["acquisition_time"]
-                )
+                self.measurement_date = channel.info["acquisition_time"]
             except:  # noqa: E722
                 pass
 
