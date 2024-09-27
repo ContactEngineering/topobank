@@ -57,7 +57,7 @@ def test_analysis_removal_on_topography_change(
     test_analysis_function,
     handle_usage_statistics,
     changed_values_dict,
-    response_code
+    response_code,
 ):
     """Check whether methods for renewal are called on significant topography change."""
 
@@ -123,10 +123,11 @@ def test_analysis_removal_on_topography_change(
         )
     assert response.status_code == response_code, response.content
 
-    assert len(callbacks) == 1 if response_code == 200 else 0
+    assert len(callbacks) == (1 if response_code == 200 else 0)
 
     # Check that the analysis has been removed since it is now deprecated
-    assert Analysis.objects.filter(subject_dispatch__topography=topo).count() == 0
+    if response_code == 200:
+        assert Analysis.objects.filter(subject_dispatch__topography=topo).count() == 0
 
 
 @pytest.mark.django_db
