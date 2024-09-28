@@ -332,11 +332,13 @@ class Analysis(PermissionMixin, TaskStateModel):
                 f"User {user} is not allowed to use this analysis function."
             )
 
-        # Check if the user can access this analysis
-        super().authorize_user(user, "view")
+        if self.is_tag_related:
+            # Check if the user can access this analysis
+            super().authorize_user(user, "view")
 
         # Check if user can access the subject of this analysis
         self.subject.authorize_user(user, "view")
+        self.grant_permission(user, "view")  # Required so files can be accessed
 
     @property
     def is_topography_related(self):

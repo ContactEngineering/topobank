@@ -156,7 +156,8 @@ class AuthorizedManager(models.Manager):
         if permission == "view":
             # We do not need to filter on permission
             return self.get_queryset().filter(
-                permissions__user_permissions__user=user,
+                Q(permissions__user_permissions__user=user)
+                | Q(permissions__user_permissions__user=get_anonymous_user())
             )
         else:
             return self.get_queryset().filter(
