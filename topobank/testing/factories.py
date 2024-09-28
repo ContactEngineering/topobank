@@ -15,7 +15,6 @@ _log = logging.getLogger(__name__)
 
 
 class OrcidSocialAccountFactory(factory.django.DjangoModelFactory):
-
     class Meta:
         model = "socialaccount.SocialAccount"
 
@@ -172,12 +171,15 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Topography
+        exclude = ("filename",)
 
     permissions = factory.SelfAttribute("surface.permissions")
     surface = factory.SubFactory(SurfaceFactory)
     # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
-    datafile = factory.SubFactory(ManifestFactory, filename="line_scan_1.asc")
+    filename = "line_scan_1.asc"
+    datafile = factory.SubFactory(ManifestFactory,
+                                  filename=factory.SelfAttribute("..filename"))
     data_source = 0
     measurement_date = factory.Sequence(
         lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n)
@@ -193,9 +195,10 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     instrument_parameters = {}
 
     @factory.post_generation
-    def fix_permissions(self, create, value, **kwargs):
+    def post_generation(self, create, value, **kwargs):
         self.datafile.permissions = self.permissions
         self.datafile.save()
+        self.refresh_cache()
 
 
 class Topography2DFactory(Topography1DFactory):
@@ -203,12 +206,20 @@ class Topography2DFactory(Topography1DFactory):
     Generates a 2D Topography.
     """
 
-    size_y = 512
-    datafile = factory.SubFactory(ManifestFactory, filename="10x10.txt")
-
-    # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = Topography
+        exclude = ("filename",)
+
+    size_y = 512
+    filename = "10x10.txt"
+    datafile = factory.SubFactory(ManifestFactory,
+                                  filename=factory.SelfAttribute("..filename"))
+
+    @factory.post_generation
+    def post_generation(self, create, value, **kwargs):
+        self.datafile.permissions = self.permissions
+        self.datafile.save()
+        self.refresh_cache()
 
 
 #

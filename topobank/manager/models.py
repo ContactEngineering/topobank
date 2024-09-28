@@ -969,7 +969,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         return self.permissions.get_for_user(user) is not None
 
     @property
-    def _instrument_info(self):
+    def instrument_info(self):
         # Build dictionary with instrument information from database... this may override data provided by the
         # topography reader
         return {
@@ -1015,7 +1015,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             reader_kwargs["unit"] = self.unit
 
         # Populate instrument information
-        reader_kwargs["info"] = self._instrument_info
+        reader_kwargs["info"] = self.instrument_info
 
         # Eventually get topography from module "SurfaceTopography" using the given keywords
         topo = reader.topography(**reader_kwargs)
@@ -1075,7 +1075,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             toporeader = get_topography_reader(
                 self.squeezed_datafile.file, format=SQUEEZED_DATAFILE_FORMAT
             )
-            topo = toporeader.topography(info=self._instrument_info)
+            topo = toporeader.topography(info=self.instrument_info)
             # In the squeezed format, these things are already applied/included:
             # unit, scaling, detrending, physical sizes
             # so don't need to provide them to the .topography() method

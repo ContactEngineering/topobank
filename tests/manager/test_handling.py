@@ -565,9 +565,9 @@ def test_upload_topography_instrument_parameters(
             "name": instrument_name,
             "parameters": clean_instrument_parameters,
         }
-        if "parameters" in t._instrument_info["instrument"]:
+        if "parameters" in t.instrument_info["instrument"]:
             assert (
-                t._instrument_info["instrument"]["parameters"]
+                t.instrument_info["instrument"]["parameters"]
                 == clean_instrument_parameters
             )
         else:

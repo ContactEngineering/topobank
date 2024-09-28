@@ -237,7 +237,9 @@ def user_three_topographies_three_surfaces_three_tags():
 
 
 @pytest.fixture
-def two_users():
+def two_users(settings):
+    settings.DELETE_EXISTING_FILES = True  # There can be remnants from failed tests
+
     user1 = UserFactory(username="testuser1", password="abcd$1234")
     user2 = UserFactory(username="testuser2", password="abcd$1234")
 
