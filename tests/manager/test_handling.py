@@ -933,7 +933,7 @@ def topo_example4(two_topos):
 
 @pytest.mark.django_db
 def test_edit_topography(
-    api_client, django_user_model, topo_example3, handle_usage_statistics
+    api_client, topo_example3, handle_usage_statistics
 ):
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
@@ -955,8 +955,9 @@ def test_edit_topography(
     assert response.data["name"] == topo_example3.name
     assert response.data["measurement_date"] == str(datetime.date(2018, 1, 1))
     assert response.data["description"] == "description1"
-    assert response.data["size_x"] == approx(10)
-    assert response.data["size_y"] == approx(10)
+    assert response.data["size_x"] == approx(10000)
+    assert response.data["size_y"] == approx(10000)
+    assert response.data["unit"] == "nm"
     assert response.data["height_scale"] == approx(0.29638271279074097)
     assert response.data["detrend_mode"] == "height"
 
@@ -970,8 +971,6 @@ def test_edit_topography(
             "name": new_name,
             "measurement_date": new_measurement_date,
             "description": new_description,
-            "size_x": 500,
-            "size_y": 1000,
             "detrend_mode": "height",
             "tags": ["ab", "bc"],
             "instrument_type": Topography.INSTRUMENT_TYPE_UNDEFINED,
@@ -994,8 +993,7 @@ def test_edit_topography(
     assert t.description == new_description
     assert t.name == new_name
     assert "example3" in t.datafile.filename
-    assert t.size_x == approx(500)
-    assert t.size_y == approx(1000)
+    assert t.unit == "nm"
     assert t.tags == ["ab", "bc"]
 
     # the changed topography should also appear in the list of topographies
@@ -1046,7 +1044,6 @@ def test_edit_line_scan(
             "name": new_name,
             "measurement_date": new_measurement_date,
             "description": new_description,
-            "size_x": 500,
             "height_scale": 0.1,
             "detrend_mode": "height",
             "instrument_type": Topography.INSTRUMENT_TYPE_UNDEFINED,
@@ -1072,7 +1069,6 @@ def test_edit_line_scan(
     assert t.description == new_description
     assert t.name == new_name
     assert "line_scan_1" in t.datafile.filename
-    assert t.size_x == approx(500)
     assert t.size_y is None
 
     #
@@ -1102,8 +1098,8 @@ def test_topography_detail(
     assert response.status_code == 200, response.content
 
     # resolution should be written somewhere
-    assert response.data["resolution_x"] == 305
-    assert response.data["resolution_y"] == 75
+    assert response.data["resolution_x"] == 75
+    assert response.data["resolution_y"] == 305
 
     # .. as well as detrending mode
     assert response.data["detrend_mode"] == "height"
