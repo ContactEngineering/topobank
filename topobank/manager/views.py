@@ -373,7 +373,7 @@ def set_permissions(request, pk=None):
         if user_id != user.id:
             other_user = User.objects.get(id=user_id)
             perm = permission["permission"]
-            if perm is None:
+            if perm == 'no-access':
                 obj.revoke_permission(other_user)
             else:
                 obj.grant_permission(other_user, perm)
