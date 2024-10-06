@@ -316,6 +316,8 @@ CELERY_RESULT_SERIALIZER = "json"
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#task-soft-time-limit
 # TODO: set to whatever value is adequate in your circumstances
 # CELERYD_TASK_SOFT_TIME_LIMIT = 60
+# https://docs.celeryq.dev/en/latest/userguide/configuration.html#task-acks-late
+CELERY_TASK_ACKS_LATE = True
 
 TOPOBANK_MANAGER_QUEUE = env.str("MANAGER_QUEUE_NAME", default="manager")
 TOPOBANK_ANALYSIS_QUEUE = env.str("ANALYSIS_QUEUE_NAME", default="analysis")
