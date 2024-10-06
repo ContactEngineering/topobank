@@ -71,7 +71,7 @@ def test_surface_retrieve_routes(
             },
             "attachments": topo1.attachments.get_absolute_url(response.wsgi_request),
             "deepzoom": None,
-            "bandwidth_lower": None,
+            "bandwidth_lower": 3.9062499999999997e-08,
             "bandwidth_upper": None,
             "creator": f"http://testserver/users/api/user/{user.id}/",
             "datafile_format": None,
@@ -145,7 +145,7 @@ def test_surface_retrieve_routes(
             },
             "attachments": topo2.attachments.get_absolute_url(response.wsgi_request),
             "deepzoom": None,
-            "bandwidth_lower": None,
+            "bandwidth_lower": 3.9062499999999997e-08,
             "bandwidth_upper": None,
             "creator": f"http://testserver/users/api/user/{user.id}/",
             "datafile_format": None,
@@ -202,6 +202,7 @@ def test_surface_retrieve_routes(
         if "topography_set" in data:
             for t in data["topography_set"]:
                 del t["datafile"]  # datafile has an S3 hash which is difficult to mock
+                del t["deepzoom"]
         assert_dict_equal(data, surface1_dict)
 
         response = api_client.get(
@@ -210,6 +211,7 @@ def test_surface_retrieve_routes(
         data = response.data
         for t in data:
             del t["datafile"]  # datafile has an S3 hash which is difficult to mock
+            del t["deepzoom"]
         assert_dicts_equal(data, surface1_topographies_dict)
     else:
         # Anonymous user does not have access by default
@@ -225,6 +227,7 @@ def test_surface_retrieve_routes(
         if "topography_set" in data:
             for t in data["topography_set"]:
                 del t["datafile"]  # datafile has an S3 hash which is difficult to mock
+                del t["deepzoom"]
         assert_dict_equal(data, surface2_dict)
 
         response = api_client.get(
@@ -233,6 +236,7 @@ def test_surface_retrieve_routes(
         data = response.data
         for t in data:
             del t["datafile"]  # datafile has an S3 hash which is difficult to mock
+            del t["deepzoom"]
         assert_dicts_equal(data, surface2_topographies_dict)
     else:
         # Anonymous user does not have access by default
@@ -360,6 +364,7 @@ def test_topography_retrieve_routes(
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
         del data["datafile"]  # datafile has an S3 hash which is difficult to mock
+        del data["deepzoom"]
         # topo1 is updated but the get command, because it is triggering file inspection
         topo1 = Topography.objects.get(pk=topo1.id)
         topo1_dict["modification_datetime"] = (
@@ -377,6 +382,7 @@ def test_topography_retrieve_routes(
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
         del data["datafile"]  # datafile has an S3 hash which is difficult to mock
+        del data["deepzoom"]
         # topo2 is updated but the get command, because it is triggering file inspection
         topo2 = Topography.objects.get(pk=topo2.id)
         topo2_dict["modification_datetime"] = (

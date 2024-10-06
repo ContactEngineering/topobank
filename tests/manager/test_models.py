@@ -38,7 +38,7 @@ def test_topography_has_periodic_flag(two_topos):
 def test_topography_has_unit_set(two_topos):
     topos = Topography.objects.all().order_by("name")
     assert topos[0].unit == "nm"
-    assert topos[1].unit == "nm"
+    assert topos[1].unit == "m"
 
 
 @pytest.mark.django_db

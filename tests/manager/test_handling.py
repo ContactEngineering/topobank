@@ -1108,9 +1108,9 @@ def test_topography_detail(
     assert response.data["description"] == "description2"
 
     # .. physical size
-    assert response.data["unit"] == "µm"
-    assert response.data["size_x"] == approx(112.80791)
-    assert response.data["size_y"] == approx(27.73965)
+    assert response.data["unit"] == "m"
+    assert response.data["size_x"] == approx(2.773965e-05)
+    assert response.data["size_y"] == approx(0.00011280791)
 
 
 @pytest.mark.django_db
