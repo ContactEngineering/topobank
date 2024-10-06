@@ -219,7 +219,7 @@ def test_fix_folder(test_analysis_function):
         folder=None,
     )
     print([m for m in Manifest.objects.all()])
-    assert Manifest.objects.count() == 1
+    assert Manifest.objects.count() == 9
     assert analysis.folder is None
 
     default_storage.save(

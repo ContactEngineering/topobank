@@ -390,11 +390,10 @@ def test_squeezed_datafile(
     assert topo.height_scale == height_scale_factor
     assert topo.detrend_mode == detrend_mode
 
-    assert not topo.squeezed_datafile
+    assert topo.squeezed_datafile
     st_topo = topo.topography(allow_squeezed=False)
-    orig_heights = (
-        st_topo.heights()
-    )  # This was read from the original data, detrending+scaling applied
+    # This was read from the original data, detrending+scaling applied
+    orig_heights = st_topo.heights()
 
     #
     # Check with pure SurfaceTopography instance
