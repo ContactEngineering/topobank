@@ -736,7 +736,7 @@ def test_trying_upload_of_topography_file_with_unknown_format(
 @pytest.mark.skip(
     "Skip test, this is not handled gracefully by the current implementation"
 )
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_too_long_format_name(
     api_client,
     settings,
