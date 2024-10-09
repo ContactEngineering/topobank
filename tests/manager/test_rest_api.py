@@ -6,7 +6,11 @@ from rest_framework.reverse import reverse
 
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import SurfaceFactory, TagFactory
-from topobank.testing.utils import assert_dict_equal, assert_dicts_equal
+from topobank.testing.utils import (
+    ASSERT_EQUAL_IGNORE_VALUE,
+    assert_dict_equal,
+    assert_dicts_equal,
+)
 from topobank.users.anonymous import get_anonymous_user
 
 
@@ -70,15 +74,14 @@ def test_surface_retrieve_routes(
                 "other_users": [],
             },
             "attachments": topo1.attachments.get_absolute_url(response.wsgi_request),
-            "deepzoom": None,
-            "bandwidth_lower": 3.9062499999999997e-08,
-            "bandwidth_upper": None,
+            "bandwidth_lower": topo1.bandwidth_lower,
+            "bandwidth_upper": topo1.bandwidth_upper,
             "creator": f"http://testserver/users/api/user/{user.id}/",
-            "datafile_format": None,
+            "datafile_format": topo1.datafile_format,
             "description": "description1",
             "detrend_mode": "height",
             "fill_undefined_data_mode": "do-not-fill",
-            "has_undefined_data": None,
+            "has_undefined_data": False,
             "height_scale": 0.296382712790741,
             "height_scale_editable": False,
             "instrument_name": "",
@@ -91,21 +94,23 @@ def test_surface_retrieve_routes(
             "resolution_x": 256,
             "resolution_y": 256,
             "short_reliability_cutoff": None,
-            "size_editable": True,
-            "size_x": 10.0,
-            "size_y": 10.0,
+            "size_editable": False,
+            "size_x": 10000.0,
+            "size_y": 10000.0,
             "surface": f"http://testserver/manager/api/surface/{surface1.id}/",
-            "unit": "µm",
+            "unit": "nm",
             "unit_editable": False,
             "url": f"http://testserver/manager/api/topography/{topo1.id}/",
             "duration": None,
             "error": None,
             "id": topo1.id,
-            "squeezed_datafile": None,
+            "datafile": ASSERT_EQUAL_IGNORE_VALUE,
+            "squeezed_datafile": ASSERT_EQUAL_IGNORE_VALUE,
+            "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
             "tags": [],
             "task_progress": 0.0,
-            "task_state": "no",
-            "thumbnail": None,
+            "task_state": "pe",
+            "thumbnail": ASSERT_EQUAL_IGNORE_VALUE,
             "channel_names": [],
             "data_source": 0,
             "is_metadata_complete": True,
@@ -144,15 +149,14 @@ def test_surface_retrieve_routes(
                 "other_users": [],
             },
             "attachments": topo2.attachments.get_absolute_url(response.wsgi_request),
-            "deepzoom": None,
-            "bandwidth_lower": 3.9062499999999997e-08,
-            "bandwidth_upper": None,
+            "bandwidth_lower": topo2.bandwidth_lower,
+            "bandwidth_upper": topo2.bandwidth_upper,
             "creator": f"http://testserver/users/api/user/{user.id}/",
-            "datafile_format": None,
+            "datafile_format": topo2.datafile_format,
             "description": "description2",
             "detrend_mode": "height",
             "fill_undefined_data_mode": "do-not-fill",
-            "has_undefined_data": None,
+            "has_undefined_data": False,
             "height_scale": 2.91818e-08,
             "height_scale_editable": False,
             "instrument_name": "",
@@ -162,24 +166,26 @@ def test_surface_retrieve_routes(
             "is_periodic_editable": True,
             "measurement_date": "2018-01-02",
             "name": "Example 4 - Default",
-            "resolution_x": 305,
-            "resolution_y": 75,
+            "resolution_x": 75,
+            "resolution_y": 305,
             "short_reliability_cutoff": None,
             "size_editable": False,
-            "size_x": 112.80791,
-            "size_y": 27.73965,
+            "size_y": 112.80791e-6,
+            "size_x": 27.73965e-6,
             "surface": f"http://testserver/manager/api/surface/{surface2.id}/",
-            "unit": "µm",
+            "unit": "m",
             "unit_editable": False,
             "url": f"http://testserver/manager/api/topography/{topo2.id}/",
             "duration": None,
             "error": None,
             "id": topo2.id,
-            "squeezed_datafile": None,
+            "datafile": ASSERT_EQUAL_IGNORE_VALUE,
+            "squeezed_datafile": ASSERT_EQUAL_IGNORE_VALUE,
+            "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
+            "thumbnail": ASSERT_EQUAL_IGNORE_VALUE,
             "tags": [],
             "task_progress": 0.0,
-            "task_state": "no",
-            "thumbnail": None,
+            "task_state": "pe",
             "channel_names": [],
             "data_source": 0,
             "is_metadata_complete": True,
@@ -199,19 +205,12 @@ def test_surface_retrieve_routes(
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
-        if "topography_set" in data:
-            for t in data["topography_set"]:
-                del t["datafile"]  # datafile has an S3 hash which is difficult to mock
-                del t["deepzoom"]
         assert_dict_equal(data, surface1_dict)
 
         response = api_client.get(
             f"{reverse('manager:topography-api-list')}?surface={surface1.id}&permissions=yes&attachments=yes"
         )
         data = response.data
-        for t in data:
-            del t["datafile"]  # datafile has an S3 hash which is difficult to mock
-            del t["deepzoom"]
         assert_dicts_equal(data, surface1_topographies_dict)
     else:
         # Anonymous user does not have access by default
@@ -224,19 +223,12 @@ def test_surface_retrieve_routes(
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
-        if "topography_set" in data:
-            for t in data["topography_set"]:
-                del t["datafile"]  # datafile has an S3 hash which is difficult to mock
-                del t["deepzoom"]
         assert_dict_equal(data, surface2_dict)
 
         response = api_client.get(
             f"{reverse('manager:topography-api-list')}?surface={surface2.id}&permissions=yes&attachments=yes"
         )
         data = response.data
-        for t in data:
-            del t["datafile"]  # datafile has an S3 hash which is difficult to mock
-            del t["deepzoom"]
         assert_dicts_equal(data, surface2_topographies_dict)
     else:
         # Anonymous user does not have access by default
@@ -274,7 +266,7 @@ def test_topography_retrieve_routes(
         "description": "description1",
         "detrend_mode": "height",
         "fill_undefined_data_mode": "do-not-fill",
-        "has_undefined_data": None,
+        "has_undefined_data": False,
         "height_scale": 0.296382712790741,
         "height_scale_editable": False,
         "instrument_name": "",
@@ -287,7 +279,7 @@ def test_topography_retrieve_routes(
         "resolution_x": 256,
         "resolution_y": 256,
         "short_reliability_cutoff": None,
-        "size_editable": True,
+        "size_editable": False,
         "size_x": 10000.0,
         "size_y": 10000.0,
         "surface": f"http://testserver/manager/api/surface/{topo1.surface.id}/",
@@ -297,8 +289,7 @@ def test_topography_retrieve_routes(
         "tags": [],
         "task_progress": 0.0,
         "task_state": "pe",
-        "thumbnail": None,
-        "squeezed_datafile": None,
+        "thumbnail": ASSERT_EQUAL_IGNORE_VALUE,
         "is_metadata_complete": True,
         "id": topo1.id,
         "error": None,
@@ -313,17 +304,19 @@ def test_topography_retrieve_routes(
         "creation_datetime": topo1.creation_datetime.astimezone().isoformat(),
         "modification_datetime": topo1.modification_datetime.astimezone().isoformat(),
         "attachments": topo1.attachments.get_absolute_url(response.wsgi_request),
-        "deepzoom": None,
+        "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
+        "datafile": ASSERT_EQUAL_IGNORE_VALUE,
+        "squeezed_datafile": ASSERT_EQUAL_IGNORE_VALUE,
     }
     topo2_dict = {
-        "bandwidth_lower": None,
-        "bandwidth_upper": None,
+        "bandwidth_lower": topo2.bandwidth_lower,
+        "bandwidth_upper": topo2.bandwidth_upper,
         "creator": f"http://testserver/users/api/user/{user.id}/",
-        "datafile_format": None,
+        "datafile_format": topo2.datafile_format,
         "description": "description2",
         "detrend_mode": "height",
         "fill_undefined_data_mode": "do-not-fill",
-        "has_undefined_data": None,
+        "has_undefined_data": False,
         "height_scale": 2.91818e-08,
         "height_scale_editable": False,
         "instrument_name": "",
@@ -333,21 +326,20 @@ def test_topography_retrieve_routes(
         "is_periodic_editable": True,
         "measurement_date": "2018-01-02",
         "name": "Example 4 - Default",
-        "resolution_x": 305,
-        "resolution_y": 75,
+        "resolution_x": 75,
+        "resolution_y": 305,
         "short_reliability_cutoff": None,
         "size_editable": False,
-        "size_x": 112.80791,
-        "size_y": 27.73965,
+        "size_y": 112.80791e-6,
+        "size_x": 27.73965e-6,
         "surface": f"http://testserver/manager/api/surface/{topo2.surface.id}/",
-        "unit": "µm",
+        "unit": "m",
         "unit_editable": False,
         "url": f"http://testserver/manager/api/topography/{topo2.id}/",
         "tags": [],
         "task_progress": 0.0,
         "task_state": "pe",
-        "thumbnail": None,
-        "squeezed_datafile": None,
+        "thumbnail": ASSERT_EQUAL_IGNORE_VALUE,
         "is_metadata_complete": True,
         "id": topo2.id,
         "error": None,
@@ -357,20 +349,20 @@ def test_topography_retrieve_routes(
         "creation_datetime": topo2.creation_datetime.astimezone().isoformat(),
         "modification_datetime": topo2.modification_datetime.astimezone().isoformat(),
         "attachments": topo2.attachments.get_absolute_url(response.wsgi_request),
-        "deepzoom": None,
+        "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
+        "datafile": ASSERT_EQUAL_IGNORE_VALUE,
+        "squeezed_datafile": ASSERT_EQUAL_IGNORE_VALUE,
     }
 
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
-        del data["datafile"]  # datafile has an S3 hash which is difficult to mock
-        del data["deepzoom"]
         # topo1 is updated but the get command, because it is triggering file inspection
         topo1 = Topography.objects.get(pk=topo1.id)
         topo1_dict["modification_datetime"] = (
             topo1.modification_datetime.astimezone().isoformat()
         )
-        assert data == topo1_dict
+        assert_dict_equal(data, topo1_dict)
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
@@ -381,14 +373,12 @@ def test_topography_retrieve_routes(
     if is_authenticated:
         assert response.status_code == 200
         data = json.loads(json.dumps(response.data))  # Convert OrderedDict to dict
-        del data["datafile"]  # datafile has an S3 hash which is difficult to mock
-        del data["deepzoom"]
         # topo2 is updated but the get command, because it is triggering file inspection
         topo2 = Topography.objects.get(pk=topo2.id)
         topo2_dict["modification_datetime"] = (
             topo2.modification_datetime.astimezone().isoformat()
         )
-        assert data == topo2_dict
+        assert_dict_equal(data, topo2_dict)
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
