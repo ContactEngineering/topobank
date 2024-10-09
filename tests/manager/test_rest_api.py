@@ -844,3 +844,45 @@ def test_create_topography_with_blank_name_fails(
         },
     )
     assert response.status_code == 400
+
+
+def test_set_permissions(api_client, user_alice, user_bob, handle_usage_statistics):
+    surface = SurfaceFactory(creator=user_alice)
+    surface.grant_permission(user_alice, "full")
+
+    api_client.force_login(user_bob)
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface.id))
+    )
+    assert response.status_code == 404
+
+    api_client.force_login(user_alice)
+    response = api_client.patch(
+        reverse("manager:set-permissions", kwargs=dict(pk=surface.id)),
+        [{"user": dict(id=user_bob.id), "permission": "full"}],
+    )
+    assert response.status_code == 204
+
+    api_client.force_login(user_bob)
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface.id))
+    )
+    assert response.status_code == 200
+
+    response = api_client.patch(
+        reverse("manager:set-permissions", kwargs=dict(pk=surface.id)),
+        [{"user": dict(id=user_bob.id), "permission": "no-access"}],
+    )
+    assert response.status_code == 405  # Cannot remove permission from logged in user
+
+    response = api_client.patch(
+        reverse("manager:set-permissions", kwargs=dict(pk=surface.id)),
+        [{"user": dict(id=user_alice.id), "permission": "no-access"}],
+    )
+    assert response.status_code == 204  # Cannot remove permission from logged in user
+
+    api_client.force_login(user_alice)
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface.id))
+    )
+    assert response.status_code == 404
