@@ -325,7 +325,7 @@ def _bandwidths_data_entry(topo):
             traceback.format_exc(),
         )
     else:
-        link = reverse("manager:topography-detail", kwargs=dict(pk=topo.pk))
+        link = reverse("manager:topography-api-detail", kwargs=dict(pk=topo.pk))
 
     short_reliability_cutoff = topo.short_reliability_cutoff
 
