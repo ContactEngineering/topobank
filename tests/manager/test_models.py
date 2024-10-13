@@ -485,14 +485,17 @@ def test_descendant_surfaces(user_alice):
     abc_slash_def.authorize_user(user_alice)
     abcdef.authorize_user(user_alice)
 
+    assert abc.get_descendant_surfaces().count() == 2
     assert surface1 in abc.get_descendant_surfaces()
     assert surface2 in abc.get_descendant_surfaces()
     assert surface3 not in abc.get_descendant_surfaces()
 
+    assert abc_slash_def.get_descendant_surfaces().count() == 1
     assert surface1 not in abc_slash_def.get_descendant_surfaces()
     assert surface2 in abc_slash_def.get_descendant_surfaces()
     assert surface3 not in abc_slash_def.get_descendant_surfaces()
 
+    assert abcdef.get_descendant_surfaces().count() == 1
     assert surface1 not in abcdef.get_descendant_surfaces()
     assert surface2 not in abcdef.get_descendant_surfaces()
     assert surface3 in abcdef.get_descendant_surfaces()
