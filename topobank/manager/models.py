@@ -219,7 +219,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
             )
         return Surface.objects.for_user(self._user).filter(
             Q(tags=self) | Q(tags__name__startswith=f"{self.name}/")
-        )
+        ).distinct()
 
     def get_properties(self, kind=None):
         """
