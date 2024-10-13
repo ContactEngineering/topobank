@@ -9,7 +9,7 @@ import os.path
 import sys
 import tempfile
 from collections import defaultdict
-from typing import Set
+from typing import List
 
 import django.dispatch
 import matplotlib.pyplot
@@ -186,7 +186,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
             )
         return Surface.objects.for_user(self._user).filter(tags=self.id)
 
-    def get_children(self) -> Set[str]:
+    def get_children(self) -> List[str]:
         def make_child(tag_name):
             tag_suffix = tag_name[len(self.name) + 1 :]
             name, rest = (tag_suffix + "/").split("/", maxsplit=1)
