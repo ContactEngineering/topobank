@@ -76,6 +76,8 @@ def test_no_renewal_on_measurement_date_change(
 
     api_client.force_login(user)
 
+    refresh_cache_mock.reset_mock()
+
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = api_client.patch(
             reverse("manager:topography-api-detail", kwargs=dict(pk=topo.pk)),
@@ -86,5 +88,5 @@ def test_no_renewal_on_measurement_date_change(
 
     # we just check here that the form is filled completely, otherwise the thumbnail would not be recreated too
     assert response.status_code == 200, response.content
-    assert len(callbacks) == 0  # single callback for cache renewal
+    assert len(callbacks) == 0  # no callback
     assert not refresh_cache_mock.called
