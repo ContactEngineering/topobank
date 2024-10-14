@@ -1,4 +1,5 @@
 import json
+from typing import Dict
 
 import numpy as np
 from django.core.files.base import ContentFile
@@ -155,28 +156,28 @@ class SecondTestImplementation(AnalysisImplementation):
         c: int = 1
         d: float = 1.3
 
-    def topography_dependencies(self, analysis) -> list[AnalysisInputData]:
+    def topography_dependencies(self, analysis) -> Dict[str, AnalysisInputData]:
         topography = analysis.subject
-        return [
-            AnalysisInputData(
+        return {
+            "dep1": AnalysisInputData(
                 subject=topography,
                 function=AnalysisFunction.objects.get(name="Test implementation"),
                 kwargs=dict(a=self._kwargs.c),
             ),
-            AnalysisInputData(
+            "dep2": AnalysisInputData(
                 subject=topography,
                 function=AnalysisFunction.objects.get(name="Test implementation"),
                 kwargs=dict(b=self._kwargs.c * "A"),
             ),
-        ]
+        }
 
     def topography_implementation(
         self,
         analysis,
-        dependencies: list = [],
+        dependencies: Dict = {},
         progress_recorder=None,
     ):
-        (dep1, dep2) = dependencies
+        dep1 = dependencies["dep1"]
         return {
             "name": "Test with dependencies",
             "result_from_dep": dep1.result["xunit"],
@@ -205,7 +206,7 @@ class TestImplementationWithError(AnalysisImplementation):
     def topography_implementation(
         self,
         analysis,
-        dependencies: list = [],
+        dependencies: Dict = {},
         progress_recorder=None,
     ):
         raise RuntimeError("An error occurred!")
@@ -232,22 +233,22 @@ class TestImplementationWithErrorInDependency(AnalysisImplementation):
         c: int = 1
         d: float = 1.3
 
-    def topography_dependencies(self, analysis) -> list[AnalysisInputData]:
+    def topography_dependencies(self, analysis) -> Dict[str, AnalysisInputData]:
         topography = analysis.subject
-        return [
-            AnalysisInputData(
+        return {
+            "dep": AnalysisInputData(
                 subject=topography,
                 function=AnalysisFunction.objects.get(
                     name="Test implementation with error"
                 ),
                 kwargs=self._kwargs.model_dump(),
             ),
-        ]
+        }
 
     def topography_implementation(
         self,
         analysis,
-        dependencies: list = [],
+        dependencies: Dict = {},
         progress_recorder=None,
     ):
         return
