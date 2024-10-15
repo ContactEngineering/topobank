@@ -7,15 +7,15 @@ from django.db.models.signals import post_save
 from factory import post_generation
 
 from ..analysis.models import Analysis, AnalysisFunction, AnalysisSubject
-from ..manager.models import Property, Surface, Tag, Topography
+from ..manager.models import Surface, Tag, Topography
 from ..organizations.models import Organization
+from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
 
 _log = logging.getLogger(__name__)
 
 
 class OrcidSocialAccountFactory(factory.django.DjangoModelFactory):
-
     class Meta:
         model = "socialaccount.SocialAccount"
 

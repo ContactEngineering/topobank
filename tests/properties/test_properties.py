@@ -3,7 +3,7 @@ import pytest
 from django.core.exceptions import ValidationError
 from rest_framework.reverse import reverse
 
-from topobank.manager.models import Property
+from topobank.properties.models import Property
 from topobank.testing.factories import UserFactory
 
 

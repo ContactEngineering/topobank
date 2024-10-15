@@ -1,6 +1,6 @@
 import pint
+from django.core.exceptions import ValidationError
 from django.db import models
-from rest_framework.serializers import ValidationError
 
 from topobank.authorization.mixins import PermissionMixin
 from topobank.authorization.models import PermissionSet
