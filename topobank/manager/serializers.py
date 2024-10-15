@@ -1,4 +1,3 @@
-import json
 import logging
 
 import pint
@@ -330,33 +329,30 @@ class PropertySerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
 
 # TODO:Validation
 class PropertiesField(serializers.Field):
-    def to_representation(self, properties):
+    def to_representation(self, value):
         ret = {}
-        for prop in properties.all():
+        for prop in value.all():
             ret[prop.name] = {"value": prop.value}
             if prop.unit is not None:
                 ret[prop.name]["unit"] = str(prop.unit)
         return ret
 
-    def to_internal_value(self, data: str):
+    def to_internal_value(self, data: dict[str, dict[str, str]]):
         surface: Surface = self.root.instance
-        # If data is a string, attempt to parse it as JSON
-        if isinstance(data, str):
-            try:
-                # Convert the JSON string to a Python dictionary
-                property_dict = json.loads(data.replace("'", '"'))
-            except json.JSONDecodeError:
-                raise serializers.ValidationError("Invalid JSON format for properties.")
 
-        # Clear ALL currently storred properties
-        surface.properties.all().delete()
-        for property in property_dict:
-            prop = Property(surface=surface, name=property)
-            prop.value = property_dict[property]["value"]
-            prop.unit = property_dict[property].get("unit")
-            prop.save()
+        # WARNING: with the current API design surfaces can only be created with no properties.
+        if surface is not None:
+            # Clear ALL currently storred properties
+            surface.properties.all().delete()
+            for property in data:
+                prop = Property(surface=surface, name=property)
+                prop.value = data[property]["value"]
+                prop.unit = data[property].get("unit")
+                prop.save()
 
-        return self.root.instance.properties.all()
+            return self.root.instance.properties.all()
+        else:
+            return []
 
 
 class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
@@ -387,7 +383,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     )
 
     topography_set = TopographySerializer(many=True, read_only=True)
-    properties = PropertiesField()
+    properties = PropertiesField(required=False)
     tags = TagRelatedManagerField(required=False)
     permissions = serializers.SerializerMethodField()
     attachments = serializers.HyperlinkedRelatedField(
