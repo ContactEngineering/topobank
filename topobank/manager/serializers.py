@@ -1,5 +1,6 @@
 import logging
 
+from django.db.models.deletion import transaction
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
@@ -192,7 +193,6 @@ class ValueField(serializers.Field):
         return data
 
 
-# TODO:Validation
 class PropertiesField(serializers.Field):
     def to_representation(self, value):
         ret = {}
@@ -204,20 +204,20 @@ class PropertiesField(serializers.Field):
 
     def to_internal_value(self, data: dict[str, dict[str, str]]):
         surface: Surface = self.root.instance
+        with transaction.atomic():  # NOTE: This is probably not needed because django wraps views in a transaction.
+            # WARNING: with the current API design surfaces can only be created with no properties.
+            if surface is not None:
+                surface.properties.all().delete()
+                for property in data:
+                    Property.objects.create(
+                        surface=surface,
+                        name=property,
+                        value=data[property]["value"],
+                        unit=data[property].get("unit"),
+                    )
 
-        # WARNING: with the current API design surfaces can only be created with no properties.
-        if surface is not None:
-            # Clear ALL currently storred properties
-            surface.properties.all().delete()
-            for property in data:
-                prop = Property(surface=surface, name=property)
-                prop.value = data[property]["value"]
-                prop.unit = data[property].get("unit")
-                prop.save()
-
-            return self.root.instance.properties.all()
-        else:
-            return []
+                return self.root.instance.properties.all()
+        return []
 
 
 class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
