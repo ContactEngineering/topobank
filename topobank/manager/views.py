@@ -17,8 +17,6 @@ from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
-from topobank.properties.models import Property
-
 from ..authorization.permissions import Permission
 from ..files.models import Manifest
 from ..supplib.versions import get_versions
@@ -28,39 +26,10 @@ from ..users.models import User
 from .containers import write_surface_container
 from .models import Surface, Tag, Topography
 from .permissions import TagPermission
-from .serializers import (
-    PropertySerializer,
-    SurfaceSerializer,
-    TagSerializer,
-    TopographySerializer,
-)
+from .serializers import SurfaceSerializer, TagSerializer, TopographySerializer
 from .tasks import import_container_from_url
 
 _log = logging.getLogger(__name__)
-
-
-class PropertyViewSet(
-    mixins.CreateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
-    queryset = Property.objects.all()
-    serializer_class = PropertySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
-
-    def perform_create(self, serializer):
-        # Check whether the user is allowed to write to the parent surface; if not, we
-        # cannot add a topography
-        parent = serializer.validated_data["surface"]
-        if not parent.has_permission(self.request.user, "edit"):
-            self.permission_denied(
-                self.request,
-                message=f"User {self.request.user} has no permission to edit dataset "
-                f"{parent.get_absolute_url()}.",
-            )
-        serializer.save()
 
 
 class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
