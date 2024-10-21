@@ -144,8 +144,6 @@ class TopographyViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    EXPIRE_UPLOAD = 100  # Presigned key for uploading expires after 10 seconds
-
     serializer_class = TopographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
 
