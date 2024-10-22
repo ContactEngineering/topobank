@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
-        ("manager", "0064_delete_property"),
+        ("manager", "0064_alter_surface_tags_alter_topography_tags"),
         ("authorization", "0001_initial"),
     ]
 

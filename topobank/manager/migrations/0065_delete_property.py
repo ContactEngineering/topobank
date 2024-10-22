@@ -5,7 +5,7 @@ from django.db import migrations
 
 class Migration(migrations.Migration):
     dependencies = [
-        ("manager", "0063_alter_topography_name"),
+        ("manager", "0064_alter_surface_tags_alter_topography_tags"),
     ]
 
     operations = [
