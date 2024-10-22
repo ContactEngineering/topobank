@@ -1,15 +1,13 @@
 import logging
 
-import pint
 import pydantic
-from drf_spectacular.utils import OpenApiExample, extend_schema_serializer
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from topobank.properties.models import Property
-
 from ..files.serializers import ManifestSerializer
+from ..properties.models import Property
 from ..supplib.serializers import StrictFieldMixin
 from ..taskapp.serializers import TaskStateModelSerializer
 from ..users.serializers import UserSerializer
