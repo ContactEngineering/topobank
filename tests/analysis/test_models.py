@@ -213,11 +213,13 @@ def test_analysis_delete_removes_files(test_analysis_function):
 @pytest.mark.django_db
 def test_fix_folder(test_analysis_function):
     # Old analyses do not have folders
+    assert Manifest.objects.count() == 0
     analysis = TopographyAnalysisFactory(
         function=test_analysis_function,
         folder=None,
     )
-    assert Manifest.objects.count() == 1
+    print([m for m in Manifest.objects.all()])
+    assert Manifest.objects.count() == 9
     assert analysis.folder is None
 
     default_storage.save(

@@ -1,6 +1,8 @@
 import logging
 
-from django.db.models.deletion import transaction
+import pint
+import pydantic
+from drf_spectacular.utils import OpenApiExample, extend_schema_serializer
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
@@ -182,7 +184,13 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             raise serializers.ValidationError(
                 {"message": "You cannot change the `surface` of a topography"}
             )
-        return super().update(instance, validated_data)
+        try:
+            return super().update(instance, validated_data)
+        except pydantic.ValidationError as exc:
+            # The kwargs that were provided do not match the function
+            raise serializers.ValidationError(
+                {"message": str(exc)}
+            )
 
 
 class ValueField(serializers.Field):

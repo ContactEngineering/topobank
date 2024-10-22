@@ -646,11 +646,12 @@ def test_download_analysis_results_without_permission(
     response = client.get(download_url)
     assert response.status_code == 403  # Permission denied
 
-    # when user_2 has view permissions for all related surfaces, it's still not okay
-    # to download as analyses are per user
+    # when user_2 has view permissions for all related surfaces, it's okay to download
+    # as analyses permissions are automatically granted if the user has access to the
+    # subject
     two_topos[1].surface.grant_permission(user_2)
     response = client.get(download_url)
-    assert response.status_code == 403
+    assert response.status_code == 200
 
 
 @pytest.mark.django_db

@@ -122,7 +122,7 @@ def test_list_surface_permissions(api_client, handle_usage_statistics):
             assert False, "Unknown user"
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_notification_when_deleting_shared_stuff(api_client):
     user1 = UserFactory()
     user2 = UserFactory()

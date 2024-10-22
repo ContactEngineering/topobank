@@ -115,8 +115,6 @@ class TopographyViewSet(
     mixins.DestroyModelMixin,
     viewsets.GenericViewSet,
 ):
-    EXPIRE_UPLOAD = 100  # Presigned key for uploading expires after 10 seconds
-
     serializer_class = TopographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
 
@@ -309,7 +307,7 @@ def set_permissions(request, pk=None):
         if user_id != user.id:
             other_user = User.objects.get(id=user_id)
             perm = permission["permission"]
-            if perm is None:
+            if perm == 'no-access':
                 obj.revoke_permission(other_user)
             else:
                 obj.grant_permission(other_user, perm)

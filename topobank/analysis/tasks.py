@@ -2,6 +2,7 @@ import logging
 import traceback
 import tracemalloc
 from datetime import date
+from typing import Any, Dict
 
 import celery
 from django.conf import settings
@@ -121,8 +122,8 @@ def perform_analysis(self, analysis_id: int, force: bool):
     #
     # Check and run dependencies
     #
-    dependencies = analysis.function.get_dependencies(analysis)
-    finished_dependencies = []  # Will contain dependencies that finished
+    dependencies = analysis.function.get_dependencies(analysis)  # This is a dict!
+    finished_dependencies = {}  # Will contain dependencies that finished
     if len(dependencies) > 0:
         # Okay, we have dependencies so let us check what their states are
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
@@ -134,7 +135,7 @@ def perform_analysis(self, analysis_id: int, force: bool):
             # analysis needs to be scheduled. Submit Celery tasks for all
             # dependencies and request that this task is rerun once all dependencies
             # have finished.
-            for dep in scheduled_dependencies:
+            for dep in scheduled_dependencies.values():
                 dep.task_state = Analysis.PENDING
                 dep.save()
             # We are about to launch a chord, store id as launcher id
@@ -142,7 +143,10 @@ def perform_analysis(self, analysis_id: int, force: bool):
             # Save because apply_async never returns in test when a dependency fails
             analysis.save()
             task = celery.chord(
-                (perform_analysis.si(dep.id, False) for dep in scheduled_dependencies),
+                (
+                    perform_analysis.si(dep.id, False)
+                    for dep in scheduled_dependencies.values()
+                ),
                 perform_analysis.si(analysis.id, False),
             ).apply_async()
             # Store task id so it is reported as pending
@@ -404,12 +408,15 @@ def current_statistics(user=None):
     )
 
 
-def prepare_dependency_tasks(dependencies: list[AnalysisInputData], force: bool):
+def prepare_dependency_tasks(dependencies: Dict[Any, AnalysisInputData], force: bool):
     from .models import Analysis, AnalysisSubject
 
-    finished_dependent_analyses = []  # Everything that finished or failed
-    scheduled_dependent_analyses = []  # Everything that needs to be scheduled
-    for dependency in dependencies:
+    finished_dependent_analyses = {}  # Everything that finished or failed
+    scheduled_dependent_analyses = {}  # Everything that needs to be scheduled
+    for key, dependency in dependencies.items():
+        if key in scheduled_dependent_analyses or key in finished_dependent_analyses:
+            raise RuntimeError(f"Dependency '{key}' already dependent or finished.")
+
         # Get analysis function
         function = dependency.function
         kwargs = function.clean_kwargs(dependency.kwargs)
@@ -462,7 +469,7 @@ def prepare_dependency_tasks(dependencies: list[AnalysisInputData], force: bool)
                 kwargs=kwargs,
                 folder=folder,
             )
-            scheduled_dependent_analyses += [new_analysis]
+            scheduled_dependent_analyses[key] = new_analysis
         elif all_results.count() == 1:
             # An analysis exists. Check whether it is successful or failed.
             existing_analysis = all_results.first()
@@ -472,11 +479,11 @@ def prepare_dependency_tasks(dependencies: list[AnalysisInputData], force: bool)
                 Analysis.SUCCESS,
             ]:
                 # This one does not need to be scheduled
-                finished_dependent_analyses += [existing_analysis]
+                finished_dependent_analyses[key] = existing_analysis
             else:
                 # We schedule everything else, possibly again. `perform_analysis` will
                 # automatically terminate if an analysis already completed successfully.
-                scheduled_dependent_analyses += [existing_analysis]
+                scheduled_dependent_analyses[key] = existing_analysis
 
     return (
         finished_dependent_analyses,

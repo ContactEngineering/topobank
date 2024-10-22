@@ -6,6 +6,7 @@ import datetime
 import json
 import logging
 from dataclasses import dataclass
+from numbers import Number
 from operator import itemgetter
 from typing import Union
 
@@ -239,8 +240,19 @@ def ordereddicts_to_dicts(input_ordered_dict, sorted_by="id"):
     return result
 
 
+class AssertEqualIgnoreValue:
+    pass
+
+
+ASSERT_EQUAL_IGNORE_VALUE = AssertEqualIgnoreValue()
+
+
 def assert_equal(a, b, key=None, rtol=1e-07, atol=0):
-    if isinstance(a, dict):
+    if isinstance(a, AssertEqualIgnoreValue) or isinstance(b, AssertEqualIgnoreValue):
+        return
+    elif (a is None and b is not None) or (a is not None and b is None):
+        raise AssertionError(f"The values key '{key}' differ: {a} != {b}")
+    elif isinstance(a, dict) and isinstance(b, dict):
         assert_dict_equal(a, b, key=key, rtol=rtol, atol=atol)
     elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
         np.testing.assert_allclose(
@@ -252,6 +264,14 @@ def assert_equal(a, b, key=None, rtol=1e-07, atol=0):
         )
     elif isinstance(a, list):
         assert_dicts_equal(a, b, key=key, rtol=rtol, atol=atol)
+    elif isinstance(a, Number) or isinstance(b, Number):
+        np.testing.assert_allclose(
+            a,
+            b,
+            rtol=rtol,
+            atol=atol,
+            err_msg=f"The values of key '{key}' differ: {a} != {b}",
+        )
     else:
         assert a == b, f"The values key '{key}' differ: {a} != {b}"
 

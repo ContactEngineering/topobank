@@ -18,7 +18,7 @@ from topobank.testing.factories import (
 
 
 @pytest.mark.django_db
-def test_import_downloaded_surface_archive(client):
+def test_import_downloaded_surface_archive(client, handle_usage_statistics):
     username = 'test_user'
     surface_name = "Test Surface for Import"
     surface_category = 'dum'

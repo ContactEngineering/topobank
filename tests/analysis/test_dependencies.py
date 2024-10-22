@@ -1,6 +1,6 @@
 import celery.states
 import pytest
-from django.test.utils import override_settings
+from django.test import override_settings
 from rest_framework.reverse import reverse
 
 from topobank.analysis.models import Analysis, AnalysisFunction

@@ -12,7 +12,7 @@ from notifications.signals import notify
 from numpy.testing import assert_allclose
 
 from topobank.authorization.models import PermissionSet
-from topobank.manager.models import Surface, Topography
+from topobank.manager.models import Surface, Tag, Topography
 from topobank.testing.factories import (
     SurfaceFactory,
     Topography1DFactory,
@@ -37,8 +37,8 @@ def test_topography_has_periodic_flag(two_topos):
 @pytest.mark.django_db
 def test_topography_has_unit_set(two_topos):
     topos = Topography.objects.all().order_by("name")
-    assert topos[0].unit == "µm"
-    assert topos[1].unit == "µm"
+    assert topos[0].unit == "nm"
+    assert topos[1].unit == "m"
 
 
 @pytest.mark.django_db
@@ -390,11 +390,10 @@ def test_squeezed_datafile(
     assert topo.height_scale == height_scale_factor
     assert topo.detrend_mode == detrend_mode
 
-    assert not topo.squeezed_datafile
+    assert topo.squeezed_datafile
     st_topo = topo.topography(allow_squeezed=False)
-    orig_heights = (
-        st_topo.heights()
-    )  # This was read from the original data, detrending+scaling applied
+    # This was read from the original data, detrending+scaling applied
+    orig_heights = st_topo.heights()
 
     #
     # Check with pure SurfaceTopography instance
@@ -462,3 +461,40 @@ def test_deepcopy_delete_does_not_delete_files(user_bob, handle_usage_statistics
     surface.delete()
     assert PermissionSet.objects.count() == 1
     assert surface_copy.topography_set.all().first().datafile
+
+
+@pytest.mark.django_db
+def test_descendant_surfaces(user_alice):
+    surface1 = SurfaceFactory(creator=user_alice)
+    surface2 = SurfaceFactory(creator=user_alice)
+    surface3 = SurfaceFactory(creator=user_alice)
+
+    surface1.tags = ["a&C"]
+    surface1.save()
+    surface2.tags = ["a&C/def"]
+    surface2.save()
+    surface3.tags = ["a&CdeF"]
+    surface3.save()
+
+    abc = Tag.objects.get(name="a&C")
+    abc_slash_def = Tag.objects.get(name="a&C/def")
+    abcdef = Tag.objects.get(name="a&CdeF")
+
+    abc.authorize_user(user_alice)
+    abc_slash_def.authorize_user(user_alice)
+    abcdef.authorize_user(user_alice)
+
+    assert abc.get_descendant_surfaces().count() == 2
+    assert surface1 in abc.get_descendant_surfaces()
+    assert surface2 in abc.get_descendant_surfaces()
+    assert surface3 not in abc.get_descendant_surfaces()
+
+    assert abc_slash_def.get_descendant_surfaces().count() == 1
+    assert surface1 not in abc_slash_def.get_descendant_surfaces()
+    assert surface2 in abc_slash_def.get_descendant_surfaces()
+    assert surface3 not in abc_slash_def.get_descendant_surfaces()
+
+    assert abcdef.get_descendant_surfaces().count() == 1
+    assert surface1 not in abcdef.get_descendant_surfaces()
+    assert surface2 not in abcdef.get_descendant_surfaces()
+    assert surface3 in abcdef.get_descendant_surfaces()

@@ -149,8 +149,8 @@ def two_topos(settings):
         height_scale=2.91818e-08,  # workaround: mentioned here so it is correctly set
         height_scale_editable=False,  # defined in TXT file
         datafile=datafile2,
-        resolution_x=305,
-        resolution_y=75,
+        resolution_x=75,
+        resolution_y=305,
     )
     return topos1, topos2
 
@@ -237,7 +237,9 @@ def user_three_topographies_three_surfaces_three_tags():
 
 
 @pytest.fixture
-def two_users():
+def two_users(settings):
+    settings.DELETE_EXISTING_FILES = True  # There can be remnants from failed tests
+
     user1 = UserFactory(username="testuser1", password="abcd$1234")
     user2 = UserFactory(username="testuser2", password="abcd$1234")
 

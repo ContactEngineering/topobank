@@ -386,7 +386,7 @@ def test_upload_topography_txt(
 
 @pytest.mark.parametrize("input_filename", filelist)
 @pytest.mark.parametrize(
-    "instrument_type,resolution_value,resolution_unit,tip_radius_value,tip_radius_unit",
+    "instrument_type,resolution_value,resolution_unit,tip_radius_value,tip_radius_unit,response_code",
     [
         (
             Topography.INSTRUMENT_TYPE_UNDEFINED,
@@ -394,6 +394,7 @@ def test_upload_topography_txt(
             "",
             "",
             "",
+            200,
         ),  # empty instrument params
         (
             Topography.INSTRUMENT_TYPE_UNDEFINED,
@@ -401,22 +402,25 @@ def test_upload_topography_txt(
             "km",
             2.0,
             "nm",
+            200,
         ),  # also empty params
-        (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, 10.0, "nm", "", ""),
+        (Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED, 10.0, "nm", "", "", 200),
         (
             Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED,
             "",
             "nm",
             "",
             "",
+            400,  # value missing
         ),  # no value! -> also empty
-        (Topography.INSTRUMENT_TYPE_CONTACT_BASED, "", "", 1.0, "mm"),
+        (Topography.INSTRUMENT_TYPE_CONTACT_BASED, "", "", 1.0, "mm", 200),
         (
             Topography.INSTRUMENT_TYPE_CONTACT_BASED,
             "",
             "",
             "",
             "mm",
+            400,  # value missing
         ),  # no value! -> also empty
     ],
 )
@@ -432,6 +436,7 @@ def test_upload_topography_instrument_parameters(
     resolution_unit,
     tip_radius_value,
     tip_radius_unit,
+    response_code,
     handle_usage_statistics,
 ):
     settings.CELERY_TASK_ALWAYS_EAGER = True
@@ -498,22 +503,27 @@ def test_upload_topography_instrument_parameters(
         data["height_scale"] = 1
 
     # Update metadata
+    id = response.data["id"]
     with django_capture_on_commit_callbacks(execute=True):
         response = api_client.patch(
-            reverse(
-                "manager:topography-api-detail", kwargs=dict(pk=response.data["id"])
-            ),
+            reverse("manager:topography-api-detail", kwargs=dict(pk=id)),
             data,
         )
-        assert response.status_code == 200, response.message
+        assert response.status_code == response_code, response.content
+        if response_code == 400:
+            # Try again, but without instrument parameters
+            del data["instrument_parameters"]
+            response = api_client.patch(
+                reverse("manager:topography-api-detail", kwargs=dict(pk=id)),
+                data,
+            )
+            assert response.status_code == 200, response.content
         assert response.data["task_state"] == "pe"  # This is always pending
 
     # Get metadata
     with django_capture_on_commit_callbacks(execute=True):
         response = api_client.get(
-            reverse(
-                "manager:topography-api-detail", kwargs=dict(pk=response.data["id"])
-            )
+            reverse("manager:topography-api-detail", kwargs=dict(pk=id))
         )
         assert response.status_code == 200, response.message
         assert response.data["task_state"] == "su"  # This should be a success
@@ -529,39 +539,39 @@ def test_upload_topography_instrument_parameters(
     assert t.description == description
     assert input_file_path.stem in t.datafile.filename
     assert t.instrument_type == instrument_type
-    expected_instrument_parameters = {}
-    clean_instrument_parameters = {}
-    if instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
-        expected_instrument_parameters = {
-            "resolution": {"unit": resolution_unit, "value": resolution_value}
-        }
-        if resolution_value != "":
-            clean_instrument_parameters = expected_instrument_parameters
-    elif instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
-        expected_instrument_parameters = {
-            "tip_radius": {"unit": tip_radius_unit, "value": tip_radius_value}
-        }
-        if tip_radius_value != "":
-            clean_instrument_parameters = expected_instrument_parameters
+    if response_code == 200:
+        expected_instrument_parameters = {}
+        clean_instrument_parameters = {}
+        if instrument_type == Topography.INSTRUMENT_TYPE_MICROSCOPE_BASED:
+            expected_instrument_parameters = {
+                "resolution": {"unit": resolution_unit, "value": resolution_value}
+            }
+            if resolution_value != "":
+                clean_instrument_parameters = expected_instrument_parameters
+        elif instrument_type == Topography.INSTRUMENT_TYPE_CONTACT_BASED:
+            expected_instrument_parameters = {
+                "tip_radius": {"unit": tip_radius_unit, "value": tip_radius_value}
+            }
+            if tip_radius_value != "":
+                clean_instrument_parameters = expected_instrument_parameters
 
-    assert t.instrument_parameters == expected_instrument_parameters
+        assert t.instrument_parameters == expected_instrument_parameters
 
-    #
-    # Also check some properties of the SurfaceTopography.Topography
-    #
-    st_topo = t.topography(allow_squeezed=False)
-    assert st_topo.info["instrument"] == {
-        "name": instrument_name,
-        "parameters": clean_instrument_parameters,
-        "type": instrument_type,
-    }
-    if "parameters" in t._instrument_info["instrument"]:
-        assert (
-            t._instrument_info["instrument"]["parameters"]
-            == clean_instrument_parameters
-        )
-    else:
-        assert clean_instrument_parameters == {}
+        #
+        # Also check some properties of the SurfaceTopography.Topography
+        #
+        st_topo = t.topography(allow_squeezed=False)
+        assert st_topo.info["instrument"] == {
+            "name": instrument_name,
+            "parameters": clean_instrument_parameters,
+        }
+        if "parameters" in t.instrument_info["instrument"]:
+            assert (
+                t.instrument_info["instrument"]["parameters"]
+                == clean_instrument_parameters
+            )
+        else:
+            assert clean_instrument_parameters == {}
 
 
 @pytest.mark.parametrize(
@@ -726,7 +736,7 @@ def test_trying_upload_of_topography_file_with_unknown_format(
 @pytest.mark.skip(
     "Skip test, this is not handled gracefully by the current implementation"
 )
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_trying_upload_of_topography_file_with_too_long_format_name(
     api_client,
     settings,
@@ -923,7 +933,7 @@ def topo_example4(two_topos):
 
 @pytest.mark.django_db
 def test_edit_topography(
-    api_client, django_user_model, topo_example3, handle_usage_statistics
+    api_client, topo_example3, handle_usage_statistics
 ):
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
@@ -945,8 +955,9 @@ def test_edit_topography(
     assert response.data["name"] == topo_example3.name
     assert response.data["measurement_date"] == str(datetime.date(2018, 1, 1))
     assert response.data["description"] == "description1"
-    assert response.data["size_x"] == approx(10)
-    assert response.data["size_y"] == approx(10)
+    assert response.data["size_x"] == approx(10000)
+    assert response.data["size_y"] == approx(10000)
+    assert response.data["unit"] == "nm"
     assert response.data["height_scale"] == approx(0.29638271279074097)
     assert response.data["detrend_mode"] == "height"
 
@@ -960,8 +971,6 @@ def test_edit_topography(
             "name": new_name,
             "measurement_date": new_measurement_date,
             "description": new_description,
-            "size_x": 500,
-            "size_y": 1000,
             "detrend_mode": "height",
             "tags": ["ab", "bc"],
             "instrument_type": Topography.INSTRUMENT_TYPE_UNDEFINED,
@@ -984,8 +993,7 @@ def test_edit_topography(
     assert t.description == new_description
     assert t.name == new_name
     assert "example3" in t.datafile.filename
-    assert t.size_x == approx(500)
-    assert t.size_y == approx(1000)
+    assert t.unit == "nm"
     assert t.tags == ["ab", "bc"]
 
     # the changed topography should also appear in the list of topographies
@@ -1036,7 +1044,6 @@ def test_edit_line_scan(
             "name": new_name,
             "measurement_date": new_measurement_date,
             "description": new_description,
-            "size_x": 500,
             "height_scale": 0.1,
             "detrend_mode": "height",
             "instrument_type": Topography.INSTRUMENT_TYPE_UNDEFINED,
@@ -1062,7 +1069,6 @@ def test_edit_line_scan(
     assert t.description == new_description
     assert t.name == new_name
     assert "line_scan_1" in t.datafile.filename
-    assert t.size_x == approx(500)
     assert t.size_y is None
 
     #
@@ -1092,8 +1098,8 @@ def test_topography_detail(
     assert response.status_code == 200, response.content
 
     # resolution should be written somewhere
-    assert response.data["resolution_x"] == 305
-    assert response.data["resolution_y"] == 75
+    assert response.data["resolution_x"] == 75
+    assert response.data["resolution_y"] == 305
 
     # .. as well as detrending mode
     assert response.data["detrend_mode"] == "height"
@@ -1102,9 +1108,9 @@ def test_topography_detail(
     assert response.data["description"] == "description2"
 
     # .. physical size
-    assert response.data["unit"] == "µm"
-    assert response.data["size_x"] == approx(112.80791)
-    assert response.data["size_y"] == approx(27.73965)
+    assert response.data["unit"] == "m"
+    assert response.data["size_x"] == approx(2.773965e-05)
+    assert response.data["size_y"] == approx(0.00011280791)
 
 
 @pytest.mark.django_db

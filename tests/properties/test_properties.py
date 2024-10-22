@@ -7,7 +7,7 @@ from topobank.properties.models import Property
 from topobank.testing.factories import UserFactory
 
 
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_wrong_unit(one_line_scan):
     prop = Property(name="test", value=1.0, unit="csc")
     with pytest.raises(ValidationError):

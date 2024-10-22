@@ -66,9 +66,6 @@ dependencies = [
     # django-statsy  # cannot be used currently because of fixed version in requirements
     'django-trackstats',
 
-    # parsing dates
-    'python-dateutil',
-
     #
     # Storage
     #
@@ -95,7 +92,7 @@ dependencies = [
     # tornado>=4.2.0, <6.0.0
 
     # Surface topography I/O and analysis
-    'SurfaceTopography>=1.14.0',
+    'SurfaceTopography>=1.17.1',
 
     # Validation
     'pydantic',
@@ -175,7 +172,7 @@ dev = [
 
     # Documentation
     # ------------------------------------------------------------------------------
-    'Sphinx<8.0.3',
+    'Sphinx<8.1.4',
     # https://github.com/sphinx-doc/sphinx
     'sphinx_rtd_theme',
 
