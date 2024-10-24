@@ -266,6 +266,7 @@ def test_list_folder(api_client, user_alice):
         d,
         {
             manifest1.filename: {
+                "id": manifest1.id,
                 "url": f"http://testserver/files/manifest/{manifest1.id}/",
                 "filename": manifest1.filename,
                 "folder": f"http://testserver/files/folder/{folder.id}/",
@@ -277,6 +278,7 @@ def test_list_folder(api_client, user_alice):
                 "upload_instructions": None,
             },
             manifest2.filename: {
+                "id": manifest2.id,
                 "url": f"http://testserver/files/manifest/{manifest2.id}/",
                 "filename": manifest2.filename,
                 "folder": f"http://testserver/files/folder/{folder.id}/",
