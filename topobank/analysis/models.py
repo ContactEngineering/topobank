@@ -144,12 +144,16 @@ class Analysis(PermissionMixin, TaskStateModel):
     #
 
     # Actual implementation of the analysis as a Python function
-    function = models.ForeignKey("AnalysisFunction", on_delete=models.CASCADE)
+    function = models.ForeignKey("AnalysisFunction", on_delete=models.SET_NULL,
+                                 null=True)
 
     # Definition of the subject
     subject_dispatch = models.OneToOneField(
-        AnalysisSubject, null=True, on_delete=models.CASCADE
+        AnalysisSubject, on_delete=models.CASCADE, null=True
     )
+
+    # Unique, user-specified name
+    name = models.TextField(null=True)
 
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
