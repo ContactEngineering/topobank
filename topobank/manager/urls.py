@@ -35,7 +35,7 @@ urlpatterns += [
         name="force-inspect",
     ),
     path(
-        "api/set-surface-permissions/<pk>",
+        "api/surface/<pk>/set-permissions/",
         view=login_required(views.set_surface_permissions),
         name="set-surface-permissions",
     ),

@@ -57,6 +57,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         model = Topography
         fields = [
             "url",
+            "force_inspect_url",
             "id",
             "surface",
             "name",
@@ -105,6 +106,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:topography-api-detail", read_only=True
     )
+    force_inspect_url = serializers.SerializerMethodField()
     creator = serializers.HyperlinkedRelatedField(
         view_name="users:user-api-detail", read_only=True
     )
@@ -164,6 +166,11 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
                     f"{s} is given by the data file and cannot be set"
                 )
         return super().validate(data)
+
+    def get_force_inspect_url(self, obj):
+        return reverse(
+            "manager:force-inspect", kwargs={"pk": obj.id}, request=self.context["request"]
+        )
 
     def get_is_metadata_complete(self, obj):
         return obj.is_metadata_complete
