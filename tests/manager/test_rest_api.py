@@ -51,6 +51,7 @@ def test_surface_retrieve_routes(
         "id": surface1.id,
         "tags": [],
         "url": f"http://testserver/manager/api/surface/{surface1.id}/",
+        "permission_url": ASSERT_EQUAL_IGNORE_VALUE,
         "creation_datetime": surface1.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
         "attachments": surface1.attachments.get_absolute_url(response.wsgi_request),
@@ -126,6 +127,7 @@ def test_surface_retrieve_routes(
         "id": surface2.id,
         "tags": [],
         "url": f"http://testserver/manager/api/surface/{surface2.id}/",
+        "permission_url": ASSERT_EQUAL_IGNORE_VALUE,
         "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
         "attachments": surface2.attachments.get_absolute_url(response.wsgi_request),
@@ -692,6 +694,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
         [
             {
                 "url": surface2.get_absolute_url(response.wsgi_request),
+                "permission_url": ASSERT_EQUAL_IGNORE_VALUE,
                 "id": surface2.id,
                 "name": surface2.name,
                 "category": None,
@@ -707,6 +710,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
             },
             {
                 "url": surface3.get_absolute_url(response.wsgi_request),
+                "permission_url": ASSERT_EQUAL_IGNORE_VALUE,
                 "id": surface3.id,
                 "name": surface3.name,
                 "category": None,
@@ -846,7 +850,7 @@ def test_create_topography_with_blank_name_fails(
     assert response.status_code == 400
 
 
-def test_set_permissions(api_client, user_alice, user_bob, handle_usage_statistics):
+def test_set_surface_permissions(api_client, user_alice, user_bob, handle_usage_statistics):
     surface = SurfaceFactory(creator=user_alice)
     surface.grant_permission(user_alice, "full")
 
@@ -858,7 +862,7 @@ def test_set_permissions(api_client, user_alice, user_bob, handle_usage_statisti
 
     api_client.force_login(user_alice)
     response = api_client.patch(
-        reverse("manager:set-permissions", kwargs=dict(pk=surface.id)),
+        reverse("manager:set-surface-permissions", kwargs=dict(pk=surface.id)),
         [{"user": dict(id=user_bob.id), "permission": "full"}],
     )
     assert response.status_code == 204
@@ -870,13 +874,13 @@ def test_set_permissions(api_client, user_alice, user_bob, handle_usage_statisti
     assert response.status_code == 200
 
     response = api_client.patch(
-        reverse("manager:set-permissions", kwargs=dict(pk=surface.id)),
+        reverse("manager:set-surface-permissions", kwargs=dict(pk=surface.id)),
         [{"user": dict(id=user_bob.id), "permission": "no-access"}],
     )
     assert response.status_code == 405  # Cannot remove permission from logged in user
 
     response = api_client.patch(
-        reverse("manager:set-permissions", kwargs=dict(pk=surface.id)),
+        reverse("manager:set-surface-permissions", kwargs=dict(pk=surface.id)),
         [{"user": dict(id=user_alice.id), "permission": "no-access"}],
     )
     assert response.status_code == 204  # Cannot remove permission from logged in user
@@ -884,5 +888,62 @@ def test_set_permissions(api_client, user_alice, user_bob, handle_usage_statisti
     api_client.force_login(user_alice)
     response = api_client.get(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface.id))
+    )
+    assert response.status_code == 404
+
+
+def test_set_tag_permissions(api_client, user_alice, user_bob, handle_usage_statistics):
+    surface1 = SurfaceFactory(creator=user_alice)
+    surface2 = SurfaceFactory(creator=user_alice)
+    surface1.grant_permission(user_alice, "full")
+    surface2.grant_permission(user_alice, "edit")
+    tag = TagFactory(surfaces=[surface1, surface2])
+
+    api_client.force_login(user_bob)
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface1.id))
+    )
+    assert response.status_code == 404
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface2.id))
+    )
+    assert response.status_code == 404
+
+    api_client.force_login(user_alice)
+    response = api_client.patch(
+        reverse("manager:set-tag-permissions", kwargs=dict(name=tag.name)),
+        [{"user": dict(id=user_bob.id), "permission": "full"}],
+    )
+    assert response.status_code == 200
+    assert len(response.data["updated"]) == 1
+    assert len(response.data["rejected"]) == 1
+
+    api_client.force_login(user_bob)
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface1.id))
+    )
+    assert response.status_code == 200
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface2.id))
+    )
+    assert response.status_code == 404
+
+    response = api_client.patch(
+        reverse("manager:set-tag-permissions", kwargs=dict(name=tag.name)),
+        [{"user": dict(id=user_bob.id), "permission": "no-access"}],
+    )
+    assert response.status_code == 405  # Cannot remove permission from logged in user
+
+    response = api_client.patch(
+        reverse("manager:set-tag-permissions", kwargs=dict(name=tag.name)),
+        [{"user": dict(id=user_alice.id), "permission": "no-access"}],
+    )
+    assert response.status_code == 200  # Can remove permission from another user
+    assert len(response.data["updated"]) == 1
+    assert len(response.data["rejected"]) == 0
+
+    api_client.force_login(user_alice)
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface1.id))
     )
     assert response.status_code == 404

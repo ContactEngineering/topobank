@@ -313,7 +313,7 @@ def force_inspect(request, pk=None):
 
 
 @api_view(["PATCH"])
-def set_permissions(request, pk=None):
+def set_surface_permissions(request, pk=None):
     user = request.user
     obj = Surface.objects.get(pk=pk)
 
@@ -336,13 +336,57 @@ def set_permissions(request, pk=None):
         if user_id != user.id:
             other_user = User.objects.get(id=user_id)
             perm = permission["permission"]
-            if perm == 'no-access':
+            if perm == "no-access":
                 obj.revoke_permission(other_user)
             else:
                 obj.grant_permission(other_user, perm)
 
     # Permissions were updated successfully, return 204 No Content
     return Response({}, status=204)
+
+
+@api_view(["PATCH"])
+def set_tag_permissions(request, name=None):
+    user = request.user
+    obj = Tag.objects.get(name=name)
+
+    # Check that the request does not ask to revoke permissions from the current user
+    for permission in request.data:
+        if permission["user"]["id"] == user.id:
+            if permission["permission"] != "full":
+                return Response(
+                    {"message": "Permissions cannot be revoked from logged in user"},
+                    status=405,
+                )
+
+    # Keep track of updated and insufficient permissions
+    updated = []
+    rejected = []
+
+    # Loop over all surfaces
+    obj.authorize_user(user)
+    for surface in obj.get_descendant_surfaces():
+        # Check that user has the right to modify permissions
+        if surface.has_permission(user, "full"):
+            updated += [surface.get_absolute_url(request)]
+            # Loop over permissions
+            for permission in request.data:
+                user_id = permission["user"]["id"]
+                if user_id != user.id:
+                    other_user = User.objects.get(id=user_id)
+                    perm = permission["permission"]
+                    if perm == "no-access":
+                        surface.revoke_permission(other_user)
+                    else:
+                        surface.grant_permission(other_user, perm)
+        else:
+            rejected += [surface.get_absolute_url(request)]
+
+    # Permissions were updated successfully, return 204 No Content
+    return Response(
+        {"updated": updated, "rejected": rejected},
+        status=200,
+    )
 
 
 @api_view(["GET"])
