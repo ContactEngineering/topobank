@@ -21,6 +21,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
         model = Tag
         fields = [
             "url",
+            "permission_url",
             "id",
             "name",
             "children",
@@ -34,7 +35,15 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:tag-api-detail", lookup_field="name", read_only=True
     )
+    permission_url = serializers.SerializerMethodField()
     children = serializers.SerializerMethodField()
+
+    def get_permission_url(self, obj):
+        return reverse(
+            "manager:set-tag-permissions",
+            kwargs={"name": obj.name},
+            request=self.context["request"],
+        )
 
     def get_children(self, obj: Tag):
         request = self.context["request"]
@@ -47,6 +56,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         model = Topography
         fields = [
             "url",
+            "force_inspect_url",
             "id",
             "surface",
             "name",
@@ -95,6 +105,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:topography-api-detail", read_only=True
     )
+    force_inspect_url = serializers.SerializerMethodField()
     creator = serializers.HyperlinkedRelatedField(
         view_name="users:user-api-detail", read_only=True
     )
@@ -154,6 +165,11 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
                     f"{s} is given by the data file and cannot be set"
                 )
         return super().validate(data)
+
+    def get_force_inspect_url(self, obj):
+        return reverse(
+            "manager:force-inspect", kwargs={"pk": obj.id}, request=self.context["request"]
+        )
 
     def get_is_metadata_complete(self, obj):
         return obj.is_metadata_complete
@@ -238,6 +254,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         model = Surface
         fields = [
             "url",
+            "permission_url",
             "id",
             "name",
             "category",
@@ -256,6 +273,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:surface-api-detail", read_only=True
     )
+    permission_url = serializers.SerializerMethodField()
     creator = serializers.HyperlinkedRelatedField(
         view_name="users:user-api-detail", read_only=True
     )
@@ -281,6 +299,13 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             requested = param is not None and param.lower() in ["yes", "true"]
             if not requested:
                 self.fields.pop(field)
+
+    def get_permission_url(self, obj):
+        return reverse(
+            "manager:set-surface-permissions",
+            kwargs={"pk": obj.id},
+            request=self.context["request"],
+        )
 
     def get_permissions(self, obj):
         request = self.context["request"]

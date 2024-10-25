@@ -35,8 +35,13 @@ urlpatterns += [
     ),
     path(
         "api/surface/<pk>/set-permissions/",
-        view=login_required(views.set_permissions),
-        name="set-permissions",
+        view=login_required(views.set_surface_permissions),
+        name="set-surface-permissions",
+    ),
+    re_path(
+        r"api/set-tag-permissions/<(?P<name>[^.]+)>",
+        view=login_required(views.set_tag_permissions),
+        name="set-tag-permissions",
     ),
     path(
         "api/tag-numerical-properties/<pk>/",

@@ -33,12 +33,13 @@ class FileManifestViewSet(
                     self.request,
                     message="This folder is read-only.",
                 )
-            serializer.save(permissions=folder.permissions, folder=folder)
+            serializer.save(permissions=folder.permissions, folder=folder,
+                            uploaded_by=self.request.user)
         else:
             self.permission_denied(
                 self.request,
                 message="A new file manifest cannot be created without specifying a "
-                "folder.",
+                        "folder.",
             )
 
     def perform_update(self, serializer):
@@ -48,13 +49,13 @@ class FileManifestViewSet(
                 self.permission_denied(
                     self.request,
                     message="You are trying to move a file to a folder which is "
-                    "read-only.",
+                            "read-only.",
                 )
             if not folder.has_permission(self.request.user, "edit"):
                 self.permission_denied(
                     self.request,
                     message="You are trying to move a file. The user does not have "
-                    "write access to the target folder.",
+                            "write access to the target folder.",
                 )
         serializer.save()
 
@@ -89,6 +90,7 @@ def list_manifests(request, pk=None):
     if not obj.has_permission(request.user, "view"):
         return HttpResponseForbidden()
     return Response({
-        manifest.filename: ManifestSerializer(manifest, context={"request": request}).data
+        manifest.filename: ManifestSerializer(manifest,
+                                              context={"request": request}).data
         for manifest in obj
     })

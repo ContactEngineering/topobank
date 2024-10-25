@@ -12,6 +12,7 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
     class Meta:
         model = Manifest
         fields = [
+            "id",
             "url",
             "filename",
             "file",
