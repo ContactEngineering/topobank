@@ -186,9 +186,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             return super().update(instance, validated_data)
         except pydantic.ValidationError as exc:
             # The kwargs that were provided do not match the function
-            raise serializers.ValidationError(
-                {"message": str(exc)}
-            )
+            raise serializers.ValidationError({"message": str(exc)})
 
 
 class ValueField(serializers.Field):
@@ -215,6 +213,15 @@ class PropertiesField(serializers.Field):
             if surface is not None:
                 surface.properties.all().delete()
                 for property in data:
+                    # NOTE: Validate that a numeric value has a unit
+                    if (
+                        isinstance(data[property]["value"], (int, float))
+                        and "unit" not in data[property]
+                    ):
+                        raise serializers.ValidationError(
+                            {property: "no unit provided for numeric property"}
+                        )
+
                     Property.objects.create(
                         surface=surface,
                         name=property,
