@@ -168,7 +168,9 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
     def get_force_inspect_url(self, obj):
         return reverse(
-            "manager:force-inspect", kwargs={"pk": obj.id}, request=self.context["request"]
+            "manager:force-inspect",
+            kwargs={"pk": obj.id},
+            request=self.context["request"],
         )
 
     def get_is_metadata_complete(self, obj):
@@ -235,7 +237,14 @@ class PropertiesField(serializers.Field):
                         and "unit" not in data[property]
                     ):
                         raise serializers.ValidationError(
-                            {property: "no unit provided for numeric property"}
+                            {property: "numeric properties must have a unit"}
+                        )
+                    elif (
+                        isinstance(data[property]["value"], str)
+                        and "unit" in data[property]
+                    ):
+                        raise serializers.ValidationError(
+                            {property: "categorical properties must not have a unit"}
                         )
 
                     Property.objects.create(
