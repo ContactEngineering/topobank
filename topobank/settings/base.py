@@ -48,9 +48,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
-    DATABASES = {
-        "default": env.db("DATABASE_URL", default="postgres:///topobank-test")
-    }
+    DATABASES = {"default": env.db("DATABASE_URL", default="postgres:///topobank-test")}
 else:
     DATABASES = {
         "default": {
@@ -109,6 +107,7 @@ LOCAL_APPS = [
     "topobank.analysis.apps.AnalysisAppConfig",
     "topobank.usage_stats.apps.UsageStatsAppConfig",
     "topobank.organizations.apps.OrganizationsAppConfig",
+    "topobank.properties.apps.PropertiesAppConfig",
 ]
 
 PLUGIN_MODULES = [

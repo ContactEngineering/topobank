@@ -18,9 +18,10 @@ from django.utils.text import slugify
 from django.utils.timezone import now
 
 import topobank
+from topobank.properties.models import Property
 
 from ..files.models import Manifest
-from .models import Property, Surface, Topography
+from .models import Surface, Topography
 
 _log = logging.getLogger(__name__)
 
@@ -185,6 +186,7 @@ def import_container(
             )
             surface.save()
 
+            # WARNING: Does this need to be updated to new property API??
             if "properties" in surface_dict:
                 for property_dict in surface_dict["properties"]:
                     name = property_dict["name"]

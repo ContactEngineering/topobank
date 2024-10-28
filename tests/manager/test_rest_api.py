@@ -59,6 +59,7 @@ def test_surface_retrieve_routes(
         "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
         "attachments": surface1.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface1.id}",
+        "properties": {},
     }
     if hasattr(Surface, "publication"):
         surface1_dict["publication"] = None
@@ -142,6 +143,7 @@ def test_surface_retrieve_routes(
         "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
         "attachments": surface2.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface2.id}",
+        "properties": {},
     }
     if hasattr(Surface, "publication"):
         surface2_dict["publication"] = None
@@ -732,6 +734,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                     response.wsgi_request
                 ),
                 "topographies": f"{topography_api_list_url}?surface={surface2.id}",
+                "properties": {},
             },
             {
                 "url": surface3.get_absolute_url(response.wsgi_request),
@@ -751,6 +754,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                     response.wsgi_request
                 ),
                 "topographies": f"{topography_api_list_url}?surface={surface3.id}",
+                "properties": {},
             },
         ],
     )
