@@ -22,7 +22,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
         model = Tag
         fields = [
             "url",
-            "permission_url",
+            "api",
             "id",
             "name",
             "children",
@@ -36,15 +36,18 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:tag-api-detail", lookup_field="name", read_only=True
     )
-    permission_url = serializers.SerializerMethodField()
+    api = serializers.SerializerMethodField()
     children = serializers.SerializerMethodField()
 
-    def get_permission_url(self, obj):
-        return reverse(
-            "manager:set-tag-permissions",
-            kwargs={"name": obj.name},
-            request=self.context["request"],
-        )
+    def get_api(self, obj):
+        return {
+            "self": obj.get_absolute_url(self.context["request"]),
+            "set_permissions": reverse(
+                "manager:set-tag-permissions",
+                kwargs={"name": obj.name},
+                request=self.context["request"],
+            ),
+        }
 
     def get_children(self, obj: Tag):
         request = self.context["request"]
@@ -57,7 +60,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         model = Topography
         fields = [
             "url",
-            "force_inspect_url",
+            "api",
             "id",
             "surface",
             "name",
@@ -106,7 +109,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:topography-api-detail", read_only=True
     )
-    force_inspect_url = serializers.SerializerMethodField()
+    api = serializers.SerializerMethodField()
     creator = serializers.HyperlinkedRelatedField(
         view_name="users:user-api-detail", read_only=True
     )
@@ -167,10 +170,15 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
                 )
         return super().validate(data)
 
-    def get_force_inspect_url(self, obj):
-        return reverse(
-            "manager:force-inspect", kwargs={"pk": obj.id}, request=self.context["request"]
-        )
+    def get_api(self, obj):
+        return {
+            "self": obj.get_absolute_url(self.context["request"]),
+            "force_inspect": reverse(
+                "manager:force-inspect",
+                kwargs={"pk": obj.id},
+                request=self.context["request"],
+            ),
+        }
 
     def get_is_metadata_complete(self, obj):
         return obj.is_metadata_complete
@@ -351,7 +359,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         model = Surface
         fields = [
             "url",
-            "permission_url",
+            "api",
             "id",
             "name",
             "category",
@@ -370,7 +378,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:surface-api-detail", read_only=True
     )
-    permission_url = serializers.SerializerMethodField()
+    api = serializers.SerializerMethodField()
     creator = serializers.HyperlinkedRelatedField(
         view_name="users:user-api-detail", read_only=True
     )
@@ -398,12 +406,15 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             if not requested:
                 self.fields.pop(field)
 
-    def get_permission_url(self, obj):
-        return reverse(
-            "manager:set-surface-permissions",
-            kwargs={"pk": obj.id},
-            request=self.context["request"],
-        )
+    def get_api(self, obj):
+        return {
+            "self": obj.get_absolute_url(self.context["request"]),
+            "set_permissions": reverse(
+                "manager:set-surface-permissions",
+                kwargs={"pk": obj.id},
+                request=self.context["request"],
+            ),
+        }
 
     def get_permissions(self, obj):
         request = self.context["request"]

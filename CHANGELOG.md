@@ -2,6 +2,8 @@
 
 ## 1.50.0 (not yet released)
 
+- API: Objects now return an "api" field with URLs/hyperrefs to relevant API endpoints
+  (#1108)
 - API: Tags are now uniquely referred to by their name (not their id) in the API
 - ENH: Generic attachments for digital surface twins and measurements (#331)
 - ENH: Surfaces are now returned for all tag children

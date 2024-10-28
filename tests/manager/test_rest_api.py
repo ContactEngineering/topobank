@@ -51,7 +51,10 @@ def test_surface_retrieve_routes(
         "id": surface1.id,
         "tags": [],
         "url": f"http://testserver/manager/api/surface/{surface1.id}/",
-        "permission_url": ASSERT_EQUAL_IGNORE_VALUE,
+        "api": {
+            "self": surface1.get_absolute_url(response.wsgi_request),
+            "set_permissions": ASSERT_EQUAL_IGNORE_VALUE
+        },
         "creation_datetime": surface1.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
         "attachments": surface1.attachments.get_absolute_url(response.wsgi_request),
@@ -102,7 +105,10 @@ def test_surface_retrieve_routes(
             "unit": "nm",
             "unit_editable": False,
             "url": f"http://testserver/manager/api/topography/{topo1.id}/",
-            "force_inspect_url": ASSERT_EQUAL_IGNORE_VALUE,
+            "api": {
+                "self": topo1.get_absolute_url(response.wsgi_request),
+                "force_inspect": ASSERT_EQUAL_IGNORE_VALUE
+            },
             "duration": None,
             "error": None,
             "id": topo1.id,
@@ -128,7 +134,10 @@ def test_surface_retrieve_routes(
         "id": surface2.id,
         "tags": [],
         "url": f"http://testserver/manager/api/surface/{surface2.id}/",
-        "permission_url": ASSERT_EQUAL_IGNORE_VALUE,
+        "api": {
+            "self": surface2.get_absolute_url(response.wsgi_request),
+            "set_permissions": ASSERT_EQUAL_IGNORE_VALUE
+        },
         "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
         "attachments": surface2.attachments.get_absolute_url(response.wsgi_request),
@@ -179,7 +188,10 @@ def test_surface_retrieve_routes(
             "unit": "m",
             "unit_editable": False,
             "url": f"http://testserver/manager/api/topography/{topo2.id}/",
-            "force_inspect_url": ASSERT_EQUAL_IGNORE_VALUE,
+            "api": {
+                "self": topo2.get_absolute_url(response.wsgi_request),
+                "force_inspect": ASSERT_EQUAL_IGNORE_VALUE
+            },
             "duration": None,
             "error": None,
             "id": topo2.id,
@@ -290,7 +302,10 @@ def test_topography_retrieve_routes(
         "unit": "nm",
         "unit_editable": False,
         "url": f"http://testserver/manager/api/topography/{topo1.id}/",
-        "force_inspect_url": ASSERT_EQUAL_IGNORE_VALUE,
+        "api": {
+            "self": topo1.get_absolute_url(response.wsgi_request),
+            "force_inspect": ASSERT_EQUAL_IGNORE_VALUE
+        },
         "tags": [],
         "task_progress": 0.0,
         "task_state": "pe",
@@ -341,7 +356,10 @@ def test_topography_retrieve_routes(
         "unit": "m",
         "unit_editable": False,
         "url": f"http://testserver/manager/api/topography/{topo2.id}/",
-        "force_inspect_url": ASSERT_EQUAL_IGNORE_VALUE,
+        "api": {
+            "self": topo2.get_absolute_url(response.wsgi_request),
+            "force_inspect": ASSERT_EQUAL_IGNORE_VALUE
+        },
         "tags": [],
         "task_progress": 0.0,
         "task_state": "pe",
@@ -698,7 +716,10 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
         [
             {
                 "url": surface2.get_absolute_url(response.wsgi_request),
-                "permission_url": ASSERT_EQUAL_IGNORE_VALUE,
+                "api": {
+                    "self": surface2.get_absolute_url(response.wsgi_request),
+                    "set_permissions": ASSERT_EQUAL_IGNORE_VALUE
+                },
                 "id": surface2.id,
                 "name": surface2.name,
                 "category": None,
@@ -714,7 +735,10 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
             },
             {
                 "url": surface3.get_absolute_url(response.wsgi_request),
-                "permission_url": ASSERT_EQUAL_IGNORE_VALUE,
+                "api": {
+                    "self": surface3.get_absolute_url(response.wsgi_request),
+                    "set_permissions": ASSERT_EQUAL_IGNORE_VALUE
+                },
                 "id": surface3.id,
                 "name": surface3.name,
                 "category": None,
