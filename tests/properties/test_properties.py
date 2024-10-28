@@ -124,7 +124,7 @@ def test_numerical_value_must_have_units(
     # create a numerical property with wrong unit
     response = api_client.patch(
         surface_api_url,
-        data=dict(properties=dict({"stupid-unit": dict(value=1.99, unit="m^2")})),
+        data=dict(properties=dict({"stupid-unit": dict(value=1.99, unit="m2")})),
     )
     assert response.status_code == 400
 
