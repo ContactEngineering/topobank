@@ -136,6 +136,12 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     _user = None
 
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this tag"""
+        return reverse(
+            "manager:tag-api-detail", kwargs=dict(name=self.name), request=request
+        )
+
     def authorize_user(
         self,
         user: settings.AUTH_USER_MODEL = None,
@@ -214,9 +220,11 @@ class Tag(tm.TagTreeModel, SubjectMixin):
                 "no user was specified. Use `authorize_user` "
                 "to restrict user permissions."
             )
-        return Surface.objects.for_user(self._user).filter(
-            Q(tags=self) | Q(tags__name__startswith=f"{self.name}/")
-        ).distinct()
+        return (
+            Surface.objects.for_user(self._user)
+            .filter(Q(tags=self) | Q(tags__name__startswith=f"{self.name}/"))
+            .distinct()
+        )
 
     def get_properties(self, kind=None):
         """
