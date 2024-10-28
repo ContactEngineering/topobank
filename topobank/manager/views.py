@@ -22,7 +22,7 @@ from ..files.models import Manifest
 from ..supplib.versions import get_versions
 from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from ..users.models import User
+from ..users.models import User, resolve_user
 from .containers import write_surface_container
 from .models import Surface, Tag, Topography
 from .permissions import TagPermission
@@ -285,16 +285,17 @@ def force_inspect(request, pk=None):
 
 @api_view(["PATCH"])
 def set_surface_permissions(request, pk=None):
-    user = request.user
+    logged_in_user = request.user
     obj = Surface.objects.get(pk=pk)
 
     # Check that user has the right to modify permissions
-    if not obj.has_permission(user, "full"):
+    if not obj.has_permission(logged_in_user, "full"):
         return HttpResponseForbidden()
 
     # Check that the request does not ask to revoke permissions from the current user
     for permission in request.data:
-        if permission["user"]["id"] == user.id:
+        other_user = resolve_user(permission["user"])
+        if other_user == logged_in_user:
             if permission["permission"] != "full":
                 return Response(
                     {"message": "Permissions cannot be revoked from logged in user"},
@@ -303,9 +304,8 @@ def set_surface_permissions(request, pk=None):
 
     # Everything looks okay, update permissions
     for permission in request.data:
-        user_id = permission["user"]["id"]
-        if user_id != user.id:
-            other_user = User.objects.get(id=user_id)
+        other_user = resolve_user(permission["user"])
+        if other_user != logged_in_user:
             perm = permission["permission"]
             if perm == "no-access":
                 obj.revoke_permission(other_user)
@@ -318,12 +318,13 @@ def set_surface_permissions(request, pk=None):
 
 @api_view(["PATCH"])
 def set_tag_permissions(request, name=None):
-    user = request.user
+    logged_in_user = request.user
     obj = Tag.objects.get(name=name)
 
     # Check that the request does not ask to revoke permissions from the current user
     for permission in request.data:
-        if permission["user"]["id"] == user.id:
+        user = resolve_user(permission["user"])
+        if user == logged_in_user:
             if permission["permission"] != "full":
                 return Response(
                     {"message": "Permissions cannot be revoked from logged in user"},
@@ -335,16 +336,15 @@ def set_tag_permissions(request, name=None):
     rejected = []
 
     # Loop over all surfaces
-    obj.authorize_user(user)
+    obj.authorize_user(logged_in_user)
     for surface in obj.get_descendant_surfaces():
         # Check that user has the right to modify permissions
-        if surface.has_permission(user, "full"):
+        if surface.has_permission(logged_in_user, "full"):
             updated += [surface.get_absolute_url(request)]
             # Loop over permissions
             for permission in request.data:
-                user_id = permission["user"]["id"]
-                if user_id != user.id:
-                    other_user = User.objects.get(id=user_id)
+                other_user = resolve_user(permission["user"])
+                if other_user != logged_in_user:
                     perm = permission["permission"]
                     if perm == "no-access":
                         surface.revoke_permission(other_user)

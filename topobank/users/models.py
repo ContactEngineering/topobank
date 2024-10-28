@@ -1,8 +1,10 @@
 import os
+from urllib.parse import urlparse
 
 from django.contrib.auth.models import AbstractUser
 from django.db import models
 from django.db.utils import ProgrammingError
+from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
 from rest_framework.reverse import reverse
 
@@ -153,3 +155,10 @@ class User(AbstractUser):
         permissions = (
             ("can_skip_terms", "Can skip all checkings for terms and conditions."),
         )
+
+
+def resolve_user(url):
+    match = resolve(urlparse(url).path)
+    if match.view_name != "users:user-api-detail":
+        raise ValueError("URL does not resolve to a User object")
+    return User.objects.get(**match.kwargs)

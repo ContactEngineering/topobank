@@ -10,7 +10,6 @@ from ..files.serializers import ManifestSerializer
 from ..properties.models import Property
 from ..supplib.serializers import StrictFieldMixin
 from ..taskapp.serializers import TaskStateModelSerializer
-from ..users.serializers import UserSerializer
 from .models import Surface, Tag, Topography
 
 _log = logging.getLogger(__name__)
@@ -132,19 +131,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         view_name="files:folder-api-detail", read_only=True
     )
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        if "request" not in self.context:
-            return
-        # We only return permissions if requested to do so
-        optional_fields = ["permissions"]
-        for field in optional_fields:
-            param = self.context["request"].query_params.get(field)
-            requested = param is not None and param.lower() in ["yes", "true"]
-            if not requested:
-                self.fields.pop(field)
-
     def validate(self, data):
         read_only_fields = []
         if self.instance is not None:
@@ -188,12 +174,12 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         user_permissions = obj.permissions.user_permissions.all()
         return {
             "current_user": {
-                "user": UserSerializer(current_user, context=self.context).data,
+                "user": current_user.get_absolute_url(request),
                 "permission": obj.get_permission(current_user),
             },
             "other_users": [
                 {
-                    "user": UserSerializer(perm.user, context=self.context).data,
+                    "user": perm.user.get_absolute_url(request),
                     "permission": perm.allow,
                 }
                 for perm in user_permissions
@@ -232,7 +218,9 @@ class PropertiesField(serializers.Field):
 
     def to_internal_value(self, data: dict[str, dict[str, str]]):
         surface: Surface = self.root.instance
-        with transaction.atomic():  # NOTE: This is probably not needed because django wraps views in a transaction.
+        with (
+            transaction.atomic()
+        ):  # NOTE: This is probably not needed because django wraps views in a transaction.
             # WARNING: with the current API design surfaces can only be created with no properties.
             if surface is not None:
                 surface.properties.all().delete()
@@ -331,12 +319,12 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         user_permissions = obj.permissions.user_permissions.all()
         return {
             "current_user": {
-                "user": UserSerializer(current_user, context=self.context).data,
+                "user": current_user.get_absolute_url(request),
                 "permission": obj.get_permission(current_user),
             },
             "other_users": [
                 {
-                    "user": UserSerializer(perm.user, context=self.context).data,
+                    "user": perm.user.get_absolute_url(request),
                     "permission": perm.allow,
                 }
                 for perm in user_permissions
