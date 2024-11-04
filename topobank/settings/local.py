@@ -73,6 +73,13 @@ DEBUG_TOOLBAR_CONFIG = {
 # ------------------------------------------------------------------------------
 # https://django-extensions.readthedocs.io/en/latest/installation_instructions.html#configuration
 INSTALLED_APPS += ["django_extensions"]  # noqa F405
+
+# django-browser-reload
+# ------------------------------------------------------------------------------
+# nhttps://github.com/adamchainz/django-browser-reload
+INSTALLED_APPS += ["django_browser_reload"]  # noqa F405
+MIDDLEWARE += ["django_browser_reload.middleware.BrowserReloadMiddleware"]
+
 # Celery
 # ------------------------------------------------------------------------------
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_always_eager
