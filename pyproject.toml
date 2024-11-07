@@ -114,8 +114,7 @@ dependencies = [
     'requests',
 
     # Unit conversion
-    'pint',
-    'flexparser<0.4',  # https://github.com/hgrecco/pint/issues/2074
+    'pint>=0.24.4',  # https://github.com/hgrecco/pint/issues/2074
 
     # markdown conversion for terms & conditions and for docstrings in readers
     'markdown2>=2.4.0',
