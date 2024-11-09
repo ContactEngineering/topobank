@@ -11,6 +11,7 @@
 - ENH: Validation of analysis parameters (#1119)
 - ENH: Dependencies for analyses (#1083)
 - ENH: New tag retrieve route
+- ENH: Saving analysis results (protecting them from deletion)
 - BUG: Avoid properties of identical name
 - BUG: Tag analysis only runs on subject to which the specific user has access
 - MAINT: Replace all bare `FileField`s with `Manifest` models that handle file storage,
