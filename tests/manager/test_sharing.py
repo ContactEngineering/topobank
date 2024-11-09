@@ -106,16 +106,18 @@ def test_list_surface_permissions(api_client, handle_usage_statistics):
     response = api_client.get(f"{surface_detail_url}?permissions=yes")
 
     # related to user 1
-    assert response.data["permissions"]["current_user"]["user"]["id"] == user1.id
+    assert response.data["permissions"]["current_user"][
+        "user"
+    ] == user1.get_absolute_url(response.wsgi_request)
     assert response.data["permissions"]["current_user"]["permission"] == "full"
 
     other_permissions = response.data["permissions"]["other_users"]
     assert len(other_permissions) == 2
     for permissions in other_permissions:
-        if permissions["user"]["id"] == user2.id:
+        if permissions["user"] == user2.get_absolute_url(response.wsgi_request):
             # related to user 2
             assert permissions["permission"] == "view"
-        elif permissions["user"]["id"] == user3.id:
+        elif permissions["user"] == user3.get_absolute_url(response.wsgi_request):
             # related to user 3
             assert permissions["permission"] == "edit"
         else:

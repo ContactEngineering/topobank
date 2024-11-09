@@ -15,11 +15,9 @@ import django.dispatch
 import matplotlib.pyplot
 import numpy as np
 import PIL
-import pint
 import tagulous.models as tm
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
-from django.core.exceptions import ValidationError
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
@@ -39,7 +37,6 @@ from ..taskapp.utils import run_task
 from .utils import get_topography_reader, render_deepzoom
 
 _log = logging.getLogger(__name__)
-_ureg = pint.UnitRegistry()
 
 post_refresh_cache = django.dispatch.Signal()
 
@@ -139,6 +136,12 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     _user = None
 
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this tag"""
+        return reverse(
+            "manager:tag-api-detail", kwargs=dict(name=self.name), request=request
+        )
+
     def authorize_user(
         self,
         user: settings.AUTH_USER_MODEL = None,
@@ -217,9 +220,11 @@ class Tag(tm.TagTreeModel, SubjectMixin):
                 "no user was specified. Use `authorize_user` "
                 "to restrict user permissions."
             )
-        return Surface.objects.for_user(self._user).filter(
-            Q(tags=self) | Q(tags__name__startswith=f"{self.name}/")
-        ).distinct()
+        return (
+            Surface.objects.for_user(self._user)
+            .filter(Q(tags=self) | Q(tags__name__startswith=f"{self.name}/"))
+            .distinct()
+        )
 
     def get_properties(self, kind=None):
         """
@@ -262,7 +267,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         # Iterate over all surfaces related to the tag
         for i, surface in enumerate(self.get_descendant_surfaces()):
             # For each surface, iterate over all its properties
-            for p in Property.objects.filter(surface=surface):
+            for p in surface.properties.all():
                 # If the property is categorical, add its name to the set of
                 # categorical properties and set its value for the current surface
                 if p.is_categorical:
@@ -510,127 +515,6 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         to the point where it is actually needed.
         """
         return TopobankLazySurfaceContainer(self)
-
-
-class Property(PermissionMixin, models.Model):
-    class Meta:
-        unique_together = (("surface", "name"),)
-        verbose_name_plural = "properties"
-
-    #
-    # Model hierarchy and permissions
-    #
-    surface = models.ForeignKey(
-        Surface, on_delete=models.CASCADE, related_name="properties"
-    )
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
-
-    #
-    # Model data
-    #
-    name = models.TextField(default="prop")
-    value_categorical = models.CharField(blank=True, null=True)
-    value_numerical = models.FloatField(blank=True, null=True)
-    unit = models.TextField(null=True, blank=True)
-
-    @property
-    def value(self):
-        if self.value_numerical is None:
-            return str(self.value_categorical)
-        return float(self.value_numerical)
-
-    @value.setter
-    def value(self, value):
-        """
-        Set the value of the property.
-
-        Parameters:
-        - value (int, float, str): The value to be assigned. Should be of type int, float, or str.
-
-        Raises:
-        - TypeError: If the provided value is not of type int, float, or str.
-
-        Notes:
-        - If the value is of type str, it will be assigned to the 'value_categorical' attribute.
-        - If the value is of type int or float, it will be assigned to the 'value_numerical' attribute.
-        """
-        if isinstance(value, str):
-            self.value_categorical = value
-            self.value_numerical = None
-        elif isinstance(value, float) or isinstance(value, int):
-            self.value_numerical = value
-            self.value_categorical = None
-        else:
-            raise TypeError(
-                f"The value must be of type int, float or str, got {type(value)}"
-            )
-
-    def validate(self):
-        """
-        Checks the invariants of this Model.
-        If any invariant is broken, a ValidationError is raised
-
-        Invariants:
-        - 1. `value_categorical` or `value_numerical` are `None`
-        - 2. `value_categorical` or `value_numerical` are not `None`
-        This results in a 'XOR' logic and exaclty one of the value fields has to hold a value
-        - 3. if `value_categorical` is not `None`, unit is `None`
-
-        This enforces the definition of a categorical values -> no units.
-
-        IMPORTANT!
-        The opposite is not the case!
-        If a unit is `None` this could also mean that its a numerical value, with no dimension
-        """
-
-        # Invariant 1
-        if not (self.value_categorical is None or self.value_numerical is None):
-            raise ValidationError(
-                "Either 'value_categorical' or 'value_numerical' must be None."
-            )
-        # Invariant 2
-        if not (self.value_categorical is not None or self.value_numerical is not None):
-            raise ValidationError(
-                "Either 'value_categorical' or 'value_numerical' must be not None."
-            )
-        # Invariant 3
-        if self.value_categorical is not None and self.unit is not None:
-            raise ValidationError(
-                "If the Property is categorical, the unit must be 'None'"
-            )
-        # Check unit
-        if self.unit is not None:
-            try:
-                _ureg.check(str(self.unit))
-            except pint.errors.UndefinedUnitError:
-                raise ValidationError(f"Unit '{self.unit}' is not a physical unit")
-
-    def save(self, *args, **kwargs):
-        self.validate()
-        created = self.pk is None
-        if created:
-            self.permissions = self.surface.permissions
-        super().save(*args, **kwargs)
-
-    @property
-    def is_numerical(self):
-        return self.value_numerical is not None
-
-    @property
-    def is_categorical(self):
-        return not self.is_numerical
-
-    def __str__(self):
-        if self.is_numerical:
-            return f"{self.name}: {self.value} {self.unit}"
-        else:
-            return f"{self.name}: {self.value}"
-
-    def to_dict(self):
-        d = {"name": str(self.name), "value": self.value}
-        if self.unit is not None:
-            d["unit"] = str(self.unit)
-        return d
 
 
 class Topography(PermissionMixin, TaskStateModel, SubjectMixin):

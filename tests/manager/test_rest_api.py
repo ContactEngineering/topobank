@@ -51,10 +51,15 @@ def test_surface_retrieve_routes(
         "id": surface1.id,
         "tags": [],
         "url": f"http://testserver/manager/api/surface/{surface1.id}/",
+        "api": {
+            "self": surface1.get_absolute_url(response.wsgi_request),
+            "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
+        },
         "creation_datetime": surface1.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
         "attachments": surface1.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface1.id}",
+        "properties": {},
     }
     if hasattr(Surface, "publication"):
         surface1_dict["publication"] = None
@@ -63,13 +68,7 @@ def test_surface_retrieve_routes(
             "permissions": {
                 "current_user": {
                     "permission": "full",
-                    "user": {
-                        "id": user.id,
-                        "name": user.name,
-                        "username": user.username,
-                        "orcid": user.orcid_id,
-                        "url": user.get_absolute_url(response.wsgi_request),
-                    },
+                    "user": user.get_absolute_url(response.wsgi_request),
                 },
                 "other_users": [],
             },
@@ -101,6 +100,10 @@ def test_surface_retrieve_routes(
             "unit": "nm",
             "unit_editable": False,
             "url": f"http://testserver/manager/api/topography/{topo1.id}/",
+            "api": {
+                "self": topo1.get_absolute_url(response.wsgi_request),
+                "force_inspect": ASSERT_EQUAL_IGNORE_VALUE,
+            },
             "duration": None,
             "error": None,
             "id": topo1.id,
@@ -126,10 +129,15 @@ def test_surface_retrieve_routes(
         "id": surface2.id,
         "tags": [],
         "url": f"http://testserver/manager/api/surface/{surface2.id}/",
+        "api": {
+            "self": surface2.get_absolute_url(response.wsgi_request),
+            "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
+        },
         "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
         "attachments": surface2.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface2.id}",
+        "properties": {},
     }
     if hasattr(Surface, "publication"):
         surface2_dict["publication"] = None
@@ -138,13 +146,7 @@ def test_surface_retrieve_routes(
             "permissions": {
                 "current_user": {
                     "permission": "full",
-                    "user": {
-                        "id": user.id,
-                        "name": user.name,
-                        "username": user.username,
-                        "orcid": user.orcid_id,
-                        "url": user.get_absolute_url(response.wsgi_request),
-                    },
+                    "user": user.get_absolute_url(response.wsgi_request),
                 },
                 "other_users": [],
             },
@@ -176,6 +178,10 @@ def test_surface_retrieve_routes(
             "unit": "m",
             "unit_editable": False,
             "url": f"http://testserver/manager/api/topography/{topo2.id}/",
+            "api": {
+                "self": topo2.get_absolute_url(response.wsgi_request),
+                "force_inspect": ASSERT_EQUAL_IGNORE_VALUE,
+            },
             "duration": None,
             "error": None,
             "id": topo2.id,
@@ -286,6 +292,10 @@ def test_topography_retrieve_routes(
         "unit": "nm",
         "unit_editable": False,
         "url": f"http://testserver/manager/api/topography/{topo1.id}/",
+        "api": {
+            "self": topo1.get_absolute_url(response.wsgi_request),
+            "force_inspect": ASSERT_EQUAL_IGNORE_VALUE,
+        },
         "tags": [],
         "task_progress": 0.0,
         "task_state": "pe",
@@ -307,6 +317,13 @@ def test_topography_retrieve_routes(
         "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
         "datafile": ASSERT_EQUAL_IGNORE_VALUE,
         "squeezed_datafile": ASSERT_EQUAL_IGNORE_VALUE,
+        "permissions": {
+            "current_user": {
+                "user": user.get_absolute_url(response.wsgi_request),
+                "permission": "full",
+            },
+            "other_users": [],
+        },
     }
     topo2_dict = {
         "bandwidth_lower": topo2.bandwidth_lower,
@@ -336,6 +353,10 @@ def test_topography_retrieve_routes(
         "unit": "m",
         "unit_editable": False,
         "url": f"http://testserver/manager/api/topography/{topo2.id}/",
+        "api": {
+            "self": topo2.get_absolute_url(response.wsgi_request),
+            "force_inspect": ASSERT_EQUAL_IGNORE_VALUE,
+        },
         "tags": [],
         "task_progress": 0.0,
         "task_state": "pe",
@@ -352,6 +373,13 @@ def test_topography_retrieve_routes(
         "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
         "datafile": ASSERT_EQUAL_IGNORE_VALUE,
         "squeezed_datafile": ASSERT_EQUAL_IGNORE_VALUE,
+        "permissions": {
+            "current_user": {
+                "user": user.get_absolute_url(response.wsgi_request),
+                "permission": "full",
+            },
+            "other_users": [],
+        },
     }
 
     if is_authenticated:
@@ -692,6 +720,10 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
         [
             {
                 "url": surface2.get_absolute_url(response.wsgi_request),
+                "api": {
+                    "self": surface2.get_absolute_url(response.wsgi_request),
+                    "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
+                },
                 "id": surface2.id,
                 "name": surface2.name,
                 "category": None,
@@ -704,9 +736,14 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                     response.wsgi_request
                 ),
                 "topographies": f"{topography_api_list_url}?surface={surface2.id}",
+                "properties": {},
             },
             {
                 "url": surface3.get_absolute_url(response.wsgi_request),
+                "api": {
+                    "self": surface3.get_absolute_url(response.wsgi_request),
+                    "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
+                },
                 "id": surface3.id,
                 "name": surface3.name,
                 "category": None,
@@ -719,6 +756,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                     response.wsgi_request
                 ),
                 "topographies": f"{topography_api_list_url}?surface={surface3.id}",
+                "properties": {},
             },
         ],
     )
@@ -846,7 +884,9 @@ def test_create_topography_with_blank_name_fails(
     assert response.status_code == 400
 
 
-def test_set_permissions(api_client, user_alice, user_bob, handle_usage_statistics):
+def test_set_surface_permissions(
+    api_client, user_alice, user_bob, handle_usage_statistics
+):
     surface = SurfaceFactory(creator=user_alice)
     surface.grant_permission(user_alice, "full")
 
@@ -858,8 +898,13 @@ def test_set_permissions(api_client, user_alice, user_bob, handle_usage_statisti
 
     api_client.force_login(user_alice)
     response = api_client.patch(
-        reverse("manager:set-permissions", kwargs=dict(pk=surface.id)),
-        [{"user": dict(id=user_bob.id), "permission": "full"}],
+        reverse("manager:set-surface-permissions", kwargs=dict(pk=surface.id)),
+        [
+            {
+                "user": user_bob.get_absolute_url(response.wsgi_request),
+                "permission": "full",
+            }
+        ],
     )
     assert response.status_code == 204
 
@@ -869,20 +914,103 @@ def test_set_permissions(api_client, user_alice, user_bob, handle_usage_statisti
     )
     assert response.status_code == 200
 
+    set_permissions_url = response.data["api"]["set_permissions"]
     response = api_client.patch(
-        reverse("manager:set-permissions", kwargs=dict(pk=surface.id)),
-        [{"user": dict(id=user_bob.id), "permission": "no-access"}],
+        set_permissions_url,
+        [
+            {
+                "user": user_bob.get_absolute_url(response.wsgi_request),
+                "permission": "no-access",
+            }
+        ],
     )
     assert response.status_code == 405  # Cannot remove permission from logged in user
 
     response = api_client.patch(
-        reverse("manager:set-permissions", kwargs=dict(pk=surface.id)),
-        [{"user": dict(id=user_alice.id), "permission": "no-access"}],
+        set_permissions_url,
+        [
+            {
+                "user": user_alice.get_absolute_url(response.wsgi_request),
+                "permission": "no-access",
+            }
+        ],
     )
     assert response.status_code == 204  # Cannot remove permission from logged in user
 
     api_client.force_login(user_alice)
     response = api_client.get(
         reverse("manager:surface-api-detail", kwargs=dict(pk=surface.id))
+    )
+    assert response.status_code == 404
+
+
+def test_set_tag_permissions(api_client, user_alice, user_bob, handle_usage_statistics):
+    surface1 = SurfaceFactory(creator=user_alice)
+    surface2 = SurfaceFactory(creator=user_alice)
+    surface1.grant_permission(user_alice, "full")
+    surface2.grant_permission(user_alice, "edit")
+    tag = TagFactory(surfaces=[surface1, surface2])
+
+    api_client.force_login(user_bob)
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface1.id))
+    )
+    assert response.status_code == 404
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface2.id))
+    )
+    assert response.status_code == 404
+
+    api_client.force_login(user_alice)
+    response = api_client.patch(
+        reverse("manager:set-tag-permissions", kwargs=dict(name=tag.name)),
+        [
+            {
+                "user": user_bob.get_absolute_url(response.wsgi_request),
+                "permission": "full",
+            }
+        ],
+    )
+    assert response.status_code == 200
+    assert len(response.data["updated"]) == 1
+    assert len(response.data["rejected"]) == 1
+
+    api_client.force_login(user_bob)
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface1.id))
+    )
+    assert response.status_code == 200
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface2.id))
+    )
+    assert response.status_code == 404
+
+    response = api_client.patch(
+        reverse("manager:set-tag-permissions", kwargs=dict(name=tag.name)),
+        [
+            {
+                "user": user_bob.get_absolute_url(response.wsgi_request),
+                "permission": "no-access",
+            }
+        ],
+    )
+    assert response.status_code == 405  # Cannot remove permission from logged in user
+
+    response = api_client.patch(
+        reverse("manager:set-tag-permissions", kwargs=dict(name=tag.name)),
+        [
+            {
+                "user": user_alice.get_absolute_url(response.wsgi_request),
+                "permission": "no-access",
+            }
+        ],
+    )
+    assert response.status_code == 200  # Can remove permission from another user
+    assert len(response.data["updated"]) == 1
+    assert len(response.data["rejected"]) == 0
+
+    api_client.force_login(user_alice)
+    response = api_client.get(
+        reverse("manager:surface-api-detail", kwargs=dict(pk=surface1.id))
     )
     assert response.status_code == 404

@@ -22,43 +22,14 @@ from ..files.models import Manifest
 from ..supplib.versions import get_versions
 from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
-from ..users.models import User
+from ..users.models import User, resolve_user
 from .containers import write_surface_container
-from .models import Property, Surface, Tag, Topography
+from .models import Surface, Tag, Topography
 from .permissions import TagPermission
-from .serializers import (
-    PropertySerializer,
-    SurfaceSerializer,
-    TagSerializer,
-    TopographySerializer,
-)
+from .serializers import SurfaceSerializer, TagSerializer, TopographySerializer
 from .tasks import import_container_from_url
 
 _log = logging.getLogger(__name__)
-
-
-class PropertyViewSet(
-    mixins.CreateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
-    queryset = Property.objects.all()
-    serializer_class = PropertySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
-
-    def perform_create(self, serializer):
-        # Check whether the user is allowed to write to the parent surface; if not, we
-        # cannot add a topography
-        parent = serializer.validated_data["surface"]
-        if not parent.has_permission(self.request.user, "edit"):
-            self.permission_denied(
-                self.request,
-                message=f"User {self.request.user} has no permission to edit dataset "
-                f"{parent.get_absolute_url()}.",
-            )
-        serializer.save()
 
 
 class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -313,17 +284,18 @@ def force_inspect(request, pk=None):
 
 
 @api_view(["PATCH"])
-def set_permissions(request, pk=None):
-    user = request.user
+def set_surface_permissions(request, pk=None):
+    logged_in_user = request.user
     obj = Surface.objects.get(pk=pk)
 
     # Check that user has the right to modify permissions
-    if not obj.has_permission(user, "full"):
+    if not obj.has_permission(logged_in_user, "full"):
         return HttpResponseForbidden()
 
     # Check that the request does not ask to revoke permissions from the current user
     for permission in request.data:
-        if permission["user"]["id"] == user.id:
+        other_user = resolve_user(permission["user"])
+        if other_user == logged_in_user:
             if permission["permission"] != "full":
                 return Response(
                     {"message": "Permissions cannot be revoked from logged in user"},
@@ -332,17 +304,60 @@ def set_permissions(request, pk=None):
 
     # Everything looks okay, update permissions
     for permission in request.data:
-        user_id = permission["user"]["id"]
-        if user_id != user.id:
-            other_user = User.objects.get(id=user_id)
+        other_user = resolve_user(permission["user"])
+        if other_user != logged_in_user:
             perm = permission["permission"]
-            if perm == 'no-access':
+            if perm == "no-access":
                 obj.revoke_permission(other_user)
             else:
                 obj.grant_permission(other_user, perm)
 
     # Permissions were updated successfully, return 204 No Content
     return Response({}, status=204)
+
+
+@api_view(["PATCH"])
+def set_tag_permissions(request, name=None):
+    logged_in_user = request.user
+    obj = Tag.objects.get(name=name)
+
+    # Check that the request does not ask to revoke permissions from the current user
+    for permission in request.data:
+        user = resolve_user(permission["user"])
+        if user == logged_in_user:
+            if permission["permission"] != "full":
+                return Response(
+                    {"message": "Permissions cannot be revoked from logged in user"},
+                    status=405,
+                )
+
+    # Keep track of updated and insufficient permissions
+    updated = []
+    rejected = []
+
+    # Loop over all surfaces
+    obj.authorize_user(logged_in_user)
+    for surface in obj.get_descendant_surfaces():
+        # Check that user has the right to modify permissions
+        if surface.has_permission(logged_in_user, "full"):
+            updated += [surface.get_absolute_url(request)]
+            # Loop over permissions
+            for permission in request.data:
+                other_user = resolve_user(permission["user"])
+                if other_user != logged_in_user:
+                    perm = permission["permission"]
+                    if perm == "no-access":
+                        surface.revoke_permission(other_user)
+                    else:
+                        surface.grant_permission(other_user, perm)
+        else:
+            rejected += [surface.get_absolute_url(request)]
+
+    # Permissions were updated successfully, return 204 No Content
+    return Response(
+        {"updated": updated, "rejected": rejected},
+        status=200,
+    )
 
 
 @api_view(["GET"])

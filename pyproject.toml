@@ -4,7 +4,7 @@ build-backend = "flit_core.buildapi"
 
 [project]
 name = 'topobank'
-description = 'Web-based management tool for surface topography data'
+description = 'A surface metrology cloud database'
 requires-python = '>=3.9.0'
 dynamic = ['version']
 readme = 'README.rst'
@@ -114,7 +114,7 @@ dependencies = [
     'requests',
 
     # Unit conversion
-    'pint',
+    'pint>=0.24.4',  # https://github.com/hgrecco/pint/issues/2074
 
     # markdown conversion for terms & conditions and for docstrings in readers
     'markdown2>=2.4.0',
