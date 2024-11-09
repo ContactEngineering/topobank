@@ -1,5 +1,3 @@
-import json
-
 import pytest
 from rest_framework.reverse import reverse
 
@@ -367,7 +365,6 @@ def test_save_tag_analysis(
     assert Analysis.objects.count() == 1
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
-    analysis_id = response.data["analyses"][0]["id"]
 
     # Set analysis name
     response = api_client.post(
