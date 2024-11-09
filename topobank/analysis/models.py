@@ -144,12 +144,17 @@ class Analysis(PermissionMixin, TaskStateModel):
     #
 
     # Actual implementation of the analysis as a Python function
-    function = models.ForeignKey("AnalysisFunction", on_delete=models.CASCADE)
+    function = models.ForeignKey(
+        "AnalysisFunction", on_delete=models.SET_NULL, null=True
+    )
 
     # Definition of the subject
     subject_dispatch = models.OneToOneField(
-        AnalysisSubject, null=True, on_delete=models.CASCADE
+        AnalysisSubject, on_delete=models.CASCADE, null=True
     )
+
+    # Unique, user-specified name
+    name = models.TextField(null=True)
 
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
@@ -215,7 +220,10 @@ class Analysis(PermissionMixin, TaskStateModel):
         Tag, Topography, or Surface
             The subject of the analysis.
         """
-        return self.subject_dispatch.get()
+        if self.subject_dispatch:
+            return self.subject_dispatch.get()
+        else:
+            return None
 
     @property
     def result(self):
@@ -372,6 +380,15 @@ class Analysis(PermissionMixin, TaskStateModel):
 
     def submit_again(self):
         return self.function.submit_again(self)
+
+    def set_name(self, name: str):
+        """
+        Setting a name essentially saves the analysis, i.e. it is no longer deleted
+        when the analysis subject is deleted.
+        """
+        self.name = name
+        self.subject_dispatch = None
+        self.save()
 
 
 class AnalysisFunction(models.Model):

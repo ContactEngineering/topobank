@@ -8,6 +8,7 @@ from django.http import HttpResponseBadRequest
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
+from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
 from trackstats.models import Metric
 
@@ -386,7 +387,7 @@ def series_card_view(request, **kwargs):
                     "xScaleFactor": analysis_xscale,
                     "yScaleFactor": analysis_yscale,
                     "url": ManifestSerializer(
-                        series_json_manifest, context={'request': request}
+                        series_json_manifest, context={"request": request}
                     ).data["file"],
                     "width": line_width,
                     "alpha": alpha,
@@ -414,6 +415,14 @@ def series_card_view(request, **kwargs):
     context["messages"] = messages
 
     return Response(context)
+
+
+@api_view(["POST"])
+def set_name(request, analysis_id: int):
+    name = request.data.get("name")
+    analysis = get_object_or_404(Analysis, id=analysis_id)
+    analysis.set_name(name)
+    return Response({})
 
 
 @api_view(["GET"])

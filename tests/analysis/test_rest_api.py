@@ -336,3 +336,67 @@ def test_query_with_error_in_dependency(
     assert response.data["analyses"][0]["error"] == "An error occurred!"
     # We currently do not get a traceback from dependencies
     assert response.data["analyses"][0]["task_traceback"] is None
+
+
+@pytest.mark.django_db
+def test_save_tag_analysis(
+    api_client,
+    one_line_scan,
+    test_analysis_function,
+    django_capture_on_commit_callbacks,
+    handle_usage_statistics,
+):
+    user = one_line_scan.creator
+    # Add tag to surface
+    one_line_scan.surface.tags.add("my-tag")
+    tag = Tag.objects.get(name="my-tag")
+
+    assert Analysis.objects.count() == 0
+
+    # Login
+    api_client.force_login(user)
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}"
+            f"?subjects={subjects_to_base64([tag])}"
+            f"&function_id={test_analysis_function.id}"
+        )
+    assert len(callbacks) == 1
+    assert Analysis.objects.count() == 1
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+
+    # Set analysis name
+    response = api_client.post(
+        response.data["analyses"][0]["api"]["set_name"], {"name": "my-name"}
+    )
+    assert response.status_code == 200
+    assert Analysis.objects.count() == 1  # This does not make a copy
+
+    # Check that query the analysis again triggers a new one
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}"
+            f"?subjects={subjects_to_base64([tag])}"
+            f"&function_id={test_analysis_function.id}"
+        )
+    assert len(callbacks) == 1
+    assert Analysis.objects.count() == 2  # We now have two
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+
+    # Delete tag
+    tag.delete()
+    assert Analysis.objects.count() == 1
+
+    # Check that we can query saved analysis
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}"
+            f"?name=my-name"
+            f"&function_id={test_analysis_function.id}"
+        )
+    assert len(callbacks) == 0
+    assert Analysis.objects.count() == 1  # We still have one (the saved analysis)
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
