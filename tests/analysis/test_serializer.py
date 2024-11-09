@@ -4,6 +4,7 @@ from django.utils.duration import duration_string
 from topobank.analysis.serializers import AnalysisResultSerializer
 from topobank.manager.models import Tag
 from topobank.testing.factories import AnalysisFactory
+from topobank.testing.utils import ASSERT_EQUAL_IGNORE_VALUE, assert_dict_equal
 
 
 @pytest.mark.django_db
@@ -14,8 +15,9 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
         subject_topography=topo, user=topo.creator, function=test_analysis_function
     )
     data = AnalysisResultSerializer(analysis, context={"request": request}).data
-    assert data == {
+    assert_dict_equal(data, {
         "id": analysis.id,
+        "api": ASSERT_EQUAL_IGNORE_VALUE,
         "url": f"http://testserver/analysis/api/result/{analysis.id}/",
         "function": f"http://testserver/analysis/api/function/{test_analysis_function.id}/",
         "subject": {
@@ -37,7 +39,7 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
         "error": None,
         "task_traceback": None,
         "folder": f"http://testserver/files/folder/{analysis.folder.id}/",
-    }
+    })
 
 
 @pytest.mark.django_db
@@ -53,8 +55,9 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
         subject_tag=tag, user=topo.creator, function=test_analysis_function
     )
     data = AnalysisResultSerializer(analysis, context={"request": request}).data
-    assert data == {
+    assert_dict_equal(data, {
         "id": analysis.id,
+        "api": ASSERT_EQUAL_IGNORE_VALUE,
         "url": f"http://testserver/analysis/api/result/{analysis.id}/",
         "function": f"http://testserver/analysis/api/function/{test_analysis_function.id}/",
         "subject": {
@@ -76,4 +79,4 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
         "error": None,
         "task_traceback": None,
         "folder": f"http://testserver/files/folder/{analysis.folder.id}/",
-    }
+    })

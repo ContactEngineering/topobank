@@ -10,7 +10,6 @@ from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.generics import get_object_or_404
 from rest_framework.response import Response
-from scipy.special.cython_special import kelvin
 from trackstats.models import Metric
 
 from ..files.serializers import ManifestSerializer

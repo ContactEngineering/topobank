@@ -1,6 +1,7 @@
 import logging
 
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 
 import topobank.taskapp.serializers
 
@@ -71,8 +72,9 @@ class AnalysisResultSerializer(
     class Meta:
         model = Analysis
         fields = [
-            "id",
             "url",
+            "api",
+            "id",
             "function",
             "subject",
             "kwargs",
@@ -93,6 +95,7 @@ class AnalysisResultSerializer(
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:result-detail", read_only=True
     )
+    api = serializers.SerializerMethodField()
     function = serializers.HyperlinkedRelatedField(
         view_name="analysis:function-detail", read_only=True
     )
@@ -104,3 +107,12 @@ class AnalysisResultSerializer(
         view_name="analysis:configuration-detail", read_only=True
     )
     error = serializers.CharField(source="get_task_error", read_only=True)
+
+    def get_api(self, obj):
+        return {
+            "set_name": reverse(
+                "analysis:set-name",
+                kwargs={"analysis_id": obj.id},
+                request=self.context["request"],
+            ),
+        }

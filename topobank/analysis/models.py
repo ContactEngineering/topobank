@@ -220,7 +220,10 @@ class Analysis(PermissionMixin, TaskStateModel):
         Tag, Topography, or Surface
             The subject of the analysis.
         """
-        return self.subject_dispatch.get()
+        if self.subject_dispatch:
+            return self.subject_dispatch.get()
+        else:
+            return None
 
     @property
     def result(self):

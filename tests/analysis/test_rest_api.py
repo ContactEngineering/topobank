@@ -1,3 +1,5 @@
+import json
+
 import pytest
 from rest_framework.reverse import reverse
 
@@ -366,26 +368,38 @@ def test_save_tag_analysis(
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
     analysis_id = response.data["analyses"][0]["id"]
-    unique_kwargs = response.data["unique_kwargs"]
-
-    # Some checks on the analysis
-    folder_url = response.data["analyses"][0]["folder"]
-    response = api_client.get(folder_url)
-    assert response.status_code == 200
-    assert len(response.data) == 1
-    assert "result.json" in response.data
-    analysis = Analysis.objects.get(id=analysis_id)
-    assert len(analysis.result["surfaces"]) == 1
 
     # Set analysis name
-    api_client.post()
-
-    response = api_client.get(
-        f"{reverse('analysis:result-list')}"
-        f"?subjects={subjects_to_base64([tag])}"
-        f"&function_id={test_analysis_function.id}"
-        f"&function_kwargs={dict_to_base64(unique_kwargs)}"
+    response = api_client.post(
+        response.data["analyses"][0]["api"]["set_name"], {"name": "my-name"}
     )
     assert response.status_code == 200
+    assert Analysis.objects.count() == 1  # This does not make a copy
+
+    # Check that query the analysis again triggers a new one
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}"
+            f"?subjects={subjects_to_base64([tag])}"
+            f"&function_id={test_analysis_function.id}"
+        )
+    assert len(callbacks) == 1
+    assert Analysis.objects.count() == 2  # We now have two
+    assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
-    assert response.data["analyses"][0]["id"] == analysis_id  # Should yield the same
+
+    # Delete tag
+    tag.delete()
+    assert Analysis.objects.count() == 1
+
+    # Check that we can query saved analysis
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}"
+            f"?name=my-name"
+            f"&function_id={test_analysis_function.id}"
+        )
+    assert len(callbacks) == 0
+    assert Analysis.objects.count() == 1  # We still have one (the saved analysis)
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
