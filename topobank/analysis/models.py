@@ -144,8 +144,9 @@ class Analysis(PermissionMixin, TaskStateModel):
     #
 
     # Actual implementation of the analysis as a Python function
-    function = models.ForeignKey("AnalysisFunction", on_delete=models.SET_NULL,
-                                 null=True)
+    function = models.ForeignKey(
+        "AnalysisFunction", on_delete=models.SET_NULL, null=True
+    )
 
     # Definition of the subject
     subject_dispatch = models.OneToOneField(
@@ -376,6 +377,15 @@ class Analysis(PermissionMixin, TaskStateModel):
 
     def submit_again(self):
         return self.function.submit_again(self)
+
+    def set_name(self, name: str):
+        """
+        Setting a name essentially saves the analysis, i.e. it is no longer deleted
+        when the analysis subject is deleted.
+        """
+        self.name = name
+        self.subject_dispatch = None
+        self.save()
 
 
 class AnalysisFunction(models.Model):

@@ -336,3 +336,56 @@ def test_query_with_error_in_dependency(
     assert response.data["analyses"][0]["error"] == "An error occurred!"
     # We currently do not get a traceback from dependencies
     assert response.data["analyses"][0]["task_traceback"] is None
+
+
+@pytest.mark.django_db
+def test_save_tag_analysis(
+    api_client,
+    one_line_scan,
+    test_analysis_function,
+    django_capture_on_commit_callbacks,
+    handle_usage_statistics,
+):
+    user = one_line_scan.creator
+    # Add tag to surface
+    one_line_scan.surface.tags.add("my-tag")
+    tag = Tag.objects.get(name="my-tag")
+
+    assert Analysis.objects.count() == 0
+
+    # Login
+    api_client.force_login(user)
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}"
+            f"?subjects={subjects_to_base64([tag])}"
+            f"&function_id={test_analysis_function.id}"
+        )
+    assert len(callbacks) == 1
+    assert Analysis.objects.count() == 1
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    analysis_id = response.data["analyses"][0]["id"]
+    unique_kwargs = response.data["unique_kwargs"]
+
+    # Some checks on the analysis
+    folder_url = response.data["analyses"][0]["folder"]
+    response = api_client.get(folder_url)
+    assert response.status_code == 200
+    assert len(response.data) == 1
+    assert "result.json" in response.data
+    analysis = Analysis.objects.get(id=analysis_id)
+    assert len(analysis.result["surfaces"]) == 1
+
+    # Set analysis name
+    api_client.post()
+
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([tag])}"
+        f"&function_id={test_analysis_function.id}"
+        f"&function_kwargs={dict_to_base64(unique_kwargs)}"
+    )
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    assert response.data["analyses"][0]["id"] == analysis_id  # Should yield the same
