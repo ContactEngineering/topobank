@@ -14,7 +14,7 @@ from django.db.models import Q
 from django.utils import timezone
 
 from ..authorization.mixins import PermissionMixin
-from ..authorization.models import PermissionSet
+from ..authorization.models import AuthorizedManager, PermissionSet
 from ..files.models import Folder, Manifest
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
@@ -133,6 +133,11 @@ class Analysis(PermissionMixin, TaskStateModel):
     Additionally, it saves the configuration which was present when
     executing the analysis, i.e. versions of the main libraries needed.
     """
+
+    #
+    # Manager
+    #
+    objects = AuthorizedManager()
 
     #
     # Permissions

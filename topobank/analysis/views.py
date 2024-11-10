@@ -103,9 +103,29 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         """Renew existing analysis (PUT)."""
         analysis = self.get_object()
         analysis.authorize_user(request.user)
-        new_analysis = analysis.submit_again()
-        serializer = self.get_serializer(new_analysis)
-        return Response(serializer.data, status=status.HTTP_201_CREATED)
+        if analysis.subject:
+            new_analysis = analysis.submit_again()
+            serializer = self.get_serializer(new_analysis)
+            return Response(serializer.data, status=status.HTTP_201_CREATED)
+        else:
+            return Response(
+                {"message": "Cannot renew named analysis"},
+                status=status.HTTP_400_BAD_REQUEST,
+            )
+
+
+@api_view(["GET"])
+def named_result(request):
+    queryset = Analysis.objects.for_user(request.user)
+    name = request.query_params.get("name", None)
+    if name is not None:
+        queryset = queryset.filter(name__icontains=name)
+    return Response(
+        AnalysisResultSerializer(
+            queryset, many=True, context={"request": request}
+        ).data,
+        status=status.HTTP_200_OK,
+    )
 
 
 @api_view(["GET"])

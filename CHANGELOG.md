@@ -78,7 +78,7 @@
 - ENH: Routing manager and analysis tasks to different Celery queues
 - ENH: More options for filtering of sharing and publication status
 - ENH: Plugins can register middlewares and context processors
-- ENH: Plugin version are now stored for each analysis (#957)
+- ENH: Plugin versions are now stored for each analysis (#957)
 - MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be
   supported after April 2024)
 - MAINT: Split UI into separate `ce_ui` app in a separate git repository

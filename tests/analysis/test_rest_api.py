@@ -392,11 +392,10 @@ def test_save_tag_analysis(
     # Check that we can query saved analysis
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = api_client.get(
-            f"{reverse('analysis:result-list')}"
+            f"{reverse('analysis:named-result-list')}"
             f"?name=my-name"
-            f"&function_id={test_analysis_function.id}"
         )
     assert len(callbacks) == 0
     assert Analysis.objects.count() == 1  # We still have one (the saved analysis)
     assert response.status_code == 200
-    assert len(response.data["analyses"]) == 1
+    assert len(response.data) == 1

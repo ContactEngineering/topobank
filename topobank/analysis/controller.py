@@ -25,7 +25,6 @@ class AnalysisController:
         self,
         user,
         subjects=None,
-        name=None,
         function=None,
         function_id=None,
         kwargs=None,
@@ -42,8 +41,6 @@ class AnalysisController:
             Currently logged-in user.
         subjects : list of Tag, Topography or Surface, optional
             Subjects for which to filter analyses. (Default: None)
-        name : str, optional
-            Name of a saved analysis
         function : AnalysisFunction, optional
             Analysis function object. (Default: None)
         function_id : int, optional
@@ -54,14 +51,9 @@ class AnalysisController:
         """
         self._user = user
 
-        if subjects is None and name is None:
+        if subjects is None:
             raise ValueError(
-                "Please restrict this analysis controller to specific subject or a "
-                "specific saved analysis."
-            )
-        elif subjects is not None and name is not None:
-            raise ValueError(
-                "Please specify either `subjects` or `name`."
+                "Please restrict this analysis controller to specific subjects."
             )
 
         if function is None:
@@ -98,15 +90,12 @@ class AnalysisController:
 
         # Check permissions
         self._subjects = []
-        if subjects is not None:
-            for subject in subjects:
-                try:
-                    subject.authorize_user(self._user, "view")
-                    self._subjects += [subject]
-                except PermissionError:
-                    pass
-
-        self._name = name
+        for subject in subjects:
+            try:
+                subject.authorize_user(self._user, "view")
+                self._subjects += [subject]
+            except PermissionError:
+                pass
 
         # Surface permissions are checked in `subjects_from_dict`. Since children (topographies) inherit the permission
         # from their parents, we do not need to do an additional permissions check.
@@ -156,10 +145,6 @@ class AnalysisController:
         if subjects is not None and isinstance(subjects, str):
             subjects = dict_from_base64(subjects)
 
-        name = data.get("name")
-        if name is None:
-            name = q.get("name")
-
         if subjects is None:
             for subject_key in _queryable_subjects:
                 subject = q.get(subject_key)
@@ -185,7 +170,6 @@ class AnalysisController:
         return AnalysisController(
             user,
             subjects=subjects,
-            name=name,
             function_id=function_id,
             kwargs=kwargs,
             with_children=with_children,
@@ -292,7 +276,7 @@ class AnalysisController:
         or if these analyses are marked as successful.
         """
         # Return no results if subjects is empty list
-        if len(self._subjects) == 0 and self._name is None:
+        if len(self._subjects) == 0:
             return []
 
         # Query for user, function and subjects
@@ -301,14 +285,11 @@ class AnalysisController:
         )
 
         # Query for subjects
-        if self._subjects is not None and len(self._subjects) > 0:
-            subjects_query = None
-            for subject in self._subjects:
-                q = AnalysisSubject.Q(subject)
-                subjects_query = q if subjects_query is None else subjects_query | q
-            query = subjects_query & query
-        if self._name is not None:
-            query = Q(name=self._name) & query
+        subjects_query = None
+        for subject in self._subjects:
+            q = AnalysisSubject.Q(subject)
+            subjects_query = q if subjects_query is None else subjects_query | q
+        query = subjects_query & query
 
         # Add kwargs (if specified)
         if self._kwargs is not None:

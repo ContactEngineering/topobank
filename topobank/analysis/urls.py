@@ -16,6 +16,13 @@ urlpatterns += [
     # API routes
     #
     # GET
+    # * Return named/save results
+    path(
+        "api/named-result",
+        view=views.named_result,
+        name="named-result-list",
+    ),
+    # GET
     # * Triggers analyses if not yet running
     # * Return state of analyses
     # * Return plot configuration for finished analyses
