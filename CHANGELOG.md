@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.50.0 (not yet released)
+## 1.50.0 (2024-11-12)
 
 - API: Objects now return an "api" field with URLs/hyperrefs to auxiliary API endpoints
   (#1108)
