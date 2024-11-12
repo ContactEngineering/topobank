@@ -7,7 +7,6 @@ from typing import Literal, Union
 
 from django.db import models
 from django.db.models import Q, QuerySet
-from jedi import InternalError
 from notifications.signals import notify
 
 from ..users.anonymous import get_anonymous_user
@@ -64,7 +63,7 @@ class PermissionSet(models.Model):
         )
         nb_permissions = len(permissions)
         if len(permissions) > 2:
-            raise InternalError(
+            raise RuntimeError(
                 f"More than one permission found for user {user}. "
                 "This should not happen."
             )
@@ -87,7 +86,7 @@ class PermissionSet(models.Model):
             permission.allow = allow
             permission.save()
         else:
-            raise InternalError(
+            raise RuntimeError(
                 f"More than one permission found for user {user}. "
                 "This should not happen."
             )
