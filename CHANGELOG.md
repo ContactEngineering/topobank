@@ -3,6 +3,7 @@
 ## 1.50.3 (2024-11-13)
 
 - BUG: Allow access to user data for logged-in users
+- BUG: Exclude anonymous user in search
 
 ## 1.50.2 (2024-11-13)
 
