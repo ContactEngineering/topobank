@@ -1,29 +1,33 @@
 from django.contrib.auth.mixins import LoginRequiredMixin
+from django.db.models import Q
 from django.urls import reverse
 from django.views.generic import DetailView, ListView, RedirectView, UpdateView
 from rest_framework import mixins, viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 
+from .anonymous import get_anonymous_user
 from .models import User
 from .serializers import UserSerializer
 
 
-class UserViewSet(mixins.RetrieveModelMixin,
-                  mixins.ListModelMixin,
-                  viewsets.GenericViewSet):
+class UserViewSet(
+    mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet
+):
     serializer_class = UserSerializer
     permission_classes = [IsAuthenticatedOrReadOnly]
 
     def get_queryset(self):
-        name = self.request.query_params.get('name')
-        max_results = int(self.request.query_params.get('max', 5))
+        name = self.request.query_params.get("name")
+        max_results = int(self.request.query_params.get("max", 5))
         if name is None:
             if self.request.user.is_authenticated:
                 return User.objects.all()
             else:
                 return User.objects.none()
         else:
-            return User.objects.filter(name__icontains=name)[0:max_results]
+            return User.objects.filter(
+                Q(name__icontains=name) & ~Q(id=get_anonymous_user().id)
+            )[0:max_results]
 
 
 class UserDetailView(LoginRequiredMixin, DetailView):
@@ -38,13 +42,13 @@ class UserDetailView(LoginRequiredMixin, DetailView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['extra_tabs'] = [
+        context["extra_tabs"] = [
             {
-                'title': "User profile",
-                'icon': "user",
-                'href': self.request.path,
-                'active': True,
-                'login_required': False,
+                "title": "User profile",
+                "icon": "user",
+                "href": self.request.path,
+                "active": True,
+                "login_required": False,
             }
         ]
         return context
@@ -74,19 +78,21 @@ class UserUpdateView(LoginRequiredMixin, UpdateView):
 
     def get_context_data(self, **kwargs):
         context = super().get_context_data(**kwargs)
-        context['extra_tabs'] = [
+        context["extra_tabs"] = [
             {
-                'title': "User Profile",
-                'icon': "user",
-                'href': reverse('users:detail', kwargs=dict(username=self.request.user.username)),
-                'active': False,
+                "title": "User Profile",
+                "icon": "user",
+                "href": reverse(
+                    "users:detail", kwargs=dict(username=self.request.user.username)
+                ),
+                "active": False,
             },
             {
-                'title': "Update user",
-                'icon': "edit",
-                'href': self.request.path,
-                'active': True,
-            }
+                "title": "Update user",
+                "icon": "edit",
+                "href": self.request.path,
+                "active": True,
+            },
         ]
         return context
 
