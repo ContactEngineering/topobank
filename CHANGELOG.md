@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.50.2 (2024-11-13)
+
+- BUG: Graceful handling of files without file names
+
 ## 1.50.1 (2024-11-13)
 
 - MAINT: Removed accidental 'jedi' dependency

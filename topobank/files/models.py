@@ -164,9 +164,10 @@ class Manifest(PermissionMixin, models.Model):
             except SuspiciousFileOperation:
                 # Could not create a storage path! This is likely because the file
                 # name is invalid
-                _log.debug(
-                    f"Manifest {self.id} has no file associated with it, but "
-                    f"the filename '{self.filename}' appears invalid."
+                _log.info(
+                    f"Manifest {self.id} has no file associated with it, and the "
+                    f"filename '{self.filename}' appears invalid. Cannot finish "
+                    "upload."
                 )
                 return
             _log.debug(
@@ -224,7 +225,15 @@ class Manifest(PermissionMixin, models.Model):
         # exists at the targeted storage location
         if created and not self.file and self.filename:
             # We just created this manifest and no file was passed on creation
-            storage_path = self.generate_storage_path()
+            try:
+                storage_path = self.generate_storage_path()
+            except SuspiciousFileOperation:
+                # We ignore this
+                _log.info(
+                    f"Manifest {self.id} has no file associated with it, and the "
+                    f"filename '{self.filename}' appears invalid."
+                )
+                return
             if default_storage.exists(storage_path):
                 if settings.DELETE_EXISTING_FILES:
                     default_storage.delete(storage_path)
@@ -282,7 +291,17 @@ class Manifest(PermissionMixin, models.Model):
             # _normalize_name attaches the MEDIA_ROOT to the path. This is
             # typically done by default_storage.path, but S3 complains that
             # it does not support absolute paths if we use this method.
-            storage_path = default_storage._normalize_name(self.generate_storage_path())
+            try:
+                storage_path = default_storage._normalize_name(
+                    self.generate_storage_path())
+            except SuspiciousFileOperation:
+                # This happens after migrations, when the file name is not yet set
+                _log.info(
+                    f"Manifest {self.id} has no file associated with it, and the "
+                    f"filename '{self.filename}' appears invalid. Cannot generate "
+                    "upload instructions."
+                )
+                return {}
             if method == "POST":
                 upload_instructions = (
                     default_storage.bucket.meta.client.generate_presigned_post(
