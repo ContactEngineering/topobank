@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.50.1 (2024-11-13)
+
+- MAINT: Removed accidental 'jedi' dependency
+
 ## 1.50.0 (2024-11-12)
 
 - API: Objects now return an "api" field with URLs/hyperrefs to auxiliary API endpoints
