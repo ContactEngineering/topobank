@@ -18,7 +18,10 @@ class UserViewSet(mixins.RetrieveModelMixin,
         name = self.request.query_params.get('name')
         max_results = int(self.request.query_params.get('max', 5))
         if name is None:
-            return User.objects.none()
+            if self.request.user.is_authenticated:
+                return User.objects.all()
+            else:
+                return User.objects.none()
         else:
             return User.objects.filter(name__icontains=name)[0:max_results]
 

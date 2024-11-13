@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.50.3 (2024-11-13)
+
+- BUG: Allow access to user data for logged-in users
+
 ## 1.50.2 (2024-11-13)
 
 - BUG: Graceful handling of files without file names
