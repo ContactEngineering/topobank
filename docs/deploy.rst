@@ -3,7 +3,7 @@ Deploy
 
 **CAUTION: This document is a bit outdated since
 it uses the production.yml file and is related to
-the use of docker-compose in production. We now use docker swarm
+the use of docker compose in production. We now use docker swarm
 and this procedure here needs to be revised.**
 
 
@@ -77,7 +77,7 @@ Ensure you have sudo permissions.
 
     sudo apt-get install git supervisor
 
-Make sure you DON'T have the follwing installed, since they run as docker-compose services in containers:
+Make sure you DON'T have the follwing installed, since they run as docker compose services in containers:
 
 - webserver (like nginx, apache)
 - postgresql
@@ -274,10 +274,10 @@ Current version used:
       Experimental:     false
 
 
-Install "docker-compose"
+Install "docker compose"
 ------------------------
 
-On a development machine, you could install docker-compose via pip.
+On a development machine, you could install docker compose via pip.
 Maybe this also works in production, but used now another way:
 
 Alternatively and here on production, in order not to need another python environment,
@@ -287,15 +287,15 @@ we install the binaries as suggested on the home page:
 
 .. code:: bash
 
-   curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker-compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker-compose
-   chmod +x /usr/local/bin/docker-compose
+   curl -L "https://github.com/docker/compose/releases/download/1.23.2/docker compose-$(uname -s)-$(uname -m)" -o /usr/local/bin/docker compose
+   chmod +x /usr/local/bin/docker compose
 
 Current version used:
 
 .. code:: bash
 
-    $ docker-compose --version
-    docker-compose version 1.23.2, build 1110ad01
+    $ docker compose --version
+    docker compose version 1.23.2, build 1110ad01
 
 Copy current PyCo source code to VM
 -----------------------------------
@@ -482,13 +482,13 @@ Update database schema:
 
 .. code:: bash
 
-    docker-compose -f production.yml run --rm django python manage.py migrate
+    docker compose -f production.yml run --rm django python manage.py migrate
 
 Create entries in database for all analysis functions defined in the code:
 
 .. code:: bash
 
-    docker-compose -f production.yml run --rm django python manage.py register_analysis_functions
+    docker compose -f production.yml run --rm django python manage.py register_analysis_functions
 
 Create YAML file with database entry for the social account provider "ORCID".
 Then import the data and create the database entry. This is needed to enable the ORCID authentication.
@@ -497,8 +497,8 @@ from environment variables:
 
 .. code:: bash
 
-    docker-compose -f production.yml run --rm django envsubst < orcid.yaml.template > orcid.yaml
-    docker-compose -f production.yml run --rm django python manage.py loaddata - --format yaml < orcid.yaml
+    docker compose -f production.yml run --rm django envsubst < orcid.yaml.template > orcid.yaml
+    docker compose -f production.yml run --rm django python manage.py loaddata - --format yaml < orcid.yaml
 
 Here the orcid.yaml file is created outside of containers and imported back using stdin.
 
@@ -506,7 +506,7 @@ Then import terms and conditions:
 
 .. code:: bash
 
-    docker-compose -f production.yml run --rm django python manage.py import_terms site-terms 2.0 topobank/static/other/TermsConditions-2.0.md
+    docker compose -f production.yml run --rm django python manage.py import_terms site-terms 2.0 topobank/static/other/TermsConditions-2.0.md
 
 After these conditions are installed, they are active (default activation time is installation time) and
 the user is asked when signing in. The terms and conditions (with slug "site-terms") must be accepted in order to
@@ -570,7 +570,7 @@ That is, as root copy this contents to `vim /etc/supervisor/conf.d/topobank.conf
 
     [program:topobank]
     user=topobank
-    command=docker-compose -f production.yml up
+    command=docker compose -f production.yml up
     directory=/home/topobank/topobank
     redirect_stderr=true
     autostart=true
@@ -602,7 +602,7 @@ All docker containers should be running:
 
 .. code:: bash
 
-    topobank@topobank:~/topobank$ docker-compose -f production.yml ps
+    topobank@topobank:~/topobank$ docker compose -f production.yml ps
              Name                        Command               State                         Ports
     ---------------------------------------------------------------------------------------------------------------------
     topobank_caddy_1          /bin/parent caddy --conf / ...   Up      2015/tcp, 0.0.0.0:443->443/tcp, 0.0.0.0:80->80/tcp
@@ -620,10 +620,10 @@ Logging output can be seen with this command:
 
 .. code:: bash
 
-    docker-compose -f production.yml logs -f
+    docker compose -f production.yml logs -f
 
 
-Get to know docker-compose
+Get to know docker compose
 --------------------------
 
 This is your interface to interact with all running containers.
@@ -632,24 +632,24 @@ Login as user :code:`topobank` and have a look at the possible commands:
 .. code:: bash
 
    cd topobank
-   docker-compose -f local.yml -h
+   docker compose -f local.yml -h
 
 In the following sections, we list here some important commands.
-You have to be in the subdirectory where the docker-compose file (here `local.yaml`) is.
+You have to be in the subdirectory where the docker compose file (here `local.yaml`) is.
 
 Build images for all services
 .............................
 
 .. code:: bash
 
-   docker-compose -f local.yml build
+   docker compose -f local.yml build
 
 Creating containers for all services and start
 ..............................................
 
 .. code:: bash
 
-   docker-compose -f local.yml up -d
+   docker compose -f local.yml up -d
 
 (Here only "local" deployment for development. For production, docker swarm and "production-swarm.yml"
 is used now)
@@ -668,7 +668,7 @@ Viewing logs
 
 .. code:: bash
 
-   docker-compose -f local.yml logs
+   docker compose -f local.yml logs
 
 See help with `-h` in order to see more options, e.g. filter for messages of one service.
 Use `-f` in order to follow logs.
@@ -677,7 +677,7 @@ Example: See only messages of "django" service and follow them:
 
 .. code:: bash
 
-   docker-compose -f local.yml logs -f django
+   docker compose -f local.yml logs -f django
 
 Seeing running processes
 ........................
@@ -686,13 +686,13 @@ See if all services are up and running, their container names, the port redirect
 
 .. code:: bash
 
-   docker-compose -f local.yml ps
+   docker compose -f local.yml ps
 
 See all processes, ordered by container:
 
 .. code:: bash
 
-   docker-compose -f local.yml top
+   docker compose -f local.yml top
 
 Start and stop containers
 .........................
@@ -701,17 +701,17 @@ Do this on all containers:
 
 .. code:: bash
 
-   docker-compose -f local.yml start
-   docker-compose -f local.yml stop
-   docker-compose -f local.yml restart
+   docker compose -f local.yml start
+   docker compose -f local.yml stop
+   docker compose -f local.yml restart
 
 Or on individual services:
 
 .. code:: bash
 
-   docker-compose -f local.yml start django
-   docker-compose -f local.yml stop django
-   docker-compose -f local.yml restart django
+   docker compose -f local.yml start django
+   docker compose -f local.yml stop django
+   docker compose -f local.yml restart django
 
 Other
 .....
@@ -720,7 +720,7 @@ Interesting, but not tested is probably the scaling of containers, e.g. the cele
 
 .. code:: bash
 
-   docker-compose -f local.yml scale celeryworker=4
+   docker compose -f local.yml scale celeryworker=4
 
 
 
@@ -731,7 +731,7 @@ With a running django container do:
 
 .. code::bash
 
-    $ docker-compose -f local.yml run --rm django python manage.py shell
+    $ docker compose -f local.yml run --rm django python manage.py shell
     >>> from django.core.mail import send_mail
     >>> send_mail('test subject','test body','topobank@imtek.uni-freiburg.de',['roettger@tf.uni-freiburg.de'])
 
@@ -741,7 +741,7 @@ Or instead in one command:
 
 .. code:: bash
 
-    $ docker-compose -f local.yml run --rm django python manage.py shell -c "from django.core.mail import send_mail;send_mail('test','','topobank@imtek.uni-freiburg.de',['roettger@tf.uni-freiburg.de'])"
+    $ docker compose -f local.yml run --rm django python manage.py shell -c "from django.core.mail import send_mail;send_mail('test','','topobank@imtek.uni-freiburg.de',['roettger@tf.uni-freiburg.de'])"
 
 .. todo:: currently this results in "[Errno 99] Cannot assign requested address"
 
@@ -761,10 +761,10 @@ In the docker compose files there is a predefined service named "dbbackup". This
 docker image named "codestation/postgres-s3-backup", which stores postgres dumps to an S3 backend
 using a scheduler.
 
-The docker-compose configuration for local development also starts a local "minio" S3 service
+The docker compose configuration for local development also starts a local "minio" S3 service
 to store the media files and stores the dumps. It is used automatically.
 
-The docker-compose configuration for production also uses the configured S3 connection, but there
+The docker compose configuration for production also uses the configured S3 connection, but there
 is no local minio service installed.
 
 The backup is always saved with a prefix "backup", so your dump files e.g. look like this:
@@ -793,7 +793,7 @@ In order to backup once without schedule in production, run
 
 .. code:: bash
 
-    docker-compose -f production.yml run --rm -e DBBACKUP_SCHEDULE=none dbbackup
+    docker compose -f production.yml run --rm -e DBBACKUP_SCHEDULE=none dbbackup
 
 
 Restoring database from a backup
@@ -816,13 +816,13 @@ First stop the application:
 
 .. code:: bash
 
-    docker-compose -f local.yml stop
+    docker compose -f local.yml stop
 
 Start only the postgresql part:
 
 .. code:: bash
 
-    docker-compose -f local.yml up postgres dbbackup
+    docker compose -f local.yml up postgres dbbackup
 
 Open another terminal.
 
@@ -830,7 +830,7 @@ Restore the database by dropping the old database and importing the latest dump 
 
 .. code:: bash
 
-    docker-compose -f local.yml run --rm -e RESTORE_DATABASE=1 dbbackup
+    docker compose -f local.yml run --rm -e RESTORE_DATABASE=1 dbbackup
 
 Setting the variable `RESTORE_DATABASE=1` restores the database immediately instead of starting the scheduler
 again. See `compose/production/dbbackup/entrypoint` for details.
@@ -839,7 +839,7 @@ Then stop the two services in the first terminal. Afterwards restart all the sta
 
 .. code:: bash
 
-    docker-compose -f local.yml up -d
+    docker compose -f local.yml up -d
 
 The application should work with the restored database.
 Be aware that there could be inconsistencies:
@@ -872,14 +872,14 @@ you can read here:
 In short: Backups can be manually triggered by
 .. code:: bash
 
-    $ docker-compose -f production.yml exec postgres backup
+    $ docker compose -f production.yml exec postgres backup
 
 This will create a dump file in the volume `production_postgres_data_backups` on the host,
 so they are persistent if you recreate the Docker containers.
 With this command you can list the backups in the volume:
 .. code:: bash
 
-    docker-compose -f production.yml exec postgres backups
+    docker compose -f production.yml exec postgres backups
 
 Note the trailing "s" in "backups".
 
@@ -888,7 +888,7 @@ database with (PLEASE STOP APPLICATION FIRST - "stop", not "down"):
 
 .. code:: bash
 
-    $ docker-compose -f local.yml exec postgres restore backup_2018_03_13T09_05_07.sql.gz
+    $ docker compose -f local.yml exec postgres restore backup_2018_03_13T09_05_07.sql.gz
 
 We don't want to rely on the virtual machine only. In order to save the dump on another system,
 we dump the files into the S3 bucket used for the topography files.
@@ -964,7 +964,7 @@ If you don't use `supervisor`, just call
 
 .. code:: bash
 
-    docker-compose -f production.yml stop
+    docker compose -f production.yml stop
 
 (this won't help when started via supervisor, because topobank is immediately restarted again).
 
@@ -982,7 +982,7 @@ they have been accepted by users. Then, before migration, make sure to migrate t
 
 .. code:: bash
 
-  docker-compose -f production.yml run --rm django python manage.py migrate termsandconditions 0003_auto_20170627_1217
+  docker compose -f production.yml run --rm django python manage.py migrate termsandconditions 0003_auto_20170627_1217
 
 If a default for the info is needed, choose an empty string.
 
@@ -1014,7 +1014,7 @@ Rebuild the containers
 
 .. code:: bash
 
-    docker-compose -f production.yml build
+    docker compose -f production.yml build
 
 The database should be kept, because it is saved on a Docker "volume" on the host.
 You can see the volumes using
@@ -1033,13 +1033,13 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-    docker-compose -f production.yml run --rm -e DBBACKUP_SCHEDULE=none dbbackup
+    docker compose -f production.yml run --rm -e DBBACKUP_SCHEDULE=none dbbackup
 
   Then migrate:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py migrate
+     docker compose -f production.yml run --rm django python manage.py migrate
 
   See here for reference: https://cookiecutter-django.readthedocs.io/en/latest/deployment-with-docker.html?highlight=migrate
 
@@ -1048,13 +1048,13 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py register_analysis_functions
+     docker compose -f production.yml run --rm django python manage.py register_analysis_functions
 
   If analysis functions have been replaced or removed, also use switch `--cleanup` or `-c`:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py register_analysis_functions --cleanup
+     docker compose -f production.yml run --rm django python manage.py register_analysis_functions --cleanup
 
   This will delete all analysis functions no longer referenced by implementations.
   It will also delete all related analysis, so handle with care!
@@ -1075,7 +1075,7 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py set_datafile_format --help
+     docker compose -f production.yml run --rm django python manage.py set_datafile_format --help
 
   Choose whether you want to replace the file format for all topographies (i.e. re-run autodetection)
   or only for those which have no file format saved yet and run again without `--help`.
@@ -1088,7 +1088,7 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py save_default_function_kwargs --dry-run
+     docker compose -f production.yml run --rm django python manage.py save_default_function_kwargs --dry-run
 
   first, check whether the result (counts) is you expected and run without `--dry-run`.
 
@@ -1097,7 +1097,7 @@ If building the containers was successful, aks yourself these questions:
 
    .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py ensure_default_group
+     docker compose -f production.yml run --rm django python manage.py ensure_default_group
 
   once for your database.
 
@@ -1109,7 +1109,7 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py fix_permissions --dry-run
+     docker compose -f production.yml run --rm django python manage.py fix_permissions --dry-run
 
   once for your database. Check the results: Will those permissions be set which you expect?
   If it's okay, run again without the option `--dry-run`.
@@ -1123,14 +1123,14 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py trigger_analyses -h
+     docker compose -f production.yml run --rm django python manage.py trigger_analyses -h
 
   with appropriate arguments. As example, if all calculations for analysis functions with
   ids 1, 2, and 3 have to be rerun, call:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py trigger_analyses f1 f2 f3
+     docker compose -f production.yml run --rm django python manage.py trigger_analyses f1 f2 f3
 
   This may take some time.
 
@@ -1142,7 +1142,7 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py make_squeezed
+     docker compose -f production.yml run --rm django python manage.py make_squeezed
 
   This may take some time. You could use the switch `-b` to do it in the task queue,
   but then you don't know at the end whether it was successful.
@@ -1159,7 +1159,7 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py fix_height_scale --dry-run
+     docker compose -f production.yml run --rm django python manage.py fix_height_scale --dry-run
 
   and look whether the statistics in the output makes sense. If yes, run the command without `--dry-run`
   and the database will be changed accordingly.
@@ -1176,7 +1176,7 @@ If building the containers was successful, aks yourself these questions:
 
   .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py fix_sizes --dry-run
+     docker compose -f production.yml run --rm django python manage.py fix_sizes --dry-run
 
   and look whether the statistics in the output makes sense. If yes, run the command without `--dry-run`
   and the database will be changed accordingly.
@@ -1197,7 +1197,7 @@ Without supervisor, call:
 
 .. code:: bash
 
-    docker-compose -f production.yml up -d
+    docker compose -f production.yml up -d
 
 Test whether the new application works. See also above link if you want to scale the application,
 e.g. having more processes handling the web requests or celery workers.
@@ -1213,7 +1213,7 @@ Use the following management command:
 
 .. code:: bash
 
-     docker-compose -f production.yml run --rm django python manage.py create_thumbnails
+     docker compose -f production.yml run --rm django python manage.py create_thumbnails
 
 Note that in order to generate thumbnails, the following environment variables must be set correctly:
 
@@ -1274,7 +1274,7 @@ and to delete all his surfaces+topographies, use:
 
 .. code:: bash
 
-   docker-compose -f production.yml run --rm django python manage.py purge_user michael
+   docker compose -f production.yml run --rm django python manage.py purge_user michael
 
 So far, there is no extra question, so this immediately done!
 
@@ -1286,7 +1286,7 @@ you can open a Django shell with
 
 .. code:: bash
 
-   docker-compose -f production.yml run --rm django python manage.py shell
+   docker compose -f production.yml run --rm django python manage.py shell
 
 and enter the following code:
 
@@ -1323,7 +1323,7 @@ Probably the image has already a user created. If there is no valuable data yet,
   docker container rm topobank_postgres_1
   docker system prune
   docker volume rm $(docker volume ls -qf dangling=true)
-  docker-compose -f production-swarm.yml build
+  docker compose -f production-swarm.yml build
 
 
 
