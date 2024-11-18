@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.51.0 (not yet released)
+
+- ENH: Query topographies for multiple surfaces
+
 ## 1.50.3 (2024-11-13)
 
 - BUG: Allow access to user data for logged-in users

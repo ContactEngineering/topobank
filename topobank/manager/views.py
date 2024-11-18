@@ -76,16 +76,29 @@ class SurfaceViewSet(
     def get_queryset(self):
         qs = Surface.objects.for_user(self.request.user)
         tag = self.request.query_params.get("tag", None)
+        tag_startswith = self.request.query_params.get("tag_startswith", None)
         if tag is not None:
+            if tag_startswith is not None:
+                raise ParseError(
+                    "Please specify either `tag` or `tag_startswith`, not both."
+                )
             if tag:
                 qs = qs.filter(tags__name=tag)
             else:
                 qs = qs.filter(tags=None)
+        elif tag_startswith is not None:
+            if tag_startswith:
+                qs = qs.filter(
+                    Q(tags__name=tag_startswith)
+                    | Q(tags__name__startswith=tag_startswith.rstrip("/") + "/")
+                ).order_by("id").distinct("id")
+            else:
+                raise ParseError("`tag_startswith` cannot be empty.")
         elif self.action == "list":
             # We do not allow simply listing all surfaces
             raise ParseError(
                 "Please limit you request with query parameters. Possible parameters "
-                "are: tag"
+                "are: `tag`, `tag_startswith`"
             )
         return qs
 
@@ -133,12 +146,33 @@ class TopographyViewSet(
     def get_queryset(self):
         qs = Topography.objects.for_user(self.request.user)
         surface = self.request.query_params.get("surface", None)
+        tag = self.request.query_params.get("tag", None)
+        tag_startswith = self.request.query_params.get("tag_startswith", None)
+        if sum([surface is not None, tag is not None, tag_startswith is not None]) > 1:
+            raise ParseError(
+                "Please specify only one of `surface`, `tag` or `tag_startswith`."
+            )
         if surface is not None:
-            qs = qs.filter(surface__id=surface)
+            qs = qs.filter(surface__id=int(surface))
+        elif tag is not None:
+            if tag:
+                qs = qs.filter(surface__tags__name=tag)
+            else:
+                qs = qs.filter(surface__tags=None)
+        elif tag_startswith is not None:
+            if tag_startswith:
+                qs = qs.filter(
+                    Q(surface__tags__name=tag_startswith)
+                    | Q(
+                        surface__tags__name__startswith=tag_startswith.rstrip("/") + "/"
+                    )
+                )
+            else:
+                raise ParseError("`tag_startswith` cannot be empty")
         elif self.action == "list":
             raise ParseError(
                 "Please limit your request with query parameters. Possible parameters "
-                "are: 'surface'"
+                "are: `surface`, `tag`, `tag_startswith`"
             )
         return qs
 
