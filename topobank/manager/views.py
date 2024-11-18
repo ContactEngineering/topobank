@@ -166,7 +166,7 @@ class TopographyViewSet(
                     | Q(
                         surface__tags__name__startswith=tag_startswith.rstrip("/") + "/"
                     )
-                )
+                ).distinct()
             else:
                 raise ParseError("`tag_startswith` cannot be empty")
         elif self.action == "list":

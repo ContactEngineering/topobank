@@ -250,6 +250,11 @@ def test_topography_retrieve_routes(
     user = topo1.creator
     assert topo2.creator == user
 
+    topo1.surface.tags = ["my/super/tag", "my/super"]
+    topo1.surface.save()
+    topo2.surface.tags = ["my/super"]
+    topo2.surface.save()
+
     anonymous_user = get_anonymous_user()
     assert not topo1.has_permission(anonymous_user, "view")
     assert topo1.has_permission(user, "view")
@@ -410,6 +415,14 @@ def test_topography_retrieve_routes(
     else:
         # Anonymous user does not have access by default
         assert response.status_code == 404
+
+    response = api_client.get(
+        f'{reverse("manager:topography-api-list")}?tag_startswith=my/super'
+    )
+    if is_authenticated:
+        assert len(response.data) == 2
+    else:
+        assert len(response.data) == 0
 
 
 @pytest.mark.django_db
