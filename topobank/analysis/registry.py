@@ -210,7 +210,10 @@ def get_implementation(name):
     runner : AnalysisImplementation
         The analysis function
     """
-    return _implementation_classes[name]
+    try:
+        return _implementation_classes[name]
+    except KeyError:
+        return None
 
 
 def get_analysis_function_names(user=None):

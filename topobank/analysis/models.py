@@ -424,13 +424,25 @@ class AnalysisFunction(models.Model):
         """
         return get_implementation(self.name)
 
+    def has_implementation(self, model_class):
+        """
+        Returns whether implementation function for a specific subject model exists
+        """
+        impl = self.implementation
+        if impl is not None:
+            return impl.has_implementation(model_class)
+        return False
+
     def has_permission(self, user: settings.AUTH_USER_MODEL):
         """
         Check if this analysis function is available to the user. The function
         is available to `user` if it is available for any of the `models`
         specified.
         """
-        return self.implementation.has_permission(user)
+        impl = self.implementation
+        if impl is not None:
+            return impl.has_permission(user)
+        return False
 
     def get_default_kwargs(self):
         """
