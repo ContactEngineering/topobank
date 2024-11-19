@@ -3,6 +3,7 @@
 ## 1.51.0 (not yet released)
 
 - ENH: Query topographies for multiple surfaces
+- BUG: Return no permission if implementation does not exist
 
 ## 1.50.3 (2024-11-13)
 
