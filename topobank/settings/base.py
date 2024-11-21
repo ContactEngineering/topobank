@@ -710,4 +710,4 @@ DELETE_EXISTING_FILES = env.bool("TOPOBANK_DELETE_EXISTING_FILES", default=False
 
 # TOPOBANK SPECIFIC
 # ------------------------------------------------------------------------------
-TOPOBANK_THUMBNAIL_FORMAT = "jpg"
+TOPOBANK_THUMBNAIL_FORMAT = "jpeg"
