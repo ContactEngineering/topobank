@@ -180,11 +180,12 @@ class Manifest(PermissionMixin, models.Model):
                 self.file = self.file.field.attr_class(
                     self, self.file.field, storage_path
                 )
+                self.upload_confirmed = timezone.now()
+                self.save(update_fields=["file", "upload_confirmed"])
         else:
             self.file.save(self.filename, file, save=False)
-
-        self.upload_confirmed = timezone.now()
-        self.save()
+            self.upload_confirmed = timezone.now()
+            self.save(update_fields=["file", "upload_confirmed"])
 
     def exists(self):
         """Check if a file exists"""
