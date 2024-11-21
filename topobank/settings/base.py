@@ -707,3 +707,7 @@ UPLOAD_METHOD = env("TOPOBANK_UPLOAD_METHOD", default="POST")
 # on the storage system are persistent, but should not be enabled in production to
 # prevent data loss.
 DELETE_EXISTING_FILES = env.bool("TOPOBANK_DELETE_EXISTING_FILES", default=False)
+
+# TOPOBANK SPECIFIC
+# ------------------------------------------------------------------------------
+TOPOBANK_THUMBNAIL_FORMAT = "jpg"

@@ -1086,7 +1086,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             x, y = st_topo.positions_and_heights()
             ax.plot(x, y, "-")
             ax.set_axis_off()
-            fig.savefig(image_file, bbox_inches="tight", dpi=100, format="png")
+            fig.savefig(
+                image_file,
+                bbox_inches="tight",
+                dpi=100,
+                format=settings.TOPOBANK_THUMBNAIL_FORMAT,
+            )
             matplotlib.pyplot.close(fig)  # probably saves memory, see issue 898
         elif st_topo.dim == 2:
             # Compute thumbnail size (keeping aspect ratio)
@@ -1108,7 +1113,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             colors = (cmap(heights.T) * 255).astype(np.uint8)
             # Remove alpha channel before writing
             PIL.Image.fromarray(colors[:, :, :3]).resize((width, height)).save(
-                image_file, format="png"
+                image_file, format=settings.TOPOBANK_THUMBNAIL_FORMAT
             )
         else:
             raise RuntimeError(
@@ -1131,7 +1136,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Save the contents of in-memory file in Django image field
         if self.thumbnail is not None:
             self.thumbnail.delete()
-        filename = "thumbnail.png"
+        filename = f"thumbnail.{settings.TOPOBANK_THUMBNAIL_FORMAT}"
         self.thumbnail = Manifest.objects.create(
             permissions=self.permissions, filename=filename, kind="der"
         )
