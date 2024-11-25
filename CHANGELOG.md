@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.51.0 (not yet released)
+## 1.51.0 (2024-11-25)
 
 - ENH: Query topographies for multiple surfaces
 - BUG: Return no permission if implementation does not exist
