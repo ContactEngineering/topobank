@@ -105,9 +105,14 @@ def perform_analysis(self, analysis_id: int, force: bool):
     if analysis.task_state in [Analysis.FAILURE, Analysis.SUCCESS]:
         # Do not rerun this task as it is self-reporting to either have completed
         # successfully or to have failed.
+        s = (
+            "completed successfully"
+            if analysis.task_state == Analysis.SUCCESS
+            else "failed"
+        )
         _log.debug(
             f"{self.request.id}: Terminating analysis task because this analysis has "
-            "either completed successfully or failed in a previous run."
+            f"{s} in a previous run."
         )
         return
 
@@ -161,7 +166,23 @@ def perform_analysis(self, analysis_id: int, force: bool):
     else:
         _log.debug(f"{self.request.id}: Analysis has no dependencies.")
 
-    # Save analysis
+    # Check that all dependencies succeeded; not that errors raised in the chord
+    # will be propagated automatically
+    any_dep_failed = False
+    failure_report = []
+    for dep_name, dep_analysis in finished_dependencies.items():
+        if dep_analysis.task_state != Analysis.SUCCESS:
+            any_dep_failed = True
+            failure_report += [str(dep_analysis.id)]
+    if any_dep_failed:
+        # Save analysis to lock in the FAILURE state
+        analysis.task_state = Analysis.FAILURE
+        analysis.task_error = f"{len(failure_report)} dependencies failed."
+        analysis.task_traceback = ", ".join(failure_report)
+        analysis.save()
+        return
+
+    # Save analysis to lock in the STARTED state
     analysis.save()
 
     def save_result(result, task_state, peak_memory=None, dois=set()):
@@ -484,6 +505,9 @@ def prepare_dependency_tasks(dependencies: Dict[Any, AnalysisInputData], force: 
                 # We schedule everything else, possibly again. `perform_analysis` will
                 # automatically terminate if an analysis already completed successfully.
                 scheduled_dependent_analyses[key] = existing_analysis
+        else:
+            # More than one analysis exists. This should not happen.
+            raise RuntimeError("More than one analysis found for dependency.")
 
     return (
         finished_dependent_analyses,
