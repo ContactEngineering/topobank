@@ -7,8 +7,8 @@ from rest_framework.reverse import reverse
 def entry_points(request):
     e = {
         "analysis": reverse("analysis:result-list", request=request),
-        "surface": reverse("manager:surface-list", request=request),
-        "topography": reverse("manager:topography-list", request=request),
+        "surface": reverse("manager:surface-api-list", request=request),
+        "topography": reverse("manager:topography-api-list", request=request),
     }
 
     if request.user.is_staff:
