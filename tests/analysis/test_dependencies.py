@@ -103,7 +103,9 @@ def test_dependency_status():
 
 
 @pytest.mark.django_db
-def test_error_propagation(api_client, django_capture_on_commit_callbacks):
+def test_error_propagation(
+    api_client, django_capture_on_commit_callbacks, handle_usage_statistics
+):
     """Test whether errors propagate from dependencies."""
 
     user = UserFactory()
