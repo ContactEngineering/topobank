@@ -26,6 +26,14 @@ Prepend you commits with a shortcut indicating the type of changes they contain:
 * TST: Changes to the unit test environment
 * WIP: Work in progress
 
-User-interface guidelines
--------------------------
-* Use explicit, descriptive buttons and links. Do not use icons only.
+API design
+----------
+* No nested serialization: Exceptions are tags and properties
+* Each API response has a `url` field that points to itself
+* Each API response has an `id` field that returns the internal id (and is 
+  potentially redundant to `url`)
+* URLs pointing to other API resources are suffixed by `_url`
+* Auxiliary API endpoints are in a nested dictionary `api`. Those entries are
+  not suffixed with `_url`.
+* Use Pythonic `snake_case` for the whole API
+
