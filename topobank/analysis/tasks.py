@@ -161,7 +161,10 @@ def perform_analysis(self, analysis_id: int, force: bool):
     else:
         _log.debug(f"{self.request.id}: Analysis has no dependencies.")
 
-    # Save analysis
+    # Save analysis and store dependencies
+    analysis.dependencies = {
+        key: dep.id for key, dep in finished_dependencies.items()
+    }
     analysis.save()
 
     def save_result(result, task_state, peak_memory=None, dois=set()):

@@ -164,6 +164,9 @@ class Analysis(PermissionMixin, TaskStateModel):
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
 
+    # Dependencies
+    dependencies = models.JSONField(default=dict)
+
     # Results
     folder = models.ForeignKey(Folder, on_delete=models.CASCADE, null=True)
 
