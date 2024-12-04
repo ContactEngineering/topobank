@@ -161,10 +161,20 @@ def perform_analysis(self, analysis_id: int, force: bool):
     else:
         _log.debug(f"{self.request.id}: Analysis has no dependencies.")
 
-    # Save analysis and store dependencies
+    # Store dependencies
     analysis.dependencies = {
         key: dep.id for key, dep in finished_dependencies.items()
     }
+
+    # Check if any dependency failed
+    if any(dep.task_state != Analysis.SUCCESS for dep in finished_dependencies.values()):
+        analysis.task_state = Analysis.FAILURE
+        analysis.task_error = "A dependent analysis failed."
+        analysis.save()
+        # We return here is a dependency failed
+        return
+
+    # Save analysis
     analysis.save()
 
     def save_result(result, task_state, peak_memory=None, dois=set()):

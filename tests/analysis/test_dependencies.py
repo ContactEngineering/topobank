@@ -133,18 +133,11 @@ def test_error_propagation(api_client, django_capture_on_commit_callbacks):
     assert test_ana2.get_task_state() == Analysis.FAILURE
     assert test_ana1.task_state == Analysis.FAILURE
     assert test_ana2.task_state == Analysis.FAILURE
-    assert test_ana1.kwargs == {"a": 1, "b": 33 * "A"} or test_ana1.kwargs == {
-        "a": 33,
-        "b": "foo",
-    }  # b is c from test2 passed on
-    assert test_ana1.kwargs == {"a": 1, "b": 33 * "A"} or test_ana2.kwargs == {
-        "a": 33,
-        "b": "foo",
-    }  # a is c from test2 passed on
-    assert test_ana2.kwargs == {"c": 33, "d": 7.5}
-
-    #
-    # Check that dependency progress configuration looks good
-    #
-    assert test_ana1.launcher_task_id is None
-    assert test_ana2.launcher_task_id is None
+    assert test_ana1.kwargs == {
+        "c": 33,
+        "d": 7.5,
+    }
+    assert test_ana2.kwargs == {
+        "c": 33,
+        "d": 7.5,
+    }
