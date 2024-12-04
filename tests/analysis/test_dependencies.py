@@ -110,7 +110,9 @@ def test_error_propagation(api_client, django_capture_on_commit_callbacks):
     surface = SurfaceFactory(creator=user)
     topo1 = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunction.objects.get(name="Test implementation with error in dependency")
+    func = AnalysisFunction.objects.get(
+        name="Test implementation with error in dependency"
+    )
 
     kwargs = {"c": 33, "d": 7.5}
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
@@ -141,3 +143,11 @@ def test_error_propagation(api_client, django_capture_on_commit_callbacks):
         "c": 33,
         "d": 7.5,
     }
+
+    api_client.force_login(user)
+    result = api_client.get(reverse("analysis:result-detail", args=[test_ana2.id]))
+    assert result.data["dependencies_url"] == reverse(
+        "analysis:dependencies", args=[test_ana2.id], request=result.wsgi_request
+    )
+    result = api_client.get(result.data["dependencies_url"])
+    assert result.data == {"dep": test_ana1.get_absolute_url(result.wsgi_request)}

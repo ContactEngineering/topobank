@@ -12,6 +12,7 @@ from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
+from rest_framework.reverse import reverse
 
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet
@@ -284,6 +285,12 @@ class Analysis(PermissionMixin, TaskStateModel):
         """Returns True if result file exists in storage backend, else False."""
         self.fix_folder()
         return self.folder.exists(self.result_file_name)
+
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this tag"""
+        return reverse(
+            "analysis:result-detail", kwargs=dict(pk=self.id), request=request
+        )
 
     @property
     def storage_prefix(self):

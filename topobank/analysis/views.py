@@ -121,8 +121,8 @@ def dependencies(request, analysis_id):
     dependencies = {}
     for name, id in analysis.dependencies.items():
         try:
-            dependencies[name] = AnalysisFunction.objects.get(pk=id).get_absolute_url(request)
-        except AnalysisFunction.DoesNotExist:
+            dependencies[name] = Analysis.objects.get(pk=id).get_absolute_url(request)
+        except Analysis.DoesNotExist:
             dependencies[name] = None
     return Response(dependencies)
 

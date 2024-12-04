@@ -124,5 +124,5 @@ class AnalysisResultSerializer(
         return reverse(
             "analysis:dependencies",
             kwargs={"analysis_id": obj.id},
-            request=self.context,
+            request=self.context["request"],
         )
