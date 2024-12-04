@@ -115,6 +115,19 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 
 
 @api_view(["GET"])
+def dependencies(request, analysis_id):
+    analysis = get_object_or_404(Analysis, pk=analysis_id)
+    analysis.authorize_user(request.user)
+    dependencies = {}
+    for name, id in analysis.dependencies.items():
+        try:
+            dependencies[name] = Analysis.objects.get(pk=id).get_absolute_url(request)
+        except Analysis.DoesNotExist:
+            dependencies[name] = None
+    return Response(dependencies)
+
+
+@api_view(["GET"])
 def named_result(request):
     queryset = Analysis.objects.for_user(request.user)
     name = request.query_params.get("name", None)

@@ -166,23 +166,20 @@ def perform_analysis(self, analysis_id: int, force: bool):
     else:
         _log.debug(f"{self.request.id}: Analysis has no dependencies.")
 
-    # Check that all dependencies succeeded; not that errors raised in the chord
-    # will be propagated automatically
-    any_dep_failed = False
-    failure_report = []
-    for dep_name, dep_analysis in finished_dependencies.items():
-        if dep_analysis.task_state != Analysis.SUCCESS:
-            any_dep_failed = True
-            failure_report += [str(dep_analysis.id)]
-    if any_dep_failed:
-        # Save analysis to lock in the FAILURE state
+    # Store dependencies
+    analysis.dependencies = {
+        key: dep.id for key, dep in finished_dependencies.items()
+    }
+
+    # Check if any dependency failed
+    if any(dep.task_state != Analysis.SUCCESS for dep in finished_dependencies.values()):
         analysis.task_state = Analysis.FAILURE
-        analysis.task_error = f"{len(failure_report)} dependencies failed."
-        analysis.task_traceback = ", ".join(failure_report)
+        analysis.task_error = "A dependent analysis failed."
         analysis.save()
+        # We return here is a dependency failed
         return
 
-    # Save analysis to lock in the STARTED state
+    # Save analysis
     analysis.save()
 
     def save_result(result, task_state, peak_memory=None, dois=set()):

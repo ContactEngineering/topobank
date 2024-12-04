@@ -100,3 +100,56 @@ def test_dependency_status():
     #
     assert test_ana1.launcher_task_id is None
     assert test_ana2.launcher_task_id is None
+
+
+@pytest.mark.django_db
+def test_error_propagation(
+    api_client, django_capture_on_commit_callbacks, handle_usage_statistics
+):
+    """Test whether errors propagate from dependencies."""
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    topo1 = Topography1DFactory(surface=surface)
+
+    func = AnalysisFunction.objects.get(
+        name="Test implementation with error in dependency"
+    )
+
+    kwargs = {"c": 33, "d": 7.5}
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        analysis = func.submit(user, topo1, kwargs)
+    assert len(callbacks) == 1
+    # `perform_analysis` is not executed because it is run on commit
+    task = perform_analysis.apply(args=(analysis.id, False))
+    assert task.state == celery.states.SUCCESS
+
+    #
+    # New Analysis objects should be there and marked for the user
+    #
+    assert Analysis.objects.count() == 2
+    test_ana1, test_ana2 = Analysis.objects.all().order_by("function__name")
+    assert test_ana1.function.name == "Test implementation with error"
+    assert test_ana2.function.name == "Test implementation with error in dependency"
+    assert test_ana1.dependencies == {}
+    assert test_ana2.dependencies == {"dep": test_ana1.id}
+    assert test_ana1.get_task_state() == Analysis.FAILURE
+    assert test_ana2.get_task_state() == Analysis.FAILURE
+    assert test_ana1.task_state == Analysis.FAILURE
+    assert test_ana2.task_state == Analysis.FAILURE
+    assert test_ana1.kwargs == {
+        "c": 33,
+        "d": 7.5,
+    }
+    assert test_ana2.kwargs == {
+        "c": 33,
+        "d": 7.5,
+    }
+
+    api_client.force_login(user)
+    result = api_client.get(reverse("analysis:result-detail", args=[test_ana2.id]))
+    assert result.data["dependencies_url"] == reverse(
+        "analysis:dependencies", args=[test_ana2.id], request=result.wsgi_request
+    )
+    result = api_client.get(result.data["dependencies_url"])
+    assert result.data == {"dep": test_ana1.get_absolute_url(result.wsgi_request)}

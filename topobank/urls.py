@@ -10,10 +10,15 @@ from django.urls import include, path, re_path
 from django.views import defaults as default_views
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
-from topobank.organizations.models import Organization
-from topobank.users.allauth_views import TabbedEmailView
+from .organizations.models import Organization
+from .users.allauth_views import TabbedEmailView
+from .views import entry_points
 
 urlpatterns = [
+    #
+    # Entry points
+    #
+    path("entry-points/", entry_points),
     #
     # User management
     #

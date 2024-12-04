@@ -57,17 +57,32 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     class Meta:
         model = Topography
         fields = [
+            # Self
             "url",
-            "api",
             "id",
+            # Auxiliary API endpoints
+            "api",
+            # Deprecations
             "surface",
-            "name",
             "creator",
             "datafile",
+            "squeezed_datafile",
+            "thumbnail",
+            "attachments",
+            "deepzoom",
+            # Hyperlinked resources
+            # "surface_url",
+            # "creator_url",
+            # "datafile_url",
+            # "squeezed_datafile_url",
+            # "thumbnail_url",
+            # "attachments_url",
+            # "deepzoom_url",
+            # Everything else
+            "name",
             "datafile_format",
             "channel_names",
             "data_source",
-            "squeezed_datafile",
             "description",
             "measurement_date",
             "size_editable",
@@ -91,45 +106,68 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             "instrument_type",
             "instrument_parameters",
             "is_metadata_complete",
-            "thumbnail",
             "creation_datetime",
             "modification_datetime",
             "duration",
             "error",
             "task_progress",
             "task_state",
-            "tags",  # TaskStateModelSerializer
-            "attachments",
+            "tags",
             "permissions",
-            "deepzoom",
         ]
 
+    # Self
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:topography-api-detail", read_only=True
     )
-    api = serializers.SerializerMethodField()
+
+    # Deprecated
     creator = serializers.HyperlinkedRelatedField(
         view_name="users:user-api-detail", read_only=True
     )
     surface = serializers.HyperlinkedRelatedField(
         view_name="manager:surface-api-detail", queryset=Surface.objects.all()
     )
-
     datafile = ManifestSerializer(required=False)
     squeezed_datafile = ManifestSerializer(required=False)
     thumbnail = ManifestSerializer(required=False)
-
-    tags = TagRelatedManagerField(required=False)
-
-    is_metadata_complete = serializers.SerializerMethodField()
-
-    permissions = serializers.SerializerMethodField()
     deepzoom = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
     attachments = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
+
+    # Hyperlinked resources
+    # creator_url = serializers.HyperlinkedRelatedField(
+    #     source="creator", view_name="users:user-api-detail", read_only=True
+    # )
+    # surface_url = serializers.HyperlinkedRelatedField(
+    #     source="surface", view_name="manager:surface-api-detail", queryset=Surface.objects.all()
+    # )
+    # datafile_url = serializers.HyperlinkedRelatedField(
+    #     source="datafile", view_name="files:manifest-api-detail", read_only=True
+    # )
+    # squeezed_datafile_url = serializers.HyperlinkedRelatedField(
+    #     source="squeezed_datafile", view_name="files:manifest-api-detail", read_only=True
+    # )
+    # thumbnail_url = serializers.HyperlinkedRelatedField(
+    #     source="thumbnail", view_name="files:manifest-api-detail", read_only=True
+    # )
+    # deepzoom_url = serializers.HyperlinkedRelatedField(
+    #     source="deepzoom", view_name="files:folder-api-detail", read_only=True
+    # )
+    # attachments_url = serializers.HyperlinkedRelatedField(
+    #     source="attachments", view_name="files:folder-api-detail", read_only=True
+    # )
+
+    # Auxiliary API endpoints
+    api = serializers.SerializerMethodField()
+
+    # Everything else
+    tags = TagRelatedManagerField(required=False)
+    is_metadata_complete = serializers.SerializerMethodField()
+    permissions = serializers.SerializerMethodField()
 
     def validate(self, data):
         read_only_fields = []
@@ -256,39 +294,62 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     class Meta:
         model = Surface
         fields = [
+            # Self
             "url",
-            "api",
             "id",
+            # Auxiliary API endpoints
+            "api",
+            # Deprecations
+            "creator",
+            "topography_set",
+            "attachments",
+            "topographies",
+            # Hyperlinked resources
+            # "creator_url",
+            # "topographies_url",
+            # "attachments_url",
+            # Everything else
             "name",
             "category",
-            "creator",
             "description",
             "tags",
             "creation_datetime",
             "modification_datetime",
-            "topography_set",
             "permissions",
             "properties",
-            "attachments",
-            "topographies",
         ]
 
+    # Self
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:surface-api-detail", read_only=True
     )
+
+    # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
+
+    # Deprecations
     creator = serializers.HyperlinkedRelatedField(
         view_name="users:user-api-detail", read_only=True
     )
-
     topography_set = TopographySerializer(many=True, read_only=True)
-    properties = PropertiesField(required=False)
-    tags = TagRelatedManagerField(required=False)
-    permissions = serializers.SerializerMethodField()
     attachments = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
     topographies = serializers.SerializerMethodField()
+
+    # Hyperlinked resources
+    # creator_url = serializers.HyperlinkedRelatedField(
+    #     view_name="users:user-api-detail", read_only=True
+    # )
+    # topographies_url = serializers.SerializerMethodField()
+    # attachments_url = serializers.HyperlinkedRelatedField(
+    #     view_name="files:folder-api-detail", read_only=True
+    # )
+
+    # Everything else
+    properties = PropertiesField(required=False)
+    tags = TagRelatedManagerField(required=False)
+    permissions = serializers.SerializerMethodField()
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
@@ -338,3 +399,10 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             f"{reverse('manager:topography-api-list', request=request)}"
             f"?surface={obj.id}"
         )
+
+    # def get_topographies_url(self, obj):
+    #     request = self.context["request"]
+    #     return (
+    #         f"{reverse('manager:topography-api-list', request=request)}"
+    #         f"?surface={obj.id}"
+    #     )

@@ -16,6 +16,12 @@ urlpatterns += [
     # API routes
     #
     # GET
+    # * Get dependent analyses
+    path(
+        "api/dependencies/<int:analysis_id>",
+        view=views.dependencies,
+        name="dependencies",
+    ),
     # * Return named/save results
     path(
         "api/named-result",
