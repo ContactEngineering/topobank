@@ -73,8 +73,9 @@ class AnalysisResultSerializer(
         model = Analysis
         fields = [
             "url",
-            "api",
             "id",
+            "api",
+            "dependencies_url",
             "function",
             "subject",
             "kwargs",
@@ -92,9 +93,11 @@ class AnalysisResultSerializer(
             "folder",
         ]
 
+    # Self
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:result-detail", read_only=True
     )
+    dependencies_url = serializers.SerializerMethodField()
     api = serializers.SerializerMethodField()
     function = serializers.HyperlinkedRelatedField(
         view_name="analysis:function-detail", read_only=True
@@ -116,3 +119,10 @@ class AnalysisResultSerializer(
                 request=self.context["request"],
             ),
         }
+
+    def get_dependencies_url(self, obj):
+        return reverse(
+            "analysis:dependencies",
+            kwargs={"analysis_id": obj.id},
+            request=self.context,
+        )
