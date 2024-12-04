@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.52.1 (2024-12-04)
+
+- BUG: Correct reverse name
+
 ## 1.52.0 (2024-12-04)
 
 - ENH: Return analysis dependencies from REST API
