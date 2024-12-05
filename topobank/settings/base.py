@@ -290,6 +290,11 @@ ADMINS = [("""Lars Pastewka""", "lars.pastewka@imtek.uni-freiburg.de")]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
 MANAGERS = ADMINS
 
+# Request profiles
+# ------------------------------------------------------------------------------
+# Default to 30 days log retention
+REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 30
+
 # Celery
 # ------------------------------------------------------------------------------
 INSTALLED_APPS += ["topobank.taskapp.celeryapp.CeleryAppConfig"]
