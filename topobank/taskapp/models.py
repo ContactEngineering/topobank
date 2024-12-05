@@ -225,6 +225,12 @@ class TaskStateModel(models.Model):
                         f"{self} failed. Ignoring task progress."
                     )
                     pass
+                except TypeError:
+                    _log.info(
+                        f"Progress dictionary for task {r} of analysis {self} failed "
+                        "does not appear to be a dictionary. Ignoring task progress."
+                    )
+                    pass
                 else:
                     total += 1
                     current += task_progress.current / task_progress.total

@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.52.2 (2024-12-05)
+
+- BUG: Ignore TypeErrors when constructing task progress
+
 ## 1.52.1 (2024-12-04)
 
 - BUG: Correct reverse name
