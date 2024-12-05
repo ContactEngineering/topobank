@@ -292,11 +292,6 @@ ADMINS = [("""Lars Pastewka""", "lars.pastewka@imtek.uni-freiburg.de")]
 # https://docs.djangoproject.com/en/dev/ref/settings/#managers
 MANAGERS = ADMINS
 
-# Request profiles
-# ------------------------------------------------------------------------------
-# Default to 30 days log retention
-REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 30
-
 # Celery
 # ------------------------------------------------------------------------------
 INSTALLED_APPS += ["topobank.taskapp.celeryapp.CeleryAppConfig"]
@@ -701,7 +696,7 @@ def REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC(x):
 
 
 # Keep records for two weeks
-REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 14
+REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 30
 
 # Upload method
 UPLOAD_METHOD = env("TOPOBANK_UPLOAD_METHOD", default="POST")
