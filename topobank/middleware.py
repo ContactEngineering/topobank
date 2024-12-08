@@ -1,10 +1,12 @@
+from django.conf import settings
 from django.shortcuts import reverse
 
 from topobank.users.anonymous import get_anonymous_user
 
 # some abbreviations in order to save time on every request
-ACCOUNT_SIGNUP_URL = reverse("account_signup")
-ACCOUNT_LOGIN_URL = reverse("account_login")
+if not settings.HEADLESS_ONLY:
+    ACCOUNT_SIGNUP_URL = reverse("account_signup")
+    ACCOUNT_LOGIN_URL = reverse("account_login")
 
 
 def anonymous_user_middleware(get_response):
@@ -25,12 +27,16 @@ def anonymous_user_middleware(get_response):
     def middleware(request):
         # Code to be executed for each request before
         # the view (and later middleware) are called.
-        if not (
-            request.user.is_authenticated
-            or request.path == ACCOUNT_SIGNUP_URL
-            or request.path == ACCOUNT_LOGIN_URL
-        ):
-            request.user = get_anonymous_user()
+        if settings.HEADLESS_ONLY:
+            if not request.user.is_authenticated:
+                request.user = get_anonymous_user()
+        else:
+            if not (
+                request.user.is_authenticated
+                or request.path == ACCOUNT_SIGNUP_URL
+                or request.path == ACCOUNT_LOGIN_URL
+            ):
+                request.user = get_anonymous_user()
 
         # mostly, we replace the anonymous user with our own anonymous user,
         # except when the URL for account signup is called. This is needed

@@ -375,6 +375,9 @@ SOCIALACCOUNT_ADAPTER = "topobank.users.adapters.SocialAccountAdapter"
 SOCIALACCOUNT_LOGIN_ON_GET = True  # True: disable intermediate page
 ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 
+# Default to no headless mode
+HEADLESS_ONLY = False
+
 # Your stuff...
 # ------------------------------------------------------------------------------
 
