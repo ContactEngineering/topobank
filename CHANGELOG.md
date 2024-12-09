@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.52.3 (not yet released)
+## 1.52.3 (2024-12-09)
 
 - MAINT: Allow allauth headless mode
 
