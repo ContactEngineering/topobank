@@ -1447,7 +1447,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             # Check whether original data file has undefined data point and update
             # database accordingly. (`has_undefined_data` can be undefined if
             # undetermined.)
-            self.has_undefined_data = st_topo.has_undefined_data
+            self.has_undefined_data = bool(st_topo.has_undefined_data)
 
             # Refresh other cached quantities
             self.refresh_bandwidth_cache(st_topo=st_topo)
