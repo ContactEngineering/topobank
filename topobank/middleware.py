@@ -3,8 +3,11 @@ from django.shortcuts import reverse
 
 from topobank.users.anonymous import get_anonymous_user
 
-# some abbreviations in order to save time on every request
-if not settings.HEADLESS_ONLY:
+HEADLESS_ONLY = hasattr(settings, "HEADLESS_ONLY") and settings.HEADLESS_ONLY
+
+# Default to headfull mode, but allow to switch to headless mode
+if not HEADLESS_ONLY:
+    # some abbreviations in order to save time on every request
     ACCOUNT_SIGNUP_URL = reverse("account_signup")
     ACCOUNT_LOGIN_URL = reverse("account_login")
 
@@ -27,7 +30,7 @@ def anonymous_user_middleware(get_response):
     def middleware(request):
         # Code to be executed for each request before
         # the view (and later middleware) are called.
-        if settings.HEADLESS_ONLY:
+        if HEADLESS_ONLY:
             if not request.user.is_authenticated:
                 request.user = get_anonymous_user()
         else:
