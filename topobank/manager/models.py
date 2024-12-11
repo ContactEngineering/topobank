@@ -491,6 +491,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         surface.tags = self.tags.get_tag_list()
         surface.attachments = surface.attachments.deepcopy()
         surface.save()  # This will create a new PermissionSet
+        # TODO: handle permissions of attachments
 
         for topography in self.topography_set.all():
             topography.deepcopy(surface)
@@ -498,6 +499,8 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             # topography name) must be unique, i.e. a surface should never have two
             # topographies of the same name, so we can't set the new surface as the
             # second step
+        for property in self.properties.all():
+            property.deepcopy(surface)
 
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, surface.pk)
         return surface
