@@ -753,6 +753,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 getattr(self, name) != getattr(old_obj, name)
                 for name in self._significant_fields
             ]
+            print(self._significant_fields)
+            print(changed_fields)
 
             changed_fields = [
                 name
