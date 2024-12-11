@@ -753,14 +753,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 getattr(self, name) != getattr(old_obj, name)
                 for name in self._significant_fields
             ]
-            print(self._significant_fields)
-            print(changed_fields)
-            print(
-                [
-                    (name, getattr(self, name), getattr(old_obj, name))
-                    for name in self._significant_fields
-                ]
-            )
 
             changed_fields = [
                 name
@@ -1354,10 +1346,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Populate resolution information in the database
         if channel.dim == 1:
-            (self.resolution_x,) = channel.nb_grid_pts
+            n, = channel.nb_grid_pts
+            self.resolution_x = int(n)
             self.resolution_y = None  # This indicates that this is a line scan
         elif channel.dim == 2:
-            self.resolution_x, self.resolution_y = channel.nb_grid_pts
+            self.resolution_x, self.resolution_y = (int(n) for n in channel.nb_grid_pts)
         else:
             # This should not happen
             raise NotImplementedError(
@@ -1373,10 +1366,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.size_editable = False
             # Reset size information here
             if channel.dim == 1:
-                (self.size_x,) = channel.physical_sizes
+                s, = channel.physical_sizes
+                self.size_x = float(s)
                 self.size_y = None
             elif channel.dim == 2:
-                self.size_x, self.size_y = channel.physical_sizes
+                self.size_x, self.size_y = (float(s) for s in channel.physical_sizes)
             else:
                 # This should not happen
                 raise NotImplementedError(
