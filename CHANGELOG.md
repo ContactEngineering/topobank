@@ -12,10 +12,11 @@
 
 - BUG: Correct reverse name
 
-## 1.52.0 (2024-12-04)
+## 1.52.0 (2024-12-11)
 
 - ENH: Return analysis dependencies from REST API
 - ENH: Entry-point route
+- ENH: Full headless mode for allauth
 - BUG: Propagate dependency errors
 
 ## 1.51.0 (2024-11-25)
