@@ -3,6 +3,7 @@
 ## 1.53.0 (not yet released)
 
 - MAINT: Link to download of data in API self-reporting
+- MAINT: Clear task error when resubmitting
 
 ## 1.52.3 (2024-12-09)
 
