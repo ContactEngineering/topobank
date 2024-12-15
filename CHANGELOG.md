@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.53.0 (not yet released)
+
+- MAINT: Link to download of data in API self-reporting
+
 ## 1.52.3 (2024-12-09)
 
 - MAINT: Allow allauth headless mode
