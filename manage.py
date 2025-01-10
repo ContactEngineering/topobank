@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
+from django.conf import settings
 
 if __name__ == "__main__":
     os.environ.setdefault("DJANGO_SETTINGS_MODULE", "topobank.settings.local")
@@ -21,6 +22,13 @@ if __name__ == "__main__":
             )
 
         raise
+
+    # https://github.com/microsoft/debugpy/issues/1392
+    if settings.DEBUG:
+        # Allows VSCode to attach to port for debugging breakpoint
+        if os.environ.get('RUN_MAIN') or os.environ.get('WERKZEUG_RUN_MAIN'):
+            import debugpy
+            debugpy.listen(("0.0.0.0", 5678))
 
     # This allows easy placement of apps within the interior
     # topobank directory.
