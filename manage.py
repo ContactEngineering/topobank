@@ -1,6 +1,7 @@
 #!/usr/bin/env python
 import os
 import sys
+
 from django.conf import settings
 
 if __name__ == "__main__":
@@ -27,8 +28,11 @@ if __name__ == "__main__":
     if settings.DEBUG:
         # Allows VSCode to attach to port for debugging breakpoint
         if os.environ.get('RUN_MAIN') or os.environ.get('WERKZEUG_RUN_MAIN'):
-            import debugpy
-            debugpy.listen(("0.0.0.0", 5678))
+            try:
+                import debugpy
+                debugpy.listen(("0.0.0.0", 5678))
+            except ImportError:
+                print("Could not import debugpy. Debugger is not listening.")
 
     # This allows easy placement of apps within the interior
     # topobank directory.
