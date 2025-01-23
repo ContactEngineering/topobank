@@ -5,6 +5,7 @@ Tests related to the models in topobank.manager app
 import datetime
 
 import pytest
+from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.utils import IntegrityError
 from notifications.models import Notification
@@ -498,3 +499,43 @@ def test_descendant_surfaces(user_alice):
     assert surface1 not in abcdef.get_descendant_surfaces()
     assert surface2 not in abcdef.get_descendant_surfaces()
     assert surface3 in abcdef.get_descendant_surfaces()
+
+
+@pytest.mark.django_db
+def test_deepcopy_copies_attachments(user_bob, handle_usage_statistics):
+    surface = SurfaceFactory(creator=user_bob)
+    topo = Topography2DFactory(surface=surface)
+
+    surface.attachments.save_file(
+        "surface-attachment.txt", "att", ContentFile("Surface attachment!")
+    )
+    topo.attachments.save_file(
+        "topo-attachment.txt", "att", ContentFile("Topo attachment!")
+    )
+
+    assert PermissionSet.objects.count() == 1
+
+    surface_copy = surface.deepcopy()
+    assert surface.topography_set.all().first().datafile
+    assert surface_copy.topography_set.all().first().datafile
+
+    assert PermissionSet.objects.count() == 2
+
+    assert surface.attachments.id != surface_copy.attachments.id
+
+    file = surface.attachments.find_file("surface-attachment.txt")
+    file_copy = surface_copy.attachments.find_file("surface-attachment.txt")
+    assert surface.attachments.permissions.id != surface_copy.attachments.permissions.id
+    assert file.id != file_copy.id
+    assert file.file.name != file_copy.file.name
+
+    topo = surface.topography_set.all().first()
+    topo_copy = surface_copy.topography_set.all().first()
+
+    assert topo.id != topo_copy.id
+    assert topo.attachments.id != topo_copy.attachments.id
+
+    file = topo.attachments.find_file("topo-attachment.txt")
+    file_copy = topo_copy.attachments.find_file("topo-attachment.txt")
+    assert file.id != file_copy.id
+    assert file.file.name != file_copy.file.name
