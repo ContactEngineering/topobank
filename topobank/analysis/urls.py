@@ -16,6 +16,12 @@ urlpatterns += [
     # API routes
     #
     # GET
+    # * Get pending or running analyses
+    path(
+        "api/pending",
+        view=views.pending,
+        name="pending"
+    ),
     # * Get dependent analyses
     path(
         "api/dependencies/<int:analysis_id>",

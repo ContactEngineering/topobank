@@ -54,6 +54,7 @@ def test_surface_retrieve_routes(
         "api": {
             "self": surface1.get_absolute_url(response.wsgi_request),
             "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
+            "download": ASSERT_EQUAL_IGNORE_VALUE,
         },
         "creation_datetime": surface1.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
@@ -132,6 +133,7 @@ def test_surface_retrieve_routes(
         "api": {
             "self": surface2.get_absolute_url(response.wsgi_request),
             "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
+            "download": ASSERT_EQUAL_IGNORE_VALUE,
         },
         "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
         "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
@@ -736,6 +738,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "api": {
                     "self": surface2.get_absolute_url(response.wsgi_request),
                     "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
+                    "download": ASSERT_EQUAL_IGNORE_VALUE,
                 },
                 "id": surface2.id,
                 "name": surface2.name,
@@ -756,6 +759,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "api": {
                     "self": surface3.get_absolute_url(response.wsgi_request),
                     "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
+                    "download": ASSERT_EQUAL_IGNORE_VALUE,
                 },
                 "id": surface3.id,
                 "name": surface3.name,

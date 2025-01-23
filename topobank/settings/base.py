@@ -375,9 +375,6 @@ SOCIALACCOUNT_ADAPTER = "topobank.users.adapters.SocialAccountAdapter"
 SOCIALACCOUNT_LOGIN_ON_GET = True  # True: disable intermediate page
 ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
 
-# Default to no headless mode
-HEADLESS_ONLY = False
-
 # Your stuff...
 # ------------------------------------------------------------------------------
 
@@ -698,7 +695,7 @@ def REQUEST_PROFILER_GLOBAL_EXCLUDE_FUNC(x):
     return True
 
 
-# Keep records for two weeks
+# Keep records for a month
 REQUEST_PROFILER_LOG_TRUNCATION_DAYS = 30
 
 # Upload method

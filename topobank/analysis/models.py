@@ -601,6 +601,8 @@ class AnalysisFunction(models.Model):
             f"function {self}, subject {analysis.subject}, kwargs: {analysis.kwargs}"
         )
         analysis.task_state = Analysis.PENDING
+        analysis.task_error = ""
+        analysis.task_traceback = None
         analysis.save()
 
         # Send task to the queue if the analysis has been created

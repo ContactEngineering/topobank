@@ -372,6 +372,11 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
                 kwargs={"pk": obj.id},
                 request=self.context["request"],
             ),
+            "download": reverse(
+                "manager:surface-download",
+                kwargs={"surface_id": obj.id},
+                request=self.context["request"],
+            ),
         }
 
     def get_permissions(self, obj):

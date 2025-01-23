@@ -128,10 +128,25 @@ def dependencies(request, analysis_id):
 
 
 @api_view(["GET"])
+def pending(request):
+    queryset = Analysis.objects.for_user(request.user).filter(
+        task_state__in=[Analysis.PENDING, Analysis.STARTED]
+    )
+    return Response(
+        AnalysisResultSerializer(
+            queryset, many=True, context={"request": request}
+        ).data,
+        status=status.HTTP_200_OK,
+    )
+
+
+@api_view(["GET"])
 def named_result(request):
     queryset = Analysis.objects.for_user(request.user)
     name = request.query_params.get("name", None)
-    if name is not None:
+    if name is None:
+        queryset = queryset.filter(name__isnull=False)
+    else:
         queryset = queryset.filter(name__icontains=name)
     return Response(
         AnalysisResultSerializer(

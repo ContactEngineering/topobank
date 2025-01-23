@@ -1,6 +1,17 @@
 # Changelog for *TopoBank*
 
-## 1.52.3 (not yet released)
+## 1.53.0 (2025-01-23)
+
+- ENH: Route for querying pending or started analyses
+- BUG: Copy attachments and properties when deepcopying a DST
+- BUG: Return named results without specifying a name should not return all results
+
+## 1.52.4 (2024-12-16)
+
+- MAINT: Link to download of data in API self-reporting
+- MAINT: Clear task error when resubmitting
+
+## 1.52.3 (2024-12-09)
 
 - MAINT: Allow allauth headless mode
 
@@ -12,10 +23,11 @@
 
 - BUG: Correct reverse name
 
-## 1.52.0 (2024-12-04)
+## 1.52.0 (2024-12-11)
 
 - ENH: Return analysis dependencies from REST API
 - ENH: Entry-point route
+- ENH: Full headless mode for allauth
 - BUG: Propagate dependency errors
 
 ## 1.51.0 (2024-11-25)

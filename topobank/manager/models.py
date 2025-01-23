@@ -490,6 +490,8 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         surface.task_id = None  # We need to indicate that no tasks have run
         surface.tags = self.tags.get_tag_list()
         surface.save()  # This will create a new PermissionSet
+        surface.attachments = self.attachments.deepcopy(permissions=surface.permissions)
+        surface.save(update_fields=["attachments"])
 
         for topography in self.topography_set.all():
             topography.deepcopy(surface)
@@ -497,6 +499,8 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             # topography name) must be unique, i.e. a surface should never have two
             # topographies of the same name, so we can't set the new surface as the
             # second step
+        for property in self.properties.all():
+            property.deepcopy(surface)
 
         _log.info("Created deepcopy of surface %s -> surface %s", self.pk, surface.pk)
         return surface
@@ -1042,6 +1046,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Copy datafile
         copy.datafile = self.datafile.deepcopy(to_surface.permissions)
 
+        # Copy attachments
+        copy.attachments = self.attachments.deepcopy(to_surface.permissions)
+
         # Set file names of derived data to None, otherwise they will be deleted and become unavailable to the
         # original topography
         copy.thumbnail = None
@@ -1346,10 +1353,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Populate resolution information in the database
         if channel.dim == 1:
-            (self.resolution_x,) = channel.nb_grid_pts
+            (n,) = channel.nb_grid_pts
+            self.resolution_x = int(n)
             self.resolution_y = None  # This indicates that this is a line scan
         elif channel.dim == 2:
-            self.resolution_x, self.resolution_y = channel.nb_grid_pts
+            self.resolution_x, self.resolution_y = (int(n) for n in channel.nb_grid_pts)
         else:
             # This should not happen
             raise NotImplementedError(
@@ -1365,10 +1373,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.size_editable = False
             # Reset size information here
             if channel.dim == 1:
-                (self.size_x,) = channel.physical_sizes
+                (s,) = channel.physical_sizes
+                self.size_x = float(s)
                 self.size_y = None
             elif channel.dim == 2:
-                self.size_x, self.size_y = channel.physical_sizes
+                self.size_x, self.size_y = (float(s) for s in channel.physical_sizes)
             else:
                 # This should not happen
                 raise NotImplementedError(
@@ -1447,7 +1456,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             # Check whether original data file has undefined data point and update
             # database accordingly. (`has_undefined_data` can be undefined if
             # undetermined.)
-            self.has_undefined_data = st_topo.has_undefined_data
+            self.has_undefined_data = bool(st_topo.has_undefined_data)
 
             # Refresh other cached quantities
             self.refresh_bandwidth_cache(st_topo=st_topo)
