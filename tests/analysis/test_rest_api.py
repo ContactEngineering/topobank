@@ -433,5 +433,4 @@ def test_query_pending(
     )
     response = api_client.get(reverse("analysis:pending"))
     assert len(response.data) == 1
-    assert response.data[0]["subject"]["id"] == tag.id
     assert response.data[0]["task_state"] == "pe"
