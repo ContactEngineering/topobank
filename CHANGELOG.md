@@ -2,7 +2,9 @@
 
 ## 1.53.0 (not yet released)
 
+- ENH: Route for querying pending or started analyses
 - BUG: Copy attachments and properties when deepcopying a DST
+- BUG: Return named results without specifying a name should not return all results
 
 ## 1.52.4 (2024-12-16)
 
