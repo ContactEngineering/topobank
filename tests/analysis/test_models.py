@@ -25,7 +25,7 @@ from topobank.testing.functions import TestImplementation
 @pytest.mark.django_db
 def test_topography_as_analysis_subject():
     topo = Topography1DFactory()
-    func = AnalysisFunction.objects.get(name="Test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
     analysis = TopographyAnalysisFactory(subject_topography=topo, function=func)
     assert analysis.subject == topo
 
@@ -33,7 +33,7 @@ def test_topography_as_analysis_subject():
 @pytest.mark.django_db
 def test_surface_as_analysis_subject():
     surf = SurfaceFactory()
-    func = AnalysisFunction.objects.get(name="Test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
     analysis = SurfaceAnalysisFactory(subject_surface=surf, function=func)
     assert analysis.subject == surf
 
@@ -45,7 +45,7 @@ def test_tag_as_analysis_subject():
     s3 = SurfaceFactory()
     st = TagFactory.create(surfaces=[s1, s2, s3])
     st.authorize_user(s1.creator, "view")
-    func = AnalysisFunction.objects.get(name="Test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
     analysis = TagAnalysisFactory(subject_tag=st, function=func)
     assert analysis.subject == st
 
@@ -53,7 +53,7 @@ def test_tag_as_analysis_subject():
 @pytest.mark.django_db
 def test_exception_implementation_missing(test_analysis_function):
     # We create an implementation for surfaces, but not for analyses
-    function = AnalysisFunction.objects.get(name="Topography-only test implementation")
+    function = AnalysisFunction.objects.get(name="topobank.testing.topography_only_test")
     analysis = TopographyAnalysisFactory(function=function)
     analysis.folder.remove_files()
     function.eval(analysis)  # that's okay, it's implemented
@@ -113,7 +113,7 @@ def test_autoload_analysis_functions():
     num_funcs = AnalysisFunction.objects.count()
 
     # "test" function should be there
-    AnalysisFunction.objects.get(name="Test implementation")
+    AnalysisFunction.objects.get(name="topobank.testing.test")
 
     #
     # Call should be idempotent
@@ -128,7 +128,7 @@ def test_default_function_kwargs():
 
     call_command("register_analysis_functions")
 
-    func = AnalysisFunction.objects.get(name="Test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
 
     expected_kwargs = dict(a=1, b="foo")
     assert func.get_default_kwargs() == expected_kwargs

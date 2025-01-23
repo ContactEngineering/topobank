@@ -412,9 +412,8 @@ class AnalysisFunction(models.Model):
     SQL database.
     """
 
-    display_name = models.CharField(
-        max_length=80, help_text="A human-readable name.", unique=True
-    )
+    name = models.TextField(help_text="The name of this analysis function.", default="")
+    display_name = models.TextField(help_text="A human-readable name.")
 
     def __str__(self):
         return self.name
@@ -432,7 +431,7 @@ class AnalysisFunction(models.Model):
         ImplementationMissingException
             in case the implementation is missing
         """
-        return get_implementation(self.name)
+        return get_implementation(name=self.name)
 
     def has_implementation(self, model_class):
         """

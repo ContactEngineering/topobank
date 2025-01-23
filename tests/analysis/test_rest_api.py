@@ -21,7 +21,7 @@ def test_statistics(api_client, handle_usage_statistics):
     topo1b = Topography1DFactory(surface=surf1)
     topo2a = Topography1DFactory(surface=surf2)
 
-    func = AnalysisFunction.objects.get(name="Test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
 
     #
     # Generate analyses for topographies with differing arguments
@@ -114,7 +114,7 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
     assert response.status_code == 200
     assert len(response.data) > 0
 
-    id = AnalysisFunction.objects.get(name="Test implementation").id
+    id = AnalysisFunction.objects.get(name="topobank.testing.test").id
 
     response = api_client.get(reverse("analysis:function-detail", kwargs=dict(pk=id)))
 
@@ -122,7 +122,8 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
     assert response.data == {
         "id": id,
         "url": f"http://testserver/analysis/api/function/{id}/",
-        "name": "Test implementation",
+        "name": "topobank.testing.test",
+        "display_name": "Test implementation",
         "visualization_type": "series",
         "kwargs_schema": {
             "a": {"default": 1, "title": "A", "type": "integer"},
@@ -261,7 +262,7 @@ def test_query_with_error(
     handle_usage_statistics,
 ):
     user = one_line_scan.creator
-    function = AnalysisFunction.objects.get(name="Test implementation with error")
+    function = AnalysisFunction.objects.get(name="topobank.testing.test_error")
 
     # Login
     api_client.force_login(user)
@@ -303,7 +304,7 @@ def test_query_with_error_in_dependency(
 ):
     user = one_line_scan.creator
     function = AnalysisFunction.objects.get(
-        name="Test implementation with error in dependency"
+        name="topobank.testing.test_error_in_dependency"
     )
 
     # Login
@@ -392,8 +393,7 @@ def test_save_tag_analysis(
     # Check that we can query saved analysis
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = api_client.get(
-            f"{reverse('analysis:named-result-list')}"
-            f"?name=my-name"
+            f"{reverse('analysis:named-result-list')}" f"?name=my-name"
         )
     assert len(callbacks) == 0
     assert Analysis.objects.count() == 1  # We still have one (the saved analysis)

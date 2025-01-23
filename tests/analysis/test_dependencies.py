@@ -17,7 +17,7 @@ def test_dependencies(api_client, django_capture_on_commit_callbacks):
     surface = SurfaceFactory(creator=user)
     topo1 = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunction.objects.get(name="Second test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test2")
 
     api_client.force_login(user)
 
@@ -38,10 +38,10 @@ def test_dependencies(api_client, django_capture_on_commit_callbacks):
     # New Analysis objects should be there and marked for the user
     #
     assert Analysis.objects.count() == 3
-    test2_ana, test_ana1, test_ana2 = Analysis.objects.all().order_by("function__name")
-    assert test2_ana.function.name == "Second test implementation"
-    assert test_ana1.function.name == "Test implementation"
-    assert test_ana2.function.name == "Test implementation"
+    test_ana1, test_ana2, test2_ana = Analysis.objects.all().order_by("function__name")
+    assert test2_ana.function.name == "topobank.testing.test2"
+    assert test_ana1.function.name == "topobank.testing.test"
+    assert test_ana2.function.name == "topobank.testing.test"
     assert test_ana1.task_state == Analysis.SUCCESS
     assert test_ana2.task_state == Analysis.SUCCESS
     assert test2_ana.task_state == Analysis.SUCCESS
@@ -66,7 +66,7 @@ def test_dependency_status():
     surface = SurfaceFactory(creator=user)
     topo1 = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunction.objects.get(name="Second test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test2")
 
     kwargs = {"c": 33, "d": 7.5}
     analysis = func.submit(user, topo1, kwargs)
@@ -78,10 +78,10 @@ def test_dependency_status():
     # New Analysis objects should be there and marked for the user
     #
     assert Analysis.objects.count() == 3
-    test2_ana, test_ana1, test_ana2 = Analysis.objects.all().order_by("function__name")
-    assert test2_ana.function.name == "Second test implementation"
-    assert test_ana1.function.name == "Test implementation"
-    assert test_ana2.function.name == "Test implementation"
+    test_ana1, test_ana2, test2_ana = Analysis.objects.all().order_by("function__name")
+    assert test2_ana.function.name == "topobank.testing.test2"
+    assert test_ana1.function.name == "topobank.testing.test"
+    assert test_ana2.function.name == "topobank.testing.test"
     assert test2_ana.get_task_state() == Analysis.STARTED
     assert test_ana1.task_state == Analysis.PENDING
     assert test_ana2.task_state == Analysis.PENDING
@@ -113,7 +113,7 @@ def test_error_propagation(
     topo1 = Topography1DFactory(surface=surface)
 
     func = AnalysisFunction.objects.get(
-        name="Test implementation with error in dependency"
+        name="topobank.testing.test_error_in_dependency"
     )
 
     kwargs = {"c": 33, "d": 7.5}
@@ -129,8 +129,8 @@ def test_error_propagation(
     #
     assert Analysis.objects.count() == 2
     test_ana1, test_ana2 = Analysis.objects.all().order_by("function__name")
-    assert test_ana1.function.name == "Test implementation with error"
-    assert test_ana2.function.name == "Test implementation with error in dependency"
+    assert test_ana1.function.name == "topobank.testing.test_error"
+    assert test_ana2.function.name == "topobank.testing.test_error_in_dependency"
     assert test_ana1.dependencies == {}
     assert test_ana2.dependencies == {"dep": test_ana1.id}
     assert test_ana1.get_task_state() == Analysis.FAILURE

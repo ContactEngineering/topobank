@@ -161,12 +161,12 @@ class SecondTestImplementation(AnalysisImplementation):
         return {
             "dep1": AnalysisInputData(
                 subject=topography,
-                function=AnalysisFunction.objects.get(name="Test implementation"),
+                function=AnalysisFunction.objects.get(name="topobank.testing.test"),
                 kwargs=dict(a=self._kwargs.c),
             ),
             "dep2": AnalysisInputData(
                 subject=topography,
-                function=AnalysisFunction.objects.get(name="Test implementation"),
+                function=AnalysisFunction.objects.get(name="topobank.testing.test"),
                 kwargs=dict(b=self._kwargs.c * "A"),
             ),
         }
@@ -239,7 +239,7 @@ class TestImplementationWithErrorInDependency(AnalysisImplementation):
             "dep": AnalysisInputData(
                 subject=topography,
                 function=AnalysisFunction.objects.get(
-                    name="Test implementation with error"
+                    name="topobank.testing.test_error"
                 ),
                 kwargs=self._kwargs.model_dump(),
             ),

@@ -62,7 +62,7 @@ def download_analyses(request, ids, file_format):
         #
         # Get visualization configuration
         #
-        _visualization_type = get_visualization_type(analysis.function.name)
+        _visualization_type = get_visualization_type(name=analysis.function.name)
         if visualization_type is None:
             visualization_type = _visualization_type
         else:
@@ -340,8 +340,8 @@ def download_plot_analyses_to_txt(request, analyses):
         if i == 0:
             # Write header
             f.write(
-                "# {}\n".format(analysis.function)
-                + "# {}\n".format("=" * len(str(analysis.function)))
+                "# {}\n".format(analysis.function.display_name)
+                + "# {}\n".format("=" * len(str(analysis.function.display_name)))
             )
 
             # Write DOIs
@@ -557,7 +557,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
                 (
                     subject.name,
                     subject_type,
-                    analysis.function.name,
+                    analysis.function.display_name,
                     series["name"],
                     sheet_name,
                     creator,
@@ -580,7 +580,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
             sheet = excel_writer.sheets[sheet_name]
             sheet["A1"] = "Function name"
             sheet["A1"].font = bold_font
-            sheet["B1"] = analysis.function.name
+            sheet["B1"] = analysis.function.display_name
             sheet["A2"] = "Subject"
             sheet["A2"].font = bold_font
             sheet["B2"] = subject.name
@@ -803,7 +803,7 @@ def download_plot_analyses_to_csv(request, analyses):
                 column_instrument_name: len(x) * [instrument_name],
                 column_instrument_type: len(x) * [instrument_type],
                 column_instrument_parameters: len(x) * [instrument_parameters],
-                column_function_name: len(x) * [analysis.function.name],
+                column_function_name: len(x) * [analysis.function.display_name],
                 column_data_series: len(x) * [series["name"]],
                 column1: x * xconv,
                 column2: y * yconv,

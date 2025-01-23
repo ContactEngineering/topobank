@@ -16,7 +16,7 @@ from topobank.testing.utils import assert_in_content
 
 @pytest.mark.django_db
 def test_download_plot_analyses_to_txt(rf):
-    func = AnalysisFunction.objects.get(name="Test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
     analysis1 = TopographyAnalysisFactory(function=func)
     analysis2 = FailedTopographyAnalysisFactory(function=func)
     request = rf.get(
@@ -47,7 +47,7 @@ def test_download_view_permission_for_function_from_plugin(
     mocker, client, user_has_plugin, handle_usage_statistics
 ):
     """Simple test, whether analyses which should not be visible lead to an error during download."""
-    func = AnalysisFunction.objects.get(name="Test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
 
     analysis = TopographyAnalysisFactory(function=func)
 
