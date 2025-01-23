@@ -12,7 +12,7 @@ class AnalysisAdmin(admin.ModelAdmin):
 
 @admin.register(AnalysisFunction)
 class AnalysisFunctionAdmin(admin.ModelAdmin):
-    list_display = ('id', 'display_name')
+    list_display = ('id', 'name', 'display_name')
     ordering = ['id']
 
 
