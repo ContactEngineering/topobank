@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.53.0 (not yet released)
+
+- BUG: Copy attachments and properties when deepcopying a DST
+
 ## 1.52.4 (2024-12-16)
 
 - MAINT: Link to download of data in API self-reporting
