@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.53.0 (not yet released)
+## 1.53.0 (2025-01-23)
 
 - ENH: Route for querying pending or started analyses
 - BUG: Copy attachments and properties when deepcopying a DST
