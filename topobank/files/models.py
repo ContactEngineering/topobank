@@ -3,6 +3,7 @@ Basic models for handling files and folders, including upload/download logic.
 """
 
 import logging
+from datetime import datetime
 
 from django.conf import settings
 from django.core.exceptions import SuspiciousFileOperation
@@ -59,6 +60,7 @@ class Folder(PermissionMixin, models.Model):
         if not created:
             manifest.file.delete()
         manifest.file = fobj
+        manifest.upload_confirmed = datetime.now()
         manifest.save()
 
     def exists(self, filename: str) -> bool:
@@ -87,11 +89,12 @@ class Folder(PermissionMixin, models.Model):
     def deepcopy(self, permissions=None):
         copy = Folder.objects.get(pk=self.pk)
         copy.pk = None
-        # TODO: handle permissions
+        if permissions is not None:
+            copy.permissions = permissions
         copy.save()
 
         for filemanifest in self.get_valid_files():
-            filemanifest_copy = filemanifest.deepcopy()
+            filemanifest_copy = filemanifest.deepcopy(permissions=permissions)
             filemanifest_copy.folder = copy
             filemanifest_copy.save()
 

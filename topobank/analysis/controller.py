@@ -29,6 +29,7 @@ class AnalysisController:
         function_id=None,
         kwargs=None,
         with_children=True,
+        task_state=None,
     ):
         """
         Construct a controller object that filters for specific user, subjects,

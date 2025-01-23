@@ -365,10 +365,19 @@ def test_save_tag_analysis(
     assert Analysis.objects.count() == 1
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
+    set_name_url = response.data["analyses"][0]["api"]["set_name"]
+
+    # Check that named result does not return unnamed results
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(reverse('analysis:named-result-list'))
+    assert len(callbacks) == 0
+    assert Analysis.objects.count() == 1  # We still have one (the saved analysis)
+    assert response.status_code == 200
+    assert len(response.data) == 0
 
     # Set analysis name
     response = api_client.post(
-        response.data["analyses"][0]["api"]["set_name"], {"name": "my-name"}
+        set_name_url, {"name": "my-name"}
     )
     assert response.status_code == 200
     assert Analysis.objects.count() == 1  # This does not make a copy
@@ -399,3 +408,29 @@ def test_save_tag_analysis(
     assert Analysis.objects.count() == 1  # We still have one (the saved analysis)
     assert response.status_code == 200
     assert len(response.data) == 1
+
+
+@pytest.mark.django_db
+def test_query_pending(
+    api_client,
+    one_line_scan,
+    test_analysis_function,
+    handle_usage_statistics,
+):
+    user = one_line_scan.creator
+    # Add tag to surface
+    one_line_scan.surface.tags.add("my-tag")
+    tag = Tag.objects.get(name="my-tag")
+
+    assert Analysis.objects.count() == 0
+
+    # Login
+    api_client.force_login(user)
+    api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([tag])}"
+        f"&function_id={test_analysis_function.id}"
+    )
+    response = api_client.get(reverse("analysis:pending"))
+    assert len(response.data) == 1
+    assert response.data[0]["task_state"] == "pe"
