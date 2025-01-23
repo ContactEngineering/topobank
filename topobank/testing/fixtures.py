@@ -268,7 +268,7 @@ def sync_analysis_functions(db):
 def test_analysis_function(sync_analysis_functions):
     from ..analysis.models import AnalysisFunction
 
-    return AnalysisFunction.objects.get(name="Test implementation")
+    return AnalysisFunction.objects.get(name="topobank.testing.test")
 
 
 @pytest.fixture

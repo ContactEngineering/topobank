@@ -65,7 +65,7 @@ def test_availability_of_implementation_in_plugin(
         )
         # User is now part of the organization with defined available plugins
 
-    impl = get_implementation("Test implementation")
+    impl = get_implementation(name="topobank.testing.test")
     assert impl == TestImplementation
 
     # mock .__module__ for runner class such we can test for different fake origins

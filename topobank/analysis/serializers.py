@@ -31,7 +31,14 @@ class AnalysisFunctionSerializer(
 ):
     class Meta:
         model = AnalysisFunction
-        fields = ["id", "url", "name", "visualization_type", "kwargs_schema"]
+        fields = [
+            "id",
+            "url",
+            "name",
+            "display_name",
+            "visualization_type",
+            "kwargs_schema",
+        ]
 
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:function-detail", read_only=True
@@ -42,7 +49,7 @@ class AnalysisFunctionSerializer(
     kwargs_schema = serializers.SerializerMethodField()
 
     def get_visualization_type(self, obj):
-        return get_visualization_type(obj.name)
+        return get_visualization_type(name=obj.name)
 
     def get_kwargs_schema(self, obj):
         return obj.get_kwargs_schema()

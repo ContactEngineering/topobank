@@ -164,7 +164,17 @@ class UnknownKeyException(RegistryException):
 # Handling of analysis function implementations
 #
 
-_implementation_classes = {}
+_implementation_classes_by_display_name = {}
+# key: (name, subject_app_name, subject_model)
+#      where
+#      name: str, Unique function name,
+#      subject_app_name: str, application name for subject_model
+#      subject_model: str, e.g. "topography" or "surface",
+#                     should correspond to first argument of analysis function implementations
+#                     and to model class name
+# value: reference to implementation of analysis function
+
+_implementation_classes_by_name = {}
 # key: (name, subject_app_name, subject_model)
 #      where
 #      name: str, Unique function name,
@@ -193,10 +203,11 @@ def register_implementation(klass):
         Runner class that has the Python function which implements the analysis, and
         additional metadata
     """
-    _implementation_classes[klass.Meta.display_name] = klass
+    _implementation_classes_by_display_name[klass.Meta.display_name] = klass
+    _implementation_classes_by_name[klass.Meta.name] = klass
 
 
-def get_implementation(name):
+def get_implementation(display_name=None, name=None):
     """
     Return AnalysisFunctionImplementation for given analysis function and subject type.
 
@@ -210,10 +221,12 @@ def get_implementation(name):
     runner : AnalysisImplementation
         The analysis function
     """
-    try:
-        return _implementation_classes[name]
-    except KeyError:
-        return None
+    if display_name is not None:
+        return _implementation_classes_by_display_name[display_name]
+    elif name is not None:
+        return _implementation_classes_by_name[name]
+    else:
+        raise RuntimeError("Please specify either `name` or `display_name`.")
 
 
 def get_analysis_function_names(user=None):
@@ -223,7 +236,7 @@ def get_analysis_function_names(user=None):
     If given a user, only the functions are returned
     which have at least one implementation for the given user.
     """
-    runner_classes = _implementation_classes
+    runner_classes = _implementation_classes_by_name
     if user is not None:
         # filter for user
         runner_classes = {
@@ -235,9 +248,9 @@ def get_analysis_function_names(user=None):
     return list(runner_classes.keys())
 
 
-def get_visualization_type(name):
+def get_visualization_type(display_name=None, name=None):
     """Return visualization type for given function name."""
-    runner_class = _implementation_classes[name]
+    runner_class = get_implementation(display_name=display_name, name=name)
     try:
         return runner_class.Meta.visualization_type
     except AttributeError:
@@ -267,18 +280,22 @@ def sync_implementation_classes(cleanup=False):
         funcs_deleted=0,
     )
 
-    function_names_used = list(_implementation_classes.keys())
+    display_names_used = list(_implementation_classes_by_display_name.keys())
 
     #
     # Ensure all analysis functions needed to exist in database
     #
     _log.info(
-        f"Syncing analysis functions with database - {len(function_names_used)} "
+        f"Syncing analysis functions with database - {len(display_names_used)} "
         "functions used - .."
     )
 
-    for name in function_names_used:
-        func, created = AnalysisFunction.objects.update_or_create(name=name)
+    for display_name in display_names_used:
+        func, created = AnalysisFunction.objects.update_or_create(
+            display_name=display_name
+        )
+        func.name = _implementation_classes_by_display_name[display_name].Meta.name
+        func.save(update_fields=["name"])
         if created:
             counts["funcs_created"] += 1
         else:
@@ -288,8 +305,8 @@ def sync_implementation_classes(cleanup=False):
     # Optionally delete all analysis functions which are no longer needed
     #
     for func in AnalysisFunction.objects.all():
-        if func.name not in function_names_used:
-            _log.info(f"Function '{func.name}' is no longer used in the code.")
+        if func.display_name not in display_names_used:
+            _log.info(f"Function '{func.display_name}' is no longer used in the code.")
             dangling_analyses = Analysis.objects.filter(function=func)
             num_analyses = dangling_analyses.filter(function=func).count()
             _log.info(f"There are still {num_analyses} analyses for this function.")
@@ -297,7 +314,9 @@ def sync_implementation_classes(cleanup=False):
                 _log.info("Deleting those..")
                 dangling_analyses.delete()
                 func.delete()
-                _log.info(f"Deleted function '{func.name}' and all its analyses.")
+                _log.info(
+                    f"Deleted function '{func.display_name}' and all its analyses."
+                )
                 counts["funcs_deleted"] += 1
 
     return counts

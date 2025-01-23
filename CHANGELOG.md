@@ -3,6 +3,7 @@
 ## 1.53.0 (2025-01-23)
 
 - ENH: Route for querying pending or started analyses
+- MAINT: Functions now have a fully qualified name and a display name
 - BUG: Copy attachments and properties when deepcopying a DST
 - BUG: Return named results without specifying a name should not return all results
 

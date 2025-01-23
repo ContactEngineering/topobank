@@ -196,7 +196,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     topo1b = Topography1DFactory(surface=surf1)
     topo2a = Topography1DFactory(surface=surf2)
 
-    func = AnalysisFunction.objects.get(name="Test implementation")
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
 
     #
     # Generate analyses for topographies with differing arguments
@@ -514,7 +514,9 @@ def test_analysis_download_as_xlsx(
     # Check links on INDEX sheet
     ws = xlsx["INDEX"]
 
-    function_name = Analysis.objects.get(id=ids_downloadable_analyses[0]).function.name
+    function_name = Analysis.objects.get(
+        id=ids_downloadable_analyses[0]
+    ).function.display_name
 
     assert list(ws.values) == [
         (
@@ -670,7 +672,7 @@ def test_shared_topography_triggers_no_new_analysis(
     surface2 = SurfaceFactory(creator=user2)
 
     # create topographies + functions + analyses
-    func1 = AnalysisFunction.objects.get(name="Test implementation")
+    func1 = AnalysisFunction.objects.get(name="topobank.testing.test")
     # func2 = AnalysisFunctionFactory()
 
     # Two topographies for surface1
