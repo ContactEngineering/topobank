@@ -96,13 +96,13 @@ def perform_analysis(self, analysis_id: int, force: bool):
     _log.info(
         f"{self.request.id}: Function: '{analysis.function.name}', "
         f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}, "
-        f"task_state: '{analysis.task_state}'"
+        f"task_state: '{analysis.task_state}', force: {force}"
     )
 
     #
     # Check state
     #
-    if analysis.task_state in [Analysis.FAILURE, Analysis.SUCCESS]:
+    if analysis.task_state in [Analysis.FAILURE, Analysis.SUCCESS] and not force:
         # Do not rerun this task as it is self-reporting to either have completed
         # successfully or to have failed.
         s = (
