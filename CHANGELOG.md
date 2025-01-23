@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.53.1 (2025-01-23)
+
+- ENH: Return name of analysis in serializer
+
 ## 1.53.0 (2025-01-23)
 
 - ENH: Route for querying pending or started analyses

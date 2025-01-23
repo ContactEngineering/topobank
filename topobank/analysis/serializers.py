@@ -98,6 +98,7 @@ class AnalysisResultSerializer(
             "configuration",
             "duration",
             "folder",
+            "name",
         ]
 
     # Self
