@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.53.2 (2025-01-23)
+
+- BUG: Fixed Dropbox settings variable names
+
 ## 1.53.1 (2025-01-23)
 
 - ENH: Return name of analysis in serializer
