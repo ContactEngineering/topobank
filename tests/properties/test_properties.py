@@ -173,15 +173,15 @@ def test_tag_property_routes(
 
     api_client.force_login(user)
 
-    response = api_client.get(reverse("manager:numerical-properties", [tag1.id]))
+    response = api_client.get(reverse("manager:numerical-properties", [tag1.name]))
     assert response.data == ["height"]
-    response = api_client.get(reverse("manager:categorical-properties", [tag1.id]))
+    response = api_client.get(reverse("manager:categorical-properties", [tag1.name]))
     assert response.data == []
-    response = api_client.get(reverse("manager:numerical-properties", [tag2.id]))
+    response = api_client.get(reverse("manager:numerical-properties", [tag2.name]))
     assert response.data == ["height"]
-    response = api_client.get(reverse("manager:categorical-properties", [tag2.id]))
+    response = api_client.get(reverse("manager:categorical-properties", [tag2.name]))
     assert response.data == ["category"]
-    response = api_client.get(reverse("manager:numerical-properties", [tag3.id]))
+    response = api_client.get(reverse("manager:numerical-properties", [tag3.name]))
     assert response.data == ["height"]
-    response = api_client.get(reverse("manager:categorical-properties", [tag3.id]))
+    response = api_client.get(reverse("manager:categorical-properties", [tag3.name]))
     assert response.data == ["category"]
