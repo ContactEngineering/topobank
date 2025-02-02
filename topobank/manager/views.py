@@ -395,16 +395,16 @@ def set_tag_permissions(request, name=None):
 
 
 @api_view(["GET"])
-def tag_numerical_properties(request, pk=None):
-    obj = Tag.objects.get(pk=pk)
+def tag_numerical_properties(request, name=None):
+    obj = Tag.objects.get(name=name)
     obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="numerical")
     return Response(list(prop_values.keys()), status=200)
 
 
 @api_view(["GET"])
-def tag_categorical_properties(request, pk=None):
-    obj = Tag.objects.get(pk=pk)
+def tag_categorical_properties(request, name=None):
+    obj = Tag.objects.get(name=name)
     obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="categorical")
     return Response(list(prop_values.keys()), status=200)

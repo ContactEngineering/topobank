@@ -43,13 +43,13 @@ urlpatterns += [
         view=login_required(views.set_tag_permissions),
         name="set-tag-permissions",
     ),
-    path(
-        "api/tag-numerical-properties/<pk>/",
+    re_path(
+        r"api/tag-numerical-properties/<(?P<name>[^.]+)>",
         view=login_required(views.tag_numerical_properties),
         name="numerical-properties",
     ),
-    path(
-        "api/tag-categorical-properties/<pk>/",
+    re_path(
+        r"api/tag-categorical-properties/<(?P<name>[^.]+)>",
         view=login_required(views.tag_categorical_properties),
         name="categorical-properties",
     ),

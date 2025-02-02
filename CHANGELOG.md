@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.53.3 (2025-02-02)
+
+- BUG: Fixed getting tag numerical and categorical properties
+
 ## 1.53.2 (2025-01-23)
 
 - BUG: Fixed Dropbox settings variable names
