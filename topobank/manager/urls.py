@@ -44,12 +44,12 @@ urlpatterns += [
         name="set-tag-permissions",
     ),
     re_path(
-        r"api/tag-numerical-properties/<(?P<name>[^.]+)>",
+        r"api/properties-in-tag/numerical/<(?P<name>[^.]+)>",
         view=login_required(views.tag_numerical_properties),
         name="numerical-properties",
     ),
     re_path(
-        r"api/tag-categorical-properties/<(?P<name>[^.]+)>",
+        r"api/properties-in-tag/categorical/<(?P<name>[^.]+)>",
         view=login_required(views.tag_categorical_properties),
         name="categorical-properties",
     ),
