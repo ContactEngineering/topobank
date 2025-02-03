@@ -185,3 +185,9 @@ def test_tag_property_routes(
     assert response.data == ["height"]
     response = api_client.get(reverse("manager:categorical-properties", [tag3.name]))
     assert response.data == ["category"]
+    response = api_client.get(reverse("manager:numerical-properties", ["nonexistent"]))
+    assert response.data == []
+    assert response.status_code == 404
+    response = api_client.get(reverse("manager:categorical-properties", ["nonexistent"]))
+    assert response.data == []
+    assert response.status_code == 404
