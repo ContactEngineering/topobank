@@ -1,7 +1,8 @@
 # Changelog for *TopoBank*
 
-## 1.53.4 (not yet released)
+## 1.54.0 (not yet released)
 
+- MAINT: Changed URL for getting names of properties in tags
 - BUG: Return 404 when tag does not exist
 
 ## 1.53.3 (2025-02-02)
