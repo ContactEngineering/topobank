@@ -7,7 +7,7 @@ from django.conf import settings
 from django.core.exceptions import PermissionDenied
 from django.db.models import Case, F, Q, When
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
-from django.shortcuts import redirect
+from django.shortcuts import get_object_or_404, redirect
 from django.utils.text import slugify
 from notifications.signals import notify
 from rest_framework import mixins, viewsets
@@ -396,18 +396,18 @@ def set_tag_permissions(request, name=None):
 
 @api_view(["GET"])
 def tag_numerical_properties(request, name=None):
-    obj = Tag.objects.get(name=name)
+    obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="numerical")
-    return Response(list(prop_values.keys()), status=200)
+    return Response(dict(names=list(prop_values.keys())), status=200)
 
 
 @api_view(["GET"])
 def tag_categorical_properties(request, name=None):
-    obj = Tag.objects.get(name=name)
+    obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="categorical")
-    return Response(list(prop_values.keys()), status=200)
+    return Response(dict(names=list(prop_values.keys())), status=200)
 
 
 @api_view(["POST"])

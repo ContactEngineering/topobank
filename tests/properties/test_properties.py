@@ -174,20 +174,20 @@ def test_tag_property_routes(
     api_client.force_login(user)
 
     response = api_client.get(reverse("manager:numerical-properties", [tag1.name]))
-    assert response.data == ["height"]
+    assert response.data == {"names": ["height"]}
     response = api_client.get(reverse("manager:categorical-properties", [tag1.name]))
-    assert response.data == []
+    assert response.data == {"names": []}
     response = api_client.get(reverse("manager:numerical-properties", [tag2.name]))
-    assert response.data == ["height"]
+    assert response.data == {"names": ["height"]}
     response = api_client.get(reverse("manager:categorical-properties", [tag2.name]))
-    assert response.data == ["category"]
+    assert response.data == {"names": ["category"]}
     response = api_client.get(reverse("manager:numerical-properties", [tag3.name]))
-    assert response.data == ["height"]
+    assert response.data == {"names": ["height"]}
     response = api_client.get(reverse("manager:categorical-properties", [tag3.name]))
-    assert response.data == ["category"]
+    assert response.data == {"names": ["category"]}
     response = api_client.get(reverse("manager:numerical-properties", ["nonexistent"]))
-    assert response.data == []
+    assert "detail" in response.data
     assert response.status_code == 404
     response = api_client.get(reverse("manager:categorical-properties", ["nonexistent"]))
-    assert response.data == []
+    assert "detail" in response.data
     assert response.status_code == 404
