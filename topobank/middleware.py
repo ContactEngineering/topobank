@@ -5,7 +5,7 @@ from topobank.users.anonymous import get_anonymous_user
 
 HEADLESS_ONLY = hasattr(settings, "HEADLESS_ONLY") and settings.HEADLESS_ONLY
 
-# Default to headfull mode, but allow to switch to headless mode
+# Default to headful mode, but allow to switch to headless mode
 if not HEADLESS_ONLY:
     # some abbreviations in order to save time on every request
     ACCOUNT_SIGNUP_URL = reverse("account_signup")
