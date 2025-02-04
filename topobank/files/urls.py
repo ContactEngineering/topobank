@@ -1,5 +1,4 @@
 from django.conf import settings
-from django.contrib.auth.decorators import login_required
 from django.urls import path
 from rest_framework.routers import DefaultRouter
 
@@ -21,7 +20,7 @@ if not settings.USE_S3_STORAGE:
     urlpatterns += [
         path(
             "upload/local/<int:manifest_id>/",
-            view=login_required(views.upload_local),
+            view=views.upload_local,
             name="upload-direct-local",
         )
     ]

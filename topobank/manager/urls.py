@@ -1,4 +1,3 @@
-from django.contrib.auth.decorators import login_required
 from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter
 
@@ -30,32 +29,32 @@ urlpatterns += [
     #
     path(
         "api/topography/<pk>/force-inspect/",
-        view=login_required(views.force_inspect),
+        view=views.force_inspect,
         name="force-inspect",
     ),
     path(
         "api/surface/<pk>/set-permissions/",
-        view=login_required(views.set_surface_permissions),
+        view=views.set_surface_permissions,
         name="set-surface-permissions",
     ),
     re_path(
         r"api/set-tag-permissions/<(?P<name>[^.]+)>",
-        view=login_required(views.set_tag_permissions),
+        view=views.set_tag_permissions,
         name="set-tag-permissions",
     ),
     re_path(
         r"api/properties-in-tag/numerical/<(?P<name>[^.]+)>",
-        view=login_required(views.tag_numerical_properties),
+        view=views.tag_numerical_properties,
         name="numerical-properties",
     ),
     re_path(
         r"api/properties-in-tag/categorical/<(?P<name>[^.]+)>",
-        view=login_required(views.tag_categorical_properties),
+        view=views.tag_categorical_properties,
         name="categorical-properties",
     ),
     path(
         "api/import-surface/",
-        view=login_required(views.import_surface),
+        view=views.import_surface,
         name="import-surface",
     ),
     path("api/versions/", view=views.versions, name="versions"),

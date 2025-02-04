@@ -3,8 +3,8 @@ import logging
 from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from rest_framework import mixins, viewsets
-from rest_framework.decorators import api_view
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
 from .models import Folder, Manifest
@@ -61,6 +61,7 @@ class FileManifestViewSet(
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def upload_local(request, manifest_id: int):
     # Get manifest instance and authorize
     manifest = get_object_or_404(Manifest, id=manifest_id)

@@ -11,9 +11,9 @@ from django.shortcuts import get_object_or_404, redirect
 from django.utils.text import slugify
 from notifications.signals import notify
 from rest_framework import mixins, viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ParseError
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
@@ -298,6 +298,7 @@ def download_surface(request, surface_id):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def force_inspect(request, pk=None):
     user = request.user
     instance = Topography.objects.get(pk=pk)
@@ -318,6 +319,7 @@ def force_inspect(request, pk=None):
 
 
 @api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
 def set_surface_permissions(request, pk=None):
     logged_in_user = request.user
     obj = Surface.objects.get(pk=pk)
@@ -351,6 +353,7 @@ def set_surface_permissions(request, pk=None):
 
 
 @api_view(["PATCH"])
+@permission_classes([IsAuthenticated])
 def set_tag_permissions(request, name=None):
     logged_in_user = request.user
     obj = Tag.objects.get(name=name)
@@ -395,6 +398,7 @@ def set_tag_permissions(request, name=None):
 
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tag_numerical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
@@ -403,6 +407,7 @@ def tag_numerical_properties(request, name=None):
 
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def tag_categorical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
@@ -411,6 +416,7 @@ def tag_categorical_properties(request, name=None):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def import_surface(request):
     url = request.data.get("url")
 
