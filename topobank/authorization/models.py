@@ -8,6 +8,7 @@ from typing import Literal, Union
 from django.db import models
 from django.db.models import Q, QuerySet
 from notifications.signals import notify
+from rest_framework.exceptions import PermissionDenied
 
 from ..users.anonymous import get_anonymous_user
 from ..users.models import User
@@ -107,12 +108,12 @@ class PermissionSet(models.Model):
         """Authorize user for access level given by `allow`"""
         perm = self.get_for_user(user)
         if perm is None:
-            raise PermissionError(
+            raise PermissionDenied(
                 f"User {user} has no access permission, cannot elevate to permission "
                 f"'{access_level}'."
             )
         elif ACCESS_LEVELS[perm] < ACCESS_LEVELS[access_level]:
-            raise PermissionError(
+            raise PermissionDenied(
                 f"User {user} has permission '{perm}', cannot elevate to "
                 f"permission '{access_level}'."
             )

@@ -1,6 +1,7 @@
 import logging
 
 from django.db.models import Q
+from rest_framework.exceptions import PermissionDenied
 
 from ..manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
 from .models import Analysis, AnalysisFunction, AnalysisSubject
@@ -75,7 +76,7 @@ class AnalysisController:
             )
 
         if not self._function.has_permission(user):
-            raise PermissionError(
+            raise PermissionDenied(
                 f"User {self._user} does not have access to this analysis function."
             )
 
@@ -95,7 +96,7 @@ class AnalysisController:
             try:
                 subject.authorize_user(self._user, "view")
                 self._subjects += [subject]
-            except PermissionError:
+            except PermissionDenied:
                 pass
 
         # Surface permissions are checked in `subjects_from_dict`. Since children (topographies) inherit the permission

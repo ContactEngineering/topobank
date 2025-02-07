@@ -23,6 +23,7 @@ from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
@@ -149,7 +150,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         permissions: PermissionSet = None,
     ):
         if access_level != "view":
-            raise PermissionError(
+            raise PermissionDenied(
                 f"Cannot elevate permission to '{access_level}' because tags are not "
                 "editable."
             )
@@ -450,16 +451,18 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     def grant_permission(
         self, user: settings.AUTH_USER_MODEL, allow: ViewEditFull = "view"
     ):
+        # This is an additional guard: Published datasets have empty permission sets
         if self.is_published:
-            raise PermissionError(
+            raise PermissionDenied(
                 "Permissions of a published dataset cannot be changed."
             )
 
         super().grant_permission(user, allow)
 
     def revoke_permission(self, user: settings.AUTH_USER_MODEL):
+        # This is an additional guard: Published datasets have empty permission sets
         if self.is_published:
-            raise PermissionError(
+            raise PermissionDenied(
                 "Permissions of a published dataset cannot be changed."
             )
 

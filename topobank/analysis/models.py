@@ -12,6 +12,7 @@ from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 
 from ..authorization.mixins import PermissionMixin
@@ -351,7 +352,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """
         # Check availability of analysis function
         if not self.implementation.has_permission(user):
-            raise PermissionError(
+            raise PermissionDenied(
                 f"User {user} is not allowed to use this analysis function."
             )
 
