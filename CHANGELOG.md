@@ -4,11 +4,12 @@
 
 - API: Analysis function lookups are now by name (not id)
 - MAINT: Removed notification on dataset changes
+- MAINT: Removed request counter middleware
 
 ## 1.54.0 (2025-02-08)
 
 - API: Changed URL for getting names of properties in tags
-- BUG: Replace `login_required` by appropriate DRF authentication decorator
+- BUG: Replaced `login_required` by appropriate DRF authentication decorator
 - BUG: Return 404 when tag does not exist
 - BUG: Use `PermissionDenied` rather than `PermissionError` so that permission
   errors are reported to the user

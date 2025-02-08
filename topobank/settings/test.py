@@ -123,13 +123,6 @@ LOGGING = {
 # - 'webgl': Accelerates some plots using WebGL
 BOKEH_OUTPUT_BACKEND = "canvas"
 
-# Enable usage stats in supplib
-if not ENABLE_USAGE_STATS:  # noqa: F405
-    ENABLE_USAGE_STATS = True  # noqa: F405
-    MIDDLEWARE += [  # noqa: F405
-        "topobank.usage_stats.middleware.count_request_middleware"
-    ]
-
 # STORAGE
 # ------------------------------------------------------------------------------
 STORAGE_BACKEND = env.str("STORAGE_BACKEND", default="inmemorystorage.InMemoryStorage")

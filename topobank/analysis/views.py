@@ -112,7 +112,7 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         else:
             return Response(
                 {"message": "Cannot renew named analysis"},
-                status=status.HTTP_400_BAD_REQUEST,
+                status=status.HTTP_403_FORBIDDEN,
             )
 
 

@@ -221,8 +221,6 @@ MIDDLEWARE += [
 # Usage statistics
 #
 ENABLE_USAGE_STATS = env("TOPOBANK_ENABLE_USAGE_STATS", default=False)
-if ENABLE_USAGE_STATS:
-    MIDDLEWARE += ["topobank.usage_stats.middleware.count_request_middleware"]
 
 # TEMPLATES
 # ------------------------------------------------------------------------------
