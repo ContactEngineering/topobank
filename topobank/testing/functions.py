@@ -4,13 +4,13 @@ from typing import Dict
 import numpy as np
 from django.core.files.base import ContentFile
 
-from ..analysis.functions import VIZ_SERIES, AnalysisImplementation, AnalysisInputData
+from ..analysis.functions import VIZ_SERIES, WorkflowDefinition, WorkflowImplementation
 from ..analysis.models import AnalysisFunction
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.json import ExtendedJSONEncoder
 
 
-class TestImplementation(AnalysisImplementation):
+class TestImplementation(WorkflowImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
     meaning. Result are two series.
@@ -27,7 +27,7 @@ class TestImplementation(AnalysisImplementation):
             Tag: "tag_implementation",
         }
 
-    class Parameters(AnalysisImplementation.Parameters):
+    class Parameters(WorkflowImplementation.Parameters):
         a: int = 1
         b: str = "foo"
 
@@ -135,7 +135,7 @@ class TopographyOnlyTestImplementation(TestImplementation):
         }
 
 
-class SecondTestImplementation(AnalysisImplementation):
+class SecondTestImplementation(WorkflowImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
     meaning. Result are two series.
@@ -152,19 +152,19 @@ class SecondTestImplementation(AnalysisImplementation):
 
         dependencies = {Topography: "topography_dependencies"}
 
-    class Parameters(AnalysisImplementation.Parameters):
+    class Parameters(WorkflowImplementation.Parameters):
         c: int = 1
         d: float = 1.3
 
-    def topography_dependencies(self, analysis) -> Dict[str, AnalysisInputData]:
+    def topography_dependencies(self, analysis) -> Dict[str, WorkflowDefinition]:
         topography = analysis.subject
         return {
-            "dep1": AnalysisInputData(
+            "dep1": WorkflowDefinition(
                 subject=topography,
                 function=AnalysisFunction.objects.get(name="topobank.testing.test"),
                 kwargs=dict(a=self._kwargs.c),
             ),
-            "dep2": AnalysisInputData(
+            "dep2": WorkflowDefinition(
                 subject=topography,
                 function=AnalysisFunction.objects.get(name="topobank.testing.test"),
                 kwargs=dict(b=self._kwargs.c * "A"),
@@ -184,7 +184,7 @@ class SecondTestImplementation(AnalysisImplementation):
         }
 
 
-class TestImplementationWithError(AnalysisImplementation):
+class TestImplementationWithError(WorkflowImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
     meaning. Result are two series.
@@ -199,7 +199,7 @@ class TestImplementationWithError(AnalysisImplementation):
             Topography: "topography_implementation",
         }
 
-    class Parameters(AnalysisImplementation.Parameters):
+    class Parameters(WorkflowImplementation.Parameters):
         c: int = 1
         d: float = 1.3
 
@@ -212,7 +212,7 @@ class TestImplementationWithError(AnalysisImplementation):
         raise RuntimeError("An error occurred!")
 
 
-class TestImplementationWithErrorInDependency(AnalysisImplementation):
+class TestImplementationWithErrorInDependency(WorkflowImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
     meaning. Result are two series.
@@ -229,14 +229,14 @@ class TestImplementationWithErrorInDependency(AnalysisImplementation):
 
         dependencies = {Topography: "topography_dependencies"}
 
-    class Parameters(AnalysisImplementation.Parameters):
+    class Parameters(WorkflowImplementation.Parameters):
         c: int = 1
         d: float = 1.3
 
-    def topography_dependencies(self, analysis) -> Dict[str, AnalysisInputData]:
+    def topography_dependencies(self, analysis) -> Dict[str, WorkflowDefinition]:
         topography = analysis.subject
         return {
-            "dep": AnalysisInputData(
+            "dep": WorkflowDefinition(
                 subject=topography,
                 function=AnalysisFunction.objects.get(
                     name="topobank.testing.test_error"

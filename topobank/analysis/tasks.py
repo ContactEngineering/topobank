@@ -20,7 +20,7 @@ from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
-from .functions import AnalysisInputData
+from .functions import WorkflowDefinition
 
 _log = logging.getLogger(__name__)
 
@@ -426,7 +426,7 @@ def current_statistics(user=None):
     )
 
 
-def prepare_dependency_tasks(dependencies: Dict[Any, AnalysisInputData], force: bool):
+def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool):
     from .models import Analysis, AnalysisSubject
 
     finished_dependent_analyses = {}  # Everything that finished or failed
