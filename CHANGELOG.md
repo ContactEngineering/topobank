@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.54.1 (not yet released)
+
+- MAINT: Removed change notifications
+
 ## 1.54.0 (2025-02-07)
 
 - MAINT: Changed URL for getting names of properties in tags

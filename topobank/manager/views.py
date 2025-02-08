@@ -113,7 +113,6 @@ class SurfaceViewSet(
 
     def perform_update(self, serializer):
         serializer.save()
-        self._notify(serializer.instance, "change")
 
     def perform_destroy(self, instance):
         self._notify(instance, "delete")
@@ -200,7 +199,6 @@ class TopographyViewSet(
 
     def perform_update(self, serializer):
         serializer.save()
-        self._notify(serializer.instance, "change")
 
     def perform_destroy(self, instance):
         self._notify(instance, "delete")
