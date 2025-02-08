@@ -42,6 +42,8 @@ class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 class AnalysisFunctionView(
     viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin
 ):
+    lookup_field = "name"
+    lookup_value_regex = "[a-z0-9._-]+"
     serializer_class = AnalysisFunctionSerializer
     permission_classes = [AnalysisFunctionPermissions]
 

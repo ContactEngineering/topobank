@@ -41,7 +41,7 @@ class AnalysisFunctionSerializer(
         ]
 
     url = serializers.HyperlinkedIdentityField(
-        view_name="analysis:function-detail", read_only=True
+        view_name="analysis:function-detail", lookup_field="name", read_only=True
     )
 
     visualization_type = serializers.SerializerMethodField()
@@ -108,7 +108,7 @@ class AnalysisResultSerializer(
     dependencies_url = serializers.SerializerMethodField()
     api = serializers.SerializerMethodField()
     function = serializers.HyperlinkedRelatedField(
-        view_name="analysis:function-detail", read_only=True
+        view_name="analysis:function-detail", lookup_field="name", read_only=True
     )
     subject = AnalysisSubjectSerializer(source="subject_dispatch")
     folder = serializers.HyperlinkedRelatedField(

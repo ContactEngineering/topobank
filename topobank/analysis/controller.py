@@ -27,10 +27,10 @@ class AnalysisController:
         user,
         subjects=None,
         function=None,
+        function_name=None,
         function_id=None,
         kwargs=None,
-        with_children=True,
-        task_state=None,
+        with_children=True
     ):
         """
         Construct a controller object that filters for specific user, subjects,
@@ -45,6 +45,8 @@ class AnalysisController:
             Subjects for which to filter analyses. (Default: None)
         function : AnalysisFunction, optional
             Analysis function object. (Default: None)
+        function_name : str, optional
+            name of analysis function. (Default: None)
         function_id : int, optional
             id of analysis function. (Default: None)
         with_children : bool, optional
@@ -59,16 +61,22 @@ class AnalysisController:
             )
 
         if function is None:
-            if function_id is None:
-                self._function = None
+            if function_name is None:
+                if function_id is None:
+                    self._function = None
+                else:
+                    self._function = AnalysisFunction.objects.get(id=function_id)
             else:
-                self._function = AnalysisFunction.objects.get(id=function_id)
+                self._function = AnalysisFunction.objects.get(name=function_name)
         elif function_id is None:
             self._function = function
         else:
             raise ValueError(
-                "Please provide either `function` or `function_id`, not both."
+                "Please provide either `function`, `function_id` or `function_name`, "
+                "not multiple."
             )
+
+        print("self_function =", self._function)
 
         if self._function is None:
             raise ValueError(
@@ -133,13 +141,18 @@ class AnalysisController:
         data = request.data | kwargs
         q = request.GET  # Querydict
 
-        function_id = data.get("function_id")
-        if function_id is None:
-            function_id = q.get("function_id")
-        if function_id is None:
-            raise ValueError("You need to provide a function id")
-        else:
-            function_id = int(function_id)
+        function_id = None
+        function_name = data.get("function_name")
+        if function_name is None:
+            function_name = q.get("function_name")
+        if function_name is None:
+            function_id = data.get("function_id")
+            if function_id is None:
+                function_id = q.get("function_id")
+            if function_id is None:
+                raise ValueError("You need to provide a function name or id")
+            else:
+                function_id = int(function_id)
 
         subjects = data.get("subjects")
         if subjects is None:
@@ -172,6 +185,7 @@ class AnalysisController:
         return AnalysisController(
             user,
             subjects=subjects,
+            function_name=function_name,
             function_id=function_id,
             kwargs=kwargs,
             with_children=with_children,

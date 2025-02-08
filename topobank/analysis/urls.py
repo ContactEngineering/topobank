@@ -40,7 +40,7 @@ urlpatterns += [
     # * Return plot configuration for finished analyses
     # This is a post request because the request parameters are complex.
     path(
-        f"api/card/{functions.VIZ_SERIES}/<int:function_id>",
+        f"api/card/{functions.VIZ_SERIES}/<str:function_name>",
         view=views.series_card_view,
         name=f"card-{functions.VIZ_SERIES}",
     ),

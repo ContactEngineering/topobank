@@ -153,7 +153,7 @@ def test_series_card_if_no_successful_topo_analysis(
     assert api_client.login(username=user.username, password=password)
 
     response = api_client.get(
-        reverse(f"analysis:card-{VIZ_SERIES}", kwargs=dict(function_id=func1.id))
+        reverse(f"analysis:card-{VIZ_SERIES}", kwargs=dict(function_name=func1.name))
         + "?subjects="
         + subjects_to_base64([topo, topo.surface])
     )  # also request results for surface here

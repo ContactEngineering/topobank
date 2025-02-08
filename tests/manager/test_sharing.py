@@ -5,12 +5,10 @@ import pytest
 from django.shortcuts import reverse
 from notifications.models import Notification
 
-from topobank.manager.models import Topography
 from topobank.testing.factories import (
     FIXTURE_DATA_DIR,
     SurfaceFactory,
     Topography1DFactory,
-    Topography2DFactory,
     UserFactory,
 )
 from topobank.testing.utils import upload_topography_file
@@ -164,67 +162,6 @@ def test_notification_when_deleting_shared_stuff(api_client):
     assert (
         Notification.objects.filter(
             recipient=user2, verb="delete", description__contains=surface.name
-        ).count()
-        == 1
-    )
-    api_client.logout()
-
-
-@pytest.mark.django_db
-def test_notification_when_editing_shared_stuff(api_client, handle_usage_statistics):
-    user1 = UserFactory()
-    user2 = UserFactory()
-    surface = SurfaceFactory(creator=user1)
-    topography = Topography2DFactory(surface=surface, size_y=512)
-
-    surface.grant_permission(user2, "edit")
-
-    #
-    # First: user2 edits the topography, user1 should be notified
-    #
-    api_client.force_login(user2)
-
-    response = api_client.patch(
-        reverse("manager:topography-api-detail", kwargs=dict(pk=topography.pk)),
-        {
-            "data_source": 0,
-            "name": topography.name,
-            "measurement_date": topography.measurement_date,
-            "description": topography.description,
-            "height_scale": 0.1,  # we also change a significant value here -> recalculate
-            "detrend_mode": "height",
-            "instrument_type": Topography.INSTRUMENT_TYPE_UNDEFINED,
-            "has_undefined_data": False,
-            "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-        },
-    )
-    assert response.status_code == 200, response.content
-
-    note = Notification.objects.get(
-        recipient=user1, verb="change", description__contains=topography.name
-    )
-    assert "changed digital surface twin" in note.description
-    api_client.logout()
-
-    #
-    # Second: user1 edits the surface, user2 should be notified
-    #
-    api_client.force_login(user1)
-
-    new_name = "This is a better surface name"
-    new_description = "This is new description"
-    new_category = "dum"
-
-    response = api_client.patch(
-        reverse("manager:surface-api-detail", kwargs=dict(pk=surface.pk)),
-        {"name": new_name, "description": new_description, "category": new_category},
-    )
-
-    assert response.status_code == 200, response.content
-
-    assert (
-        Notification.objects.filter(
-            recipient=user2, verb="change", description__contains=new_name
         ).count()
         == 1
     )

@@ -10,6 +10,7 @@ from topobank.testing.factories import (
     Topography1DFactory,
     UserFactory,
 )
+from topobank.testing.utils import ASSERT_EQUAL_IGNORE_VALUE, assert_dict_equal
 
 
 @pytest.mark.django_db
@@ -114,22 +115,26 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
     assert response.status_code == 200
     assert len(response.data) > 0
 
-    id = AnalysisFunction.objects.get(name="topobank.testing.test").id
-
-    response = api_client.get(reverse("analysis:function-detail", kwargs=dict(pk=id)))
+    name = "topobank.testing.test"
+    response = api_client.get(
+        reverse("analysis:function-detail", kwargs=dict(name=name))
+    )
 
     assert response.status_code == 200
-    assert response.data == {
-        "id": id,
-        "url": f"http://testserver/analysis/api/function/{id}/",
-        "name": "topobank.testing.test",
-        "display_name": "Test implementation",
-        "visualization_type": "series",
-        "kwargs_schema": {
-            "a": {"default": 1, "title": "A", "type": "integer"},
-            "b": {"default": "foo", "title": "B", "type": "string"},
+    assert_dict_equal(
+        response.data,
+        {
+            "id": ASSERT_EQUAL_IGNORE_VALUE,
+            "url": f"http://testserver/analysis/api/function/{name}/",
+            "name": name,
+            "display_name": "Test implementation",
+            "visualization_type": "series",
+            "kwargs_schema": {
+                "a": {"default": 1, "title": "A", "type": "integer"},
+                "b": {"default": "foo", "title": "B", "type": "string"},
+            },
         },
-    }
+    )
 
 
 @pytest.mark.django_db
@@ -370,16 +375,14 @@ def test_save_tag_analysis(
 
     # Check that named result does not return unnamed results
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
-        response = api_client.get(reverse('analysis:named-result-list'))
+        response = api_client.get(reverse("analysis:named-result-list"))
     assert len(callbacks) == 0
     assert Analysis.objects.count() == 1  # We still have one (the saved analysis)
     assert response.status_code == 200
     assert len(response.data) == 0
 
     # Set analysis name
-    response = api_client.post(
-        set_name_url, {"name": "my-name"}
-    )
+    response = api_client.post(set_name_url, {"name": "my-name"})
     assert response.status_code == 200
     assert Analysis.objects.count() == 1  # This does not make a copy
 

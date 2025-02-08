@@ -21,7 +21,7 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
             "id": analysis.id,
             "api": ASSERT_EQUAL_IGNORE_VALUE,
             "url": f"http://testserver/analysis/api/result/{analysis.id}/",
-            "function": f"http://testserver/analysis/api/function/{test_analysis_function.id}/",
+            "function": f"http://testserver/analysis/api/function/{test_analysis_function.name}/",
             "subject": {
                 "id": analysis.subject_dispatch.id,
                 "tag": None,
@@ -66,7 +66,7 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
             "id": analysis.id,
             "api": ASSERT_EQUAL_IGNORE_VALUE,
             "url": f"http://testserver/analysis/api/result/{analysis.id}/",
-            "function": f"http://testserver/analysis/api/function/{test_analysis_function.id}/",
+            "function": f"http://testserver/analysis/api/function/{test_analysis_function.name}/",
             "subject": {
                 "id": analysis.subject_dispatch.id,
                 "tag": f"http://testserver/manager/api/tag/{tag.name}/",
