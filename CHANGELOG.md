@@ -3,6 +3,7 @@
 ## 1.55.0 (not yet released)
 
 - API: Analysis function lookups are now by name (not id)
+- MAINT: Removed notification on dataset changes
 
 ## 1.54.0 (2025-02-08)
 
