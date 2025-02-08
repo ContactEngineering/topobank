@@ -4,8 +4,8 @@ from typing import Dict
 import numpy as np
 from django.core.files.base import ContentFile
 
-from ..analysis.functions import VIZ_SERIES, WorkflowDefinition, WorkflowImplementation
 from ..analysis.models import AnalysisFunction
+from ..analysis.workflows import VIZ_SERIES, WorkflowDefinition, WorkflowImplementation
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.json import ExtendedJSONEncoder
 

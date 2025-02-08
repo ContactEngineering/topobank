@@ -20,7 +20,7 @@ from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
-from .functions import WorkflowDefinition
+from .workflows import WorkflowDefinition
 
 _log = logging.getLogger(__name__)
 

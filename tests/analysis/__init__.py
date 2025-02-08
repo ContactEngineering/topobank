@@ -1,5 +1,5 @@
 from topobank.analysis.registry import register_implementation
-from topobank.testing.functions import (
+from topobank.testing.workflows import (
     SecondTestImplementation,
     TestImplementation,
     TestImplementationWithError,

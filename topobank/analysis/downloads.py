@@ -16,7 +16,6 @@ from openpyxl.styles import Font
 from openpyxl.worksheet.hyperlink import Hyperlink
 from rest_framework.decorators import api_view
 
-from .functions import VIZ_SERIES
 from .models import Analysis
 from .registry import (
     UnknownKeyException,
@@ -25,6 +24,7 @@ from .registry import (
     register_download_function,
 )
 from .utils import filter_and_order_analyses
+from .workflows import VIZ_SERIES
 
 
 @api_view(["GET"])
