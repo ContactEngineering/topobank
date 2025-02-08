@@ -76,8 +76,6 @@ class AnalysisController:
                 "not multiple."
             )
 
-        print("self_function =", self._function)
-
         if self._function is None:
             raise ValueError(
                 "Please restrict this analysis controller to a specific function."
