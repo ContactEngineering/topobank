@@ -109,12 +109,12 @@ class PermissionSet(models.Model):
         perm = self.get_for_user(user)
         if perm is None:
             raise PermissionDenied(
-                f"User {user} has no access permission, cannot elevate to permission "
+                f"User '{user}' has no access permission, cannot elevate to permission "
                 f"'{access_level}'."
             )
         elif ACCESS_LEVELS[perm] < ACCESS_LEVELS[access_level]:
             raise PermissionDenied(
-                f"User {user} has permission '{perm}', cannot elevate to "
+                f"User '{user}' has permission '{perm}', cannot elevate to "
                 f"permission '{access_level}'."
             )
 

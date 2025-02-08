@@ -4,7 +4,6 @@ import os.path
 from io import BytesIO
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied
 from django.db.models import Case, F, Q, When
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
@@ -12,7 +11,7 @@ from django.utils.text import slugify
 from notifications.signals import notify
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.exceptions import ParseError
+from rest_framework.exceptions import ParseError, PermissionDenied
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
@@ -88,10 +87,14 @@ class SurfaceViewSet(
                 qs = qs.filter(tags=None)
         elif tag_startswith is not None:
             if tag_startswith:
-                qs = qs.filter(
-                    Q(tags__name=tag_startswith)
-                    | Q(tags__name__startswith=tag_startswith.rstrip("/") + "/")
-                ).order_by("id").distinct("id")
+                qs = (
+                    qs.filter(
+                        Q(tags__name=tag_startswith)
+                        | Q(tags__name__startswith=tag_startswith.rstrip("/") + "/")
+                    )
+                    .order_by("id")
+                    .distinct("id")
+                )
             else:
                 raise ParseError("`tag_startswith` cannot be empty.")
         elif self.action == "list":
@@ -218,6 +221,7 @@ class TopographyViewSet(
         return Response(serializer.data)
 
 
+@api_view(["GET"])
 def download_surface(request, surface_id):
     """Returns a file or redirect comprised from topographies contained in a surface.
 

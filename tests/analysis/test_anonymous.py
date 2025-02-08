@@ -4,8 +4,8 @@ from django.shortcuts import reverse
 from topobank.testing.factories import (
     SurfaceFactory,
     Topography1DFactory,
-    UserFactory,
     TopographyAnalysisFactory,
+    UserFactory,
 )
 
 #
@@ -16,7 +16,7 @@ from topobank.testing.factories import (
 
 @pytest.mark.django_db
 def test_download_analyses_without_permission(
-    client, test_analysis_function, handle_usage_statistics
+    api_client, test_analysis_function, handle_usage_statistics
 ):
     bob = UserFactory()
     surface = SurfaceFactory(creator=bob)
@@ -25,7 +25,7 @@ def test_download_analyses_without_permission(
         subject_topography=topo, function=test_analysis_function
     )
 
-    response = client.get(
+    response = api_client.get(
         reverse(
             "analysis:download", kwargs=dict(ids=f"{analysis.id}", file_format="txt")
         )

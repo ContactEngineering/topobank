@@ -319,7 +319,9 @@ def api_client():
 
     from rest_framework.test import APIClient
 
-    return APIClient()
+    # We don't want to raise exceptions in tests, because we want to check
+    # the response status code
+    return APIClient(raise_request_exception=False)
 
 
 @pytest.fixture
