@@ -3,6 +3,7 @@
 ## 1.55.0 (not yet released)
 
 - API: Analysis function lookups are now by name (not id)
+- MAINT: Renamed analysis functions to workflows
 - MAINT: Removed notification on dataset changes
 - MAINT: Removed request counter middleware
 

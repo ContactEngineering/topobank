@@ -22,7 +22,6 @@ _log = logging.getLogger(__name__)
 
 # Visualization types
 APP_NAME = "analysis"
-VIZ_GENERIC = "generic"
 VIZ_SERIES = "series"
 
 
