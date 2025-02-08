@@ -394,8 +394,8 @@ REST_FRAMEWORK = {
         # Anonymous user is not authenticated by needs read-only access
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
-    "TEST_REQUEST_DEFAULT_FORMAT": "json",
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
+    "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }
 
 SPECTACULAR_SETTINGS = {

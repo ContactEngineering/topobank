@@ -624,7 +624,7 @@ def test_analysis_download_as_xlsx_despite_slash_in_sheetname(
 
 @pytest.mark.django_db
 def test_download_analysis_results_without_permission(
-    client,
+    api_client,
     two_topos,
     ids_downloadable_analyses,
     django_user_model,
@@ -632,27 +632,27 @@ def test_download_analysis_results_without_permission(
 ):
     # two_topos belong to a user "testuser"
     user_2 = django_user_model.objects.create_user(username="attacker")
-    client.force_login(user_2)
+    api_client.force_login(user_2)
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
     download_url = reverse(
         "analysis:download", kwargs=dict(ids=ids_str, file_format="txt")
     )
 
-    response = client.get(download_url)
+    response = api_client.get(download_url)
     assert response.status_code == 403  # Permission denied
 
     # when user_2 has view permissions for one topography of both, it's still not okay
     # to download
     two_topos[0].surface.grant_permission(user_2)
-    response = client.get(download_url)
+    response = api_client.get(download_url)
     assert response.status_code == 403  # Permission denied
 
     # when user_2 has view permissions for all related surfaces, it's okay to download
     # as analyses permissions are automatically granted if the user has access to the
     # subject
     two_topos[1].surface.grant_permission(user_2)
-    response = client.get(download_url)
+    response = api_client.get(download_url)
     assert response.status_code == 200
 
 

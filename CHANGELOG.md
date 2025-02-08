@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.54.0 (2025-02-07)
+## 1.54.0 (2025-02-08)
 
 - MAINT: Changed URL for getting names of properties in tags
 - BUG: Replace `login_required` by appropriate DRF authentication decorator

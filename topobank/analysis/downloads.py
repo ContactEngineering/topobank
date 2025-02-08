@@ -10,15 +10,11 @@ import numpy as np
 import openpyxl
 import pandas as pd
 import pint
-from django.http import (
-    HttpResponse,
-    HttpResponseBadRequest,
-    HttpResponseForbidden,
-    HttpResponseNotFound,
-)
+from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseNotFound
 from django.utils.text import slugify
 from openpyxl.styles import Font
 from openpyxl.worksheet.hyperlink import Hyperlink
+from rest_framework.decorators import api_view
 
 from .functions import VIZ_SERIES
 from .models import Analysis
@@ -31,6 +27,7 @@ from .registry import (
 from .utils import filter_and_order_analyses
 
 
+@api_view(["GET"])
 def download_analyses(request, ids, file_format):
     """View returning a file comprised from analyses results.
 
@@ -74,10 +71,7 @@ def download_analyses(request, ids, file_format):
         #
         # Check whether user has view permission for requested analysis
         #
-        try:
-            analysis.authorize_user(request.user)
-        except PermissionError as e:
-            return HttpResponseForbidden(reason=str(e))
+        analysis.authorize_user(request.user)
 
         #
         # Exclude analysis for surfaces having only one topography

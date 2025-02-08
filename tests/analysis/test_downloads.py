@@ -44,7 +44,7 @@ def test_download_plot_analyses_to_txt(rf):
 @pytest.mark.parametrize("user_has_plugin", [False, True])
 @pytest.mark.django_db
 def test_download_view_permission_for_function_from_plugin(
-    mocker, client, user_has_plugin, handle_usage_statistics
+    mocker, api_client, user_has_plugin, handle_usage_statistics
 ):
     """Simple test, whether analyses which should not be visible lead to an error during download."""
     func = AnalysisFunction.objects.get(name="topobank.testing.test")
@@ -56,9 +56,9 @@ def test_download_view_permission_for_function_from_plugin(
     )
     m.return_value = user_has_plugin
 
-    client.force_login(analysis.subject.creator)
+    api_client.force_login(analysis.subject.creator)
 
-    response = client.get(
+    response = api_client.get(
         reverse(
             "analysis:download", kwargs=dict(ids=str(analysis.id), file_format="txt")
         )
