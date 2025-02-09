@@ -3,7 +3,7 @@ from django.contrib.auth.models import Group
 
 from topobank.analysis.registry import get_implementation
 from topobank.testing.factories import OrganizationFactory, UserFactory
-from topobank.testing.functions import TestImplementation
+from topobank.testing.workflows import TestImplementation
 
 
 @pytest.mark.parametrize(
@@ -18,7 +18,7 @@ from topobank.testing.functions import TestImplementation
         (
             [],
             None,
-            "topobank.testing.functions",
+            "topobank.testing.workflows",
             True,
         ),  # None: No organization attached
         ([], "", "topobank_plugin_A", False),

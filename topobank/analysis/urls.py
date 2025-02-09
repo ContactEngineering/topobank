@@ -1,7 +1,7 @@
 from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter
 
-from . import downloads, functions, views
+from . import downloads, views, workflows
 
 router = DefaultRouter()
 router.register(r"api/configuration", views.ConfigurationView, basename="configuration")
@@ -10,7 +10,7 @@ router.register(r"api/result", views.AnalysisResultView, basename="result")
 
 urlpatterns = router.urls
 
-app_name = functions.APP_NAME
+app_name = workflows.APP_NAME
 urlpatterns += [
     #
     # API routes
@@ -40,9 +40,9 @@ urlpatterns += [
     # * Return plot configuration for finished analyses
     # This is a post request because the request parameters are complex.
     path(
-        f"api/card/{functions.VIZ_SERIES}/<str:function_name>",
+        f"api/card/{workflows.VIZ_SERIES}/<str:function_name>",
         view=views.series_card_view,
-        name=f"card-{functions.VIZ_SERIES}",
+        name=f"card-{workflows.VIZ_SERIES}",
     ),
     # GET
     # * Return total number of analyses

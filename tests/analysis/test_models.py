@@ -19,7 +19,7 @@ from topobank.testing.factories import (
     Topography1DFactory,
     TopographyAnalysisFactory,
 )
-from topobank.testing.functions import TestImplementation
+from topobank.testing.workflows import TestImplementation
 
 
 @pytest.mark.django_db

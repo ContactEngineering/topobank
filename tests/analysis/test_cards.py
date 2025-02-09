@@ -2,8 +2,8 @@ import pytest
 from django.contrib.contenttypes.models import ContentType
 from rest_framework.reverse import reverse
 
-from topobank.analysis.functions import VIZ_SERIES
 from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.workflows import VIZ_SERIES
 from topobank.manager.models import Surface, Topography
 from topobank.manager.utils import subjects_to_base64
 from topobank.testing.factories import (

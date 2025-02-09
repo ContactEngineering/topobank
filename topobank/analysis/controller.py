@@ -1,6 +1,7 @@
 import logging
 
 from django.db.models import Q
+from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from ..manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
@@ -30,7 +31,7 @@ class AnalysisController:
         function_name=None,
         function_id=None,
         kwargs=None,
-        with_children=True
+        with_children=True,
     ):
         """
         Construct a controller object that filters for specific user, subjects,
@@ -65,9 +66,19 @@ class AnalysisController:
                 if function_id is None:
                     self._function = None
                 else:
-                    self._function = AnalysisFunction.objects.get(id=function_id)
+                    self._function = get_object_or_404(AnalysisFunction, id=function_id)
             else:
-                self._function = AnalysisFunction.objects.get(name=function_name)
+                try:
+                    # FIXME(pastewka): Remove once clients are updated
+                    # We try to convert the function name to an integer, because older
+                    # API client still pass an id instead of a name
+                    function_id = int(function_name)
+                except ValueError:
+                    self._function = get_object_or_404(
+                        AnalysisFunction, name=function_name
+                    )
+                else:
+                    self._function = get_object_or_404(AnalysisFunction, id=function_id)
         elif function_id is None:
             self._function = function
         else:
@@ -168,7 +179,7 @@ class AnalysisController:
                         if subject_key == "tag":
                             subjects[subject_key] = [subject]
                         else:
-                            subjects[subject_key] = [int(x) for x in subject.split(',')]
+                            subjects[subject_key] = [int(x) for x in subject.split(",")]
                     except AttributeError:
                         raise ValueError(f"Malformed subject key '{subject_key}'")
                     except ValueError:

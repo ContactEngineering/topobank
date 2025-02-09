@@ -22,7 +22,6 @@ _log = logging.getLogger(__name__)
 
 # Visualization types
 APP_NAME = "analysis"
-VIZ_GENERIC = "generic"
 VIZ_SERIES = "series"
 
 
@@ -116,7 +115,7 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
 
 
 @dataclass
-class AnalysisInputData:
+class WorkflowDefinition:
     # We don't allow tags as dependencies
     subject: Union[Surface, Topography] = None
 
@@ -127,7 +126,7 @@ class AnalysisInputData:
     kwargs: dict = None
 
 
-class AnalysisImplementation:
+class WorkflowImplementation:
     """Class that holds the actual implementation of an analysis function"""
 
     class Meta:
@@ -201,13 +200,14 @@ class AnalysisImplementation:
                 self, self.Meta.dependencies[analysis.subject.__class__]
             )
             _log.debug("Dependency function exists.")
-            dependencies = dependency_func(analysis)
         except AttributeError:
             _log.debug("No dependency function found.")
             dependencies = []
         except KeyError:
             _log.debug("No dependency function found.")
             dependencies = []
+        else:
+            dependencies = dependency_func(analysis)
         return dependencies
 
     @staticmethod
