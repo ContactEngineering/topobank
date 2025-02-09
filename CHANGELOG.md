@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-## 1.55.0 (not yet released)
+## 1.55.0 (2025-02-09)
 
 - API: Analysis function lookups are now by name (not id)
 - ENH: Convenience methods for reading and writing JSON and NetCDF files
