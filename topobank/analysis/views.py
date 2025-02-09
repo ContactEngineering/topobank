@@ -191,7 +191,7 @@ def series_card_view(request, **kwargs):
 
     context = controller.get_context(request=request)
 
-    plot_configuration = {"title": controller.function.name}
+    plot_configuration = {"title": controller.function.display_name}
 
     nb_analyses_success = len(analyses_success_list)
     if nb_analyses_success == 0:
