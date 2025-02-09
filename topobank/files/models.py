@@ -1,12 +1,17 @@
 """
 Basic models for handling files and folders, including upload/download logic.
 """
-
+import io
+import json
 import logging
+import os
 from datetime import datetime
+from tempfile import NamedTemporaryFile
 
+import xarray
 from django.conf import settings
 from django.core.exceptions import SuspiciousFileOperation
+from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import models
 from django.utils import timezone
@@ -48,6 +53,16 @@ class Folder(PermissionMixin, models.Model):
     def open_file(self, filename: str, mode: str = "r"):
         return self.files.get(folder=self, filename=filename).open(mode)
 
+    def read_json(self, filename: str) -> dict:
+        with self.open_file(filename) as f:
+            return json.load(f)
+
+    def read_xarray(self, filename: str) -> xarray.Dataset:
+        with self.open_file(filename, mode="rb") as f:
+            # We need to wrap this in a BytesIO object because xarray query the `path`
+            # property of the stream, which is not supported by the S3 storage backend.
+            return xarray.load_dataset(io.BytesIO(f.read()), engine="scipy")
+
     def save_file(self, filename: str, kind: str, fobj):
         # Check whether file exists, and delete if it does
         fobj.name = filename  # Make sure the filenames are the same
@@ -62,6 +77,24 @@ class Folder(PermissionMixin, models.Model):
         manifest.file = fobj
         manifest.upload_confirmed = datetime.now()
         manifest.save()
+
+    def save_json(self, filename: str, data: dict):
+        self.save_file(filename, "der", ContentFile(json.dumps(data)))
+
+    def save_xarray(self, filename: str, data: xarray.Dataset):
+        with NamedTemporaryFile(delete=False) as f:
+            # NetCDF mess: NetCDF closes the file after write, so we need to make sure
+            # we can reopen it to store it in the backend.
+            # FIXME(pastewka): Think about monkey-patching xarray. Look at NC.py of
+            # SurfaceTopography to see how to avoid closing of the stream with the
+            # scipy reader.
+            data.to_netcdf(f, format="NETCDF3_CLASSIC")
+            with open(f.name, "rb") as f2:
+                self.save_file(filename, "der", ContentFile(f2.read()))
+            # FIXME(pastewka): Starting with Python 3.12, we can simply use
+            # delete_on_close=False in NamedTemporaryFile and get rid of explicitly
+            # deleting the file.
+            os.remove(f.name)
 
     def exists(self, filename: str) -> bool:
         return self.files.filter(filename=filename).count() > 0
