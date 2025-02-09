@@ -84,7 +84,7 @@ def test_analysis_times(
     response = api_client.get(
         reverse(
             "analysis:card-series",
-            kwargs=dict(function_name=test_analysis_function.name),
+            kwargs=dict(workflow=test_analysis_function.name),
         )
         + "?subjects="
         + subjects_to_base64([topo])
@@ -175,7 +175,7 @@ def test_show_only_last_analysis(
     response = api_client.get(
         reverse(
             "analysis:card-series",
-            kwargs=dict(function_name=test_analysis_function.name),
+            kwargs=dict(workflow=test_analysis_function.name),
         )
         + "?subjects="
         + subjects_to_base64([topo1, topo2])
@@ -229,7 +229,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     # request card, there should be warnings, one for topographies and one for surfaces
     #
     response = api_client.get(
-        reverse("analysis:card-series", kwargs=dict(function_name=func.name))
+        reverse("analysis:card-series", kwargs=dict(workflow=func.name))
         + "?subjects="
         + subjects_to_base64([topo1a, topo1b, topo2a, surf1, surf2])
     )
@@ -740,7 +740,7 @@ def test_shared_topography_triggers_no_new_analysis(
     assert api_client.login(username=user2.username, password=password)
 
     response = api_client.get(
-        reverse("analysis:card-series", kwargs=dict(function_name=func1.name))
+        reverse("analysis:card-series", kwargs=dict(workflow=func1.name))
         + "?subjects="
         + subjects_to_base64([topo1a, topo1b, topo2a])
     )

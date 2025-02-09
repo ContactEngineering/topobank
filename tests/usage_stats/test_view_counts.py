@@ -30,7 +30,7 @@ def test_counts_analyses_views(
         response = api_client.get(
             reverse(
                 "analysis:card-series",
-                kwargs=dict(function_name=test_analysis_function.name),
+                kwargs=dict(workflow=test_analysis_function.name),
             )
             + "?subjects="
             + subjects_to_base64([topography])

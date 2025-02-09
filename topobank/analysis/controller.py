@@ -28,7 +28,7 @@ class AnalysisController:
         user,
         subjects=None,
         function=None,
-        function_name=None,
+        workflow_name=None,
         function_id=None,
         kwargs=None,
         with_children=True,
@@ -46,10 +46,10 @@ class AnalysisController:
             Subjects for which to filter analyses. (Default: None)
         function : AnalysisFunction, optional
             Analysis function object. (Default: None)
-        function_name : str, optional
-            name of analysis function. (Default: None)
+        workflow_name : str, optional
+            Name of analysis function. (Default: None)
         function_id : int, optional
-            id of analysis function. (Default: None)
+            Id of analysis function. (Default: None)
         with_children : bool, optional
             Also return analyses of children, i.e. of topographies that belong
             to a surface. (Default: True)
@@ -62,7 +62,7 @@ class AnalysisController:
             )
 
         if function is None:
-            if function_name is None:
+            if workflow_name is None:
                 if function_id is None:
                     self._function = None
                 else:
@@ -72,10 +72,10 @@ class AnalysisController:
                     # FIXME(pastewka): Remove once clients are updated
                     # We try to convert the function name to an integer, because older
                     # API client still pass an id instead of a name
-                    function_id = int(function_name)
+                    function_id = int(workflow_name)
                 except ValueError:
                     self._function = get_object_or_404(
-                        AnalysisFunction, name=function_name
+                        AnalysisFunction, name=workflow_name
                     )
                 else:
                     self._function = get_object_or_404(AnalysisFunction, id=function_id)
@@ -83,7 +83,7 @@ class AnalysisController:
             self._function = function
         else:
             raise ValueError(
-                "Please provide either `function`, `function_id` or `function_name`, "
+                "Please provide either `function`, `function_id` or `workflow_name`, "
                 "not multiple."
             )
 
@@ -151,10 +151,10 @@ class AnalysisController:
         q = request.GET  # Querydict
 
         function_id = None
-        function_name = data.get("function_name")
-        if function_name is None:
-            function_name = q.get("function_name")
-        if function_name is None:
+        workflow_name = data.get("workflow")
+        if workflow_name is None:
+            workflow_name = q.get("workflow")
+        if workflow_name is None:
             function_id = data.get("function_id")
             if function_id is None:
                 function_id = q.get("function_id")
@@ -188,13 +188,17 @@ class AnalysisController:
         kwargs = data.get("function_kwargs")
         if kwargs is None:
             kwargs = q.get("function_kwargs")
+            if kwargs is None:
+                kwargs = data.get("kwargs")
+                if kwargs is None:
+                    kwargs = q.get("kwargs")
         if kwargs is not None and isinstance(kwargs, str):
             kwargs = dict_from_base64(kwargs)
 
         return AnalysisController(
             user,
             subjects=subjects,
-            function_name=function_name,
+            workflow_name=workflow_name,
             function_id=function_id,
             kwargs=kwargs,
             with_children=with_children,
@@ -477,7 +481,7 @@ class AnalysisController:
                 request=request,
             ),
             "dois": self.dois,
-            "function_name": self.function.name,
+            "workflow_name": self.function.name,
             "function_id": self.function.id,
             "subjects": self.subjects_dict,  # can be used to re-trigger analyses
             "unique_kwargs": self.unique_kwargs,

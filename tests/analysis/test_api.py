@@ -4,7 +4,7 @@ from django.urls import reverse
 def test_api():
     """Test API routes"""
     assert (
-        reverse("analysis:card-series", kwargs=dict(function_name="my.function"))
+        reverse("analysis:card-series", kwargs=dict(workflow="my.function"))
         == "/analysis/api/card/series/my.function"
     )
     assert (
