@@ -125,7 +125,7 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
         response.data,
         {
             "id": ASSERT_EQUAL_IGNORE_VALUE,
-            "url": f"http://testserver/analysis/api/function/{name}/",
+            "url": f"http://testserver/analysis/api/workflow/{name}/",
             "name": name,
             "display_name": "Test implementation",
             "visualization_type": "series",

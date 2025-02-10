@@ -19,7 +19,7 @@ from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController
 from .models import Analysis, AnalysisFunction, Configuration
 from .permissions import AnalysisFunctionPermissions
-from .serializers import ConfigurationSerializer, FunctionSerializer, ResultSerializer
+from .serializers import ConfigurationSerializer, ResultSerializer, WorkflowSerializer
 from .utils import filter_and_order_analyses
 
 _log = logging.getLogger(__name__)
@@ -40,7 +40,7 @@ class WorkflowView(
 ):
     lookup_field = "name"
     lookup_value_regex = "[a-z0-9._-]+"
-    serializer_class = FunctionSerializer
+    serializer_class = WorkflowSerializer
     permission_classes = [AnalysisFunctionPermissions]
 
     def get_queryset(self):

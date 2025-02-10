@@ -26,7 +26,7 @@ class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeri
         return versions
 
 
-class FunctionSerializer(
+class WorkflowSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     class Meta:
@@ -123,7 +123,7 @@ class ResultSerializer(
         return {
             "set_name": reverse(
                 "analysis:set-name",
-                kwargs={"analysis_id": obj.id},
+                kwargs={"workflow_id": obj.id},
                 request=self.context["request"],
             ),
         }
