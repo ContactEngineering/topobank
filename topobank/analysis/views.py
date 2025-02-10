@@ -19,11 +19,7 @@ from ..usage_stats.utils import increase_statistics_by_date_and_object
 from .controller import AnalysisController
 from .models import Analysis, AnalysisFunction, Configuration
 from .permissions import AnalysisFunctionPermissions
-from .serializers import (
-    AnalysisFunctionSerializer,
-    AnalysisResultSerializer,
-    ConfigurationSerializer,
-)
+from .serializers import ConfigurationSerializer, FunctionSerializer, ResultSerializer
 from .utils import filter_and_order_analyses
 
 _log = logging.getLogger(__name__)
@@ -39,12 +35,12 @@ class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     serializer_class = ConfigurationSerializer
 
 
-class AnalysisFunctionView(
+class WorkflowView(
     viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin
 ):
     lookup_field = "name"
     lookup_value_regex = "[a-z0-9._-]+"
-    serializer_class = AnalysisFunctionSerializer
+    serializer_class = FunctionSerializer
     permission_classes = [AnalysisFunctionPermissions]
 
     def get_queryset(self):
@@ -66,7 +62,7 @@ class AnalysisFunctionView(
         return AnalysisFunction.objects.filter(pk__in=ids)
 
 
-class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+class ResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
 
     queryset = Analysis.objects.select_related(
@@ -75,7 +71,7 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         "subject_dispatch__topography",
         "subject_dispatch__surface",
     )
-    serializer_class = AnalysisResultSerializer
+    serializer_class = ResultSerializer
 
     def list(self, request, *args, **kwargs):
         try:
@@ -117,8 +113,8 @@ class AnalysisResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 
 
 @api_view(["GET"])
-def dependencies(request, analysis_id):
-    analysis = get_object_or_404(Analysis, pk=analysis_id)
+def dependencies(request, workflow_id):
+    analysis = get_object_or_404(Analysis, pk=workflow_id)
     analysis.authorize_user(request.user)
     dependencies = {}
     for name, id in analysis.dependencies.items():
@@ -135,7 +131,7 @@ def pending(request):
         task_state__in=[Analysis.PENDING, Analysis.STARTED]
     )
     return Response(
-        AnalysisResultSerializer(
+        ResultSerializer(
             queryset, many=True, context={"request": request}
         ).data,
         status=status.HTTP_200_OK,
@@ -151,7 +147,7 @@ def named_result(request):
     else:
         queryset = queryset.filter(name__icontains=name)
     return Response(
-        AnalysisResultSerializer(
+        ResultSerializer(
             queryset, many=True, context={"request": request}
         ).data,
         status=status.HTTP_200_OK,
@@ -319,7 +315,7 @@ def series_card_view(request, **kwargs):
     # by an AJAX request. The url for this request is also prepared here.
     #
     nb_data_points = 0
-    for analysis_idx, analysis in enumerate(analyses_success_list):
+    for workflow_idx, analysis in enumerate(analyses_success_list):
         #
         # Define some helper variables
         #
@@ -343,7 +339,7 @@ def series_card_view(request, **kwargs):
                 ):
                     parent_analysis = a
 
-        subject_display_name = subject_names[analysis_idx]
+        subject_display_name = subject_names[workflow_idx]
 
         #
         # Handle unexpected task states for robustness, shouldn't be needed in general
@@ -429,7 +425,7 @@ def series_card_view(request, **kwargs):
                 {
                     "sourceName": f"analysis-{analysis.id}",
                     "subjectName": subject_display_name,
-                    "subjectNameIndex": analysis_idx,
+                    "subjectNameIndex": workflow_idx,
                     "subjectNameHasParent": parent_analysis is not None,
                     "seriesName": series_name,
                     "seriesNameIndex": series_name_idx,
@@ -468,9 +464,9 @@ def series_card_view(request, **kwargs):
 
 
 @api_view(["POST"])
-def set_name(request, analysis_id: int):
+def set_name(request, workflow_id: int):
     name = request.data.get("name")
-    analysis = get_object_or_404(Analysis, id=analysis_id)
+    analysis = get_object_or_404(Analysis, id=workflow_id)
     analysis.set_name(name)
     return Response({})
 

@@ -5,8 +5,8 @@ from . import downloads, views, workflows
 
 router = DefaultRouter()
 router.register(r"api/configuration", views.ConfigurationView, basename="configuration")
-router.register(r"api/function", views.AnalysisFunctionView, basename="function")
-router.register(r"api/result", views.AnalysisResultView, basename="result")
+router.register(r"api/workflow", views.WorkflowView, basename="workflow")
+router.register(r"api/result", views.ResultView, basename="result")
 
 urlpatterns = router.urls
 
@@ -17,17 +17,18 @@ urlpatterns += [
     #
     # GET
     # * Get pending or running analyses
-    path(
-        "api/pending",
-        view=views.pending,
-        name="pending"
-    ),
+    path("api/pending", view=views.pending, name="pending"),
+    # GET
     # * Get dependent analyses
     path(
-        "api/dependencies/<int:analysis_id>",
+        "api/result/<int:workflow_id>/dependencies",
         view=views.dependencies,
         name="dependencies",
     ),
+    # POST
+    # * Set a name, protecting analysis from deletion
+    path("api/result/<int:workflow_id>/set-name", view=views.set_name, name="set-name"),
+    # GET
     # * Return named/save results
     path(
         "api/named-result",
@@ -50,9 +51,6 @@ urlpatterns += [
     # GET
     # * Return memory usage of individual analyses
     path("api/memory-usage/", view=views.memory_usage, name="memory-usage"),
-    # POST
-    # * Set a name, protecting analysis from deletion
-    path("api/set-name/<int:analysis_id>", view=views.set_name, name="set-name"),
     #
     # Data routes (returned data type is unspecified)
     #

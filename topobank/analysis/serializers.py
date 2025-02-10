@@ -26,7 +26,7 @@ class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeri
         return versions
 
 
-class AnalysisFunctionSerializer(
+class FunctionSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     class Meta:
@@ -41,7 +41,7 @@ class AnalysisFunctionSerializer(
         ]
 
     url = serializers.HyperlinkedIdentityField(
-        view_name="analysis:function-detail", lookup_field="name", read_only=True
+        view_name="analysis:workflow-detail", lookup_field="name", read_only=True
     )
 
     visualization_type = serializers.SerializerMethodField()
@@ -55,7 +55,7 @@ class AnalysisFunctionSerializer(
         return obj.get_kwargs_schema()
 
 
-class AnalysisSubjectSerializer(
+class SubjectSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     class Meta:
@@ -73,7 +73,7 @@ class AnalysisSubjectSerializer(
     )
 
 
-class AnalysisResultSerializer(
+class ResultSerializer(
     StrictFieldMixin, topobank.taskapp.serializers.TaskStateModelSerializer
 ):
     class Meta:
@@ -108,9 +108,9 @@ class AnalysisResultSerializer(
     dependencies_url = serializers.SerializerMethodField()
     api = serializers.SerializerMethodField()
     function = serializers.HyperlinkedRelatedField(
-        view_name="analysis:function-detail", lookup_field="name", read_only=True
+        view_name="analysis:workflow-detail", lookup_field="name", read_only=True
     )
-    subject = AnalysisSubjectSerializer(source="subject_dispatch")
+    subject = SubjectSerializer(source="subject_dispatch")
     folder = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
@@ -131,6 +131,6 @@ class AnalysisResultSerializer(
     def get_dependencies_url(self, obj):
         return reverse(
             "analysis:dependencies",
-            kwargs={"analysis_id": obj.id},
+            kwargs={"workflow_id": obj.id},
             request=self.context["request"],
         )

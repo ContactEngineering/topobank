@@ -7,7 +7,7 @@ from rest_framework.exceptions import PermissionDenied
 from ..manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
 from .models import Analysis, AnalysisFunction, AnalysisSubject
 from .registry import ImplementationMissingAnalysisFunctionException
-from .serializers import AnalysisResultSerializer
+from .serializers import ResultSerializer
 from .utils import find_children
 
 _log = logging.getLogger(__name__)
@@ -452,7 +452,7 @@ class AnalysisController:
         else:
             context = {"request": request}
         return [
-            AnalysisResultSerializer(analysis, context=context).data
+            ResultSerializer(analysis, context=context).data
             for analysis in self.get(
                 task_states=task_states, has_result_file=has_result_file
             )

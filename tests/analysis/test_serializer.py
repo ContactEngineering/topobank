@@ -1,7 +1,7 @@
 import pytest
 from django.utils.duration import duration_string
 
-from topobank.analysis.serializers import AnalysisResultSerializer
+from topobank.analysis.serializers import ResultSerializer
 from topobank.manager.models import Tag
 from topobank.testing.factories import AnalysisFactory
 from topobank.testing.utils import ASSERT_EQUAL_IGNORE_VALUE, assert_dict_equal
@@ -14,7 +14,7 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
     analysis = AnalysisFactory(
         subject_topography=topo, user=topo.creator, function=test_analysis_function
     )
-    data = AnalysisResultSerializer(analysis, context={"request": request}).data
+    data = ResultSerializer(analysis, context={"request": request}).data
     assert_dict_equal(
         data,
         {
@@ -59,7 +59,7 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
     analysis = AnalysisFactory(
         subject_tag=tag, user=topo.creator, function=test_analysis_function
     )
-    data = AnalysisResultSerializer(analysis, context={"request": request}).data
+    data = ResultSerializer(analysis, context={"request": request}).data
     assert_dict_equal(
         data,
         {

@@ -109,7 +109,7 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
     api_client.force_login(user_alice)
 
     response = api_client.get(
-        f"{reverse('analysis:function-list')}?subject_type=topography"
+        f"{reverse('analysis:workflow-list')}?subject_type=topography"
     )
 
     assert response.status_code == 200
@@ -117,7 +117,7 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
 
     name = "topobank.testing.test"
     response = api_client.get(
-        reverse("analysis:function-detail", kwargs=dict(name=name))
+        reverse("analysis:workflow-detail", kwargs=dict(name=name))
     )
 
     assert response.status_code == 200
