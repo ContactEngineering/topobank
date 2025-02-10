@@ -100,6 +100,7 @@ class ResultSerializer(
             "folder",
             "name",
         ]
+        read_only_fields = fields
 
     # Self
     url = serializers.HyperlinkedIdentityField(
@@ -110,7 +111,7 @@ class ResultSerializer(
     function = serializers.HyperlinkedRelatedField(
         view_name="analysis:workflow-detail", lookup_field="name", read_only=True
     )
-    subject = SubjectSerializer(source="subject_dispatch")
+    subject = SubjectSerializer(source="subject_dispatch", read_only=True)
     folder = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
