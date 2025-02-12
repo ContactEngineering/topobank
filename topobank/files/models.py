@@ -1,6 +1,7 @@
 """
 Basic models for handling files and folders, including upload/download logic.
 """
+
 import io
 import json
 import logging
@@ -51,7 +52,13 @@ class Folder(PermissionMixin, models.Model):
         return self.files.all()[item]
 
     def open_file(self, filename: str, mode: str = "r"):
-        return self.files.get(folder=self, filename=filename).open(mode)
+        try:
+            manifest = self.files.get(folder=self, filename=filename)
+        except Manifest.DoesNotExist:
+            raise FileNotFoundError(
+                f"Manifest for file '{filename}' not found in folder"
+            )
+        return manifest.open(mode)
 
     def read_json(self, filename: str) -> dict:
         with self.open_file(filename) as f:
