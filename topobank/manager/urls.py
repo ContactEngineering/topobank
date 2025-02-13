@@ -38,17 +38,17 @@ urlpatterns += [
         name="set-surface-permissions",
     ),
     re_path(
-        r"api/set-tag-permissions/<(?P<name>[^.]+)>",
+        r"api/set-tag-permissions/(?P<name>[^.]+)",
         view=views.set_tag_permissions,
         name="set-tag-permissions",
     ),
     re_path(
-        r"api/properties-in-tag/numerical/<(?P<name>[^.]+)>",
+        r"api/properties-in-tag/numerical/(?P<name>[^.]+)",
         view=views.tag_numerical_properties,
         name="numerical-properties",
     ),
     re_path(
-        r"api/properties-in-tag/categorical/<(?P<name>[^.]+)>",
+        r"api/properties-in-tag/categorical/(?P<name>[^.]+)",
         view=views.tag_categorical_properties,
         name="categorical-properties",
     ),
