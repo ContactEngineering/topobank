@@ -1189,8 +1189,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self._make_thumbnail(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
+                if self.thumbnail:
+                    self.thumbnail.delete()
                 self.thumbnail = None
-                self.save()
+                self.save(update_fields=["thumbnail"])
                 _log.warning(
                     f"Problems while generating thumbnail for topography {self.id}:"
                     f" {exc}. Saving <None> instead."
@@ -1222,6 +1224,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self._make_deepzoom(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
+                if self.deepzoom:
+                    self.deepzoom.delete()
+                self.deepzoom = None
+                self.save(update_fields=["deepzoom"])
                 _log.warning(
                     f"Problems while generating deep zoom images for topography {self.id}: {exc}."
                 )

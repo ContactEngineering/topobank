@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.55.1 (2025-02-16)
+
+- BUG: Gracefully fail of thumbnail or deepzoom creation
+
 ## 1.55.0 (2025-02-09)
 
 - API: Analysis function lookups are now by name (not id)

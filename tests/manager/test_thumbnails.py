@@ -23,11 +23,29 @@ def test_thumbnail_exists_for_new_topography():
 
 
 @pytest.mark.django_db
+def test_thumbnail_creation_fails(mocker):
+    topo = Topography2DFactory(size_x=1, size_y=1)
+    topo.refresh_cache()
+    # should have a thumbnail picture
+    assert topo.thumbnail is not None
+
+    mocker.patch(
+        "topobank.manager.models.Topography._make_thumbnail",
+        side_effect=Exception("Test exception"),
+    )
+    topo.refresh_cache()
+    # should have no thumbnail picture
+    assert topo.thumbnail is None
+
+
+@pytest.mark.django_db
 def test_renewal_on_topography_detrend_mode_change(
     api_client, mocker, settings, django_capture_on_commit_callbacks
 ):
     """Check whether thumbnail is renewed if detrend mode changes for a topography"""
-    refresh_cache_mock = mocker.patch("topobank.manager.models.Topography.refresh_cache")
+    refresh_cache_mock = mocker.patch(
+        "topobank.manager.models.Topography.refresh_cache"
+    )
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
@@ -68,7 +86,9 @@ def test_no_renewal_on_measurement_date_change(
     """Check whether thumbnail is renewed if detrend mode changes for a topography"""
     settings.CELERY_TASK_ALWAYS_EAGER = True
 
-    refresh_cache_mock = mocker.patch("topobank.manager.models.Topography.refresh_cache")
+    refresh_cache_mock = mocker.patch(
+        "topobank.manager.models.Topography.refresh_cache"
+    )
 
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
