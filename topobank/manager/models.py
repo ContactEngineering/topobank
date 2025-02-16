@@ -77,6 +77,12 @@ class DZIGenerationException(ThumbnailGenerationException):
     pass
 
 
+class SqueezedDatafileGenerationException(ThumbnailGenerationException):
+    """Failure while generating squeezed data files for a topography."""
+
+    pass
+
+
 class TopobankLazySurfaceContainer(SurfaceContainer):
     """Wraps a `Surface` with lazy loading of topography data"""
 
@@ -1168,6 +1174,28 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.deepzoom = Folder.objects.create(permissions=self.permissions)
             render_deepzoom(st_topo, self.deepzoom)
 
+    def _make_squeezed(self, st_topo=None, save=False):
+        if st_topo is None:
+            st_topo = self.read()
+        with tempfile.NamedTemporaryFile() as tmp:
+            # Write and upload NetCDF file
+            st_topo.to_netcdf(tmp.name)
+            # Delete old squeezed file
+            if self.squeezed_datafile:
+                self.squeezed_datafile.delete()
+            # Upload new squeezed file
+            dirname, basename = os.path.split(self.datafile.filename)
+            orig_stem, orig_ext = os.path.splitext(basename)
+            squeezed_name = f"{orig_stem}-squeezed.nc"
+            self.squeezed_datafile = Manifest.objects.create(
+                permissions=self.permissions,
+                filename=squeezed_name,
+                kind="der",
+                file=File(open(tmp.name, mode="rb")),
+            )
+        if save:
+            self.save()
+
     def make_thumbnail(self, none_on_error=True, st_topo=None):
         """Renew thumbnail field.
 
@@ -1189,8 +1217,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self._make_thumbnail(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
-                if self.thumbnail:
-                    self.thumbnail.delete()
                 self.thumbnail = None
                 self.save(update_fields=["thumbnail"])
                 _log.warning(
@@ -1224,8 +1250,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self._make_deepzoom(st_topo=st_topo)
         except Exception as exc:
             if none_on_error:
-                if self.deepzoom:
-                    self.deepzoom.delete()
                 self.deepzoom = None
                 self.save(update_fields=["deepzoom"])
                 _log.warning(
@@ -1237,27 +1261,22 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             else:
                 raise DZIGenerationException(self, str(exc)) from exc
 
-    def make_squeezed(self, st_topo=None, save=False):
-        if st_topo is None:
-            st_topo = self.read()
-        with tempfile.NamedTemporaryFile() as tmp:
-            # Write and upload NetCDF file
-            st_topo.to_netcdf(tmp.name)
-            # Delete old squeezed file
-            if self.squeezed_datafile:
-                self.squeezed_datafile.delete()
-            # Upload new squeezed file
-            dirname, basename = os.path.split(self.datafile.filename)
-            orig_stem, orig_ext = os.path.splitext(basename)
-            squeezed_name = f"{orig_stem}-squeezed.nc"
-            self.squeezed_datafile = Manifest.objects.create(
-                permissions=self.permissions,
-                filename=squeezed_name,
-                kind="der",
-                file=File(open(tmp.name, mode="rb")),
-            )
-        if save:
-            self.save()
+    def make_squeezed(self, none_on_error=True, st_topo=None, save=False):
+        try:
+            self._make_squeezed(st_topo=st_topo, save=save)
+        except Exception as exc:
+            if none_on_error:
+                self.squeezed_datafile = None
+                self.save(update_fields=["squeezed_datafile"])
+                _log.warning(
+                    "Problems while generating squeezed datafile for topography "
+                    f"{self.id}: {exc}. Saving <None> instead."
+                )
+                import traceback
+
+                _log.warning(f"Traceback: {traceback.format_exc()}")
+            else:
+                raise SqueezedDatafileGenerationException(self, str(exc)) from exc
 
     def refresh_bandwidth_cache(self, st_topo=None):
         """Renew bandwidth cache.

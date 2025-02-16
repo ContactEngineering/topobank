@@ -1,9 +1,13 @@
 # Changelog for *TopoBank*
 
+## 1.55.2 (2025-02-16)
+
+- BUG: Graceful fail of squeeze file creation
+
 ## 1.55.1 (2025-02-16)
 
 - BUG: Fixed paths for `set-tag-permissions` and `properties-in-tag`
-- BUG: Gracefully fail of thumbnail or deepzoom creation
+- BUG: Graceful fail of thumbnail or deepzoom creation
 
 ## 1.55.0 (2025-02-09)
 

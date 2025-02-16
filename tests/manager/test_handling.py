@@ -932,9 +932,7 @@ def topo_example4(two_topos):
 
 
 @pytest.mark.django_db
-def test_edit_topography(
-    api_client, topo_example3, handle_usage_statistics
-):
+def test_edit_topography(api_client, topo_example3, handle_usage_statistics):
     new_name = "This is a better name"
     new_measurement_date = "2018-07-01"
     new_description = "New results available"
@@ -1389,3 +1387,19 @@ def test_automatic_extraction_of_instrument_parameters(
     assert response.status_code == 200, response.content
     assert response.data["instrument_parameters"] == new_instrument_parameters
     assert response.data["instrument_type"] == Topography.INSTRUMENT_TYPE_CONTACT_BASED
+
+
+@pytest.mark.django_db
+def test_squeezed_creation_fails(mocker):
+    topo = Topography2DFactory(size_x=1, size_y=1)
+    topo.refresh_cache()
+    # should have a thumbnail picture
+    assert topo.squeezed_datafile is not None
+
+    mocker.patch(
+        "topobank.manager.models.Topography._make_squeezed",
+        side_effect=Exception("Test exception"),
+    )
+    topo.refresh_cache()
+    # should have no thumbnail picture
+    assert topo.squeezed_datafile is None
