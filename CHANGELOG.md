@@ -2,6 +2,7 @@
 
 ## 1.55.1 (2025-02-16)
 
+- BUG: Fixed paths for `set-tag-permissions` and `properties-in-tag`
 - BUG: Gracefully fail of thumbnail or deepzoom creation
 
 ## 1.55.0 (2025-02-09)
