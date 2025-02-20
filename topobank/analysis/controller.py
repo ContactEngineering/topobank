@@ -417,8 +417,8 @@ class AnalysisController:
                     )
                 except WorkflowNotImplementedException:
                     _log.info(
-                        f"Dit NOT trigger analysis for function '{self._function.name}' "
-                        f"and subject '{subject}' because the implementation is missing."
+                        f"Did NOT trigger workflow '{self._function.name}' because it "
+                        f"does not have an implementation for '{subject}'."
                     )
 
         # Now all subjects which needed to be triggered, should have been triggered with common arguments if possible

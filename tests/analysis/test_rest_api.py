@@ -437,3 +437,16 @@ def test_query_pending(
     response = api_client.get(reverse("analysis:pending"))
     assert len(response.data) == 1
     assert response.data[0]["task_state"] == "pe"
+
+
+@pytest.mark.django_db
+def test_query_with_not_implemented_subject(api_client, one_line_scan, test_analysis_function):
+    user = one_line_scan.creator
+    one_line_scan.grant_permission(user, "view")
+    surface = one_line_scan.surface
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}?surface={surface.id}"
+        f"&workflow=topobank.testing.topography_only_test"
+    )
+    assert response.status_code == 200
+    assert response.data == []
