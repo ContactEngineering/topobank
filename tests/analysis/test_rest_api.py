@@ -449,4 +449,4 @@ def test_query_with_not_implemented_subject(api_client, one_line_scan, test_anal
         f"&workflow=topobank.testing.topography_only_test"
     )
     assert response.status_code == 200
-    assert response.data == []
+    assert response.data['analyses'] == []
