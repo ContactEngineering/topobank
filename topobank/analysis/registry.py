@@ -19,6 +19,8 @@ Frontend apps are implemented as Vue.js components.
 
 import logging
 
+from rest_framework.exceptions import APIException
+
 _log = logging.getLogger(__name__)
 
 
@@ -27,80 +29,14 @@ _log = logging.getLogger(__name__)
 #
 
 
-class RegistryException(Exception):
+class WorkflowRegistryException(APIException):
     """Generic exception for problems while handling analysis functions."""
 
-    pass
+    status_code = 400
+    default_detail = "Bad workflow request."
 
 
-class UnknownAnalysisFunctionException(RegistryException):
-    """No analysis function with given name known."""
-
-    def __init__(self, name):
-        self._name = name
-
-    def __str__(self):
-        return f"No analysis function defined with name '{self._name}'."
-
-
-class UnimplementedAnalysisFunctionException(RegistryException):
-    """No implementation for analysis function with given name registered."""
-
-    def __init__(self, name):
-        self._name = name
-
-    def __str__(self):
-        return f"No implementation has been registered for analysis function '{self._name}'."
-
-
-class AlreadyRegisteredAnalysisFunctionException(
-    RegistryException
-):  # TODO replace with  AlreadyRegisteredException ?
-    """An implementation of an analysis function has already been defined."""
-
-    def __init__(self, visualization_type, name, subject_app_name, subject_model):
-        self._visualization_type = visualization_type
-        self._name = name
-        self._subject_app_name = subject_app_name
-        self._subject_model = subject_model
-
-    def __str__(self):
-        return (
-            f"An implementation for analysis function '{self._name}' "
-            f"(visualization type: {self._visualization_type}) with subject type "
-            f"'{self._subject_model}' (app '{self._subject_app_name}') has already been defined."
-        )
-
-
-class DefaultKwargsDifferException(RegistryException):
-    def __init__(
-        self,
-        name,
-        subject_app_name1,
-        subject_model1,
-        default_kwargs1,
-        subject_app_name2,
-        subject_model2,
-        default_kwargs2,
-    ):
-        self._name = name
-        self._subject_app_name1 = subject_app_name1
-        self._subject_model1 = subject_model1
-        self._default_kwargs1 = default_kwargs1
-        self._subject_app_name2 = subject_app_name2
-        self._subject_model2 = subject_model2
-        self._default_kwargs2 = default_kwargs2
-
-    def __str__(self):
-        return (
-            f"Analysis function '{self._name}' has already been registered for model "
-            f"'{self._subject_app_name1}|{self._subject_model1}' with default keyword arguments "
-            f"'{self._default_kwargs1}. The implementation for '{self._subject_app_name2}|{self._subject_model2}' "
-            f"has different default keyword arguments of '{self._default_kwargs2}."
-        )
-
-
-class AlreadyRegisteredException(RegistryException):
+class AlreadyRegisteredException(WorkflowRegistryException):
     """A function has already been registered for the given key."""
 
     def __init__(self, key):
@@ -110,7 +46,7 @@ class AlreadyRegisteredException(RegistryException):
         return f"An implementation for key '{self._key}' has already been defined."
 
 
-class ImplementationMissingAnalysisFunctionException(RegistryException):
+class WorkflowNotImplementedException(WorkflowRegistryException):
     """An analysis function implementation was not found for given subject type."""
 
     def __init__(self, name, subject_model):
@@ -119,38 +55,12 @@ class ImplementationMissingAnalysisFunctionException(RegistryException):
 
     def __str__(self):
         return (
-            f"Implementation of analysis function '{self._name}' for "
-            f"subject '{self._subject_model}' not found."
+            f"Workflow '{self._name}' has no implementation for subject "
+            f"'{self._subject_model}' not found."
         )
 
 
-class InconsistentAnalysisResultTypeException(RegistryException):
-    """visualization type for an analysis function is not unique."""
-
-    def __init__(self, name, curr_visualization_type, new_visualization_type):
-        self._name = name
-        self._curr_visualization_type = curr_visualization_type
-        self._new_visualization_type = new_visualization_type
-
-    def __str__(self):
-        return (
-            f"An implementation for analysis function '{self._name}' was given with "
-            + f"visualization type '{self._new_visualization_type}', but before "
-            + f"visualization type '{self._curr_visualization_type}' was defined. It should be unique."
-        )
-
-
-class UnknownCardViewFlavorException(RegistryException):
-    """Card view flavor for an analysis function is not known."""
-
-    def __init__(self, key):
-        self._key = key
-
-    def __str__(self):
-        return f"An unknown card view flavor was given in key '{self._key}' while registering a function."
-
-
-class UnknownKeyException(RegistryException):
+class UnknownKeyException(WorkflowRegistryException):
     """A key was requested which is not known."""
 
     def __init__(self, key):

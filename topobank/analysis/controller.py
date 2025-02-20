@@ -6,7 +6,7 @@ from rest_framework.exceptions import PermissionDenied
 
 from ..manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
 from .models import Analysis, AnalysisFunction, AnalysisSubject
-from .registry import ImplementationMissingAnalysisFunctionException
+from .registry import WorkflowNotImplementedException
 from .serializers import ResultSerializer
 from .utils import find_children
 
@@ -415,7 +415,7 @@ class AnalysisController:
                         f"Triggered analysis {triggered_analysis.id} for function '{self._function.name}' "
                         f"and subject '{subject}'."
                     )
-                except ImplementationMissingAnalysisFunctionException:
+                except WorkflowNotImplementedException:
                     _log.info(
                         f"Dit NOT trigger analysis for function '{self._function.name}' "
                         f"and subject '{subject}' because the implementation is missing."

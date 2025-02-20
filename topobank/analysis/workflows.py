@@ -16,7 +16,7 @@ from django.conf import settings
 from ..manager.models import Surface, Topography
 from ..supplib.dict import SplitDictionaryHere
 from .models import AnalysisFunction
-from .registry import ImplementationMissingAnalysisFunctionException
+from .registry import WorkflowNotImplementedException
 
 _log = logging.getLogger(__name__)
 
@@ -177,7 +177,7 @@ class WorkflowImplementation:
         try:
             name = self.Meta.implementations[model_class]
         except KeyError:
-            raise ImplementationMissingAnalysisFunctionException(
+            raise WorkflowNotImplementedException(
                 self.Meta.name, model_class
             )
         return getattr(self, name)

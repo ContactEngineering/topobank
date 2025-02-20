@@ -4,7 +4,7 @@ from collections import defaultdict
 from django.core.management.base import BaseCommand
 
 from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
+from topobank.analysis.registry import WorkflowNotImplementedException
 
 _log = logging.getLogger(__name__)
 
@@ -58,7 +58,7 @@ class Command(BaseCommand):
             analysis_kwargs = a.kwargs
             try:
                 impl = a.function.get_implementation(a.subject_type)
-            except ImplementationMissingAnalysisFunctionException:
+            except WorkflowNotImplementedException:
                 self.stdout.write(self.style.WARNING(f"Skipping analysis {a.id} because the implementation "
                                                      "no longer exists and we cannot determine default parameters."))
                 continue

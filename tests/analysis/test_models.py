@@ -7,7 +7,7 @@ from django.db.models.functions import Lower
 from django.utils import timezone
 
 from topobank.analysis.models import Analysis, AnalysisFunction
-from topobank.analysis.registry import ImplementationMissingAnalysisFunctionException
+from topobank.analysis.registry import WorkflowNotImplementedException
 from topobank.analysis.tasks import get_current_configuration
 from topobank.files.models import Manifest
 from topobank.manager.models import Topography
@@ -58,7 +58,7 @@ def test_exception_implementation_missing(test_analysis_function):
     analysis.folder.remove_files()
     function.eval(analysis)  # that's okay, it's implemented
     analysis = SurfaceAnalysisFactory(function=test_analysis_function)
-    with pytest.raises(ImplementationMissingAnalysisFunctionException):
+    with pytest.raises(WorkflowNotImplementedException):
         function.eval(analysis)  # that's not implemented
 
 
