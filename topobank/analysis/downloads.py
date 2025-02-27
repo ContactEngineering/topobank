@@ -287,7 +287,7 @@ def _get_si_unit_conversion(xunit, yunit):
 
     # Unit conversion tool
     ureg = pint.UnitRegistry()
-    ureg.default_format = "~P"  # short and pretty
+    ureg.formatter.default_format = "~P"  # short and pretty
 
     # Convert units to SI
     xconv = 1

@@ -4,6 +4,7 @@
 
 - BUG: Return 400 bad request when creation of download ZIP fails
 - BUG: Gracefully handle not existing manifests
+- MAINT: Fixed pint deprecation, closes #1166
 
 ## 1.55.2 (2025-02-16)
 
