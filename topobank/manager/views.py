@@ -223,13 +223,6 @@ class TopographyViewSet(
 
 @api_view(["GET"])
 def download_surface(request, surface_id):
-    """Returns a file or redirect comprised from topographies contained in a surface.
-
-    :param request:
-    :param surface_id: surface id
-    :return:
-    """
-
     #
     # Check existence and permissions for given surface
     #
@@ -267,7 +260,13 @@ def download_surface(request, surface_id):
     if content_data is None:
         container_bytes = BytesIO()
         _log.info(f"Preparing container of surface id={surface_id} for download..")
-        write_surface_container(container_bytes, [surface])
+        try:
+            write_surface_container(container_bytes, [surface])
+        except FileNotFoundError:
+            return HttpResponseBadRequest(
+                "Cannot create ZIP container for download because some data file "
+                "could not be accessed. (The file may be missing.)"
+            )
         content_data = container_bytes.getvalue()
 
         if surface.is_published:

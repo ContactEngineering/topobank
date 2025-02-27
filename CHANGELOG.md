@@ -2,6 +2,7 @@
 
 ## 1.55.3 (2025-02-27)
 
+- BUG: Return 400 bad request when creation of download ZIP fails
 - BUG: Gracefully handle not existing manifests
 
 ## 1.55.2 (2025-02-16)
