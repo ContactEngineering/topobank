@@ -809,14 +809,19 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def remove_files(self):
         """Remove files associated with a topography instance before removal of the topography."""
 
-        def delete(x):
-            if x:
-                x.delete()
+        def delete(name, exc=Manifest.DoesNotExist):
+            try:
+                x = getattr(self, name)
+            except exc:
+                pass
+            else:
+                if x:
+                    x.delete()
 
-        delete(self.datafile)
-        delete(self.squeezed_datafile)
-        delete(self.thumbnail)
-        delete(self.deepzoom)
+        delete("datafile")
+        delete("squeezed_datafile")
+        delete("thumbnail")
+        delete("deepzoom", Folder.DoesNotExist)
 
     def __str__(self):
         return "Topography '{0}' from {1}".format(self.name, self.measurement_date)

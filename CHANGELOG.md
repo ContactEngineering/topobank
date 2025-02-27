@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+## 1.55.3 (2025-02-27)
+
+- BUG: Gracefully handle not existing manifests
+
 ## 1.55.2 (2025-02-16)
 
 - BUG: Graceful fail of squeeze file creation
