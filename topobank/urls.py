@@ -11,7 +11,6 @@ from django.views import defaults as default_views
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
 
 from .organizations.models import Organization
-from .users.allauth_views import TabbedEmailView
 from .views import entry_points
 
 urlpatterns = [
@@ -22,14 +21,11 @@ urlpatterns = [
     #
     # User management
     #
+    path("accounts/", include("allauth.urls")),
     path(
         "users/",
         include("topobank.users.urls", namespace="users"),
     ),
-    re_path(
-        "^accounts/email/$", TabbedEmailView.as_view(), name="account_email"
-    ),  # same as allauth.accounts.email.EmailView, but with tab data
-    path("accounts/", include("allauth.urls")),
     #
     # Core topobank applications
     #
