@@ -62,7 +62,7 @@ class WorkflowView(
         return AnalysisFunction.objects.filter(pk__in=ids)
 
 
-class ResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
+class ResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.DestroyModelMixin):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
 
     queryset = Analysis.objects.select_related(
