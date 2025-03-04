@@ -120,7 +120,7 @@ def filter_surfaces(request, qs):
     #
     # Filter by search term
     #
-    search_term = request.GET.get("search_term", default="")
+    search_term = request.GET.get("search", default="")
     if search_term:
         #
         # search specific fields of all surfaces in a 'websearch' manner:
