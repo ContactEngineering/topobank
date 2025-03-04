@@ -84,19 +84,20 @@ DJANGO_APPS = [
 THIRD_PARTY_APPS = [
     "crispy_forms",  # format forms
     "crispy_bootstrap5",  # format forms with Bootstrap-5
-    "allauth",
+    "allauth",  # authentication
     "allauth.account",
-    "allauth.socialaccount",
-    "allauth.socialaccount.providers.orcid",
-    "rest_framework",
-    "storages",
+    "allauth.socialaccount",  # social authentication
+    "allauth.socialaccount.providers.orcid",  # ORCID provider
+    "rest_framework",  # REST API
+    "django_filters",  # for filtering in rest framework
+    "storages",  # S3 storage
     "guardian",  # needed for migrations only
     "notifications",
     "tagulous",  # tag-model with hierarchies
     "trackstats",
     "watchman",  # system status report
     "request_profiler",  # keep track of response times for selected routes
-    "drf_spectacular",
+    "drf_spectacular",  # API documentation
 ]
 LOCAL_APPS = [
     # Your stuff: custom apps go here
@@ -392,6 +393,7 @@ REST_FRAMEWORK = {
         # Anonymous user is not authenticated by needs read-only access
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
+    "DEFAULT_FILTER_BACKENDS": ["django_filters.rest_framework.DjangoFilterBackend"],
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
 }

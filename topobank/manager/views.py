@@ -12,6 +12,7 @@ from notifications.signals import notify
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ParseError, PermissionDenied
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
@@ -37,6 +38,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     lookup_value_regex = "[^.]+"  # We need to match paths that include slashes
     serializer_class = TagSerializer
     permission_classes = [TagPermission]
+    pagination_class = LimitOffsetPagination
 
     def list(self, request, *args, **kwargs):
         all_tags = set(
@@ -60,6 +62,7 @@ class SurfaceViewSet(
 ):
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    pagination_class = LimitOffsetPagination
 
     def _notify(self, instance, verb):
         user = self.request.user
@@ -97,12 +100,6 @@ class SurfaceViewSet(
                 )
             else:
                 raise ParseError("`tag_startswith` cannot be empty.")
-        elif self.action == "list":
-            # We do not allow simply listing all surfaces
-            raise ParseError(
-                "Please limit you request with query parameters. Possible parameters "
-                "are: `tag`, `tag_startswith`"
-            )
         return qs
 
     def perform_create(self, serializer):
@@ -132,6 +129,7 @@ class TopographyViewSet(
 ):
     serializer_class = TopographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    pagination_class = LimitOffsetPagination
 
     def _notify(self, instance, verb):
         user = self.request.user
