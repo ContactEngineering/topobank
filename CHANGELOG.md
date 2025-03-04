@@ -7,7 +7,7 @@
 - BUG: Gracefully handle not existing manifests
 - MAINT: Fixed pint deprecation (#1166)
 - MAINT: Moved all HTML user routes to ce-ui (#1159)
-- MAINT: Bumped SurfaceTopography dependency to 1.18.0
+- MAINT: Bumped SurfaceTopography dependency to 1.18.1
 
 ## 1.55.2 (2025-02-16)
 
