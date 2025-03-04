@@ -24,6 +24,7 @@ from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User, resolve_user
 from .containers import write_surface_container
+from .filters import filter_surfaces
 from .models import Surface, Tag, Topography
 from .permissions import TagPermission
 from .serializers import SurfaceSerializer, TagSerializer, TopographySerializer
@@ -77,30 +78,7 @@ class SurfaceViewSet(
 
     def get_queryset(self):
         qs = Surface.objects.for_user(self.request.user)
-        tag = self.request.query_params.get("tag", None)
-        tag_startswith = self.request.query_params.get("tag_startswith", None)
-        if tag is not None:
-            if tag_startswith is not None:
-                raise ParseError(
-                    "Please specify either `tag` or `tag_startswith`, not both."
-                )
-            if tag:
-                qs = qs.filter(tags__name=tag)
-            else:
-                qs = qs.filter(tags=None)
-        elif tag_startswith is not None:
-            if tag_startswith:
-                qs = (
-                    qs.filter(
-                        Q(tags__name=tag_startswith)
-                        | Q(tags__name__startswith=tag_startswith.rstrip("/") + "/")
-                    )
-                    .order_by("id")
-                    .distinct("id")
-                )
-            else:
-                raise ParseError("`tag_startswith` cannot be empty.")
-        return qs
+        return filter_surfaces(self.request, qs)
 
     def perform_create(self, serializer):
         # Set creator to current user when creating a new surface
