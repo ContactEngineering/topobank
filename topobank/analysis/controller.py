@@ -167,7 +167,10 @@ class AnalysisController:
         if subjects is None:
             subjects = q.get("subjects")
         if subjects is not None and isinstance(subjects, str):
-            subjects = dict_from_base64(subjects)
+            try:
+                subjects = dict_from_base64(subjects)
+            except UnicodeDecodeError:
+                subjects = None
 
         if subjects is None:
             for subject_key in _queryable_subjects:
