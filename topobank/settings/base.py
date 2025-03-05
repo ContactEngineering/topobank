@@ -89,7 +89,6 @@ THIRD_PARTY_APPS = [
     "allauth.socialaccount",  # social authentication
     "allauth.socialaccount.providers.orcid",  # ORCID provider
     "rest_framework",  # REST API
-    "django_filters",  # for filtering in rest framework
     "storages",  # S3 storage
     "guardian",  # needed for migrations only
     "notifications",
