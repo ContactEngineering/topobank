@@ -62,7 +62,9 @@ class WorkflowView(
         return AnalysisFunction.objects.filter(pk__in=ids)
 
 
-class ResultView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.DestroyModelMixin):
+class ResultView(
+    viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.DestroyModelMixin
+):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
 
     queryset = Analysis.objects.select_related(
@@ -131,10 +133,7 @@ def pending(request):
         task_state__in=[Analysis.PENDING, Analysis.STARTED]
     )
     return Response(
-        ResultSerializer(
-            queryset, many=True, context={"request": request}
-        ).data,
-        status=status.HTTP_200_OK,
+        ResultSerializer(queryset, many=True, context={"request": request}).data
     )
 
 
@@ -147,10 +146,7 @@ def named_result(request):
     else:
         queryset = queryset.filter(name__icontains=name)
     return Response(
-        ResultSerializer(
-            queryset, many=True, context={"request": request}
-        ).data,
-        status=status.HTTP_200_OK,
+        ResultSerializer(queryset, many=True, context={"request": request}).data
     )
 
 
@@ -473,12 +469,15 @@ def set_name(request, workflow_id: int):
 
 @api_view(["GET"])
 def statistics(request):
-    return Response(
-        {
-            "nb_analyses": Analysis.objects.count(),
-        },
-        status=200,
-    )
+    stats = {
+        "nb_analyses": Analysis.objects.count(),
+    }
+    if not request.user.is_anonymous:
+        stats = {
+            **stats,
+            "nb_analyses_of_user": Analysis.objects.for_user(request.user).count(),
+        }
+    return Response(stats)
 
 
 @api_view(["GET"])

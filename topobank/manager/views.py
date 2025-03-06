@@ -292,7 +292,7 @@ def force_inspect(request, pk=None):
 
     # Return current state of object
     data = TopographySerializer(instance, context={"request": request}).data
-    return Response(data, status=200)
+    return Response(data)
 
 
 @api_view(["PATCH"])
@@ -368,10 +368,7 @@ def set_tag_permissions(request, name=None):
             rejected += [surface.get_absolute_url(request)]
 
     # Permissions were updated successfully, return 204 No Content
-    return Response(
-        {"updated": updated, "rejected": rejected},
-        status=200,
-    )
+    return Response({"updated": updated, "rejected": rejected})
 
 
 @api_view(["GET"])
@@ -380,7 +377,7 @@ def tag_numerical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="numerical")
-    return Response(dict(names=list(prop_values.keys())), status=200)
+    return Response(dict(names=list(prop_values.keys())))
 
 
 @api_view(["GET"])
@@ -389,7 +386,7 @@ def tag_categorical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="categorical")
-    return Response(dict(names=list(prop_values.keys())), status=200)
+    return Response(dict(names=list(prop_values.keys())))
 
 
 @api_view(["POST"])
@@ -404,25 +401,35 @@ def import_surface(request):
     # Need to pass id here because user is not JSON serializable
     import_container_from_url.delay(user.id, url)
 
-    return Response({}, status=200)
+    return Response({})
 
 
 @api_view(["GET"])
 def versions(request):
-    return Response(get_versions(), status=200)
+    return Response(get_versions())
 
 
 @api_view(["GET"])
 def statistics(request):
-    return Response(
-        {
-            "nb_users": User.objects.count()
-            - 1,  # -1 because we don't count the anonymous user
-            "nb_surfaces": Surface.objects.count(),
-            "nb_topographies": Topography.objects.count(),
-        },
-        status=200,
-    )
+    # Global statistics
+    stats = {
+        "nb_users": User.objects.count()
+        - 1,  # -1 because we don't count the anonymous user
+        "nb_surfaces": Surface.objects.count(),
+        "nb_topographies": Topography.objects.count(),
+    }
+    if not request.user.is_anonymous:
+        stats = {
+            **stats,
+            "nb_surfaces_of_user": Surface.objects.for_user(request.user).count(),
+            "nb_topographies_of_user": Topography.objects.for_user(
+                request.user
+            ).count(),
+            "nb_surfaces_shared_with_user": Surface.objects.for_user(request.user)
+            .exclude(creator=request.user)
+            .count(),
+        }
+    return Response(stats)
 
 
 @api_view(["GET"])
@@ -434,4 +441,4 @@ def memory_usage(request):
         nb_data_pts=F("resolution_x")
         * Case(When(resolution_y__isnull=False, then=F("resolution_y")), default=1),
     )
-    return Response(list(r), status=200)
+    return Response(list(r))
