@@ -351,19 +351,6 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     tags = TagRelatedManagerField(required=False)
     permissions = serializers.SerializerMethodField()
 
-    def __init__(self, *args, **kwargs):
-        super().__init__(*args, **kwargs)
-
-        optional_fields = [
-            ("children", "topography_set"),
-            ("permissions", "permissions"),
-        ]
-        for option, field in optional_fields:
-            param = self.context["request"].query_params.get(option)
-            requested = param is not None and param.lower() in ["yes", "true"]
-            if not requested:
-                self.fields.pop(field)
-
     def get_api(self, obj):
         return {
             "self": obj.get_absolute_url(self.context["request"]),
