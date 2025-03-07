@@ -38,7 +38,7 @@ def test_surface_retrieve_routes(
         api_client.force_authenticate(user)
 
     response = api_client.get(reverse("manager:surface-api-list"))
-    assert response.status_code == 400
+    assert response.status_code == 200
 
     topography_api_list_url = reverse(
         "manager:topography-api-list", request=response.wsgi_request
@@ -61,18 +61,13 @@ def test_surface_retrieve_routes(
         "attachments": surface1.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface1.id}",
         "properties": {},
+        "permissions": ASSERT_EQUAL_IGNORE_VALUE,
+        "topography_set": ASSERT_EQUAL_IGNORE_VALUE,
     }
     if hasattr(Surface, "publication"):
         surface1_dict["publication"] = None
     surface1_topographies_dict = [
         {
-            "permissions": {
-                "current_user": {
-                    "permission": "full",
-                    "user": user.get_absolute_url(response.wsgi_request),
-                },
-                "other_users": [],
-            },
             "attachments": topo1.attachments.get_absolute_url(response.wsgi_request),
             "bandwidth_lower": topo1.bandwidth_lower,
             "bandwidth_upper": topo1.bandwidth_upper,
@@ -120,6 +115,7 @@ def test_surface_retrieve_routes(
             "is_metadata_complete": True,
             "creation_datetime": topo1.creation_datetime.astimezone().isoformat(),
             "modification_datetime": topo1.modification_datetime.astimezone().isoformat(),
+            "permissions": ASSERT_EQUAL_IGNORE_VALUE,
         }
     ]
     surface2_dict = {
@@ -140,18 +136,13 @@ def test_surface_retrieve_routes(
         "attachments": surface2.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface2.id}",
         "properties": {},
+        "permissions": ASSERT_EQUAL_IGNORE_VALUE,
+        "topography_set": ASSERT_EQUAL_IGNORE_VALUE,
     }
     if hasattr(Surface, "publication"):
         surface2_dict["publication"] = None
     surface2_topographies_dict = [
         {
-            "permissions": {
-                "current_user": {
-                    "permission": "full",
-                    "user": user.get_absolute_url(response.wsgi_request),
-                },
-                "other_users": [],
-            },
             "attachments": topo2.attachments.get_absolute_url(response.wsgi_request),
             "bandwidth_lower": topo2.bandwidth_lower,
             "bandwidth_upper": topo2.bandwidth_upper,
@@ -199,6 +190,7 @@ def test_surface_retrieve_routes(
             "is_metadata_complete": True,
             "creation_datetime": topo2.creation_datetime.astimezone().isoformat(),
             "modification_datetime": topo2.modification_datetime.astimezone().isoformat(),
+            "permissions": ASSERT_EQUAL_IGNORE_VALUE,
         }
     ]
 
@@ -216,7 +208,7 @@ def test_surface_retrieve_routes(
         assert_dict_equal(data, surface1_dict)
 
         response = api_client.get(
-            f"{reverse('manager:topography-api-list')}?surface={surface1.id}&permissions=yes&attachments=yes"
+            f"{reverse('manager:topography-api-list')}?surface={surface1.id}"
         )
         data = response.data
         assert_dicts_equal(data, surface1_topographies_dict)
@@ -234,7 +226,7 @@ def test_surface_retrieve_routes(
         assert_dict_equal(data, surface2_dict)
 
         response = api_client.get(
-            f"{reverse('manager:topography-api-list')}?surface={surface2.id}&permissions=yes&attachments=yes"
+            f"{reverse('manager:topography-api-list')}?surface={surface2.id}"
         )
         data = response.data
         assert_dicts_equal(data, surface2_topographies_dict)
@@ -704,9 +696,9 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
     )
     assert response.status_code == 403
 
-    # List API without query parameters should fail
+    # List API without query parameters should not fail
     response = api_client.get(reverse("manager:surface-api-list"))
-    assert response.status_code == 400
+    assert response.status_code == 200
 
     # Try to grab all surfaces without tags
     response = api_client.get(f"{reverse('manager:surface-api-list')}?tag=")
@@ -734,27 +726,6 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
         response.data,
         [
             {
-                "url": surface2.get_absolute_url(response.wsgi_request),
-                "api": {
-                    "self": surface2.get_absolute_url(response.wsgi_request),
-                    "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
-                    "download": ASSERT_EQUAL_IGNORE_VALUE,
-                },
-                "id": surface2.id,
-                "name": surface2.name,
-                "category": None,
-                "creator": surface2.creator.get_absolute_url(response.wsgi_request),
-                "description": "",
-                "tags": [st.name],
-                "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
-                "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
-                "attachments": surface2.attachments.get_absolute_url(
-                    response.wsgi_request
-                ),
-                "topographies": f"{topography_api_list_url}?surface={surface2.id}",
-                "properties": {},
-            },
-            {
                 "url": surface3.get_absolute_url(response.wsgi_request),
                 "api": {
                     "self": surface3.get_absolute_url(response.wsgi_request),
@@ -774,6 +745,31 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 ),
                 "topographies": f"{topography_api_list_url}?surface={surface3.id}",
                 "properties": {},
+                "topography_set": ASSERT_EQUAL_IGNORE_VALUE,
+                "permissions": ASSERT_EQUAL_IGNORE_VALUE,
+            },
+            {
+                "url": surface2.get_absolute_url(response.wsgi_request),
+                "api": {
+                    "self": surface2.get_absolute_url(response.wsgi_request),
+                    "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
+                    "download": ASSERT_EQUAL_IGNORE_VALUE,
+                },
+                "id": surface2.id,
+                "name": surface2.name,
+                "category": None,
+                "creator": surface2.creator.get_absolute_url(response.wsgi_request),
+                "description": "",
+                "tags": [st.name],
+                "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
+                "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
+                "attachments": surface2.attachments.get_absolute_url(
+                    response.wsgi_request
+                ),
+                "topographies": f"{topography_api_list_url}?surface={surface2.id}",
+                "properties": {},
+                "topography_set": ASSERT_EQUAL_IGNORE_VALUE,
+                "permissions": ASSERT_EQUAL_IGNORE_VALUE,
             },
         ],
     )

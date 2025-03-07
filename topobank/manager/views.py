@@ -12,6 +12,7 @@ from notifications.signals import notify
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ParseError, PermissionDenied
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
@@ -23,6 +24,7 @@ from ..taskapp.utils import run_task
 from ..usage_stats.utils import increase_statistics_by_date_and_object
 from ..users.models import User, resolve_user
 from .containers import write_surface_container
+from .filters import filter_surfaces
 from .models import Surface, Tag, Topography
 from .permissions import TagPermission
 from .serializers import SurfaceSerializer, TagSerializer, TopographySerializer
@@ -37,6 +39,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     lookup_value_regex = "[^.]+"  # We need to match paths that include slashes
     serializer_class = TagSerializer
     permission_classes = [TagPermission]
+    pagination_class = LimitOffsetPagination
 
     def list(self, request, *args, **kwargs):
         all_tags = set(
@@ -60,6 +63,7 @@ class SurfaceViewSet(
 ):
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    pagination_class = LimitOffsetPagination
 
     def _notify(self, instance, verb):
         user = self.request.user
@@ -74,36 +78,7 @@ class SurfaceViewSet(
 
     def get_queryset(self):
         qs = Surface.objects.for_user(self.request.user)
-        tag = self.request.query_params.get("tag", None)
-        tag_startswith = self.request.query_params.get("tag_startswith", None)
-        if tag is not None:
-            if tag_startswith is not None:
-                raise ParseError(
-                    "Please specify either `tag` or `tag_startswith`, not both."
-                )
-            if tag:
-                qs = qs.filter(tags__name=tag)
-            else:
-                qs = qs.filter(tags=None)
-        elif tag_startswith is not None:
-            if tag_startswith:
-                qs = (
-                    qs.filter(
-                        Q(tags__name=tag_startswith)
-                        | Q(tags__name__startswith=tag_startswith.rstrip("/") + "/")
-                    )
-                    .order_by("id")
-                    .distinct("id")
-                )
-            else:
-                raise ParseError("`tag_startswith` cannot be empty.")
-        elif self.action == "list":
-            # We do not allow simply listing all surfaces
-            raise ParseError(
-                "Please limit you request with query parameters. Possible parameters "
-                "are: `tag`, `tag_startswith`"
-            )
-        return qs
+        return filter_surfaces(self.request, qs)
 
     def perform_create(self, serializer):
         # Set creator to current user when creating a new surface
@@ -132,6 +107,7 @@ class TopographyViewSet(
 ):
     serializer_class = TopographySerializer
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    pagination_class = LimitOffsetPagination
 
     def _notify(self, instance, verb):
         user = self.request.user
@@ -316,7 +292,7 @@ def force_inspect(request, pk=None):
 
     # Return current state of object
     data = TopographySerializer(instance, context={"request": request}).data
-    return Response(data, status=200)
+    return Response(data)
 
 
 @api_view(["PATCH"])
@@ -392,10 +368,7 @@ def set_tag_permissions(request, name=None):
             rejected += [surface.get_absolute_url(request)]
 
     # Permissions were updated successfully, return 204 No Content
-    return Response(
-        {"updated": updated, "rejected": rejected},
-        status=200,
-    )
+    return Response({"updated": updated, "rejected": rejected})
 
 
 @api_view(["GET"])
@@ -404,7 +377,7 @@ def tag_numerical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="numerical")
-    return Response(dict(names=list(prop_values.keys())), status=200)
+    return Response(dict(names=list(prop_values.keys())))
 
 
 @api_view(["GET"])
@@ -413,7 +386,7 @@ def tag_categorical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
     prop_values, prop_infos = obj.get_properties(kind="categorical")
-    return Response(dict(names=list(prop_values.keys())), status=200)
+    return Response(dict(names=list(prop_values.keys())))
 
 
 @api_view(["POST"])
@@ -428,25 +401,35 @@ def import_surface(request):
     # Need to pass id here because user is not JSON serializable
     import_container_from_url.delay(user.id, url)
 
-    return Response({}, status=200)
+    return Response({})
 
 
 @api_view(["GET"])
 def versions(request):
-    return Response(get_versions(), status=200)
+    return Response(get_versions())
 
 
 @api_view(["GET"])
 def statistics(request):
-    return Response(
-        {
-            "nb_users": User.objects.count()
-            - 1,  # -1 because we don't count the anonymous user
-            "nb_surfaces": Surface.objects.count(),
-            "nb_topographies": Topography.objects.count(),
-        },
-        status=200,
-    )
+    # Global statistics
+    stats = {
+        "nb_users": User.objects.count()
+        - 1,  # -1 because we don't count the anonymous user
+        "nb_surfaces": Surface.objects.count(),
+        "nb_topographies": Topography.objects.count(),
+    }
+    if not request.user.is_anonymous:
+        stats = {
+            **stats,
+            "nb_surfaces_of_user": Surface.objects.for_user(request.user).count(),
+            "nb_topographies_of_user": Topography.objects.for_user(
+                request.user
+            ).count(),
+            "nb_surfaces_shared_with_user": Surface.objects.for_user(request.user)
+            .exclude(creator=request.user)
+            .count(),
+        }
+    return Response(stats)
 
 
 @api_view(["GET"])
@@ -458,4 +441,4 @@ def memory_usage(request):
         nb_data_pts=F("resolution_x")
         * Case(When(resolution_y__isnull=False, then=F("resolution_y")), default=1),
     )
-    return Response(list(r), status=200)
+    return Response(list(r))

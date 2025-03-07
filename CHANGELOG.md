@@ -1,5 +1,14 @@
 # Changelog for *TopoBank*
 
+# 1.58.0 (not yet released)
+
+- ENH: Advanced filtering and searching in surface list view
+
+# 1.57.0 (2025-03-04)
+
+- ENH: Pagination for all list requests
+- ENH: Filtering for all list requests
+
 ## 1.56.0 (2025-03-04)
 
 - ENH: Delete endpoint for workflow results

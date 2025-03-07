@@ -247,7 +247,7 @@ def subjects_to_base64(subjects):
     return dict_to_base64(subjects_to_dict(subjects))
 
 
-def subjects_from_base64(url):
+def subjects_from_base64(subjects, user=None, function=None):
     """
     Returns a string suitable for passing subjects (topography,
     surfaces or surface collections) in an URL.
@@ -261,7 +261,7 @@ def subjects_from_base64(url):
     -------
     Encoded dictionary object.
     """
-    return subjects_from_dict(dict_from_base64(url))
+    return subjects_from_dict(dict_from_base64(subjects), user=user, function=function)
 
 
 def mailto_link_for_reporting_an_error(subject, info, err_msg, traceback) -> str:
