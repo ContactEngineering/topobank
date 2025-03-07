@@ -282,7 +282,7 @@ def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
 
     assert (
         keys_a == keys_b
-    ), f"The following keys are not present in both dictionaries: {keys_a ^ keys_b}"
+    ), f"Present in a but not b: {keys_a - keys_b}, present in b but not a: {keys_b - keys_a}"
     for key in keys_a:
         assert_equal(a[key], b[key], key=key, rtol=rtol, atol=atol)
 
