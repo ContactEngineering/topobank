@@ -687,13 +687,17 @@ def test_statistics2(api_client, test_instances, handle_usage_statistics):
     api_client.force_login(user_1)
     response = api_client.get(reverse("manager:statistics"))
 
+    assert response.data["nb_users"] == 2
     assert response.data["nb_surfaces"] == 2
+    assert response.data["nb_surfaces_of_user"] == 2
     assert response.data["nb_topographies"] == 1
+    assert response.data["nb_topographies_of_user"] == 1
     assert response.data["nb_surfaces_shared_with_user"] == 0
 
     response = api_client.get(reverse("analysis:statistics"))
 
     assert response.data["nb_analyses"] == 1
+    assert response.data["nb_analyses_of_user"] == 1
 
     api_client.logout()
 
@@ -703,13 +707,17 @@ def test_statistics2(api_client, test_instances, handle_usage_statistics):
     api_client.force_login(user_2)
     response = api_client.get(reverse("manager:statistics"))
 
-    assert response.data["nb_surfaces"] == 0
-    assert response.data["nb_topographies"] == 0
+    assert response.data["nb_users"] == 2
+    assert response.data["nb_surfaces"] == 2
+    assert response.data["nb_surfaces_of_user"] == 1
+    assert response.data["nb_topographies"] == 1
+    assert response.data["nb_topographies_of_user"] == 0
     assert response.data["nb_surfaces_shared_with_user"] == 1
 
     response = api_client.get(reverse("analysis:statistics"))
 
-    assert response.data["nb_analyses"] == 0
+    assert response.data["nb_analyses"] == 1
+    assert response.data["nb_analyses_of_user"] == 0
 
     api_client.logout()
 

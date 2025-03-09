@@ -264,6 +264,13 @@ def sync_analysis_functions(db):
     _log.info("Done synchronizing registry with database.")
 
 
+@pytest.fixture(scope="function")
+def test_analysis_function(sync_analysis_functions):
+    from ..analysis.models import AnalysisFunction
+
+    return AnalysisFunction.objects.get(name="topobank.testing.test")
+
+
 @pytest.fixture
 def example_authors():
     authors = [
@@ -384,5 +391,7 @@ def test_instances(test_analysis_function):
     ]
 
     topographies = [Topography1DFactory(surface=surfaces[0])]
+
+    test_analysis_function.submit(topographies[0].creator, topographies[0])
 
     return users, surfaces, topographies
