@@ -29,7 +29,7 @@ def user_three_surfaces_four_topographies():
 
 
 @override_settings(DELETE_EXISTING_FILES=True)
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_search_expressions(api_client):
     user = UserFactory()
 
@@ -116,7 +116,7 @@ def test_search_expressions(api_client):
 
 
 @override_settings(DELETE_EXISTING_FILES=True)
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_search_for_user(api_client):
     user1 = UserFactory(name="Bob Marley")
     user2 = UserFactory(name="Bob Dylan")
