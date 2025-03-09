@@ -9,7 +9,20 @@ ORDER_BY_FILTER_CHOICES = {"name": "name", "date": "-creation_datetime"}
 SHARING_STATUS_FILTER_CHOICES = set(["all", "own", "others", "published"])
 
 
-def filter_queryset_by_search_term(qs, search_term, search_fields):
+def filter_by_search_term(
+    request,
+    qs,
+    search_fields=[
+        "description",
+        "name",
+        "creator__name",
+        "tag_names_for_search",
+        "topography_name_for_search",
+        "topography__description",
+        "topography_tag_names_for_search",
+        "topography__creator__name",
+    ],
+):
     """Filter queryset for a given search term.
 
     Parameters
@@ -28,7 +41,39 @@ def filter_queryset_by_search_term(qs, search_term, search_fields):
     -------
     Filtered query set.
     """
-    return (
+    #
+    # search specific fields of all surfaces in a 'websearch' manner:
+    # combine phrases by "AND", allow expressions and quotes
+    #
+    # See https://docs.djangoproject.com/en/3.2/ref/contrib/postgres/search/#full-text-search
+    # for details.
+    #
+    # We introduce an extra field for search in tag names where the tag names
+    # are changed so that the tokenizer splits the names into multiple words
+    search_term = request.GET.get("search", default="")
+    if not search_term:
+        return qs
+    qs = (
+        qs.annotate(
+            tag_names_for_search=Replace(
+                Replace("tags__name", Value("."), Value(" ")),  # replace . with space
+                Value("/"),
+                Value(" "),
+            ),  # replace / with space
+            topography_tag_names_for_search=Replace(  # same for the topographies
+                Replace("topography__tags__name", Value("."), Value(" ")),
+                Value("/"),
+                Value(" "),
+            ),
+            topography_name_for_search=Replace(
+                "topography__name", Value("."), Value(" "), output_field=TextField()
+            ),
+            # often there are filenames
+        )
+        .distinct("id")
+        .order_by("id")
+    )
+    qs = (
         qs.annotate(search=SearchVector(*search_fields, config="english"))
         .filter(
             search=SearchQuery(search_term, config="english", search_type="websearch")
@@ -37,34 +82,38 @@ def filter_queryset_by_search_term(qs, search_term, search_fields):
         .distinct("id")
         .order_by("id")
     )
+    return qs
 
 
-def filter_surfaces(request, qs):
-    """Return queryset with surfaces matching all filter criteria.
+def filter_by_sharing_status(request, qs):
+    sharing_status = request.GET.get("sharing_status", default="all")
+    if sharing_status not in SHARING_STATUS_FILTER_CHOICES:
+        raise ParseError(f"Cannot filter for sharing status '{sharing_status}'.")
+    if sharing_status == "own":
+        qs = qs.filter(creator=request.user)
+        if hasattr(Surface, "publication"):
+            qs = qs.exclude(
+                publication__isnull=False
+            )  # exclude published and own surfaces
+    elif sharing_status == "others":
+        qs = qs.exclude(creator=request.user)
+        if hasattr(Surface, "publication"):
+            qs = qs.exclude(
+                publication__isnull=False
+            )  # exclude published and own surfaces
+    elif sharing_status == "published":
+        if hasattr(Surface, "publication"):
+            qs = qs.filter(publication__isnull=False)
+        else:
+            qs = Surface.objects.none()
+    elif sharing_status == "all":
+        pass
+    else:
+        raise PermissionDenied(f"Cannot filter for sharing status '{sharing_status}'.")
+    return qs
 
-    Surfaces should be
-    - readable by the current user
-    - filtered by sharing status
-    - filtered by search expression, if given
 
-    Parameters
-    ----------
-    request
-        Request instance
-
-    Returns
-    -------
-        Filtered queryset of surfaces
-    """
-
-    #
-    # Logged-in user
-    #
-    user = request.user
-
-    #
-    # Filter by tag
-    #
+def filter_by_tag(request, qs):
     tag = request.query_params.get("tag", None)
     tag_startswith = request.query_params.get("tag_startswith", None)
     if tag is not None:
@@ -88,94 +137,44 @@ def filter_surfaces(request, qs):
             )
         else:
             raise ParseError("`tag_startswith` cannot be empty.")
+    return qs
 
-    #
-    # Filter by sharing status
-    #
-    sharing_status = request.GET.get("sharing_status", default="all")
-    if sharing_status not in SHARING_STATUS_FILTER_CHOICES:
-        raise ParseError(f"Cannot filter for sharing status '{sharing_status}'.")
-    if sharing_status == "own":
-        qs = qs.filter(creator=user)
-        if hasattr(Surface, "publication"):
-            qs = qs.exclude(
-                publication__isnull=False
-            )  # exclude published and own surfaces
-    elif sharing_status == "others":
-        qs = qs.exclude(creator=user)
-        if hasattr(Surface, "publication"):
-            qs = qs.exclude(
-                publication__isnull=False
-            )  # exclude published and own surfaces
-    elif sharing_status == "published":
-        if hasattr(Surface, "publication"):
-            qs = qs.filter(publication__isnull=False)
-        else:
-            qs = Surface.objects.none()
-    elif sharing_status == "all":
-        pass
-    else:
-        raise PermissionDenied(f"Cannot filter for sharing status '{sharing_status}'.")
 
-    #
-    # Filter by search term
-    #
-    search_term = request.GET.get("search", default="")
-    if search_term:
-        #
-        # search specific fields of all surfaces in a 'websearch' manner:
-        # combine phrases by "AND", allow expressions and quotes
-        #
-        # See https://docs.djangoproject.com/en/3.2/ref/contrib/postgres/search/#full-text-search
-        # for details.
-        #
-        # We introduce an extra field for search in tag names where the tag names
-        # are changed so that the tokenizer splits the names into multiple words
-        qs = (
-            qs.annotate(
-                tag_names_for_search=Replace(
-                    Replace(
-                        "tags__name", Value("."), Value(" ")
-                    ),  # replace . with space
-                    Value("/"),
-                    Value(" "),
-                ),  # replace / with space
-                topography_tag_names_for_search=Replace(  # same for the topographies
-                    Replace("topography__tags__name", Value("."), Value(" ")),
-                    Value("/"),
-                    Value(" "),
-                ),
-                topography_name_for_search=Replace(
-                    "topography__name", Value("."), Value(" "), output_field=TextField()
-                ),
-                # often there are filenames
-            )
-            .distinct("id")
-            .order_by("id")
-        )
-        qs = filter_queryset_by_search_term(
-            qs,
-            search_term,
-            [
-                "description",
-                "name",
-                "creator__name",
-                "tag_names_for_search",
-                "topography_name_for_search",
-                "topography__description",
-                "topography_tag_names_for_search",
-                "topography__creator__name",
-            ],
-        )
-
-    #
-    # Sort results
-    #
+def order_results(request, qs):
     order_by = request.GET.get("order_by", default="date")
     if order_by not in ORDER_BY_FILTER_CHOICES:
         raise ParseError(f"Cannot order by '{order_by}'.")
     qs = Surface.objects.filter(pk__in=Subquery(qs.values("pk"))).order_by(
         ORDER_BY_FILTER_CHOICES[order_by]
     )
+    return qs
+
+
+def filter_surfaces(request, qs):
+    """Return queryset with surfaces matching all filter criteria.
+
+    Surfaces should be
+    - readable by the current user
+    - filtered by sharing status
+    - filtered by search expression, if given
+
+    Parameters
+    ----------
+    request
+        Request instance
+
+    Returns
+    -------
+        Filtered queryset of surfaces
+    """
+    filters = [
+        filter_by_tag,
+        filter_by_sharing_status,
+        filter_by_search_term,
+        order_results,
+    ]
+
+    for filter in filters:
+        qs = filter(request, qs)
 
     return qs
