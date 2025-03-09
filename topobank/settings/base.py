@@ -426,6 +426,7 @@ def ACCOUNT_USER_DISPLAY(user):
 #
 # Settings for handling terms and conditions
 #
+TERMS_BASE_TEMPLATE = "pages/termsframe.html"
 TERMS_EXCLUDE_URL_LIST = {"/accounts/logout/"}
 # TERMS_EXCLUDE_URL_PREFIX_LIST = {'/users/'}
 TERMS_EXCLUDE_USERS_WITH_PERM = "users.can_skip_terms"

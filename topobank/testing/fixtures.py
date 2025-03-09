@@ -264,13 +264,6 @@ def sync_analysis_functions(db):
     _log.info("Done synchronizing registry with database.")
 
 
-@pytest.fixture(scope="function")
-def test_analysis_function(sync_analysis_functions):
-    from ..analysis.models import AnalysisFunction
-
-    return AnalysisFunction.objects.get(name="topobank.testing.test")
-
-
 @pytest.fixture
 def example_authors():
     authors = [
@@ -378,3 +371,18 @@ def simple_surface():
     topographies += [STNonuniformLineScan(x, np.cos(x * np.pi / lx), unit="nm")]
 
     return WrapSurface([WrapTopography(t) for t in topographies])
+
+
+@pytest.mark.django_db
+@pytest.fixture
+def test_instances(test_analysis_function):
+    users = [UserFactory(username="user1"), UserFactory(username="user2")]
+
+    surfaces = [
+        SurfaceFactory(creator=users[0]),
+        SurfaceFactory(creator=users[0]),
+    ]
+
+    topographies = [Topography1DFactory(surface=surfaces[0])]
+
+    return users, surfaces, topographies
