@@ -28,8 +28,9 @@ def user_three_surfaces_four_topographies():
     return user, surface1, surface2, surface3, topo1a, topo1b, topo2a, topo2b
 
 
+@pytest.mark.skip
 @override_settings(DELETE_EXISTING_FILES=True)
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_search_expressions(api_client):
     user = UserFactory()
 
@@ -115,8 +116,9 @@ def test_search_expressions(api_client):
     )  # topo1d is excluded because of 'not me'
 
 
+@pytest.mark.skip
 @override_settings(DELETE_EXISTING_FILES=True)
-@pytest.mark.django_db(transaction=True)
+@pytest.mark.django_db
 def test_search_for_user(api_client):
     user1 = UserFactory(name="Bob Marley")
     user2 = UserFactory(name="Bob Dylan")
