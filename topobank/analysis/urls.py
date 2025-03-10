@@ -36,6 +36,13 @@ urlpatterns += [
         name="named-result-list",
     ),
     # GET
+    # * Return list of surface results generated from a specific model
+    path(
+        "api/result/<int:workflow_id>/predicted-results",
+        view=views.analysis_predicted_result,
+        name="predicted-results",
+    ),
+    # GET
     # * Triggers analyses if not yet running
     # * Return state of analyses
     # * Return plot configuration for finished analyses

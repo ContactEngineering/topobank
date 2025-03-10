@@ -3,7 +3,7 @@ from collections import defaultdict
 
 import pydantic
 from django.conf import settings
-from django.db.models import Case, F, Max, Sum, Value, When
+from django.db.models import Case, F, Max, Sum, Value, When, Q
 from django.http import HttpResponseBadRequest
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
@@ -148,6 +148,13 @@ def named_result(request):
     return Response(
         ResultSerializer(queryset, many=True, context={"request": request}).data
     )
+
+@api_view(["GET"])
+def analysis_predicted_result(request, workflow_id):
+    queryset = Analysis.objects.for_user(request.user)
+    analyses = queryset.filter(Q(kwargs__contains=dict(trained_model_id=workflow_id)))
+    results = [analysis.result for analysis in analyses if analysis.has_result_file]
+    return Response(results)
 
 
 @api_view(["GET"])
