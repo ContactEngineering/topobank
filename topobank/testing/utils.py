@@ -328,3 +328,9 @@ class DummyProgressRecorder:
     def set_progress(self, a, nsteps):
         """Do nothing."""
         pass  # dummy
+
+
+def search_surfaces(api_client, expr):
+    response = api_client.get(reverse("manager:surface-api-list") + f"?search={expr}")
+    assert response.status_code == 200
+    return response.data
