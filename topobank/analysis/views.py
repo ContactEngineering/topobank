@@ -149,6 +149,7 @@ def named_result(request):
         ResultSerializer(queryset, many=True, context={"request": request}).data
     )
 
+
 @api_view(["GET"])
 def analysis_predicted_result(request, workflow_id):
     queryset = Analysis.objects.for_user(request.user)
