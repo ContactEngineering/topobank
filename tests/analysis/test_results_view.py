@@ -17,9 +17,7 @@ import topobank
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Surface, Topography
-from topobank.manager.utils import subjects_to_base64, dict_to_base64
-
-
+from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
     SurfaceAnalysisFactory,
     SurfaceFactory,
@@ -766,19 +764,15 @@ def test_show_anlaysis_filter_with_empty_subject_list(
     surf1 = SurfaceFactory(creator=user)
     surf2 = SurfaceFactory(creator=user)
 
-
     func = AnalysisFunction.objects.get(name="topobank.testing.test")
 
-
- 
     kwargs_1 = dict(a=2, b="abc")
-    kwargs_2 = dict(a=2, b="def")  # differing from kwargs_1a!
     analysis1 = SurfaceAnalysisFactory(subject_surface=surf1, function=func, kwargs=kwargs_1)
     analysis2 = SurfaceAnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_1)
-    analysis3 = SurfaceAnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_2)
 
     assert analysis1.subject == surf1
- 
+    assert analysis2.subject == surf2
+
     # Testing sending  defined subject with empty list and defined kwargs uses
     # kwargs as filter
     subjects = dict(surface=[])
@@ -801,7 +795,7 @@ def test_show_anlaysis_filter_with_empty_subject_list(
         f"{reverse('analysis:result-list')}"
         f"?workflow={func.name}"
         f"&subjects={dict_to_base64(subjects)}"
-        f"&kwargs={dict_to_base64(kwargs_2)}"
+        f"&kwargs={dict_to_base64(kwargs_1)}"
     )
 
     assert response.status_code == 200
@@ -809,35 +803,30 @@ def test_show_anlaysis_filter_with_empty_subject_list(
     analyses = response.data["analyses"]
     assert len(analyses) == 1
 
+
 @pytest.mark.django_db
-def test_show_anlaysis_filter_without_subject_list(
-    api_client
-):
+def test_show_anlaysis_filter_without_subject_list(api_client):
     user = UserFactory()
     surf1 = SurfaceFactory(creator=user)
 
     func = AnalysisFunction.objects.get(name="topobank.testing.test")
- 
+
     kwargs_1 = dict(a=2, b="abc")
-    kwargs_2 = dict(a=2, b="def")  # differing from kwargs_1a!
     analysis1 = SurfaceAnalysisFactory(subject_surface=surf1, function=func, kwargs=kwargs_1)
-   
+
     assert analysis1.subject == surf1
- 
+
     # Testing sending no subject but with defined kwargs uses
     # should result in error
-    subjects = dict(surface=[])
-
     api_client.force_login(user)
 
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
         f"?workflow={func.name}"
-        f"&kwargs={dict_to_base64(kwargs_2)}"
+        f"&kwargs={dict_to_base64(kwargs_1)}"
     )
 
     assert response.status_code == 400
 
     analyses = response.data["analyses"]
     assert len(analyses) == 0
-    
