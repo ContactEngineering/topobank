@@ -307,8 +307,9 @@ class AnalysisController:
         It is not guaranteed that there are results for the returned analyses
         or if these analyses are marked as successful.
         """
-        # Return no results if subjects is empty list
-        if len(self._subjects) == 0:
+        # Return no results if subjects is empty list and theres no kwargs to filter
+        # Having subject or kwargs to filter should be sufficient
+        if len(self._subjects) == 0 and self._kwargs is None:
             return []
 
         # Query for user, function and subjects
@@ -317,11 +318,13 @@ class AnalysisController:
         )
 
         # Query for subjects
-        subjects_query = None
-        for subject in self._subjects:
-            q = AnalysisSubject.Q(subject)
-            subjects_query = q if subjects_query is None else subjects_query | q
-        query = subjects_query & query
+        if len(self._subjects):
+            subjects_query = None
+            for subject in self._subjects:
+                q = AnalysisSubject.Q(subject)
+                subjects_query = q if subjects_query is None else subjects_query | q
+                # adjusting this fixes the latest query test
+            query = subjects_query & query
 
         # Add kwargs (if specified)
         if self._kwargs is not None:
