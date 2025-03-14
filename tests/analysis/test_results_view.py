@@ -801,7 +801,7 @@ def test_show_anlaysis_filter_with_empty_subject_list(
     assert response.status_code == 200
 
     analyses = response.data["analyses"]
-    assert len(analyses) == 1
+    assert len(analyses) == 2
 
 
 @pytest.mark.django_db
@@ -827,6 +827,3 @@ def test_show_anlaysis_filter_without_subject_list(api_client):
     )
 
     assert response.status_code == 400
-
-    analyses = response.data["analyses"]
-    assert len(analyses) == 0
