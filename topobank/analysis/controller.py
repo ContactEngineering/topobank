@@ -109,15 +109,16 @@ class AnalysisController:
             if value is None:
                 if new_value is not None:
                     del retdata[name]
-                if isinstance(new_value, list):
-                    return new_value
-                else:
-                    return [new_value]
+                    if isinstance(new_value, list):
+                        return new_value
+                    else:
+                        return [new_value]
             elif new_value is not None:
                 if isinstance(new_value, list):
                     return value + new_value
                 else:
                     return value + [new_value]
+            return value
 
         def set_value_single(value, name):
             new_value = retdata.get(name, None)
@@ -208,6 +209,10 @@ class AnalysisController:
                 "Unknown query parameters: "
                 f"{reduce(lambda x, y: f'{x}, {y}', data.keys())}"
             )
+
+        print("subjects", subjects)
+        print("workflow_name", workflow_name)
+        print("workflow_kwargs", workflow_kwargs)
 
         return AnalysisController(
             user,
