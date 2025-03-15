@@ -1275,7 +1275,7 @@ def test_download_of_unpublished_surface(client, handle_usage_statistics):
     client.force_login(user)
 
     response = client.get(
-        reverse("manager:surface-download", kwargs=dict(surface_id=surface.id)),
+        reverse("manager:surface-download", kwargs=dict(surface_ids=surface.id)),
         follow=True,
     )
     assert response.status_code == 200

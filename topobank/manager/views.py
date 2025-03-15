@@ -198,12 +198,12 @@ class TopographyViewSet(
 
 
 @api_view(["GET"])
-def download_surface(request, surface_ids_str):
+def download_surface(request, surface_ids):
     #
     # Separate into surfaces
     #
     try:
-        surface_ids = [int(surface_id) for surface_id in surface_ids_str.split(",")]
+        surface_ids = [int(surface_id) for surface_id in surface_ids.split(",")]
     except ValueError:
         return HttpResponseBadRequest("Invalid surface ID(s).")
 
