@@ -28,10 +28,10 @@ def test_dependencies(api_client, django_capture_on_commit_callbacks):
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = api_client.get(
             f"{reverse('analysis:result-list')}?"
-            f"subjects={subjects_str}&function_id={func.id}&"
-            f"function_kwargs={kwargs_str}"
+            f"subjects={subjects_str}&workflow={func.name}&"
+            f"kwargs={kwargs_str}"
         )
-        assert response.status_code == 200
+        assert response.status_code == 200, response.reason_phrase
     assert len(callbacks) == 1
 
     #
