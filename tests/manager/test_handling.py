@@ -153,7 +153,7 @@ def test_upload_topography_di(
     assert t.datafile_format == "di"
 
 
-@pytest.mark.django_db
+@pytest.mark.django_db(transaction=True)
 def test_upload_topography_npy(
     api_client, settings, handle_usage_statistics, django_capture_on_commit_callbacks
 ):
