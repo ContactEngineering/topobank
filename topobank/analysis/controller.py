@@ -210,10 +210,6 @@ class AnalysisController:
                 f"{reduce(lambda x, y: f'{x}, {y}', data.keys())}"
             )
 
-        print("subjects", subjects)
-        print("workflow_name", workflow_name)
-        print("workflow_kwargs", workflow_kwargs)
-
         return AnalysisController(
             user,
             subjects=subjects,
