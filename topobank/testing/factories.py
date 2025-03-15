@@ -4,6 +4,7 @@ import logging
 import factory
 from django.core.files import File
 from django.db.models.signals import post_save
+from django.utils import timezone
 from factory import post_generation
 
 from ..analysis.models import Analysis, AnalysisFunction, AnalysisSubject
@@ -89,7 +90,7 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     permissions = factory.LazyAttribute(
         lambda obj: obj.folder.permissions if hasattr(obj, "folder") else None
     )
-    upload_confirmed = factory.LazyFunction(datetime.datetime.now)
+    upload_confirmed = factory.LazyFunction(timezone.now)
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):
@@ -318,9 +319,9 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
     task_state = Analysis.SUCCESS
 
     start_time = factory.LazyFunction(
-        lambda: datetime.datetime.now() - datetime.timedelta(0, 1)
+        lambda: timezone.now() - datetime.timedelta(0, 1)
     )
-    end_time = factory.LazyFunction(datetime.datetime.now)
+    end_time = factory.LazyFunction(timezone.now)
 
 
 class TopographyAnalysisFactory(AnalysisFactory):
