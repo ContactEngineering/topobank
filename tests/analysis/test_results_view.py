@@ -848,4 +848,4 @@ def test_show_analysis_filter_without_subject_list(api_client):
     )
 
     assert response.status_code == 200, response.reason_phrase
-    assert response.data["results"] == []
+    assert len(response.data["analyses"]) == 1
