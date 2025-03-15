@@ -458,7 +458,7 @@ class AnalysisFunction(models.Model):
         """
         Return default keyword arguments as a dictionary.
         """
-        return self.implementation.Parameters().dict()
+        return self.implementation.Parameters().model_dump()
 
     def get_kwargs_schema(self):
         """
