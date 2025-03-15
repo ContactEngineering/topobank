@@ -12,7 +12,7 @@ def test_topography_analysis(two_users, test_analysis_function):
     topography1, topography2, topography3 = Topography.objects.all()
 
     controller = AnalysisController(
-        user1, subjects=[topography1], function=test_analysis_function
+        user1, subjects=[topography1], workflow=test_analysis_function
     )
     controller.trigger_missing_analyses()
     assert len(controller) == 1  # analysis of topography
@@ -27,7 +27,7 @@ def test_topography_analysis(two_users, test_analysis_function):
     assert [r.task_state for r in controller.get()] == ["su"]
 
     controller = AnalysisController(
-        user2, subjects=[topography1], function=test_analysis_function
+        user2, subjects=[topography1], workflow=test_analysis_function
     )
     controller.trigger_missing_analyses()
     assert len(controller) == 0  # user2 has no access to surface1
@@ -35,7 +35,7 @@ def test_topography_analysis(two_users, test_analysis_function):
     surface1.grant_permission(user2)
 
     controller = AnalysisController(
-        user2, subjects=[topography1], function=test_analysis_function
+        user2, subjects=[topography1], workflow=test_analysis_function
     )
     controller.trigger_missing_analyses()
     assert len(controller) == 1  # user2 now has access to topography1
@@ -49,7 +49,7 @@ def test_surface_analysis(two_users, test_analysis_function):
     (user1, user2), (surface1, surface2, surface3) = two_users
 
     controller = AnalysisController(
-        user1, subjects=[surface1], function=test_analysis_function
+        user1, subjects=[surface1], workflow=test_analysis_function
     )
     controller.trigger_missing_analyses()
     assert len(controller) == 2  # analysis of topography and surface
@@ -64,7 +64,7 @@ def test_surface_analysis(two_users, test_analysis_function):
     assert [r.task_state for r in controller.get()] == ["su", "su"]
 
     controller = AnalysisController(
-        user2, subjects=[surface1], function=test_analysis_function
+        user2, subjects=[surface1], workflow=test_analysis_function
     )
     controller.trigger_missing_analyses()
     assert len(controller) == 0  # user2 has no access to surface1
@@ -72,7 +72,7 @@ def test_surface_analysis(two_users, test_analysis_function):
     surface1.grant_permission(user2)
 
     controller = AnalysisController(
-        user2, subjects=[surface1], function=test_analysis_function
+        user2, subjects=[surface1], workflow=test_analysis_function
     )
     controller.trigger_missing_analyses()
     assert len(controller) == 2  # user2 now has access to surface1
@@ -91,7 +91,7 @@ def test_tag_analysis(two_users, django_capture_on_commit_callbacks, test_analys
 
     # Trigger analysis for the first time
     controller = AnalysisController(
-        user2, subjects=[tag], function=test_analysis_function
+        user2, subjects=[tag], workflow=test_analysis_function
     )
     assert len(controller) == 0  # no analysis yet
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
@@ -114,7 +114,7 @@ def test_tag_analysis(two_users, django_capture_on_commit_callbacks, test_analys
         # FIXME!!! We need to implement invalidation of tag analyses when tags change
         # See: https://github.com/ContactEngineering/topobank/issues/1125
         controller = AnalysisController(
-            user1, subjects=[tag], function=test_analysis_function
+            user1, subjects=[tag], workflow=test_analysis_function
         )
         assert len(controller) == 0  # there are no tag analyses for this user
         with django_capture_on_commit_callbacks(execute=True) as callbacks:
@@ -129,7 +129,7 @@ def test_tag_analysis(two_users, django_capture_on_commit_callbacks, test_analys
 
     # User1 again, but now (one of the) surfaces is shared
     controller = AnalysisController(
-        user1, subjects=[tag], function=test_analysis_function
+        user1, subjects=[tag], workflow=test_analysis_function
     )
     assert len(controller) == 0  # no analysis yet
     with django_capture_on_commit_callbacks(execute=True) as callbacks:

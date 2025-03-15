@@ -1,4 +1,6 @@
 import logging
+from collections import defaultdict
+from functools import reduce
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
@@ -27,9 +29,8 @@ class AnalysisController:
         self,
         user,
         subjects=None,
-        function=None,
+        workflow=None,
         workflow_name=None,
-        function_id=None,
         kwargs=None,
         with_children=True,
     ):
@@ -44,87 +45,109 @@ class AnalysisController:
             Currently logged-in user.
         subjects : list of Tag, Topography or Surface, optional
             Subjects for which to filter analyses. (Default: None)
-        function : AnalysisFunction, optional
-            Analysis function object. (Default: None)
+        workflow : AnalysisFunction, optional
+            Workflow function object. (Default: None)
         workflow_name : str, optional
             Name of analysis function. (Default: None)
-        function_id : int, optional
-            Id of analysis function. (Default: None)
         with_children : bool, optional
             Also return analyses of children, i.e. of topographies that belong
             to a surface. (Default: True)
         """
         self._user = user
 
-        if subjects is None:
+        self._workflow = workflow
+        if self._workflow is None:
+            if workflow_name is not None:
+                self._workflow = get_object_or_404(AnalysisFunction, name=workflow_name)
+        if self._workflow is None:
             raise ValueError(
-                "Please restrict this analysis controller to specific subjects."
+                "Please restrict this analysis controller to a specific workflow."
             )
-
-        if function is None:
-            if workflow_name is None:
-                if function_id is None:
-                    self._function = None
-                else:
-                    self._function = get_object_or_404(AnalysisFunction, id=function_id)
-            else:
-                try:
-                    # FIXME(pastewka): Remove once clients are updated
-                    # We try to convert the function name to an integer, because older
-                    # API client still pass an id instead of a name
-                    function_id = int(workflow_name)
-                except ValueError:
-                    self._function = get_object_or_404(
-                        AnalysisFunction, name=workflow_name
-                    )
-                else:
-                    self._function = get_object_or_404(AnalysisFunction, id=function_id)
-        elif function_id is None:
-            self._function = function
-        else:
-            raise ValueError(
-                "Please provide either `function`, `function_id` or `workflow_name`, "
-                "not multiple."
-            )
-
-        if self._function is None:
-            raise ValueError(
-                "Please restrict this analysis controller to a specific function."
-            )
-
-        if not self._function.has_permission(user):
+        if not self._workflow.has_permission(user):
             raise PermissionDenied(
-                f"User {self._user} does not have access to this analysis function."
+                f"User {self._user} does not have access to this workflow."
             )
 
         # Validate (and type convert) kwargs
-        self._kwargs = self._function.clean_kwargs(kwargs, fill_missing=False)
+        self._kwargs = self._workflow.clean_kwargs(kwargs, fill_missing=False)
         if self._kwargs == {}:
             self._kwargs = None
 
         # Calculate subjects for the analyses, filtered for those which have an
         # implementation
-        if isinstance(subjects, dict):
-            subjects = subjects_from_dict(subjects)
+        self._subjects = None
+        if subjects is not None:
+            if isinstance(subjects, dict):
+                subjects = subjects_from_dict(subjects)
 
-        # Check permissions
-        self._subjects = []
-        for subject in subjects:
-            try:
-                subject.authorize_user(self._user, "view")
-                self._subjects += [subject]
-            except PermissionDenied:
-                pass
+            # Check permissions
+            self._subjects = []
+            for subject in subjects:
+                try:
+                    subject.authorize_user(self._user, "view")
+                    self._subjects += [subject]
+                except PermissionDenied:
+                    pass
 
-        # Surface permissions are checked in `subjects_from_dict`. Since children (topographies) inherit the permission
-        # from their parents, we do not need to do an additional permissions check.
-        if with_children:
-            self._subjects = find_children(self._subjects)
+            # Surface permissions are checked in `subjects_from_dict`. Since children
+            # (topographies) inherit the permission from their parents, we do not need to
+            # do an additional permissions check.
+            if with_children:
+                self._subjects = find_children(self._subjects)
 
         # Find the latest analyses for which the user has read permission for the related data
         self._analyses = self._get_latest_analyses()
 
         self._reset_cache()
+
+    @staticmethod
+    def get_request_parameter(names, data, multiple=False):
+        retdata = data.copy()
+
+        def set_value_multiple(value, name):
+            new_value = retdata.get(name, None)
+            if value is None:
+                if new_value is not None:
+                    del retdata[name]
+                    if isinstance(new_value, list):
+                        return new_value
+                    else:
+                        return [new_value]
+            elif new_value is not None:
+                if isinstance(new_value, list):
+                    return value + new_value
+                else:
+                    return value + [new_value]
+            return value
+
+        def set_value_single(value, name):
+            new_value = retdata.get(name, None)
+            if value is None:
+                if new_value is not None:
+                    if isinstance(new_value, list) and len(new_value) > 1:
+                        errstr = reduce(lambda x, y: f"{x}, {y}", names)
+                        raise ValueError(
+                            f"Multiple values for query parameter '{errstr}'"
+                        )
+                    del retdata[name]
+                    if isinstance(new_value, list):
+                        (new_value,) = new_value
+                return new_value
+            elif new_value is not None:
+                errstr = reduce(lambda x, y: f"{x}, {y}", names)
+                raise ValueError(f"Multiple values for query parameter {errstr}")
+            return value
+
+        def set_value(value, name):
+            if multiple:
+                return set_value_multiple(value, name)
+            else:
+                return set_value_single(value, name)
+
+        value = None
+        for name in names:
+            value = set_value(value, name)
+        return value, retdata
 
     @staticmethod
     def from_request(request, with_children=True, **kwargs):
@@ -147,63 +170,51 @@ class AnalysisController:
         _queryable_subjects = ["tag", "surface", "topography"]
 
         user = request.user
-        data = request.data | kwargs
-        q = request.GET  # Querydict
 
-        function_id = None
-        workflow_name = data.get("workflow")
-        if workflow_name is None:
-            workflow_name = q.get("workflow")
-        if workflow_name is None:
-            function_id = data.get("function_id")
-            if function_id is None:
-                function_id = q.get("function_id")
-            if function_id is None:
-                raise ValueError("You need to provide a function name or id")
-            else:
-                function_id = int(function_id)
+        data = request.data | request.GET | kwargs
+        workflow_name, data = AnalysisController.get_request_parameter(
+            ["workflow"], data
+        )
 
-        subjects = data.get("subjects")
-        if subjects is None:
-            subjects = q.get("subjects")
-        if subjects is not None and isinstance(subjects, str):
-            try:
-                subjects = dict_from_base64(subjects)
-            except UnicodeDecodeError:
-                subjects = None
+        subjects = defaultdict(list)
+        subjects_str, data = AnalysisController.get_request_parameter(
+            ["subjects"], data
+        )
+        if subjects_str is not None:
+            subjects = defaultdict(list, dict_from_base64(subjects_str))
 
-        if subjects is None:
-            for subject_key in _queryable_subjects:
-                subject = q.get(subject_key)
-                if subject is not None:
-                    if subjects is None:
-                        subjects = {}
-                    try:
-                        if subject_key == "tag":
-                            subjects[subject_key] = [subject]
-                        else:
-                            subjects[subject_key] = [int(x) for x in subject.split(",")]
-                    except AttributeError:
-                        raise ValueError(f"Malformed subject key '{subject_key}'")
-                    except ValueError:
-                        raise ValueError(f"Malformed subject key '{subject_key}'")
+        for subject_key in _queryable_subjects:
+            s, data = AnalysisController.get_request_parameter(
+                [subject_key], data, multiple=True
+            )
+            if s is not None:
+                try:
+                    subjects[subject_key] += s
+                except AttributeError:
+                    raise ValueError(f"Malformed subject key '{subject_key}'")
+                except ValueError:
+                    raise ValueError(f"Malformed subject key '{subject_key}'")
 
-        kwargs = data.get("function_kwargs")
-        if kwargs is None:
-            kwargs = q.get("function_kwargs")
-            if kwargs is None:
-                kwargs = data.get("kwargs")
-                if kwargs is None:
-                    kwargs = q.get("kwargs")
-        if kwargs is not None and isinstance(kwargs, str):
-            kwargs = dict_from_base64(kwargs)
+        if len(subjects) == 0:
+            subjects = None
+
+        workflow_kwargs, data = AnalysisController.get_request_parameter(
+            ["kwargs", "function_kwargs"], data
+        )
+        if workflow_kwargs is not None and isinstance(workflow_kwargs, str):
+            workflow_kwargs = dict_from_base64(workflow_kwargs)
+
+        if len(data) > 0:
+            raise ValueError(
+                "Unknown query parameters: "
+                f"{reduce(lambda x, y: f'{x}, {y}', data.keys())}"
+            )
 
         return AnalysisController(
             user,
             subjects=subjects,
             workflow_name=workflow_name,
-            function_id=function_id,
-            kwargs=kwargs,
+            kwargs=workflow_kwargs,
             with_children=with_children,
         )
 
@@ -240,8 +251,8 @@ class AnalysisController:
         return self._subjects_without_analysis_results
 
     @property
-    def function(self):
-        return self._function
+    def workflow(self):
+        return self._workflow
 
     @property
     def subjects(self):
@@ -307,21 +318,26 @@ class AnalysisController:
         It is not guaranteed that there are results for the returned analyses
         or if these analyses are marked as successful.
         """
-        # Return no results if subjects is empty list
-        if len(self._subjects) == 0:
+        # Return no results if subjects is empty list and theres no kwargs to filter
+        # Having subject or kwargs to filter should be sufficient
+        if (
+            self._subjects is None or len(self._subjects) == 0
+        ) and self._kwargs is None:
             return []
 
         # Query for user, function and subjects
         query = Q(permissions__user_permissions__user=self._user) & Q(
-            function=self._function
+            function=self._workflow
         )
 
         # Query for subjects
-        subjects_query = None
-        for subject in self._subjects:
-            q = AnalysisSubject.Q(subject)
-            subjects_query = q if subjects_query is None else subjects_query | q
-        query = subjects_query & query
+        if self._subjects is not None and len(self._subjects):
+            subjects_query = None
+            for subject in self._subjects:
+                q = AnalysisSubject.Q(subject)
+                subjects_query = q if subjects_query is None else subjects_query | q
+                # adjusting this fixes the latest query test
+            query = subjects_query & query
 
         # Add kwargs (if specified)
         if self._kwargs is not None:
@@ -356,9 +372,10 @@ class AnalysisController:
         subjects_with_analysis_results = [
             analysis.subject for analysis in self._analyses
         ]
-        if self._subjects is None:
-            # If the no subjects are specified, then there are no subjects without analysis result by definition.
-            # This controller is then simply returning the analyses that have run.
+        if self._subjects is None or len(self._subjects) == 0:
+            # If the no subjects are specified, then there are no subjects without
+            # analysis result by definition. This controller is then simply returning
+            # the analyses that have run.
             subjects_without_analysis_results = []
         else:
             subjects_without_analysis_results = [
@@ -396,7 +413,6 @@ class AnalysisController:
         Save keyword arguments which should be used for missing analyses,
         sorted by subject type.
         """
-
         kwargs = self.unique_kwargs
         # Manually provided function kwargs override unique kwargs from prior analysis query
         if self._kwargs is not None:
@@ -410,17 +426,17 @@ class AnalysisController:
         for subject in self.subjects_without_analysis_results:
             if subject.is_shared(self._user):
                 try:
-                    triggered_analysis = self._function.submit(
+                    triggered_analysis = self._workflow.submit(
                         self._user, subject, kwargs=kwargs
                     )
                     subjects_triggered += [subject]
                     _log.info(
-                        f"Triggered analysis {triggered_analysis.id} for function '{self._function.name}' "
+                        f"Triggered analysis {triggered_analysis.id} for function '{self._workflow.name}' "
                         f"and subject '{subject}'."
                     )
                 except WorkflowNotImplementedException:
                     _log.info(
-                        f"Did NOT trigger workflow '{self._function.name}' because it "
+                        f"Did NOT trigger workflow '{self._workflow.name}' because it "
                         f"does not have an implementation for '{subject}'."
                     )
 
@@ -484,8 +500,7 @@ class AnalysisController:
                 request=request,
             ),
             "dois": self.dois,
-            "workflow_name": self.function.name,
-            "function_id": self.function.id,
+            "workflow_name": self.workflow.name,
             "subjects": self.subjects_dict,  # can be used to re-trigger analyses
             "unique_kwargs": self.unique_kwargs,
             "has_nonunique_kwargs": self.has_nonunique_kwargs,

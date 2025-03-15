@@ -17,7 +17,7 @@ import topobank
 from topobank.analysis.models import Analysis, AnalysisFunction
 from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Surface, Topography
-from topobank.manager.utils import subjects_to_base64
+from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
     SurfaceAnalysisFactory,
     SurfaceFactory,
@@ -714,7 +714,7 @@ def test_shared_topography_triggers_no_new_analysis(
     assert api_client.login(username=user1.username, password=password)
 
     response = api_client.get(
-        f"{reverse('analysis:result-list')}?function_id={func1.id}"
+        f"{reverse('analysis:result-list')}?workflow={func1.name}"
         f"&subjects={subjects_to_base64([topo1a, topo1b, topo2a])}"
     )
 
@@ -722,7 +722,7 @@ def test_shared_topography_triggers_no_new_analysis(
     assert func1.analysis_set.count() == 3
     assert all(a.task_state == "su" for a in func1.analysis_set.all())
 
-    assert response.status_code == 200
+    assert response.status_code == 200, response.reason_phrase
 
     # We should see start times of only two analysis because the third one was just
     # triggered and not yet started
@@ -753,3 +753,99 @@ def test_shared_topography_triggers_no_new_analysis(
     assert analyses[0]["start_time"] == "2019-01-01T14:00:00+01:00"  # topo2a
 
     api_client.logout()
+
+
+@pytest.mark.django_db
+def test_show_analysis_filter_with_empty_subject_list(api_client):
+    user = UserFactory()
+
+    surf1 = SurfaceFactory(creator=user)
+    surf2 = SurfaceFactory(creator=user)
+
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+
+    kwargs_1 = dict(a=2, b="abc")
+    analysis1 = SurfaceAnalysisFactory(
+        subject_surface=surf1, function=func, kwargs=kwargs_1
+    )
+    analysis2 = SurfaceAnalysisFactory(
+        subject_surface=surf2, function=func, kwargs=kwargs_1
+    )
+
+    assert analysis1.subject == surf1
+    assert analysis2.subject == surf2
+
+    # Testing sending  defined subject with empty list and defined kwargs uses
+    # kwargs as filter
+    subjects = dict(surface=[])
+
+    api_client.force_login(user)
+
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?workflow={func.name}"
+        f"&subjects={dict_to_base64(subjects)}"
+        f"&kwargs={dict_to_base64(kwargs_1)}"
+    )
+
+    assert response.status_code == 200
+
+    analyses = response.data["analyses"]
+    assert len(analyses) == 2
+
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?workflow={func.name}"
+        f"&subjects={dict_to_base64(subjects)}"
+        f"&kwargs={dict_to_base64(kwargs_1)}"
+    )
+
+    assert response.status_code == 200
+
+    analyses = response.data["analyses"]
+    assert len(analyses) == 2
+
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?workflow={func.name}"
+        f"&kwargs={dict_to_base64(kwargs_1)}"
+    )
+
+    assert response.status_code == 200
+
+    analyses = response.data["analyses"]
+    assert len(analyses) == 2
+
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}" f"?kwargs={dict_to_base64(kwargs_1)}"
+    )
+
+    assert response.status_code == 400
+
+
+@pytest.mark.django_db
+def test_show_analysis_filter_without_subject_list(api_client):
+    user = UserFactory()
+    surf1 = SurfaceFactory(creator=user)
+
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+
+    kwargs_1 = dict(a=2, b="abc")
+    analysis1 = SurfaceAnalysisFactory(
+        subject_surface=surf1, function=func, kwargs=kwargs_1
+    )
+
+    assert analysis1.subject == surf1
+
+    # Testing sending no subject but with defined kwargs uses
+    # should result in error
+    api_client.force_login(user)
+
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?workflow={func.name}"
+        f"&kwargs={dict_to_base64(kwargs_1)}"
+    )
+
+    assert response.status_code == 200, response.reason_phrase
+    assert len(response.data["analyses"]) == 1

@@ -29,7 +29,7 @@ def test_import_downloaded_surface_archive(client, handle_usage_statistics):
 
     client.force_login(user)
 
-    download_url = reverse('manager:surface-download', kwargs=dict(surface_id=surface.id))
+    download_url = reverse('manager:surface-download', kwargs=dict(surface_ids=surface.id))
     response = client.get(download_url)
 
     # write downloaded data to temporary file and open

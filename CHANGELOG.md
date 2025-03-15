@@ -1,8 +1,11 @@
 # Changelog for *TopoBank*
 
-# 1.58.0 (not yet released)
+# 1.58.0 (2025-03-15)
 
 - ENH: Advanced filtering and searching in surface list view
+- ENH: Querying computed analyses
+- ENH: Deleting named analyses
+- API: Removed `function_id` queries; query workflows by name
 
 # 1.57.0 (2025-03-04)
 

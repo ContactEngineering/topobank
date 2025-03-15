@@ -198,17 +198,23 @@ class TopographyViewSet(
 
 
 @api_view(["GET"])
-def download_surface(request, surface_id):
+def download_surface(request, surface_ids):
+    #
+    # Separate into surfaces
+    #
+    try:
+        surface_ids = [int(surface_id) for surface_id in surface_ids.split(",")]
+    except ValueError:
+        return HttpResponseBadRequest("Invalid surface ID(s).")
+
     #
     # Check existence and permissions for given surface
     #
-    try:
-        surface = Surface.objects.get(id=surface_id)
-    except Surface.DoesNotExist:
-        raise PermissionDenied()
+    surfaces = [get_object_or_404(Surface, id=surface_id) for surface_id in surface_ids]
 
-    if not surface.has_permission(request.user, "view"):
-        raise PermissionDenied()
+    for surface in surfaces:
+        if not surface.has_permission(request.user, "view"):
+            raise PermissionDenied()
 
     content_data = None
 
@@ -220,24 +226,27 @@ def download_surface(request, surface_id):
     #     If no, save the container in the publication later.
     # If no: create a container for this surface on the fly
     #
-    if surface.is_published:
-        pub = surface.publication
-        container_filename = os.path.basename(pub.container_storage_path)
+    container_filename = None
+    if len(surfaces) == 1:
+        surface, = surfaces
+        if surface.is_published:
+            pub = surface.publication
+            container_filename = os.path.basename(pub.container_storage_path)
 
-        if pub.container:
-            if settings.USE_S3_STORAGE:
-                # Return redirect to S3
-                return redirect(pub.container.url)
-            else:
-                content_data = pub.container.read()
-    else:
-        container_filename = slugify(surface.name) + ".zip"
+            if pub.container:
+                if settings.USE_S3_STORAGE:
+                    # Return redirect to S3
+                    return redirect(pub.container.url)
+                else:
+                    content_data = pub.container.read()
+        else:
+            container_filename = slugify(surface.name) + ".zip"
 
     if content_data is None:
         container_bytes = BytesIO()
-        _log.info(f"Preparing container of surface id={surface_id} for download..")
+        _log.info(f"Preparing container of surface ids={surface_ids} for download..")
         try:
-            write_surface_container(container_bytes, [surface])
+            write_surface_container(container_bytes, surfaces)
         except FileNotFoundError:
             return HttpResponseBadRequest(
                 "Cannot create ZIP container for download because some data file "

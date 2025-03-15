@@ -6,7 +6,6 @@ import io
 import json
 import logging
 import os
-from datetime import datetime
 from tempfile import NamedTemporaryFile
 
 import xarray
@@ -82,7 +81,7 @@ class Folder(PermissionMixin, models.Model):
         if not created:
             manifest.file.delete()
         manifest.file = fobj
-        manifest.upload_confirmed = datetime.now()
+        manifest.upload_confirmed = timezone.now()
         manifest.save()
 
     def save_json(self, filename: str, data: dict):

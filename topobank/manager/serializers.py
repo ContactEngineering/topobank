@@ -361,7 +361,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             ),
             "download": reverse(
                 "manager:surface-download",
-                kwargs={"surface_id": obj.id},
+                kwargs={"surface_ids": obj.id},
                 request=self.context["request"],
             ),
         }
