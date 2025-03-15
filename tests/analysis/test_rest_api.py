@@ -55,10 +55,10 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     user = one_line_scan.creator
     one_line_scan.grant_permission(user, "view")
     response = api_client.get(
-        f"{reverse('analysis:result-list')}?subjects="
-        f"{subjects_to_base64([one_line_scan])}&function_id={test_analysis_function.id}"
+        f"{reverse('analysis:result-list')}?topography={one_line_scan.id}"
+        f"&workflow={test_analysis_function.name}"
     )
-    assert response.status_code == 200
+    assert response.status_code == 200, response.reason_phrase
     assert len(response.data["analyses"]) == 0
 
     # Login
@@ -66,7 +66,7 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
         f"?subjects={subjects_to_base64([one_line_scan])}"
-        f"&function_id={test_analysis_function.id}"
+        f"&workflow={test_analysis_function.name}"
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
@@ -75,8 +75,8 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
         f"?topography={one_line_scan.id}"
-        f"&function_id={test_analysis_function.id}"
-        f"&function_kwargs={dict_to_base64(dict(a=2, b='abc'))}"
+        f"&workflow={test_analysis_function.name}"
+        f"&kwargs={dict_to_base64(dict(a=2, b='abc'))}"
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
@@ -86,8 +86,8 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
         f"?subjects={subjects_to_base64([one_line_scan])}"
-        f"&function_id={test_analysis_function.id}"
-        f"&function_kwargs={dict_to_base64(dict(a='2', b='abc'))}"
+        f"&workflow={test_analysis_function.name}"
+        f"&kwargs={dict_to_base64(dict(a='2', b='abc'))}"
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
@@ -97,8 +97,8 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
         f"?subjects={subjects_to_base64([one_line_scan])}"
-        f"&function_id={test_analysis_function.id}"
-        f"&function_kwargs={dict_to_base64(dict(a=2, c=7))}"
+        f"&workflow={test_analysis_function.name}"
+        f"&kwargs={dict_to_base64(dict(a=2, c=7))}"
     )
     assert response.status_code == 400
     assert Analysis.objects.count() == 2
@@ -155,7 +155,7 @@ def test_query_tag_analysis(
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = api_client.get(
             f"{reverse('analysis:result-list')}?subjects="
-            f"{subjects_to_base64([tag])}&function_id={test_analysis_function.id}"
+            f"{subjects_to_base64([tag])}&workflow={test_analysis_function.name}"
         )
     assert len(callbacks) == 1
     assert Analysis.objects.count() == 1
@@ -183,7 +183,7 @@ def test_query_tag_analysis(
         response = api_client.get(
             f"{reverse('analysis:result-list')}"
             f"?subjects={subjects_to_base64([tag])}"
-            f"&function_id={test_analysis_function.id}"
+            f"&workflow={test_analysis_function.name}"
         )
     assert len(callbacks) == 1
     assert Analysis.objects.count() == 2
@@ -211,8 +211,8 @@ def test_query_tag_analysis(
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
         f"?subjects={subjects_to_base64([tag])}"
-        f"&function_id={test_analysis_function.id}"
-        f"&function_kwargs={dict_to_base64(unique_kwargs)}"
+        f"&workflow={test_analysis_function.name}"
+        f"&kwargs={dict_to_base64(unique_kwargs)}"
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
@@ -227,7 +227,7 @@ def test_query_with_unique_kwargs(
     one_line_scan.grant_permission(user, "view")
     response = api_client.get(
         f"{reverse('analysis:result-list')}?subjects="
-        f"{subjects_to_base64([one_line_scan])}&function_id={test_analysis_function.id}"
+        f"{subjects_to_base64([one_line_scan])}&workflow={test_analysis_function.name}"
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 0
@@ -237,7 +237,7 @@ def test_query_with_unique_kwargs(
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
         f"?subjects={subjects_to_base64([one_line_scan])}"
-        f"&function_id={test_analysis_function.id}"
+        f"&workflow={test_analysis_function.name}"
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
@@ -250,8 +250,8 @@ def test_query_with_unique_kwargs(
     response = api_client.get(
         f"{reverse('analysis:result-list')}"
         f"?subjects={subjects_to_base64([one_line_scan])}"
-        f"&function_id={test_analysis_function.id}"
-        f"&function_kwargs={dict_to_base64(unique_kwargs)}"
+        f"&workflow={test_analysis_function.name}"
+        f"&kwargs={dict_to_base64(unique_kwargs)}"
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
@@ -275,7 +275,7 @@ def test_query_with_error(
         response = api_client.get(
             f"{reverse('analysis:result-list')}"
             f"?topography={one_line_scan.id}"
-            f"&function_id={function.id}"
+            f"&workflow={function.name}"
         )
     assert len(callbacks) == 1
     assert response.status_code == 200
@@ -288,7 +288,7 @@ def test_query_with_error(
         response = api_client.get(
             f"{reverse('analysis:result-list')}"
             f"?topography={one_line_scan.id}"
-            f"&function_id={function.id}"
+            f"&workflow={function.name}"
         )
     assert len(callbacks) == 0  # This just return the error
     assert response.status_code == 200
@@ -318,7 +318,7 @@ def test_query_with_error_in_dependency(
         response = api_client.get(
             f"{reverse('analysis:result-list')}"
             f"?topography={one_line_scan.id}"
-            f"&function_id={function.id}"
+            f"&workflow={function.name}"
         )
     assert len(callbacks) == 1
     assert response.status_code == 200
@@ -331,7 +331,7 @@ def test_query_with_error_in_dependency(
         response = api_client.get(
             f"{reverse('analysis:result-list')}"
             f"?topography={one_line_scan.id}"
-            f"&function_id={function.id}"
+            f"&workflow={function.name}"
         )
     assert len(callbacks) == 0  # This just return the error
     assert response.status_code == 200
@@ -365,7 +365,7 @@ def test_save_tag_analysis(
         response = api_client.get(
             f"{reverse('analysis:result-list')}"
             f"?subjects={subjects_to_base64([tag])}"
-            f"&function_id={test_analysis_function.id}"
+            f"&workflow={test_analysis_function.name}"
         )
     assert len(callbacks) == 1
     assert Analysis.objects.count() == 1
@@ -391,7 +391,7 @@ def test_save_tag_analysis(
         response = api_client.get(
             f"{reverse('analysis:result-list')}"
             f"?subjects={subjects_to_base64([tag])}"
-            f"&function_id={test_analysis_function.id}"
+            f"&workflow={test_analysis_function.name}"
         )
     assert len(callbacks) == 1
     assert Analysis.objects.count() == 2  # We now have two
@@ -432,7 +432,7 @@ def test_query_pending(
     api_client.get(
         f"{reverse('analysis:result-list')}"
         f"?subjects={subjects_to_base64([tag])}"
-        f"&function_id={test_analysis_function.id}"
+        f"&workflow={test_analysis_function.name}"
     )
     response = api_client.get(reverse("analysis:pending"))
     assert len(response.data) == 1

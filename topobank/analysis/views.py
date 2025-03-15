@@ -9,6 +9,7 @@ from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.generics import get_object_or_404
+from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from trackstats.models import Metric
 
@@ -74,12 +75,13 @@ class ResultView(
         "subject_dispatch__surface",
     )
     serializer_class = ResultSerializer
+    pagination_class = LimitOffsetPagination
 
     def list(self, request, *args, **kwargs):
         try:
             controller = AnalysisController.from_request(request, **kwargs)
         except ValueError as err:
-            return HttpResponseBadRequest(str(err))
+            return HttpResponseBadRequest(reason=str(err))
 
         #
         # Trigger missing analyses
@@ -158,7 +160,7 @@ def series_card_view(request, **kwargs):
     # for statistics, count views per function
     #
     increase_statistics_by_date_and_object(
-        Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=controller.function
+        Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=controller.workflow
     )
 
     #
@@ -183,7 +185,7 @@ def series_card_view(request, **kwargs):
 
     context = controller.get_context(request=request)
 
-    plot_configuration = {"title": controller.function.display_name}
+    plot_configuration = {"title": controller.workflow.display_name}
 
     nb_analyses_success = len(analyses_success_list)
     if nb_analyses_success == 0:

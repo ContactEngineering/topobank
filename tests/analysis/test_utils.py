@@ -103,7 +103,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 
     ContentType.objects.get_for_model(Topography)
     analyses = AnalysisController(
-        user, subjects=[topo1, topo2], function=test_analysis_function
+        user, subjects=[topo1, topo2], workflow=test_analysis_function
     )
 
     assert len(analyses) == 2  # one analysis per function and topography
@@ -111,10 +111,10 @@ def test_latest_analyses(two_topos, test_analysis_function):
     # both topographies should be in there
 
     (at1,) = AnalysisController(
-        user, subjects=[topo1], function=test_analysis_function
+        user, subjects=[topo1], workflow=test_analysis_function
     ).get()
     (at2,) = AnalysisController(
-        user, subjects=[topo2], function=test_analysis_function
+        user, subjects=[topo2], workflow=test_analysis_function
     ).get()
 
     import pytz
