@@ -221,7 +221,7 @@ def sync_implementation_classes(cleanup=False):
             num_analyses = dangling_analyses.filter(function=func).count()
             _log.info(f"There are still {num_analyses} analyses for this function.")
             if cleanup:
-                _log.info("Deleting those..")
+                _log.info("Deleting those...")
                 dangling_analyses.delete()
                 func.delete()
                 _log.info(

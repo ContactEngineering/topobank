@@ -73,7 +73,7 @@ class ResultView(
         "subject_dispatch__tag",
         "subject_dispatch__topography",
         "subject_dispatch__surface",
-    )
+    ).order_by("-start_time")
     serializer_class = ResultSerializer
     pagination_class = LimitOffsetPagination
 
@@ -148,7 +148,9 @@ def named_result(request):
     else:
         queryset = queryset.filter(name__icontains=name)
     return Response(
-        ResultSerializer(queryset, many=True, context={"request": request}).data
+        ResultSerializer(
+            queryset.order_by("-start_time"), many=True, context={"request": request}
+        ).data
     )
 
 

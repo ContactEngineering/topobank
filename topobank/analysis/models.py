@@ -404,7 +404,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         """
         self.name = name
         self.subject_dispatch = None
-        self.save()
+        self.save(update_fields=["name", "subject_dispatch"])
 
 
 class AnalysisFunction(models.Model):
@@ -545,8 +545,10 @@ class AnalysisFunction(models.Model):
         # We submit a new analysis only if we are either forced to do so or if there is
         # no analysis with the same parameter pending, running or successfully completed.
         if force_submit or successful_or_running_analyses.count() == 0:
-            # Delete *all* existing analyses (which now may only contain failed ones)
-            existing_analyses.delete()
+            # Delete *all* existing analyses (which now may only contain failed ones),
+            # excluding saved/named ones (name__isnull is a redundant since all saved
+            # analyses no longer have subjects)
+            existing_analyses.filter(name__isnull=True).delete()
 
             # New analysis needs its own permissions
             permissions = PermissionSet.objects.create()
