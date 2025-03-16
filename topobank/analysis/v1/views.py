@@ -13,15 +13,15 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from trackstats.models import Metric
 
-from ..files.serializers import ManifestSerializer
-from ..manager.models import Surface
-from ..manager.utils import demangle_content_type
-from ..usage_stats.utils import increase_statistics_by_date_and_object
+from ...files.serializers import ManifestSerializer
+from ...manager.models import Surface
+from ...manager.utils import demangle_content_type
+from ...usage_stats.utils import increase_statistics_by_date_and_object
+from ..models import Analysis, AnalysisFunction, Configuration
+from ..permissions import AnalysisFunctionPermissions
+from ..serializers import ConfigurationSerializer, ResultSerializer, WorkflowSerializer
+from ..utils import filter_and_order_analyses
 from .controller import AnalysisController
-from .models import Analysis, AnalysisFunction, Configuration
-from .permissions import AnalysisFunctionPermissions
-from .serializers import ConfigurationSerializer, ResultSerializer, WorkflowSerializer
-from .utils import filter_and_order_analyses
 
 _log = logging.getLogger(__name__)
 

@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.57.1 (2025-03-16)
+
+- MAINT: Order analyses by inverse start time
+
 # 1.57.0 (2025-03-15)
 
 - ENH: Pagination for all list requests

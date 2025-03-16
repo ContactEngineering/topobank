@@ -1,6 +1,6 @@
 import pytest
 
-from topobank.analysis.controller import AnalysisController
+from topobank.analysis.v1.controller import AnalysisController
 from topobank.manager.models import Topography
 from topobank.testing.factories import TagFactory
 

@@ -3,9 +3,9 @@ import datetime
 import pytest
 from django.contrib.contenttypes.models import ContentType
 
-from topobank.analysis.controller import AnalysisController
 from topobank.analysis.models import Analysis
 from topobank.analysis.utils import find_children
+from topobank.analysis.v1.controller import AnalysisController
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import TopographyAnalysisFactory, UserFactory
 
