@@ -1,16 +1,11 @@
 import datetime
-import math
 
 import pytest
 from django.contrib.contenttypes.models import ContentType
 
-from topobank.analysis.controller import AnalysisController
 from topobank.analysis.models import Analysis
-from topobank.analysis.utils import (
-    find_children,
-    mangle_sheet_name,
-    round_to_significant_digits,
-)
+from topobank.analysis.utils import find_children
+from topobank.analysis.v1.controller import AnalysisController
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import TopographyAnalysisFactory, UserFactory
 
@@ -135,39 +130,6 @@ def test_latest_analyses_if_no_analyses(test_analysis_function):
         ).count()
         == 0
     )
-
-
-def test_mangle_sheet_name():
-    # Not sure, what the real restrictions are. An error message
-    # states that e.g. ":" should not be the first or last character,
-    # but actually it is also not allowed in the middle?!
-    # So we remove them completely.
-
-    assert mangle_sheet_name("RMS height: 19.6 mm") == "RMS height 19.6 mm"
-    assert mangle_sheet_name("Right?") == "Right"
-    assert mangle_sheet_name("*") == ""
-
-
-@pytest.mark.parametrize(
-    ["x", "num_sig_digits", "rounded"],
-    [
-        (49.9999999999999, 1, 50),
-        (2.71143412237, 1, 3),
-        (2.71143412237, 2, 2.7),
-        (2.71143412237, 3, 2.71),
-        (2.71143412237, 10, 2.7114341224),
-        (-3.45, 2, -3.5),
-        (0, 5, 0),
-        (float("nan"), 5, float("nan")),
-    ],
-)
-def test_round_to_significant_digits(x, num_sig_digits, rounded):
-    if math.isnan(x):
-        assert math.isnan(round_to_significant_digits(x, num_sig_digits))
-    else:
-        assert math.isclose(
-            round_to_significant_digits(x, num_sig_digits), rounded, abs_tol=1e-20
-        )
 
 
 def test_find_children(user_three_topographies_three_surfaces_three_tags):

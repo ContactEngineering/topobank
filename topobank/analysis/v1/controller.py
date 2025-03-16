@@ -6,11 +6,11 @@ from django.db.models import Q
 from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
-from ..manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
-from .models import Analysis, AnalysisFunction, AnalysisSubject
-from .registry import WorkflowNotImplementedException
-from .serializers import ResultSerializer
-from .utils import find_children
+from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
+from ..models import Analysis, AnalysisFunction, AnalysisSubject
+from ..registry import WorkflowNotImplementedException
+from ..serializers import ResultSerializer
+from ..utils import find_children
 
 _log = logging.getLogger(__name__)
 

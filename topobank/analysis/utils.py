@@ -1,50 +1,9 @@
 import logging
-import math
 from collections import OrderedDict
 
 from ..manager.models import Surface
 
 _log = logging.getLogger(__name__)
-
-
-def mangle_sheet_name(s: str) -> str:
-    """Return a string suitable for a sheet name in Excel/Libre Office.
-
-    :param s: sheet name
-    :return: string which should be suitable for sheet names
-    """
-
-    replacements = {":": "", "[": "(", "]": ")", "*": "", "?": "", "'": '"', "\\": ""}
-
-    for x, y in replacements.items():
-        s = s.replace(x, y)
-
-    return s
-
-
-def round_to_significant_digits(x, num_dig_digits):
-    """Round given number to given number of significant digits
-
-    Parameters
-    ----------
-    x: flost
-        Number to be rounded
-    num_dig_digits: int
-        Number of significant digits
-
-
-    Returns
-    -------
-    Rounded number.
-
-    For NaN, NaN is returned.
-    """
-    if math.isnan(x):
-        return x
-    try:
-        return round(x, num_dig_digits - int(math.floor(math.log10(abs(x)))) - 1)
-    except ValueError:
-        return x
 
 
 def filter_and_order_analyses(analyses):
