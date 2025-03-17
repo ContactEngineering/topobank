@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.57.2 (2025-03-17)
+
+- BUG: Fix download of multiple digital surface twins
+
 # 1.57.1 (2025-03-16)
 
 - MAINT: Order analyses by inverse start time

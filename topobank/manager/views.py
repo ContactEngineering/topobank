@@ -226,8 +226,9 @@ def download_surface(request, surface_ids):
     #     If no, save the container in the publication later.
     # If no: create a container for this surface on the fly
     #
-    container_filename = None
+    container_filename = "digital-surface-twins.zip"
     if len(surfaces) == 1:
+        container_filename = "digital-surface-twin.zip"
         surface, = surfaces
         if surface.is_published:
             pub = surface.publication

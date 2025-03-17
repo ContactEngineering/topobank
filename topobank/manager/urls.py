@@ -20,7 +20,7 @@ urlpatterns += [
     # Data routes
     #
     re_path(
-        r"api/surface/(?P<surface_ids>\d+)/download/$",
+        r"api/surface/(?P<surface_ids>[\d,]+)/download/$",
         view=views.download_surface,
         name="surface-download",
     ),
