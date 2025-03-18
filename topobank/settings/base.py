@@ -355,9 +355,8 @@ CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 30
 ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)
 
 # https://django-allauth.readthedocs.io/en/latest/advanced.html?highlight=name#custom-user-models
-ACCOUNT_EMAIL_REQUIRED = False
-ACCOUNT_AUTHENTICATION_METHOD = "username"
-ACCOUNT_USERNAME_REQUIRED = False
+ACCOUNT_SIGNUP_FIELDS = ['password1*', 'password2*']
+ACCOUNT_LOGIN_METHODS = {"username"}
 # we keep the username field for now, because it is used in the "users" app
 # ACCOUNT_USER_MODEL_USERNAME_FIELD = None
 
