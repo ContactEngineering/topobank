@@ -16,6 +16,7 @@ import matplotlib.pyplot
 import numpy as np
 import PIL
 import tagulous.models as tm
+from SurfaceTopography.IO import ReaderBase
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
@@ -86,15 +87,16 @@ class SqueezedDatafileGenerationException(ThumbnailGenerationException):
 class TopobankLazySurfaceContainer(SurfaceContainer):
     """Wraps a `Surface` with lazy loading of topography data"""
 
-    def __init__(self, surface):
+    def __init__(self, surface, **kwargs):
         self._surface = surface
         self._topographies = self._surface.topography_set.all()
+        self._kwargs = kwargs
 
     def __len__(self):
         return len(self._topographies)
 
     def __getitem__(self, item):
-        return self._topographies[item].read()
+        return self._topographies[item].read(**self._kwargs)
 
 
 class SubjectMixin:
@@ -521,13 +523,13 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             self, "publication"
         )  # checks whether the related object surface.publication exists
 
-    def lazy_read(self):
+    def lazy_read(self, **kwargs):
         """
         Returns a `SurfaceTopography.Container.SurfaceContainer`
         representation of this dataset. Reading of actual data is deferred
         to the point where it is actually needed.
         """
-        return TopobankLazySurfaceContainer(self)
+        return TopobankLazySurfaceContainer(self, **kwargs)
 
 
 class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
@@ -883,8 +885,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             }
         }
 
-    def _read(self, reader):
-        """Construct kwargs for reading topography given channel information"""
+    def _read(self, reader: ReaderBase, apply_filters: bool = True):
+        """
+        Construct kwargs for reading topography given channel information.
+
+        apply_filters: bool, optional
+            If True (default), the instance is detrended and corrected for
+            missing artifacts according to the saved parameters.
+            (Default: True)
+        """
         if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
             _log.warning(
                 "You are requesting to load a (2D) topography and you are not within in a Celery worker "
@@ -921,15 +930,22 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Eventually get topography from module "SurfaceTopography" using the given keywords
         topo = reader.topography(**reader_kwargs)
-        if (
-            self.fill_undefined_data_mode
-            != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
-            and topo.is_uniform
-        ):
-            topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
-        return topo.detrend(detrend_mode=self.detrend_mode)
+        if apply_filters:
+            if (
+                self.fill_undefined_data_mode
+                != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+                and topo.is_uniform
+            ):
+                topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
+            topo = topo.detrend(detrend_mode=self.detrend_mode)
+        return topo
 
-    def read(self, allow_squeezed=True, return_reader=False):
+    def read(
+        self,
+        allow_squeezed: bool = True,
+        apply_filters: bool = True,
+        return_reader: bool = False,
+    ):
         """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
@@ -951,11 +967,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         Parameters
         ----------
-        allow_squeezed: bool
+        allow_squeezed: bool, optional
             If True (default), the instance is allowed to be generated
             from a squeezed datafile which is not the original datafile.
             This is often faster than the original file format.
-
+            (Default: True)
+        apply_filters: bool, optional
+            If True (default), the instance is detrended and corrected for
+            missing artifacts according to the saved parameters.
+            (Default: True)
         return_reader: bool
             If True, return a tuple containing the topography and the reader.
             (Default: False)
@@ -965,7 +985,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         #
         toporeader = None
         topo = None
-        if allow_squeezed and self.squeezed_datafile:
+        if allow_squeezed and self.squeezed_datafile and apply_filters:
             if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
                 _log.warning(
                     "You are requesting to load a (2D) topography and you are not within in a Celery worker "
@@ -990,7 +1010,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             toporeader = get_topography_reader(
                 self.datafile.file, format=self.datafile_format
             )
-            topo = self._read(toporeader)
+            topo = self._read(toporeader, apply_filters=apply_filters)
 
         if return_reader:
             return topo, toporeader

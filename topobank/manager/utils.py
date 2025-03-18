@@ -5,15 +5,17 @@ import logging
 import os
 import tempfile
 import traceback
+from typing import Optional
 
 import markdown2
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
-from django.db.models import Q
+from django.db import models
 from rest_framework.reverse import reverse
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import readers as surface_topography_readers
+from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.IO.DZI import write_dzi
 
 _log = logging.getLogger(__name__)
@@ -85,7 +87,9 @@ def get_reader_infos():
     return reader_infos
 
 
-def get_topography_reader(filefield, format=None):
+def get_topography_reader(
+    filefield: models.FileField, format: Optional[str] = None
+) -> ReaderBase:
     """Returns SurfaceTopography.IO.ReaderBase object.
 
     Parameters
@@ -185,9 +189,9 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
         query = None
         for so_id in subject_ids:
             if ct.name == "tag":
-                q = Q(name=so_id)
+                q = models.Q(name=so_id)
             else:
-                q = Q(id=so_id)
+                q = models.Q(id=so_id)
             query = q if query is None else query | q
         if query is None:
             # skip these subjects
