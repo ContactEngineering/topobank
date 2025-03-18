@@ -25,6 +25,12 @@ APP_NAME = "analysis"
 VIZ_SERIES = "series"
 
 
+class WorkflowError(Exception):
+    """Error for signaling problems in workflows."""
+
+    pass
+
+
 class ContainerProxy(collections.abc.Iterator):
     """
     Proxy class that emulates a SurfaceTopography `Container` and can be used
@@ -177,9 +183,7 @@ class WorkflowImplementation:
         try:
             name = self.Meta.implementations[model_class]
         except KeyError:
-            raise WorkflowNotImplementedException(
-                self.Meta.name, model_class
-            )
+            raise WorkflowNotImplementedException(self.Meta.name, model_class)
         return getattr(self, name)
 
     @classmethod
