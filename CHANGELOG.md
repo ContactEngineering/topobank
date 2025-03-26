@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.57.3 (2025-03-19)
+
+- MAINT: Internal flag for disabling filters when reading file
+
 # 1.57.2 (2025-03-17)
 
 - BUG: Fix download of multiple digital surface twins
