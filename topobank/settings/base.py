@@ -264,6 +264,15 @@ TEMPLATES = [
             + PLUGIN_CONTEXT_PROCESSORS,
         },
     },
+    {
+        'BACKEND': 'django.template.backends.jinja2.Jinja2',
+        'DIRS': [
+        ],
+        'APP_DIRS': True,
+        'OPTIONS': {
+            "environment": "sds_ml.pdf_document.environment",
+        },
+    },
 ]
 # http://django-crispy-forms.readthedocs.io/en/latest/install.html#template-packs
 CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
