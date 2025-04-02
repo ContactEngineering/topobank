@@ -1,9 +1,10 @@
+from django.conf import settings
 from django.urls import path, re_path
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from . import views
 
-router = DefaultRouter()
+router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"api/tag", views.TagViewSet, basename="tag-api")
 router.register(r"api/topography", views.TopographyViewSet, basename="topography-api")
 router.register(r"api/surface", views.SurfaceViewSet, basename="surface-api")

@@ -1,11 +1,12 @@
+from django.conf import settings
 from django.urls import path, re_path
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import DefaultRouter, SimpleRouter
 
 import topobank.analysis.v1.views as v1
 
 from . import downloads, workflows
 
-router = DefaultRouter()
+router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"api/configuration", v1.ConfigurationView, basename="configuration")
 router.register(r"api/workflow", v1.WorkflowView, basename="workflow")
 router.register(r"api/result", v1.ResultView, basename="result")

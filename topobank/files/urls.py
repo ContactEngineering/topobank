@@ -1,12 +1,12 @@
 from django.conf import settings
 from django.urls import path
-from rest_framework.routers import DefaultRouter
+from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from . import views
 
 app_name = "files"
 
-router = DefaultRouter()
+router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"manifest", views.FileManifestViewSet, basename="manifest-api")
 
 urlpatterns = router.urls

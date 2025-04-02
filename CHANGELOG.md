@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.57.4 (2025-04-02)
+
+- MAINT: Default to simple router in production
+
 # 1.57.3 (2025-03-19)
 
 - MAINT: Internal flag for disabling filters when reading file
