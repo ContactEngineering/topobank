@@ -13,6 +13,6 @@ class Migration(migrations.Migration):
         migrations.AddField(
             model_name='analysis',
             name='description',
-            field=models.TextField(help_text='Optional description of the analysis. Used to add context to prediction reports template', null=True),
+            field=models.TextField(help_text='Optional description of the analysis.', null=True),
         ),
     ]
