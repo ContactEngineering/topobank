@@ -163,6 +163,9 @@ class Analysis(PermissionMixin, TaskStateModel):
     # Unique, user-specified name
     name = models.TextField(null=True)
 
+    # user-specified description
+    description = models.TextField(null=True, help_text="Optional description of the analysis.")
+
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
 
@@ -397,14 +400,15 @@ class Analysis(PermissionMixin, TaskStateModel):
     def submit_again(self):
         return self.function.submit_again(self)
 
-    def set_name(self, name: str):
+    def set_name(self, name: str, description: str = None):
         """
         Setting a name essentially saves the analysis, i.e. it is no longer deleted
         when the analysis subject is deleted.
         """
         self.name = name
+        self.description = description
         self.subject_dispatch = None
-        self.save(update_fields=["name", "subject_dispatch"])
+        self.save(update_fields=["name", "description", "subject_dispatch"])
 
 
 class AnalysisFunction(models.Model):

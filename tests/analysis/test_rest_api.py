@@ -381,10 +381,11 @@ def test_save_tag_analysis(
     assert response.status_code == 200
     assert len(response.data) == 0
 
-    # Set analysis name
-    response = api_client.post(set_name_url, {"name": "my-name"})
+    # Set analysis name and description
+    response = api_client.post(set_name_url, {"name": "my-name", "description": "my-description"})
     assert response.status_code == 200
     assert Analysis.objects.count() == 1  # This does not make a copy
+    assert Analysis.objects.get(name="my-name").description == "my-description"
 
     # Check that query the analysis again triggers a new one
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
