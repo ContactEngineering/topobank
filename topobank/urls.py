@@ -21,7 +21,6 @@ urlpatterns = [
     #
     # User management
     #
-    path("accounts/", include("allauth.urls")),
     path(
         "users/",
         include("topobank.users.urls", namespace="users"),
