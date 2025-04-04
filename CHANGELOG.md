@@ -1,7 +1,8 @@
 # Changelog for *TopoBank*
 
-# 1.57.5 (2025-04-04)
+# 1.58.0 (2025-04-04)
 
+- ENH: Optional description field for workflow results
 - MAINT: Removed automatically adding allauth URLs
 
 # 1.57.4 (2025-04-02)
