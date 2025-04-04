@@ -61,6 +61,10 @@ class User(AbstractUser):
             social_account = SocialAccount.objects.get(user_id=self.id)
         except SocialAccount.DoesNotExist as exc:
             raise ORCIDException("No ORCID account existing for this user.") from exc
+        except SocialAccount.MultipleObjectsReturned as exc:
+            raise ORCIDException(
+                "Cannot retrieve ORCID: Multiple social accounts returned."
+            ) from exc
 
         try:
             orcid_info = social_account.extra_data["orcid-identifier"]
