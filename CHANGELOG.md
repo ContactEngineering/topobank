@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.57.5 (2025-04-03)
+
+- MAINT: Removed automatically adding allauth URLs
+
 # 1.57.4 (2025-04-02)
 
 - MAINT: Default to simple router in production
