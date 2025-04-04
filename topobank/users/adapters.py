@@ -1,12 +1,17 @@
 from allauth.account.adapter import DefaultAccountAdapter
 from allauth.socialaccount.adapter import DefaultSocialAccountAdapter
 from django.conf import settings
+from django.core.exceptions import ValidationError
+from django.urls import reverse
 
 
 class AccountAdapter(DefaultAccountAdapter):
 
     def is_open_for_signup(self, request):
-        return getattr(settings, "ACCOUNT_ALLOW_REGISTRATION", True)
+        # See: https://github.com/pennersr/django-allauth/issues/345
+        if request.path.rstrip("/") == reverse("account_signup").rstrip("/"):
+            return False
+        return True
 
     def save_user(self, request, user, form, commit=True):
         """
@@ -21,6 +26,5 @@ class AccountAdapter(DefaultAccountAdapter):
 
 
 class SocialAccountAdapter(DefaultSocialAccountAdapter):
-
-    def is_open_for_signup(self, request, sociallogin):
-        return getattr(settings, "ACCOUNT_ALLOW_REGISTRATION", True)
+    def validate_disconnect(self, account, accounts):
+        raise ValidationError("Can not disconnect social account")
