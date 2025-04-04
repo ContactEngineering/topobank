@@ -400,7 +400,7 @@ class Analysis(PermissionMixin, TaskStateModel):
     def submit_again(self):
         return self.function.submit_again(self)
 
-    def set_name(self, name: str, description: str):
+    def set_name(self, name: str, description: str = None):
         """
         Setting a name essentially saves the analysis, i.e. it is no longer deleted
         when the analysis subject is deleted.
