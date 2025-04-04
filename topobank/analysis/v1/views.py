@@ -466,8 +466,9 @@ def series_card_view(request, **kwargs):
 @api_view(["POST"])
 def set_name(request, workflow_id: int):
     name = request.data.get("name")
+    description = request.data.get("description")
     analysis = get_object_or_404(Analysis, id=workflow_id)
-    analysis.set_name(name)
+    analysis.set_name(name, description)
     return Response({})
 
 
