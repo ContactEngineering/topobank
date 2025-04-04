@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.58.1 (2025-04-04)
+
+- BUG: Account adapter should work without signin/signout URLs
+
 # 1.58.0 (2025-04-04)
 
 - ENH: Optional description field for workflow results
