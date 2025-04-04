@@ -352,17 +352,7 @@ CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 30
 # django-allauth
 # ------------------------------------------------------------------------------
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
-ACCOUNT_ALLOW_REGISTRATION = env.bool("DJANGO_ACCOUNT_ALLOW_REGISTRATION", True)
-
-# https://django-allauth.readthedocs.io/en/latest/advanced.html?highlight=name#custom-user-models
-# ACCOUNT_SIGNUP_FIELDS = ['password1*', 'password2*']
-# ACCOUNT_LOGIN_METHODS = {"username"}
-# we keep the username field for now, because it is used in the "users" app
-# ACCOUNT_USER_MODEL_USERNAME_FIELD = None
-
 ACCOUNT_FORMS = {"signup": "topobank.users.forms.SignupFormWithName"}
-
-# https://django-allauth.readthedocs.io/en/latest/configuration.html
 # ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_EMAIL_VERIFICATION = "none"
 # https://docs.allauth.org/en/latest/account/configuration.html
@@ -371,10 +361,6 @@ ACCOUNT_ADAPTER = "topobank.users.adapters.AccountAdapter"
 SOCIALACCOUNT_ADAPTER = "topobank.users.adapters.SocialAccountAdapter"
 SOCIALACCOUNT_LOGIN_ON_GET = True  # True: disable intermediate page
 ACCOUNT_LOGOUT_ON_GET = True  # True: disable intermediate page
-
-# Your stuff...
-# ------------------------------------------------------------------------------
-
 
 #
 # Define permissions when using the rest framework
