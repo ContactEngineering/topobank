@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# 1.57.5 (2025-04-03)
+# 1.57.5 (2025-04-04)
 
 - MAINT: Removed automatically adding allauth URLs
 
