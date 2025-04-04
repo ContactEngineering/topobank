@@ -1,15 +1,23 @@
 from django.conf import settings
 from django.shortcuts import reverse
+from django.urls import NoReverseMatch
 
 from topobank.users.anonymous import get_anonymous_user
 
 HEADLESS_ONLY = hasattr(settings, "HEADLESS_ONLY") and settings.HEADLESS_ONLY
 
 # Default to headful mode, but allow to switch to headless mode
+_no_anonymous_substitution_urls = []
 if not HEADLESS_ONLY:
     # some abbreviations in order to save time on every request
-    ACCOUNT_SIGNUP_URL = reverse("account_signup")
-    ACCOUNT_LOGIN_URL = reverse("account_login")
+    try:
+        _no_anonymous_substitution_urls += [reverse("account_signup")]
+    except NoReverseMatch:
+        pass
+    try:
+        _no_anonymous_substitution_urls += [reverse("account_login")]
+    except NoReverseMatch:
+        pass
 
 
 def anonymous_user_middleware(get_response):
@@ -36,8 +44,7 @@ def anonymous_user_middleware(get_response):
         else:
             if not (
                 request.user.is_authenticated
-                or request.path == ACCOUNT_SIGNUP_URL
-                or request.path == ACCOUNT_LOGIN_URL
+                or request.path in _no_anonymous_substitution_urls
             ):
                 request.user = get_anonymous_user()
 
