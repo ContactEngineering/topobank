@@ -228,7 +228,6 @@ def download_surface(request, surface_ids):
     #
     container_filename = "digital-surface-twins.zip"
     if len(surfaces) == 1:
-        container_filename = "digital-surface-twin.zip"
         surface, = surfaces
         if surface.is_published:
             pub = surface.publication
@@ -245,7 +244,7 @@ def download_surface(request, surface_ids):
 
     if content_data is None:
         container_bytes = BytesIO()
-        _log.info(f"Preparing container of surface ids={surface_ids} for download..")
+        _log.info(f"Preparing container of surface ids={surface_ids} for download...")
         try:
             write_surface_container(container_bytes, surfaces)
         except FileNotFoundError:
@@ -256,6 +255,7 @@ def download_surface(request, surface_ids):
         content_data = container_bytes.getvalue()
 
         if surface.is_published:
+            pub = surface.publication
             try:
                 container_bytes.seek(0)
                 _log.info(
