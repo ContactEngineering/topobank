@@ -623,3 +623,62 @@ class AnalysisFunction(models.Model):
 
         transaction.on_commit(do_submit)
         return analysis
+
+
+class WorkFlowTemplate(PermissionMixin, models.Model):
+    """
+    WorkFlowTemplate is a model that stores the state for the generated pdf
+    document
+    """
+
+    #
+    # Manager
+    #
+    objects = AuthorizedManager()
+
+    #
+    # Permissions
+    #
+    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    #
+    # name of stored parameters
+    #
+    name = models.CharField(max_length=255)
+
+    #
+    # Parameters to be passed to the PDF document
+    # include long term and short term parameters across one or more
+    # prediction reports
+    #
+    parameters = models.JSONField(default=dict, blank=True)
+
+    analysis = models.ForeignKey(
+        Analysis,
+        on_delete=models.CASCADE,
+        null=True
+    )
+
+    creator = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.CASCADE
+    )
+
+    def __str__(self):
+        return (
+            f"Work Flow Template {self.id} - {self.name} for analysis {self.analysis.id}"
+        )
+
+    def save(self, *args, **kwargs):
+        created = self.pk is None
+        if created and self.permissions is None:
+            # Create a new permission set for this template
+            _log.debug(
+                f"Creating an empty permission set for template {self.id} which was "
+                f"just created."
+            )
+            self.permissions = PermissionSet.objects.create()
+
+        super().save(*args, **kwargs)
+        if created:
+            # Grant permissions to creator
+            self.permissions.grant_for_user(self.creator, "full")
