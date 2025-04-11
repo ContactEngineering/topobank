@@ -17,9 +17,14 @@ from ...files.serializers import ManifestSerializer
 from ...manager.models import Surface
 from ...manager.utils import demangle_content_type
 from ...usage_stats.utils import increase_statistics_by_date_and_object
-from ..models import Analysis, AnalysisFunction, Configuration
+from ..models import Analysis, AnalysisFunction, Configuration, WorkFlowTemplate
 from ..permissions import AnalysisFunctionPermissions
-from ..serializers import ConfigurationSerializer, ResultSerializer, WorkflowSerializer
+from ..serializers import (
+    ConfigurationSerializer,
+    ResultSerializer,
+    WorkflowSerializer,
+    WorkFlowTemplateSerializer,
+)
 from ..utils import filter_and_order_analyses
 from .controller import AnalysisController
 
@@ -561,3 +566,51 @@ def memory_usage(request):
         ):
             m[function_name] += [x]
     return Response(m, status=200)
+
+
+class WorkflowTemplateView(
+    viewsets.GenericViewSet,
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin
+):
+    """
+    Create, update, retrieve and delete workflow templates.
+
+    """
+    serializer_class = WorkFlowTemplateSerializer
+    permission_classes = [AnalysisFunctionPermissions]
+
+    def get_queryset(self):
+        """
+        Get the queryset for the workflow templates.
+        """
+        return WorkFlowTemplate.objects.for_user(self.request.user)
+
+    def perform_create(self, serializer):
+        """
+        Create a new workflow template.
+        """
+        serializer.save(creator=self.request.user)
+
+    def performance_update(self, serializer):
+        """
+        Update an existing workflow template.
+        """
+        serializer.save()
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve a workflow template.
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    def perform_destroy(self, instance):
+        """
+        Delete a workflow template.
+        """
+        instance.delete()
