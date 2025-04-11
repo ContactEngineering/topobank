@@ -7,7 +7,12 @@ from django.db.models.signals import post_save
 from django.utils import timezone
 from factory import post_generation
 
-from ..analysis.models import Analysis, AnalysisFunction, AnalysisSubject
+from ..analysis.models import (
+    Analysis,
+    AnalysisFunction,
+    AnalysisSubject,
+    WorkFlowTemplate,
+)
 from ..manager.models import Surface, Tag, Topography
 from ..organizations.models import Organization
 from ..properties.models import Property
@@ -372,3 +377,22 @@ class OrganizationFactory(factory.django.DjangoModelFactory):
         model = Organization
 
     name = factory.Sequence(lambda n: "Organization No. {:d}".format(n))
+
+
+class WorkFlowTemplateFactory(factory.django.DjangoModelFactory):
+    """
+    Factory for generating WorkFlowTemplate instances.
+    """
+
+    class Meta:
+        model = WorkFlowTemplate
+
+    name = factory.Sequence(lambda n: f"Workflow Template {n}")
+    parameters = {"param1": "value1", "param2": "value2"}  # Example JSON field
+    analysis = factory.SubFactory(
+        "topobank.testing.factories.AnalysisFactory"
+    )
+    creator = factory.SubFactory(UserFactory)
+    permissions = factory.SubFactory(
+        PermissionSetFactory, user=factory.SelfAttribute("..creator")
+    )

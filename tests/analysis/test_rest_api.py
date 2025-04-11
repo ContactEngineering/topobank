@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.models import Analysis, AnalysisFunction, WorkFlowTemplate
 from topobank.manager.models import Tag
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
@@ -9,6 +9,7 @@ from topobank.testing.factories import (
     SurfaceFactory,
     Topography1DFactory,
     UserFactory,
+    WorkFlowTemplateFactory,
 )
 from topobank.testing.utils import ASSERT_EQUAL_IGNORE_VALUE, assert_dict_equal
 
@@ -451,3 +452,74 @@ def test_query_with_not_implemented_subject(api_client, one_line_scan, test_anal
     )
     assert response.status_code == 200
     assert response.data['analyses'] == []
+
+
+@pytest.mark.django_db
+def test_workflow_template_api(api_client, one_line_scan):
+    user = one_line_scan.creator
+    one_line_scan.grant_permission(user, "view")
+
+    # Create a new workflow template
+    surf1 = SurfaceFactory(creator=user)
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    trained_model = AnalysisFactory(subject_surface=surf1, function=func, kwargs=dict(a=1, b="foo"))
+
+    # test creating the template
+    # url = trained_model.get_absolute_url()
+    parameters = dict(a=1, b="foo")
+    expected_template = {
+        "name": "my-template",
+        "parameters": parameters,
+        "analysis": trained_model.id,
+    }
+
+    api_client.force_authenticate(user)
+    response = api_client.post(
+        reverse("analysis:workflow-template-list"),
+        data=expected_template,
+        format="json"
+    )
+
+    assert response.status_code == 201
+    assert response.data["name"] == "my-template"
+
+    template = WorkFlowTemplate.objects.get(name=expected_template['name'])
+    assert response.data["parameters"] == parameters, \
+        f"Expected same name, got {template.name} != {expected_template['name']}"
+    assert template.name == expected_template['name'], \
+        f"Expected same name, got {template.name} != {expected_template['name']}"
+    assert template.parameters == expected_template['parameters'], \
+        f"Expected same parameters, got {template.parameters} != {expected_template['parameters']}"
+    assert template.analysis == trained_model, \
+        f"Expected same analysis, got {template.analysis} != {trained_model}"
+
+    # test retrieving the template
+    response = api_client.get(
+        reverse("analysis:workflow-template-detail", kwargs=dict(pk=template.id))
+    )
+
+    assert response.status_code == 200
+    assert response.data["name"] == expected_template['name']
+    assert response.data["parameters"] == expected_template['parameters']
+
+    # template list
+    template2 = WorkFlowTemplateFactory(
+        name="my-template-2",
+        parameters=dict(a=2, b="foo2"),
+        analysis=trained_model,
+        creator=user,
+    )
+
+    response = api_client.get(reverse("analysis:workflow-template-list"))
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    assert len(response.data) == 2, f"Expected 2 template, got {len(response.data)}"
+
+    # test deleting the template
+    api_client.force_authenticate(user)
+    response = api_client.delete(
+        reverse("analysis:workflow-template-detail", kwargs=dict(pk=template2.id))
+    )
+    templates = WorkFlowTemplate.objects.all()
+
+    assert response.status_code == 204
+    assert len(templates) == 1, f"Expected 1 template, got {len(templates)}"
