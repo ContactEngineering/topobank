@@ -25,7 +25,7 @@ from ..serializers import (
     WorkflowSerializer,
     WorkFlowTemplateSerializer,
 )
-from ..utils import filter_and_order_analyses
+from ..utils import filter_and_order_analyses, filter_workflow_templates
 from .controller import AnalysisController
 
 _log = logging.getLogger(__name__)
@@ -587,7 +587,8 @@ class WorkflowTemplateView(
         """
         Get the queryset for the workflow templates.
         """
-        return WorkFlowTemplate.objects.for_user(self.request.user)
+        qs = WorkFlowTemplate.objects.for_user(self.request.user)
+        return filter_workflow_templates(self.request, qs)
 
     def perform_create(self, serializer):
         """

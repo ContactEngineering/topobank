@@ -1,4 +1,5 @@
 import logging
+import math
 from collections import OrderedDict
 
 from ..manager.models import Surface
@@ -112,3 +113,49 @@ def find_children(subjects):
         if isinstance(subject, Surface):
             additional_subjects += list(subject.topography_set.all())
     return list(set(subjects + additional_subjects))
+
+
+def filter_workflow_templates(request, qs):
+    """Return queryset with workflow templates matching all filter criteria.
+
+    Workflow templates should be
+    - filtered by analysis id, if given
+
+    Parameters
+    ----------
+    request
+        Request instance
+
+    Returns
+    -------
+        Filtered queryset of workflow templates
+    """
+    analysis_id = request.GET.get("analysis_id", None)
+    if analysis_id is not None:
+        qs = qs.filter(analysis=analysis_id)
+    return qs
+
+
+def round_to_significant_digits(x, num_dig_digits):
+    """Round given number to given number of significant digits
+
+    Parameters
+    ----------
+    x: flost
+        Number to be rounded
+    num_dig_digits: int
+        Number of significant digits
+
+
+    Returns
+    -------
+    Rounded number.
+
+    For NaN, NaN is returned.
+    """
+    if math.isnan(x):
+        return x
+    try:
+        return round(x, num_dig_digits - int(math.floor(math.log10(abs(x)))) - 1)
+    except ValueError:
+        return x

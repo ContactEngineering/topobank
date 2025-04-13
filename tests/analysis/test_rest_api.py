@@ -523,3 +523,46 @@ def test_workflow_template_api(api_client, one_line_scan):
 
     assert response.status_code == 204
     assert len(templates) == 1, f"Expected 1 template, got {len(templates)}"
+
+
+@pytest.mark.django_db
+def test_workflow_template_query(api_client, one_line_scan):
+    user = one_line_scan.creator
+
+    # Create a new workflow template
+    surf1 = SurfaceFactory(creator=user)
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    trained_model = AnalysisFactory(
+        subject_surface=surf1,
+        function=func,
+        kwargs=dict(a=1, b="foo"))
+    trained_model_2 = AnalysisFactory(
+        subject_surface=surf1,
+        function=func,
+        kwargs=dict(a=2, b="foo"))
+
+    # create different workflow template with from analysis
+    WorkFlowTemplateFactory(
+        name="my-template-1",
+        parameters=dict(a=2, b="foo2"),
+        analysis=trained_model,
+        creator=user,
+    )
+    WorkFlowTemplateFactory(
+        name="my-template-2",
+        parameters=dict(a=2, b="foo2"),
+        analysis=trained_model_2,
+        creator=user,
+    )
+    url = (
+        f'{reverse("analysis:workflow-template-list")}'
+        f'?analysis_id={trained_model.id}'
+    )
+
+    api_client.force_authenticate(user)
+    response = api_client.get(url)
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    assert len(response.data) == 1, f"Expected 1 template, got {len(response.data)}"
+    assert response.data[0]['analysis'] == trained_model.id, \
+        f"Expected matching train model id, got {response.data['analysis']}"
