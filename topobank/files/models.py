@@ -230,13 +230,15 @@ class Manifest(PermissionMixin, models.Model):
                 f"exists at the likely storage location '{storage_path}'..."
             )
             if default_storage.exists(storage_path):
-                _log.debug("Found file, updating manifest...")
+                _log.debug("...found file, updating manifest.")
                 # Set storage location to file that was just uploaded
                 self.file = self.file.field.attr_class(
                     self, self.file.field, storage_path
                 )
                 self.upload_confirmed = timezone.now()
                 self.save(update_fields=["file", "upload_confirmed"])
+            else:
+                _log.debug("...no file found. Cannot finish upload.")
         else:
             self.file.save(self.filename, file, save=False)
             self.upload_confirmed = timezone.now()
