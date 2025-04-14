@@ -190,22 +190,20 @@ def sync_implementation_classes(cleanup=False):
         funcs_deleted=0,
     )
 
-    display_names_used = list(_implementation_classes_by_display_name.keys())
+    names_used = list(_implementation_classes_by_name.keys())
 
     #
     # Ensure all analysis functions needed to exist in database
     #
     _log.info(
-        f"Syncing analysis functions with database - {len(display_names_used)} "
+        f"Syncing analysis functions with database - {len(names_used)} "
         "functions used - .."
     )
 
-    for display_name in display_names_used:
-        func, created = AnalysisFunction.objects.update_or_create(
-            display_name=display_name
-        )
-        func.name = _implementation_classes_by_display_name[display_name].Meta.name
-        func.save(update_fields=["name"])
+    for name in names_used:
+        func, created = AnalysisFunction.objects.update_or_create(name=name)
+        func.display_name = _implementation_classes_by_name[name].Meta.display_name
+        func.save(update_fields=["display_name"])
         if created:
             counts["funcs_created"] += 1
         else:
@@ -215,8 +213,8 @@ def sync_implementation_classes(cleanup=False):
     # Optionally delete all analysis functions which are no longer needed
     #
     for func in AnalysisFunction.objects.all():
-        if func.display_name not in display_names_used:
-            _log.info(f"Function '{func.display_name}' is no longer used in the code.")
+        if func.name not in names_used:
+            _log.info(f"Function '{func.name}' is no longer used in the code.")
             dangling_analyses = Analysis.objects.filter(function=func)
             num_analyses = dangling_analyses.filter(function=func).count()
             _log.info(f"There are still {num_analyses} analyses for this function.")
@@ -225,7 +223,7 @@ def sync_implementation_classes(cleanup=False):
                 dangling_analyses.delete()
                 func.delete()
                 _log.info(
-                    f"Deleted function '{func.display_name}' and all its analyses."
+                    f"Deleted function '{func.name}' and all its analyses."
                 )
                 counts["funcs_deleted"] += 1
 

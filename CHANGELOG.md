@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.58.5 (2025-04-14)
+
+- API: Sync functions by name, not display name
+
 # 1.58.4 (2025-04-08)
 
 - TST: Allow ignoring specific keys in tests
