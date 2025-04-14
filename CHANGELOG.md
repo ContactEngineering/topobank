@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.58.4 (2025-04-08)
+
+- TST: Allow ignoring specific keys in tests
+
 # 1.58.3 (2025-04-07)
 
 - BUG: Fixed missing local variable `pub` in surface download

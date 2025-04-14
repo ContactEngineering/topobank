@@ -247,13 +247,13 @@ class AssertEqualIgnoreValue:
 ASSERT_EQUAL_IGNORE_VALUE = AssertEqualIgnoreValue()
 
 
-def assert_equal(a, b, key=None, rtol=1e-07, atol=0):
+def assert_equal(a, b, key=None, ignore_keys=set(), rtol=1e-07, atol=0):
     if isinstance(a, AssertEqualIgnoreValue) or isinstance(b, AssertEqualIgnoreValue):
         return
     elif (a is None and b is not None) or (a is not None and b is None):
         raise AssertionError(f"The values key '{key}' differ: {a} != {b}")
     elif isinstance(a, dict) and isinstance(b, dict):
-        assert_dict_equal(a, b, key=key, rtol=rtol, atol=atol)
+        assert_dict_equal(a, b, ignore_keys=ignore_keys, rtol=rtol, atol=atol)
     elif isinstance(a, np.ndarray) or isinstance(b, np.ndarray):
         np.testing.assert_allclose(
             a,
@@ -263,7 +263,7 @@ def assert_equal(a, b, key=None, rtol=1e-07, atol=0):
             err_msg=f"The values of key '{key}' differ: {a} != {b}",
         )
     elif isinstance(a, list):
-        assert_dicts_equal(a, b, key=key, rtol=rtol, atol=atol)
+        assert_dicts_equal(a, b, ignore_keys=ignore_keys, rtol=rtol, atol=atol)
     elif isinstance(a, Number) or isinstance(b, Number):
         np.testing.assert_allclose(
             a,
@@ -276,20 +276,20 @@ def assert_equal(a, b, key=None, rtol=1e-07, atol=0):
         assert a == b, f"The values key '{key}' differ: {a} != {b}"
 
 
-def assert_dict_equal(a, b, key=None, rtol=1e-07, atol=0):
-    keys_a = set(a.keys())
-    keys_b = set(b.keys())
+def assert_dict_equal(a, b, ignore_keys=set(), rtol=1e-07, atol=0):
+    keys_a = set(a.keys()) - set(ignore_keys)
+    keys_b = set(b.keys()) - set(ignore_keys)
 
     assert (
         keys_a == keys_b
     ), f"Present in a but not b: {keys_a - keys_b}, present in b but not a: {keys_b - keys_a}"
     for key in keys_a:
-        assert_equal(a[key], b[key], key=key, rtol=rtol, atol=atol)
+        assert_equal(a[key], b[key], key=key, ignore_keys=ignore_keys, rtol=rtol, atol=atol)
 
 
-def assert_dicts_equal(a, b, key=None, rtol=1e-07, atol=0):
+def assert_dicts_equal(a, b, key=None, ignore_keys=set(), rtol=1e-07, atol=0):
     for x, y in zip(a, b):
-        assert_equal(x, y, key=key, rtol=rtol, atol=atol)
+        assert_equal(x, y, key=key, ignore_keys=ignore_keys, rtol=rtol, atol=atol)
 
 
 ###############################################################################
@@ -299,7 +299,7 @@ def assert_dicts_equal(a, b, key=None, rtol=1e-07, atol=0):
 
 @dataclass(frozen=True)
 class FakeTopographyModel:
-    """This model is used to create a Topography for being passed to analysis functions."""
+    """This model is used to create a Topography for  being passed to analysis functions."""
 
     t: Topography
     name: str = "mytopo"
