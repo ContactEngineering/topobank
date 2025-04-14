@@ -18,7 +18,7 @@ from topobank.testing.factories import (
     TagFactory,
     Topography1DFactory,
     TopographyAnalysisFactory,
-    WorkFlowTemplateFactory,
+    WorkflowTemplateFactory,
 )
 from topobank.testing.workflows import TestImplementation
 
@@ -247,20 +247,20 @@ def test_submit_again(test_analysis_function):
 def test_workflow_template(test_analysis_function):
 
     surface = SurfaceFactory()
-    surface_analysis = SurfaceAnalysisFactory(
+    SurfaceAnalysisFactory(
         subject_surface=surface,
         function=test_analysis_function
     )
 
-    expected_parameters = dict(
+    expected_kwargs = dict(
         a=2,
         b="bar",
     )
 
-    template = WorkFlowTemplateFactory(
-        analysis=surface_analysis,
-        parameters=expected_parameters,
+    template = WorkflowTemplateFactory(
+        implementation=test_analysis_function,
+        kwargs=expected_kwargs,
     )
 
-    assert template.analysis == surface_analysis
-    assert template.parameters == expected_parameters
+    assert template.implementation == test_analysis_function
+    assert template.kwargs == expected_kwargs

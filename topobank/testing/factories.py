@@ -11,7 +11,7 @@ from ..analysis.models import (
     Analysis,
     AnalysisFunction,
     AnalysisSubject,
-    WorkFlowTemplate,
+    WorkflowTemplate,
 )
 from ..manager.models import Surface, Tag, Topography
 from ..organizations.models import Organization
@@ -379,19 +379,17 @@ class OrganizationFactory(factory.django.DjangoModelFactory):
     name = factory.Sequence(lambda n: "Organization No. {:d}".format(n))
 
 
-class WorkFlowTemplateFactory(factory.django.DjangoModelFactory):
+class WorkflowTemplateFactory(factory.django.DjangoModelFactory):
     """
-    Factory for generating WorkFlowTemplate instances.
+    Factory for generating WorkflowTemplate instances.
     """
 
     class Meta:
-        model = WorkFlowTemplate
+        model = WorkflowTemplate
 
     name = factory.Sequence(lambda n: f"Workflow Template {n}")
-    parameters = {"param1": "value1", "param2": "value2"}  # Example JSON field
-    analysis = factory.SubFactory(
-        "topobank.testing.factories.AnalysisFactory"
-    )
+    kwargs = {"param1": "value1", "param2": "value2"}  # Example JSON field
+    implementation = factory.SubFactory(AnalysisFunctionFactory)
     creator = factory.SubFactory(UserFactory)
     permissions = factory.SubFactory(
         PermissionSetFactory, user=factory.SelfAttribute("..creator")

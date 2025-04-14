@@ -625,10 +625,9 @@ class AnalysisFunction(models.Model):
         return analysis
 
 
-class WorkFlowTemplate(PermissionMixin, models.Model):
+class WorkflowTemplate(PermissionMixin, models.Model):
     """
-    WorkFlowTemplate is a model that stores the state for the generated pdf
-    document
+    WorkflowTemplate is a model that stores the state for a workflow
     """
 
     #
@@ -646,14 +645,12 @@ class WorkFlowTemplate(PermissionMixin, models.Model):
     name = models.CharField(max_length=255)
 
     #
-    # Parameters to be passed to the PDF document
-    # include long term and short term parameters across one or more
-    # prediction reports
+    # Parameters to be passed to workflow
     #
-    parameters = models.JSONField(default=dict, blank=True)
+    kwargs = models.JSONField(default=dict, blank=True)
 
-    analysis = models.ForeignKey(
-        Analysis,
+    implementation = models.ForeignKey(
+        AnalysisFunction,
         on_delete=models.CASCADE,
         null=True
     )
@@ -665,7 +662,8 @@ class WorkFlowTemplate(PermissionMixin, models.Model):
 
     def __str__(self):
         return (
-            f"Work Flow Template {self.id} - {self.name} for analysis {self.analysis.id}"
+            f"Work Flow Template {self.id} - {self.name} for"
+            f" implementation {self.implementation.display_name}"
         )
 
     def save(self, *args, **kwargs):

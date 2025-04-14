@@ -17,13 +17,13 @@ from ...files.serializers import ManifestSerializer
 from ...manager.models import Surface
 from ...manager.utils import demangle_content_type
 from ...usage_stats.utils import increase_statistics_by_date_and_object
-from ..models import Analysis, AnalysisFunction, Configuration, WorkFlowTemplate
+from ..models import Analysis, AnalysisFunction, Configuration, WorkflowTemplate
 from ..permissions import AnalysisFunctionPermissions
 from ..serializers import (
     ConfigurationSerializer,
     ResultSerializer,
     WorkflowSerializer,
-    WorkFlowTemplateSerializer,
+    WorkflowTemplateSerializer,
 )
 from ..utils import filter_and_order_analyses, filter_workflow_templates
 from .controller import AnalysisController
@@ -580,14 +580,14 @@ class WorkflowTemplateView(
     Create, update, retrieve and delete workflow templates.
 
     """
-    serializer_class = WorkFlowTemplateSerializer
+    serializer_class = WorkflowTemplateSerializer
     permission_classes = [AnalysisFunctionPermissions]
 
     def get_queryset(self):
         """
         Get the queryset for the workflow templates.
         """
-        qs = WorkFlowTemplate.objects.for_user(self.request.user)
+        qs = WorkflowTemplate.objects.for_user(self.request.user)
         return filter_workflow_templates(self.request, qs)
 
     def perform_create(self, serializer):

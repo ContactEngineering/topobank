@@ -130,9 +130,9 @@ def filter_workflow_templates(request, qs):
     -------
         Filtered queryset of workflow templates
     """
-    analysis_id = request.GET.get("analysis_id", None)
-    if analysis_id is not None:
-        qs = qs.filter(analysis=analysis_id)
+    implementation_id = request.GET.get("implementation", None)
+    if implementation_id is not None:
+        qs = qs.filter(implementation=implementation_id)
     return qs
 
 

@@ -11,7 +11,7 @@ from .models import (
     AnalysisFunction,
     AnalysisSubject,
     Configuration,
-    WorkFlowTemplate,
+    WorkflowTemplate,
 )
 from .registry import get_visualization_type
 
@@ -143,21 +143,25 @@ class ResultSerializer(
         )
 
 
-class WorkFlowTemplateSerializer(
+class WorkflowTemplateSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     class Meta:
-        model = WorkFlowTemplate
+        model = WorkflowTemplate
         fields = [
             "id",
             "name",
-            "parameters",
-            "analysis",
+            "kwargs",
+            "implementation",
             "creator",
         ]
 
-    analysis = serializers.PrimaryKeyRelatedField(
-        queryset=Analysis.objects.all()
+    implementation = serializers.HyperlinkedRelatedField(
+        view_name="analysis:workflow-detail",
+        lookup_field="name",
+        queryset=AnalysisFunction.objects.all(),
+        allow_null=True,
+
     )
 
     creator = serializers.HyperlinkedRelatedField(
