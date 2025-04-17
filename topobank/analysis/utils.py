@@ -2,6 +2,7 @@ import logging
 import math
 from collections import OrderedDict
 
+from ..analysis.models import AnalysisFunction
 from ..manager.models import Surface
 
 _log = logging.getLogger(__name__)
@@ -119,7 +120,7 @@ def filter_workflow_templates(request, qs):
     """Return queryset with workflow templates matching all filter criteria.
 
     Workflow templates should be
-    - filtered by analysis id, if given
+    - filtered by workflow name, if given
 
     Parameters
     ----------
@@ -130,9 +131,25 @@ def filter_workflow_templates(request, qs):
     -------
         Filtered queryset of workflow templates
     """
-    implementation_id = request.GET.get("implementation", None)
-    if implementation_id is not None:
-        qs = qs.filter(implementation=implementation_id)
+    user = request.user
+    implementation_name = request.GET.get("implementation", None)
+    implementation = None
+    if implementation_name is not None:
+        try:
+            implementation = AnalysisFunction.objects.get(
+                name=implementation_name
+            )
+        except AnalysisFunction.DoesNotExist:
+            _log.warning(
+                "Workflow template filter: implementation %s not found",
+                implementation_name,
+            )
+            implementation = None
+
+    if implementation is not None and \
+            implementation.has_permission(user):
+        qs = qs.filter(implementation=implementation.id)
+
     return qs
 
 

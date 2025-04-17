@@ -455,7 +455,11 @@ def test_query_with_not_implemented_subject(api_client, one_line_scan, test_anal
 
 
 @pytest.mark.django_db
-def test_workflow_template_api(api_client, one_line_scan, test_analysis_function):
+def test_workflow_template_api(
+        api_client,
+        one_line_scan,
+        test_analysis_function):
+
     user = one_line_scan.creator
     one_line_scan.grant_permission(user, "view")
 
@@ -498,6 +502,21 @@ def test_workflow_template_api(api_client, one_line_scan, test_analysis_function
     assert response.status_code == 200
     assert response.data["name"] == expected_template['name']
     assert response.data["kwargs"] == expected_template['kwargs']
+
+    # test update template
+    expected_template["kwargs"]
+    updated_kwargs = expected_template["kwargs"]
+    updated_kwargs["a"] = 2
+
+    response = api_client.patch(
+        reverse("analysis:workflow-template-detail", kwargs={"pk": template.id}),
+        {'kwargs': updated_kwargs},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["name"] == expected_template['name']
+    assert response.data["kwargs"] == updated_kwargs
 
     # template list
     template2 = WorkflowTemplateFactory(
@@ -545,7 +564,7 @@ def test_workflow_template_query(api_client, one_line_scan):
     )
     url = (
         f'{reverse("analysis:workflow-template-list")}'
-        f'?implementation={func.id}'
+        f'?implementation={func.name}'
     )
 
     api_client.force_authenticate(user)
