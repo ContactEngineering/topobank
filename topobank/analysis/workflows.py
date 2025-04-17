@@ -141,7 +141,9 @@ class WorkflowImplementation:
 
     class Parameters(pydantic.BaseModel):
         class Config:
-            extra = "forbid"
+            extra = "allow"  # Extra fields are ignored and not included in the model.
+            # extra = "forbid"  # Extra fields are forbidden and will raise an erro
+            # extra = "ignore"  # Extra fields are forbidden and will raise an erro
 
     def __init__(self, **kwargs):
         self._kwargs = self.Parameters(**kwargs)

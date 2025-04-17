@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
-from ..models import Analysis, AnalysisFunction, AnalysisSubject
+from ..models import Analysis, AnalysisFunction, AnalysisSubject, WorkflowTemplate
 from ..registry import WorkflowNotImplementedException
 from ..serializers import ResultSerializer
 from ..utils import find_children
@@ -418,6 +418,12 @@ class AnalysisController:
         if self._kwargs is not None:
             kwargs.update(self._kwargs)
 
+        if template_id := kwargs.get('workflow_template_id'):
+            try:
+                workflow_template = WorkflowTemplate.objects.get(id=template_id)
+                kwargs.update(workflow_template.kwargs)
+            except Exception as e:
+                _log.info(f"Unable copy workflow template to analysisL {e}")
         # For every possible implemented subject type the following is done:
         # We use the common unique keyword arguments if there are any; if not
         # the default arguments for the implementation is used
