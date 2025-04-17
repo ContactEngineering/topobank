@@ -587,7 +587,15 @@ class WorkflowTemplateView(
         """
         Get the queryset for the workflow templates.
         """
-        qs = WorkflowTemplate.objects.for_user(self.request.user)
+        workflows = [
+            workflow.id
+            for workflow in AnalysisFunction.objects.all()
+            if workflow.has_permission(self.request.user)
+        ]
+        qs = WorkflowTemplate.objects.filter(
+            implementation__in=workflows
+        )
+
         return filter_workflow_templates(self.request, qs)
 
     def perform_create(self, serializer):
