@@ -418,12 +418,16 @@ class AnalysisController:
         if self._kwargs is not None:
             kwargs.update(self._kwargs)
 
-        if template_id := kwargs.get('workflow_template_id'):
+        # copy template kwargs to analysis
+        if report_kwargs := kwargs.get('report_kwargs'):
             try:
+                template_id = report_kwargs.get('workflow_template_id')
                 workflow_template = WorkflowTemplate.objects.get(id=template_id)
-                kwargs.update(workflow_template.kwargs)
+                report_kwargs.update(workflow_template.kwargs)
+                kwargs['report_kwargs'] = report_kwargs
+                self._kwargs = kwargs
             except Exception as e:
-                _log.info(f"Unable copy workflow template to analysisL {e}")
+                _log.info(f"Unable copy workflow template {template_id} to analysis {e}")
         # For every possible implemented subject type the following is done:
         # We use the common unique keyword arguments if there are any; if not
         # the default arguments for the implementation is used
