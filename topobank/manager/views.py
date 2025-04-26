@@ -118,7 +118,7 @@ class TopographyViewSet(
                 verb=verb,
                 recipient=u.user,
                 description=f"User '{user.name}' {verb}d digital surface twin "
-                f"'{instance.name}'.",
+                            f"'{instance.name}'.",
             )
 
     def get_queryset(self):
@@ -162,7 +162,7 @@ class TopographyViewSet(
             self.permission_denied(
                 self.request,
                 message=f"User {self.request.user} has no permission to edit dataset "
-                f"{parent.get_absolute_url()}.",
+                        f"{parent.get_absolute_url()}.",
             )
 
         # Set creator to current user when creating a new topography
@@ -197,21 +197,10 @@ class TopographyViewSet(
         return Response(serializer.data)
 
 
-@api_view(["GET"])
-def download_surface(request, surface_ids):
-    #
-    # Separate into surfaces
-    #
-    try:
-        surface_ids = [int(surface_id) for surface_id in surface_ids.split(",")]
-    except ValueError:
-        return HttpResponseBadRequest("Invalid surface ID(s).")
-
+def download_surfaces(request, surfaces, container_filename=None):
     #
     # Check existence and permissions for given surface
     #
-    surfaces = [get_object_or_404(Surface, id=surface_id) for surface_id in surface_ids]
-
     for surface in surfaces:
         if not surface.has_permission(request.user, "view"):
             raise PermissionDenied()
@@ -226,12 +215,12 @@ def download_surface(request, surface_ids):
     #     If no, save the container in the publication later.
     # If no: create a container for this surface on the fly
     #
-    container_filename = "digital-surface-twins.zip"
     if len(surfaces) == 1:
         surface, = surfaces
         if surface.is_published:
             pub = surface.publication
-            container_filename = os.path.basename(pub.container_storage_path)
+            if container_filename is None:
+                container_filename = os.path.basename(pub.container_storage_path)
 
             if pub.container:
                 if settings.USE_S3_STORAGE:
@@ -240,11 +229,15 @@ def download_surface(request, surface_ids):
                 else:
                     content_data = pub.container.read()
         else:
-            container_filename = slugify(surface.name) + ".zip"
+            if container_filename is None:
+                container_filename = f"{slugify(surface.name)}.zip"
+    else:
+        if container_filename is None:
+            container_filename = "digital-surface-twins.zip"
 
     if content_data is None:
         container_bytes = BytesIO()
-        _log.info(f"Preparing container of surface ids={surface_ids} for download...")
+        _log.info(f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download...")
         try:
             write_surface_container(container_bytes, surfaces)
         except FileNotFoundError:
@@ -254,8 +247,8 @@ def download_surface(request, surface_ids):
             )
         content_data = container_bytes.getvalue()
 
-        if surface.is_published:
-            pub = surface.publication
+        if len(surfaces) == 1 and surfaces[0].is_published:
+            pub = surfaces[0].publication
             try:
                 container_bytes.seek(0)
                 _log.info(
@@ -277,11 +270,38 @@ def download_surface(request, surface_ids):
         container_filename
     )
 
-    increase_statistics_by_date_and_object(
-        Metric.objects.SURFACE_DOWNLOAD_COUNT, period=Period.DAY, obj=surface
-    )
+    for surface in surfaces:
+        increase_statistics_by_date_and_object(
+            Metric.objects.SURFACE_DOWNLOAD_COUNT, period=Period.DAY, obj=surface
+        )
 
     return response
+
+
+@api_view(["GET"])
+def download_surface(request, surface_ids):
+    # `surface_ids` is a comma-separated list of surface IDs as a string,
+    # e.g. "1,2,3", we need to parse it
+    try:
+        surface_ids = [int(surface_id) for surface_id in surface_ids.split(",")]
+    except ValueError:
+        return HttpResponseBadRequest("Invalid surface ID(s).")
+
+    # Get surfaces from database
+    surfaces = [get_object_or_404(Surface, id=surface_id) for surface_id in surface_ids]
+
+    # Trigger the actual download
+    return download_surfaces(request, surfaces)
+
+
+@api_view(["GET"])
+def download_tag(request, name):
+    # `tag_name` is the name of the tag, we need to parse it
+    tag = get_object_or_404(Tag, name=name)
+    tag.authorize_user(request.user, "view")
+
+    # Trigger the actual download
+    return download_surfaces(request, tag.get_descendant_surfaces(), f"{slugify(tag.name)}.zip")
 
 
 @api_view(["POST"])
@@ -424,7 +444,7 @@ def statistics(request):
     # Global statistics
     stats = {
         "nb_users": User.objects.count()
-        - 1,  # -1 because we don't count the anonymous user
+                    - 1,  # -1 because we don't count the anonymous user
         "nb_surfaces": Surface.objects.count(),
         "nb_topographies": Topography.objects.count(),
     }
@@ -449,6 +469,6 @@ def memory_usage(request):
     ).annotate(
         duration=F("end_time") - F("start_time"),
         nb_data_pts=F("resolution_x")
-        * Case(When(resolution_y__isnull=False, then=F("resolution_y")), default=1),
+                    * Case(When(resolution_y__isnull=False, then=F("resolution_y")), default=1),
     )
     return Response(list(r))

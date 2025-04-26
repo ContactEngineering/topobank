@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.59.0 (2025-04-26)
+
+- ENH: Download of tags
+
 # 1.58.5 (2025-04-14)
 
 - API: Sync functions by name, not display name

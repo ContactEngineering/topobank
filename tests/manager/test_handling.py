@@ -16,7 +16,7 @@ from topobank.testing.factories import (
     SurfaceFactory,
     Topography1DFactory,
     Topography2DFactory,
-    UserFactory,
+    UserFactory, TagFactory,
 )
 from topobank.testing.utils import upload_topography_file
 
@@ -1266,15 +1266,15 @@ def test_delete_surface(api_client, one_topography, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_download_of_unpublished_surface(client, handle_usage_statistics):
+def test_download_surface(api_client, handle_usage_statistics):
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     Topography1DFactory(surface=surface)
     Topography2DFactory(surface=surface)
 
-    client.force_login(user)
+    api_client.force_login(user)
 
-    response = client.get(
+    response = api_client.get(
         reverse("manager:surface-download", kwargs=dict(surface_ids=surface.id)),
         follow=True,
     )
@@ -1282,6 +1282,27 @@ def test_download_of_unpublished_surface(client, handle_usage_statistics):
     assert (
         response["Content-Disposition"]
         == f'attachment; filename="{slugify(surface.name) + ".zip"}"'
+    )
+
+
+@pytest.mark.django_db
+def test_download_tag(api_client, handle_usage_statistics):
+    user = UserFactory()
+    tag = TagFactory(name="test_tag")
+    surface = SurfaceFactory(creator=user, tags=[tag])
+    Topography1DFactory(surface=surface)
+    Topography2DFactory(surface=surface)
+
+    api_client.force_login(user)
+
+    response = api_client.get(
+        reverse("manager:tag-download", kwargs=dict(name=tag.name)),
+        follow=True,
+    )
+    assert response.status_code == 200, response.reason_phrase
+    assert (
+        response["Content-Disposition"]
+        == f'attachment; filename="{slugify(tag.name) + ".zip"}"'
     )
 
 

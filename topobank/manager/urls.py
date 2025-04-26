@@ -25,6 +25,11 @@ urlpatterns += [
         view=views.download_surface,
         name="surface-download",
     ),
+    re_path(
+        r"api/download-tag/(?P<name>[^.]+)/$",
+        view=views.download_tag,
+        name="tag-download",
+    ),
     #
     # API routes
     #
