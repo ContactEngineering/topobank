@@ -4,6 +4,7 @@ Models related to analyses.
 
 import json
 import logging
+from functools import partial
 from typing import Union
 
 from django.conf import settings
@@ -164,7 +165,9 @@ class Analysis(PermissionMixin, TaskStateModel):
     name = models.TextField(null=True)
 
     # user-specified description
-    description = models.TextField(null=True, help_text="Optional description of the analysis.")
+    description = models.TextField(
+        null=True, help_text="Optional description of the analysis."
+    )
 
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
@@ -411,6 +414,19 @@ class Analysis(PermissionMixin, TaskStateModel):
         self.save(update_fields=["name", "description", "subject_dispatch"])
 
 
+def submit_analysis_task_to_celery(analysis: Analysis, force_submit: bool):
+    """
+    Send task to the queue after the analysis has been created. This is typically run
+    in an on_commit hook. Note: on_commit will not execute in tests, unless
+    transaction=True is added to pytest.mark.django_db
+    """
+    from .tasks import perform_analysis
+
+    _log.debug(f"Submitting task for analysis {analysis.id}...")
+    analysis.task_id = perform_analysis.delay(analysis.id, force_submit).id
+    analysis.save(update_fields=["task_id"])
+
+
 class AnalysisFunction(models.Model):
     """
     A convenience wrapper around the AnalysisImplementation that has representation in the
@@ -566,22 +582,13 @@ class AnalysisFunction(models.Model):
                 permissions=permissions,
                 subject_dispatch=AnalysisSubject.objects.create(subject),
                 function=self,
-                task_state=Analysis.PENDING,
                 kwargs=kwargs,
                 folder=folder,
             )
-
-            # Send task to the queue if the analysis has been created
-            # Note: on_commit will not execute in tests, unless transaction=True is
-            # added to pytest.mark.django_db
-            def do_submit():
-                from .tasks import perform_analysis
-
-                _log.debug(f"Submitting task for analysis {analysis.id}...")
-                analysis.task_id = perform_analysis.delay(analysis.id, force_submit).id
-                analysis.save(update_fields=["task_id"])
-
-            transaction.on_commit(do_submit)
+            analysis.set_pending_state()
+            transaction.on_commit(
+                partial(submit_analysis_task_to_celery, analysis, force_submit)
+            )
         else:
             # There seem to be viable analyses. Fetch the latest one.
             analysis = existing_analyses.order_by("start_time").last()
@@ -608,21 +615,6 @@ class AnalysisFunction(models.Model):
             f"{[user for user, allow in analysis.permissions.get_users()]}, "
             f"function {self}, subject {analysis.subject}, kwargs: {analysis.kwargs}"
         )
-        analysis.task_state = Analysis.PENDING
-        analysis.task_error = ""
-        analysis.task_traceback = None
-        analysis.task_id = None  # Need to reset, otherwise Celery reports a failure
-        analysis.save()
-
-        # Send task to the queue if the analysis has been created
-        # Note: on_commit will not execute in tests, unless transaction=True is
-        # added to pytest.mark.django_db
-        def do_submit():
-            from .tasks import perform_analysis
-
-            _log.debug(f"Submitting task for analysis {analysis.id}...")
-            analysis.task_id = perform_analysis.delay(analysis.id, True).id
-            analysis.save(update_fields=["task_id"])
-
-        transaction.on_commit(do_submit)
+        analysis.set_pending_state()
+        transaction.on_commit(partial(submit_analysis_task_to_celery, analysis, True))
         return analysis

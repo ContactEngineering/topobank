@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.60.1 (2025-04-27)
+
+- BUG: More robust task state reporting
+
 # 1.60.0 (2025-04-27)
 
 - API: Asynchronous preparation of ZIP downloads (#249)

@@ -244,6 +244,15 @@ class TaskStateModel(models.Model):
 
         return percent
 
+    def set_pending_state(self):
+        self.task_state = self.PENDING
+        self.task_error = ""
+        self.task_traceback = None
+        self.task_id = None  # Need to reset, otherwise Celery reports a failure
+        self.save(
+            update_fields=["task_state", "task_error", "task_traceback", "task_id"]
+        )
+
     def get_task_error(self):
         """Return a string representation of any error occurred during task execution"""
         # Return self-reported task error, if any
