@@ -578,7 +578,8 @@ class AnalysisFunction(models.Model):
                 from .tasks import perform_analysis
 
                 _log.debug(f"Submitting task for analysis {analysis.id}...")
-                perform_analysis.delay(analysis.id, force_submit)
+                analysis.task_id = perform_analysis.delay(analysis.id, force_submit).id
+                analysis.save(update_fields=["task_id"])
 
             transaction.on_commit(do_submit)
         else:
@@ -610,6 +611,7 @@ class AnalysisFunction(models.Model):
         analysis.task_state = Analysis.PENDING
         analysis.task_error = ""
         analysis.task_traceback = None
+        analysis.task_id = None  # Need to reset, otherwise Celery reports a failure
         analysis.save()
 
         # Send task to the queue if the analysis has been created
@@ -619,7 +621,8 @@ class AnalysisFunction(models.Model):
             from .tasks import perform_analysis
 
             _log.debug(f"Submitting task for analysis {analysis.id}...")
-            perform_analysis.delay(analysis.id, True)
+            analysis.task_id = perform_analysis.delay(analysis.id, True).id
+            analysis.save(update_fields=["task_id"])
 
         transaction.on_commit(do_submit)
         return analysis

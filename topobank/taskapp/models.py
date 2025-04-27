@@ -158,10 +158,11 @@ class TaskStateModel(models.Model):
         # This is what Celery reports back
         celery_task_state = self.get_celery_state()
 
-        if celery_task_state is None:
-            # There is no Celery state, possibly because the Celery task has not yet
-            # been created
-            return self_reported_task_state
+        print(
+            f"self_reported_task_state: {self_reported_task_state}, "
+            f"celery_task_state: {celery_task_state}, "
+            f"task_id: {self.task_id}"
+        )
 
         if self_reported_task_state == celery_task_state:
             # We're good!
