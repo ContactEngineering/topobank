@@ -1586,7 +1586,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         elif surface_ids is not None:
             surfaces = [Surface.objects.get(id=id) for id in surface_ids]
             for surface in surfaces:
-                if not surface.has_permission("view"):
+                if not surface.has_permission(user, "view"):
                     raise PermissionDenied()
         else:
             raise RuntimeError("Please specify either a tag id or dataset ids.")

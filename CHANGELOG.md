@@ -2,7 +2,7 @@
 
 # 1.60.0 (2025-04-27)
 
-- ENH: Asynchronous preparation of ZIP downloads
+- API: Asynchronous preparation of ZIP downloads (#249)
 
 # 1.59.0 (2025-04-26)
 

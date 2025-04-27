@@ -14,9 +14,10 @@ from topobank.manager.models import MAX_LENGTH_DATAFILE_FORMAT, Surface, Topogra
 from topobank.testing.factories import (
     FIXTURE_DATA_DIR,
     SurfaceFactory,
+    TagFactory,
     Topography1DFactory,
     Topography2DFactory,
-    UserFactory, TagFactory,
+    UserFactory,
 )
 from topobank.testing.utils import upload_topography_file
 
@@ -1266,7 +1267,7 @@ def test_delete_surface(api_client, one_topography, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_download_surface(api_client, handle_usage_statistics):
+def test_v1_download_surface(api_client, handle_usage_statistics):
     user = UserFactory()
     surface = SurfaceFactory(creator=user)
     Topography1DFactory(surface=surface)
@@ -1286,7 +1287,7 @@ def test_download_surface(api_client, handle_usage_statistics):
 
 
 @pytest.mark.django_db
-def test_download_tag(api_client, handle_usage_statistics):
+def test_v1_download_tag(api_client, handle_usage_statistics):
     user = UserFactory()
     tag = TagFactory(name="test_tag")
     surface = SurfaceFactory(creator=user, tags=[tag])
@@ -1304,6 +1305,59 @@ def test_download_tag(api_client, handle_usage_statistics):
         response["Content-Disposition"]
         == f'attachment; filename="{slugify(tag.name) + ".zip"}"'
     )
+
+
+@pytest.mark.django_db
+def test_v2_download_surface(api_client, settings, handle_usage_statistics, django_capture_on_commit_callbacks):
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+
+    user = UserFactory()
+    surface = SurfaceFactory(creator=user)
+    Topography1DFactory(surface=surface)
+    Topography2DFactory(surface=surface)
+
+    api_client.force_login(user)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.get(
+            reverse("manager:surface-download-v2", kwargs=dict(surface_ids=surface.id)),
+            follow=True,
+        )
+    assert response.status_code == 200, response.reason_phrase
+    assert "url" in response.data
+    response = api_client.get(response.data["url"])
+    assert response.status_code == 200, response.reason_phrase
+    assert "manifest" in response.data
+    response = api_client.get(response.data["manifest"])
+    assert response.status_code == 200, response.reason_phrase
+    assert "file" in response.data
+
+
+@pytest.mark.django_db
+def test_v2_download_tag(api_client, settings, handle_usage_statistics, django_capture_on_commit_callbacks):
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+
+    user = UserFactory()
+    tag = TagFactory(name="test_tag")
+    surface = SurfaceFactory(creator=user, tags=[tag])
+    Topography1DFactory(surface=surface)
+    Topography2DFactory(surface=surface)
+
+    api_client.force_login(user)
+
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.get(
+            reverse("manager:tag-download-v2", kwargs=dict(name=tag.name)),
+            follow=True,
+        )
+    assert response.status_code == 200, response.reason_phrase
+    assert "url" in response.data
+    response = api_client.get(response.data["url"])
+    assert response.status_code == 200, response.reason_phrase
+    assert "manifest" in response.data
+    response = api_client.get(response.data["manifest"])
+    assert response.status_code == 200, response.reason_phrase
+    assert "file" in response.data
 
 
 @pytest.mark.django_db

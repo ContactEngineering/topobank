@@ -34,7 +34,7 @@ def download_surface(request, surface_ids):
     run_task(zip_container, surface_ids=surface_ids)
 
     # Return status
-    return Response(zip_container.get_absolute_url())
+    return Response({"url": zip_container.get_absolute_url()})
 
 
 @api_view(["GET"])
@@ -47,4 +47,4 @@ def download_tag(request, name):
     run_task(zip_container, tag_name=name)
 
     # Return status
-    return Response(zip_container.get_absolute_url())
+    return Response({"url": zip_container.get_absolute_url()})
