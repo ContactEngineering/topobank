@@ -16,6 +16,7 @@ from django.utils.text import slugify
 from django.utils.timezone import now
 
 import topobank
+from topobank.supplib.json import ExtendedJSONEncoder
 
 _log = logging.getLogger(__name__)
 
@@ -130,7 +131,7 @@ def write_container_zip(file, surfaces):
         creation_time=str(now()),
     )
 
-    zf.writestr("index.json", json.dumps(metadata, indent=4))
+    zf.writestr("index.json", json.dumps(metadata, indent=4, cls=ExtendedJSONEncoder))
     zf.writestr("meta.yml", yaml.dump(metadata))
 
     #

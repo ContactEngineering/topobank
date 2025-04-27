@@ -202,7 +202,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     def get_children(self) -> List[str]:
         def make_child(tag_name):
-            tag_suffix = tag_name[len(self.name) + 1 :]
+            tag_suffix = tag_name[len(self.name) + 1:]
             name, rest = (tag_suffix + "/").split("/", maxsplit=1)
             return f"{self.name}/{name}"
 
@@ -1625,3 +1625,9 @@ class ZipContainer(PermissionMixin, TaskStateModel):
             kind="der",
         )
         self.manifest.save_file(container_data)
+
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this tag"""
+        return reverse(
+            "manager:zip-container-v2-detail", kwargs=dict(pk=self.id), request=request
+        )

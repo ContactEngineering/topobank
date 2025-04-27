@@ -21,6 +21,7 @@ app_name = "manager"
 urlpatterns += [
     #
     # Data routes (v1)
+    # v1 API creates ZIP container in Django task, which blocks the server
     #
     re_path(
         r"api/surface/(?P<surface_ids>[\d,]+)/download/$",
@@ -34,16 +35,17 @@ urlpatterns += [
     ),
     #
     # Data routes (v2)
+    # v2 API defers creation of ZIP containers to a Celery task
     #
     re_path(
         r"v2/download-surface/(?P<surface_ids>[\d,]+)/$",
         view=v2.download_surface,
-        name="surface-download",
+        name="surface-download-v2",
     ),
     re_path(
         r"v2/download-tag/(?P<name>[^.]+)/$",
         view=v2.download_tag,
-        name="tag-download",
+        name="tag-download-v2",
     ),
     #
     # API routes

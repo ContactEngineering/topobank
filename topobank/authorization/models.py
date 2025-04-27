@@ -176,10 +176,11 @@ class UserPermission(models.Model):
 
 class AuthorizedManager(models.Manager):
     def create(self, **kwargs):
-        if "permissions" not in kwargs:
-            raise RuntimeError(
-                "You need to provide permissions when creating an object."
-            )
+        # FIXME! Make sure that all objects have permission sets attached to them
+        # if "permissions" not in kwargs:
+        #    raise RuntimeError(
+        #        "You need to provide permissions when creating an object."
+        #    )
         return super().create(**kwargs)
 
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
