@@ -111,11 +111,11 @@ def _celery_worker_check():
 
 
 @app.task(bind=True)
-def task_dispatch(celery_task, cls_id, obj_id):
+def task_dispatch(celery_task, cls_id, obj_id, *args, **kwargs):
     ct = ContentType.objects.get_for_id(cls_id)
     try:
         obj = ct.get_object_for_this_type(id=obj_id)
-        obj.run_task(celery_task)
+        obj.run_task(celery_task, *args, **kwargs)
     except ct.model_class().DoesNotExist:
         # Ignore the task if the instance no longer exists
         pass

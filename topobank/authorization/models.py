@@ -3,7 +3,7 @@ Models related to authorization.
 """
 
 from enum import Enum
-from typing import Literal, Union
+from typing import Literal
 
 from django.db import models
 from django.db.models import Q, QuerySet
@@ -36,7 +36,7 @@ ACCESS_LEVELS = {None: 0, **{p.name: p.value for p in Permissions}}
 ViewEditFull = Literal[
     Permissions.view.name, Permissions.edit.name, Permissions.full.name
 ]
-ViewEditFullNone = Union[ViewEditFull, None]
+ViewEditFullNone = ViewEditFull | None
 
 
 def levels_with_access(perm: ViewEditFull) -> set:
@@ -44,6 +44,24 @@ def levels_with_access(perm: ViewEditFull) -> set:
     for i in range(ACCESS_LEVELS[perm], len(PERMISSION_CHOICES) + 1):
         retval.add(PERMISSION_CHOICES[i - 1][0])
     return retval
+
+
+class PermissionSetManager(models.Manager):
+    def create(self, user: User = None, allow: ViewEditFullNone = None, **kwargs):
+        if user is not None or allow is not None:
+            if user is None or allow is None:
+                raise RuntimeError(
+                    "You need to provide both user and permission when creating a "
+                    "PermissionSet."
+                )
+            # Create a new PermissionSet
+            permission_set = super().create(**kwargs)
+            # Grant the permission to the user
+            permission_set.grant_for_user(user, allow)
+            return permission_set
+        else:
+            # Create a new PermissionSet without any permissions
+            return super().create(**kwargs)
 
 
 class PermissionSet(models.Model):
@@ -55,6 +73,11 @@ class PermissionSet(models.Model):
 
     # The following reverse relations exist
     # permissions: Actual permission(s), per user
+
+    #
+    # Manager
+    #
+    objects = PermissionSetManager()
 
     def get_for_user(self, user: User):
         """Return permissions of a specific user"""
@@ -152,6 +175,14 @@ class UserPermission(models.Model):
 
 
 class AuthorizedManager(models.Manager):
+    def create(self, **kwargs):
+        # FIXME! Make sure that all objects have permission sets attached to them
+        # if "permissions" not in kwargs:
+        #    raise RuntimeError(
+        #        "You need to provide permissions when creating an object."
+        #    )
+        return super().create(**kwargs)
+
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
         if permission == "view":
             # We do not need to filter on permission

@@ -6,11 +6,11 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from ..files.serializers import ManifestSerializer
-from ..properties.models import Property
-from ..supplib.serializers import StrictFieldMixin
-from ..taskapp.serializers import TaskStateModelSerializer
-from .models import Surface, Tag, Topography
+from topobank.files.serializers import ManifestSerializer
+from topobank.manager.models import Surface, Tag, Topography
+from topobank.properties.models import Property
+from topobank.supplib.serializers import StrictFieldMixin
+from topobank.taskapp.serializers import TaskStateModelSerializer
 
 _log = logging.getLogger(__name__)
 
@@ -42,6 +42,16 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
             "self": obj.get_absolute_url(self.context["request"]),
             "set_permissions": reverse(
                 "manager:set-tag-permissions",
+                kwargs={"name": obj.name},
+                request=self.context["request"],
+            ),
+            "download": reverse(
+                "manager:tag-download",
+                kwargs={"name": obj.name},
+                request=self.context["request"],
+            ),
+            "async_download": reverse(
+                "manager:tag-download-v2",
                 kwargs={"name": obj.name},
                 request=self.context["request"],
             ),
@@ -361,6 +371,11 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             ),
             "download": reverse(
                 "manager:surface-download",
+                kwargs={"surface_ids": obj.id},
+                request=self.context["request"],
+            ),
+            "async_download": reverse(
+                "manager:surface-download-v2",
                 kwargs={"surface_ids": obj.id},
                 request=self.context["request"],
             ),
