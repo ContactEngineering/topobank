@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.60.0 (2025-04-27)
+
+- ENH: Asynchronous preparation of ZIP downloads
+
 # 1.59.0 (2025-04-26)
 
 - ENH: Download of tags

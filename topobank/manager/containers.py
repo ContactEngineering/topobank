@@ -9,13 +9,16 @@ import math
 import os.path
 import textwrap
 import zipfile
+from io import BytesIO
 
 import SurfaceTopography
 import yaml
 from django.conf import settings
 from django.core.files import File
+from django.http import HttpResponseBadRequest
 from django.utils.text import slugify
 from django.utils.timezone import now
+from rest_framework.exceptions import PermissionDenied
 
 import topobank
 from topobank.properties.models import Property
@@ -114,7 +117,7 @@ def import_topography(topo_dict, topo_file, surface, ignore_missing=False):
     topography.save()
 
 
-def import_container(
+def import_container_zip(
     surface_zip,
     user,
     datafile_attribute="datafile",
@@ -210,7 +213,7 @@ def import_container(
     return surfaces
 
 
-def write_surface_container(file, surfaces):
+def write_container_zip(file, surfaces):
     """
     Write container data to a file.
 
@@ -320,6 +323,7 @@ def write_surface_container(file, surfaces):
         creation_time=str(now()),
     )
 
+    zf.writestr("index.json", json.dumps(metadata, indent=4))
     zf.writestr("meta.yml", yaml.dump(metadata))
 
     #
@@ -408,3 +412,32 @@ def write_surface_container(file, surfaces):
     zf.writestr("README.txt", textwrap.dedent(readme_txt))
 
     zf.close()
+
+
+def pack_container_zip(user, surfaces, container_filename=None):
+    #
+    # Check existence and permissions for given surface
+    #
+    for surface in surfaces:
+        if not surface.has_permission(user, "view"):
+            raise PermissionDenied()
+
+    if len(surfaces) == 1:
+        if container_filename is None:
+            container_filename = f"{slugify(surfaces[0].name)}.zip"
+    else:
+        if container_filename is None:
+            container_filename = "digital-surface-twins.zip"
+
+    container_bytes = BytesIO()
+    _log.info(f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download...")
+    try:
+        write_container_zip(container_bytes, surfaces)
+    except FileNotFoundError:
+        return HttpResponseBadRequest(
+            "Cannot create ZIP container for download because some data file "
+            "could not be accessed. (The file may be missing.)"
+        )
+    content_data = container_bytes.getvalue()
+
+    return content_data, container_filename

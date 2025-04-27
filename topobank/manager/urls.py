@@ -2,7 +2,7 @@ from django.conf import settings
 from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
-from . import views
+from .v1 import views
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"api/tag", views.TagViewSet, basename="tag-api")
@@ -18,10 +18,23 @@ urlpatterns = router.urls
 app_name = "manager"
 urlpatterns += [
     #
-    # Data routes
+    # Data routes (v1)
     #
     re_path(
         r"api/surface/(?P<surface_ids>[\d,]+)/download/$",
+        view=views.download_surface,
+        name="surface-download",
+    ),
+    re_path(
+        r"api/download-tag/(?P<name>[^.]+)/$",
+        view=views.download_tag,
+        name="tag-download",
+    ),
+    #
+    # Data routes (v2)
+    #
+    re_path(
+        r"api/download-surface/(?P<surface_ids>[\d,]+)$",
         view=views.download_surface,
         name="surface-download",
     ),

@@ -6,7 +6,7 @@ from notifications.signals import notify
 
 from ..taskapp.celeryapp import app
 from ..users.models import User
-from .containers import import_container
+from .containers import import_container_zip
 
 
 @app.task
@@ -59,7 +59,7 @@ def import_container_from_url(user, url, tag=None):
 
     # Process archive
     with zipfile.ZipFile(container_file, mode='r') as z:
-        surface, = import_container(z, user, tag=tag.name if tag else None)
+        surface, = import_container_zip(z, user, tag=tag.name if tag else None)
 
     # Notify user
     notify.send(sender=user, recipient=user, verb='imported', target=surface,
