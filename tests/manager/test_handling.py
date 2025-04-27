@@ -1325,6 +1325,11 @@ def test_v2_download_surface(api_client, settings, handle_usage_statistics, djan
         )
     assert response.status_code == 200, response.reason_phrase
     assert "manifest" in response.data
+    assert response.data["task_state"] == "pe"
+    response = api_client.get(response.data["url"])
+    assert response.status_code == 200, response.reason_phrase
+    assert "manifest" in response.data
+    assert response.data["task_state"] == "su"
     response = api_client.get(response.data["manifest"])
     assert response.status_code == 200, response.reason_phrase
     assert "file" in response.data
@@ -1349,6 +1354,11 @@ def test_v2_download_tag(api_client, settings, handle_usage_statistics, django_c
         )
     assert response.status_code == 200, response.reason_phrase
     assert "manifest" in response.data
+    assert response.data["task_state"] == "pe"
+    response = api_client.get(response.data["url"])
+    assert response.status_code == 200, response.reason_phrase
+    assert "manifest" in response.data
+    assert response.data["task_state"] == "su"
     response = api_client.get(response.data["manifest"])
     assert response.status_code == 200, response.reason_phrase
     assert "file" in response.data
