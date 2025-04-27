@@ -267,7 +267,7 @@ class TaskStateModel(models.Model):
         if r:
             r.revoke()
 
-    def task_worker(self):
+    def task_worker(self, *args, **kwargs):
         """The actual task"""
         raise NotImplementedError
 
@@ -300,7 +300,7 @@ class TaskStateModel(models.Model):
         try:
             tracemalloc.start()
             tracemalloc.reset_peak()
-            self.task_worker()
+            self.task_worker(*args, **kwargs)
             size, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
             self.task_state = TaskStateModel.SUCCESS

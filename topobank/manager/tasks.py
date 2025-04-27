@@ -6,7 +6,7 @@ from notifications.signals import notify
 
 from ..taskapp.celeryapp import app
 from ..users.models import User
-from .containers import import_container_zip
+from .import_zip import import_container_zip
 
 
 @app.task

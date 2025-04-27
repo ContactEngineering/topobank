@@ -6,11 +6,11 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from ..files.serializers import ManifestSerializer
-from ..properties.models import Property
-from ..supplib.serializers import StrictFieldMixin
-from ..taskapp.serializers import TaskStateModelSerializer
-from .models import Surface, Tag, Topography
+from topobank.files.serializers import ManifestSerializer
+from topobank.manager.models import Surface, Tag, Topography
+from topobank.properties.models import Property
+from topobank.supplib.serializers import StrictFieldMixin
+from topobank.taskapp.serializers import TaskStateModelSerializer
 
 _log = logging.getLogger(__name__)
 

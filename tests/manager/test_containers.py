@@ -11,7 +11,7 @@ import yaml
 from notifications.models import Notification
 
 import topobank
-from topobank.manager.containers import write_container_zip
+from topobank.manager.export_zip import write_container_zip
 from topobank.manager.models import Surface, Topography
 from topobank.manager.tasks import import_container_from_url
 from topobank.testing.factories import (

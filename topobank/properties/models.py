@@ -2,9 +2,9 @@ import pint
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from topobank.authorization.mixins import PermissionMixin
-from topobank.authorization.models import PermissionSet
-from topobank.manager.models import Surface
+from ..authorization.mixins import PermissionMixin
+from ..authorization.models import PermissionSet
+from ..manager.models import Surface
 
 _ureg = pint.UnitRegistry()
 

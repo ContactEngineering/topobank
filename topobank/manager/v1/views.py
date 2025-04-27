@@ -19,16 +19,16 @@ from trackstats.models import Metric, Period
 
 from topobank.authorization.permissions import Permission
 from topobank.files.models import Manifest
-from topobank.manager.containers import write_surface_container
+from topobank.manager.export_zip import write_container_zip
 from topobank.manager.filters import filter_surfaces
 from topobank.manager.models import Surface, Tag, Topography
 from topobank.manager.permissions import TagPermission
-from topobank.manager.serializers import (
+from topobank.manager.tasks import import_container_from_url
+from topobank.manager.v1.serializers import (
     SurfaceSerializer,
     TagSerializer,
     TopographySerializer,
 )
-from topobank.manager.tasks import import_container_from_url
 from topobank.supplib.versions import get_versions
 from topobank.taskapp.utils import run_task
 from topobank.usage_stats.utils import increase_statistics_by_date_and_object
@@ -243,7 +243,7 @@ def download_surfaces(request, surfaces, container_filename=None):
         container_bytes = BytesIO()
         _log.info(f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download...")
         try:
-            write_surface_container(container_bytes, surfaces)
+            write_container_zip(container_bytes, surfaces)
         except FileNotFoundError:
             return HttpResponseBadRequest(
                 "Cannot create ZIP container for download because some data file "
