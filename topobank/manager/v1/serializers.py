@@ -45,6 +45,16 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
                 kwargs={"name": obj.name},
                 request=self.context["request"],
             ),
+            "download": reverse(
+                "manager:tag-download",
+                kwargs={"name": obj.name},
+                request=self.context["request"],
+            ),
+            "async_download": reverse(
+                "manager:tag-download-v2",
+                kwargs={"name": obj.name},
+                request=self.context["request"],
+            ),
         }
 
     def get_children(self, obj: Tag):
@@ -361,6 +371,11 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             ),
             "download": reverse(
                 "manager:surface-download",
+                kwargs={"surface_ids": obj.id},
+                request=self.context["request"],
+            ),
+            "async_download": reverse(
+                "manager:surface-download-v2",
                 kwargs={"surface_ids": obj.id},
                 request=self.context["request"],
             ),
