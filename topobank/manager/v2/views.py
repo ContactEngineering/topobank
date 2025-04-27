@@ -28,23 +28,29 @@ def download_surface(request, surface_ids):
 
     # Create a ZIP container object
     zip_container = ZipContainer.objects.create(
-        permissions=PermissionSet.objects.create(user=request.user, allow="view"))
+        permissions=PermissionSet.objects.create(user=request.user, allow="view")
+    )
 
     # Dispatch task
     run_task(zip_container, surface_ids=surface_ids)
 
     # Return status
-    return Response({"url": zip_container.get_absolute_url()})
+    return Response(
+        ZipContainerSerializer(zip_container, context={"request": request}).data
+    )
 
 
 @api_view(["GET"])
 def download_tag(request, name):
     # Create a ZIP container object
     zip_container = ZipContainer.objects.create(
-        permissions=PermissionSet.objects.create(user=request.user, allow="view"))
+        permissions=PermissionSet.objects.create(user=request.user, allow="view")
+    )
 
     # Dispatch task
     run_task(zip_container, tag_name=name)
 
     # Return status
-    return Response({"url": zip_container.get_absolute_url()})
+    return Response(
+        ZipContainerSerializer(zip_container, context={"request": request}).data
+    )

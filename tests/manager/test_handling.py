@@ -1324,9 +1324,6 @@ def test_v2_download_surface(api_client, settings, handle_usage_statistics, djan
             follow=True,
         )
     assert response.status_code == 200, response.reason_phrase
-    assert "url" in response.data
-    response = api_client.get(response.data["url"])
-    assert response.status_code == 200, response.reason_phrase
     assert "manifest" in response.data
     response = api_client.get(response.data["manifest"])
     assert response.status_code == 200, response.reason_phrase
@@ -1350,9 +1347,6 @@ def test_v2_download_tag(api_client, settings, handle_usage_statistics, django_c
             reverse("manager:tag-download-v2", kwargs=dict(name=tag.name)),
             follow=True,
         )
-    assert response.status_code == 200, response.reason_phrase
-    assert "url" in response.data
-    response = api_client.get(response.data["url"])
     assert response.status_code == 200, response.reason_phrase
     assert "manifest" in response.data
     response = api_client.get(response.data["manifest"])
