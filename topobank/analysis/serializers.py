@@ -161,7 +161,6 @@ class WorkflowTemplateSerializer(
         lookup_field="name",
         queryset=AnalysisFunction.objects.all(),
         allow_null=True,
-
     )
 
     creator = serializers.HyperlinkedRelatedField(

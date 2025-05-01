@@ -4,6 +4,7 @@ Models related to analyses.
 
 import json
 import logging
+from collections import defaultdict
 from typing import Union
 
 from django.conf import settings
@@ -629,6 +630,15 @@ class WorkflowTemplate(PermissionMixin, models.Model):
     """
     WorkflowTemplate is a model that stores the state for a workflow
     """
+
+    class Parameters:
+        """
+        Parameters is a class that stores the parameters for the workflow.
+        It is expected this to be overridden in the sub class
+        """
+        @classmethod
+        def json(cls):
+            return defaultdict()
 
     #
     # Manager

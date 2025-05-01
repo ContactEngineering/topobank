@@ -4,7 +4,7 @@ import pytest
 from django.contrib.contenttypes.models import ContentType
 
 from topobank.analysis.models import Analysis
-from topobank.analysis.utils import find_children
+from topobank.analysis.utils import find_children, merge_dicts
 from topobank.analysis.v1.controller import AnalysisController
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import TopographyAnalysisFactory, UserFactory
@@ -139,3 +139,19 @@ def test_find_children(user_three_topographies_three_surfaces_three_tags):
     assert set(find_children([surf1, surf2, topo3])) == set(
         [surf1, surf2, topo1, topo2, topo3]
     )
+
+
+def test_merge_dicts():
+
+    # test merging two dictionaries
+    dict1 = {"a": 1, "b": 2}
+    dict2 = {"b": 3, "c": 4}
+    merged = merge_dicts(dict1, [dict2])
+    assert merged == {"a": 1, "b": 3, "c": 4}
+
+    # test merging three dictionaries
+    dict1 = {"a": 1, "b": 2}
+    dict2 = {"b": {'p': 3}, "c": 4}
+    dict3 = {"b": {'o': 3}, "c": {"e": 5}}
+    merged = merge_dicts(dict1, [dict2, dict3])
+    assert merged == {"a": 1, "b": {'o': 3, 'p': 3}, "c": {'e': 5}}

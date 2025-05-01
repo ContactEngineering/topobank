@@ -1,8 +1,10 @@
 import logging
 import math
 from collections import OrderedDict
+from typing import Dict, List
 
-from ..analysis.models import AnalysisFunction
+from mergedeep import merge
+
 from ..manager.models import Surface
 
 _log = logging.getLogger(__name__)
@@ -117,6 +119,7 @@ def find_children(subjects):
 
 
 def filter_workflow_templates(request, qs):
+    from ..analysis.models import AnalysisFunction
     """Return queryset with workflow templates matching all filter criteria.
 
     Workflow templates should be
@@ -176,3 +179,25 @@ def round_to_significant_digits(x, num_dig_digits):
         return round(x, num_dig_digits - int(math.floor(math.log10(abs(x)))) - 1)
     except ValueError:
         return x
+
+
+def merge_dicts(destination: Dict, sources: List[Dict]) -> Dict:
+    """
+    Merge multiple source dictionaries into a single destination dictionary.
+
+    Parameters
+    ----------
+    destination: dict
+        The base dictionary to merge into.
+    sources: list of dict
+        A list of dictionaries to merge into the destination.
+
+    Returns
+    -------
+    dict
+        The merged dictionary.
+    """
+    for source in sources:
+        merge(destination, source)  # Merge each source into the destination
+
+    return destination

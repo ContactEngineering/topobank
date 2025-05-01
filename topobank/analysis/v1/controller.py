@@ -10,7 +10,7 @@ from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_d
 from ..models import Analysis, AnalysisFunction, AnalysisSubject, WorkflowTemplate
 from ..registry import WorkflowNotImplementedException
 from ..serializers import ResultSerializer
-from ..utils import find_children
+from ..utils import find_children, merge_dicts
 
 _log = logging.getLogger(__name__)
 
@@ -203,6 +203,16 @@ class AnalysisController:
         )
         if workflow_kwargs is not None and isinstance(workflow_kwargs, str):
             workflow_kwargs = dict_from_base64(workflow_kwargs)
+
+        workflow_template_id, data = AnalysisController.get_request_parameter(
+            ["workflow_template"], data
+        )
+        if workflow_template_id is not None:
+            workflow_template = WorkflowTemplate.objects.get(id=workflow_template_id)
+            workflow_kwargs = merge_dicts(
+                workflow_template.kwargs,
+                [workflow_kwargs]
+            )
 
         if len(data) > 0:
             raise ValueError(
@@ -417,20 +427,6 @@ class AnalysisController:
         # Manually provided function kwargs override unique kwargs from prior analysis query
         if self._kwargs is not None:
             kwargs.update(self._kwargs)
-
-        # copy template kwargs to analysis
-        if report_kwargs := kwargs.get('report_kwargs'):
-            try:
-                template_id = report_kwargs.get('workflow_template_id')
-                workflow_template = WorkflowTemplate.objects.get(id=template_id)
-                report_kwargs.update(workflow_template.kwargs)
-                kwargs['report_kwargs'] = report_kwargs
-                self._kwargs = kwargs
-            except Exception as e:
-                _log.info(f"Unable copy workflow template {template_id} to analysis {e}")
-        # For every possible implemented subject type the following is done:
-        # We use the common unique keyword arguments if there are any; if not
-        # the default arguments for the implementation is used
 
         subjects_triggered = []
         for subject in self.subjects_without_analysis_results:
