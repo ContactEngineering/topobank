@@ -782,11 +782,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 if changed
             ]
 
-            # `instrument_parameters` is special as it can contain non-significant entries
-            if InstrumentParametersModel(
-                **self.instrument_parameters
-            ) != InstrumentParametersModel(**old_obj.instrument_parameters):
-                changed_fields += ["instrument_parameters"]
+            # `instrument_parameters` is special as it can contain non-significant
+            # entries
+            if update_fields is None or "instrument_parameters" in update_fields:
+                if InstrumentParametersModel(
+                    **self.instrument_parameters
+                ) != InstrumentParametersModel(**old_obj.instrument_parameters):
+                    changed_fields += ["instrument_parameters"]
 
             # We need to refresh if any of the significant fields changed during this save
             refresh_dependent_data = any(changed_fields)
