@@ -12,7 +12,6 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
-from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 
@@ -186,6 +185,9 @@ class Analysis(PermissionMixin, TaskStateModel):
         Configuration, null=True, on_delete=models.SET_NULL
     )
 
+    # Timestamp of creation of this analysis instance
+    creation_time = models.DateTimeField(auto_now_add=True)
+
     class Meta:
         verbose_name_plural = "analyses"
 
@@ -217,10 +219,9 @@ class Analysis(PermissionMixin, TaskStateModel):
             Arbitrary keyword arguments.
         """
         if not self.id:
-            self.creation_time = timezone.now()
-        super().save(*args, **kwargs)
-        # If a result dict is given on input, we store it. However, we can only do this
-        # once we have an id. This happens during testing.
+            # If a result dict is given on input, we store it. However, we can only do
+            # this once we have an id. This happens during testing.
+            super().save(*args, **kwargs)
         if self._result is not None and self.folder is not None:
             store_split_dict(self.folder, RESULT_FILE_BASENAME, self._result)
             self._result = None
@@ -585,13 +586,14 @@ class AnalysisFunction(models.Model):
                 kwargs=kwargs,
                 folder=folder,
             )
-            analysis.set_pending_state()
-            transaction.on_commit(
-                partial(submit_analysis_task_to_celery, analysis, force_submit)
-            )
+            with transaction.atomic():
+                analysis.set_pending_state()
+                transaction.on_commit(
+                    partial(submit_analysis_task_to_celery, analysis, force_submit)
+                )
         else:
             # There seem to be viable analyses. Fetch the latest one.
-            analysis = existing_analyses.order_by("start_time").last()
+            analysis = existing_analyses.order_by("task_start_time").last()
             # Grant access to current user
             analysis.grant_permission(user, "view")
 
@@ -615,6 +617,9 @@ class AnalysisFunction(models.Model):
             f"{[user for user, allow in analysis.permissions.get_users()]}, "
             f"function {self}, subject {analysis.subject}, kwargs: {analysis.kwargs}"
         )
-        analysis.set_pending_state()
-        transaction.on_commit(partial(submit_analysis_task_to_celery, analysis, True))
+        with transaction.atomic():
+            analysis.set_pending_state()
+            transaction.on_commit(
+                partial(submit_analysis_task_to_celery, analysis, True)
+            )
         return analysis

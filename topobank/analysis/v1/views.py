@@ -73,7 +73,7 @@ class ResultView(
         "subject_dispatch__tag",
         "subject_dispatch__topography",
         "subject_dispatch__surface",
-    ).order_by("-start_time")
+    ).order_by("-task_start_time")
     serializer_class = ResultSerializer
     pagination_class = LimitOffsetPagination
 
@@ -157,7 +157,9 @@ def named_result(request):
         queryset = queryset.filter(name__icontains=name)
     return Response(
         ResultSerializer(
-            queryset.order_by("-start_time"), many=True, context={"request": request}
+            queryset.order_by("-task_start_time"),
+            many=True,
+            context={"request": request},
         ).data
     )
 
@@ -555,7 +557,7 @@ def memory_usage(request):
             .annotate(
                 resolution_x=F("subject_dispatch__topography__resolution_x"),
                 resolution_y=F("subject_dispatch__topography__resolution_y"),
-                duration=F("end_time") - F("start_time"),
+                task_duration=F("task_end_time") - F("task_start_time"),
                 subject=Case(
                     When(subject_dispatch__tag__isnull=False, then=Value("tag")),
                     When(

@@ -121,7 +121,7 @@ def perform_analysis(self, analysis_id: int, force: bool):
     #
     analysis.task_state = Analysis.STARTED
     analysis.task_id = self.request.id
-    analysis.start_time = timezone.now()  # with timezone
+    analysis.task_start_time = timezone.now()  # with timezone
     analysis.configuration = get_current_configuration()
 
     #
@@ -192,13 +192,13 @@ def perform_analysis(self, analysis_id: int, force: bool):
         if peak_memory is not None:
             _log.debug(
                 f"{analysis_id}/{self.request.id}: Task state: '{task_state}', "
-                f"duration: {analysis.duration}, "
+                f"duration: {analysis.task_duration}, "
                 f"peak memory usage: {int(peak_memory / 1024 / 1024)} MB"
             )
         else:
             _log.debug(
                 f"{analysis_id}/{self.request.id}: Task state: '{task_state}', "
-                f"duration: {analysis.duration}"
+                f"duration: {analysis.task_duration}"
             )
 
     @doi()
@@ -258,7 +258,7 @@ def perform_analysis(self, analysis_id: int, force: bool):
             #
             from trackstats.models import Metric
 
-            td = analysis.duration
+            td = analysis.task_duration
             if td is not None:
                 increase_statistics_by_date(
                     metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
@@ -462,7 +462,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                 "subject_dispatch__topography_id",
                 "subject_dispatch__surface_id",
                 "subject_dispatch__tag_id",
-                "-start_time",
+                "-task_start_time",
             )
             .distinct(
                 "subject_dispatch__topography_id",

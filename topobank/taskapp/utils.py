@@ -5,7 +5,7 @@ from django.db import transaction
 from watchman.decorators import check as watchman_check
 
 from .celeryapp import app
-from .models import Dependency, TaskStateModel, Version
+from .models import Dependency, Version
 
 
 class ConfigurationException(Exception):
@@ -23,32 +23,34 @@ def _get_package_version_tuple(pkg_name, version_expr):
 
     version = eval(version_expr, {pkg_name: mod})
 
-    version_tuple = version.split('.')
+    version_tuple = version.split(".")
 
     try:
         major: int = int(version_tuple[0])
     except:  # noqa: E722
         raise ConfigurationException(
             f"Cannot determine major version of package '{pkg_name}'. "
-            f"Full version string: {version}")
+            f"Full version string: {version}"
+        )
 
     try:
         minor: int = int(version_tuple[1])
     except:  # noqa: E722
         raise ConfigurationException(
             "Cannot determine minor version of package '{}'. Full version string: {}",
-            format(pkg_name, version))
+            format(pkg_name, version),
+        )
 
     try:
         # because of version strings like '0.51.0+0.g2c488bd.dirty'
-        micro: int = int(version_tuple[2].split('+')[0])
-        s = f'{version_tuple[0]}.{version_tuple[1]}.{micro}'
+        micro: int = int(version_tuple[2].split("+")[0])
+        s = f"{version_tuple[0]}.{version_tuple[1]}.{micro}"
     except:  # noqa: E722
         micro = None
-        s = f'{version_tuple[0]}.{version_tuple[1]}'
+        s = f"{version_tuple[0]}.{version_tuple[1]}"
 
     try:
-        extra: str = version[len(s):]  # the rest of the version string
+        extra: str = version[len(s) :]  # the rest of the version string
     except:  # noqa: E722
         extra = None
 
@@ -82,16 +84,16 @@ def get_package_version(pkg_name, version_expr):
     dep, created = Dependency.objects.get_or_create(import_name=pkg_name)
 
     # make sure the current version of the dependency is available in database
-    version, created = Version.objects.get_or_create(dependency=dep, major=major,
-                                                     minor=minor, micro=micro,
-                                                     extra=extra)
+    version, created = Version.objects.get_or_create(
+        dependency=dep, major=major, minor=minor, micro=micro, extra=extra
+    )
 
     return version
 
 
 def celery_worker_check():
     return {
-        'celery': _celery_worker_check(),
+        "celery": _celery_worker_check(),
     }
 
 
@@ -100,13 +102,15 @@ def _celery_worker_check():
     """Used with watchman in order to check whether celery workers are available."""
     # See https://github.com/mwarkentin/django-watchman/issues/8
     from .celeryapp import app
+
     MIN_NUM_WORKERS_EXPECTED = 1
-    d = app.control.broadcast('ping', reply=True, timeout=0.5,
-                              limit=MIN_NUM_WORKERS_EXPECTED)
+    d = app.control.broadcast(
+        "ping", reply=True, timeout=0.5, limit=MIN_NUM_WORKERS_EXPECTED
+    )
     return {
-        'num_workers_available': len(d),
-        'min_num_workers_expected': MIN_NUM_WORKERS_EXPECTED,
-        'ok': len(d) >= MIN_NUM_WORKERS_EXPECTED,
+        "num_workers_available": len(d),
+        "min_num_workers_expected": MIN_NUM_WORKERS_EXPECTED,
+        "ok": len(d) >= MIN_NUM_WORKERS_EXPECTED,
     }
 
 
@@ -122,21 +126,23 @@ def task_dispatch(celery_task, cls_id, obj_id, *args, **kwargs):
 
 
 def run_task(model_instance, *args, **kwargs):
-    model_instance.task_id = None  # If this is populated with an old task id, then Celery will return a failure
-    model_instance.task_state = TaskStateModel.PENDING
+    model_instance.set_pending_state(autosave=False)
     # Only submit this on_commit, once save() has finalized and everything
     # has been flushed to the database (including a possible 'pe'nding state)
     celery_kwargs = {}
-    if hasattr(model_instance, 'celery_queue'):
-        celery_kwargs['queue'] = model_instance.celery_queue
+    if hasattr(model_instance, "celery_queue"):
+        celery_kwargs["queue"] = model_instance.celery_queue
 
-    def dispatch_task():
+    def submit_task_to_celery():
         model_instance.task_id = task_dispatch.apply_async(
-            args=[ContentType.objects.get_for_model(model_instance).id,
-                  model_instance.id] + list(args),
+            args=[
+                ContentType.objects.get_for_model(model_instance).id,
+                model_instance.id,
+            ]
+            + list(args),
             kwargs=kwargs,
-            **celery_kwargs
+            **celery_kwargs,
         ).id
-        model_instance.save(update_fields=['task_id'])
+        model_instance.save(update_fields=["task_id"])
 
-    transaction.on_commit(dispatch_task)
+    transaction.on_commit(submit_task_to_celery)

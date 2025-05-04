@@ -11,7 +11,7 @@ class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
         abstract = True
         model = TaskStateModel
         fields = [
-            "duration",
+            "task_duration",
             "error",
             "task_progress",
             "task_state",

@@ -202,7 +202,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     def get_children(self) -> List[str]:
         def make_child(tag_name):
-            tag_suffix = tag_name[len(self.name) + 1:]
+            tag_suffix = tag_name[len(self.name) + 1 :]
             name, rest = (tag_suffix + "/").split("/", maxsplit=1)
             return f"{self.name}/{name}"
 
@@ -723,6 +723,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         on_delete=models.SET_NULL,
         related_name="topography_deepzooms",
     )
+
+    # Timestamp of creation of this measurement instance
+    creation_time = models.DateTimeField(auto_now_add=True)
 
     # Changes in these fields trigger a refresh of the topography cache and of all analyses
     _significant_fields = {
@@ -1567,8 +1570,9 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         related_name="zip_containers",
     )
 
-    # The data when the zip was last updated
-    updated = models.DateTimeField(auto_now=True)
+    # Timestamp of creation of this ZIP container
+    creation_time = models.DateTimeField(auto_now_add=True)
+    update_time = models.DateTimeField(auto_now=True)
 
     def task_worker(self, tag_name=None, surface_ids=None):
         #
@@ -1607,7 +1611,8 @@ class ZipContainer(PermissionMixin, TaskStateModel):
 
         container_data = io.BytesIO()
         _log.info(
-            f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download...")
+            f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
+        )
         try:
             write_container_zip(container_data, surfaces)
         except FileNotFoundError:

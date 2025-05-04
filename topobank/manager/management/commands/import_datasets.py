@@ -13,6 +13,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils.timezone import now
 
 from topobank.manager.models import Surface, Topography
+from topobank.properties.models import Property
 from topobank.users.models import User
 
 _log = logging.getLogger(__name__)
@@ -160,7 +161,7 @@ class Command(BaseCommand):
         else:
             topography.save()
 
-    def process_surface_archive(
+    def process_dataset_archive(
         self,
         surface_zip,
         user,
@@ -256,6 +257,24 @@ class Command(BaseCommand):
                             f"  Cannot create topography from description {topo_dict}. Reason: {exc}"
                         ) from exc
 
+                if "properties" in surface_dict:
+                    num_properties = len(surface_dict["properties"])
+                    for prop_idx, prop_dict in enumerate(surface_dict["properties"]):
+                        self.stdout.write(
+                            self.style.NOTICE(
+                                f"Processing property {prop_idx + 1}/{num_properties} in archive..."
+                            )
+                        )
+                        unit = prop_dict.get("unit", None)
+                        Property.objects.create(
+                            surface=surface,
+                            permissions=surface.permissions,
+                            name=prop_dict["name"],
+                            value_categorical=prop_dict["value"] if unit is None else None,
+                            value_numerical=None if unit is None else prop_dict["value"],
+                            unit=unit,
+                        )
+
     def handle(self, *args, **options):
         """
 
@@ -305,7 +324,7 @@ class Command(BaseCommand):
         for filename in options["surface_archives"]:
             try:
                 with zipfile.ZipFile(filename, mode="r") as surface_zip:
-                    self.process_surface_archive(
+                    self.process_dataset_archive(
                         surface_zip,
                         user,
                         datafile_attribute,
