@@ -20,6 +20,10 @@ class TaskStateModel(models.Model):
     class Meta:
         abstract = True
 
+    # Time to wait for a task to be submitted after creation/update of the database
+    # entry.
+    COMMIT_EXPIRATION = 30  # seconds
+
     PENDING = "pe"
     STARTED = "st"
     RETRY = "re"
@@ -172,8 +176,8 @@ class TaskStateModel(models.Model):
                 # Something is wrong, but we return success if the task self-reports
                 # success.
                 _log.info(
-                    f"The object with id {self.id} self-reported the state "
-                    f"'{self_reported_task_state}', but Celery reported "
+                    f"The {self.__class__} instance with id {self.id} self-reported "
+                    f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning a success."
                 )
                 return TaskStateModel.SUCCESS
@@ -181,16 +185,45 @@ class TaskStateModel(models.Model):
                 # Celery seems to think this task failed, we trust it as the
                 # self-reported state will be unreliable in this case.
                 _log.info(
-                    f"The object with id {self.id} self-reported the state "
-                    f"'{self_reported_task_state}', but Celery reported "
+                    f"The {self.__class__} instance with id {self.id} self-reported "
+                    f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning a failure."
                 )
                 return TaskStateModel.FAILURE
+            elif (
+                self_reported_task_state == TaskStateModel.PENDING
+                and celery_task_state == TaskStateModel.NOTRUN
+            ):
+                # The task is marked as pending but Celery thinks the task was never
+                # run. This corresponds to the initial creation of the task. The
+                # Celery task is started in an `on_commit` hook. If the task is older
+                # than a threshold, we assume the on-commit never triggered and report
+                # and error.
+                if timezone.now() - self.creation_time > timezone.timedelta(
+                    seconds=self.COMMIT_EXPIRATION
+                ):
+                    _log.info(
+                        f"The {self.__class__} instance with id {self.id} "
+                        f"self-reported the state '{self_reported_task_state}', but "
+                        f"Celery reported '{celery_task_state}'. The database object "
+                        f"was created more than {self.COMMIT_EXPIRATION} seconds ago. "
+                        "I am returning a failure."
+                    )
+                    return TaskStateModel.FAILURE
+                else:
+                    _log.info(
+                        f"The {self.__class__} instance with id {self.id} "
+                        f"self-reported the state '{self_reported_task_state}', but "
+                        f"Celery reported '{celery_task_state}'. The database object "
+                        f"was created less than {self.COMMIT_EXPIRATION} seconds ago. "
+                        "I am returning a pending state."
+                    )
+                    return TaskStateModel.PENDING
             else:
                 # In all other cases, we trust the self-reported state.
                 _log.info(
-                    f"The object with id {self.id} self-reported the state "
-                    f"'{self_reported_task_state}', but Celery reported "
+                    f"The {self.__class__} instance with id {self.id} self-reported "
+                    f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning the self-reported state."
                 )
                 return self_reported_task_state
