@@ -134,8 +134,14 @@ def pending(request):
     queryset = Analysis.objects.for_user(request.user).filter(
         task_state__in=[Analysis.PENDING, Analysis.STARTED]
     )
+    pending_workflows = []
+    for analysis in queryset:
+        # We need to get actually state from `get_task_state`, which combines self
+        # reported states and states from Celery.
+        if analysis.get_task_state() in {Analysis.PENDING, Analysis.STARTED}:
+            pending_workflows += [analysis]
     return Response(
-        ResultSerializer(queryset, many=True, context={"request": request}).data
+        ResultSerializer(pending_workflows, many=True, context={"request": request}).data
     )
 
 
