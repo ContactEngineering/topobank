@@ -141,7 +141,9 @@ def pending(request):
         if analysis.get_task_state() in {Analysis.PENDING, Analysis.STARTED}:
             pending_workflows += [analysis]
     return Response(
-        ResultSerializer(pending_workflows, many=True, context={"request": request}).data
+        ResultSerializer(
+            pending_workflows, many=True, context={"request": request}
+        ).data
     )
 
 
