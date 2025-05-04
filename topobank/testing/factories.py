@@ -318,6 +318,7 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
 
     task_state = Analysis.SUCCESS
 
+    task_submission_time = factory.LazyFunction(timezone.now)
     task_start_time = factory.LazyFunction(
         lambda: timezone.now() - datetime.timedelta(0, 1)
     )

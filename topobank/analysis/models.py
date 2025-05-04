@@ -207,9 +207,8 @@ class Analysis(PermissionMixin, TaskStateModel):
         Save the analysis instance to the database.
 
         This method performs the following steps:
-        1. Sets the creation time if the instance does not have an ID.
-        2. Calls the parent class's save method to save the instance.
-        3. Stores the result dictionary in the storage backend if it is provided.
+        1. Calls the parent class's save method to save the instance.
+        2. Stores the result dictionary in the storage backend if it is provided.
 
         Parameters
         ----------
@@ -218,10 +217,10 @@ class Analysis(PermissionMixin, TaskStateModel):
         **kwargs : dict
             Arbitrary keyword arguments.
         """
-        if not self.id:
-            # If a result dict is given on input, we store it. However, we can only do
-            # this once we have an id. This happens during testing.
-            super().save(*args, **kwargs)
+        # If a result dict is given on input, we store it. However, we can only do
+        # this once we have an id. This happens during testing.
+        super().save(*args, **kwargs)
+        # We now have an id
         if self._result is not None and self.folder is not None:
             store_split_dict(self.folder, RESULT_FILE_BASENAME, self._result)
             self._result = None
@@ -571,22 +570,22 @@ class AnalysisFunction(models.Model):
             # analyses no longer have subjects)
             existing_analyses.filter(name__isnull=True).delete()
 
-            # New analysis needs its own permissions
-            permissions = PermissionSet.objects.create()
-            permissions.grant_for_user(user, "view")  # analysis can never be edited
-
-            # Folder will store results
-            folder = Folder.objects.create(permissions=permissions, read_only=True)
-
-            # Create new entry in the analysis table and grant access to current user
-            analysis = Analysis.objects.create(
-                permissions=permissions,
-                subject_dispatch=AnalysisSubject.objects.create(subject),
-                function=self,
-                kwargs=kwargs,
-                folder=folder,
-            )
             with transaction.atomic():
+                # New analysis needs its own permissions
+                permissions = PermissionSet.objects.create()
+                permissions.grant_for_user(user, "view")  # analysis can never be edited
+
+                # Folder will store results
+                folder = Folder.objects.create(permissions=permissions, read_only=True)
+
+                # Create new entry in the analysis table and grant access to current user
+                analysis = Analysis.objects.create(
+                    permissions=permissions,
+                    subject_dispatch=AnalysisSubject.objects.create(subject),
+                    function=self,
+                    kwargs=kwargs,
+                    folder=folder,
+                )
                 analysis.set_pending_state()
                 transaction.on_commit(
                     partial(submit_analysis_task_to_celery, analysis, force_submit)

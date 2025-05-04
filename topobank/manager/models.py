@@ -744,6 +744,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Methods
     #
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields", None)
         created = self.pk is None
         if created:
             if self.creator is None:
@@ -770,7 +771,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         else:
             # Check which fields actually changed
             changed_fields = [
-                getattr(self, name) != getattr(old_obj, name)
+                (update_fields is None or name in update_fields)
+                and getattr(self, name) != getattr(old_obj, name)
                 for name in self._significant_fields
             ]
 
