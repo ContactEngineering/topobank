@@ -18,7 +18,7 @@ class ZipContainerSerializer(StrictFieldMixin, TaskStateModelSerializer):
             "id",
             "manifest",
             "task_duration",
-            "error",
+            "task_error",
             "task_progress",
             "task_state",
             "task_memory",

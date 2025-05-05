@@ -119,7 +119,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             "creation_datetime",
             "modification_datetime",
             "task_duration",
-            "error",
+            "task_error",
             "task_progress",
             "task_state",
             "tags",

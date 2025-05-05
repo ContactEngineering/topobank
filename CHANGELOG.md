@@ -1,12 +1,17 @@
 # Changelog for *TopoBank*
 
+# 1.61.1 (2025-05-05)
+
+- API: Renamed `error` to `task_error`
+- API: Return validation error in 400 body
+
 # 1.61.0 (2025-05-05)
 
+- API: Renamed `start_time` to `task_start_time` and `end_time` to `task_end_time`
 - ENH: Workflow templates
 - ENH: Import properties from ZIP container
 - MAINT: Renamed `import_surfaces` to `import_datasets`
 - MAINT: Added `task_submission_time`, which allows better failure detection
-- MAINT: Renamed `start_time` to `task_start_time` and `end_time` to `task_end_time`
 
 # 1.60.1 (2025-04-27)
 

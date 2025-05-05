@@ -95,7 +95,7 @@ class ResultSerializer(
             "task_progress",
             "task_state",
             "task_memory",
-            "error",
+            "task_error",
             "creation_time",
             "task_traceback",
             "task_submission_time",
@@ -125,7 +125,6 @@ class ResultSerializer(
     configuration = serializers.HyperlinkedRelatedField(
         view_name="analysis:configuration-detail", read_only=True
     )
-    error = serializers.CharField(source="get_task_error", read_only=True)
 
     def get_api(self, obj):
         return {

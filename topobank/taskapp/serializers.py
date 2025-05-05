@@ -11,7 +11,7 @@ class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
         abstract = True
         model = TaskStateModel
         fields = [
-            "error",
+            "task_error",
             "task_duration",
             "task_progress",
             "task_state",
@@ -22,7 +22,7 @@ class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
 
     default_error_messages = {"read_only": "This field is read only"}
 
-    error = serializers.CharField(source="get_task_error", read_only=True)
+    task_error = serializers.CharField(source="get_task_error", read_only=True)
     task_duration = serializers.DurationField(read_only=True)
     task_progress = serializers.FloatField(source="get_task_progress", read_only=True)
     task_state = serializers.CharField(source="get_task_state", read_only=True)
