@@ -302,7 +302,7 @@ def test_query_with_error(
     assert len(response.data["analyses"]) == 1
     assert Analysis.objects.count() == 1
 
-    assert response.data["analyses"][0]["error"] == "An error occurred!"
+    assert response.data["analyses"][0]["task_error"] == "An error occurred!"
     assert "return runner.eval" in response.data["analyses"][0]["task_traceback"]
 
 
@@ -345,7 +345,7 @@ def test_query_with_error_in_dependency(
     assert len(response.data["analyses"]) == 1
     assert Analysis.objects.count() == 2
 
-    assert response.data["analyses"][0]["error"] == "An error occurred!"
+    assert response.data["analyses"][0]["task_error"] == "An error occurred!"
     # We currently do not get a traceback from dependencies
     assert response.data["analyses"][0]["task_traceback"] is None
 

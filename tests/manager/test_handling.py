@@ -732,7 +732,7 @@ def test_trying_upload_of_topography_file_with_unknown_format(
         final_task_state="fa",
     )
     assert (
-        response.data["error"]
+        response.data["task_error"]
         == "The data file is of an unknown or unsupported format."
     )
 
@@ -819,7 +819,7 @@ def test_trying_upload_of_corrupted_topography_file(
 
     # This should yield an error
     assert (
-        response.data["error"]
+        response.data["task_error"]
         == "The data file is of an unknown or unsupported format."
     )
 
