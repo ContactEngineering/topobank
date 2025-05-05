@@ -142,6 +142,10 @@ def perform_analysis(self, analysis_id: int, force: bool):
             # have finished.
             for dep in scheduled_dependencies.values():
                 dep.set_pending_state()
+            # Store dependencies
+            analysis.dependencies = {
+                key: dep.id for key, dep in scheduled_dependencies.items()
+            }
             # We are about to launch a chord, store id as launcher id
             analysis.launcher_task_id = self.request.id
             # Save because apply_async never returns in test when a dependency fails
@@ -175,7 +179,7 @@ def perform_analysis(self, analysis_id: int, force: bool):
         analysis.task_state = Analysis.FAILURE
         analysis.task_error = "A dependent analysis failed."
         analysis.save()
-        # We return here is a dependency failed
+        # We return here because a dependency failed
         return
 
     # Save analysis
