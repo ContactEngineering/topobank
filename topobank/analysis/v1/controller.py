@@ -360,7 +360,7 @@ class AnalysisController:
                 "subject_dispatch__topography_id",
                 "subject_dispatch__surface_id",
                 "subject_dispatch__tag_id",
-                "-start_time",
+                "-task_start_time",
             )
             .distinct(
                 "subject_dispatch__topography_id",

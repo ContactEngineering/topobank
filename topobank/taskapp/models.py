@@ -20,6 +20,10 @@ class TaskStateModel(models.Model):
     class Meta:
         abstract = True
 
+    # Time to wait for a task to be submitted after creation/update of the database
+    # entry.
+    COMMIT_EXPIRATION = 30  # seconds
+
     PENDING = "pe"
     STARTED = "st"
     RETRY = "re"
@@ -74,12 +78,12 @@ class TaskStateModel(models.Model):
     task_traceback = models.TextField(null=True)
 
     # Time stamps
-    creation_time = models.DateTimeField(null=True)
-    start_time = models.DateTimeField(null=True)
-    end_time = models.DateTimeField(null=True)
+    task_submission_time = models.DateTimeField(null=True)
+    task_start_time = models.DateTimeField(null=True)
+    task_end_time = models.DateTimeField(null=True)
 
     @property
-    def duration(self):
+    def task_duration(self):
         """
         Returns duration of computation or None if not finished yet.
 
@@ -90,10 +94,10 @@ class TaskStateModel(models.Model):
         datetime.timedelta or None
             Returns the duration of the computation or None if not finished yet.
         """
-        if self.end_time is None or self.start_time is None:
+        if self.task_end_time is None or self.task_start_time is None:
             return None
 
-        return self.end_time - self.start_time
+        return self.task_end_time - self.task_start_time
 
     def get_async_result(self):
         """Return the Celery result object"""
@@ -158,11 +162,6 @@ class TaskStateModel(models.Model):
         # This is what Celery reports back
         celery_task_state = self.get_celery_state()
 
-        if celery_task_state is None:
-            # There is no Celery state, possibly because the Celery task has not yet
-            # been created
-            return self_reported_task_state
-
         if self_reported_task_state == celery_task_state:
             # We're good!
             return self_reported_task_state
@@ -171,8 +170,8 @@ class TaskStateModel(models.Model):
                 # Something is wrong, but we return success if the task self-reports
                 # success.
                 _log.info(
-                    f"The object with id {self.id} self-reported the state "
-                    f"'{self_reported_task_state}', but Celery reported "
+                    f"The {self.__class__} instance with id {self.id} self-reported "
+                    f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning a success."
                 )
                 return TaskStateModel.SUCCESS
@@ -180,16 +179,48 @@ class TaskStateModel(models.Model):
                 # Celery seems to think this task failed, we trust it as the
                 # self-reported state will be unreliable in this case.
                 _log.info(
-                    f"The object with id {self.id} self-reported the state "
-                    f"'{self_reported_task_state}', but Celery reported "
+                    f"The {self.__class__} instance with id {self.id} self-reported "
+                    f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning a failure."
                 )
                 return TaskStateModel.FAILURE
+            elif (
+                self_reported_task_state == TaskStateModel.PENDING
+                and celery_task_state == TaskStateModel.NOTRUN
+            ):
+                if not self.task_submission_time:
+                    return TaskStateModel.FAILURE
+
+                # The task is marked as pending but Celery thinks the task was never
+                # run. This corresponds to the initial creation of the task. The
+                # Celery task is started in an `on_commit` hook. If the task is older
+                # than a threshold, we assume the on-commit never triggered and report
+                # and error.
+                if timezone.now() - self.task_submission_time > timezone.timedelta(
+                    seconds=self.COMMIT_EXPIRATION
+                ):
+                    _log.info(
+                        f"The {self.__class__} instance with id {self.id} "
+                        f"self-reported the state '{self_reported_task_state}', but "
+                        f"Celery reported '{celery_task_state}'. The database object "
+                        f"was created more than {self.COMMIT_EXPIRATION} seconds ago. "
+                        "I am returning a failure."
+                    )
+                    return TaskStateModel.FAILURE
+                else:
+                    _log.info(
+                        f"The {self.__class__} instance with id {self.id} "
+                        f"self-reported the state '{self_reported_task_state}', but "
+                        f"Celery reported '{celery_task_state}'. The database object "
+                        f"was created less than {self.COMMIT_EXPIRATION} seconds ago. "
+                        "I am returning a pending state."
+                    )
+                    return TaskStateModel.PENDING
             else:
                 # In all other cases, we trust the self-reported state.
                 _log.info(
-                    f"The object with id {self.id} self-reported the state "
-                    f"'{self_reported_task_state}', but Celery reported "
+                    f"The {self.__class__} instance with id {self.id} self-reported "
+                    f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning the self-reported state."
                 )
                 return self_reported_task_state
@@ -243,6 +274,23 @@ class TaskStateModel(models.Model):
 
         return percent
 
+    def set_pending_state(self, autosave=True):
+        self.task_state = self.PENDING
+        self.task_submission_time = timezone.now()
+        self.task_error = ""
+        self.task_traceback = None
+        self.task_id = None  # Need to reset, otherwise Celery reports a failure
+        if autosave:
+            self.save(
+                update_fields=[
+                    "task_state",
+                    "task_submission_time",
+                    "task_error",
+                    "task_traceback",
+                    "task_id",
+                ]
+            )
+
     def get_task_error(self):
         """Return a string representation of any error occurred during task execution"""
         # Return self-reported task error, if any
@@ -267,7 +315,7 @@ class TaskStateModel(models.Model):
         if r:
             r.revoke()
 
-    def task_worker(self):
+    def task_worker(self, *args, **kwargs):
         """The actual task"""
         raise NotImplementedError
 
@@ -293,14 +341,14 @@ class TaskStateModel(models.Model):
         """
         self.task_state = TaskStateModel.STARTED
         self.task_id = celery_task.request.id
-        self.start_time = timezone.now()  # with timezone
+        self.task_start_time = timezone.now()  # with timezone
         self.save()  # save such that any queries see this as running
 
         # actually run the task
         try:
             tracemalloc.start()
             tracemalloc.reset_peak()
-            self.task_worker()
+            self.task_worker(*args, **kwargs)
             size, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
             self.task_state = TaskStateModel.SUCCESS
@@ -321,7 +369,7 @@ class TaskStateModel(models.Model):
             raise
         finally:
             # Store time stamp and save state to database
-            self.end_time = timezone.now()  # with timezone
+            self.task_end_time = timezone.now()  # with timezone
             self.save()
 
 

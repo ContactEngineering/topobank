@@ -27,8 +27,18 @@ class ProgressRecorder:
 
     def __init__(self, task):
         self._task = task
+        self._total = None
+
+    def started(self, description=""):
+        total = self._total if self._total else 1
+        return self.set_progress(0, total, description=description)
+
+    def finished(self, description=""):
+        total = self._total if self._total else 1
+        return self.set_progress(total, total, description=description)
 
     def set_progress(self, current, total, description=""):
+        self._total = total
         state = self.PROGRESS_STATE
         meta = self.Model(
             pending=False,

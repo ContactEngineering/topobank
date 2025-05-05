@@ -4,6 +4,7 @@ Models related to analyses.
 
 import json
 import logging
+from functools import partial
 from typing import Union
 
 from django.conf import settings
@@ -11,7 +12,6 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
-from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 
@@ -164,7 +164,9 @@ class Analysis(PermissionMixin, TaskStateModel):
     name = models.TextField(null=True)
 
     # user-specified description
-    description = models.TextField(null=True, help_text="Optional description of the analysis.")
+    description = models.TextField(
+        null=True, help_text="Optional description of the analysis."
+    )
 
     # Keyword arguments passed to the Python analysis function
     kwargs = models.JSONField(default=dict)
@@ -182,6 +184,9 @@ class Analysis(PermissionMixin, TaskStateModel):
     configuration = models.ForeignKey(
         Configuration, null=True, on_delete=models.SET_NULL
     )
+
+    # Timestamp of creation of this analysis instance
+    creation_time = models.DateTimeField(auto_now_add=True)
 
     class Meta:
         verbose_name_plural = "analyses"
@@ -202,9 +207,8 @@ class Analysis(PermissionMixin, TaskStateModel):
         Save the analysis instance to the database.
 
         This method performs the following steps:
-        1. Sets the creation time if the instance does not have an ID.
-        2. Calls the parent class's save method to save the instance.
-        3. Stores the result dictionary in the storage backend if it is provided.
+        1. Calls the parent class's save method to save the instance.
+        2. Stores the result dictionary in the storage backend if it is provided.
 
         Parameters
         ----------
@@ -213,11 +217,10 @@ class Analysis(PermissionMixin, TaskStateModel):
         **kwargs : dict
             Arbitrary keyword arguments.
         """
-        if not self.id:
-            self.creation_time = timezone.now()
+        # If a result dict is given on input, we store it. However, we can only do
+        # this once we have an id. This happens during testing.
         super().save(*args, **kwargs)
-        # If a result dict is given on input, we store it. However, we can only do this
-        # once we have an id. This happens during testing.
+        # We now have an id
         if self._result is not None and self.folder is not None:
             store_split_dict(self.folder, RESULT_FILE_BASENAME, self._result)
             self._result = None
@@ -411,6 +414,19 @@ class Analysis(PermissionMixin, TaskStateModel):
         self.save(update_fields=["name", "description", "subject_dispatch"])
 
 
+def submit_analysis_task_to_celery(analysis: Analysis, force_submit: bool):
+    """
+    Send task to the queue after the analysis has been created. This is typically run
+    in an on_commit hook. Note: on_commit will not execute in tests, unless
+    transaction=True is added to pytest.mark.django_db
+    """
+    from .tasks import perform_analysis
+
+    _log.debug(f"Submitting task for analysis {analysis.id}...")
+    analysis.task_id = perform_analysis.delay(analysis.id, force_submit).id
+    analysis.save(update_fields=["task_id"])
+
+
 class AnalysisFunction(models.Model):
     """
     A convenience wrapper around the AnalysisImplementation that has representation in the
@@ -468,7 +484,7 @@ class AnalysisFunction(models.Model):
         """
         JSON schema describing the keyword arguments.
         """
-        return self.implementation.Parameters().model_json_schema()["properties"]
+        return self.implementation.Parameters().model_json_schema()
 
     def clean_kwargs(self, kwargs: Union[dict, None], fill_missing: bool = True):
         """
@@ -554,36 +570,29 @@ class AnalysisFunction(models.Model):
             # analyses no longer have subjects)
             existing_analyses.filter(name__isnull=True).delete()
 
-            # New analysis needs its own permissions
-            permissions = PermissionSet.objects.create()
-            permissions.grant_for_user(user, "view")  # analysis can never be edited
+            with transaction.atomic():
+                # New analysis needs its own permissions
+                permissions = PermissionSet.objects.create()
+                permissions.grant_for_user(user, "view")  # analysis can never be edited
 
-            # Folder will store results
-            folder = Folder.objects.create(permissions=permissions, read_only=True)
+                # Folder will store results
+                folder = Folder.objects.create(permissions=permissions, read_only=True)
 
-            # Create new entry in the analysis table and grant access to current user
-            analysis = Analysis.objects.create(
-                permissions=permissions,
-                subject_dispatch=AnalysisSubject.objects.create(subject),
-                function=self,
-                task_state=Analysis.PENDING,
-                kwargs=kwargs,
-                folder=folder,
-            )
-
-            # Send task to the queue if the analysis has been created
-            # Note: on_commit will not execute in tests, unless transaction=True is
-            # added to pytest.mark.django_db
-            def do_submit():
-                from .tasks import perform_analysis
-
-                _log.debug(f"Submitting task for analysis {analysis.id}...")
-                perform_analysis.delay(analysis.id, force_submit)
-
-            transaction.on_commit(do_submit)
+                # Create new entry in the analysis table and grant access to current user
+                analysis = Analysis.objects.create(
+                    permissions=permissions,
+                    subject_dispatch=AnalysisSubject.objects.create(subject),
+                    function=self,
+                    kwargs=kwargs,
+                    folder=folder,
+                )
+                analysis.set_pending_state()
+                transaction.on_commit(
+                    partial(submit_analysis_task_to_celery, analysis, force_submit)
+                )
         else:
             # There seem to be viable analyses. Fetch the latest one.
-            analysis = existing_analyses.order_by("start_time").last()
+            analysis = existing_analyses.order_by("task_start_time").last()
             # Grant access to current user
             analysis.grant_permission(user, "view")
 
@@ -607,21 +616,11 @@ class AnalysisFunction(models.Model):
             f"{[user for user, allow in analysis.permissions.get_users()]}, "
             f"function {self}, subject {analysis.subject}, kwargs: {analysis.kwargs}"
         )
-        analysis.task_state = Analysis.PENDING
-        analysis.task_error = ""
-        analysis.task_traceback = None
-        analysis.save()
-
-        # Send task to the queue if the analysis has been created
-        # Note: on_commit will not execute in tests, unless transaction=True is
-        # added to pytest.mark.django_db
-        def do_submit():
-            from .tasks import perform_analysis
-
-            _log.debug(f"Submitting task for analysis {analysis.id}...")
-            perform_analysis.delay(analysis.id, True)
-
-        transaction.on_commit(do_submit)
+        with transaction.atomic():
+            analysis.set_pending_state()
+            transaction.on_commit(
+                partial(submit_analysis_task_to_celery, analysis, True)
+            )
         return analysis
 
 
