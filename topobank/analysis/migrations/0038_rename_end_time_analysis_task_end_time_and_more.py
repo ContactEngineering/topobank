@@ -7,7 +7,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('analysis', '0036_analysis_description'),
+        ('analysis', '0037_workflowtemplate'),
     ]
 
     operations = [
