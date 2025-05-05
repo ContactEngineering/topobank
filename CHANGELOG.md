@@ -1,7 +1,8 @@
 # Changelog for *TopoBank*
 
-# 1.61.0 (not yet released)
+# 1.61.0 (2025-05-05)
 
+- ENH: Workflow templates
 - ENH: Import properties from ZIP container
 - MAINT: Renamed `import_surfaces` to `import_datasets`
 - MAINT: Added `task_submission_time`, which allows better failure detection
