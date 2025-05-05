@@ -159,9 +159,9 @@ def analyses_meta_data_dataframe(analyses, request):
                 else ""
             ),
             str(analysis.kwargs),
-            str(analysis.start_time),
-            str(analysis.end_time),
-            str(analysis.duration),
+            str(analysis.task_start_time),
+            str(analysis.task_end_time),
+            str(analysis.task_duration),
         ]
 
         if analysis.configuration is None:
@@ -249,9 +249,9 @@ def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
         s += f"Instrument parameters: {subject.instrument_parameters}\n"
     s += (
         f"Further arguments of analysis function: {analysis.kwargs}\n"
-        + f"Start time of analysis task: {analysis.start_time}\n"
-        + f"End time of analysis task: {analysis.end_time}\n"
-        + f"Duration of analysis task: {analysis.duration}\n"
+        + f"Start time of analysis task: {analysis.task_start_time}\n"
+        + f"End time of analysis task: {analysis.task_end_time}\n"
+        + f"Duration of analysis task: {analysis.task_duration}\n"
     )
     if analysis.configuration is None:
         s += 'Versions of dependencies (like "SurfaceTopography") are unknown for this analysis.\n'

@@ -93,7 +93,7 @@ class Property(PermissionMixin, models.Model):
         # Invariant 3
         if self.value_categorical is not None and self.unit is not None:
             raise ValidationError(
-                "If the Property is categorical, the unit must be 'None'"
+                "If the Property is categorical, the unit must be None"
             )
         # Check unit
         if self.unit is not None:

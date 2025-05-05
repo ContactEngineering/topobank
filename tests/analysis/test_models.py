@@ -87,15 +87,15 @@ def test_analysis_times(two_topos, test_analysis_function):
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={"a": 2, "b": "abcdef"},
-        start_time=datetime.datetime(2018, 1, 1, 12),
-        end_time=datetime.datetime(2018, 1, 1, 13),
+        task_start_time=datetime.datetime(2018, 1, 1, 12),
+        task_end_time=datetime.datetime(2018, 1, 1, 13),
     )
     analysis.save()
 
     assert analysis.creation_time - now < datetime.timedelta(seconds=1)
-    assert analysis.start_time == datetime.datetime(2018, 1, 1, 12)
-    assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
-    assert analysis.duration == datetime.timedelta(0, 3600)
+    assert analysis.task_start_time == datetime.datetime(2018, 1, 1, 12)
+    assert analysis.task_end_time == datetime.datetime(2018, 1, 1, 13)
+    assert analysis.task_duration == datetime.timedelta(0, 3600)
 
     assert analysis.kwargs == {"a": 2, "b": "abcdef"}
 

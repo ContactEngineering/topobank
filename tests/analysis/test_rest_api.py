@@ -130,8 +130,13 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
             "display_name": "Test implementation",
             "visualization_type": "series",
             "kwargs_schema": {
-                "a": {"default": 1, "title": "A", "type": "integer"},
-                "b": {"default": "foo", "title": "B", "type": "string"},
+                "title": ASSERT_EQUAL_IGNORE_VALUE,
+                "additionalProperties": False,
+                "type": "object",
+                "properties": {
+                    "a": {"default": 1, "title": "A", "type": "integer"},
+                    "b": {"default": "foo", "title": "B", "type": "string"},
+                }
             },
         },
     )
@@ -382,7 +387,9 @@ def test_save_tag_analysis(
     assert len(response.data) == 0
 
     # Set analysis name and description
-    response = api_client.post(set_name_url, {"name": "my-name", "description": "my-description"})
+    response = api_client.post(
+        set_name_url, {"name": "my-name", "description": "my-description"}
+    )
     assert response.status_code == 200
     assert Analysis.objects.count() == 1  # This does not make a copy
     assert Analysis.objects.get(name="my-name").description == "my-description"
@@ -441,7 +448,9 @@ def test_query_pending(
 
 
 @pytest.mark.django_db
-def test_query_with_not_implemented_subject(api_client, one_line_scan, test_analysis_function):
+def test_query_with_not_implemented_subject(
+    api_client, one_line_scan, test_analysis_function
+):
     user = one_line_scan.creator
     one_line_scan.grant_permission(user, "view")
     surface = one_line_scan.surface
@@ -450,4 +459,4 @@ def test_query_with_not_implemented_subject(api_client, one_line_scan, test_anal
         f"&workflow=topobank.testing.topography_only_test"
     )
     assert response.status_code == 200
-    assert response.data['analyses'] == []
+    assert response.data["analyses"] == []

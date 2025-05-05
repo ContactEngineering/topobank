@@ -318,10 +318,11 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
 
     task_state = Analysis.SUCCESS
 
-    start_time = factory.LazyFunction(
+    task_submission_time = factory.LazyFunction(timezone.now)
+    task_start_time = factory.LazyFunction(
         lambda: timezone.now() - datetime.timedelta(0, 1)
     )
-    end_time = factory.LazyFunction(timezone.now)
+    task_end_time = factory.LazyFunction(timezone.now)
 
 
 class TopographyAnalysisFactory(AnalysisFactory):

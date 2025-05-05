@@ -202,7 +202,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     def get_children(self) -> List[str]:
         def make_child(tag_name):
-            tag_suffix = tag_name[len(self.name) + 1:]
+            tag_suffix = tag_name[len(self.name) + 1 :]
             name, rest = (tag_suffix + "/").split("/", maxsplit=1)
             return f"{self.name}/{name}"
 
@@ -724,6 +724,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         related_name="topography_deepzooms",
     )
 
+    # Timestamp of creation of this measurement instance
+    creation_time = models.DateTimeField(auto_now_add=True)
+
     # Changes in these fields trigger a refresh of the topography cache and of all analyses
     _significant_fields = {
         "size_x",
@@ -741,6 +744,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Methods
     #
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields", None)
         created = self.pk is None
         if created:
             if self.creator is None:
@@ -767,7 +771,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         else:
             # Check which fields actually changed
             changed_fields = [
-                getattr(self, name) != getattr(old_obj, name)
+                (update_fields is None or name in update_fields)
+                and getattr(self, name) != getattr(old_obj, name)
                 for name in self._significant_fields
             ]
 
@@ -777,11 +782,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 if changed
             ]
 
-            # `instrument_parameters` is special as it can contain non-significant entries
-            if InstrumentParametersModel(
-                **self.instrument_parameters
-            ) != InstrumentParametersModel(**old_obj.instrument_parameters):
-                changed_fields += ["instrument_parameters"]
+            # `instrument_parameters` is special as it can contain non-significant
+            # entries
+            if update_fields is None or "instrument_parameters" in update_fields:
+                if InstrumentParametersModel(
+                    **self.instrument_parameters
+                ) != InstrumentParametersModel(**old_obj.instrument_parameters):
+                    changed_fields += ["instrument_parameters"]
 
             # We need to refresh if any of the significant fields changed during this save
             refresh_dependent_data = any(changed_fields)
@@ -1567,8 +1574,9 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         related_name="zip_containers",
     )
 
-    # The data when the zip was last updated
-    updated = models.DateTimeField(auto_now=True)
+    # Timestamp of creation of this ZIP container
+    creation_time = models.DateTimeField(auto_now_add=True)
+    update_time = models.DateTimeField(auto_now=True)
 
     def task_worker(self, tag_name=None, surface_ids=None):
         #
@@ -1607,7 +1615,8 @@ class ZipContainer(PermissionMixin, TaskStateModel):
 
         container_data = io.BytesIO()
         _log.info(
-            f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download...")
+            f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
+        )
         try:
             write_container_zip(container_data, surfaces)
         except FileNotFoundError:

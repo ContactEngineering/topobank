@@ -470,7 +470,7 @@ def memory_usage(request):
     r = Topography.objects.values(
         "resolution_x", "resolution_y", "task_memory"
     ).annotate(
-        duration=F("end_time") - F("start_time"),
+        task_duration=F("task_end_time") - F("task_start_time"),
         nb_data_pts=F("resolution_x") * Case(When(resolution_y__isnull=False, then=F("resolution_y")), default=1),
     )
     return Response(list(r))

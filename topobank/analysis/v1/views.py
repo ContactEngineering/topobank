@@ -73,7 +73,7 @@ class ResultView(
         "subject_dispatch__tag",
         "subject_dispatch__topography",
         "subject_dispatch__surface",
-    ).order_by("-start_time")
+    ).order_by("-task_start_time")
     serializer_class = ResultSerializer
     pagination_class = LimitOffsetPagination
 
@@ -134,8 +134,16 @@ def pending(request):
     queryset = Analysis.objects.for_user(request.user).filter(
         task_state__in=[Analysis.PENDING, Analysis.STARTED]
     )
+    pending_workflows = []
+    for analysis in queryset:
+        # We need to get actually state from `get_task_state`, which combines self
+        # reported states and states from Celery.
+        if analysis.get_task_state() in {Analysis.PENDING, Analysis.STARTED}:
+            pending_workflows += [analysis]
     return Response(
-        ResultSerializer(queryset, many=True, context={"request": request}).data
+        ResultSerializer(
+            pending_workflows, many=True, context={"request": request}
+        ).data
     )
 
 
@@ -149,7 +157,9 @@ def named_result(request):
         queryset = queryset.filter(name__icontains=name)
     return Response(
         ResultSerializer(
-            queryset.order_by("-start_time"), many=True, context={"request": request}
+            queryset.order_by("-task_start_time"),
+            many=True,
+            context={"request": request},
         ).data
     )
 
@@ -547,7 +557,7 @@ def memory_usage(request):
             .annotate(
                 resolution_x=F("subject_dispatch__topography__resolution_x"),
                 resolution_y=F("subject_dispatch__topography__resolution_y"),
-                duration=F("end_time") - F("start_time"),
+                task_duration=F("task_end_time") - F("task_start_time"),
                 subject=Case(
                     When(subject_dispatch__tag__isnull=False, then=Value("tag")),
                     When(
