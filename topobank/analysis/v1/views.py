@@ -85,19 +85,17 @@ class ResultView(
     def list(self, request, *args, **kwargs):
         try:
             controller = AnalysisController.from_request(request, **kwargs)
-        except ValueError as err:
-            return HttpResponseBadRequest(reason=str(err))
+        except ValueError as exc:
+            return HttpResponseBadRequest(content=str(exc))
 
         #
         # Trigger missing analyses
         #
         try:
             controller.trigger_missing_analyses()
-        except pydantic.ValidationError:
+        except pydantic.ValidationError as exc:
             # The kwargs that were provided do not match the function
-            return HttpResponseBadRequest(
-                "Error validating kwargs for analysis function"
-            )
+            return HttpResponseBadRequest(content=str(exc))
 
         #
         # Get context from controller and return
@@ -584,12 +582,13 @@ class WorkflowTemplateView(
     mixins.CreateModelMixin,
     mixins.UpdateModelMixin,
     mixins.RetrieveModelMixin,
-    mixins.DestroyModelMixin
+    mixins.DestroyModelMixin,
 ):
     """
     Create, update, retrieve and delete workflow templates.
 
     """
+
     serializer_class = WorkflowTemplateSerializer
     permission_classes = [AnalysisFunctionPermissions]
 
@@ -602,9 +601,7 @@ class WorkflowTemplateView(
             for workflow in AnalysisFunction.objects.all()
             if workflow.has_permission(self.request.user)
         ]
-        qs = WorkflowTemplate.objects.filter(
-            implementation__in=workflows
-        )
+        qs = WorkflowTemplate.objects.filter(implementation__in=workflows)
 
         return filter_workflow_templates(self.request, qs)
 
