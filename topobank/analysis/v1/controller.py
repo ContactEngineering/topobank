@@ -7,10 +7,10 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
-from ..models import Analysis, AnalysisFunction, AnalysisSubject
+from ..models import Analysis, AnalysisFunction, AnalysisSubject, WorkflowTemplate
 from ..registry import WorkflowNotImplementedException
 from ..serializers import ResultSerializer
-from ..utils import find_children
+from ..utils import find_children, merge_dicts
 
 _log = logging.getLogger(__name__)
 
@@ -203,6 +203,16 @@ class AnalysisController:
         )
         if workflow_kwargs is not None and isinstance(workflow_kwargs, str):
             workflow_kwargs = dict_from_base64(workflow_kwargs)
+
+        workflow_template_id, data = AnalysisController.get_request_parameter(
+            ["workflow_template"], data
+        )
+        if workflow_template_id is not None:
+            workflow_template = WorkflowTemplate.objects.get(id=workflow_template_id)
+            workflow_kwargs = merge_dicts(
+                workflow_template.kwargs,
+                [workflow_kwargs]
+            )
 
         if len(data) > 0:
             raise ValueError(
@@ -417,10 +427,6 @@ class AnalysisController:
         # Manually provided function kwargs override unique kwargs from prior analysis query
         if self._kwargs is not None:
             kwargs.update(self._kwargs)
-
-        # For every possible implemented subject type the following is done:
-        # We use the common unique keyword arguments if there are any; if not
-        # the default arguments for the implementation is used
 
         subjects_triggered = []
         for subject in self.subjects_without_analysis_results:

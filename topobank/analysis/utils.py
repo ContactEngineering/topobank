@@ -1,5 +1,9 @@
 import logging
+import math
 from collections import OrderedDict
+from typing import Dict, List
+
+from mergedeep import merge
 
 from ..manager.models import Surface
 
@@ -112,3 +116,88 @@ def find_children(subjects):
         if isinstance(subject, Surface):
             additional_subjects += list(subject.topography_set.all())
     return list(set(subjects + additional_subjects))
+
+
+def filter_workflow_templates(request, qs):
+    from ..analysis.models import AnalysisFunction
+    """Return queryset with workflow templates matching all filter criteria.
+
+    Workflow templates should be
+    - filtered by workflow name, if given
+
+    Parameters
+    ----------
+    request
+        Request instance
+
+    Returns
+    -------
+        Filtered queryset of workflow templates
+    """
+    user = request.user
+    implementation_name = request.GET.get("implementation", None)
+    implementation = None
+    if implementation_name is not None:
+        try:
+            implementation = AnalysisFunction.objects.get(
+                name=implementation_name
+            )
+        except AnalysisFunction.DoesNotExist:
+            _log.warning(
+                "Workflow template filter: implementation %s not found",
+                implementation_name,
+            )
+            implementation = None
+
+    if implementation is not None and \
+            implementation.has_permission(user):
+        qs = qs.filter(implementation=implementation.id)
+
+    return qs
+
+
+def round_to_significant_digits(x, num_dig_digits):
+    """Round given number to given number of significant digits
+
+    Parameters
+    ----------
+    x: flost
+        Number to be rounded
+    num_dig_digits: int
+        Number of significant digits
+
+
+    Returns
+    -------
+    Rounded number.
+
+    For NaN, NaN is returned.
+    """
+    if math.isnan(x):
+        return x
+    try:
+        return round(x, num_dig_digits - int(math.floor(math.log10(abs(x)))) - 1)
+    except ValueError:
+        return x
+
+
+def merge_dicts(destination: Dict, sources: List[Dict]) -> Dict:
+    """
+    Merge multiple source dictionaries into a single destination dictionary.
+
+    Parameters
+    ----------
+    destination: dict
+        The base dictionary to merge into.
+    sources: list of dict
+        A list of dictionaries to merge into the destination.
+
+    Returns
+    -------
+    dict
+        The merged dictionary.
+    """
+    for source in sources:
+        merge(destination, source)  # Merge each source into the destination
+
+    return destination

@@ -161,6 +161,9 @@ dependencies = [
 
     # deprecated, only needed for historic migrations
     'django-guardian',
+
+    # merging dictionaries
+    'mergedeep',
 ]
 
 [project.optional-dependencies]
