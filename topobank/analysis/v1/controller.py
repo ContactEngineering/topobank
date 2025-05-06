@@ -437,13 +437,14 @@ class AnalysisController:
                     )
                     subjects_triggered += [subject]
                     _log.info(
-                        f"Triggered analysis {triggered_analysis.id} for function '{self._workflow.name}' "
-                        f"and subject '{subject}'."
+                        f"Triggered workflow '{self._workflow.name}' for "
+                        f"{subject} with kwargs '{triggered_analysis.kwargs}' "
+                        f"(result id {triggered_analysis.id})."
                     )
                 except WorkflowNotImplementedException:
                     _log.info(
                         f"Did NOT trigger workflow '{self._workflow.name}' because it "
-                        f"does not have an implementation for '{subject}'."
+                        f"does not have an implementation for {subject}."
                     )
 
         # Now all subjects which needed to be triggered, should have been triggered with common arguments if possible

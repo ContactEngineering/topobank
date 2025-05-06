@@ -537,8 +537,8 @@ class AnalysisFunction(models.Model):
         # Check if user can actually access the subject
         subject.authorize_user(user, "view")
 
-        # Make sure the parameters are correct and fill in missing values from defaults
-        kwargs = self.clean_kwargs(kwargs)
+        # Make sure the parameters are correct (will trigger validation error if not)
+        kwargs = self.clean_kwargs(kwargs, fill_missing=False)
 
         # Query for all existing analyses with the same parameters
         q = AnalysisSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)

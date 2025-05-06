@@ -444,6 +444,8 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
 
         # Get analysis function
         function = dependency.function
+
+        # Clean kwargs for dependency (fill potentially missing values)
         kwargs = function.clean_kwargs(dependency.kwargs)
 
         # Filter latest result

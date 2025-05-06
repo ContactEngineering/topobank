@@ -4,6 +4,8 @@
 
 - API: Renamed `error` to `task_error`
 - API: Return validation error in 400 body
+- BUG: Do not fill missing keyword arguments to make sure analysis result remains
+  findable
 - BUG: Store scheduled dependencies
 
 # 1.61.0 (2025-05-05)
