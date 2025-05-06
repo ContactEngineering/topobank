@@ -19,6 +19,7 @@ from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Surface, Topography
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
+    PermissionSetFactory,
     SurfaceAnalysisFactory,
     SurfaceFactory,
     Topography1DFactory,
@@ -849,3 +850,75 @@ def test_show_analysis_filter_without_subject_list(api_client):
 
     assert response.status_code == 200, response.reason_phrase
     assert len(response.data["analyses"]) == 1
+
+
+def test_set_result_permissions(
+    api_client
+):
+    user = UserFactory()
+    user2 = UserFactory()
+    surf1 = SurfaceFactory(creator=user)
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    analysis1 = SurfaceAnalysisFactory(
+        subject_surface=surf1,
+        function=func,
+        permissions=PermissionSetFactory(
+            user=user,
+            allow='full'
+        ),
+    )
+    obj = Analysis.objects.get(id=analysis1.id)
+    obj.name = "test"
+    obj.save()
+    assert obj.subject == surf1
+
+    # # check user2 cannot view model
+    api_client.force_login(user2)
+    response = api_client.get(
+        f"{reverse('analysis:named-result-list')}"
+    )
+    assert response.status_code == 200
+    assert len(response.data) == 0
+
+    # check user1 can view model
+    api_client.force_login(user)
+    response = api_client.get(
+        f"{reverse('analysis:named-result-list')}"
+    )
+
+    response = api_client.patch(
+        f"{reverse('analysis:set-result-permissions', kwargs=dict(workflow_id=analysis1.id))}",
+        [
+            {
+                "user": user2.get_absolute_url(),
+                "permission": "full",
+            }
+        ],
+    )
+    assert response.status_code == 204
+
+    # check if user1 can view model
+
+    response = api_client.get(
+        f"{reverse('analysis:named-result-list')}"
+    )
+    assert response.status_code == 200
+    assert len(response.data) == 1
+
+    response = api_client.patch(
+        f"{reverse('analysis:set-result-permissions',kwargs=dict(workflow_id=analysis1.id))}",
+        [
+            {
+                "user": user.get_absolute_url(),
+                "permission": "no-access",
+            }
+        ],
+    )
+    assert response.status_code == 405  # Cannot remove permission from logged in user
+
+    api_client.force_login(user2)
+    response = api_client.get(
+        f"{reverse('analysis:named-result-list')}"
+    )
+    assert response.status_code == 200
+    assert len(response.data) == 1
