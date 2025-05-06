@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.61.2 (2025-05-05)
+
+- BUG: Make sure all keyword arguments are always filled
+
 # 1.61.1 (2025-05-05)
 
 - API: Renamed `error` to `task_error`

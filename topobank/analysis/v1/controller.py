@@ -69,9 +69,10 @@ class AnalysisController:
             )
 
         # Validate (and type convert) kwargs
-        self._kwargs = self._workflow.clean_kwargs(kwargs, fill_missing=False)
-        if self._kwargs == {}:
+        if kwargs is None or kwargs == {}:
             self._kwargs = None
+        else:
+            self._kwargs = self._workflow.clean_kwargs(kwargs)
 
         # Calculate subjects for the analyses, filtered for those which have an
         # implementation
