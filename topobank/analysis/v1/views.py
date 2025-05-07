@@ -586,13 +586,13 @@ def set_result_permissions(request, workflow_id=None):
     user = request.user
 
     # Check that user has the right to modify permissions
-    if not analysis_obj.has_permission(user, "full"):
+    if not analysis_obj.has_permission(user, "view"):
         return HttpResponseForbidden()
 
     for permission in request.data:
         other_user = resolve_user(permission["user"])
         if other_user == user:
-            if permission["permission"] != "full":
+            if permission["permission"] == "no-access":
                 return Response(
                     {"message": "Permissions cannot be revoked from logged in user"},
                     status=405,
