@@ -12,6 +12,11 @@ def nan_to_none(obj):
         return {k: nan_to_none(v) for k, v in obj.items()}
     elif isinstance(obj, list) or isinstance(obj, set):
         return [nan_to_none(v) for v in obj]
+    elif isinstance(obj, np.ma.MaskedArray):
+        if obj.ndim == 0:
+            return None if obj.mask else nan_to_none(obj.item())
+        else:
+            return [nan_to_none(v) for v in obj]
     elif isinstance(obj, np.ndarray) or isinstance(obj, ArrayImpl):
         if obj.ndim == 0:
             return nan_to_none(obj.item())
@@ -27,6 +32,8 @@ class ExtendedJSONEncoder(DjangoJSONEncoder):
     Customized JSON encoder that gracefully handles:
     * numpy arrays, which will be converted to JSON arrays
     * NaNs and Infs, which will be converted to null
+    * numpy masked arrays, which will be converted to JSON arrays
+      with masked values converted to null
     """
 
     _TYPE_MAP = {

@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.61.3 (2025-05-08)
+
+- BUG: Fixed JSON-encoding of masked arrays
+
 # 1.61.2 (2025-05-05)
 
 - BUG: Make sure all keyword arguments are always filled
