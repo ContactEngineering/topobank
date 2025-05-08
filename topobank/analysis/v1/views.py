@@ -4,7 +4,7 @@ from collections import defaultdict
 import pydantic
 from django.conf import settings
 from django.db.models import Case, F, Max, Sum, Value, When
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
@@ -12,6 +12,8 @@ from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from trackstats.models import Metric
+
+from topobank.users.models import resolve_user
 
 from ...files.serializers import ManifestSerializer
 from ...manager.models import Surface
@@ -574,6 +576,38 @@ def memory_usage(request):
         ):
             m[function_name] += [x]
     return Response(m, status=200)
+
+
+@api_view(["PATCH"])
+def set_result_permissions(request, workflow_id=None):
+    analysis_obj = Analysis.objects.get(pk=workflow_id)
+    user = request.user
+
+    # Check that user has the right to modify permissions
+    if not analysis_obj.has_permission(user, "view"):
+        return HttpResponseForbidden()
+
+    for permission in request.data:
+        other_user = resolve_user(permission["user"])
+        if other_user == user:
+            if permission["permission"] == "no-access":
+                return Response(
+                    {"message": "Permissions cannot be revoked from logged in user"},
+                    status=405,
+                )  # Not allowed
+
+    # Everything looks okay, update permissions
+    for permission in request.data:
+        other_user = resolve_user(permission["user"])
+        if other_user != user:
+            perm = permission["permission"]
+            if perm == "no-access":
+                analysis_obj.revoke_permission(other_user)
+            else:
+                analysis_obj.grant_permission(other_user, perm)
+
+    # Permissions were updated successfully, return 204 No Content
+    return Response({}, status=204)
 
 
 class WorkflowTemplateView(
