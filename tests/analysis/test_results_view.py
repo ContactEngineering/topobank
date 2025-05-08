@@ -906,7 +906,7 @@ def test_set_result_permissions(
     assert len(response.data) == 1
 
     response = api_client.patch(
-        f"{reverse('analysis:set-result-permissions',kwargs=dict(workflow_id=analysis1.id))}",
+        f"{reverse('analysis:set-result-permissions', kwargs=dict(workflow_id=analysis1.id))}",
         [
             {
                 "user": user.get_absolute_url(),
