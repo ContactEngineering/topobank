@@ -39,6 +39,13 @@ urlpatterns += [
         view=v1.named_result,
         name="named-result-list",
     ),
+    # PATCH
+    # * update result permissions
+    path(
+        "api/set-result-permissions/<int:workflow_id>",
+        view=v1.set_result_permissions,
+        name="set-result-permissions",
+    ),
     # GET
     # * Triggers analyses if not yet running
     # * Return state of analyses
