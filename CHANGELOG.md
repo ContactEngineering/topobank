@@ -1,7 +1,9 @@
 # Changelog for *TopoBank*
 
-# 1.61.3 (2025-05-08)
+# 1.62.0 (2025-05-08)
 
+- ENH: Endpoint for setting permissions on workflow results
+  (to share a saved result with another user)
 - BUG: Fixed JSON-encoding of masked arrays
 
 # 1.61.2 (2025-05-05)
