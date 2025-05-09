@@ -4,6 +4,7 @@ import yaml
 from django.core.files import File
 from django.utils.timezone import now
 
+from ..authorization.models import PermissionSet
 from ..files.models import Manifest
 from .models import Surface, Topography
 
@@ -159,23 +160,28 @@ def import_container_zip(
             tags = set(surface_dict["tags"])
             if tag is not None:
                 tags.add(tag)
-            surface = Surface(
+            surface = Surface.objects.create(
                 creator=user,
                 name=surface_dict["name"],
                 category=surface_dict["category"],
                 description=surface_description,
                 tags=tags,
+                permissions=PermissionSet.objects.create(),
             )
             surface.save()
+            surface.permissions.grant_for_user(user, "full")
 
             # WARNING: Does this need to be updated to new property API??
             if "properties" in surface_dict:
                 from topobank.properties.models import Property
+
                 for property_dict in surface_dict["properties"]:
                     name = property_dict["name"]
                     value = property_dict["value"]
                     unit = property_dict.get("unit", None)
-                    surface.properties.add(Property.objects.create(name=name, value=value, unit=unit))
+                    Property.objects.create(
+                        surface=surface, name=name, value=value, unit=unit
+                    )
                 surface.save()
 
             surfaces += [surface]
