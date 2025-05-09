@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.62.1 (not yet released)
+
+- BUG: Permission for imported containers
+
 # 1.62.0 (2025-05-08)
 
 - ENH: Endpoint for setting permissions on workflow results
