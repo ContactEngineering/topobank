@@ -1,4 +1,5 @@
 import numpy as np
+import xarray
 from django.core.serializers.json import DjangoJSONEncoder
 
 try:
@@ -17,7 +18,11 @@ def nan_to_none(obj):
             return None if obj.mask else nan_to_none(obj.item())
         else:
             return [nan_to_none(v) for v in obj]
-    elif isinstance(obj, np.ndarray) or isinstance(obj, ArrayImpl):
+    elif (
+        isinstance(obj, np.ndarray)
+        or isinstance(obj, xarray.DataArray)
+        or isinstance(obj, ArrayImpl)
+    ):
         if obj.ndim == 0:
             return nan_to_none(obj.item())
         else:
@@ -51,7 +56,7 @@ class ExtendedJSONEncoder(DjangoJSONEncoder):
         np.float16: float,
         np.float32: float,
         np.float64: float,
-        np.bool_: bool
+        np.bool_: bool,
     }
 
     def default(self, obj):
