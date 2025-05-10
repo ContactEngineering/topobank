@@ -3,6 +3,7 @@
 # 1.62.1 (not yet released)
 
 - BUG: Permission for imported containers
+- MAINT: Support for JSON serialization of xarrays
 
 # 1.62.0 (2025-05-08)
 
