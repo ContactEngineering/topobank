@@ -1026,6 +1026,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         else:
             return topo
 
+    lazy_read = read  # For compatibility with datasets that implement `lazy_read`
     topography = read  # Renaming this, mark `topography` as deprecated before v2
 
     def to_dict(self):
