@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# 1.62.1 (not yet released)
+# 1.62.1 (2025-05-11)
 
 - BUG: Permission for imported containers
 - MAINT: Support for JSON serialization of xarrays
