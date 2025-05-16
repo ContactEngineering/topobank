@@ -5,6 +5,7 @@ Some helper functions
 import datetime
 import json
 import logging
+import os
 from dataclasses import dataclass
 from numbers import Number
 from operator import itemgetter
@@ -336,3 +337,16 @@ def search_surfaces(api_client, expr):
     response = api_client.get(reverse("manager:surface-api-list") + f"?search={expr}")
     assert response.status_code == 200
     return response.data
+
+
+def copy_folder(folder: Folder, filepath: str):
+    """Copy the folder to disk."""
+    os.makedirs(filepath, exist_ok=True)
+    for file in folder.get_files():
+        open(f"{filepath}/{file.filename}", "wb").write(file.file.read())
+
+
+def assert_file_equal(folder: Folder, filepath: str, filename: str):
+    data1 = folder.find_file(filename).read()
+    data2 = open(f"{filepath}/{filename}", "rb").read()
+    assert data1 == data2
