@@ -32,6 +32,16 @@ def nan_to_none(obj):
     return obj
 
 
+def none_to_nan(obj):
+    if isinstance(obj, dict):
+        return {k: none_to_nan(v) for k, v in obj.items()}
+    elif isinstance(obj, list) or isinstance(obj, set):
+        return [none_to_nan(v) for v in obj]
+    elif obj is None:
+        return np.nan
+    return obj
+
+
 class ExtendedJSONEncoder(DjangoJSONEncoder):
     """
     Customized JSON encoder that gracefully handles:
