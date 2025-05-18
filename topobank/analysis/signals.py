@@ -68,11 +68,14 @@ def pre_measurement_save(sender, instance, **kwargs):
     if created:
         # Measurement was created and added to a dataset: We need to delete the
         # corresponding dataset analysis
-        _log.debug(
-            f"A measurement was added to dataset {instance.surface}: Deleting all "
-            "affected analyses..."
-        )
-        Analysis.objects.filter(subject_dispatch__surface=instance.surface).delete()
+        analyses = Analysis.objects.filter(subject_dispatch__surface=instance.surface)
+        if analyses.count() > 0:
+            _log.debug(
+                "INVALIDATE WORKFLOWS: A measurement was added to dataset "
+                f"{instance.surface}: Deleting all affected workflow results with "
+                f"ids {', '.join(analyses.values_list('id'))}..."
+            )
+        analyses.delete()
 
 
 @receiver(pre_delete, sender=Topography)

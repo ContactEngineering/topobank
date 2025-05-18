@@ -359,7 +359,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
     def __str__(self):
-        s = self.name
+        s = f"Dataset '{self.name}'"
         if self.is_published:
             s += f" (version {self.publication.version})"
         return s
@@ -385,14 +385,14 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         if created and self.permissions is None:
             # Create a new permission set for this dataset
             _log.debug(
-                f"Creating an empty permission set for surface {self.id} which was "
-                f"just created."
+                f"NEW DATASET: Creating an empty permission set for dataset {self}."
             )
             self.permissions = PermissionSet.objects.create()
         if self.attachments is None:
             # Create a new folder for attachments
             _log.debug(
-                f"Creating an empty folder for attachments to surface {self.id}."
+                "ATTACHMENTS MISSING: Creating an empty folder for attachments to "
+                f"{self}."
             )
             self.attachments = Folder.objects.create(
                 permissions=self.permissions, read_only=False
@@ -752,7 +752,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.permissions = self.surface.permissions
         if self.attachments is None:
             _log.debug(
-                f"Creating an empty folder for attachments to topography {self.id}."
+                "ATTACHMENTS MISSING: Creating an empty folder for attachments to "
+                f"{self}."
             )
             self.attachments = Folder.objects.create(
                 permissions=self.permissions, read_only=False
@@ -835,7 +836,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         delete("deepzoom", Folder.DoesNotExist)
 
     def __str__(self):
-        return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
+        return "Measurement '{0}'".format(self.name)
 
     @property
     def label(self):
