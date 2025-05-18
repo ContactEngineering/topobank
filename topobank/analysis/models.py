@@ -12,7 +12,7 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import APIException, PermissionDenied
 from rest_framework.reverse import reverse
 
 from ..authorization.mixins import PermissionMixin
@@ -21,11 +21,21 @@ from ..files.models import Folder, Manifest
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
-from .registry import get_implementation
+from .registry import WorkflowNotImplementedException, get_implementation
 
 _log = logging.getLogger(__name__)
 
 RESULT_FILE_BASENAME = "result"
+
+
+class SubjectNotReadyException(APIException):
+    """Subject is not in SUCCESS state when triggering an analysis."""
+
+    def __init__(self, subject):
+        self._subject = subject
+
+    def __str__(self):
+        return f"The workflow subject {self._subject} is not in SUCCESS state."
 
 
 class AnalysisSubjectManager(models.Manager):
@@ -537,6 +547,15 @@ class AnalysisFunction(models.Model):
         # Check if user can actually access the subject
         subject.authorize_user(user, "view")
 
+        # Check whether there is an implementation for this workflow/subject combination
+        if not self.has_implementation(type(subject)):
+            raise WorkflowNotImplementedException(self.name, type(subject))
+
+        if hasattr(subject, "get_task_state"):
+            # Make sure all tasks (e.g. refreshing caches) have completed
+            if subject.get_task_state() != subject.SUCCESS:
+                raise SubjectNotReadyException(subject)
+
         # Make sure the parameters are correct and fill in missing values
         # (will trigger validation error if not)
         kwargs = self.clean_kwargs(kwargs)
@@ -650,15 +669,10 @@ class WorkflowTemplate(PermissionMixin, models.Model):
     kwargs = models.JSONField(default=dict, blank=True)
 
     implementation = models.ForeignKey(
-        AnalysisFunction,
-        on_delete=models.CASCADE,
-        null=True
+        AnalysisFunction, on_delete=models.CASCADE, null=True
     )
 
-    creator = models.ForeignKey(
-        settings.AUTH_USER_MODEL,
-        on_delete=models.CASCADE
-    )
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     def __str__(self):
         return (
