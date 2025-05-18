@@ -335,7 +335,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
         if "name" in kwargs:
             for fn in glob.glob(f"{kwargs['name']}/*"):
                 obj.folder.save_file(os.path.basename(fn), "der", File(open(fn, "rb")))
-        obj.kwargs = obj.folder.read_json("model.json")["kwargs"]
+            obj.kwargs = obj.folder.read_json("model.json")["kwargs"]
 
 
 class AnalysisFactory(AnalysisFactoryWithoutResult):
