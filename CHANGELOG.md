@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+# 1.62.2 (2025-05-18)
+
+- BUG: Proper exception when Meta.dependencies is not defined
+- MAINT: Run analysis workflow only if an implementation exists and the subject has a
+  SUCCESS state
+
 # 1.62.1 (2025-05-11)
 
 - BUG: Permission for imported containers
