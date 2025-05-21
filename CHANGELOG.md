@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.62.3 (2025-05-20)
+
+- BUG: Delete analyses before refreshing the cache
+
 # 1.62.2 (2025-05-18)
 
 - BUG: Proper exception when Meta.dependencies is not defined

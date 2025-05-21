@@ -42,6 +42,7 @@ from .utils import get_topography_reader, render_deepzoom
 
 _log = logging.getLogger(__name__)
 
+pre_refresh_cache = django.dispatch.Signal()
 post_refresh_cache = django.dispatch.Signal()
 
 MAX_LENGTH_DATAFILE_FORMAT = (
@@ -1357,6 +1358,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         Inspect datafile and renew cached properties, in particular database entries on
         resolution, size etc. and the squeezed NetCDF representation of the data.
         """
+        # Send signal
+        _log.debug(f"Sending `pre_refresh_cache` signal from {self}...")
+        pre_refresh_cache.send(sender=Topography, instance=self)
+
         # First check if we have a datafile
         if not self.datafile.exists():
             raise RuntimeError(

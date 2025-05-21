@@ -6,7 +6,7 @@ from django.db.models.signals import post_delete, pre_delete, pre_save
 from django.dispatch import receiver
 
 from ..authorization.models import PermissionSet
-from ..manager.models import Topography, post_refresh_cache
+from ..manager.models import Topography, pre_refresh_cache
 from .models import Analysis
 
 _log = logging.getLogger(__name__)
@@ -48,8 +48,8 @@ def post_delete_analysis(sender, instance, **kwargs):
         pass
 
 
-@receiver(post_refresh_cache, sender=Topography)
-def post_refresh_measurement_cache(sender, instance, **kwargs):
+@receiver(pre_refresh_cache, sender=Topography)
+def delete_all_related_analyses(sender, instance, **kwargs):
     # Cache is renewed, this means something significant changed and we need to remove
     # the analyses
     _log.debug(
