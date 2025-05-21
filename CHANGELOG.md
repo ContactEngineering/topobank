@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.62.4 (2025-05-21)
+
+- BUG: Disabling deletion of old analyses during cache refresh
+
 # 1.62.3 (2025-05-20)
 
 - BUG: Delete analyses before refreshing the cache
