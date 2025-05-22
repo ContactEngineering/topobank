@@ -1372,15 +1372,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Check if this is the first time we are opening this file...
         populate_initial_metadata = self.data_source is None
 
-        if populate_initial_metadata:
-            # Notify users that a new file has been uploaded
-            self.notify_users(
-                self.creator,
-                "create",
-                f"User '{self.creator}' added the measurement '{self.name}' to "
-                f"digital surface twin '{self.surface.name}'.",
-            )
-
         # Populate datafile information in the database.
         # (We never load the topography in the web server, so we don't know this until
         # the Celery task refreshes the cache. Fields that are undefined are
