@@ -62,7 +62,7 @@ jobs:
         curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
         chmod +x $HOME/minio-binaries/mc
         export PATH=$PATH:$HOME/minio-binaries/
-        mc config host add minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY
+        export MC_HOST_minio=http://$AWS_ACCESS_KEY_ID:$AWS_SECRET_ACCESS_KEY@$AWS_S3_ENDPOINT_URL
         mc mb --ignore-existing minio/$AWS_STORAGE_BUCKET_NAME
 
     - name: Checkout source code
