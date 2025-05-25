@@ -266,6 +266,7 @@ def perform_analysis(self, analysis_id: int, force: bool):
             # Analysis exists, record end time
             #
             analysis.task_end_time = timezone.now()  # with timezone
+            analysis.save(update_fields=["task_end_time"])
             #
             # Add up number of seconds for CPU time
             #
