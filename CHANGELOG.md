@@ -3,7 +3,7 @@
 # 1.63.0 (2025-05-25)
 
 - ENH: Return task progress messages
-- MAINT: Don't delete analyses when refreshing the cache, but mark them as invalid
+- MAINT: Don't delete analyses when refreshing the cache, but mark them as deprecated
 
 # 1.62.4 (2025-05-21)
 

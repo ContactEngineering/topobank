@@ -199,7 +199,7 @@ class Analysis(PermissionMixin, TaskStateModel):
     creation_time = models.DateTimeField(auto_now_add=True)
 
     # Invalid is True if the subject was changed after the analysis was computed
-    invalidation_time = models.DateTimeField(null=True)
+    deprecation_time = models.DateTimeField(null=True)
 
     class Meta:
         verbose_name_plural = "analyses"

@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='analysis',
-            name='invalidation_time',
+            name='deprecation_time',
             field=models.DateTimeField(null=True),
         ),
     ]
