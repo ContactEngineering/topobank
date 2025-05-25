@@ -256,7 +256,16 @@ def perform_analysis(self, analysis_id: int, force: bool):
             # First check whether analysis is still there
             #
             analysis = Analysis.objects.get(id=analysis_id)
-
+        except Analysis.DoesNotExist:
+            _log.debug(f"{analysis_id}/{self.request.id}: Analysis {analysis_id} does not exist.")
+            # Analysis was deleted, e.g. because topography or surface was missing, we
+            # simply ignore this case.
+            pass
+        else:
+            #
+            # Analysis exists, record end time
+            #
+            analysis.task_end_time = timezone.now()  # with timezone
             #
             # Add up number of seconds for CPU time
             #
@@ -278,12 +287,6 @@ def perform_analysis(self, analysis_id: int, force: bool):
                     f"{analysis_id}/{self.request.id}: Duration of task could not be "
                     "computed."
                 )
-
-        except Analysis.DoesNotExist:
-            _log.debug(f"{analysis_id}/{self.request.id}: Analysis {analysis_id} does not exist.")
-            # Analysis was deleted, e.g. because topography or surface was missing, we
-            # simply ignore this case.
-            pass
     _log.debug(f"{analysis_id}/{self.request.id}: Task finished normally.")
 
 
