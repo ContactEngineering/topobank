@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.63.0 (2025-05-25)
+
+- ENH: Return task progress messages
+
 # 1.62.4 (2025-05-21)
 
 - BUG: Disabling deletion of old analyses during cache refresh

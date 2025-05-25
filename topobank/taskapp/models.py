@@ -274,6 +274,49 @@ class TaskStateModel(models.Model):
 
         return percent
 
+    def get_task_messages(self):
+        """Return progress message(s) of the task, if running"""
+        # Get all tasks
+        task_results = self.get_async_results()
+
+        messages = []
+        for r in task_results:
+            print(r.state, r.info)
+
+            # First check for errors
+            if r.state in celery.states.EXCEPTION_STATES or isinstance(
+                r.info, Exception
+            ):
+                # Some of the tasks failed, we return no progress message
+                return None
+            elif r.state == celery.states.SUCCESS or r.state == celery.states.PENDING:
+                # Task finished or is pending, no progress message
+                pass
+            elif r.info:
+                print(r.info)
+                # We assume that the state is 'PROGRESS' and we can just extract the
+                # progress dictionary.
+                try:
+                    task_progress = ProgressRecorder.Model(**r.info)
+                except pydantic.ValidationError:
+                    _log.info(
+                        f"Validation of progress dictionary for task {r} of analysis "
+                        f"{self} failed. Ignoring task progress."
+                    )
+                    pass
+                except TypeError:
+                    _log.info(
+                        f"Progress dictionary for task {r} of analysis {self} failed "
+                        "does not appear to be a dictionary. Ignoring task progress."
+                    )
+                    pass
+                else:
+                    messages += [task_progress.message]
+
+        print(messages)
+
+        return messages
+
     def set_pending_state(self, autosave=True):
         self.task_state = self.PENDING
         self.task_submission_time = timezone.now()
