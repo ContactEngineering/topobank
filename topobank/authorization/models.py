@@ -10,6 +10,7 @@ from django.db.models import Q, QuerySet
 from notifications.signals import notify
 from rest_framework.exceptions import PermissionDenied
 
+from ..organizations.models import Organization
 from ..users.anonymous import get_anonymous_user
 from ..users.models import User
 
@@ -169,6 +170,25 @@ class UserPermission(models.Model):
 
     # User that this permission relates to
     user = models.ForeignKey(User, on_delete=models.CASCADE)
+
+    # The actual permission
+    allow = models.CharField(max_length=4, choices=PERMISSION_CHOICES)
+
+
+class OrganizationPermission(models.Model):
+    """Permission applying to all members of an organization"""
+
+    class Meta:
+        # There can only be one permission per user
+        unique_together = ("parent", "organization")
+
+    # The set this permission belongs to
+    parent = models.ForeignKey(
+        PermissionSet, on_delete=models.CASCADE, related_name="organization_permissions"
+    )
+
+    # Organization that this permission relates to
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
 
     # The actual permission
     allow = models.CharField(max_length=4, choices=PERMISSION_CHOICES)

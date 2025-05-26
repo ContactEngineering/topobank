@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.64.0 (not yet released)
+
+- ENH: Added permissions for organizations
+
 # 1.63.0 (2025-05-25)
 
 - ENH: Return task progress messages
