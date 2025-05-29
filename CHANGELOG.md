@@ -2,6 +2,8 @@
 
 # 1.64.0 (not yet released)
 
+- API: Limit all user searches to organizations of the user
+- ENH: Advanced support for organizations
 - ENH: Added permissions for organizations
 
 # 1.63.0 (2025-05-25)
