@@ -1,4 +1,3 @@
-import os
 from urllib.parse import urlparse
 
 from django.contrib.auth.models import AbstractUser
@@ -18,8 +17,8 @@ class ORCIDException(Exception):
 
 
 class User(AbstractUser):
-    # First Name and Last Name do not cover name patterns
-    # around the globe.
+    # First name and last name (of the default `AbstractUser` model) do not cover name
+    # patterns around the globe.
     name = models.CharField(_("Name of User"), max_length=255)
 
     # Load anonymous user once and cache to avoid further database hits
@@ -46,10 +45,6 @@ class User(AbstractUser):
     def get_absolute_url(self, request=None):
         """URL of API endpoint for this user"""
         return reverse("users:user-api-detail", kwargs={"pk": self.pk}, request=request)
-
-    def get_media_path(self):
-        """Return relative path of directory for files of this user."""
-        return os.path.join("topographies", "user_{}".format(self.id))
 
     def _orcid_info(self):  # TODO use local cache
         try:

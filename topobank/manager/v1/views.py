@@ -57,14 +57,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         return Response(sorted(toplevel_tags))
 
 
-class SurfaceViewSet(
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
+class SurfaceViewSet(viewsets.ModelViewSet):
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
     pagination_class = LimitOffsetPagination
@@ -122,7 +115,7 @@ class TopographyViewSet(
                 verb=verb,
                 recipient=u.user,
                 description=f"User '{user.name}' {verb}d digital surface twin "
-                            f"'{instance.name}'.",
+                f"'{instance.name}'.",
             )
 
     def get_queryset(self):
@@ -166,7 +159,7 @@ class TopographyViewSet(
             self.permission_denied(
                 self.request,
                 message=f"User {self.request.user} has no permission to edit dataset "
-                        f"{parent.get_absolute_url()}.",
+                f"{parent.get_absolute_url()}.",
             )
 
         # Set creator to current user when creating a new topography
@@ -220,7 +213,7 @@ def download_surfaces(request, surfaces, container_filename=None):
     # If no: create a container for this surface on the fly
     #
     if len(surfaces) == 1:
-        surface, = surfaces
+        (surface,) = surfaces
         if surface.is_published:
             pub = surface.publication
             if container_filename is None:
@@ -241,7 +234,9 @@ def download_surfaces(request, surfaces, container_filename=None):
 
     if content_data is None:
         container_bytes = BytesIO()
-        _log.info(f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download...")
+        _log.info(
+            f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
+        )
         try:
             write_container_zip(container_bytes, surfaces)
         except FileNotFoundError:
@@ -305,7 +300,9 @@ def download_tag(request, name):
     tag.authorize_user(request.user, "view")
 
     # Trigger the actual download
-    return download_surfaces(request, tag.get_descendant_surfaces(), f"{slugify(tag.name)}.zip")
+    return download_surfaces(
+        request, tag.get_descendant_surfaces(), f"{slugify(tag.name)}.zip"
+    )
 
 
 @api_view(["POST"])
@@ -447,7 +444,8 @@ def versions(request):
 def statistics(request):
     # Global statistics
     stats = {
-        "nb_users": User.objects.count() - 1,  # -1 because we don't count the anonymous user
+        "nb_users": User.objects.count()
+        - 1,  # -1 because we don't count the anonymous user
         "nb_surfaces": Surface.objects.count(),
         "nb_topographies": Topography.objects.count(),
     }
@@ -471,6 +469,7 @@ def memory_usage(request):
         "resolution_x", "resolution_y", "task_memory"
     ).annotate(
         task_duration=F("task_end_time") - F("task_start_time"),
-        nb_data_pts=F("resolution_x") * Case(When(resolution_y__isnull=False, then=F("resolution_y")), default=1),
+        nb_data_pts=F("resolution_x")
+        * Case(When(resolution_y__isnull=False, then=F("resolution_y")), default=1),
     )
     return Response(list(r))

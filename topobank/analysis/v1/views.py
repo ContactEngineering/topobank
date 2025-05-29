@@ -42,9 +42,7 @@ class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     serializer_class = ConfigurationSerializer
 
 
-class WorkflowView(
-    viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin
-):
+class WorkflowView(viewsets.ReadOnlyModelViewSet):
     lookup_field = "name"
     lookup_value_regex = "[a-z0-9._-]+"
     serializer_class = WorkflowSerializer
