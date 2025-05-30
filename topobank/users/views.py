@@ -1,17 +1,15 @@
 from django.db.models import Q
-from rest_framework import mixins, viewsets
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework import viewsets
 
 from .anonymous import get_anonymous_user
 from .models import User
+from .permissions import UserPermission
 from .serializers import UserSerializer
 
 
-class UserViewSet(
-    mixins.RetrieveModelMixin, mixins.ListModelMixin, viewsets.GenericViewSet
-):
+class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly]
+    permission_classes = [UserPermission]
 
     def get_queryset(self):
         name = self.request.query_params.get("name")
