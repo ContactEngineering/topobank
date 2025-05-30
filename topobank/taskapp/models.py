@@ -281,8 +281,6 @@ class TaskStateModel(models.Model):
 
         messages = []
         for r in task_results:
-            print(r.state, r.info)
-
             # First check for errors
             if r.state in celery.states.EXCEPTION_STATES or isinstance(
                 r.info, Exception
@@ -293,7 +291,6 @@ class TaskStateModel(models.Model):
                 # Task finished or is pending, no progress message
                 pass
             elif r.info:
-                print(r.info)
                 # We assume that the state is 'PROGRESS' and we can just extract the
                 # progress dictionary.
                 try:
@@ -312,8 +309,6 @@ class TaskStateModel(models.Model):
                     pass
                 else:
                     messages += [task_progress.message]
-
-        print(messages)
 
         return messages
 
