@@ -140,10 +140,11 @@ class AnalysisSubject(models.Model):
 
 class Analysis(PermissionMixin, TaskStateModel):
     """
-    Concrete Analysis with state, function reference, arguments, and results.
-
-    Additionally, it saves the configuration which was present when
-    executing the analysis, i.e. versions of the main libraries needed.
+    This class represents the result of a workflow. It refers to the actual
+    implementation if the workflow and subject of the workflow and stores its output in
+    a folder. There is additional metadata stored in the database, such as the time
+    when the workflow was run and information about the server configuration when the
+    workflow was run.
     """
 
     #
@@ -442,8 +443,8 @@ def submit_analysis_task_to_celery(analysis: Analysis, force_submit: bool):
 
 class AnalysisFunction(models.Model):
     """
-    A convenience wrapper around the AnalysisImplementation that has representation in the
-    SQL database.
+    A convenience wrapper around the AnalysisImplementation that has representation in
+    the SQL database.
     """
 
     name = models.TextField(help_text="The name of this analysis function.", default="")
@@ -651,7 +652,7 @@ class AnalysisFunction(models.Model):
 
 class WorkflowTemplate(PermissionMixin, models.Model):
     """
-    WorkflowTemplate is a model that stores the state for a workflow
+    Workflow template stores a set of parameters for a workflow.
     """
 
     #
@@ -663,8 +664,9 @@ class WorkflowTemplate(PermissionMixin, models.Model):
     # Permissions
     #
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+
     #
-    # name of stored parameters
+    # Name of stored parameters
     #
     name = models.CharField(max_length=255)
 
@@ -673,6 +675,9 @@ class WorkflowTemplate(PermissionMixin, models.Model):
     #
     kwargs = models.JSONField(default=dict, blank=True)
 
+    #
+    # Workflow implementation
+    #
     implementation = models.ForeignKey(
         AnalysisFunction, on_delete=models.CASCADE, null=True
     )
@@ -681,7 +686,7 @@ class WorkflowTemplate(PermissionMixin, models.Model):
 
     def __str__(self):
         return (
-            f"Work Flow Template {self.id} - {self.name} for"
+            f"Workflow Template {self.id} - {self.name} for"
             f" implementation {self.implementation.display_name}"
         )
 

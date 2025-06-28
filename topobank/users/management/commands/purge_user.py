@@ -1,7 +1,6 @@
 import logging
 import sys
 
-from django.core.files.storage import default_storage
 from django.core.management.base import BaseCommand
 from guardian.shortcuts import get_user_perms, remove_perm
 from termsandconditions.models import UserTermsAndConditions
@@ -51,20 +50,6 @@ class Command(BaseCommand):
 
         _log.info("Removing terms and conditions seen or accepted by user '{}'..".format(user.name))
         userterms.delete()
-
-        #
-        # The media path of this user should not be deleted in general
-        # because there might be still data files for topographies
-        # which have been uploaded to other users' surfaces!
-        #
-        # If the path is empty, we can delete it.
-        # For S3 this would not be needed, but for file backends.
-        #
-        media_path = user.get_media_path()
-        media_dirs, media_files = default_storage.listdir(media_path)
-        if (len(media_dirs) == 0) and (len(media_files)):
-            _log.info("Deleting empty media path '%s'..", media_path)
-            default_storage.delete(user.get_media_path())
 
         _log.info("Deleting user object..")
         user.delete()

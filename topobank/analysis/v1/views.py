@@ -43,9 +43,7 @@ class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     serializer_class = ConfigurationSerializer
 
 
-class WorkflowView(
-    viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin
-):
+class WorkflowView(viewsets.ReadOnlyModelViewSet):
     lookup_field = "name"
     lookup_value_regex = "[a-z0-9._-]+"
     serializer_class = WorkflowSerializer
@@ -610,14 +608,7 @@ def set_result_permissions(request, workflow_id=None):
     return Response({}, status=204)
 
 
-class WorkflowTemplateView(
-    viewsets.GenericViewSet,
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.DestroyModelMixin,
-):
+class WorkflowTemplateView(viewsets.ModelViewSet):
     """
     Create, update, retrieve and delete workflow templates.
 
