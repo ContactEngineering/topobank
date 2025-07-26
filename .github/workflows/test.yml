@@ -78,8 +78,6 @@ jobs:
 
     - name: Install
       run: |
-        # Install not-yet-released django-notifications-hq 1.9.0
-        pip install git+https://github.com/django-notifications/django-notifications.git
         pip install .[dev]
         python manage.py collectstatic
 
