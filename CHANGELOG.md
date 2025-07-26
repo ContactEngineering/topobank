@@ -3,6 +3,7 @@
 # 1.64.0 (not yet released)
 
 - ENH: Added permissions for organizations
+- MAINT: Bumped Django to 5.2
 
 # 1.63.0 (2025-05-25)
 
