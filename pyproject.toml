@@ -107,7 +107,7 @@ dependencies = [
 
     # notifications
     # (static/js/notify.js appears to be missing from 1.8.0 and above)
-    'django-notifications-hq==1.8.3',
+    'django-notifications-hq>1.8.3',
 
     # openpyxl
     'openpyxl',
