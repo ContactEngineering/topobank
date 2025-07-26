@@ -1,6 +1,7 @@
 import json
 
 import numpy as np
+import xarray
 
 try:
     import jax.numpy as jnp
@@ -22,13 +23,17 @@ def test_json_encoder():
         "h": jnp.array([11, 12, 13], dtype=np.int64),
         "i": jnp.array([11, np.nan, 13]),
         "j": jnp.array([np.nan, np.nan, np.nan]),
+        "k": np.ma.masked_invalid(np.array([14, np.nan, 15], dtype=np.float64)),
+        "l": xarray.DataArray(data=[16, 17, np.nan], dims=["x"]),
     }
 
     s = json.dumps(d, cls=ExtendedJSONEncoder)
 
     assert s == (
-        '{"a": 1, "b": 2, "c": [1, 2, 3], "d": [1, 2, 4], "e": null, "f": [5.0, 6.0, null], "g": [3, 4], '
-        '"h": [11, 12, 13], "i": [11.0, null, 13.0], "j": [null, null, null]}'
+        '{"a": 1, "b": 2, "c": [1, 2, 3], "d": [1, 2, 4], "e": null, '
+        '"f": [5.0, 6.0, null], "g": [3, 4], "h": [11, 12, 13], '
+        '"i": [11.0, null, 13.0], "j": [null, null, null], "k": [14.0, null, 15.0], '
+        '"l": [16.0, 17.0, null]}'
     )
 
 

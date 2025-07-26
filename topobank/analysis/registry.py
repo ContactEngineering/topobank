@@ -56,7 +56,7 @@ class WorkflowNotImplementedException(WorkflowRegistryException):
     def __str__(self):
         return (
             f"Workflow '{self._name}' has no implementation for subject "
-            f"'{self._subject_model}' not found."
+            f"'{self._subject_model}'."
         )
 
 

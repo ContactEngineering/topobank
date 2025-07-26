@@ -4,7 +4,7 @@ from collections import defaultdict
 import pydantic
 from django.conf import settings
 from django.db.models import Case, F, Max, Sum, Value, When
-from django.http import HttpResponseBadRequest
+from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
@@ -13,14 +13,21 @@ from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 from trackstats.models import Metric
 
+from topobank.users.models import resolve_user
+
 from ...files.serializers import ManifestSerializer
 from ...manager.models import Surface
 from ...manager.utils import demangle_content_type
 from ...usage_stats.utils import increase_statistics_by_date_and_object
-from ..models import Analysis, AnalysisFunction, Configuration
+from ..models import Analysis, AnalysisFunction, Configuration, WorkflowTemplate
 from ..permissions import AnalysisFunctionPermissions
-from ..serializers import ConfigurationSerializer, ResultSerializer, WorkflowSerializer
-from ..utils import filter_and_order_analyses
+from ..serializers import (
+    ConfigurationSerializer,
+    ResultSerializer,
+    WorkflowSerializer,
+    WorkflowTemplateSerializer,
+)
+from ..utils import filter_and_order_analyses, filter_workflow_templates
 from .controller import AnalysisController
 
 _log = logging.getLogger(__name__)
@@ -73,26 +80,24 @@ class ResultView(
         "subject_dispatch__tag",
         "subject_dispatch__topography",
         "subject_dispatch__surface",
-    ).order_by("-start_time")
+    ).order_by("-task_start_time")
     serializer_class = ResultSerializer
     pagination_class = LimitOffsetPagination
 
     def list(self, request, *args, **kwargs):
         try:
             controller = AnalysisController.from_request(request, **kwargs)
-        except ValueError as err:
-            return HttpResponseBadRequest(reason=str(err))
+        except ValueError as exc:
+            return HttpResponseBadRequest(content=str(exc))
 
         #
         # Trigger missing analyses
         #
         try:
             controller.trigger_missing_analyses()
-        except pydantic.ValidationError:
+        except pydantic.ValidationError as exc:
             # The kwargs that were provided do not match the function
-            return HttpResponseBadRequest(
-                "Error validating kwargs for analysis function"
-            )
+            return HttpResponseBadRequest(content=str(exc))
 
         #
         # Get context from controller and return
@@ -134,8 +139,16 @@ def pending(request):
     queryset = Analysis.objects.for_user(request.user).filter(
         task_state__in=[Analysis.PENDING, Analysis.STARTED]
     )
+    pending_workflows = []
+    for analysis in queryset:
+        # We need to get actually state from `get_task_state`, which combines self
+        # reported states and states from Celery.
+        if analysis.get_task_state() in {Analysis.PENDING, Analysis.STARTED}:
+            pending_workflows += [analysis]
     return Response(
-        ResultSerializer(queryset, many=True, context={"request": request}).data
+        ResultSerializer(
+            pending_workflows, many=True, context={"request": request}
+        ).data
     )
 
 
@@ -149,7 +162,9 @@ def named_result(request):
         queryset = queryset.filter(name__icontains=name)
     return Response(
         ResultSerializer(
-            queryset.order_by("-start_time"), many=True, context={"request": request}
+            queryset.order_by("-task_start_time"),
+            many=True,
+            context={"request": request},
         ).data
     )
 
@@ -547,7 +562,7 @@ def memory_usage(request):
             .annotate(
                 resolution_x=F("subject_dispatch__topography__resolution_x"),
                 resolution_y=F("subject_dispatch__topography__resolution_y"),
-                duration=F("end_time") - F("start_time"),
+                task_duration=F("task_end_time") - F("task_start_time"),
                 subject=Case(
                     When(subject_dispatch__tag__isnull=False, then=Value("tag")),
                     When(
@@ -561,3 +576,91 @@ def memory_usage(request):
         ):
             m[function_name] += [x]
     return Response(m, status=200)
+
+
+@api_view(["PATCH"])
+def set_result_permissions(request, workflow_id=None):
+    analysis_obj = Analysis.objects.get(pk=workflow_id)
+    user = request.user
+
+    # Check that user has the right to modify permissions
+    if not analysis_obj.has_permission(user, "view"):
+        return HttpResponseForbidden()
+
+    for permission in request.data:
+        other_user = resolve_user(permission["user"])
+        if other_user == user:
+            if permission["permission"] == "no-access":
+                return Response(
+                    {"message": "Permissions cannot be revoked from logged in user"},
+                    status=405,
+                )  # Not allowed
+
+    # Everything looks okay, update permissions
+    for permission in request.data:
+        other_user = resolve_user(permission["user"])
+        if other_user != user:
+            perm = permission["permission"]
+            if perm == "no-access":
+                analysis_obj.revoke_permission(other_user)
+            else:
+                analysis_obj.grant_permission(other_user, perm)
+
+    # Permissions were updated successfully, return 204 No Content
+    return Response({}, status=204)
+
+
+class WorkflowTemplateView(
+    viewsets.GenericViewSet,
+    mixins.ListModelMixin,
+    mixins.CreateModelMixin,
+    mixins.UpdateModelMixin,
+    mixins.RetrieveModelMixin,
+    mixins.DestroyModelMixin,
+):
+    """
+    Create, update, retrieve and delete workflow templates.
+
+    """
+
+    serializer_class = WorkflowTemplateSerializer
+    permission_classes = [AnalysisFunctionPermissions]
+
+    def get_queryset(self):
+        """
+        Get the queryset for the workflow templates.
+        """
+        workflows = [
+            workflow.id
+            for workflow in AnalysisFunction.objects.all()
+            if workflow.has_permission(self.request.user)
+        ]
+        qs = WorkflowTemplate.objects.filter(implementation__in=workflows)
+
+        return filter_workflow_templates(self.request, qs)
+
+    def perform_create(self, serializer):
+        """
+        Create a new workflow template.
+        """
+        serializer.save(creator=self.request.user)
+
+    def performance_update(self, serializer):
+        """
+        Update an existing workflow template.
+        """
+        serializer.save()
+
+    def retrieve(self, request, *args, **kwargs):
+        """
+        Retrieve a workflow template.
+        """
+        instance = self.get_object()
+        serializer = self.get_serializer(instance)
+        return Response(serializer.data)
+
+    def perform_destroy(self, instance):
+        """
+        Delete a workflow template.
+        """
+        instance.delete()

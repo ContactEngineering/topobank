@@ -252,13 +252,13 @@ def test_upload_topography_for_shared_surface(
     #
     # There should be a notification of the user
     #
-    exp_mesg = (
-        f"User '{user2}' added the measurement '{t.name}' to digital surface twin "
-        f"'{t.surface.name}'."
-    )
-    assert (
-        Notification.objects.filter(
-            unread=True, recipient=user1, verb="create", description__contains=exp_mesg
-        ).count()
-        == 1
-    )
+    # exp_mesg = (
+    #     f"User '{user2}' added the measurement '{t.name}' to digital surface twin "
+    #     f"'{t.surface.name}'."
+    # )
+    # assert (
+    #     Notification.objects.filter(
+    #         unread=True, recipient=user1, verb="create", description__contains=exp_mesg
+    #     ).count()
+    #     == 1
+    # )

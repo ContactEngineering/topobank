@@ -19,6 +19,7 @@ from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Surface, Topography
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
+    PermissionSetFactory,
     SurfaceAnalysisFactory,
     SurfaceFactory,
     Topography1DFactory,
@@ -75,8 +76,8 @@ def test_analysis_times(
         subject_topography=topo,
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
-        start_time=datetime.datetime(2018, 1, 1, 12),
-        end_time=datetime.datetime(
+        task_start_time=datetime.datetime(2018, 1, 1, 12),
+        task_end_time=datetime.datetime(
             2018, 1, 1, 13, 1, 1
         ),  # duration: 1 hour, 1 minute, 1 sec
     )
@@ -94,8 +95,8 @@ def test_analysis_times(
 
     analyses = response.data["analyses"]
     assert len(analyses) == 1
-    assert analyses[0]["start_time"] == "2018-01-01T12:00:00+01:00"
-    assert analyses[0]["duration"] == "01:01:01"
+    assert analyses[0]["task_start_time"] == "2018-01-01T12:00:00+01:00"
+    assert analyses[0]["task_duration"] == "01:01:01"
 
 
 @pytest.mark.django_db
@@ -126,8 +127,8 @@ def test_show_only_last_analysis(
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
-        start_time=datetime.datetime(2018, 1, 1, 12),
-        end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
+        task_start_time=datetime.datetime(2018, 1, 1, 12),
+        task_end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
         result=result,
     )
     # save a second only, which has a later start time
@@ -137,8 +138,8 @@ def test_show_only_last_analysis(
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
-        start_time=datetime.datetime(2018, 1, 2, 12),
-        end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
+        task_start_time=datetime.datetime(2018, 1, 2, 12),
+        task_end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
         result=result,
     )
 
@@ -151,8 +152,8 @@ def test_show_only_last_analysis(
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
-        start_time=datetime.datetime(2018, 1, 3, 12),
-        end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
+        task_start_time=datetime.datetime(2018, 1, 3, 12),
+        task_end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
         result=result,
     )
 
@@ -163,8 +164,8 @@ def test_show_only_last_analysis(
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
-        start_time=datetime.datetime(2018, 1, 4, 12),
-        end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
+        task_start_time=datetime.datetime(2018, 1, 4, 12),
+        task_end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
         result=result,
     )
 
@@ -185,8 +186,8 @@ def test_show_only_last_analysis(
 
     analyses = response.data["analyses"]
     assert len(analyses) == 2
-    assert analyses[0]["start_time"] == "2018-01-02T12:00:00+01:00"
-    assert analyses[1]["start_time"] == "2018-01-04T12:00:00+01:00"
+    assert analyses[0]["task_start_time"] == "2018-01-02T12:00:00+01:00"
+    assert analyses[1]["task_start_time"] == "2018-01-04T12:00:00+01:00"
 
 
 @pytest.mark.django_db
@@ -688,17 +689,17 @@ def test_shared_topography_triggers_no_new_analysis(
     TopographyAnalysisFactory(
         subject_topography=topo1a,
         function=func1,
-        start_time=datetime.datetime(2019, 1, 1, 12),
+        task_start_time=datetime.datetime(2019, 1, 1, 12),
     )
     TopographyAnalysisFactory(
         subject_topography=topo1b,
         function=func1,
-        start_time=datetime.datetime(2019, 1, 1, 13),
+        task_start_time=datetime.datetime(2019, 1, 1, 13),
     )
     TopographyAnalysisFactory(
         subject_topography=topo2a,
         function=func1,
-        start_time=datetime.datetime(2019, 1, 1, 14),
+        task_start_time=datetime.datetime(2019, 1, 1, 14),
     )
 
     # Function should have three analyses, all successful (the default when using the factory)
@@ -728,9 +729,9 @@ def test_shared_topography_triggers_no_new_analysis(
     # triggered and not yet started
     analyses = response.data["analyses"]
     assert len(analyses) == 3
-    assert analyses[0]["start_time"] == "2019-01-01T12:00:00+01:00"  # topo1a
-    assert analyses[1]["start_time"] == "2019-01-01T13:00:00+01:00"  # topo1b
-    assert analyses[2]["start_time"] == "2019-01-01T14:00:00+01:00"  # topo1b
+    assert analyses[0]["task_start_time"] == "2019-01-01T12:00:00+01:00"  # topo1a
+    assert analyses[1]["task_start_time"] == "2019-01-01T13:00:00+01:00"  # topo1b
+    assert analyses[2]["task_start_time"] == "2019-01-01T14:00:00+01:00"  # topo1b
 
     api_client.logout()
 
@@ -750,7 +751,7 @@ def test_shared_topography_triggers_no_new_analysis(
     # We should see start times of just one topography
     analyses = response.data["analyses"]
     assert len(analyses) == 1
-    assert analyses[0]["start_time"] == "2019-01-01T14:00:00+01:00"  # topo2a
+    assert analyses[0]["task_start_time"] == "2019-01-01T14:00:00+01:00"  # topo2a
 
     api_client.logout()
 
@@ -849,3 +850,75 @@ def test_show_analysis_filter_without_subject_list(api_client):
 
     assert response.status_code == 200, response.reason_phrase
     assert len(response.data["analyses"]) == 1
+
+
+def test_set_result_permissions(
+    api_client
+):
+    user = UserFactory()
+    user2 = UserFactory()
+    surf1 = SurfaceFactory(creator=user)
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    analysis1 = SurfaceAnalysisFactory(
+        subject_surface=surf1,
+        function=func,
+        permissions=PermissionSetFactory(
+            user=user,
+            allow='full'
+        ),
+    )
+    obj = Analysis.objects.get(id=analysis1.id)
+    obj.name = "test"
+    obj.save()
+    assert obj.subject == surf1
+
+    # # check user2 cannot view model
+    api_client.force_login(user2)
+    response = api_client.get(
+        f"{reverse('analysis:named-result-list')}"
+    )
+    assert response.status_code == 200
+    assert len(response.data) == 0
+
+    # check user1 can view model
+    api_client.force_login(user)
+    response = api_client.get(
+        f"{reverse('analysis:named-result-list')}"
+    )
+
+    response = api_client.patch(
+        f"{reverse('analysis:set-result-permissions', kwargs=dict(workflow_id=analysis1.id))}",
+        [
+            {
+                "user": user2.get_absolute_url(),
+                "permission": "full",
+            }
+        ],
+    )
+    assert response.status_code == 204
+
+    # check if user1 can view model
+
+    response = api_client.get(
+        f"{reverse('analysis:named-result-list')}"
+    )
+    assert response.status_code == 200
+    assert len(response.data) == 1
+
+    response = api_client.patch(
+        f"{reverse('analysis:set-result-permissions', kwargs=dict(workflow_id=analysis1.id))}",
+        [
+            {
+                "user": user.get_absolute_url(),
+                "permission": "no-access",
+            }
+        ],
+    )
+    assert response.status_code == 405  # Cannot remove permission from logged in user
+
+    api_client.force_login(user2)
+    response = api_client.get(
+        f"{reverse('analysis:named-result-list')}"
+    )
+    assert response.status_code == 200
+    assert len(response.data) == 1

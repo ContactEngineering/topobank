@@ -2,9 +2,9 @@ import pint
 from django.core.exceptions import ValidationError
 from django.db import models
 
-from topobank.authorization.mixins import PermissionMixin
-from topobank.authorization.models import PermissionSet
-from topobank.manager.models import Surface
+from ..authorization.mixins import PermissionMixin
+from ..authorization.models import PermissionSet
+from ..manager.models import Surface
 
 _ureg = pint.UnitRegistry()
 
@@ -93,7 +93,7 @@ class Property(PermissionMixin, models.Model):
         # Invariant 3
         if self.value_categorical is not None and self.unit is not None:
             raise ValidationError(
-                "If the Property is categorical, the unit must be 'None'"
+                "If the Property is categorical, the unit must be None"
             )
         # Check unit
         if self.unit is not None:

@@ -1,5 +1,69 @@
 # Changelog for *TopoBank*
 
+# 1.64.0 (not yet released)
+
+- ENH: Added permissions for organizations
+
+# 1.63.0 (2025-05-25)
+
+- ENH: Return task progress messages
+- MAINT: Don't delete analyses when refreshing the cache, but mark them as deprecated
+
+# 1.62.4 (2025-05-21)
+
+- BUG: Disabling deletion of old analyses during cache refresh
+
+# 1.62.3 (2025-05-20)
+
+- BUG: Delete analyses before refreshing the cache
+
+# 1.62.2 (2025-05-18)
+
+- BUG: Proper exception when Meta.dependencies is not defined
+
+# 1.62.1 (2025-05-11)
+
+- BUG: Permission for imported containers
+- MAINT: Support for JSON serialization of xarrays
+
+# 1.62.0 (2025-05-08)
+
+- ENH: Endpoint for setting permissions on workflow results
+  (to share a saved result with another user)
+- BUG: Fixed JSON-encoding of masked arrays
+
+# 1.61.2 (2025-05-05)
+
+- BUG: Make sure all keyword arguments are always filled
+
+# 1.61.1 (2025-05-05)
+
+- API: Renamed `error` to `task_error`
+- API: Return validation error in 400 body
+- BUG: Do not fill missing keyword arguments to make sure analysis result remains
+  findable
+- BUG: Store scheduled dependencies
+
+# 1.61.0 (2025-05-05)
+
+- API: Renamed `start_time` to `task_start_time` and `end_time` to `task_end_time`
+- ENH: Workflow templates
+- ENH: Import properties from ZIP container
+- MAINT: Renamed `import_surfaces` to `import_datasets`
+- MAINT: Added `task_submission_time`, which allows better failure detection
+
+# 1.60.1 (2025-04-27)
+
+- BUG: More robust task state reporting
+
+# 1.60.0 (2025-04-27)
+
+- API: Asynchronous preparation of ZIP downloads (#249)
+
+# 1.59.0 (2025-04-26)
+
+- ENH: Download of tags
+
 # 1.58.5 (2025-04-14)
 
 - API: Sync functions by name, not display name

@@ -16,7 +16,6 @@ import matplotlib.pyplot
 import numpy as np
 import PIL
 import tagulous.models as tm
-from SurfaceTopography.IO import ReaderBase
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
@@ -24,10 +23,12 @@ from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
+from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.Metadata import InstrumentParametersModel
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -36,10 +37,12 @@ from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFul
 from ..files.models import Folder, Manifest
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
+from .export_zip import write_container_zip
 from .utils import get_topography_reader, render_deepzoom
 
 _log = logging.getLogger(__name__)
 
+pre_refresh_cache = django.dispatch.Signal()
 post_refresh_cache = django.dispatch.Signal()
 
 MAX_LENGTH_DATAFILE_FORMAT = (
@@ -357,7 +360,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
     def __str__(self):
-        s = self.name
+        s = f"Dataset '{self.name}'"
         if self.is_published:
             s += f" (version {self.publication.version})"
         return s
@@ -383,14 +386,14 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         if created and self.permissions is None:
             # Create a new permission set for this dataset
             _log.debug(
-                f"Creating an empty permission set for surface {self.id} which was "
-                f"just created."
+                f"NEW DATASET: Creating an empty permission set for dataset {self}."
             )
             self.permissions = PermissionSet.objects.create()
         if self.attachments is None:
             # Create a new folder for attachments
             _log.debug(
-                f"Creating an empty folder for attachments to surface {self.id}."
+                "ATTACHMENTS MISSING: Creating an empty folder for attachments to "
+                f"{self}."
             )
             self.attachments = Folder.objects.create(
                 permissions=self.permissions, read_only=False
@@ -722,6 +725,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         related_name="topography_deepzooms",
     )
 
+    # Timestamp of creation of this measurement instance
+    creation_time = models.DateTimeField(auto_now_add=True)
+
     # Changes in these fields trigger a refresh of the topography cache and of all analyses
     _significant_fields = {
         "size_x",
@@ -739,6 +745,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Methods
     #
     def save(self, *args, **kwargs):
+        update_fields = kwargs.get("update_fields", None)
         created = self.pk is None
         if created:
             if self.creator is None:
@@ -746,7 +753,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.permissions = self.surface.permissions
         if self.attachments is None:
             _log.debug(
-                f"Creating an empty folder for attachments to topography {self.id}."
+                "ATTACHMENTS MISSING: Creating an empty folder for attachments to "
+                f"{self}."
             )
             self.attachments = Folder.objects.create(
                 permissions=self.permissions, read_only=False
@@ -765,7 +773,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         else:
             # Check which fields actually changed
             changed_fields = [
-                getattr(self, name) != getattr(old_obj, name)
+                (update_fields is None or name in update_fields)
+                and getattr(self, name) != getattr(old_obj, name)
                 for name in self._significant_fields
             ]
 
@@ -775,11 +784,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 if changed
             ]
 
-            # `instrument_parameters` is special as it can contain non-significant entries
-            if InstrumentParametersModel(
-                **self.instrument_parameters
-            ) != InstrumentParametersModel(**old_obj.instrument_parameters):
-                changed_fields += ["instrument_parameters"]
+            # `instrument_parameters` is special as it can contain non-significant
+            # entries
+            if update_fields is None or "instrument_parameters" in update_fields:
+                if InstrumentParametersModel(
+                    **self.instrument_parameters
+                ) != InstrumentParametersModel(**old_obj.instrument_parameters):
+                    changed_fields += ["instrument_parameters"]
 
             # We need to refresh if any of the significant fields changed during this save
             refresh_dependent_data = any(changed_fields)
@@ -826,7 +837,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         delete("deepzoom", Folder.DoesNotExist)
 
     def __str__(self):
-        return "Topography '{0}' from {1}".format(self.name, self.measurement_date)
+        return "Measurement '{0}'".format(self.name)
 
     @property
     def label(self):
@@ -1017,6 +1028,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         else:
             return topo
 
+    lazy_read = read  # For compatibility with datasets that implement `lazy_read`
     topography = read  # Renaming this, mark `topography` as deprecated before v2
 
     def to_dict(self):
@@ -1346,6 +1358,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         Inspect datafile and renew cached properties, in particular database entries on
         resolution, size etc. and the squeezed NetCDF representation of the data.
         """
+        # Send signal
+        _log.debug(f"Sending `pre_refresh_cache` signal from {self}...")
+        pre_refresh_cache.send(sender=Topography, instance=self)
+
         # First check if we have a datafile
         if not self.datafile.exists():
             raise RuntimeError(
@@ -1355,15 +1371,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Check if this is the first time we are opening this file...
         populate_initial_metadata = self.data_source is None
-
-        if populate_initial_metadata:
-            # Notify users that a new file has been uploaded
-            self.notify_users(
-                self.creator,
-                "create",
-                f"User '{self.creator}' added the measurement '{self.name}' to "
-                f"digital surface twin '{self.surface.name}'.",
-            )
 
         # Populate datafile information in the database.
         # (We never load the topography in the web server, so we don't know this until
@@ -1544,3 +1551,90 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
     def task_worker(self):
         self.refresh_cache()
+
+
+class ZipContainer(PermissionMixin, TaskStateModel):
+    #
+    # Manager
+    #
+    objects = AuthorizedManager()
+
+    #
+    # Model hierarchy and permissions
+    #
+    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+
+    # The file itself
+    manifest = models.ForeignKey(
+        Manifest,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="zip_containers",
+    )
+
+    # Timestamp of creation of this ZIP container
+    creation_time = models.DateTimeField(auto_now_add=True)
+    update_time = models.DateTimeField(auto_now=True)
+
+    def task_worker(self, tag_name=None, surface_ids=None):
+        #
+        # Fetch user
+        #
+        user = self.permissions.user_permissions.first().user
+
+        #
+        # Fetch tag (if present)
+        #
+        if tag_name is not None:
+            tag = Tag.objects.get(name=tag_name)
+            tag.authorize_user(user, "view")
+            surfaces = list(tag.get_descendant_surfaces())
+        elif surface_ids is not None:
+            surfaces = [Surface.objects.get(id=id) for id in surface_ids]
+            for surface in surfaces:
+                if not surface.has_permission(user, "view"):
+                    raise PermissionDenied()
+        else:
+            raise RuntimeError("Please specify either a tag id or dataset ids.")
+
+        #
+        # Idiot check
+        #
+        if not len(surfaces) > 0:
+            raise RuntimeError("Please specify at least one dataset.")
+
+        #
+        # Guess a filename
+        #
+        if len(surfaces) == 1:
+            container_filename = f"{slugify(surfaces[0].name)}.zip"
+        else:
+            container_filename = "digital-surface-twins.zip"
+
+        container_data = io.BytesIO()
+        _log.info(
+            f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
+        )
+        try:
+            write_container_zip(container_data, surfaces)
+        except FileNotFoundError:
+            return RuntimeError(
+                "Cannot create ZIP container for download because some data file "
+                "could not be accessed. (The file may be missing.)"
+            )
+
+        #
+        # Create and write the file to storage
+        #
+        self.manifest = Manifest.objects.create(
+            permissions=self.permissions,
+            filename=container_filename,
+            kind="der",
+        )
+        self.manifest.save_file(container_data)
+
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this tag"""
+        return reverse(
+            "manager:zip-container-v2-detail", kwargs=dict(pk=self.id), request=request
+        )

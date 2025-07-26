@@ -4,6 +4,7 @@ import sys
 from django.db.models import Q
 from django.db.models.signals import post_delete, pre_delete, pre_save
 from django.dispatch import receiver
+from django.utils import timezone
 
 from ..authorization.models import PermissionSet
 from ..manager.models import Topography, post_refresh_cache
@@ -49,17 +50,20 @@ def post_delete_analysis(sender, instance, **kwargs):
 
 
 @receiver(post_refresh_cache, sender=Topography)
-def post_refresh_measurement_cache(sender, instance, **kwargs):
+def delete_all_related_analyses(sender, instance, **kwargs):
     # Cache is renewed, this means something significant changed and we need to remove
     # the analyses
     _log.debug(
-        f"Cache of measurement {instance} was renewed: Deleting all affected "
-        "analyses..."
+        f"Cache of measurement {instance} was renewed: Marking all affected "
+        "analyses as invalid..."
     )
-    Analysis.objects.filter(
+    analyses = Analysis.objects.filter(
         Q(subject_dispatch__topography=instance)
         | Q(subject_dispatch__surface=instance.surface)
-    ).delete()
+    )
+    for analysis in analyses:
+        analysis.deprecation_time = timezone.now()
+    Analysis.objects.bulk_update(analyses, ["deprecation_time"])
 
 
 @receiver(pre_save, sender=Topography)
@@ -68,11 +72,14 @@ def pre_measurement_save(sender, instance, **kwargs):
     if created:
         # Measurement was created and added to a dataset: We need to delete the
         # corresponding dataset analysis
-        _log.debug(
-            f"A measurement was added to dataset {instance.surface}: Deleting all "
-            "affected analyses..."
-        )
-        Analysis.objects.filter(subject_dispatch__surface=instance.surface).delete()
+        analyses = Analysis.objects.filter(subject_dispatch__surface=instance.surface)
+        if analyses.count() > 0:
+            _log.debug(
+                "INVALIDATE WORKFLOWS: A measurement was added to dataset "
+                f"{instance.surface}: Deleting all affected workflow results with "
+                f"ids {', '.join(analyses.values_list('id'))}..."
+            )
+        analyses.delete()
 
 
 @receiver(pre_delete, sender=Topography)

@@ -7,10 +7,10 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
-from ..models import Analysis, AnalysisFunction, AnalysisSubject
+from ..models import Analysis, AnalysisFunction, AnalysisSubject, WorkflowTemplate
 from ..registry import WorkflowNotImplementedException
 from ..serializers import ResultSerializer
-from ..utils import find_children
+from ..utils import find_children, merge_dicts
 
 _log = logging.getLogger(__name__)
 
@@ -69,9 +69,10 @@ class AnalysisController:
             )
 
         # Validate (and type convert) kwargs
-        self._kwargs = self._workflow.clean_kwargs(kwargs, fill_missing=False)
-        if self._kwargs == {}:
+        if kwargs is None or kwargs == {}:
             self._kwargs = None
+        else:
+            self._kwargs = self._workflow.clean_kwargs(kwargs)
 
         # Calculate subjects for the analyses, filtered for those which have an
         # implementation
@@ -203,6 +204,16 @@ class AnalysisController:
         )
         if workflow_kwargs is not None and isinstance(workflow_kwargs, str):
             workflow_kwargs = dict_from_base64(workflow_kwargs)
+
+        workflow_template_id, data = AnalysisController.get_request_parameter(
+            ["workflow_template"], data
+        )
+        if workflow_template_id is not None:
+            workflow_template = WorkflowTemplate.objects.get(id=workflow_template_id)
+            workflow_kwargs = merge_dicts(
+                workflow_template.kwargs,
+                [workflow_kwargs]
+            )
 
         if len(data) > 0:
             raise ValueError(
@@ -350,7 +361,7 @@ class AnalysisController:
                 "subject_dispatch__topography_id",
                 "subject_dispatch__surface_id",
                 "subject_dispatch__tag_id",
-                "-start_time",
+                "-task_start_time",
             )
             .distinct(
                 "subject_dispatch__topography_id",
@@ -418,10 +429,6 @@ class AnalysisController:
         if self._kwargs is not None:
             kwargs.update(self._kwargs)
 
-        # For every possible implemented subject type the following is done:
-        # We use the common unique keyword arguments if there are any; if not
-        # the default arguments for the implementation is used
-
         subjects_triggered = []
         for subject in self.subjects_without_analysis_results:
             if subject.is_shared(self._user):
@@ -431,13 +438,14 @@ class AnalysisController:
                     )
                     subjects_triggered += [subject]
                     _log.info(
-                        f"Triggered analysis {triggered_analysis.id} for function '{self._workflow.name}' "
-                        f"and subject '{subject}'."
+                        f"Triggered workflow '{self._workflow.name}' for "
+                        f"{subject} with kwargs '{triggered_analysis.kwargs}' "
+                        f"(result id {triggered_analysis.id})."
                     )
                 except WorkflowNotImplementedException:
                     _log.info(
                         f"Did NOT trigger workflow '{self._workflow.name}' because it "
-                        f"does not have an implementation for '{subject}'."
+                        f"does not have an implementation for {subject}."
                     )
 
         # Now all subjects which needed to be triggered, should have been triggered with common arguments if possible

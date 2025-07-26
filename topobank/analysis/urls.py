@@ -10,6 +10,7 @@ router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"api/configuration", v1.ConfigurationView, basename="configuration")
 router.register(r"api/workflow", v1.WorkflowView, basename="workflow")
 router.register(r"api/result", v1.ResultView, basename="result")
+router.register(r"api/template", v1.WorkflowTemplateView, basename="workflow-template")
 
 urlpatterns = router.urls
 
@@ -37,6 +38,13 @@ urlpatterns += [
         "api/named-result",
         view=v1.named_result,
         name="named-result-list",
+    ),
+    # PATCH
+    # * update result permissions
+    path(
+        "api/set-result-permissions/<int:workflow_id>",
+        view=v1.set_result_permissions,
+        name="set-result-permissions",
     ),
     # GET
     # * Triggers analyses if not yet running

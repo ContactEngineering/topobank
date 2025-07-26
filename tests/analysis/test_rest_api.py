@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.models import Analysis, AnalysisFunction, WorkflowTemplate
 from topobank.manager.models import Tag
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
@@ -9,6 +9,7 @@ from topobank.testing.factories import (
     SurfaceFactory,
     Topography1DFactory,
     UserFactory,
+    WorkflowTemplateFactory,
 )
 from topobank.testing.utils import ASSERT_EQUAL_IGNORE_VALUE, assert_dict_equal
 
@@ -104,6 +105,31 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     assert Analysis.objects.count() == 2
 
 
+def test_query_with_partial_kwargs(api_client, one_line_scan, test_analysis_function):
+    user = one_line_scan.creator
+    one_line_scan.grant_permission(user, "view")
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}?topography={one_line_scan.id}"
+        f"&workflow={test_analysis_function.name}"
+    )
+    assert response.status_code == 200, response.reason_phrase
+    assert len(response.data["analyses"]) == 0
+
+    # Login
+    api_client.force_login(user)
+
+    # Try querying with partial parameters
+    response = api_client.get(
+        f"{reverse('analysis:result-list')}"
+        f"?subjects={subjects_to_base64([one_line_scan])}"
+        f"&workflow={test_analysis_function.name}"
+        f"&kwargs={dict_to_base64(dict(a=2))}"
+    )
+    assert response.status_code == 200
+    assert len(response.data["analyses"]) == 1
+    assert Analysis.objects.count() == 1
+
+
 @pytest.mark.django_db
 def test_function_info(api_client, user_alice, handle_usage_statistics):
     api_client.force_login(user_alice)
@@ -130,8 +156,13 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
             "display_name": "Test implementation",
             "visualization_type": "series",
             "kwargs_schema": {
-                "a": {"default": 1, "title": "A", "type": "integer"},
-                "b": {"default": "foo", "title": "B", "type": "string"},
+                "title": ASSERT_EQUAL_IGNORE_VALUE,
+                "additionalProperties": False,
+                "type": "object",
+                "properties": {
+                    "a": {"default": 1, "title": "A", "type": "integer"},
+                    "b": {"default": "foo", "title": "B", "type": "string"},
+                },
             },
         },
     )
@@ -296,7 +327,7 @@ def test_query_with_error(
     assert len(response.data["analyses"]) == 1
     assert Analysis.objects.count() == 1
 
-    assert response.data["analyses"][0]["error"] == "An error occurred!"
+    assert response.data["analyses"][0]["task_error"] == "An error occurred!"
     assert "return runner.eval" in response.data["analyses"][0]["task_traceback"]
 
 
@@ -339,7 +370,7 @@ def test_query_with_error_in_dependency(
     assert len(response.data["analyses"]) == 1
     assert Analysis.objects.count() == 2
 
-    assert response.data["analyses"][0]["error"] == "An error occurred!"
+    assert response.data["analyses"][0]["task_error"] == "An error occurred!"
     # We currently do not get a traceback from dependencies
     assert response.data["analyses"][0]["task_traceback"] is None
 
@@ -382,7 +413,9 @@ def test_save_tag_analysis(
     assert len(response.data) == 0
 
     # Set analysis name and description
-    response = api_client.post(set_name_url, {"name": "my-name", "description": "my-description"})
+    response = api_client.post(
+        set_name_url, {"name": "my-name", "description": "my-description"}
+    )
     assert response.status_code == 200
     assert Analysis.objects.count() == 1  # This does not make a copy
     assert Analysis.objects.get(name="my-name").description == "my-description"
@@ -441,7 +474,9 @@ def test_query_pending(
 
 
 @pytest.mark.django_db
-def test_query_with_not_implemented_subject(api_client, one_line_scan, test_analysis_function):
+def test_query_with_not_implemented_subject(
+    api_client, one_line_scan, test_analysis_function
+):
     user = one_line_scan.creator
     one_line_scan.grant_permission(user, "view")
     surface = one_line_scan.surface
@@ -450,4 +485,126 @@ def test_query_with_not_implemented_subject(api_client, one_line_scan, test_anal
         f"&workflow=topobank.testing.topography_only_test"
     )
     assert response.status_code == 200
-    assert response.data['analyses'] == []
+    assert response.data["analyses"] == []
+
+
+@pytest.mark.django_db
+def test_workflow_template_api(api_client, one_line_scan, test_analysis_function):
+
+    user = one_line_scan.creator
+    one_line_scan.grant_permission(user, "view")
+
+    kwargs = dict(a=1, b="foo")
+    url = f"http://testserver/analysis/api/workflow/{test_analysis_function.name}/"
+
+    expected_template = {
+        "name": "my-template",
+        "kwargs": kwargs,
+        "implementation": url,
+    }
+
+    api_client.force_authenticate(user)
+
+    response = api_client.post(
+        reverse("analysis:workflow-template-list"),
+        data=expected_template,
+        format="json",
+    )
+
+    assert response.status_code == 201
+    assert response.data["name"] == "my-template"
+
+    template = WorkflowTemplate.objects.get(name=expected_template["name"])
+    assert (
+        response.data["kwargs"] == kwargs
+    ), f"Expected same name, got {template.name} != {expected_template['name']}"
+    assert (
+        template.name == expected_template["name"]
+    ), f"Expected same name, got {template.name} != {expected_template['name']}"
+    assert (
+        template.kwargs == expected_template["kwargs"]
+    ), f"Expected same kwargs, got {template.kwargs} != {expected_template['kwargs']}"
+    assert (
+        template.implementation == test_analysis_function
+    ), f"Expected same analysis function, got {template.implementation} \
+            != {test_analysis_function.name}"
+
+    # test retrieving the template
+    response = api_client.get(
+        reverse("analysis:workflow-template-detail", kwargs=dict(pk=template.id))
+    )
+
+    assert response.status_code == 200
+    assert response.data["name"] == expected_template["name"]
+    assert response.data["kwargs"] == expected_template["kwargs"]
+
+    # test update template
+    expected_template["kwargs"]
+    updated_kwargs = expected_template["kwargs"]
+    updated_kwargs["a"] = 2
+
+    response = api_client.patch(
+        reverse("analysis:workflow-template-detail", kwargs={"pk": template.id}),
+        {"kwargs": updated_kwargs},
+        format="json",
+    )
+
+    assert response.status_code == 200
+    assert response.data["name"] == expected_template["name"]
+    assert response.data["kwargs"] == updated_kwargs
+
+    # template list
+    template2 = WorkflowTemplateFactory(
+        name="my-template-2",
+        kwargs=dict(a=2, b="foo2"),
+        implementation=test_analysis_function,
+        creator=user,
+    )
+
+    response = api_client.get(reverse("analysis:workflow-template-list"))
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    assert len(response.data) == 2, f"Expected 2 template, got {len(response.data)}"
+
+    # test deleting the template
+    api_client.force_authenticate(user)
+    response = api_client.delete(
+        reverse("analysis:workflow-template-detail", kwargs=dict(pk=template2.id))
+    )
+    templates = WorkflowTemplate.objects.all()
+
+    assert response.status_code == 204
+    assert len(templates) == 1, f"Expected 1 template, got {len(templates)}"
+
+
+@pytest.mark.django_db
+def test_workflow_template_query(api_client, one_line_scan):
+    user = one_line_scan.creator
+
+    # Create a new workflow template
+    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func2 = AnalysisFunction.objects.get(name="topobank.testing.test2")
+
+    # create different workflow template with from analysis
+    WorkflowTemplateFactory(
+        name="my-template-1",
+        kwargs=dict(a=2, b="foo2"),
+        implementation=func,
+        creator=user,
+    )
+    WorkflowTemplateFactory(
+        name="my-template-2",
+        kwargs=dict(a=2, b="foo2"),
+        implementation=func2,
+        creator=user,
+    )
+    url = f'{reverse("analysis:workflow-template-list")}' f"?implementation={func.name}"
+
+    api_client.force_authenticate(user)
+    response = api_client.get(url)
+
+    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
+    assert len(response.data) == 1, f"Expected 1 template, got {len(response.data)}"
+    url = f"http://testserver/analysis/api/workflow/{func.name}/"
+    assert (
+        response.data[0]["implementation"] == url
+    ), f"Expected matching AnalysisFunction, got {response.data['implementation']}"

@@ -87,14 +87,14 @@ def perform_analysis(self, analysis_id: int, force: bool):
     """
     from .models import RESULT_FILE_BASENAME, Analysis
 
-    _log.debug(f"{self.request.id}: Task for analysis {analysis_id} started...")
+    _log.debug(f"{analysis_id}/{self.request.id}: Task for workflow started...")
 
     #
     # Get analysis instance from database
     #
     analysis = Analysis.objects.get(id=analysis_id)
     _log.info(
-        f"{self.request.id}: Function: '{analysis.function.name}', "
+        f"{analysis_id}/{self.request.id}: Function: '{analysis.function.name}', "
         f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}, "
         f"task_state: '{analysis.task_state}', force: {force}"
     )
@@ -121,7 +121,7 @@ def perform_analysis(self, analysis_id: int, force: bool):
     #
     analysis.task_state = Analysis.STARTED
     analysis.task_id = self.request.id
-    analysis.start_time = timezone.now()  # with timezone
+    analysis.task_start_time = timezone.now()  # with timezone
     analysis.configuration = get_current_configuration()
 
     #
@@ -141,8 +141,11 @@ def perform_analysis(self, analysis_id: int, force: bool):
             # dependencies and request that this task is rerun once all dependencies
             # have finished.
             for dep in scheduled_dependencies.values():
-                dep.task_state = Analysis.PENDING
-                dep.save()
+                dep.set_pending_state()
+            # Store dependencies
+            analysis.dependencies = {
+                key: dep.id for key, dep in scheduled_dependencies.items()
+            }
             # We are about to launch a chord, store id as launcher id
             analysis.launcher_task_id = self.request.id
             # Save because apply_async never returns in test when a dependency fails
@@ -158,46 +161,49 @@ def perform_analysis(self, analysis_id: int, force: bool):
             analysis.task_id = task.id
             analysis.save(update_fields=["task_id"])
             _log.debug(
-                f"{self.request.id}: Submitted {len(scheduled_dependencies)} "
-                "dependencies; finishing the current task until dependencies are "
-                "resolved."
+                f"{analysis_id}/{self.request.id}: Submitted "
+                f"{len(scheduled_dependencies)} dependencies; finishing the current "
+                "task until dependencies are resolved."
             )
             return
     else:
-        _log.debug(f"{self.request.id}: Analysis has no dependencies.")
+        _log.debug(f"{analysis_id}/{self.request.id}: Analysis has no dependencies.")
 
     # Store dependencies
-    analysis.dependencies = {
-        key: dep.id for key, dep in finished_dependencies.items()
-    }
+    analysis.dependencies = {key: dep.id for key, dep in finished_dependencies.items()}
 
     # Check if any dependency failed
-    if any(dep.task_state != Analysis.SUCCESS for dep in finished_dependencies.values()):
+    if any(
+        dep.task_state != Analysis.SUCCESS for dep in finished_dependencies.values()
+    ):
         analysis.task_state = Analysis.FAILURE
         analysis.task_error = "A dependent analysis failed."
         analysis.save()
-        # We return here is a dependency failed
+        # We return here because a dependency failed
         return
 
     # Save analysis
     analysis.save()
 
     def save_result(result, task_state, peak_memory=None, dois=set()):
-        if peak_memory is not None:
-            _log.debug(
-                f"{self.request.id}: Task state '{task_state}', peak memory usage: "
-                f"{int(peak_memory / 1024 / 1024)} MB; saving results..."
-            )
-        else:
-            _log.debug(
-                f"{self.request.id}: Task state '{task_state}'; saving results..."
-            )
         analysis.task_state = task_state
         store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
         analysis.end_time = timezone.now()  # with timezone
         analysis.task_memory = peak_memory
         analysis.dois = list(dois)  # dois is a set, we need to convert it
         analysis.save()
+
+        if peak_memory is not None:
+            _log.debug(
+                f"{analysis_id}/{self.request.id}: Task state: '{task_state}', "
+                f"duration: {analysis.task_duration}, "
+                f"peak memory usage: {int(peak_memory / 1024 / 1024)} MB"
+            )
+        else:
+            _log.debug(
+                f"{analysis_id}/{self.request.id}: Task state: '{task_state}', "
+                f"duration: {analysis.task_duration}"
+            )
 
     @doi()
     def evaluate_function(progress_recorder, finished_analyses):
@@ -214,7 +220,9 @@ def perform_analysis(self, analysis_id: int, force: bool):
     #
     # We are good: Actually perform the analysis
     #
-    _log.debug(f"{self.request.id}: Starting evaluation of analysis function...")
+    _log.debug(
+        f"{analysis_id}/{self.request.id}: Starting evaluation of analysis function..."
+    )
     try:
         # also request citation information
         dois = set()
@@ -230,13 +238,11 @@ def perform_analysis(self, analysis_id: int, force: bool):
         # collect memory usage
         size, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        _log.debug(
-            f"{self.request.id}: Evaluation finished without error; peak memory usage: "
-            f"{int(peak / 1024 / 1024)} MB"
-        )
         save_result(result, Analysis.SUCCESS, peak_memory=peak, dois=dois)
     except Exception as exc:
-        _log.warning(f"{self.request.id}: Exception during evaluation: {exc}")
+        _log.warning(
+            f"{analysis_id}/{self.request.id}: Exception during evaluation: {exc}"
+        )
         analysis.task_state = Analysis.FAILURE
         analysis.task_traceback = traceback.format_exc()
         # Store string representation of exception as user-reported error string
@@ -250,13 +256,23 @@ def perform_analysis(self, analysis_id: int, force: bool):
             # First check whether analysis is still there
             #
             analysis = Analysis.objects.get(id=analysis_id)
-
+        except Analysis.DoesNotExist:
+            _log.debug(f"{analysis_id}/{self.request.id}: Analysis {analysis_id} does not exist.")
+            # Analysis was deleted, e.g. because topography or surface was missing, we
+            # simply ignore this case.
+            pass
+        else:
+            #
+            # Analysis exists, record end time
+            #
+            analysis.task_end_time = timezone.now()  # with timezone
+            analysis.save(update_fields=["task_end_time"])
             #
             # Add up number of seconds for CPU time
             #
             from trackstats.models import Metric
 
-            td = analysis.duration
+            td = analysis.task_duration
             if td is not None:
                 increase_statistics_by_date(
                     metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
@@ -269,15 +285,10 @@ def perform_analysis(self, analysis_id: int, force: bool):
                 )
             else:
                 _log.warning(
-                    f"{self.request.id}: Duration of task could not be computed."
+                    f"{analysis_id}/{self.request.id}: Duration of task could not be "
+                    "computed."
                 )
-
-        except Analysis.DoesNotExist:
-            _log.debug(f"{self.request.id}: Analysis {analysis_id} does not exist.")
-            # Analysis was deleted, e.g. because topography or surface was missing, we
-            # simply ignore this case.
-            pass
-    _log.debug(f"{self.request.id}: Task finished normally.")
+    _log.debug(f"{analysis_id}/{self.request.id}: Task finished normally.")
 
 
 @transaction.atomic
@@ -437,6 +448,8 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
 
         # Get analysis function
         function = dependency.function
+
+        # Clean kwargs for dependency (fill potentially missing values)
         kwargs = function.clean_kwargs(dependency.kwargs)
 
         # Filter latest result
@@ -459,7 +472,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                 "subject_dispatch__topography_id",
                 "subject_dispatch__surface_id",
                 "subject_dispatch__tag_id",
-                "-start_time",
+                "-task_start_time",
             )
             .distinct(
                 "subject_dispatch__topography_id",

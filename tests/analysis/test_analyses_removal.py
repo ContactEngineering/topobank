@@ -125,9 +125,14 @@ def test_analysis_removal_on_topography_change(
 
     assert len(callbacks) == (1 if response_code == 200 else 0)
 
-    # Check that the analysis has been removed since it is now deprecated
+    # Check that the analysis has been deprecated
     if response_code == 200:
-        assert Analysis.objects.filter(subject_dispatch__topography=topo).count() == 0
+        assert (
+            Analysis.objects.filter(
+                subject_dispatch__topography=topo, deprecation_time__isnull=False
+            ).count()
+            == 1
+        )
 
 
 @pytest.mark.django_db

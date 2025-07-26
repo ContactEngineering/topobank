@@ -4,7 +4,7 @@ import pytest
 from django.contrib.contenttypes.models import ContentType
 
 from topobank.analysis.models import Analysis
-from topobank.analysis.utils import find_children
+from topobank.analysis.utils import find_children, merge_dicts
 from topobank.analysis.v1.controller import AnalysisController
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import TopographyAnalysisFactory, UserFactory
@@ -46,8 +46,8 @@ def test_latest_analyses(two_topos, test_analysis_function):
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
-        start_time=datetime.datetime(2018, 1, 1, 12),
-        end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
+        task_start_time=datetime.datetime(2018, 1, 1, 12),
+        task_end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
     )
 
     # save a second only, which has a later start time
@@ -57,8 +57,8 @@ def test_latest_analyses(two_topos, test_analysis_function):
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
-        start_time=datetime.datetime(2018, 1, 2, 12),
-        end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
+        task_start_time=datetime.datetime(2018, 1, 2, 12),
+        task_end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
     )
 
     #
@@ -70,8 +70,8 @@ def test_latest_analyses(two_topos, test_analysis_function):
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
-        start_time=datetime.datetime(2018, 1, 3, 12),
-        end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
+        task_start_time=datetime.datetime(2018, 1, 3, 12),
+        task_end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
     )
 
     # save a second one, which has the latest start time
@@ -81,8 +81,8 @@ def test_latest_analyses(two_topos, test_analysis_function):
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
-        start_time=datetime.datetime(2018, 1, 5, 12),
-        end_time=datetime.datetime(2018, 1, 5, 13, 1, 1),
+        task_start_time=datetime.datetime(2018, 1, 5, 12),
+        task_end_time=datetime.datetime(2018, 1, 5, 13, 1, 1),
     )
 
     # save a third one, which has a later start time than the first
@@ -92,8 +92,8 @@ def test_latest_analyses(two_topos, test_analysis_function):
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
-        start_time=datetime.datetime(2018, 1, 4, 12),
-        end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
+        task_start_time=datetime.datetime(2018, 1, 4, 12),
+        task_end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
     )
 
     ContentType.objects.get_for_model(Topography)
@@ -117,8 +117,8 @@ def test_latest_analyses(two_topos, test_analysis_function):
 
     tz = pytz.timezone(settings.TIME_ZONE)
 
-    assert at1.start_time == tz.localize(datetime.datetime(2018, 1, 2, 12))
-    assert at2.start_time == tz.localize(datetime.datetime(2018, 1, 5, 12))
+    assert at1.task_start_time == tz.localize(datetime.datetime(2018, 1, 2, 12))
+    assert at2.task_start_time == tz.localize(datetime.datetime(2018, 1, 5, 12))
 
 
 @pytest.mark.django_db
@@ -139,3 +139,19 @@ def test_find_children(user_three_topographies_three_surfaces_three_tags):
     assert set(find_children([surf1, surf2, topo3])) == set(
         [surf1, surf2, topo1, topo2, topo3]
     )
+
+
+def test_merge_dicts():
+
+    # test merging two dictionaries
+    dict1 = {"a": 1, "b": 2}
+    dict2 = {"b": 3, "c": 4}
+    merged = merge_dicts(dict1, [dict2])
+    assert merged == {"a": 1, "b": 3, "c": 4}
+
+    # test merging three dictionaries
+    dict1 = {"a": 1, "b": 2}
+    dict2 = {"b": {'p': 3}, "c": 4}
+    dict3 = {"b": {'o': 3}, "c": {"e": 5}}
+    merged = merge_dicts(dict1, [dict2, dict3])
+    assert merged == {"a": 1, "b": {'o': 3, 'p': 3}, "c": {'e': 5}}

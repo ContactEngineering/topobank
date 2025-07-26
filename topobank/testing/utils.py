@@ -5,6 +5,7 @@ Some helper functions
 import datetime
 import json
 import logging
+import os
 from dataclasses import dataclass
 from numbers import Number
 from operator import itemgetter
@@ -263,7 +264,7 @@ def assert_equal(a, b, key=None, ignore_keys=set(), rtol=1e-07, atol=0):
             err_msg=f"The values of key '{key}' differ: {a} != {b}",
         )
     elif isinstance(a, list):
-        assert_dicts_equal(a, b, ignore_keys=ignore_keys, rtol=rtol, atol=atol)
+        assert_dicts_equal(a, b, key=key, ignore_keys=ignore_keys, rtol=rtol, atol=atol)
     elif isinstance(a, Number) or isinstance(b, Number):
         np.testing.assert_allclose(
             a,
@@ -284,7 +285,9 @@ def assert_dict_equal(a, b, ignore_keys=set(), rtol=1e-07, atol=0):
         keys_a == keys_b
     ), f"Present in a but not b: {keys_a - keys_b}, present in b but not a: {keys_b - keys_a}"
     for key in keys_a:
-        assert_equal(a[key], b[key], key=key, ignore_keys=ignore_keys, rtol=rtol, atol=atol)
+        assert_equal(
+            a[key], b[key], key=key, ignore_keys=ignore_keys, rtol=rtol, atol=atol
+        )
 
 
 def assert_dicts_equal(a, b, key=None, ignore_keys=set(), rtol=1e-07, atol=0):
@@ -334,3 +337,16 @@ def search_surfaces(api_client, expr):
     response = api_client.get(reverse("manager:surface-api-list") + f"?search={expr}")
     assert response.status_code == 200
     return response.data
+
+
+def copy_folder(folder: Folder, filepath: str):
+    """Copy the folder to disk."""
+    os.makedirs(filepath, exist_ok=True)
+    for file in folder.get_files():
+        open(f"{filepath}/{file.filename}", "wb").write(file.file.read())
+
+
+def assert_file_equal(folder: Folder, filepath: str, filename: str):
+    data1 = folder.find_file(filename).read()
+    data2 = open(f"{filepath}/{filename}", "rb").read()
+    assert data1 == data2

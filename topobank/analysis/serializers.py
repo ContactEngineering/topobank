@@ -6,7 +6,13 @@ from rest_framework.reverse import reverse
 import topobank.taskapp.serializers
 
 from ..supplib.serializers import StrictFieldMixin
-from .models import Analysis, AnalysisFunction, AnalysisSubject, Configuration
+from .models import (
+    Analysis,
+    AnalysisFunction,
+    AnalysisSubject,
+    Configuration,
+    WorkflowTemplate,
+)
 from .registry import get_visualization_type
 
 _log = logging.getLogger(__name__)
@@ -86,17 +92,19 @@ class ResultSerializer(
             "function",
             "subject",
             "kwargs",
-            "task_progress",
-            "task_state",
-            "task_memory",
-            "error",
-            "task_traceback",
             "creation_time",
-            "start_time",
-            "end_time",
+            "task_state",
+            "task_progress",
+            "task_messages",  # Informative message on the progress of the task
+            "task_memory",
+            "task_error",
+            "task_traceback",
+            "task_submission_time",
+            "task_start_time",
+            "task_end_time",
+            "task_duration",
             "dois",
             "configuration",
-            "duration",
             "folder",
             "name",
         ]
@@ -118,7 +126,6 @@ class ResultSerializer(
     configuration = serializers.HyperlinkedRelatedField(
         view_name="analysis:configuration-detail", read_only=True
     )
-    error = serializers.CharField(source="get_task_error", read_only=True)
 
     def get_api(self, obj):
         return {
@@ -135,3 +142,28 @@ class ResultSerializer(
             kwargs={"workflow_id": obj.id},
             request=self.context["request"],
         )
+
+
+class WorkflowTemplateSerializer(
+    StrictFieldMixin, serializers.HyperlinkedModelSerializer
+):
+    class Meta:
+        model = WorkflowTemplate
+        fields = [
+            "id",
+            "name",
+            "kwargs",
+            "implementation",
+            "creator",
+        ]
+
+    implementation = serializers.HyperlinkedRelatedField(
+        view_name="analysis:workflow-detail",
+        lookup_field="name",
+        queryset=AnalysisFunction.objects.all(),
+        allow_null=True,
+    )
+
+    creator = serializers.HyperlinkedRelatedField(
+        view_name="users:user-api-detail", read_only=True
+    )

@@ -1,5 +1,7 @@
 import datetime
+import glob
 import logging
+import os
 
 import factory
 from django.core.files import File
@@ -7,7 +9,12 @@ from django.db.models.signals import post_save
 from django.utils import timezone
 from factory import post_generation
 
-from ..analysis.models import Analysis, AnalysisFunction, AnalysisSubject
+from ..analysis.models import (
+    Analysis,
+    AnalysisFunction,
+    AnalysisSubject,
+    WorkflowTemplate,
+)
 from ..manager.models import Surface, Tag, Topography
 from ..organizations.models import Organization
 from ..properties.models import Property
@@ -180,8 +187,9 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     # creator is set automatically to surface's creator if not set, see signals
     name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
     filename = "line_scan_1.asc"
-    datafile = factory.SubFactory(ManifestFactory,
-                                  filename=factory.SelfAttribute("..filename"))
+    datafile = factory.SubFactory(
+        ManifestFactory, filename=factory.SelfAttribute("..filename")
+    )
     data_source = 0
     measurement_date = factory.Sequence(
         lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n)
@@ -214,8 +222,9 @@ class Topography2DFactory(Topography1DFactory):
 
     size_y = 512
     filename = "10x10.txt"
-    datafile = factory.SubFactory(ManifestFactory,
-                                  filename=factory.SelfAttribute("..filename"))
+    datafile = factory.SubFactory(
+        ManifestFactory, filename=factory.SelfAttribute("..filename")
+    )
 
     @factory.post_generation
     def post_generation(self, create, value, **kwargs):
@@ -255,7 +264,7 @@ class AnalysisSubjectFactory(factory.django.DjangoModelFactory):
         model = AnalysisSubject
 
 
-class AnalysisFactory(factory.django.DjangoModelFactory):
+class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     """Abstract factory class for generating Analysis.
 
     For real analyses for Topographies or Surfaces use the
@@ -313,15 +322,36 @@ class AnalysisFactory(factory.django.DjangoModelFactory):
         read_only=True,
     )
 
-    kwargs = factory.LazyAttribute(_analysis_default_kwargs)
-    result = factory.LazyAttribute(_analysis_result)
-
     task_state = Analysis.SUCCESS
 
-    start_time = factory.LazyFunction(
+    task_submission_time = factory.LazyFunction(timezone.now)
+    task_start_time = factory.LazyFunction(
         lambda: timezone.now() - datetime.timedelta(0, 1)
     )
-    end_time = factory.LazyFunction(timezone.now)
+    task_end_time = factory.LazyFunction(timezone.now)
+
+    @post_generation
+    def import_folder(obj, create, value, **kwargs):
+        if "name" in kwargs:
+            for fn in glob.glob(f"{kwargs['name']}/*"):
+                obj.folder.save_file(os.path.basename(fn), "der", File(open(fn, "rb")))
+            obj.kwargs = obj.folder.read_json("model.json")["kwargs"]
+
+
+class AnalysisFactory(AnalysisFactoryWithoutResult):
+    class Meta:
+        model = Analysis
+        exclude = (
+            "subject_topography",
+            "subject_surface",
+            "subject_tag",
+            "subject",
+            "user",
+            "import_from_folder",
+        )
+
+    kwargs = factory.LazyAttribute(_analysis_default_kwargs)
+    result = factory.LazyAttribute(_analysis_result)
 
 
 class TopographyAnalysisFactory(AnalysisFactory):
@@ -372,3 +402,20 @@ class OrganizationFactory(factory.django.DjangoModelFactory):
         model = Organization
 
     name = factory.Sequence(lambda n: "Organization No. {:d}".format(n))
+
+
+class WorkflowTemplateFactory(factory.django.DjangoModelFactory):
+    """
+    Factory for generating WorkflowTemplate instances.
+    """
+
+    class Meta:
+        model = WorkflowTemplate
+
+    name = factory.Sequence(lambda n: f"Workflow Template {n}")
+    kwargs = {"param1": "value1", "param2": "value2"}  # Example JSON field
+    implementation = factory.SubFactory(AnalysisFunctionFactory)
+    creator = factory.SubFactory(UserFactory)
+    permissions = factory.SubFactory(
+        PermissionSetFactory, user=factory.SelfAttribute("..creator")
+    )

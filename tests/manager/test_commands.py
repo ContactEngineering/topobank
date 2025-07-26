@@ -38,7 +38,7 @@ def test_import_downloaded_surface_archive(client, handle_usage_statistics):
         zip_archive.seek(0)
 
         # reimport the surface
-        call_command('import_surfaces', username, zip_archive.name)
+        call_command('import_datasets', username, zip_archive.name)
 
     surface_copy = Surface.objects.get(description__icontains='imported from file')
 

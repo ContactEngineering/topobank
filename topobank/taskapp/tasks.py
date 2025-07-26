@@ -18,23 +18,43 @@ _log = get_task_logger(__name__)
 # (MIT licensed)
 class ProgressRecorder:
     class Model(pydantic.BaseModel):
-        pending: bool
-        current: float
-        total: float
-        description: str
+        pending: bool = True
+        current: float = 0.0
+        total: float = 1.0
+        message: str | None = None
 
     PROGRESS_STATE = "PROGRESS"
 
     def __init__(self, task):
         self._task = task
+        self._total = None
+        self._message = None
 
-    def set_progress(self, current, total, description=""):
+    def started(self, message=None):
+        if message is None:
+            message = self._message
+        self._message = message
+        total = self._total if self._total else 1
+        return self.set_progress(0, total, message=message)
+
+    def finished(self, message=None):
+        if message is None:
+            message = self._message
+        self._message = message
+        total = self._total if self._total else 1
+        return self.set_progress(total, total, message=message)
+
+    def set_progress(self, current, total, message=None):
+        if message is None:
+            message = self._message
+        self._message = message
+        self._total = total
         state = self.PROGRESS_STATE
         meta = self.Model(
             pending=False,
             current=current,
             total=total,
-            description=description,
+            message=message,
         ).model_dump()
         self._task.update_state(state=state, meta=meta)
         return state, meta

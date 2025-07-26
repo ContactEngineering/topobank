@@ -69,13 +69,13 @@ def test_topography_str(two_topos):
     surface = Surface.objects.get(name="Surface 1")
     topos = Topography.objects.filter(surface=surface).order_by("name")
     assert [str(t) for t in topos] == [
-        "Topography 'Example 3 - ZSensor' from 2018-01-01"
+        "Measurement 'Example 3 - ZSensor'"
     ]
 
     surface = Surface.objects.get(name="Surface 2")
     topos = Topography.objects.filter(surface=surface).order_by("name")
     assert [str(t) for t in topos] == [
-        "Topography 'Example 4 - Default' from 2018-01-02"
+        "Measurement 'Example 4 - Default'"
     ]
 
 

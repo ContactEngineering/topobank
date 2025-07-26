@@ -195,20 +195,22 @@ class WorkflowImplementation:
 
     def get_dependencies(self, analysis):
         """Return dependencies required for running analysis for `subject`"""
+        _log.debug(
+            f"Checking whether analysis function '{self.Meta.name}' has "
+            f"dependency function for subject {analysis.subject} ..."
+        )
+
         try:
-            _log.debug(
-                f"Checking whether analysis function '{self.Meta.name}' has "
-                f"dependency function for subject 'analysis.subject'..."
-            )
-            dependency_func = getattr(
-                self, self.Meta.dependencies[analysis.subject.__class__]
-            )
-            _log.debug("Dependency function exists.")
+            dependencies = self.Meta.dependencies
         except AttributeError:
-            _log.debug("No dependency function found.")
-            dependencies = []
+            _log.debug("No dependency definition found.")
+            return []
+
+        try:
+            dependency_func = getattr(self, dependencies[analysis.subject.__class__])
+            _log.debug("Dependency function exists.")
         except KeyError:
-            _log.debug("No dependency function found.")
+            _log.debug(f"No dependency function for subject {analysis.subject} found.")
             dependencies = []
         else:
             dependencies = dependency_func(analysis)

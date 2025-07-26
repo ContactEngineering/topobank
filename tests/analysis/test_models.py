@@ -18,6 +18,7 @@ from topobank.testing.factories import (
     TagFactory,
     Topography1DFactory,
     TopographyAnalysisFactory,
+    WorkflowTemplateFactory,
 )
 from topobank.testing.workflows import TestImplementation
 
@@ -87,15 +88,15 @@ def test_analysis_times(two_topos, test_analysis_function):
         function=test_analysis_function,
         task_state=Analysis.SUCCESS,
         kwargs={"a": 2, "b": "abcdef"},
-        start_time=datetime.datetime(2018, 1, 1, 12),
-        end_time=datetime.datetime(2018, 1, 1, 13),
+        task_start_time=datetime.datetime(2018, 1, 1, 12),
+        task_end_time=datetime.datetime(2018, 1, 1, 13),
     )
     analysis.save()
 
     assert analysis.creation_time - now < datetime.timedelta(seconds=1)
-    assert analysis.start_time == datetime.datetime(2018, 1, 1, 12)
-    assert analysis.end_time == datetime.datetime(2018, 1, 1, 13)
-    assert analysis.duration == datetime.timedelta(0, 3600)
+    assert analysis.task_start_time == datetime.datetime(2018, 1, 1, 12)
+    assert analysis.task_end_time == datetime.datetime(2018, 1, 1, 13)
+    assert analysis.task_duration == datetime.timedelta(0, 3600)
 
     assert analysis.kwargs == {"a": 2, "b": "abcdef"}
 
@@ -240,3 +241,26 @@ def test_submit_again(test_analysis_function):
     analysis = TopographyAnalysisFactory(function=test_analysis_function)
     new_analysis = analysis.submit_again()
     assert new_analysis.task_state == Analysis.PENDING
+
+
+@pytest.mark.django_db
+def test_workflow_template(test_analysis_function):
+
+    surface = SurfaceFactory()
+    SurfaceAnalysisFactory(
+        subject_surface=surface,
+        function=test_analysis_function
+    )
+
+    expected_kwargs = dict(
+        a=2,
+        b="bar",
+    )
+
+    template = WorkflowTemplateFactory(
+        implementation=test_analysis_function,
+        kwargs=expected_kwargs,
+    )
+
+    assert template.implementation == test_analysis_function
+    assert template.kwargs == expected_kwargs
