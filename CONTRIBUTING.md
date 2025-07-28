@@ -23,6 +23,7 @@ Prepend you commits with a shortcut indicating the type of changes they contain:
 * DOC: Changes to documentation strings
 * ENH: Enhancement (e.g. a new feature)
 * MAINT: Maintenance (e.g. fixing a typo)
+* UPSTREAM: Maintenance because of API changes in the upstream packages
 * TST: Changes to the unit test environment
 * WIP: Work in progress
 
