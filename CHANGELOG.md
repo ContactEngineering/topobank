@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.64.1 (2025-07-28)
+
+- MAINT: Fixed weird characters in digital surface twin names
+
 # 1.64.0 (2025-07-28)
 
 - MAINT: Bumped Django to 5.2 LTS and switched to ASGI
