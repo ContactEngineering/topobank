@@ -1,9 +1,9 @@
 # Changelog for *TopoBank*
 
-# 1.64.0 (not yet released)
+# 1.64.0 (2025-07-28)
 
-- ENH: Added permissions for organizations
-- MAINT: Bumped Django to 5.2
+- MAINT: Bumped Django to 5.2 LTS and switched to ASGI
+- MAINT: Don't delete analyses when refreshing the cache, but mark them as invalid
 
 # 1.63.0 (2025-05-25)
 
