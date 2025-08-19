@@ -1,5 +1,10 @@
 # Changelog for _TopoBank_
 
+# 1.64.2 (2025-07-28)
+
+- BUG: Skip failed analyses when preparing download
+- MAINT: Bumped SurfaceTopography to 1.18.2 (bug fix in JPK reader)
+
 # 1.64.1 (2025-07-28)
 
 - MAINT: Fixed weird characters in digital surface twin names
