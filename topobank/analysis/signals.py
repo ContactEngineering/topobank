@@ -74,10 +74,13 @@ def pre_measurement_save(sender, instance, **kwargs):
         # corresponding dataset analysis
         analyses = Analysis.objects.filter(subject_dispatch__surface=instance.surface)
         if analyses.count() > 0:
+            ids = ", ".join(
+                [str(i) for i in Analysis.objects.values_list("id", flat=True)]
+            )
             _log.debug(
                 "INVALIDATE WORKFLOWS: A measurement was added to dataset "
                 f"{instance.surface}: Deleting all affected workflow results with "
-                f"ids {', '.join(analyses.values_list('id'))}..."
+                f"ids {ids}..."
             )
         analyses.delete()
 
