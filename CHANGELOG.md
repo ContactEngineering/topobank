@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.64.3 (2025-07-20)
+
+- BUG: Converting list of ids to a string
+
 # 1.64.2 (2025-07-28)
 
 - BUG: Skip failed analyses when preparing download
