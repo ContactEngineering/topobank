@@ -1,5 +1,7 @@
 # Changelog for _TopoBank_
 
+- MAINT: Removed automatic generation of default group "all"
+
 # 1.64.3 (2025-07-20)
 
 - BUG: Converting list of ids to a string
