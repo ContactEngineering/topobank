@@ -6,8 +6,9 @@ class UsersAppConfig(AppConfig):
     verbose_name = "Users"
 
     def ready(self):
-        """Override this to put in:
-            Users system checks
-            Users signal registration
         """
-        import topobank.users.signals  # noqa: F401
+        Override this to put in:
+        - Users system checks
+        - Users signal registration
+        """
+        pass
