@@ -133,7 +133,7 @@ class User(AbstractUser):
     def is_authenticated(self):
         """Return whether user is anonymous.
 
-        We have a piece of middleware, that replaces the default anymous
+        We have a piece of middleware, that replaces the default anonymous
         user with django-guardian `AnonymousUser`. This is needed to give
         the world (as the anonymous user) access to published data sets.
         Since django-guardians anonymous user is a real user, `is_anonymous`
