@@ -654,15 +654,6 @@ CONTACT_MECHANICS_KWARGS_LIMITS = {
     "pressures": dict(maxlen=50),
 }
 
-#
-# Settings related to contact characterization challenge
-#
-# Set to empty string in order to deactive corresponding test
-CHALLENGE_REDIRECT_URL = env.str(
-    "CHALLENGE_REDIRECT_URL", default="https://forms.gle/GB3jLqJggbMmNfFm6"
-)
-# CHALLENGE_REDIRECT_URL = ''
-
 # Configure watchman checks
 WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + (
     "topobank.taskapp.utils.celery_worker_check",

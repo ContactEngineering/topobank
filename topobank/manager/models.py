@@ -367,7 +367,10 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
     @property
     def label(self):
-        return str(self)
+        s = self.name
+        if self.is_published:
+            s += f" (version {self.publication.version})"
+        return s
 
     def get_related_surfaces(self):
         return [self]

@@ -3,9 +3,9 @@ import importlib.util
 import notifications.urls
 from django.apps import apps
 from django.conf import settings
-from django.conf.urls.static import static
 from django.contrib import admin
 from django.contrib.auth.decorators import user_passes_test
+from django.contrib.staticfiles import views as static_views
 from django.urls import include, path, re_path
 from django.views import defaults as default_views
 from drf_spectacular.views import SpectacularAPIView, SpectacularSwaggerView
@@ -69,11 +69,6 @@ urlpatterns = [
     ),
 ]
 
-#
-# Add serving of static files
-#
-urlpatterns += static(settings.MEDIA_URL, document_root=settings.MEDIA_ROOT)
-
 if settings.DEBUG:
     # This allows the error pages to be debugged during development, just visit
     # these url in browser to see how these error pages look like.
@@ -94,6 +89,7 @@ if settings.DEBUG:
             kwargs={"exception": Exception("Page not Found")},
         ),
         path("500/", default_views.server_error),
+        re_path(r"^static/(?P<path>.*)$", static_views.serve),
     ]
     if "debug_toolbar" in settings.INSTALLED_APPS:
         import debug_toolbar

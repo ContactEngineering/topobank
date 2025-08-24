@@ -56,6 +56,10 @@ def download_analyses(request, ids, file_format):
     for aid in analyses_ids:
         analysis = Analysis.objects.get(id=aid)
 
+        if analysis.get_task_state() != Analysis.SUCCESS:
+            # Analysis is not successful, skip it
+            continue
+
         #
         # Get visualization configuration
         #
