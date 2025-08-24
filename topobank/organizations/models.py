@@ -30,7 +30,7 @@ class OrganizationManager(models.Manager):
 class Organization(models.Model):
     """Represents an organization like a company or a scientific workgroup in a university."""
 
-    name = models.CharField(_("Name of Organization"), max_length=255)
+    name = models.CharField(_("Name of Organization"), max_length=255, unique=True)
     plugins_available = models.CharField(
         _("Available Plugins"),
         max_length=255,
