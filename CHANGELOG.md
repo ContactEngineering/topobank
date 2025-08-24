@@ -5,6 +5,7 @@
 - API: Limit all user searches to organizations of the user
 - ENH: Advanced support for organizations
 - ENH: Added permissions for organizations
+- MAINT: Removed automatic generation of default group "all"
 
 # 1.64.3 (2025-07-20)
 
