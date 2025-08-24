@@ -1,5 +1,6 @@
 from django.db.models import Q
 from rest_framework import viewsets
+from rest_framework.pagination import LimitOffsetPagination
 
 from .anonymous import get_anonymous_user
 from .models import User
@@ -9,6 +10,7 @@ from .serializers import UserSerializer
 
 class UserViewSet(viewsets.ModelViewSet):
     serializer_class = UserSerializer
+    pagination_class = LimitOffsetPagination
     permission_classes = [UserPermission]
 
     def get_queryset(self):

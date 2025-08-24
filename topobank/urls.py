@@ -26,6 +26,13 @@ urlpatterns = [
         include("topobank.users.urls", namespace="users"),
     ),
     #
+    # Organization management
+    #
+    path(
+        "organizations/",
+        include("topobank.organizations.urls", namespace="organizations"),
+    ),
+    #
     # Core topobank applications
     #
     path(

@@ -7,7 +7,7 @@ app_name = "organizations"
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(
-    r"api/organizations", views.OrganizationViewSet, basename="organization-api"
+    r"api/organization", views.OrganizationViewSet, basename="organization-api"
 )
 
 urlpatterns = router.urls
