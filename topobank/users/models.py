@@ -9,8 +9,6 @@ from rest_framework.reverse import reverse
 
 from .anonymous import get_anonymous_user
 
-DEFAULT_GROUP_NAME = "all"
-
 
 class ORCIDException(Exception):
     pass
