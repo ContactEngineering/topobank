@@ -62,6 +62,13 @@ def user_bob():
 
 
 @pytest.fixture(scope="function")
+def user_staff():
+    return UserFactory(
+        username="staff", password=PASSWORD, name="Admin User", is_staff=True
+    )
+
+
+@pytest.fixture(scope="function")
 def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statistics):
     # passing "handle_usage_statistics" is important, otherwise
     # the following supplib may fail in a strange way because of foreign key errors
