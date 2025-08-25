@@ -179,7 +179,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     is_metadata_complete = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
 
-    def validate(self, data):
+    def validate(self, data: dict) -> dict:
         read_only_fields = []
         if self.instance is not None:
             if not self.instance.size_editable:
@@ -203,7 +203,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
                 )
         return super().validate(data)
 
-    def get_api(self, obj):
+    def get_api(self, obj: Topography) -> dict:
         return {
             "self": obj.get_absolute_url(self.context["request"]),
             "force_inspect": reverse(
@@ -213,10 +213,10 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             ),
         }
 
-    def get_is_metadata_complete(self, obj):
+    def get_is_metadata_complete(self, obj: Topography) -> bool:
         return obj.is_metadata_complete
 
-    def get_permissions(self, obj):
+    def get_permissions(self, obj: Topography) -> dict:
         request = self.context["request"]
         current_user = request.user
         user_permissions = obj.permissions.user_permissions.all()
@@ -235,7 +235,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             ],
         }
 
-    def update(self, instance, validated_data):
+    def update(self, instance: Topography, validated_data: dict):
         if "surface" in validated_data:
             raise serializers.ValidationError(
                 {"message": "You cannot change the `surface` of a topography"}
