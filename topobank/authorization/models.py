@@ -129,7 +129,10 @@ class PermissionSet(models.Model):
             return False
 
     def authorize_user(self, user: User, access_level: ViewEditFull):
-        """Authorize user for access level given by `allow`"""
+        """
+        Authorize user for access level given by `allow`. Raise
+        `PermissionDenied` if user does not have access.
+        """
         perm = self.get_for_user(user)
         if perm is None:
             raise PermissionDenied(
