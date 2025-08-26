@@ -3,7 +3,6 @@ from django.apps import AppConfig
 
 class UsersAppConfig(AppConfig):
     name = "topobank.users"
-    verbose_name = "Users"
 
     def ready(self):
         """
