@@ -2,17 +2,18 @@ import pytest
 from rest_framework.reverse import reverse
 
 from topobank.organizations.models import Organization
+from topobank.testing.factories import OrganizationFactory
 
 
 @pytest.mark.django_db
 def test_create_organization(api_client, user_alice, user_staff):
-    organization_dict = {
-        "name": "Blofield, Inc."
-    }
+    organization_dict = {"name": "Blofield, Inc."}
 
     # Create organization as anonymous user should fail
     response = api_client.post(
-        reverse("organizations:organization-api-list"), data=organization_dict, format="json"
+        reverse("organizations:organization-api-list"),
+        data=organization_dict,
+        format="json",
     )
     assert response.status_code == 403, response.content
 
@@ -21,7 +22,9 @@ def test_create_organization(api_client, user_alice, user_staff):
     # Create as user alice should also fail
     api_client.force_authenticate(user_alice)
     response = api_client.post(
-        reverse("organizations:organization-api-list"), data=organization_dict, format="json"
+        reverse("organizations:organization-api-list"),
+        data=organization_dict,
+        format="json",
     )
     assert response.status_code == 403, response.content
 
@@ -30,7 +33,9 @@ def test_create_organization(api_client, user_alice, user_staff):
     # Create as staff user should succeed
     api_client.force_authenticate(user_staff)
     response = api_client.post(
-        reverse("organizations:organization-api-list"), data=organization_dict, format="json"
+        reverse("organizations:organization-api-list"),
+        data=organization_dict,
+        format="json",
     )
     assert response.status_code == 201, response.content
 
@@ -38,7 +43,9 @@ def test_create_organization(api_client, user_alice, user_staff):
 
     # Create organization with same name should fail
     response = api_client.post(
-        reverse("organizations:organization-api-list"), data=organization_dict, format="json"
+        reverse("organizations:organization-api-list"),
+        data=organization_dict,
+        format="json",
     )
     assert response.status_code == 400, response.content
 
@@ -47,7 +54,9 @@ def test_create_organization(api_client, user_alice, user_staff):
     # Create organization without name should fail
     del organization_dict["name"]
     response = api_client.post(
-        reverse("organizations:organization-api-list"), data=organization_dict, format="json"
+        reverse("organizations:organization-api-list"),
+        data=organization_dict,
+        format="json",
     )
     assert response.status_code == 400, response.content
 
@@ -65,3 +74,34 @@ def test_list_organizations(api_client, user_alice, user_bob, user_staff):
     response = api_client.get(reverse("organizations:organization-api-list"))
     assert response.status_code == 200, response.content
     assert len(response.data) == 0  # No organization assigned to alice
+
+    org1 = OrganizationFactory()
+    user_alice.groups.add(org1.group)
+    response = api_client.get(reverse("organizations:organization-api-list"))
+    assert response.status_code == 200, response.content
+    assert len(response.data) == 1  # No organization assigned to alice
+    assert response.data[0]["name"] == org1.name
+
+    org2 = OrganizationFactory()
+    user_bob.groups.add(org2.group)
+    response = api_client.get(reverse("organizations:organization-api-list"))
+    assert response.status_code == 200, response.content
+    assert len(response.data) == 1  # No organization assigned to alice
+    assert response.data[0]["name"] == org1.name
+
+    # Login as bob and see whether he sees organization 2
+    api_client.force_authenticate(user_bob)
+    response = api_client.get(reverse("organizations:organization-api-list"))
+    assert response.status_code == 200, response.content
+    assert len(response.data) == 1  # No organization assigned to alice
+    assert response.data[0]["name"] == org2.name
+
+    # Login as staff and see all organizations
+    api_client.force_authenticate(user_staff)
+    response = api_client.get(reverse("organizations:organization-api-list"))
+    assert response.status_code == 200, response.content
+    assert len(response.data) == 2  # No organization assigned to alice
+    assert {response.data[0]["name"], response.data[1]["name"]} == {
+        org1.name,
+        org2.name,
+    }

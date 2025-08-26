@@ -59,6 +59,14 @@ class UserFactory(factory.django.DjangoModelFactory):
         OrcidSocialAccountFactory(user_id=self.id)
 
 
+class OrganizationFactory(factory.django.DjangoModelFactory):
+    name = factory.Sequence(lambda n: f"organization-{n}")
+
+    class Meta:
+        model = "organizations.Organization"
+        django_get_or_create = ("name",)
+
+
 @factory.django.mute_signals(post_save)
 class UserPermissionFactory(factory.django.DjangoModelFactory):
     class Meta:
