@@ -2,6 +2,7 @@ from rest_framework import serializers
 from tagulous.contrib.drf import TagRelatedManagerField
 
 from ...files.models import Manifest
+from ...organizations.models import Organization
 from ...supplib.serializers import StrictFieldMixin
 from ...taskapp.serializers import TaskStateModelSerializer
 from ..models import Surface, Topography, ZipContainer
@@ -19,6 +20,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             # Hyperlinked resources
             "surface_url",
             "creator_url",
+            "owner_url",
             "datafile_url",
             "squeezed_datafile_url",
             "thumbnail_url",
@@ -70,6 +72,9 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     # Hyperlinked resources
     creator_url = serializers.HyperlinkedRelatedField(
         source="creator", view_name="users:user-api-detail", read_only=True
+    )
+    owner_url = serializers.HyperlinkedRelatedField(
+        source="owner", view_name="organizations:organization-api-detail", queryset=Organization.objects.all()
     )
     surface_url = serializers.HyperlinkedRelatedField(
         source="surface", view_name="manager:surface-api-detail", queryset=Surface.objects.all()

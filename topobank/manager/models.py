@@ -35,6 +35,7 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFull
 from ..files.models import Folder, Manifest
+from ..organizations.models import Organization
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from .export_zip import write_container_zip
@@ -346,18 +347,34 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
 
     #
-    # Model data
+    # Ownership
+    #
+
+    # `creator` is only NULL if user is deleted after dataset has been created.
+    # Custodian should NOT remove datasets with NULL organization
+    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+
+    # `owner` is always an organization. The field is only NULL if
+    # organization is deleted after dataset has been created.
+    # Custodian should remove all datasets with NULL organization.
+    owner = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True)
+
+    #
+    # Dataset metadata
     #
     name = models.CharField(max_length=80, blank=True)
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.CharField(
         max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False
     )
     tags = tm.TagField(to=Tag)
-    attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
     creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
     modification_datetime = models.DateTimeField(auto_now=True, null=True)
+
+    #
+    # Attachments
+    #
+    attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
         s = f"Dataset '{self.name}'"
