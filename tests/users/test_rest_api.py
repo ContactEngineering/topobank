@@ -16,7 +16,7 @@ def test_create_user(api_client, user_alice, user_staff):
 
     # Create user as anonymous user should fail
     response = api_client.post(
-        reverse("users:user-api-list"), data=user_dict, format="json"
+        reverse("users:user-v1-list"), data=user_dict, format="json"
     )
     assert response.status_code == 403, response.content
 
@@ -25,7 +25,7 @@ def test_create_user(api_client, user_alice, user_staff):
     # Create as user alice should also fail
     api_client.force_authenticate(user_alice)
     response = api_client.post(
-        reverse("users:user-api-list"), data=user_dict, format="json"
+        reverse("users:user-v1-list"), data=user_dict, format="json"
     )
     assert response.status_code == 403, response.content
 
@@ -34,7 +34,7 @@ def test_create_user(api_client, user_alice, user_staff):
     # Create as staff user should succeed
     api_client.force_authenticate(user_staff)
     response = api_client.post(
-        reverse("users:user-api-list"), data=user_dict, format="json"
+        reverse("users:user-v1-list"), data=user_dict, format="json"
     )
     assert response.status_code == 201, response.content
 
@@ -42,7 +42,7 @@ def test_create_user(api_client, user_alice, user_staff):
 
     # Create user with same name should fail
     response = api_client.post(
-        reverse("users:user-api-list"), data=user_dict, format="json"
+        reverse("users:user-v1-list"), data=user_dict, format="json"
     )
     assert response.status_code == 400, response.content
 
@@ -51,7 +51,7 @@ def test_create_user(api_client, user_alice, user_staff):
     # Create user without name should fail
     del user_dict["name"]
     response = api_client.post(
-        reverse("users:user-api-list"), data=user_dict, format="json"
+        reverse("users:user-v1-list"), data=user_dict, format="json"
     )
     assert response.status_code == 400, response.content
 
@@ -61,13 +61,13 @@ def test_create_user(api_client, user_alice, user_staff):
 @pytest.mark.django_db
 def test_search_user(api_client, user_alice, user_bob, user_staff):
     # Searching for a user as the anonymous user should not be allowed
-    response = api_client.get(f'{reverse("users:user-api-list")}?name=bob')
+    response = api_client.get(f'{reverse("users:user-v1-list")}?name=bob')
     assert response.status_code == 403, response.content
 
     # Searching for a user when logged in should yields nothing if the users
     # are not in the same organization
     api_client.force_authenticate(user_alice)
-    response = api_client.get(f'{reverse("users:user-api-list")}?name=bob')
+    response = api_client.get(f'{reverse("users:user-v1-list")}?name=bob')
     assert response.status_code == 200, response.content
     assert len(response.data) == 0
 
@@ -77,7 +77,7 @@ def test_search_user(api_client, user_alice, user_bob, user_staff):
     org.add(user_bob)
 
     # Now alice can find bob
-    response = api_client.get(f'{reverse("users:user-api-list")}?name=bob')
+    response = api_client.get(f'{reverse("users:user-v1-list")}?name=bob')
     assert response.status_code == 200, response.content
     assert len(response.data) == 1
     user = response.data[0]
@@ -91,7 +91,7 @@ def test_search_user(api_client, user_alice, user_bob, user_staff):
 def test_patch_user(api_client, user_alice, user_bob, user_staff):
     # Changing user information as the anonymous user should fail
     response = api_client.patch(
-        reverse("users:user-api-detail", kwargs={"pk": user_alice.id}),
+        reverse("users:user-v1-detail", kwargs={"pk": user_alice.id}),
         data={"email": "alice@example.com"},
         format="json",
     )
@@ -101,11 +101,11 @@ def test_patch_user(api_client, user_alice, user_bob, user_staff):
     # see bob
     api_client.force_authenticate(user_alice)
     response = api_client.get(
-        reverse("users:user-api-detail", kwargs={"pk": user_bob.id})
+        reverse("users:user-v1-detail", kwargs={"pk": user_bob.id})
     )
     assert response.status_code == 404, response.content
     response = api_client.patch(
-        reverse("users:user-api-detail", kwargs={"pk": user_bob.id}),
+        reverse("users:user-v1-detail", kwargs={"pk": user_bob.id}),
         data={"email": "bob@example.com"},
         format="json",
     )
@@ -120,11 +120,11 @@ def test_patch_user(api_client, user_alice, user_bob, user_staff):
     # can see but not edit bob
     api_client.force_authenticate(user_alice)
     response = api_client.get(
-        reverse("users:user-api-detail", kwargs={"pk": user_bob.id})
+        reverse("users:user-v1-detail", kwargs={"pk": user_bob.id})
     )
     assert response.status_code == 200, response.content
     response = api_client.patch(
-        reverse("users:user-api-detail", kwargs={"pk": user_bob.id}),
+        reverse("users:user-v1-detail", kwargs={"pk": user_bob.id}),
         data={"email": "bob@example.com"},
         format="json",
     )
@@ -132,7 +132,7 @@ def test_patch_user(api_client, user_alice, user_bob, user_staff):
 
     # But changing alice as user alice should work
     response = api_client.patch(
-        reverse("users:user-api-detail", kwargs={"pk": user_alice.id}),
+        reverse("users:user-v1-detail", kwargs={"pk": user_alice.id}),
         data={"email": "alice@example.com"},
         format="json",
     )
@@ -141,13 +141,13 @@ def test_patch_user(api_client, user_alice, user_bob, user_staff):
     # Staff user can change all users
     api_client.force_authenticate(user_staff)
     response = api_client.patch(
-        reverse("users:user-api-detail", kwargs={"pk": user_alice.id}),
+        reverse("users:user-v1-detail", kwargs={"pk": user_alice.id}),
         data={"email": "alice@staff.com"},
         format="json",
     )
     assert response.status_code == 200, response.content
     response = api_client.patch(
-        reverse("users:user-api-detail", kwargs={"pk": user_bob.id}),
+        reverse("users:user-v1-detail", kwargs={"pk": user_bob.id}),
         data={"email": "bob@staff.com"},
         format="json",
     )
@@ -163,7 +163,7 @@ def test_delete_user(api_client, one_line_scan, user_alice, user_staff):
 
     # Deleting a user information as the anonymous user should fail
     response = api_client.delete(
-        reverse("users:user-api-detail", kwargs={"pk": user_alice.id})
+        reverse("users:user-v1-detail", kwargs={"pk": user_alice.id})
     )
     assert response.status_code == 403, response.content
 
@@ -175,14 +175,14 @@ def test_delete_user(api_client, one_line_scan, user_alice, user_staff):
     # or edit bob
     api_client.force_authenticate(user_alice)
     response = api_client.delete(
-        reverse("users:user-api-detail", kwargs={"pk": user_line_scan.id})
+        reverse("users:user-v1-detail", kwargs={"pk": user_line_scan.id})
     )
     assert response.status_code == 403, response.content
 
     # Staff user can delete user
     api_client.force_authenticate(user_staff)
     response = api_client.delete(
-        reverse("users:user-api-detail", kwargs={"pk": user_line_scan.id})
+        reverse("users:user-v1-detail", kwargs={"pk": user_line_scan.id})
     )
     assert response.status_code == 204, response.content
 

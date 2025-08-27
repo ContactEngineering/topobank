@@ -1,9 +1,11 @@
 import logging
 from typing import Set
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.contrib.auth.models import Group
 from django.db import models
+from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
 
 _log = logging.getLogger(__name__)
@@ -91,3 +93,10 @@ class Organization(models.Model):
     def add(self, user: settings.AUTH_USER_MODEL):
         """Add user to this organization."""
         user.groups.add(self.group)
+
+
+def resolve_organization(url):
+    match = resolve(urlparse(url).path)
+    if match.view_name != "organizations:organization-v1-detail":
+        raise ValueError("URL does not resolve to an Organization instance")
+    return Organization.objects.get(**match.kwargs)

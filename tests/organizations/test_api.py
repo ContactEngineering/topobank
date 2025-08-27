@@ -4,10 +4,10 @@ from django.urls import reverse
 def test_api():
     """Test API routes"""
     assert (
-        reverse("organizations:organization-api-list")
-        == "/organizations/api/organization/"
+        reverse("organizations:organization-v1-list")
+        == "/organizations/v1/organization/"
     )
     assert (
-        reverse("organizations:organization-api-detail", kwargs=dict(pk=123))
-        == "/organizations/api/organization/123/"
+        reverse("organizations:organization-v1-detail", kwargs=dict(pk=123))
+        == "/organizations/v1/organization/123/"
     )

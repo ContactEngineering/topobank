@@ -10,5 +10,5 @@ class OrganizationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeria
         fields = ["url", "id", "name", "plugins_available"]
 
     url = serializers.HyperlinkedIdentityField(
-        view_name="organizations:organization-api-detail", read_only=True
+        view_name="organizations:organization-v1-detail", read_only=True
     )

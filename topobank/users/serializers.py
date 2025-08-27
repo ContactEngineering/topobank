@@ -10,7 +10,7 @@ class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
         fields = ['url', 'id', 'name', 'username', 'orcid', 'email', 'date_joined']
         read_only_fields = ['id', 'date_joined']
 
-    url = serializers.HyperlinkedIdentityField(view_name='users:user-api-detail', read_only=True)
+    url = serializers.HyperlinkedIdentityField(view_name='users:user-v1-detail', read_only=True)
     orcid = serializers.SerializerMethodField()
 
     def get_orcid(self, obj):
