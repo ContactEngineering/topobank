@@ -105,3 +105,41 @@ def test_list_organizations(api_client, user_alice, user_bob, user_staff):
         org1.name,
         org2.name,
     }
+
+
+@pytest.mark.django_db
+def test_patch_organizations(api_client, user_alice, user_staff):
+    org = OrganizationFactory()
+    org.add(user_alice)
+    org_data = {"name": "My new fancy name"}
+
+    # Anonymous user cannot change the organization
+    response = api_client.patch(
+        reverse("organizations:organization-api-detail", kwargs={"pk": org.id}),
+        data=org_data,
+    )
+    assert response.status_code == 403, response.content
+
+    # Alice cannot change the organization
+    api_client.force_authenticate(user_alice)
+    response = api_client.patch(
+        reverse("organizations:organization-api-detail", kwargs={"pk": org.id}),
+        data=org_data,
+    )
+    assert response.status_code == 403, response.content
+
+    # Staff can change the organization
+    api_client.force_authenticate(user_staff)
+    response = api_client.patch(
+        reverse("organizations:organization-api-detail", kwargs={"pk": org.id}),
+        data=org_data,
+    )
+    assert response.status_code == 200, response.content
+
+    # Alice can get the new name
+    api_client.force_authenticate(user_alice)
+    response = api_client.get(
+        reverse("organizations:organization-api-detail", kwargs={"pk": org.id})
+    )
+    assert response.status_code == 200, response.content
+    assert response.data["name"] == org_data["name"]
