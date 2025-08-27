@@ -1,8 +1,12 @@
-from rest_framework import viewsets, mixins
-from rest_framework.permissions import BasePermission, SAFE_METHODS
+from rest_framework import mixins, viewsets
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import SAFE_METHODS, BasePermission
+from rest_framework.response import Response
 
-from topobank.authorization.models import PermissionSet
-from topobank.authorization.serializers import PermissionSetSerializer
+from ..organizations.models import resolve_organization
+from ..users.models import resolve_user
+from .models import PermissionSet
+from .serializers import PermissionSetSerializer
 
 
 class PermissionSetPermission(BasePermission):
@@ -32,3 +36,41 @@ class PermissionSetViewSet(
     queryset = PermissionSet.objects.all()
     serializer_class = PermissionSetSerializer
     permission_classes = [PermissionSetPermission]
+
+
+@api_view(["POST"])
+@permission_classes([PermissionSetPermission])
+def add_user(request, pk: int):
+    permission_set = PermissionSet.objects.get(pk=pk)
+    user = resolve_user(request.query_params.get("user"))
+    allow = request.query_params.get("allow")
+    permission_set.grant_for_user(user, allow)
+    return Response({})
+
+
+@api_view(["POST"])
+@permission_classes([PermissionSetPermission])
+def remove_user(request, pk: int):
+    permission_set = PermissionSet.objects.get(pk=pk)
+    user = resolve_user(request.query_params.get("user"))
+    permission_set.revoke_from_user(user)
+    return Response({})
+
+
+@api_view(["POST"])
+@permission_classes([PermissionSetPermission])
+def add_organization(request, pk: int):
+    permission_set = PermissionSet.objects.get(pk=pk)
+    organization = resolve_organization(request.query_params.get("organization"))
+    allow = request.query_params.get("allow")
+    permission_set.grant_for_organization(organization, allow)
+    return Response({})
+
+
+@api_view(["POST"])
+@permission_classes([PermissionSetPermission])
+def remove_organization(request, pk: int):
+    permission_set = PermissionSet.objects.get(pk=pk)
+    organization = resolve_organization(request.query_params.get("organization"))
+    permission_set.revoke_from_organization(organization)
+    return Response({})
