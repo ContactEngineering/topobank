@@ -22,6 +22,7 @@ from .factories import (
     Topography1DFactory,
     Topography2DFactory,
     UserFactory,
+    OrganizationFactory,
 )
 
 _log = logging.getLogger(__name__)
@@ -66,6 +67,11 @@ def user_staff():
     return UserFactory(
         username="staff", password=PASSWORD, name="Admin User", is_staff=True
     )
+
+
+@pytest.fixture(scope="function")
+def org_blofield():
+    return OrganizationFactory(name="blofield")
 
 
 @pytest.fixture(scope="function")

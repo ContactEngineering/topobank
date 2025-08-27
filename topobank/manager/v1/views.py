@@ -29,6 +29,7 @@ from topobank.manager.v1.serializers import (
     TagSerializer,
     TopographySerializer,
 )
+from topobank.organizations.models import resolve_organization
 from topobank.supplib.versions import get_versions
 from topobank.taskapp.utils import run_task
 from topobank.usage_stats.utils import increase_statistics_by_date_and_object
@@ -338,23 +339,39 @@ def set_surface_permissions(request, pk=None):
 
     # Check that the request does not ask to revoke permissions from the current user
     for permission in request.data:
-        other_user = resolve_user(permission["user"])
-        if other_user == logged_in_user:
-            if permission["permission"] != "full":
-                return Response(
-                    {"message": "Permissions cannot be revoked from logged in user"},
-                    status=405,
-                )  # Not allowed
+        if "user" in permission:
+            other_user = resolve_user(permission["user"])
+            if other_user == logged_in_user:
+                if permission["permission"] != "full":
+                    return Response(
+                        {
+                            "message": "Permissions cannot be revoked from logged in user"
+                        },
+                        status=405,
+                    )  # Not allowed
 
     # Everything looks okay, update permissions
     for permission in request.data:
-        other_user = resolve_user(permission["user"])
-        if other_user != logged_in_user:
-            perm = permission["permission"]
+        perm = permission.get("permission", None)
+        if perm is None:
+            return HttpResponseBadRequest(reason="Permission was not provided")
+        if "user" in permission:
+            other_user = resolve_user(permission["user"])
+            if other_user != logged_in_user:
+                if perm == "no-access":
+                    obj.revoke_permission(other_user)
+                else:
+                    obj.grant_permission(other_user, perm)
+        elif "organization" in permission:
+            organization = resolve_organization(permission["organization"])
             if perm == "no-access":
-                obj.revoke_permission(other_user)
+                obj.revoke_permission(organization)
             else:
-                obj.grant_permission(other_user, perm)
+                obj.grant_permission(organization, perm)
+        else:
+            return HttpResponseBadRequest(
+                reason="Can only set permissions for users or organizations."
+            )
 
     # Permissions were updated successfully, return 204 No Content
     return Response({}, status=204)
@@ -388,13 +405,28 @@ def set_tag_permissions(request, name=None):
             updated += [surface.get_absolute_url(request)]
             # Loop over permissions
             for permission in request.data:
-                other_user = resolve_user(permission["user"])
-                if other_user != logged_in_user:
-                    perm = permission["permission"]
+                perm = permission.get("permission", None)
+                if perm is None:
+                    return HttpResponseBadRequest(reason="Permission was not provided")
+
+                if "user" in permission:
+                    other_user = resolve_user(permission["user"])
+                    if other_user != logged_in_user:
+                        perm = permission["permission"]
+                        if perm == "no-access":
+                            surface.revoke_permission(other_user)
+                        else:
+                            surface.grant_permission(other_user, perm)
+                elif "organization" in permission:
+                    organization = resolve_organization(permission["organization"])
                     if perm == "no-access":
-                        surface.revoke_permission(other_user)
+                        obj.revoke_permission(organization)
                     else:
-                        surface.grant_permission(other_user, perm)
+                        obj.grant_permission(organization, perm)
+                else:
+                    return HttpResponseBadRequest(
+                        reason="Can only set permissions for users or organizations."
+                    )
         else:
             rejected += [surface.get_absolute_url(request)]
 
