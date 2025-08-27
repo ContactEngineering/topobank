@@ -170,6 +170,10 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     #     source="attachments", view_name="files:folder-api-detail", read_only=True
     # )
 
+    # These fields have been renamed in the model
+    creation_datetime = serializers.DateTimeField(source="creation_time", read_only=True)
+    modification_datetime = serializers.DateTimeField(source="modification_time", read_only=True)
+
     # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
 
@@ -309,6 +313,10 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     properties = PropertiesField(required=False)
     tags = TagRelatedManagerField(required=False)
     permissions = serializers.SerializerMethodField()
+
+    # These fields have been renamed in the model
+    creation_datetime = serializers.DateTimeField(source="creation_time", read_only=True)
+    modification_datetime = serializers.DateTimeField(source="modification_time", read_only=True)
 
     def get_api(self, obj):
         return {
