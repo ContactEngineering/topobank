@@ -62,8 +62,19 @@ def test_search_user(api_client, user_alice, user_bob, user_staff):
     response = api_client.get(f'{reverse("users:user-api-list")}?name=bob')
     assert response.status_code == 403, response.content
 
-    # Searching for a user when logged in should yield the user
+    # Searching for a user when logged in should yields nothing if the users
+    # are not in the same organization
     api_client.force_authenticate(user_alice)
+    response = api_client.get(f'{reverse("users:user-api-list")}?name=bob')
+    assert response.status_code == 200, response.content
+    assert len(response.data) == 0
+
+    # Create organizations and enroll alice and bob
+    org = OrganizationFactory()
+    org.add(user_alice)
+    org.add(user_bob)
+
+    # Now alice can find bob
     response = api_client.get(f'{reverse("users:user-api-list")}?name=bob')
     assert response.status_code == 200, response.content
     assert len(response.data) == 1

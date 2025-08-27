@@ -25,11 +25,14 @@ class UserViewSet(viewsets.ModelViewSet):
         # If we are not the staff user, then only show users of organizations
         # the current user is a member of
         if not self.request.user.is_staff:
-            qs = qs.filter(groups__in=self.request.user.groups.all())
+            qs = qs.filter(
+                Q(id=self.request.user.id)
+                | Q(groups__in=self.request.user.groups.all())
+            )
 
         # Filter for name
         if name is not None:
             qs = qs.filter(name__icontains=name)
-        
+
         # Return query set
         return qs
