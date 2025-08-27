@@ -16,7 +16,6 @@ from ..analysis.models import (
     WorkflowTemplate,
 )
 from ..manager.models import Surface, Tag, Topography
-from ..organizations.models import Organization
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
 
@@ -401,15 +400,6 @@ class TagAnalysisFactory(AnalysisFactory):
         model = Analysis
 
     subject_tag = factory.SubFactory(TagFactory)
-
-
-class OrganizationFactory(factory.django.DjangoModelFactory):
-    """Creating Organization instance for supplib."""
-
-    class Meta:
-        model = Organization
-
-    name = factory.Sequence(lambda n: "Organization No. {:d}".format(n))
 
 
 class WorkflowTemplateFactory(factory.django.DjangoModelFactory):
