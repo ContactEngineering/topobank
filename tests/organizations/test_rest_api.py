@@ -143,3 +143,57 @@ def test_patch_organizations(api_client, user_alice, user_staff):
     )
     assert response.status_code == 200, response.content
     assert response.data["name"] == org_data["name"]
+
+
+@pytest.mark.django_db
+def test_add_remove_users(api_client, user_alice, user_staff):
+    org = OrganizationFactory()
+    data_dict = {
+        "user": reverse(
+            "users:user-v1-detail", kwargs={"pk": user_alice.id}
+        )
+    }
+
+    # Anonymous user cannot add users
+    response = api_client.post(
+        reverse("organizations:add-user-v1", kwargs={"pk": org.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 403, response.content
+    assert user_alice.groups.count() == 0
+
+    # Alice cannot add users
+    api_client.force_authenticate(user_alice)
+    response = api_client.post(
+        reverse("organizations:add-user-v1", kwargs={"pk": org.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 403, response.content
+    assert user_alice.groups.count() == 0
+
+    # Staff can add users
+    api_client.force_authenticate(user_staff)
+    response = api_client.post(
+        reverse("organizations:add-user-v1", kwargs={"pk": org.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 200, response.content
+    assert user_alice.groups.count() == 1
+
+    # Alice cannot remove users
+    api_client.force_authenticate(user_alice)
+    response = api_client.post(
+        reverse("organizations:remove-user-v1", kwargs={"pk": org.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 403, response.content
+    assert user_alice.groups.count() == 1
+
+    # Staff can remove users
+    api_client.force_authenticate(user_staff)
+    response = api_client.post(
+        reverse("organizations:remove-user-v1", kwargs={"pk": org.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 200, response.content
+    assert user_alice.groups.count() == 0
