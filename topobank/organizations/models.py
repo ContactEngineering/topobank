@@ -7,6 +7,7 @@ from django.contrib.auth.models import Group
 from django.db import models
 from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
+from rest_framework.reverse import reverse
 
 _log = logging.getLogger(__name__)
 
@@ -56,12 +57,10 @@ class Organization(models.Model):
         """
         Called when saving this instance.
 
-        Also ensures that a group with same
-        name as the organization is created and
-        linked to this instance.
-        Exception: Organization "World" is linked to the
-                   group "all"
-        By default, each new organization gets the default plugins.
+        Also ensures that a group with same name as the organization is
+        created and linked to this instance.
+        Exception: Organization "World" is linked to the group "all"
+        By default, each new organization has no plugins.
         """
         if self.pk is None:
             # This is a new organization, we need to create a corresponding group
@@ -93,6 +92,10 @@ class Organization(models.Model):
     def add(self, user: settings.AUTH_USER_MODEL):
         """Add user to this organization."""
         user.groups.add(self.group)
+
+    def get_absolute_url(self, request=None):
+        """URL of API endpoint for this organization"""
+        return reverse("organizations:organization-v1-detail", kwargs={"pk": self.pk}, request=request)
 
 
 def resolve_organization(url):
