@@ -23,6 +23,7 @@ from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
@@ -352,7 +353,9 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
     # `creator` is only NULL if user is deleted after dataset has been created.
     # Custodian should NOT remove datasets with NULL organization
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True)
+    creator = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
+    )
 
     # `owner` is always an organization. The field is only NULL if
     # organization is deleted after dataset has been created.
@@ -368,8 +371,14 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False
     )
     tags = tm.TagField(to=Tag)
-    creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
-    modification_datetime = models.DateTimeField(auto_now=True, null=True)
+
+    #
+    # Time stamps
+    #
+    creation_time = models.DateTimeField(auto_now_add=True, null=True)
+    modification_time = models.DateTimeField(auto_now=True, null=True)
+    # If deletion date is set, the datasets will be deleted after TOPOBANK_DELETE_DELAY
+    deletion_time = models.DateTimeField(null=True)
 
     #
     # Attachments
@@ -422,6 +431,10 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         if created:
             # Grant permissions to creator
             self.permissions.grant_for_user(self.creator, "full")
+
+    def lazy_delete(self):
+        self.deletion_time = timezone.now()
+        self.save(update_fields=["deletion_time"])
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml.
@@ -642,8 +655,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     description = models.TextField(blank=True)
     tags = tm.TagField(to=Tag)
     attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
-    creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
-    modification_datetime = models.DateTimeField(auto_now=True, null=True)
+
+    #
+    # Time stamps
+    #
+    creation_time = models.DateTimeField(auto_now_add=True, null=True)
+    modification_time = models.DateTimeField(auto_now=True, null=True)
+    # If deletion date is set, the datasets will be deleted after TOPOBANK_DELETE_DELAY
+    deletion_time = models.DateTimeField(null=True)
 
     #
     # Fields related to raw data
@@ -830,6 +849,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Save after run task, because run task may update the task state
         super().save(*args, **kwargs)
+
+    def lazy_delete(self):
+        self.deletion_time = timezone.now()
+        self.save(update_fields=["deletion_time"])
 
     def save_datafile(self, fobj):
         self.datafile = Manifest.objects.create(

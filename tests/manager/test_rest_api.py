@@ -57,8 +57,8 @@ def test_surface_retrieve_routes(
             "download": ASSERT_EQUAL_IGNORE_VALUE,
             "async_download": ASSERT_EQUAL_IGNORE_VALUE,
         },
-        "creation_datetime": surface1.creation_datetime.astimezone().isoformat(),
-        "modification_datetime": surface1.modification_datetime.astimezone().isoformat(),
+        "creation_datetime": surface1.creation_time.astimezone().isoformat(),
+        "modification_datetime": surface1.modification_time.astimezone().isoformat(),
         "attachments": surface1.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface1.id}",
         "properties": {},
@@ -114,8 +114,8 @@ def test_surface_retrieve_routes(
             "channel_names": [],
             "data_source": 0,
             "is_metadata_complete": True,
-            "creation_datetime": topo1.creation_datetime.astimezone().isoformat(),
-            "modification_datetime": topo1.modification_datetime.astimezone().isoformat(),
+            "creation_datetime": topo1.creation_time.astimezone().isoformat(),
+            "modification_datetime": topo1.modification_time.astimezone().isoformat(),
             "permissions": ASSERT_EQUAL_IGNORE_VALUE,
         }
     ]
@@ -133,8 +133,8 @@ def test_surface_retrieve_routes(
             "download": ASSERT_EQUAL_IGNORE_VALUE,
             "async_download": ASSERT_EQUAL_IGNORE_VALUE,
         },
-        "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
-        "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
+        "creation_datetime": surface2.creation_time.astimezone().isoformat(),
+        "modification_datetime": surface2.modification_time.astimezone().isoformat(),
         "attachments": surface2.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface2.id}",
         "properties": {},
@@ -190,8 +190,8 @@ def test_surface_retrieve_routes(
             "channel_names": [],
             "data_source": 0,
             "is_metadata_complete": True,
-            "creation_datetime": topo2.creation_datetime.astimezone().isoformat(),
-            "modification_datetime": topo2.modification_datetime.astimezone().isoformat(),
+            "creation_datetime": topo2.creation_time.astimezone().isoformat(),
+            "modification_datetime": topo2.modification_time.astimezone().isoformat(),
             "permissions": ASSERT_EQUAL_IGNORE_VALUE,
         }
     ]
@@ -312,8 +312,8 @@ def test_topography_retrieve_routes(
             ["Phase", None],
             ["Height", "nm"],
         ],
-        "creation_datetime": topo1.creation_datetime.astimezone().isoformat(),
-        "modification_datetime": topo1.modification_datetime.astimezone().isoformat(),
+        "creation_datetime": topo1.creation_time.astimezone().isoformat(),
+        "modification_datetime": topo1.modification_time.astimezone().isoformat(),
         "attachments": topo1.attachments.get_absolute_url(response.wsgi_request),
         "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
         "datafile": ASSERT_EQUAL_IGNORE_VALUE,
@@ -368,8 +368,8 @@ def test_topography_retrieve_routes(
         "task_duration": None,
         "data_source": 0,
         "channel_names": [],
-        "creation_datetime": topo2.creation_datetime.astimezone().isoformat(),
-        "modification_datetime": topo2.modification_datetime.astimezone().isoformat(),
+        "creation_datetime": topo2.creation_time.astimezone().isoformat(),
+        "modification_datetime": topo2.modification_time.astimezone().isoformat(),
         "attachments": topo2.attachments.get_absolute_url(response.wsgi_request),
         "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
         "datafile": ASSERT_EQUAL_IGNORE_VALUE,
@@ -389,7 +389,7 @@ def test_topography_retrieve_routes(
         # topo1 is updated but the get command, because it is triggering file inspection
         topo1 = Topography.objects.get(pk=topo1.id)
         topo1_dict["modification_datetime"] = (
-            topo1.modification_datetime.astimezone().isoformat()
+            topo1.modification_time.astimezone().isoformat()
         )
         assert_dict_equal(data, topo1_dict)
     else:
@@ -405,7 +405,7 @@ def test_topography_retrieve_routes(
         # topo2 is updated but the get command, because it is triggering file inspection
         topo2 = Topography.objects.get(pk=topo2.id)
         topo2_dict["modification_datetime"] = (
-            topo2.modification_datetime.astimezone().isoformat()
+            topo2.modification_time.astimezone().isoformat()
         )
         assert_dict_equal(data, topo2_dict)
     else:
@@ -570,7 +570,7 @@ def test_patch_surface_routes(api_client, two_topos, handle_usage_statistics):
     surface1, surface2 = Surface.objects.all()
     assert surface1.name == new_name
 
-    assert surface1.modification_datetime > surface1.creation_datetime
+    assert surface1.modification_time > surface1.creation_time
 
 
 @pytest.mark.django_db
@@ -603,7 +603,7 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     assert Topography.objects.count() == 3
     topo1, topo2, topo3 = Topography.objects.all()
     assert topo1.name == new_name
-    assert topo1.modification_datetime > topo1.creation_datetime
+    assert topo1.modification_time > topo1.creation_time
 
     new_name = "My second new name"
 
@@ -787,8 +787,8 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "creator": surface2.creator.get_absolute_url(response.wsgi_request),
                 "description": "",
                 "tags": [st.name],
-                "creation_datetime": surface3.creation_datetime.astimezone().isoformat(),
-                "modification_datetime": surface3.modification_datetime.astimezone().isoformat(),
+                "creation_datetime": surface3.creation_time.astimezone().isoformat(),
+                "modification_datetime": surface3.modification_time.astimezone().isoformat(),
                 "attachments": surface3.attachments.get_absolute_url(
                     response.wsgi_request
                 ),
@@ -811,8 +811,8 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "creator": surface2.creator.get_absolute_url(response.wsgi_request),
                 "description": "",
                 "tags": [st.name],
-                "creation_datetime": surface2.creation_datetime.astimezone().isoformat(),
-                "modification_datetime": surface2.modification_datetime.astimezone().isoformat(),
+                "creation_datetime": surface2.creation_time.astimezone().isoformat(),
+                "modification_datetime": surface2.modification_time.astimezone().isoformat(),
                 "attachments": surface2.attachments.get_absolute_url(
                     response.wsgi_request
                 ),
