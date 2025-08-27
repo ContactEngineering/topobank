@@ -16,16 +16,9 @@ class OrganizationPermission(BasePermission):
     def has_object_permission(self, request, view, obj):
         if not request.user or request.user.is_anonymous:
             return False
-        # The user object can only be accessed if the user is an admin or the user
-        # is in the same group as the requesting user.
-        return bool(
-            request.user.is_staff
-            or (
-                request.method in SAFE_METHODS
-                and len(
-                    set(obj.groups.value_list("id"))
-                    & set(request.user.groups.value_list("id"))
-                )
-                > 0
-            )
-        )
+        # Admin users can do any operation on organizations
+        elif request.user.is_staff:
+            return True
+        # Read access to normal users is granted if the users are members of
+        # the organization they are accessing
+        return obj.group.id in request.user.groups.values_list("id", flat=True)
