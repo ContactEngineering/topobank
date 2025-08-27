@@ -205,3 +205,59 @@ def test_delete_user(api_client, one_line_scan, user_alice, user_staff):
     # Line scan should have been deleted
     with pytest.raises(Topography.DoesNotExist):
         Topography.objects.get(id=one_line_scan.id)
+
+
+@pytest.mark.django_db
+def test_add_remove_organization(api_client, user_alice, user_staff):
+    org = OrganizationFactory()
+    data_dict = {
+        "organization": reverse(
+            "organizations:organization-v1-detail", kwargs={"pk": org.id}
+        )
+    }
+
+    # Anonymous user cannot add organizations
+    response = api_client.post(
+        reverse("users:add-organization-v1", kwargs={"pk": user_alice.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 403, response.content
+    assert user_alice.groups.count() == 0
+
+    # Alice cannot add organizations
+    api_client.force_authenticate(user_alice)
+    response = api_client.post(
+        reverse("users:add-organization-v1", kwargs={"pk": user_alice.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 403, response.content
+    assert user_alice.groups.count() == 0
+
+    # Staff can add organizations
+    api_client.force_authenticate(user_staff)
+    response = api_client.post(
+        reverse("users:add-organization-v1", kwargs={"pk": user_alice.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 200, response.content
+    assert user_alice.groups.count() == 1
+
+    # Alice cannot remove organizations
+    api_client.force_authenticate(user_alice)
+    response = api_client.post(
+        reverse("users:remove-organization-v1", kwargs={"pk": user_alice.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 403, response.content
+    assert user_alice.groups.count() == 1
+
+    # Staff can remove organizations
+    api_client.force_authenticate(user_staff)
+    response = api_client.post(
+        reverse("users:remove-organization-v1", kwargs={"pk": user_alice.id}),
+        data=data_dict,
+    )
+    assert response.status_code == 200, response.content
+    assert user_alice.groups.count() == 0
+
+

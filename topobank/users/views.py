@@ -1,14 +1,14 @@
 from django.db.models import Q
 from rest_framework import viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
+from ..organizations.models import resolve_organization
 from .anonymous import get_anonymous_user
 from .models import User
 from .permissions import UserPermission
 from .serializers import UserSerializer
-from ..organizations.models import resolve_organization
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -54,20 +54,16 @@ def get_user_and_organization(request, pk):
 
 
 @api_view(["POST"])
+@permission_classes([UserPermission])
 def add_organization(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
     user.groups.add(organization.group)
     return Response({})
 
-# This will only let the staff user access this route
-add_organization.permission_classes = [UserPermission]
-
 
 @api_view(["POST"])
+@permission_classes([UserPermission])
 def remove_organization(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
     user.groups.remove(organization.group)
     return Response({})
-
-# This will only let the staff user access this route
-remove_organization.permission_classes = [UserPermission]

@@ -1,10 +1,9 @@
 from rest_framework import viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from ..users.models import resolve_user
-from ..users.permissions import UserPermission
 from .models import Organization
 from .permissions import OrganizationPermission
 from .serializers import OrganizationSerializer
@@ -46,20 +45,16 @@ def get_user_and_organization(request, pk):
 
 
 @api_view(["POST"])
+@permission_classes([OrganizationPermission])
 def add_user(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
     user.groups.add(organization.group)
     return Response({})
 
-# This will only let the staff user access this route
-add_user.permission_classes = [UserPermission]
-
 
 @api_view(["POST"])
+@permission_classes([OrganizationPermission])
 def remove_user(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
     user.groups.remove(organization.group)
     return Response({})
-
-# This will only let the staff user access this route
-remove_user.permission_classes = [UserPermission]
