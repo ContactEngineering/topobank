@@ -1,3 +1,4 @@
+import pydantic
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
@@ -20,6 +21,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             # Auxiliary API endpoints
             "api",
             # Hyperlinked resources
+            "permissions_url",
             "surface_url",
             "creator_url",
             "datafile_url",
@@ -62,7 +64,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             "task_progress",
             "task_state",
             "tags",
-            "permissions",
         ]
 
     # Self
@@ -71,6 +72,11 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     )
 
     # Hyperlinked resources
+    permissions_url = serializers.HyperlinkedRelatedField(
+        source="permission_set",
+        view_name="authorization:permission-set-v1-detail",
+        read_only=True,
+    )
     creator_url = serializers.HyperlinkedRelatedField(
         source="creator", view_name="users:user-v1-detail", read_only=True
     )
@@ -131,7 +137,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
     def get_api(self, obj):
         return {
-            "self": obj.get_absolute_url(self.context["request"]),
             "force_inspect": reverse(
                 "manager:force-inspect",
                 kwargs={"pk": obj.id},
@@ -141,25 +146,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
     def get_is_metadata_complete(self, obj):
         return obj.is_metadata_complete
-
-    def get_permissions(self, obj):
-        request = self.context["request"]
-        current_user = request.user
-        user_permissions = obj.permissions.user_permissions.all()
-        return {
-            "current_user": {
-                "user": current_user.get_absolute_url(request),
-                "permission": obj.get_permission(current_user),
-            },
-            "other_users": [
-                {
-                    "user": perm.user.get_absolute_url(request),
-                    "permission": perm.allow,
-                }
-                for perm in user_permissions
-                if perm.user != current_user
-            ],
-        }
 
     def update(self, instance, validated_data):
         if "surface" in validated_data:
@@ -183,6 +169,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             # Auxiliary API endpoints
             "api",
             # Hyperlinked resources
+            "permissions_url",
             "creator_url",
             "owner_url",
             "attachments_url",
@@ -193,7 +180,6 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             "tags",
             "creation_time",
             "modification_time",
-            "permissions",
             "properties",
         ]
 
@@ -205,7 +191,12 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
 
-    # Deprecations
+    # Hyperlinked resources
+    permissions_url = serializers.HyperlinkedRelatedField(
+        source="permission_set",
+        view_name="authorization:permission-set-v1-detail",
+        read_only=True,
+    )
     creator_url = serializers.HyperlinkedRelatedField(
         source="creator", view_name="users:user-v1-detail", read_only=True
     )
@@ -233,25 +224,6 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             ),
             "topographies": reverse("manager:topography-v2-list", request=request)
             + f"?surface={obj.id}",
-        }
-
-    def get_permissions(self, obj):
-        request = self.context["request"]
-        current_user = request.user
-        user_permissions = obj.permissions.user_permissions.all()
-        return {
-            "current_user": {
-                "user": current_user.get_absolute_url(request),
-                "permission": obj.get_permission(current_user),
-            },
-            "other_users": [
-                {
-                    "user": perm.user.get_absolute_url(request),
-                    "permission": perm.allow,
-                }
-                for perm in user_permissions
-                if perm.user != current_user
-            ],
         }
 
 
