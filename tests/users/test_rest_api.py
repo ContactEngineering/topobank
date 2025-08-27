@@ -259,5 +259,3 @@ def test_add_remove_organization(api_client, user_alice, user_staff):
     )
     assert response.status_code == 200, response.content
     assert user_alice.groups.count() == 0
-
-
