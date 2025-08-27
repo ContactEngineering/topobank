@@ -157,6 +157,9 @@ def test_patch_user(api_client, user_alice, user_bob, user_staff):
 @pytest.mark.django_db
 def test_delete_user(api_client, one_line_scan, user_alice, user_staff):
     user_line_scan = one_line_scan.creator
+    org = OrganizationFactory()
+    one_line_scan.surface.owner = org
+    one_line_scan.surface.save(update_fields=["owner"])
 
     # Deleting a user information as the anonymous user should fail
     response = api_client.delete(
@@ -165,11 +168,10 @@ def test_delete_user(api_client, one_line_scan, user_alice, user_staff):
     assert response.status_code == 403, response.content
 
     # We now add bob and alice to the same organization
-    org = OrganizationFactory()
     org.add(user_alice)
     org.add(user_line_scan)
 
-    # Deleteing bob as user alice should fail because alice cannot delete
+    # Deleting bob as user alice should fail because alice cannot delete
     # or edit bob
     api_client.force_authenticate(user_alice)
     response = api_client.delete(
@@ -189,6 +191,15 @@ def test_delete_user(api_client, one_line_scan, user_alice, user_staff):
     assert topo.surface.creator is None
 
     # Run custodian
+    periodic_cleanup()
+
+    # This should succeed, line scan still exists because it has an owner
+    topo = Topography.objects.get(id=one_line_scan.id)
+    assert topo.surface.creator is None
+
+    # Remove owner and run custodian
+    topo.surface.owner = None
+    topo.surface.save(update_fields=["owner"])
     periodic_cleanup()
 
     # Line scan should have been deleted
