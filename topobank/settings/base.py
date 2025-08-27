@@ -401,15 +401,16 @@ def ACCOUNT_USER_DISPLAY(user):
     return user.name
 
 
-#
-# Settings for handling terms and conditions
-#
+# Terms and conditions
+# ------------------------------------------------------------------------------
 TERMS_BASE_TEMPLATE = "pages/termsframe.html"
 TERMS_EXCLUDE_URL_LIST = {"/accounts/logout/"}
 # TERMS_EXCLUDE_URL_PREFIX_LIST = {'/users/'}
 TERMS_EXCLUDE_USERS_WITH_PERM = "users.can_skip_terms"
 TERMS_STORE_IP_ADDRESS = False
 
+# S3
+# ------------------------------------------------------------------------------
 AWS_LOCATION = env.str("AWS_MEDIA_PREFIX", default="media")
 
 AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY_ID", default=None)
