@@ -13,10 +13,10 @@ class OrganizationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeria
             "url",
             "id",
             # Auxiliary API endpoints
-            'api',
+            "api",
             # Model fields
             "name",
-            "plugins_available"
+            "plugins_available",
         ]
 
     url = serializers.HyperlinkedIdentityField(
@@ -25,15 +25,18 @@ class OrganizationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeria
     api = serializers.SerializerMethodField()
 
     def get_api(self, obj: Organization) -> dict:
+        request = self.context["request"]
         return {
+            "users": reverse("users:user-v1-list", request=request)
+            + f"?organization={obj.id}",
             "add_user": reverse(
                 "organizations:add-user-v1",
                 kwargs={"pk": obj.id},
-                request=self.context["request"],
+                request=request,
             ),
             "remove_user": reverse(
                 "organizations:remove-user-v1",
                 kwargs={"pk": obj.id},
-                request=self.context["request"],
-            )
+                request=request,
+            ),
         }
