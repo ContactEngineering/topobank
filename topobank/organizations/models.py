@@ -87,3 +87,7 @@ class Organization(models.Model):
             f"organization '{self.name}'."
         )
         self.group.delete()
+
+    def add(self, user: settings.AUTH_USER_MODEL):
+        """Add user to this organization."""
+        user.groups.add(self.group)

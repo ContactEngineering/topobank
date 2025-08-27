@@ -14,14 +14,22 @@ class UserViewSet(viewsets.ModelViewSet):
     permission_classes = [UserPermission]
 
     def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return User.objects.none()
+
         name = self.request.query_params.get("name")
-        max_results = int(self.request.query_params.get("max", 5))
-        if name is None:
-            if self.request.user.is_authenticated:
-                return User.objects.all()
-            else:
-                return User.objects.none()
-        else:
-            return User.objects.filter(
-                Q(name__icontains=name) & ~Q(id=get_anonymous_user().id)
-            )[0:max_results]
+
+        # We don't want the anonymous user
+        qs = User.objects.exclude(id=get_anonymous_user().id)
+
+        # If we are not the staff user, then only show users of organizations
+        # the current user is a member of
+        if not self.request.user.is_staff:
+            qs = qs.filter(groups__in=self.request.user.groups.all())
+
+        # Filter for name
+        if name is not None:
+            qs = qs.filter(name__icontains=name)
+        
+        # Return query set
+        return qs
