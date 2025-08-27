@@ -49,7 +49,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
-    DATABASES = {"default": env.db("DATABASE_URL", default="postgres://postgres@localhost/topobank-test")}
+    DATABASES = {
+        "default": env.db(
+            "DATABASE_URL", default="postgres://postgres@localhost/topobank-test"
+        )
+    }
 else:
     DATABASES = {
         "default": {
@@ -83,12 +87,9 @@ DJANGO_APPS = [
     "django.contrib.postgres",  # needed for 'search' lookup
 ]
 THIRD_PARTY_APPS = [
-    "crispy_forms",  # format forms
-    "crispy_bootstrap5",  # format forms with Bootstrap-5
     "allauth",  # authentication
     "allauth.account",
     "allauth.socialaccount",  # social authentication
-    "allauth.socialaccount.providers.orcid",  # ORCID provider
     "rest_framework",  # REST API
     "storages",  # S3 storage
     "guardian",  # needed for migrations only
@@ -266,9 +267,6 @@ TEMPLATES = [
         },
     },
 ]
-# http://django-crispy-forms.readthedocs.io/en/latest/install.html#template-packs
-CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
-CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # FIXTURES
 # ------------------------------------------------------------------------------
@@ -344,22 +342,6 @@ CELERY_BEAT_SCHEDULE = {
     },
 }
 
-# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
-# CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
-# CELERY_BROKER_URL = 'amqp://guest:guest@localhost:5672//'
-# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
-# if CELERY_BROKER_URL == 'django://':
-#     CELERY_RESULT_BACKEND = 'redis://'
-# else:
-#     CELERY_RESULT_BACKEND = CELERY_BROKER_URL
-
-# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
-# CELERY_ACCEPT_CONTENT = ['json', 'pickle']
-#  http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
-# CELERY_TASK_SERIALIZER = 'pickle'
-#  http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
-# CELERY_RESULT_SERIALIZER = 'pickle' # because of arrays
-
 # django-allauth
 # ------------------------------------------------------------------------------
 # https://django-allauth.readthedocs.io/en/latest/configuration.html
@@ -385,7 +367,7 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": (
-        # Anonymous user is not authenticated by needs read-only access
+        # Anonymous user is not authenticated but needs read-only access
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -393,9 +375,9 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Topobank API",
-    "DESCRIPTION": "Topography Storage and Calculation Service for Contact Mechanics",
-    "VERSION": "1.0.0",
+    "TITLE": "topobank",
+    "DESCRIPTION": "A surface metrology cloud database",
+    "VERSION": topobank.__version__,
     "SERVE_INCLUDE_SCHEMA": False,
     # OTHER SETTINGS
 }
