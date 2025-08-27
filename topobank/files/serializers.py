@@ -12,16 +12,19 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
     class Meta:
         model = Manifest
         fields = [
-            "id",
+            # Self
             "url",
+            "id",
+            # Hyperlinked resources
+            "folder",  # should become folder_url in v2
+            "uploaded_by",  # should become upload_user_url in v2
+            # Model fields
             "filename",
             "file",
-            "folder",
             "kind",
-            "created",
-            "updated",
-            "upload_confirmed",
-            "uploaded_by",
+            "created",  # should become creation_time in v2
+            "updated",  # should become modification_time in v2
+            "upload_confirmed",  # should become upload_confirmation_time in v2
             "upload_instructions",
         ]
 
