@@ -165,5 +165,5 @@ class WorkflowTemplateSerializer(
     )
 
     creator = serializers.HyperlinkedRelatedField(
-        view_name="users:user-api-detail", read_only=True
+        view_name="users:user-v1-detail", read_only=True
     )

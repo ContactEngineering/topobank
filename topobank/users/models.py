@@ -42,7 +42,7 @@ class User(AbstractUser):
 
     def get_absolute_url(self, request=None):
         """URL of API endpoint for this user"""
-        return reverse("users:user-api-detail", kwargs={"pk": self.pk}, request=request)
+        return reverse("users:user-v1-detail", kwargs={"pk": self.pk}, request=request)
 
     def _orcid_info(self):  # TODO use local cache
         try:
@@ -156,6 +156,6 @@ class User(AbstractUser):
 
 def resolve_user(url):
     match = resolve(urlparse(url).path)
-    if match.view_name != "users:user-api-detail":
-        raise ValueError("URL does not resolve to a User object")
+    if match.view_name != "users:user-v1-detail":
+        raise ValueError("URL does not resolve to an User instance")
     return User.objects.get(**match.kwargs)

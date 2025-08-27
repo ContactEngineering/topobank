@@ -11,7 +11,7 @@ def test_create_organization(api_client, user_alice, user_staff):
 
     # Create organization as anonymous user should fail
     response = api_client.post(
-        reverse("organizations:organization-api-list"),
+        reverse("organizations:organization-v1-list"),
         data=organization_dict,
         format="json",
     )
@@ -22,7 +22,7 @@ def test_create_organization(api_client, user_alice, user_staff):
     # Create as user alice should also fail
     api_client.force_authenticate(user_alice)
     response = api_client.post(
-        reverse("organizations:organization-api-list"),
+        reverse("organizations:organization-v1-list"),
         data=organization_dict,
         format="json",
     )
@@ -33,7 +33,7 @@ def test_create_organization(api_client, user_alice, user_staff):
     # Create as staff user should succeed
     api_client.force_authenticate(user_staff)
     response = api_client.post(
-        reverse("organizations:organization-api-list"),
+        reverse("organizations:organization-v1-list"),
         data=organization_dict,
         format="json",
     )
@@ -43,7 +43,7 @@ def test_create_organization(api_client, user_alice, user_staff):
 
     # Create organization with same name should fail
     response = api_client.post(
-        reverse("organizations:organization-api-list"),
+        reverse("organizations:organization-v1-list"),
         data=organization_dict,
         format="json",
     )
@@ -54,7 +54,7 @@ def test_create_organization(api_client, user_alice, user_staff):
     # Create organization without name should fail
     del organization_dict["name"]
     response = api_client.post(
-        reverse("organizations:organization-api-list"),
+        reverse("organizations:organization-v1-list"),
         data=organization_dict,
         format="json",
     )
@@ -66,39 +66,39 @@ def test_create_organization(api_client, user_alice, user_staff):
 @pytest.mark.django_db
 def test_list_organizations(api_client, user_alice, user_bob, user_staff):
     # Searching for a user as the anonymous user should not be allowed
-    response = api_client.get(reverse("organizations:organization-api-list"))
+    response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 403, response.content
 
     # Listing when logged in should yield the organization of the user
     api_client.force_authenticate(user_alice)
-    response = api_client.get(reverse("organizations:organization-api-list"))
+    response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
     assert len(response.data) == 0  # No organization assigned to alice
 
     org1 = OrganizationFactory()
     user_alice.groups.add(org1.group)
-    response = api_client.get(reverse("organizations:organization-api-list"))
+    response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
     assert len(response.data) == 1  # No organization assigned to alice
     assert response.data[0]["name"] == org1.name
 
     org2 = OrganizationFactory()
     user_bob.groups.add(org2.group)
-    response = api_client.get(reverse("organizations:organization-api-list"))
+    response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
     assert len(response.data) == 1  # No organization assigned to alice
     assert response.data[0]["name"] == org1.name
 
     # Login as bob and see whether he sees organization 2
     api_client.force_authenticate(user_bob)
-    response = api_client.get(reverse("organizations:organization-api-list"))
+    response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
     assert len(response.data) == 1  # No organization assigned to alice
     assert response.data[0]["name"] == org2.name
 
     # Login as staff and see all organizations
     api_client.force_authenticate(user_staff)
-    response = api_client.get(reverse("organizations:organization-api-list"))
+    response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
     assert len(response.data) == 2  # No organization assigned to alice
     assert {response.data[0]["name"], response.data[1]["name"]} == {
@@ -115,7 +115,7 @@ def test_patch_organizations(api_client, user_alice, user_staff):
 
     # Anonymous user cannot change the organization
     response = api_client.patch(
-        reverse("organizations:organization-api-detail", kwargs={"pk": org.id}),
+        reverse("organizations:organization-v1-detail", kwargs={"pk": org.id}),
         data=org_data,
     )
     assert response.status_code == 403, response.content
@@ -123,7 +123,7 @@ def test_patch_organizations(api_client, user_alice, user_staff):
     # Alice cannot change the organization
     api_client.force_authenticate(user_alice)
     response = api_client.patch(
-        reverse("organizations:organization-api-detail", kwargs={"pk": org.id}),
+        reverse("organizations:organization-v1-detail", kwargs={"pk": org.id}),
         data=org_data,
     )
     assert response.status_code == 403, response.content
@@ -131,7 +131,7 @@ def test_patch_organizations(api_client, user_alice, user_staff):
     # Staff can change the organization
     api_client.force_authenticate(user_staff)
     response = api_client.patch(
-        reverse("organizations:organization-api-detail", kwargs={"pk": org.id}),
+        reverse("organizations:organization-v1-detail", kwargs={"pk": org.id}),
         data=org_data,
     )
     assert response.status_code == 200, response.content
@@ -139,7 +139,7 @@ def test_patch_organizations(api_client, user_alice, user_staff):
     # Alice can get the new name
     api_client.force_authenticate(user_alice)
     response = api_client.get(
-        reverse("organizations:organization-api-detail", kwargs={"pk": org.id})
+        reverse("organizations:organization-v1-detail", kwargs={"pk": org.id})
     )
     assert response.status_code == 200, response.content
     assert response.data["name"] == org_data["name"]

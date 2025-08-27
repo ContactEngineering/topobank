@@ -45,7 +45,7 @@ def test_surface_retrieve_routes(
     )
     surface1_dict = {
         "category": None,
-        "creator": f"http://testserver/users/api/user/{user.id}/",
+        "creator": f"http://testserver/users/v1/user/{user.id}/",
         "description": "",
         "name": "Surface 1",
         "id": surface1.id,
@@ -72,7 +72,7 @@ def test_surface_retrieve_routes(
             "attachments": topo1.attachments.get_absolute_url(response.wsgi_request),
             "bandwidth_lower": topo1.bandwidth_lower,
             "bandwidth_upper": topo1.bandwidth_upper,
-            "creator": f"http://testserver/users/api/user/{user.id}/",
+            "creator": f"http://testserver/users/v1/user/{user.id}/",
             "datafile_format": topo1.datafile_format,
             "description": "description1",
             "detrend_mode": "height",
@@ -121,7 +121,7 @@ def test_surface_retrieve_routes(
     ]
     surface2_dict = {
         "category": None,
-        "creator": f"http://testserver/users/api/user/{user.id}/",
+        "creator": f"http://testserver/users/v1/user/{user.id}/",
         "description": "",
         "name": "Surface 2",
         "id": surface2.id,
@@ -148,7 +148,7 @@ def test_surface_retrieve_routes(
             "attachments": topo2.attachments.get_absolute_url(response.wsgi_request),
             "bandwidth_lower": topo2.bandwidth_lower,
             "bandwidth_upper": topo2.bandwidth_upper,
-            "creator": f"http://testserver/users/api/user/{user.id}/",
+            "creator": f"http://testserver/users/v1/user/{user.id}/",
             "datafile_format": topo2.datafile_format,
             "description": "description2",
             "detrend_mode": "height",
@@ -268,7 +268,7 @@ def test_topography_retrieve_routes(
     topo1_dict = {
         "bandwidth_lower": topo1.bandwidth_lower,
         "bandwidth_upper": topo1.bandwidth_upper,
-        "creator": f"http://testserver/users/api/user/{user.id}/",
+        "creator": f"http://testserver/users/v1/user/{user.id}/",
         "datafile_format": topo1.datafile_format,
         "description": "description1",
         "detrend_mode": "height",
@@ -329,7 +329,7 @@ def test_topography_retrieve_routes(
     topo2_dict = {
         "bandwidth_lower": topo2.bandwidth_lower,
         "bandwidth_upper": topo2.bandwidth_upper,
-        "creator": f"http://testserver/users/api/user/{user.id}/",
+        "creator": f"http://testserver/users/v1/user/{user.id}/",
         "datafile_format": topo2.datafile_format,
         "description": "description2",
         "detrend_mode": "height",

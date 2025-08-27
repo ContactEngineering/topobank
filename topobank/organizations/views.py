@@ -1,6 +1,10 @@
 from rest_framework import viewsets
+from rest_framework.decorators import api_view
 from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.response import Response
 
+from ..users.models import resolve_user
+from ..users.permissions import UserPermission
 from .models import Organization
 from .permissions import OrganizationPermission
 from .serializers import OrganizationSerializer
@@ -12,12 +16,50 @@ class OrganizationViewSet(viewsets.ModelViewSet):
     permission_classes = [OrganizationPermission]
 
     def get_queryset(self):
+        if not self.request.user.is_authenticated:
+            return Organization.objects.none()
+
+        user = self.request.query_params.get("user", None)
+
         if self.request.user.is_staff:
             # Staff users can see all organizations
-            return Organization.objects.all()
-        elif self.request.user.is_authenticated:
+            qs = Organization.objects.all()
+        else:
             # Normal users can only see organizations they are member of
-            return Organization.objects.filter(
+            qs = Organization.objects.filter(
                 group__in=self.request.user.groups.all()
-            ).distinct()
-        return Organization.objects.none()
+            )
+
+        # Filter for specific user
+        if user is not None:
+            qs = qs.filter(group__in=user.groups.all())
+
+        # Return query set
+        return qs.distinct()
+
+
+def get_user_and_organization(request, pk):
+    organization = Organization.objects.get(pk=pk)
+    user_url = request.data.get("user")
+    user = resolve_user(user_url)
+    return user, organization
+
+
+@api_view(["POST"])
+def add_user(request, pk: int):
+    user, organization = get_user_and_organization(request, pk)
+    user.groups.add(organization.group)
+    return Response({})
+
+# This will only let the staff user access this route
+add_user.permission_classes = [UserPermission]
+
+
+@api_view(["POST"])
+def remove_user(request, pk: int):
+    user, organization = get_user_and_organization(request, pk)
+    user.groups.remove(organization.group)
+    return Response({})
+
+# This will only let the staff user access this route
+remove_user.permission_classes = [UserPermission]

@@ -37,7 +37,7 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
     updated = serializers.DateTimeField(read_only=True)
     upload_confirmed = serializers.DateTimeField(read_only=True)
     uploaded_by = serializers.HyperlinkedRelatedField(
-        view_name="users:user-api-detail", read_only=True
+        view_name="users:user-v1-detail", read_only=True
     )
     upload_instructions = serializers.SerializerMethodField()
 

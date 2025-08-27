@@ -1,11 +1,14 @@
 from django.db.models import Q
 from rest_framework import viewsets
+from rest_framework.decorators import api_view
 from rest_framework.pagination import LimitOffsetPagination
+from rest_framework.response import Response
 
 from .anonymous import get_anonymous_user
 from .models import User
 from .permissions import UserPermission
 from .serializers import UserSerializer
+from ..organizations.models import resolve_organization
 
 
 class UserViewSet(viewsets.ModelViewSet):
@@ -18,6 +21,7 @@ class UserViewSet(viewsets.ModelViewSet):
             return User.objects.none()
 
         name = self.request.query_params.get("name")
+        organization = self.request.query_params.get("organization")
 
         # We don't want the anonymous user
         qs = User.objects.exclude(id=get_anonymous_user().id)
@@ -34,5 +38,36 @@ class UserViewSet(viewsets.ModelViewSet):
         if name is not None:
             qs = qs.filter(name__icontains=name)
 
+        # Filter for organization
+        if organization is not None:
+            qs = qs.filter(group=organization.group)
+
         # Return query set
         return qs
+
+
+def get_user_and_organization(request, pk):
+    user = User.objects.get(pk=pk)
+    organization_url = request.data.get("organization")
+    organization = resolve_organization(organization_url)
+    return user, organization
+
+
+@api_view(["POST"])
+def add_organization(request, pk: int):
+    user, organization = get_user_and_organization(request, pk)
+    user.groups.add(organization.group)
+    return Response({})
+
+# This will only let the staff user access this route
+add_organization.permission_classes = [UserPermission]
+
+
+@api_view(["POST"])
+def remove_organization(request, pk: int):
+    user, organization = get_user_and_organization(request, pk)
+    user.groups.remove(organization.group)
+    return Response({})
+
+# This will only let the staff user access this route
+remove_organization.permission_classes = [UserPermission]

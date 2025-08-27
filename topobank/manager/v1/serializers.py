@@ -79,14 +79,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             "thumbnail",
             "attachments",
             "deepzoom",
-            # Hyperlinked resources
-            # "surface_url",
-            # "creator_url",
-            # "datafile_url",
-            # "squeezed_datafile_url",
-            # "thumbnail_url",
-            # "attachments_url",
-            # "deepzoom_url",
             # Everything else
             "name",
             "datafile_format",
@@ -132,7 +124,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
     # Deprecated
     creator = serializers.HyperlinkedRelatedField(
-        view_name="users:user-api-detail", read_only=True
+        view_name="users:user-v1-detail", read_only=True
     )
     surface = serializers.HyperlinkedRelatedField(
         view_name="manager:surface-api-detail", queryset=Surface.objects.all()
@@ -146,29 +138,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     attachments = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
-
-    # Hyperlinked resources
-    # creator_url = serializers.HyperlinkedRelatedField(
-    #     source="creator", view_name="users:user-api-detail", read_only=True
-    # )
-    # surface_url = serializers.HyperlinkedRelatedField(
-    #     source="surface", view_name="manager:surface-api-detail", queryset=Surface.objects.all()
-    # )
-    # datafile_url = serializers.HyperlinkedRelatedField(
-    #     source="datafile", view_name="files:manifest-api-detail", read_only=True
-    # )
-    # squeezed_datafile_url = serializers.HyperlinkedRelatedField(
-    #     source="squeezed_datafile", view_name="files:manifest-api-detail", read_only=True
-    # )
-    # thumbnail_url = serializers.HyperlinkedRelatedField(
-    #     source="thumbnail", view_name="files:manifest-api-detail", read_only=True
-    # )
-    # deepzoom_url = serializers.HyperlinkedRelatedField(
-    #     source="deepzoom", view_name="files:folder-api-detail", read_only=True
-    # )
-    # attachments_url = serializers.HyperlinkedRelatedField(
-    #     source="attachments", view_name="files:folder-api-detail", read_only=True
-    # )
 
     # These fields have been renamed in the model
     creation_datetime = serializers.DateTimeField(source="creation_time", read_only=True)
@@ -267,10 +236,6 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             "topography_set",
             "attachments",
             "topographies",
-            # Hyperlinked resources
-            # "creator_url",
-            # "topographies_url",
-            # "attachments_url",
             # Everything else
             "name",
             "category",
@@ -292,22 +257,13 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
 
     # Deprecations
     creator = serializers.HyperlinkedRelatedField(
-        view_name="users:user-api-detail", read_only=True
+        view_name="users:user-v1-detail", read_only=True
     )
     topography_set = TopographySerializer(many=True, read_only=True)
     attachments = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
     topographies = serializers.SerializerMethodField()
-
-    # Hyperlinked resources
-    # creator_url = serializers.HyperlinkedRelatedField(
-    #     view_name="users:user-api-detail", read_only=True
-    # )
-    # topographies_url = serializers.SerializerMethodField()
-    # attachments_url = serializers.HyperlinkedRelatedField(
-    #     view_name="files:folder-api-detail", read_only=True
-    # )
 
     # Everything else
     properties = PropertiesField(required=False)

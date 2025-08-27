@@ -72,7 +72,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
     # Hyperlinked resources
     creator_url = serializers.HyperlinkedRelatedField(
-        source="creator", view_name="users:user-api-detail", read_only=True
+        source="creator", view_name="users:user-v1-detail", read_only=True
     )
     surface_url = serializers.HyperlinkedRelatedField(
         source="surface",
@@ -207,11 +207,11 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
 
     # Deprecations
     creator_url = serializers.HyperlinkedRelatedField(
-        source="creator", view_name="users:user-api-detail", read_only=True
+        source="creator", view_name="users:user-v1-detail", read_only=True
     )
     owner_url = serializers.HyperlinkedRelatedField(
         source="owner",
-        view_name="organizations:organization-api-detail",
+        view_name="organizations:organization-v1-detail",
         queryset=Organization.objects.all(),
     )
     attachments = serializers.HyperlinkedRelatedField(
