@@ -8,6 +8,7 @@ import string
 
 import environ
 from backports.entry_points_selectable import entry_points
+from celery.schedules import crontab
 from django.core.exceptions import ImproperlyConfigured
 from watchman import constants as watchman_constants
 
@@ -334,6 +335,14 @@ CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = True
 # https://docs.celeryproject.org/en/stable/userguide/configuration.html?highlight=heartbeat#broker-heartbeat
 CELERY_BROKER_HEARTBEAT = 60
 CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 30
+
+# https://docs.celeryq.dev/en/latest/userguide/periodic-tasks.html
+CELERY_BEAT_SCHEDULE = {
+    "manager": {
+        "task": "topobank.manager.custodian.periodic_cleanup",
+        "schedule": 3600,  # Every hour
+    },
+}
 
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
 # CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
