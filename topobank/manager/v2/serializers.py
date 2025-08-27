@@ -1,8 +1,10 @@
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
 from ...files.models import Manifest
 from ...organizations.models import Organization
+from ...properties.serializers import PropertiesField
 from ...supplib.serializers import StrictFieldMixin
 from ...taskapp.serializers import TaskStateModelSerializer
 from ..models import Surface, Topography, ZipContainer
@@ -20,7 +22,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             # Hyperlinked resources
             "surface_url",
             "creator_url",
-            "owner_url",
             "datafile_url",
             "squeezed_datafile_url",
             "thumbnail_url",
@@ -73,17 +74,18 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     creator_url = serializers.HyperlinkedRelatedField(
         source="creator", view_name="users:user-api-detail", read_only=True
     )
-    owner_url = serializers.HyperlinkedRelatedField(
-        source="owner", view_name="organizations:organization-api-detail", queryset=Organization.objects.all()
-    )
     surface_url = serializers.HyperlinkedRelatedField(
-        source="surface", view_name="manager:surface-api-detail", queryset=Surface.objects.all()
+        source="surface",
+        view_name="manager:surface-api-detail",
+        queryset=Surface.objects.all(),
     )
     datafile_url = serializers.HyperlinkedRelatedField(
         source="datafile", view_name="files:manifest-api-detail", read_only=True
     )
     squeezed_datafile_url = serializers.HyperlinkedRelatedField(
-        source="squeezed_datafile", view_name="files:manifest-api-detail", read_only=True
+        source="squeezed_datafile",
+        view_name="files:manifest-api-detail",
+        read_only=True,
     )
     thumbnail_url = serializers.HyperlinkedRelatedField(
         source="thumbnail", view_name="files:manifest-api-detail", read_only=True
@@ -169,6 +171,88 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         except pydantic.ValidationError as exc:
             # The kwargs that were provided do not match the function
             raise serializers.ValidationError({"message": str(exc)})
+
+
+class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    class Meta:
+        model = Surface
+        fields = [
+            # Self
+            "url",
+            "id",
+            # Auxiliary API endpoints
+            "api",
+            # Hyperlinked resources
+            "creator_url",
+            "owner_url",
+            "attachments_url",
+            # Everything else
+            "name",
+            "category",
+            "description",
+            "tags",
+            "creation_datetime",
+            "modification_datetime",
+            "permissions",
+            "properties",
+        ]
+
+    # Self
+    url = serializers.HyperlinkedIdentityField(
+        view_name="manager:surface-api-detail", read_only=True
+    )
+
+    # Auxiliary API endpoints
+    api = serializers.SerializerMethodField()
+
+    # Deprecations
+    creator_url = serializers.HyperlinkedRelatedField(
+        source="creator", view_name="users:user-api-detail", read_only=True
+    )
+    owner_url = serializers.HyperlinkedRelatedField(
+        source="owner",
+        view_name="organizations:organization-api-detail",
+        queryset=Organization.objects.all(),
+    )
+    attachments = serializers.HyperlinkedRelatedField(
+        view_name="files:folder-api-detail", read_only=True
+    )
+
+    # Everything else
+    properties = PropertiesField(required=False)
+    tags = TagRelatedManagerField(required=False)
+    permissions = serializers.SerializerMethodField()
+
+    def get_api(self, obj):
+        request = self.context["request"]
+        return {
+            "async_download": reverse(
+                "manager:surface-download-v2",
+                kwargs={"surface_ids": obj.id},
+                request=request,
+            ),
+            "topographies": reverse("manager:topography-v2-list", request=request)
+            + f"?surface={obj.id}",
+        }
+
+    def get_permissions(self, obj):
+        request = self.context["request"]
+        current_user = request.user
+        user_permissions = obj.permissions.user_permissions.all()
+        return {
+            "current_user": {
+                "user": current_user.get_absolute_url(request),
+                "permission": obj.get_permission(current_user),
+            },
+            "other_users": [
+                {
+                    "user": perm.user.get_absolute_url(request),
+                    "permission": perm.allow,
+                }
+                for perm in user_permissions
+                if perm.user != current_user
+            ],
+        }
 
 
 class ZipContainerSerializer(StrictFieldMixin, TaskStateModelSerializer):
