@@ -13,7 +13,10 @@ class UserPermission(BasePermission):
         if not request.user or request.user.is_anonymous:
             return False
 
-        return True
+        if request.user.is_staff:
+            return True
+        else:
+            return request.method in ("PATCH", "PUT", *SAFE_METHODS)
 
     def has_object_permission(self, request, view, obj):
         if not request.user or request.user.is_anonymous:
