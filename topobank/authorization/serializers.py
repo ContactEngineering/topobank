@@ -12,11 +12,15 @@ class UserPermissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserPermission
-        fields = ("user_url", "allow")
+        fields = ("user_url", "allow", "is_current_user")
 
     user_url = serializers.HyperlinkedRelatedField(
         source="user", view_name="users:user-v1-detail", read_only=True
     )
+    is_current_user = serializers.SerializerMethodField()
+
+    def get_is_current_user(self, obj):
+        return self.request.user == obj.user
 
 
 class OrganizationPermissionSerializer(serializers.ModelSerializer):
