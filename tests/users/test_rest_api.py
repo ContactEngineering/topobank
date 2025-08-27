@@ -1,6 +1,8 @@
 import pytest
 from rest_framework.reverse import reverse
 
+from topobank.manager.custodian import periodic_cleanup
+from topobank.manager.models import Topography
 from topobank.testing.factories import OrganizationFactory
 from topobank.users.models import User
 
@@ -150,3 +152,45 @@ def test_patch_user(api_client, user_alice, user_bob, user_staff):
         format="json",
     )
     assert response.status_code == 200, response.content
+
+
+@pytest.mark.django_db
+def test_delete_user(api_client, one_line_scan, user_alice, user_staff):
+    user_line_scan = one_line_scan.creator
+
+    # Deleting a user information as the anonymous user should fail
+    response = api_client.delete(
+        reverse("users:user-api-detail", kwargs={"pk": user_alice.id})
+    )
+    assert response.status_code == 403, response.content
+
+    # We now add bob and alice to the same organization
+    org = OrganizationFactory()
+    org.add(user_alice)
+    org.add(user_line_scan)
+
+    # Deleteing bob as user alice should fail because alice cannot delete
+    # or edit bob
+    api_client.force_authenticate(user_alice)
+    response = api_client.delete(
+        reverse("users:user-api-detail", kwargs={"pk": user_line_scan.id})
+    )
+    assert response.status_code == 403, response.content
+
+    # Staff user can delete user
+    api_client.force_authenticate(user_staff)
+    response = api_client.delete(
+        reverse("users:user-api-detail", kwargs={"pk": user_line_scan.id})
+    )
+    assert response.status_code == 204, response.content
+
+    # This should succeed, line scan still exists
+    topo = Topography.objects.get(id=one_line_scan.id)
+    assert topo.surface.creator is None
+
+    # Run custodian
+    periodic_cleanup()
+
+    # Line scan should have been deleted
+    with pytest.raises(Topography.DoesNotExist):
+        Topography.objects.get(id=one_line_scan.id)

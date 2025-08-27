@@ -14,25 +14,28 @@ _log = logging.getLogger(__name__)
 def periodic_cleanup():
     # Delete all topographies that were marked for deletion
     q = Topography.objects.filter(
-        deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETION_DELAY
+        deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
     )
     if q.count() > 0:
         _log.info(
             f"Custodian: Deleting {q.count()} measurements because they were marked for deletion."
         )
+        q.delete()
 
     # Delete all surfaces that were marked for deletion
     q = Surface.objects.filter(
-        deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETION_DELAY
+        deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
     )
     if q.count() > 0:
         _log.info(
             f"Custodian: Deleting {q.count()} datasets because they were marked for deletion."
         )
+        q.delete()
 
     # Delete all surfaces without creator and owner
-    q = Surface.objects.filter(creator__is_null=True, owner__is_null=True)
+    q = Surface.objects.filter(creator__isnull=True, owner__isnull=True)
     if q.count() > 0:
         _log.info(
             f"Custodian: Deleting {q.count()} datasets because they have neither a creator nor an owner."
         )
+        q.delete()
