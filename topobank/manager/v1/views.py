@@ -75,7 +75,9 @@ class SurfaceViewSet(viewsets.ModelViewSet):
             )
 
     def get_queryset(self):
-        qs = Surface.objects.for_user(self.request.user)
+        qs = Surface.objects.for_user(self.request.user).filter(
+            deletion_time__isnull=True
+        )
         return filter_surfaces(self.request, qs)
 
     def perform_create(self, serializer):
@@ -120,7 +122,9 @@ class TopographyViewSet(
             )
 
     def get_queryset(self):
-        qs = Topography.objects.for_user(self.request.user)
+        qs = Topography.objects.for_user(self.request.user).filter(
+            deletion_time__isnull=True
+        )
         surface = self.request.query_params.get("surface", None)
         tag = self.request.query_params.get("tag", None)
         tag_startswith = self.request.query_params.get("tag_startswith", None)
