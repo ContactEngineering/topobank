@@ -50,11 +50,7 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
-    DATABASES = {
-        "default": env.db(
-            "DATABASE_URL", default="postgres:///topobank-test"
-        )
-    }
+    DATABASES = {"default": env.db("DATABASE_URL", default="postgres:///topobank-test")}
 else:
     DATABASES = {
         "default": {
@@ -339,7 +335,11 @@ CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 30
 CELERY_BEAT_SCHEDULE = {
     "manager": {
         "task": "topobank.manager.custodian.periodic_cleanup",
-        "schedule": 3600,  # Every hour
+        "schedule": 12 * 3600,  # Twice a day
+    },
+    "analysis": {
+        "task": "topobank.analysis.custodian.periodic_cleanup",
+        "schedule": 12 * 3600,  # Twice a day
     },
 }
 
