@@ -7,7 +7,8 @@ from .models import ORCIDException, User
 class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = User
-        fields = ['url', 'id', 'name', 'username', 'orcid']
+        fields = ['url', 'id', 'name', 'username', 'orcid', 'email', 'date_joined']
+        read_only_fields = ['id', 'date_joined']
 
     url = serializers.HyperlinkedIdentityField(view_name='users:user-api-detail', read_only=True)
     orcid = serializers.SerializerMethodField()
