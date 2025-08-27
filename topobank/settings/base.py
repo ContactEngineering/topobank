@@ -2,6 +2,7 @@
 Base settings to build other settings files upon.
 """
 
+from datetime import timedelta
 import importlib.metadata
 import random
 import string
@@ -51,7 +52,7 @@ postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
     DATABASES = {
         "default": env.db(
-            "DATABASE_URL", default="postgres://postgres@localhost/topobank-test"
+            "DATABASE_URL", default="postgres:///topobank-test"
         )
     }
 else:
@@ -681,4 +682,5 @@ DELETE_EXISTING_FILES = env.bool("TOPOBANK_DELETE_EXISTING_FILES", default=False
 
 # TOPOBANK SPECIFIC
 # ------------------------------------------------------------------------------
-TOPOBANK_THUMBNAIL_FORMAT = "jpeg"
+TOPOBANK_THUMBNAIL_FORMAT = "jpeg"  # File format for thumbnails
+TOPOBANK_DELETE_DELAY = timedelta(days=7)  # Hold deleted datasets this long
