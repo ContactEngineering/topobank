@@ -69,7 +69,7 @@ class User(AbstractUser):
         return orcid_info
 
     @property
-    def orcid_id(self):
+    def orcid_id(self) -> str:
         """
         Return ORCID iD, a unique 16-digit identifier for researchers.
 
