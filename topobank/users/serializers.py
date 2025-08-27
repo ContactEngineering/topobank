@@ -10,35 +10,42 @@ class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
         model = User
         fields = [
             # Self
-            'url',
-            'id',
+            "url",
+            "id",
             # Auxiliary API endpoints
-            'api',
+            "api",
             # Model fields
-            'name',
-            'username',
-            'orcid',
-            'email',
-            'date_joined'
+            "name",
+            "username",
+            "orcid",
+            "email",
+            "date_joined",
         ]
-        read_only_fields = ['id', 'date_joined']
+        read_only_fields = ["id", "date_joined"]
 
-    url = serializers.HyperlinkedIdentityField(view_name='users:user-v1-detail', read_only=True)
+    url = serializers.HyperlinkedIdentityField(
+        view_name="users:user-v1-detail", read_only=True
+    )
     api = serializers.SerializerMethodField()
     orcid = serializers.SerializerMethodField()
 
     def get_api(self, obj: User) -> dict:
+        request = self.context["request"]
         return {
+            "organizations": reverse(
+                "organizations:organization-v1-list", request=request
+            )
+            + f"?user={obj.id}",
             "add_organization": reverse(
                 "users:add-organization-v1",
                 kwargs={"pk": obj.id},
-                request=self.context["request"],
+                request=request,
             ),
             "remove_organization": reverse(
                 "users:remove-organization-v1",
                 kwargs={"pk": obj.id},
-                request=self.context["request"],
-            )
+                request=request,
+            ),
         }
 
     def get_orcid(self, obj: User) -> str:
