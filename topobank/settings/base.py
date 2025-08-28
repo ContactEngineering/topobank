@@ -2,14 +2,13 @@
 Base settings to build other settings files upon.
 """
 
-from datetime import timedelta
 import importlib.metadata
 import random
 import string
+from datetime import timedelta
 
 import environ
 from backports.entry_points_selectable import entry_points
-from celery.schedules import crontab
 from django.core.exceptions import ImproperlyConfigured
 from watchman import constants as watchman_constants
 
