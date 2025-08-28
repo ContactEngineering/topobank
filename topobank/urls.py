@@ -26,6 +26,20 @@ urlpatterns = [
         include("topobank.users.urls", namespace="users"),
     ),
     #
+    # Organization management
+    #
+    path(
+        "organizations/",
+        include("topobank.organizations.urls", namespace="organizations"),
+    ),
+    #
+    # Permission management
+    #
+    path(
+        "authorization/",
+        include("topobank.authorization.urls", namespace="authorization"),
+    ),
+    #
     # Core topobank applications
     #
     path(
@@ -59,7 +73,7 @@ urlpatterns = [
     #
     path("watchman/", include(("watchman.urls", "watchman"), namespace="watchman")),
     #
-    # Open Api
+    # Open API
     #
     path("api/schema/", SpectacularAPIView.as_view(), name="schema"),
     path(

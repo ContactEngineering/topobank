@@ -5,7 +5,7 @@ from rest_framework.exceptions import ParseError, PermissionDenied
 
 from topobank.manager.models import Surface
 
-ORDER_BY_FILTER_CHOICES = {"name": "name", "date": "-creation_datetime"}
+ORDER_BY_FILTER_CHOICES = {"name": "name", "date": "-creation_time"}
 SHARING_STATUS_FILTER_CHOICES = set(["all", "own", "others", "published"])
 
 

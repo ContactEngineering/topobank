@@ -23,6 +23,7 @@ from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
+from django.utils import timezone
 from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
@@ -35,6 +36,8 @@ from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFull
 from ..files.models import Folder, Manifest
+from ..organizations.models import Organization
+from ..users.models import User
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from .export_zip import write_container_zip
@@ -119,7 +122,7 @@ class SubjectMixin:
         """Returns a human readable name for this subject type."""
         return cls._meta.model_name
 
-    def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
+    def is_shared(self, user: User) -> bool:
         """Returns True, if this subject is shared with a given user.
 
         Always returns True if user is the creator of the related surface.
@@ -156,7 +159,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     def authorize_user(
         self,
-        user: settings.AUTH_USER_MODEL = None,
+        user: User = None,
         access_level: ViewEditFull = "view",
         permissions: PermissionSet = None,
     ):
@@ -185,10 +188,10 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         else:
             raise RuntimeError("Need user name or permission set to authorize.")
 
-    def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
+    def is_shared(self, user: User) -> bool:
         return True  # Tags are generally shared, but the surfaces may not
 
-    def get_authorized_user(self) -> settings.AUTH_USER_MODEL:
+    def get_authorized_user(self) -> User:
         return self._user
 
     def get_related_surfaces(self):
@@ -346,18 +349,42 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
 
     #
-    # Model data
+    # Ownership
+    #
+
+    # `creator` is only NULL if user is deleted after dataset has been created.
+    # Custodian should NOT remove datasets with NULL organization
+    creator = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True
+    )
+
+    # `owner` is always an organization. The field is only NULL if
+    # organization is deleted after dataset has been created.
+    # Custodian should remove all datasets with NULL organization.
+    owner = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True)
+
+    #
+    # Dataset metadata
     #
     name = models.CharField(max_length=80, blank=True)
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
     description = models.TextField(blank=True)
     category = models.CharField(
         max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False
     )
     tags = tm.TagField(to=Tag)
+
+    #
+    # Time stamps
+    #
+    creation_time = models.DateTimeField(auto_now_add=True, null=True)
+    modification_time = models.DateTimeField(auto_now=True, null=True)
+    # If deletion date is set, the datasets will be deleted after TOPOBANK_DELETE_DELAY
+    deletion_time = models.DateTimeField(null=True)
+
+    #
+    # Attachments
+    #
     attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
-    creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
-    modification_datetime = models.DateTimeField(auto_now=True, null=True)
 
     def __str__(self):
         s = f"Dataset '{self.name}'"
@@ -406,6 +433,10 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             # Grant permissions to creator
             self.permissions.grant_for_user(self.creator, "full")
 
+    def lazy_delete(self):
+        self.deletion_time = timezone.now()
+        self.save(update_fields=["deletion_time"])
+
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml.
 
@@ -444,7 +475,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             d["properties"] = [p.to_dict() for p in self.properties.all()]
         return d
 
-    def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
+    def is_shared(self, user: User) -> bool:
         """
         Returns True if this surface is shared with a given user.
 
@@ -463,7 +494,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         return self.get_permission(user) is not None
 
     def grant_permission(
-        self, user: settings.AUTH_USER_MODEL, allow: ViewEditFull = "view"
+        self, user: User | Organization, allow: ViewEditFull = "view"
     ):
         # This is an additional guard: Published datasets have empty permission sets
         if self.is_published:
@@ -473,7 +504,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
         super().grant_permission(user, allow)
 
-    def revoke_permission(self, user: settings.AUTH_USER_MODEL):
+    def revoke_permission(self, user: User | Organization):
         # This is an additional guard: Published datasets have empty permission sets
         if self.is_published:
             raise PermissionDenied(
@@ -619,14 +650,20 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     name = models.TextField()  # This must be identical to the file name on upload
     creator = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
+        User, null=True, on_delete=models.SET_NULL
     )
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=Tag)
     attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
-    creation_datetime = models.DateTimeField(auto_now_add=True, null=True)
-    modification_datetime = models.DateTimeField(auto_now=True, null=True)
+
+    #
+    # Time stamps
+    #
+    creation_time = models.DateTimeField(auto_now_add=True, null=True)
+    modification_time = models.DateTimeField(auto_now=True, null=True)
+    # If deletion date is set, the datasets will be deleted after TOPOBANK_DELETE_DELAY
+    deletion_time = models.DateTimeField(null=True)
 
     #
     # Fields related to raw data
@@ -814,6 +851,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Save after run task, because run task may update the task state
         super().save(*args, **kwargs)
 
+    def lazy_delete(self):
+        self.deletion_time = timezone.now()
+        self.save(update_fields=["deletion_time"])
+
     def save_datafile(self, fobj):
         self.datafile = Manifest.objects.create(
             permissions=self.permissions,
@@ -874,7 +915,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             "manager:topography-api-detail", kwargs=dict(pk=self.pk), request=request
         )
 
-    def is_shared(self, user: settings.AUTH_USER_MODEL) -> bool:
+    def is_shared(self, user: User) -> bool:
         """Returns True, if this topography is shared with a given user.
 
         Just returns whether the related surface is shared with the user

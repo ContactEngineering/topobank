@@ -1,4 +1,3 @@
-import os
 from urllib.parse import urlparse
 
 from django.contrib.auth.models import AbstractUser
@@ -10,16 +9,14 @@ from rest_framework.reverse import reverse
 
 from .anonymous import get_anonymous_user
 
-DEFAULT_GROUP_NAME = "all"
-
 
 class ORCIDException(Exception):
     pass
 
 
 class User(AbstractUser):
-    # First Name and Last Name do not cover name patterns
-    # around the globe.
+    # First name and last name (of the default `AbstractUser` model) do not cover name
+    # patterns around the globe.
     name = models.CharField(_("Name of User"), max_length=255)
 
     # Load anonymous user once and cache to avoid further database hits
@@ -45,11 +42,7 @@ class User(AbstractUser):
 
     def get_absolute_url(self, request=None):
         """URL of API endpoint for this user"""
-        return reverse("users:user-api-detail", kwargs={"pk": self.pk}, request=request)
-
-    def get_media_path(self):
-        """Return relative path of directory for files of this user."""
-        return os.path.join("topographies", "user_{}".format(self.id))
+        return reverse("users:user-v1-detail", kwargs={"pk": self.pk}, request=request)
 
     def _orcid_info(self):  # TODO use local cache
         try:
@@ -76,7 +69,7 @@ class User(AbstractUser):
         return orcid_info
 
     @property
-    def orcid_id(self):
+    def orcid_id(self) -> str:
         """
         Return ORCID iD, a unique 16-digit identifier for researchers.
 
@@ -140,7 +133,7 @@ class User(AbstractUser):
     def is_authenticated(self):
         """Return whether user is anonymous.
 
-        We have a piece of middleware, that replaces the default anymous
+        We have a piece of middleware, that replaces the default anonymous
         user with django-guardian `AnonymousUser`. This is needed to give
         the world (as the anonymous user) access to published data sets.
         Since django-guardians anonymous user is a real user, `is_anonymous`
@@ -163,6 +156,6 @@ class User(AbstractUser):
 
 def resolve_user(url):
     match = resolve(urlparse(url).path)
-    if match.view_name != "users:user-api-detail":
-        raise ValueError("URL does not resolve to a User object")
+    if match.view_name != "users:user-v1-detail":
+        raise ValueError("URL does not resolve to an User instance")
     return User.objects.get(**match.kwargs)

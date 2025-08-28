@@ -1,5 +1,15 @@
 # Changelog for *TopoBank*
 
+# 1.65.0 (not yet released)
+
+- API: Limit all user searches to organizations of the user
+- ENH: Advanced support for organizations
+- ENH: Advanced permissions for organizations
+- ENH: Lazy delete (recycle bin) for faster endpoint response
+- ENH: Custodian that regularly cleans up database (lazy deletion)
+- ENH: Unified permission REST endpoints
+- MAINT: Removed automatic generation of default group "all"
+
 # 1.64.3 (2025-07-20)
 
 - BUG: Converting list of ids to a string

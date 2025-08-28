@@ -16,7 +16,6 @@ from ..analysis.models import (
     WorkflowTemplate,
 )
 from ..manager.models import Surface, Tag, Topography
-from ..organizations.models import Organization
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
 
@@ -57,6 +56,14 @@ class UserFactory(factory.django.DjangoModelFactory):
     @factory.post_generation
     def create_orcid_account(self, create, value, **kwargs):
         OrcidSocialAccountFactory(user_id=self.id)
+
+
+class OrganizationFactory(factory.django.DjangoModelFactory):
+    name = factory.Sequence(lambda n: f"organization-{n}")
+
+    class Meta:
+        model = "organizations.Organization"
+        django_get_or_create = ("name",)
 
 
 @factory.django.mute_signals(post_save)
@@ -393,15 +400,6 @@ class TagAnalysisFactory(AnalysisFactory):
         model = Analysis
 
     subject_tag = factory.SubFactory(TagFactory)
-
-
-class OrganizationFactory(factory.django.DjangoModelFactory):
-    """Creating Organization instance for supplib."""
-
-    class Meta:
-        model = Organization
-
-    name = factory.Sequence(lambda n: "Organization No. {:d}".format(n))
 
 
 class WorkflowTemplateFactory(factory.django.DjangoModelFactory):

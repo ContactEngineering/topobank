@@ -257,7 +257,9 @@ def perform_analysis(self, analysis_id: int, force: bool):
             #
             analysis = Analysis.objects.get(id=analysis_id)
         except Analysis.DoesNotExist:
-            _log.debug(f"{analysis_id}/{self.request.id}: Analysis {analysis_id} does not exist.")
+            _log.debug(
+                f"{analysis_id}/{self.request.id}: Analysis {analysis_id} does not exist."
+            )
             # Analysis was deleted, e.g. because topography or surface was missing, we
             # simply ignore this case.
             pass
@@ -414,17 +416,21 @@ def current_statistics(user=None):
     if hasattr(Surface, "publication"):
         if user:
             unpublished_surfaces = Surface.objects.filter(
-                creator=user, publication__isnull=True
+                creator=user, publication__isnull=True, deletion_time__isnull=True
             )
         else:
-            unpublished_surfaces = Surface.objects.filter(publication__isnull=True)
+            unpublished_surfaces = Surface.objects.filter(
+                publication__isnull=True, deletion_time__isnull=True
+            )
     else:
         if user:
-            unpublished_surfaces = Surface.objects.filter(creator=user)
+            unpublished_surfaces = Surface.objects.filter(
+                creator=user, deletion_time__isnull=True
+            )
         else:
-            unpublished_surfaces = Surface.objects.all()
+            unpublished_surfaces = Surface.objects.filter(deletion_time__isnull=True)
     unpublished_topographies = Topography.objects.filter(
-        surface__in=unpublished_surfaces
+        surface__in=unpublished_surfaces, deletion_time__isnull=True
     )
     unpublished_analyses = Analysis.objects.filter(
         subject_dispatch__topography__in=unpublished_topographies
