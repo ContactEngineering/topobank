@@ -28,20 +28,28 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
             "upload_instructions",
         ]
 
+    #
+    # Self
+    #
     url = serializers.HyperlinkedIdentityField(
         view_name="files:manifest-api-detail", read_only=True
     )
-    file = serializers.FileField(read_only=True)
+
+    #
+    # Hyperlinked resources
+    #
     folder = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", queryset=Folder.objects.all()
     )
+    uploaded_by = serializers.HyperlinkedRelatedField(
+        view_name="users:user-v1-detail", read_only=True
+    )
+
+    file = serializers.FileField(read_only=True)
     kind = serializers.ChoiceField(choices=Manifest.FILE_KIND_CHOICES, read_only=True)
     created = serializers.DateTimeField(read_only=True)
     updated = serializers.DateTimeField(read_only=True)
     upload_confirmed = serializers.DateTimeField(read_only=True)
-    uploaded_by = serializers.HyperlinkedRelatedField(
-        view_name="users:user-v1-detail", read_only=True
-    )
     upload_instructions = serializers.SerializerMethodField()
 
     def __init__(self, instance=None, data=serializers.empty, **kwargs):
