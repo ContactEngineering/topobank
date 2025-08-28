@@ -3,6 +3,7 @@ from rest_framework import serializers
 
 from topobank.properties.models import Property
 
+
 class ValueField(serializers.Field):
     def to_representation(self, value):
         return value
