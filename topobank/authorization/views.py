@@ -1,11 +1,12 @@
+from django.http import HttpResponseBadRequest
 from rest_framework import mixins, viewsets
-from rest_framework.decorators import api_view, permission_classes
+from rest_framework.decorators import api_view
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.response import Response
 
 from ..organizations.models import resolve_organization
 from ..users.models import resolve_user
-from .models import PermissionSet
+from .models import Permissions, PermissionSet
 from .serializers import PermissionSetSerializer
 
 
@@ -39,38 +40,58 @@ class PermissionSetViewSet(
 
 
 @api_view(["POST"])
-@permission_classes([PermissionSetPermission])
 def add_user(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
-    user = resolve_user(request.query_params.get("user"))
-    allow = request.query_params.get("allow")
+    # The user needs 'full' permission to modify permissions
+    permission_set.authorize_user(request.user, "full")
+    user = resolve_user(request.data.get("user"))
+    allow = request.data.get("allow")
+    if allow not in {
+        Permissions.view.name,
+        Permissions.edit.name,
+        Permissions.full.name,
+    }:
+        return HttpResponseBadRequest(
+            f"`allow` must be one of '{Permissions.view.name}', '{Permissions.edit.name}', '{Permissions.full.name}'"
+        )
     permission_set.grant_for_user(user, allow)
     return Response({})
 
 
 @api_view(["POST"])
-@permission_classes([PermissionSetPermission])
 def remove_user(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
-    user = resolve_user(request.query_params.get("user"))
+    # The user needs 'full' permission to modify permissions
+    permission_set.authorize_user(request.user, "full")
+    user = resolve_user(request.data.get("user"))
     permission_set.revoke_from_user(user)
     return Response({})
 
 
 @api_view(["POST"])
-@permission_classes([PermissionSetPermission])
 def add_organization(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
-    organization = resolve_organization(request.query_params.get("organization"))
-    allow = request.query_params.get("allow")
+    # The user needs 'full' permission to modify permissions
+    permission_set.authorize_user(request.user, "full")
+    organization = resolve_organization(request.data.get("organization"))
+    allow = request.data.get("allow")
+    if allow not in {
+        Permissions.view.name,
+        Permissions.edit.name,
+        Permissions.full.name,
+    }:
+        return HttpResponseBadRequest(
+            f"`allow` must be one of {Permissions.view.name}, {Permissions.edit.name}, {Permissions.full.name}"
+        )
     permission_set.grant_for_organization(organization, allow)
     return Response({})
 
 
 @api_view(["POST"])
-@permission_classes([PermissionSetPermission])
 def remove_organization(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
-    organization = resolve_organization(request.query_params.get("organization"))
+    # The user needs 'full' permission to modify permissions
+    permission_set.authorize_user(request.user, "full")
+    organization = resolve_organization(request.data.get("organization"))
     permission_set.revoke_from_organization(organization)
     return Response({})
