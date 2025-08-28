@@ -140,8 +140,12 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     )
 
     # These fields have been renamed in the model
-    creation_datetime = serializers.DateTimeField(source="creation_time", read_only=True)
-    modification_datetime = serializers.DateTimeField(source="modification_time", read_only=True)
+    creation_datetime = serializers.DateTimeField(
+        source="creation_time", read_only=True
+    )
+    modification_datetime = serializers.DateTimeField(
+        source="modification_time", read_only=True
+    )
 
     # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
@@ -219,9 +223,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             raise serializers.ValidationError({"message": str(exc)})
 
 
-
-
-
 class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
@@ -271,8 +272,12 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     permissions = serializers.SerializerMethodField()
 
     # These fields have been renamed in the model
-    creation_datetime = serializers.DateTimeField(source="creation_time", read_only=True)
-    modification_datetime = serializers.DateTimeField(source="modification_time", read_only=True)
+    creation_datetime = serializers.DateTimeField(
+        source="creation_time", read_only=True
+    )
+    modification_datetime = serializers.DateTimeField(
+        source="modification_time", read_only=True
+    )
 
     def get_api(self, obj):
         return {
