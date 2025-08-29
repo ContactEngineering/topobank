@@ -15,7 +15,7 @@ from django.conf import settings
 
 from ..manager.models import Surface, Topography
 from ..supplib.dict import SplitDictionaryHere
-from .models import AnalysisFunction
+from .models import Workflow
 from .registry import WorkflowNotImplementedException
 
 _log = logging.getLogger(__name__)
@@ -126,7 +126,7 @@ class WorkflowDefinition:
     subject: Union[Surface, Topography] = None
 
     # Analysis function
-    function: AnalysisFunction = None
+    function: Workflow = None
 
     # Parameters
     kwargs: dict = None

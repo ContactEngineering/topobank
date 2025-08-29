@@ -163,7 +163,7 @@ class Analysis(PermissionMixin, TaskStateModel):
 
     # Actual implementation of the analysis as a Python function
     function = models.ForeignKey(
-        "AnalysisFunction", on_delete=models.SET_NULL, null=True
+        "analysis.Workflow", on_delete=models.SET_NULL, null=True
     )
 
     # Definition of the subject
@@ -441,14 +441,14 @@ def submit_analysis_task_to_celery(analysis: Analysis, force_submit: bool):
     analysis.save(update_fields=["task_id"])
 
 
-class AnalysisFunction(models.Model):
+class Workflow(models.Model):
     """
     A convenience wrapper around the AnalysisImplementation that has representation in
     the SQL database.
     """
 
-    name = models.TextField(help_text="The name of this analysis function.", default="")
-    display_name = models.TextField(help_text="A human-readable name.")
+    name = models.TextField(help_text="Internal unique identifier")
+    display_name = models.TextField(help_text="Human-readable name")
 
     def __str__(self):
         return self.name

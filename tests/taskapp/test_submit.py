@@ -50,7 +50,7 @@ def test_different_kwargs(mocker, test_analysis_function):
     (at the moment, maybe delete later analyses without user),
     but only the latest one should be marked as "used" by the user
     """
-    m = mocker.patch("topobank.analysis.models.AnalysisFunction.eval")
+    m = mocker.patch("topobank.analysis.models.Workflow.eval")
     m.return_value = {"result1": 1, "result2": 2}
 
     topo = Topography1DFactory()

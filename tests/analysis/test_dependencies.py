@@ -3,7 +3,7 @@ import pytest
 from django.test import override_settings
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.models import Analysis, Workflow
 from topobank.analysis.tasks import perform_analysis
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import SurfaceFactory, Topography1DFactory, UserFactory
@@ -17,7 +17,7 @@ def test_dependencies(api_client, django_capture_on_commit_callbacks):
     surface = SurfaceFactory(creator=user)
     topo1 = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunction.objects.get(name="topobank.testing.test2")
+    func = Workflow.objects.get(name="topobank.testing.test2")
 
     api_client.force_login(user)
 
@@ -66,7 +66,7 @@ def test_dependency_status():
     surface = SurfaceFactory(creator=user)
     topo1 = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunction.objects.get(name="topobank.testing.test2")
+    func = Workflow.objects.get(name="topobank.testing.test2")
 
     kwargs = {"c": 33, "d": 7.5}
     analysis = func.submit(user, topo1, kwargs)
@@ -112,7 +112,7 @@ def test_error_propagation(
     surface = SurfaceFactory(creator=user)
     topo1 = Topography1DFactory(surface=surface)
 
-    func = AnalysisFunction.objects.get(
+    func = Workflow.objects.get(
         name="topobank.testing.test_error_in_dependency"
     )
 

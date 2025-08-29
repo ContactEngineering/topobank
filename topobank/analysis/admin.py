@@ -1,6 +1,6 @@
 from django.contrib import admin  # type: ignore
 
-from .models import Analysis, AnalysisFunction, AnalysisSubject
+from .models import Analysis, AnalysisSubject, Workflow
 
 
 @admin.register(Analysis)
@@ -19,8 +19,8 @@ class AnalysisAdmin(admin.ModelAdmin):
     ordering = ["-task_start_time"]
 
 
-@admin.register(AnalysisFunction)
-class AnalysisFunctionAdmin(admin.ModelAdmin):
+@admin.register(Workflow)
+class WorkflowAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "display_name")
     ordering = ["id"]
 

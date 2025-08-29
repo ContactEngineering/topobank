@@ -9,12 +9,7 @@ from django.db.models.signals import post_save
 from django.utils import timezone
 from factory import post_generation
 
-from ..analysis.models import (
-    Analysis,
-    AnalysisFunction,
-    AnalysisSubject,
-    WorkflowTemplate,
-)
+from ..analysis.models import Analysis, AnalysisSubject, Workflow, WorkflowTemplate
 from ..manager.models import Surface, Tag, Topography
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
@@ -243,10 +238,10 @@ class Topography2DFactory(Topography1DFactory):
 #
 # Define factories for creating test objects
 #
-class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
+class WorkflowFactory(factory.django.DjangoModelFactory):
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = AnalysisFunction
+        model = Workflow
 
     name = factory.Sequence(lambda n: "Test Function no. {}".format(n))
 
@@ -308,7 +303,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     permissions = factory.SubFactory(
         PermissionSetFactory, user=factory.SelfAttribute("..user"), allow="view"
     )
-    function = factory.SubFactory(AnalysisFunctionFactory)
+    function = factory.SubFactory(WorkflowFactory)
     subject_dispatch = factory.SubFactory(
         AnalysisSubjectFactory,
         topography=factory.SelfAttribute("..subject_topography"),
@@ -412,7 +407,7 @@ class WorkflowTemplateFactory(factory.django.DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"Workflow Template {n}")
     kwargs = {"param1": "value1", "param2": "value2"}  # Example JSON field
-    implementation = factory.SubFactory(AnalysisFunctionFactory)
+    implementation = factory.SubFactory(WorkflowFactory)
     creator = factory.SubFactory(UserFactory)
     permissions = factory.SubFactory(
         PermissionSetFactory, user=factory.SelfAttribute("..creator")

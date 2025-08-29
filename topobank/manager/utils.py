@@ -14,8 +14,8 @@ from django.core.files import File
 from django.db import models
 from rest_framework.reverse import reverse
 from SurfaceTopography import open_topography
-from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO import ReaderBase
+from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
 
 _log = logging.getLogger(__name__)
@@ -168,7 +168,7 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
     user : topobank.users.models.User, optional
         User object. Function performs a permissions check if present.
         (Default: None)
-    function : AnalysisFunction, optional
+    function : Workflow, optional
         If given an analysis function, the subjects returned will
         be filtered so only subjects are included which have
         an implementation for the given function. (Default: None)

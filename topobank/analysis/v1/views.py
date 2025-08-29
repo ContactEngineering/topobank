@@ -19,8 +19,8 @@ from ...files.serializers import ManifestSerializer
 from ...manager.models import Surface
 from ...manager.utils import demangle_content_type
 from ...usage_stats.utils import increase_statistics_by_date_and_object
-from ..models import Analysis, AnalysisFunction, Configuration
-from ..permissions import AnalysisFunctionPermissions
+from ..models import Analysis, Configuration, Workflow
+from ..permissions import WorkflowPermissions
 from ..serializers import (
     ConfigurationSerializer,
     ResultSerializer,
@@ -46,7 +46,7 @@ class WorkflowView(viewsets.ReadOnlyModelViewSet):
     lookup_field = "name"
     lookup_value_regex = "[a-z0-9._-]+"
     serializer_class = WorkflowSerializer
-    permission_classes = [AnalysisFunctionPermissions]
+    permission_classes = [WorkflowPermissions]
 
     def get_queryset(self):
         # We need to filter the queryset to exclude functions in the list view
@@ -54,17 +54,17 @@ class WorkflowView(viewsets.ReadOnlyModelViewSet):
         subject_type = self.request.query_params.get("subject_type", None)
         if subject_type is None:
             ids = [
-                f.id for f in AnalysisFunction.objects.all() if f.has_permission(user)
+                f.id for f in Workflow.objects.all() if f.has_permission(user)
             ]
         else:
             subject_class = demangle_content_type(subject_type)
             ids = [
                 f.id
-                for f in AnalysisFunction.objects.all()
+                for f in Workflow.objects.all()
                 if f.has_permission(user)
                 and f.implementation.has_implementation(subject_class.model_class())
             ]
-        return AnalysisFunction.objects.filter(pk__in=ids)
+        return Workflow.objects.filter(pk__in=ids)
 
 
 class ResultView(
@@ -500,7 +500,7 @@ def statistics(request):
 @api_view(["GET"])
 def memory_usage(request):
     m = defaultdict(list)
-    for function_id, function_name in AnalysisFunction.objects.values_list(
+    for function_id, function_name in Workflow.objects.values_list(
         "id", "name"
     ):
         max_nb_data_pts = Case(
