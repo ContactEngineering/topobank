@@ -9,6 +9,7 @@ class Migration(migrations.Migration):
     initial = True
 
     dependencies = [
+        ("analysis", "0021_auto_20230916_0908"),
     ]
 
     state_operations = [
