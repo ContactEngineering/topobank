@@ -1,6 +1,7 @@
 import logging
 
 import pydantic
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
@@ -36,9 +37,18 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     api = serializers.SerializerMethodField()
     children = serializers.SerializerMethodField()
 
-    def get_api(self, obj):
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "set_permissions": {"type": "string"},
+                "download": {"type": "string"},
+                "async_download": {"type": "string"},
+            },
+        }
+    )
+    def get_api(self, obj: Tag) -> dict:
         return {
-            "self": obj.get_absolute_url(self.context["request"]),
             "set_permissions": reverse(
                 "manager:set-tag-permissions",
                 kwargs={"name": obj.name},
@@ -179,9 +189,16 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
                 )
         return super().validate(data)
 
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "force_inspect": {"type": "string"},
+            },
+        }
+    )
     def get_api(self, obj: Topography) -> dict:
         return {
-            "self": obj.get_absolute_url(self.context["request"]),
             "force_inspect": reverse(
                 "manager:force-inspect",
                 kwargs={"pk": obj.id},
@@ -279,9 +296,18 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         source="modification_time", read_only=True
     )
 
-    def get_api(self, obj):
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "set_permissions": {"type": "string"},
+                "download": {"type": "string"},
+                "async_download": {"type": "string"},
+            },
+        }
+    )
+    def get_api(self, obj: Surface) -> dict:
         return {
-            "self": obj.get_absolute_url(self.context["request"]),
             "set_permissions": reverse(
                 "manager:set-surface-permissions",
                 kwargs={"pk": obj.id},

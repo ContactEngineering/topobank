@@ -52,7 +52,6 @@ def test_surface_retrieve_routes(
         "tags": [],
         "url": f"http://testserver/manager/api/surface/{surface1.id}/",
         "api": {
-            "self": surface1.get_absolute_url(response.wsgi_request),
             "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
             "download": ASSERT_EQUAL_IGNORE_VALUE,
             "async_download": ASSERT_EQUAL_IGNORE_VALUE,
@@ -98,7 +97,6 @@ def test_surface_retrieve_routes(
             "unit_editable": False,
             "url": f"http://testserver/manager/api/topography/{topo1.id}/",
             "api": {
-                "self": topo1.get_absolute_url(response.wsgi_request),
                 "force_inspect": ASSERT_EQUAL_IGNORE_VALUE,
             },
             "task_duration": None,
@@ -128,7 +126,6 @@ def test_surface_retrieve_routes(
         "tags": [],
         "url": f"http://testserver/manager/api/surface/{surface2.id}/",
         "api": {
-            "self": surface2.get_absolute_url(response.wsgi_request),
             "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
             "download": ASSERT_EQUAL_IGNORE_VALUE,
             "async_download": ASSERT_EQUAL_IGNORE_VALUE,
@@ -174,7 +171,6 @@ def test_surface_retrieve_routes(
             "unit_editable": False,
             "url": f"http://testserver/manager/api/topography/{topo2.id}/",
             "api": {
-                "self": topo2.get_absolute_url(response.wsgi_request),
                 "force_inspect": ASSERT_EQUAL_IGNORE_VALUE,
             },
             "task_duration": None,
@@ -294,7 +290,6 @@ def test_topography_retrieve_routes(
         "unit_editable": False,
         "url": f"http://testserver/manager/api/topography/{topo1.id}/",
         "api": {
-            "self": topo1.get_absolute_url(response.wsgi_request),
             "force_inspect": ASSERT_EQUAL_IGNORE_VALUE,
         },
         "tags": [],
@@ -355,7 +350,6 @@ def test_topography_retrieve_routes(
         "unit_editable": False,
         "url": f"http://testserver/manager/api/topography/{topo2.id}/",
         "api": {
-            "self": topo2.get_absolute_url(response.wsgi_request),
             "force_inspect": ASSERT_EQUAL_IGNORE_VALUE,
         },
         "tags": [],
@@ -776,7 +770,6 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
             {
                 "url": surface3.get_absolute_url(response.wsgi_request),
                 "api": {
-                    "self": surface3.get_absolute_url(response.wsgi_request),
                     "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
                     "download": ASSERT_EQUAL_IGNORE_VALUE,
                     "async_download": ASSERT_EQUAL_IGNORE_VALUE,
@@ -800,7 +793,6 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
             {
                 "url": surface2.get_absolute_url(response.wsgi_request),
                 "api": {
-                    "self": surface2.get_absolute_url(response.wsgi_request),
                     "set_permissions": ASSERT_EQUAL_IGNORE_VALUE,
                     "download": ASSERT_EQUAL_IGNORE_VALUE,
                     "async_download": ASSERT_EQUAL_IGNORE_VALUE,

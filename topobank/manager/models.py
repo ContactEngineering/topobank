@@ -37,9 +37,9 @@ from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFull
 from ..files.models import Folder, Manifest
 from ..organizations.models import Organization
-from ..users.models import User
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
+from ..users.models import User
 from .export_zip import write_container_zip
 from .utils import get_topography_reader, render_deepzoom
 
@@ -1618,7 +1618,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
 
     # Timestamp of creation of this ZIP container
     creation_time = models.DateTimeField(auto_now_add=True)
-    update_time = models.DateTimeField(auto_now=True)
+    modification_time = models.DateTimeField(auto_now=True)
 
     def task_worker(self, tag_name=None, surface_ids=None):
         #
