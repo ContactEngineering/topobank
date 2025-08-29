@@ -16,7 +16,7 @@ from openpyxl.styles import Font
 from openpyxl.worksheet.hyperlink import Hyperlink
 from rest_framework.decorators import api_view
 
-from .models import Analysis
+from .models import WorkflowResult
 from .registry import (
     UnknownKeyException,
     get_download_function,
@@ -54,9 +54,9 @@ def download_analyses(request, ids, file_format):
 
     visualization_type = None
     for aid in analyses_ids:
-        analysis = Analysis.objects.get(id=aid)
+        analysis = WorkflowResult.objects.get(id=aid)
 
-        if analysis.get_task_state() != Analysis.SUCCESS:
+        if analysis.get_task_state() != WorkflowResult.SUCCESS:
             # Analysis is not successful, skip it
             continue
 
@@ -228,7 +228,7 @@ def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
 
     Parameters
     ----------
-    analysis: Analysis
+    analysis: WorkflowResult
         Analysis instance for which a header should be generated.
     as_comment: bool
         If True, add '# ' in front of each line

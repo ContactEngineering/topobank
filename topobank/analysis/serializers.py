@@ -7,7 +7,13 @@ from rest_framework.reverse import reverse
 import topobank.taskapp.serializers
 
 from ..supplib.serializers import StrictFieldMixin
-from .models import Analysis, AnalysisSubject, Configuration, Workflow, WorkflowTemplate
+from .models import (
+    AnalysisSubject,
+    Configuration,
+    Workflow,
+    WorkflowResult,
+    WorkflowTemplate,
+)
 from .registry import get_visualization_type
 
 _log = logging.getLogger(__name__)
@@ -78,7 +84,7 @@ class ResultSerializer(
     StrictFieldMixin, topobank.taskapp.serializers.TaskStateModelSerializer
 ):
     class Meta:
-        model = Analysis
+        model = WorkflowResult
         fields = [
             "url",
             "id",

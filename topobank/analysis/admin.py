@@ -1,9 +1,9 @@
 from django.contrib import admin  # type: ignore
 
-from .models import Analysis, AnalysisSubject, Workflow
+from .models import AnalysisSubject, Workflow, WorkflowResult
 
 
-@admin.register(Analysis)
+@admin.register(WorkflowResult)
 class AnalysisAdmin(admin.ModelAdmin):
     list_display = (
         "id",

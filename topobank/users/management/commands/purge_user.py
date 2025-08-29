@@ -5,7 +5,7 @@ from django.core.management.base import BaseCommand
 from guardian.shortcuts import get_user_perms, remove_perm
 from termsandconditions.models import UserTermsAndConditions
 
-from topobank.analysis.models import Analysis
+from topobank.analysis.models import WorkflowResult
 from topobank.manager.models import Surface, Topography
 from topobank.users.models import User
 
@@ -30,7 +30,7 @@ class Command(BaseCommand):
 
         surfaces = Surface.objects.filter(creator=user)
         topographies = Topography.objects.filter(surface__in=surfaces)
-        analyses = Analysis.objects.filter(topography__in=topographies)
+        analyses = WorkflowResult.objects.filter(topography__in=topographies)
         userterms = UserTermsAndConditions.objects.filter(user=user)
 
         _log.info("Removing surface related permissions..")

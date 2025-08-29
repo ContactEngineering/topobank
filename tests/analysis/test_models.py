@@ -6,7 +6,7 @@ from django.core.files.storage import default_storage
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from topobank.analysis.models import Analysis, Workflow
+from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.registry import WorkflowNotImplementedException
 from topobank.analysis.tasks import get_current_configuration
 from topobank.files.models import Manifest
@@ -86,7 +86,7 @@ def test_analysis_times(two_topos, test_analysis_function):
     analysis = TopographyAnalysisFactory.create(
         subject_topography=Topography.objects.first(),
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs={"a": 2, "b": "abcdef"},
         task_start_time=datetime.datetime(2018, 1, 1, 12),
         task_end_time=datetime.datetime(2018, 1, 1, 13),
@@ -240,7 +240,7 @@ def test_fix_folder(test_analysis_function):
 def test_submit_again(test_analysis_function):
     analysis = TopographyAnalysisFactory(function=test_analysis_function)
     new_analysis = analysis.submit_again()
-    assert new_analysis.task_state == Analysis.PENDING
+    assert new_analysis.task_state == WorkflowResult.PENDING
 
 
 @pytest.mark.django_db

@@ -85,14 +85,14 @@ def perform_analysis(self, analysis_id: int, force: bool):
     - task_state
     - current configuration (link to versions of installed dependencies)
     """
-    from .models import RESULT_FILE_BASENAME, Analysis
+    from .models import RESULT_FILE_BASENAME, WorkflowResult
 
     _log.debug(f"{analysis_id}/{self.request.id}: Task for workflow started...")
 
     #
     # Get analysis instance from database
     #
-    analysis = Analysis.objects.get(id=analysis_id)
+    analysis = WorkflowResult.objects.get(id=analysis_id)
     _log.info(
         f"{analysis_id}/{self.request.id}: Function: '{analysis.function.name}', "
         f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}, "
@@ -102,12 +102,12 @@ def perform_analysis(self, analysis_id: int, force: bool):
     #
     # Check state
     #
-    if analysis.task_state in [Analysis.FAILURE, Analysis.SUCCESS] and not force:
+    if analysis.task_state in [WorkflowResult.FAILURE, WorkflowResult.SUCCESS] and not force:
         # Do not rerun this task as it is self-reporting to either have completed
         # successfully or to have failed.
         s = (
             "completed successfully"
-            if analysis.task_state == Analysis.SUCCESS
+            if analysis.task_state == WorkflowResult.SUCCESS
             else "failed"
         )
         _log.debug(
@@ -119,7 +119,7 @@ def perform_analysis(self, analysis_id: int, force: bool):
     #
     # Update entry in Analysis table to indicate we started processing it
     #
-    analysis.task_state = Analysis.STARTED
+    analysis.task_state = WorkflowResult.STARTED
     analysis.task_id = self.request.id
     analysis.task_start_time = timezone.now()  # with timezone
     analysis.configuration = get_current_configuration()
@@ -174,9 +174,9 @@ def perform_analysis(self, analysis_id: int, force: bool):
 
     # Check if any dependency failed
     if any(
-        dep.task_state != Analysis.SUCCESS for dep in finished_dependencies.values()
+            dep.task_state != WorkflowResult.SUCCESS for dep in finished_dependencies.values()
     ):
-        analysis.task_state = Analysis.FAILURE
+        analysis.task_state = WorkflowResult.FAILURE
         analysis.task_error = "A dependent analysis failed."
         analysis.save()
         # We return here because a dependency failed
@@ -238,12 +238,12 @@ def perform_analysis(self, analysis_id: int, force: bool):
         # collect memory usage
         size, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        save_result(result, Analysis.SUCCESS, peak_memory=peak, dois=dois)
+        save_result(result, WorkflowResult.SUCCESS, peak_memory=peak, dois=dois)
     except Exception as exc:
         _log.warning(
             f"{analysis_id}/{self.request.id}: Exception during evaluation: {exc}"
         )
-        analysis.task_state = Analysis.FAILURE
+        analysis.task_state = WorkflowResult.FAILURE
         analysis.task_traceback = traceback.format_exc()
         # Store string representation of exception as user-reported error string
         analysis.task_error = str(exc)
@@ -255,8 +255,8 @@ def perform_analysis(self, analysis_id: int, force: bool):
             #
             # First check whether analysis is still there
             #
-            analysis = Analysis.objects.get(id=analysis_id)
-        except Analysis.DoesNotExist:
+            analysis = WorkflowResult.objects.get(id=analysis_id)
+        except WorkflowResult.DoesNotExist:
             _log.debug(
                 f"{analysis_id}/{self.request.id}: Analysis {analysis_id} does not exist."
             )
@@ -411,7 +411,7 @@ def current_statistics(user=None):
         - num_topographies_excluding_publications
         - num_analyses_excluding_publications
     """
-    from .models import Analysis
+    from .models import WorkflowResult
 
     if hasattr(Surface, "publication"):
         if user:
@@ -432,7 +432,7 @@ def current_statistics(user=None):
     unpublished_topographies = Topography.objects.filter(
         surface__in=unpublished_surfaces, deletion_time__isnull=True
     )
-    unpublished_analyses = Analysis.objects.filter(
+    unpublished_analyses = WorkflowResult.objects.filter(
         subject_dispatch__topography__in=unpublished_topographies
     )
 
@@ -444,7 +444,7 @@ def current_statistics(user=None):
 
 
 def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool):
-    from .models import Analysis, AnalysisSubject
+    from .models import AnalysisSubject, WorkflowResult
 
     finished_dependent_analyses = {}  # Everything that finished or failed
     scheduled_dependent_analyses = {}  # Everything that needs to be scheduled
@@ -460,7 +460,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
 
         # Filter latest result
         all_results = (
-            Analysis.objects.filter(
+            WorkflowResult.objects.filter(
                 function=dependency.function,
                 subject_dispatch__surface=(
                     dependency.subject
@@ -498,11 +498,11 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             folder = Folder.objects.create(permissions=permissions, read_only=True)
 
             # Create new entry in the analysis table
-            new_analysis = Analysis.objects.create(
+            new_analysis = WorkflowResult.objects.create(
                 permissions=permissions,
                 subject_dispatch=AnalysisSubject.objects.create(dependency.subject),
                 function=function,
-                task_state=Analysis.PENDING,  # We are submitting this right away
+                task_state=WorkflowResult.PENDING,  # We are submitting this right away
                 kwargs=kwargs,
                 folder=folder,
             )
@@ -512,8 +512,8 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             existing_analysis = all_results.first()
             # task_state is the *self reported* state, not the Celery state
             if not force and existing_analysis.task_state in [
-                Analysis.FAILURE,
-                Analysis.SUCCESS,
+                WorkflowResult.FAILURE,
+                WorkflowResult.SUCCESS,
             ]:
                 # This one does not need to be scheduled
                 finished_dependent_analyses[key] = existing_analysis

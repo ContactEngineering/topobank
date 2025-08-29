@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from django.core.management.base import BaseCommand
 
-from topobank.analysis.models import Analysis, Workflow
+from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.registry import WorkflowNotImplementedException
 
 _log = logging.getLogger(__name__)
@@ -54,7 +54,7 @@ class Command(BaseCommand):
         # implementations. Save additional default arguments in analysis instance if
         # they are missing. So we can assure that all analysis have all values for all parameters.
         #
-        for a in Analysis.objects.all():
+        for a in WorkflowResult.objects.all():
             analysis_kwargs = a.kwargs
             try:
                 impl = a.function.get_implementation(a.subject_type)

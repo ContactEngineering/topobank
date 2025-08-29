@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
-from ..models import Analysis, AnalysisSubject, Workflow
+from ..models import AnalysisSubject, Workflow, WorkflowResult
 from ..registry import WorkflowNotImplementedException
 from ..serializers import ResultSerializer
 from ..utils import find_children, merge_dicts
@@ -18,7 +18,7 @@ _log = logging.getLogger(__name__)
 class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
-    queryset = Analysis.objects.all().select_related(
+    queryset = WorkflowResult.objects.all().select_related(
         "function",
         "subject_dispatch__tag",
         "subject_dispatch__topography",

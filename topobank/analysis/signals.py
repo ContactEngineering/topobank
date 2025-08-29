@@ -8,7 +8,7 @@ from django.utils import timezone
 
 from ..authorization.models import PermissionSet
 from ..manager.models import Topography, post_refresh_cache
-from .models import Analysis
+from .models import WorkflowResult
 
 _log = logging.getLogger(__name__)
 
@@ -19,7 +19,7 @@ _IN_CELERY_WORKER_PROCESS = (
 )
 
 
-@receiver(post_delete, sender=Analysis)
+@receiver(post_delete, sender=WorkflowResult)
 def post_delete_analysis(sender, instance, **kwargs):
     """
     Delete the analysis instance, including its associated task and storage files.
@@ -57,13 +57,13 @@ def delete_all_related_analyses(sender, instance, **kwargs):
         f"Cache of measurement {instance} was renewed: Marking all affected "
         "analyses as invalid..."
     )
-    analyses = Analysis.objects.filter(
+    analyses = WorkflowResult.objects.filter(
         Q(subject_dispatch__topography=instance)
         | Q(subject_dispatch__surface=instance.surface)
     )
     for analysis in analyses:
         analysis.deprecation_time = timezone.now()
-    Analysis.objects.bulk_update(analyses, ["deprecation_time"])
+    WorkflowResult.objects.bulk_update(analyses, ["deprecation_time"])
 
 
 @receiver(pre_save, sender=Topography)
@@ -72,10 +72,10 @@ def pre_measurement_save(sender, instance, **kwargs):
     if created:
         # Measurement was created and added to a dataset: We need to delete the
         # corresponding dataset analysis
-        analyses = Analysis.objects.filter(subject_dispatch__surface=instance.surface)
+        analyses = WorkflowResult.objects.filter(subject_dispatch__surface=instance.surface)
         if analyses.count() > 0:
             ids = ", ".join(
-                [str(i) for i in Analysis.objects.values_list("id", flat=True)]
+                [str(i) for i in WorkflowResult.objects.values_list("id", flat=True)]
             )
             _log.debug(
                 "INVALIDATE WORKFLOWS: A measurement was added to dataset "
@@ -91,4 +91,4 @@ def pre_delete_topography(sender, instance, **kwargs):
     # corresponding surface analysis; we do this after the transaction has finished
     # so we can check whether the surface still exists.
     _log.debug(f"Measurement {instance} was deleted: Deleting all affected analyses...")
-    Analysis.objects.filter(subject_dispatch__surface=instance.surface).delete()
+    WorkflowResult.objects.filter(subject_dispatch__surface=instance.surface).delete()

@@ -3,7 +3,7 @@ import pytest
 from django.test import override_settings
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import Analysis, Workflow
+from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.tasks import perform_analysis
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import SurfaceFactory, Topography1DFactory, UserFactory
@@ -37,14 +37,14 @@ def test_dependencies(api_client, django_capture_on_commit_callbacks):
     #
     # New Analysis objects should be there and marked for the user
     #
-    assert Analysis.objects.count() == 3
-    test_ana1, test_ana2, test2_ana = Analysis.objects.all().order_by("function__name")
+    assert WorkflowResult.objects.count() == 3
+    test_ana1, test_ana2, test2_ana = WorkflowResult.objects.all().order_by("function__name")
     assert test2_ana.function.name == "topobank.testing.test2"
     assert test_ana1.function.name == "topobank.testing.test"
     assert test_ana2.function.name == "topobank.testing.test"
-    assert test_ana1.task_state == Analysis.SUCCESS
-    assert test_ana2.task_state == Analysis.SUCCESS
-    assert test2_ana.task_state == Analysis.SUCCESS
+    assert test_ana1.task_state == WorkflowResult.SUCCESS
+    assert test_ana2.task_state == WorkflowResult.SUCCESS
+    assert test2_ana.task_state == WorkflowResult.SUCCESS
     assert test_ana1.kwargs == {"a": 1, "b": 33 * "A"} or test_ana1.kwargs == {
         "a": 33,
         "b": "foo",
@@ -77,14 +77,14 @@ def test_dependency_status():
     #
     # New Analysis objects should be there and marked for the user
     #
-    assert Analysis.objects.count() == 3
-    test_ana1, test_ana2, test2_ana = Analysis.objects.all().order_by("function__name")
+    assert WorkflowResult.objects.count() == 3
+    test_ana1, test_ana2, test2_ana = WorkflowResult.objects.all().order_by("function__name")
     assert test2_ana.function.name == "topobank.testing.test2"
     assert test_ana1.function.name == "topobank.testing.test"
     assert test_ana2.function.name == "topobank.testing.test"
-    assert test2_ana.get_task_state() == Analysis.STARTED
-    assert test_ana1.task_state == Analysis.PENDING
-    assert test_ana2.task_state == Analysis.PENDING
+    assert test2_ana.get_task_state() == WorkflowResult.STARTED
+    assert test_ana1.task_state == WorkflowResult.PENDING
+    assert test_ana2.task_state == WorkflowResult.PENDING
     assert test_ana1.kwargs == {"a": 1, "b": 33 * "A"} or test_ana1.kwargs == {
         "a": 33,
         "b": "foo",
@@ -127,16 +127,16 @@ def test_error_propagation(
     #
     # New Analysis objects should be there and marked for the user
     #
-    assert Analysis.objects.count() == 2
-    test_ana1, test_ana2 = Analysis.objects.all().order_by("function__name")
+    assert WorkflowResult.objects.count() == 2
+    test_ana1, test_ana2 = WorkflowResult.objects.all().order_by("function__name")
     assert test_ana1.function.name == "topobank.testing.test_error"
     assert test_ana2.function.name == "topobank.testing.test_error_in_dependency"
     assert test_ana1.dependencies == {}
     assert test_ana2.dependencies == {"dep": test_ana1.id}
-    assert test_ana1.get_task_state() == Analysis.FAILURE
-    assert test_ana2.get_task_state() == Analysis.FAILURE
-    assert test_ana1.task_state == Analysis.FAILURE
-    assert test_ana2.task_state == Analysis.FAILURE
+    assert test_ana1.get_task_state() == WorkflowResult.FAILURE
+    assert test_ana2.get_task_state() == WorkflowResult.FAILURE
+    assert test_ana1.task_state == WorkflowResult.FAILURE
+    assert test_ana2.task_state == WorkflowResult.FAILURE
     assert test_ana1.kwargs == {
         "c": 33,
         "d": 7.5,

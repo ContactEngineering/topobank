@@ -3,7 +3,7 @@ import datetime
 import pytest
 from django.contrib.contenttypes.models import ContentType
 
-from topobank.analysis.models import Analysis
+from topobank.analysis.models import WorkflowResult
 from topobank.analysis.utils import find_children, merge_dicts
 from topobank.analysis.v1.controller import AnalysisController
 from topobank.manager.models import Surface, Topography
@@ -16,7 +16,9 @@ def test_request_analysis(two_topos, test_analysis_function):
     topo2 = Topography.objects.get(name="Example 4 - Default")
 
     # delete all prior analyses for these two topographies in order to have a clean state
-    Analysis.objects.filter(subject_dispatch__topography__in=[topo1, topo2]).delete()
+    WorkflowResult.objects.filter(
+        subject_dispatch__topography__in=[topo1, topo2]
+    ).delete()
 
     user = topo1.creator
 
@@ -35,7 +37,9 @@ def test_latest_analyses(two_topos, test_analysis_function):
     user = topo1.creator
 
     # delete all prior analyses for these two topographies in order to have a clean state
-    Analysis.objects.filter(subject_dispatch__topography__in=[topo1, topo2]).delete()
+    WorkflowResult.objects.filter(
+        subject_dispatch__topography__in=[topo1, topo2]
+    ).delete()
 
     #
     # Topography 1
@@ -44,7 +48,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         user=user,
         subject_topography=topo1,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 1, 12),
         task_end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
@@ -55,7 +59,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         user=user,
         subject_topography=topo1,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 2, 12),
         task_end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
@@ -68,7 +72,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 3, 12),
         task_end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
@@ -79,7 +83,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 5, 12),
         task_end_time=datetime.datetime(2018, 1, 5, 13, 1, 1),
@@ -90,7 +94,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 4, 12),
         task_end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
@@ -125,7 +129,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
 def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
     assert (
-        Analysis.objects.filter(
+        WorkflowResult.objects.filter(
             permissions__user_permissions__user=user, function=test_analysis_function
         ).count()
         == 0
@@ -151,7 +155,7 @@ def test_merge_dicts():
 
     # test merging three dictionaries
     dict1 = {"a": 1, "b": 2}
-    dict2 = {"b": {'p': 3}, "c": 4}
-    dict3 = {"b": {'o': 3}, "c": {"e": 5}}
+    dict2 = {"b": {"p": 3}, "c": 4}
+    dict3 = {"b": {"o": 3}, "c": {"e": 5}}
     merged = merge_dicts(dict1, [dict2, dict3])
-    assert merged == {"a": 1, "b": {'o': 3, 'p': 3}, "c": {'e': 5}}
+    assert merged == {"a": 1, "b": {"o": 3, "p": 3}, "c": {"e": 5}}
