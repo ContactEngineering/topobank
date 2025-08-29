@@ -4,16 +4,30 @@ from rest_framework.decorators import api_view
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 
+import topobank.manager.v1.views as v1
+
 from ...authorization.models import PermissionSet
 from ...authorization.permissions import Permission
 from ...taskapp.utils import run_task
 from ..models import ZipContainer
-from .serializers import ZipContainerSerializer
+from .serializers import (
+    SurfaceV2Serializer,
+    TopographyV2Serializer,
+    ZipContainerV2Serializer,
+)
+
+
+class SurfaceViewSet(v1.SurfaceViewSet):
+    serializer_class = SurfaceV2Serializer
+
+
+class TopographyViewSet(v1.TopographyViewSet):
+    serializer_class = TopographyV2Serializer
 
 
 class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     queryset = ZipContainer.objects.all()
-    serializer_class = ZipContainerSerializer
+    serializer_class = ZipContainerV2Serializer
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
 
 
@@ -36,7 +50,7 @@ def download_surface(request, surface_ids):
 
     # Return status
     return Response(
-        ZipContainerSerializer(zip_container, context={"request": request}).data
+        ZipContainerV2Serializer(zip_container, context={"request": request}).data
     )
 
 
@@ -52,5 +66,5 @@ def download_tag(request, name):
 
     # Return status
     return Response(
-        ZipContainerSerializer(zip_container, context={"request": request}).data
+        ZipContainerV2Serializer(zip_container, context={"request": request}).data
     )

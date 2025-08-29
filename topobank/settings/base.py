@@ -379,8 +379,8 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "A surface metrology cloud database",
     "VERSION": topobank.__version__,
     "SERVE_INCLUDE_SCHEMA": False,
-    # OTHER SETTINGS
 }
+
 #
 # Settings for authentication with ORCID
 #

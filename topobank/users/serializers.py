@@ -1,3 +1,4 @@
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 
@@ -29,6 +30,16 @@ class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     api = serializers.SerializerMethodField()
     orcid = serializers.SerializerMethodField()
 
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "organizations": {"type": "string"},
+                "add_organization": {"type": "string"},
+                "remove_organization": {"type": "string"},
+            },
+        }
+    )
     def get_api(self, obj: User) -> dict:
         request = self.context["request"]
         return {
