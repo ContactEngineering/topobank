@@ -14,7 +14,7 @@ import SurfaceTopography
 from django.urls import reverse
 
 import topobank
-from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Surface, Topography
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
@@ -75,7 +75,7 @@ def test_analysis_times(
         user=user,
         subject_topography=topo,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         task_start_time=datetime.datetime(2018, 1, 1, 12),
         task_end_time=datetime.datetime(
             2018, 1, 1, 13, 1, 1
@@ -125,7 +125,7 @@ def test_show_only_last_analysis(
         user=user,
         subject_topography=topo1,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 1, 12),
         task_end_time=datetime.datetime(2018, 1, 1, 13, 1, 1),
@@ -136,7 +136,7 @@ def test_show_only_last_analysis(
         user=user,
         subject_topography=topo1,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 2, 12),
         task_end_time=datetime.datetime(2018, 1, 2, 13, 1, 1),
@@ -150,7 +150,7 @@ def test_show_only_last_analysis(
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 3, 12),
         task_end_time=datetime.datetime(2018, 1, 3, 13, 1, 1),
@@ -162,7 +162,7 @@ def test_show_only_last_analysis(
         user=user,
         subject_topography=topo2,
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 4, 12),
         task_end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
@@ -199,7 +199,7 @@ def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     topo1b = Topography1DFactory(surface=surf1)
     topo2a = Topography1DFactory(surface=surf2)
 
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func = Workflow.objects.get(name="topobank.testing.test")
 
     #
     # Generate analyses for topographies with differing arguments
@@ -292,7 +292,7 @@ def ids_downloadable_analyses(
         )
 
         # we insert our result instead of the real function's result
-        m = mocker.patch("topobank.analysis.models.AnalysisFunction.eval")
+        m = mocker.patch("topobank.analysis.models.Workflow.eval")
         m.return_value = result
 
         # Saving above results in storage
@@ -517,7 +517,7 @@ def test_analysis_download_as_xlsx(
     # Check links on INDEX sheet
     ws = xlsx["INDEX"]
 
-    function_name = Analysis.objects.get(
+    function_name = WorkflowResult.objects.get(
         id=ids_downloadable_analyses[0]
     ).function.display_name
 
@@ -675,8 +675,8 @@ def test_shared_topography_triggers_no_new_analysis(
     surface2 = SurfaceFactory(creator=user2)
 
     # create topographies + functions + analyses
-    func1 = AnalysisFunction.objects.get(name="topobank.testing.test")
-    # func2 = AnalysisFunctionFactory()
+    func1 = Workflow.objects.get(name="topobank.testing.test")
+    # func2 = WorkflowFactory()
 
     # Two topographies for surface1
     topo1a = Topography1DFactory(surface=surface1, name="topo1a")
@@ -703,8 +703,8 @@ def test_shared_topography_triggers_no_new_analysis(
     )
 
     # Function should have three analyses, all successful (the default when using the factory)
-    assert func1.analysis_set.count() == 3
-    assert all(a.task_state == "su" for a in func1.analysis_set.all())
+    assert func1.results.count() == 3
+    assert all(a.task_state == "su" for a in func1.results.all())
 
     # user2 shares surfaces, so user 1 should see surface1+surface2
     surface2.grant_permission(user1)
@@ -720,8 +720,8 @@ def test_shared_topography_triggers_no_new_analysis(
     )
 
     # Since analyses is shared, the user should get the same analysis
-    assert func1.analysis_set.count() == 3
-    assert all(a.task_state == "su" for a in func1.analysis_set.all())
+    assert func1.results.count() == 3
+    assert all(a.task_state == "su" for a in func1.results.all())
 
     assert response.status_code == 200, response.reason_phrase
 
@@ -763,7 +763,7 @@ def test_show_analysis_filter_with_empty_subject_list(api_client):
     surf1 = SurfaceFactory(creator=user)
     surf2 = SurfaceFactory(creator=user)
 
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func = Workflow.objects.get(name="topobank.testing.test")
 
     kwargs_1 = dict(a=2, b="abc")
     analysis1 = SurfaceAnalysisFactory(
@@ -829,7 +829,7 @@ def test_show_analysis_filter_without_subject_list(api_client):
     user = UserFactory()
     surf1 = SurfaceFactory(creator=user)
 
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func = Workflow.objects.get(name="topobank.testing.test")
 
     kwargs_1 = dict(a=2, b="abc")
     analysis1 = SurfaceAnalysisFactory(
@@ -858,7 +858,7 @@ def test_set_result_permissions(
     user = UserFactory()
     user2 = UserFactory()
     surf1 = SurfaceFactory(creator=user)
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func = Workflow.objects.get(name="topobank.testing.test")
     analysis1 = SurfaceAnalysisFactory(
         subject_surface=surf1,
         function=func,
@@ -867,7 +867,7 @@ def test_set_result_permissions(
             allow='full'
         ),
     )
-    obj = Analysis.objects.get(id=analysis1.id)
+    obj = WorkflowResult.objects.get(id=analysis1.id)
     obj.name = "test"
     obj.save()
     assert obj.subject == surf1

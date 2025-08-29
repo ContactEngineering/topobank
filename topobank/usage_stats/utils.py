@@ -211,7 +211,7 @@ def current_statistics(user=None):
         - num_topographies_excluding_publications
         - num_analyses_excluding_publications
     """
-    from topobank.analysis.models import Analysis
+    from topobank.analysis.models import WorkflowResult
     from topobank.manager.models import Surface, Topography
 
     if hasattr(Surface, "publication"):
@@ -233,7 +233,7 @@ def current_statistics(user=None):
     unpublished_topographies = Topography.objects.filter(
         surface__in=unpublished_surfaces, deletion_time__isnull=True
     )
-    unpublished_analyses = Analysis.objects.filter(
+    unpublished_analyses = WorkflowResult.objects.filter(
         subject_dispatch__topography__in=unpublished_topographies
     )
 

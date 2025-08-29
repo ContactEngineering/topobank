@@ -7,10 +7,10 @@ import topobank.taskapp.serializers
 
 from ..supplib.serializers import StrictFieldMixin
 from .models import (
-    Analysis,
-    AnalysisFunction,
-    AnalysisSubject,
     Configuration,
+    Workflow,
+    WorkflowResult,
+    WorkflowSubject,
     WorkflowTemplate,
 )
 from .registry import get_visualization_type
@@ -36,7 +36,7 @@ class WorkflowSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     class Meta:
-        model = AnalysisFunction
+        model = Workflow
         fields = [
             "id",
             "url",
@@ -65,7 +65,7 @@ class SubjectSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     class Meta:
-        model = AnalysisSubject
+        model = WorkflowSubject
         fields = ["id", "tag", "topography", "surface"]
 
     tag = serializers.HyperlinkedRelatedField(
@@ -83,7 +83,7 @@ class ResultSerializer(
     StrictFieldMixin, topobank.taskapp.serializers.TaskStateModelSerializer
 ):
     class Meta:
-        model = Analysis
+        model = WorkflowResult
         fields = [
             "url",
             "id",
@@ -160,7 +160,7 @@ class WorkflowTemplateSerializer(
     implementation = serializers.HyperlinkedRelatedField(
         view_name="analysis:workflow-detail",
         lookup_field="name",
-        queryset=AnalysisFunction.objects.all(),
+        queryset=Workflow.objects.all(),
         allow_null=True,
     )
 

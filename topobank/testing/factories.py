@@ -10,9 +10,9 @@ from django.utils import timezone
 from factory import post_generation
 
 from ..analysis.models import (
-    Analysis,
-    AnalysisFunction,
-    AnalysisSubject,
+    Workflow,
+    WorkflowResult,
+    WorkflowSubject,
     WorkflowTemplate,
 )
 from ..manager.models import Surface, Tag, Topography
@@ -243,10 +243,10 @@ class Topography2DFactory(Topography1DFactory):
 #
 # Define factories for creating test objects
 #
-class AnalysisFunctionFactory(factory.django.DjangoModelFactory):
+class WorkflowFactory(factory.django.DjangoModelFactory):
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = AnalysisFunction
+        model = Workflow
 
     name = factory.Sequence(lambda n: "Test Function no. {}".format(n))
 
@@ -268,7 +268,7 @@ def _analysis_default_kwargs(analysis):
 
 class AnalysisSubjectFactory(factory.django.DjangoModelFactory):
     class Meta:
-        model = AnalysisSubject
+        model = WorkflowSubject
 
 
 class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
@@ -280,7 +280,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
         exclude = (
             "subject_topography",
             "subject_surface",
@@ -308,7 +308,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     permissions = factory.SubFactory(
         PermissionSetFactory, user=factory.SelfAttribute("..user"), allow="view"
     )
-    function = factory.SubFactory(AnalysisFunctionFactory)
+    function = factory.SubFactory(WorkflowFactory)
     subject_dispatch = factory.SubFactory(
         AnalysisSubjectFactory,
         topography=factory.SelfAttribute("..subject_topography"),
@@ -329,7 +329,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
         read_only=True,
     )
 
-    task_state = Analysis.SUCCESS
+    task_state = WorkflowResult.SUCCESS
 
     task_submission_time = factory.LazyFunction(timezone.now)
     task_start_time = factory.LazyFunction(
@@ -347,7 +347,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
 
 class AnalysisFactory(AnalysisFactoryWithoutResult):
     class Meta:
-        model = Analysis
+        model = WorkflowResult
         exclude = (
             "subject_topography",
             "subject_surface",
@@ -366,7 +366,7 @@ class TopographyAnalysisFactory(AnalysisFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
 
     subject_topography = factory.SubFactory(Topography2DFactory)
 
@@ -376,7 +376,7 @@ class FailedTopographyAnalysisFactory(AnalysisFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
 
     subject_topography = factory.SubFactory(Topography2DFactory)
     result = factory.LazyAttribute(_failed_analysis_result)
@@ -387,7 +387,7 @@ class SurfaceAnalysisFactory(AnalysisFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
 
     subject_surface = factory.SubFactory(SurfaceFactory)
 
@@ -397,7 +397,7 @@ class TagAnalysisFactory(AnalysisFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
 
     subject_tag = factory.SubFactory(TagFactory)
 
@@ -412,7 +412,7 @@ class WorkflowTemplateFactory(factory.django.DjangoModelFactory):
 
     name = factory.Sequence(lambda n: f"Workflow Template {n}")
     kwargs = {"param1": "value1", "param2": "value2"}  # Example JSON field
-    implementation = factory.SubFactory(AnalysisFunctionFactory)
+    implementation = factory.SubFactory(WorkflowFactory)
     creator = factory.SubFactory(UserFactory)
     permissions = factory.SubFactory(
         PermissionSetFactory, user=factory.SelfAttribute("..creator")

@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
-from ..models import Analysis, AnalysisFunction, AnalysisSubject, WorkflowTemplate
+from ..models import Workflow, WorkflowResult, WorkflowSubject, WorkflowTemplate
 from ..registry import WorkflowNotImplementedException
 from ..serializers import ResultSerializer
 from ..utils import find_children, merge_dicts
@@ -18,7 +18,7 @@ _log = logging.getLogger(__name__)
 class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
-    queryset = Analysis.objects.all().select_related(
+    queryset = WorkflowResult.objects.all().select_related(
         "function",
         "subject_dispatch__tag",
         "subject_dispatch__topography",
@@ -45,7 +45,7 @@ class AnalysisController:
             Currently logged-in user.
         subjects : list of Tag, Topography or Surface, optional
             Subjects for which to filter analyses. (Default: None)
-        workflow : AnalysisFunction, optional
+        workflow : Workflow, optional
             Workflow function object. (Default: None)
         workflow_name : str, optional
             Name of analysis function. (Default: None)
@@ -58,7 +58,7 @@ class AnalysisController:
         self._workflow = workflow
         if self._workflow is None:
             if workflow_name is not None:
-                self._workflow = get_object_or_404(AnalysisFunction, name=workflow_name)
+                self._workflow = get_object_or_404(Workflow, name=workflow_name)
         if self._workflow is None:
             raise ValueError(
                 "Please restrict this analysis controller to a specific workflow."
@@ -345,7 +345,7 @@ class AnalysisController:
         if self._subjects is not None and len(self._subjects):
             subjects_query = None
             for subject in self._subjects:
-                q = AnalysisSubject.Q(subject)
+                q = WorkflowSubject.Q(subject)
                 subjects_query = q if subjects_query is None else subjects_query | q
                 # adjusting this fixes the latest query test
             query = subjects_query & query

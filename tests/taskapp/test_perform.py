@@ -1,6 +1,6 @@
 import pytest
 
-from topobank.analysis.models import Analysis
+from topobank.analysis.models import WorkflowResult
 from topobank.analysis.tasks import get_current_configuration, perform_analysis
 from topobank.manager.models import Topography
 from topobank.testing.factories import TopographyAnalysisFactory
@@ -19,14 +19,14 @@ def test_perform_analysis(
         function=test_analysis_function,
         kwargs=func_kwargs,
         result=None,
-        task_state=Analysis.PENDING
+        task_state=WorkflowResult.PENDING
     )
     analysis.save()
 
     perform_analysis(analysis.id, False)
 
     # now check result
-    analysis = Analysis.objects.get(id=analysis.id)
+    analysis = WorkflowResult.objects.get(id=analysis.id)
     assert analysis.result["comment"] == "Arguments: a is 1 and b is hamming"
 
     # Analysis object should remember the current configuration
@@ -53,13 +53,13 @@ def test_perform_analysis(
         function=test_analysis_function,
         kwargs=func_kwargs,
         result=None,
-        task_state=Analysis.PENDING
+        task_state=WorkflowResult.PENDING
     )
 
     analysis2.save()
     perform_analysis(analysis2.id, False)
 
-    analysis2 = Analysis.objects.get(id=analysis2.id)
+    analysis2 = WorkflowResult.objects.get(id=analysis2.id)
 
     # configuration should have been changed
     assert analysis2.configuration is not None

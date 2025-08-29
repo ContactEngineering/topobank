@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 from django.core.files.base import ContentFile
 
-from ..analysis.models import AnalysisFunction
+from ..analysis.models import Workflow
 from ..analysis.workflows import VIZ_SERIES, WorkflowDefinition, WorkflowImplementation
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.json import ExtendedJSONEncoder
@@ -161,12 +161,12 @@ class SecondTestImplementation(WorkflowImplementation):
         return {
             "dep1": WorkflowDefinition(
                 subject=topography,
-                function=AnalysisFunction.objects.get(name="topobank.testing.test"),
+                function=Workflow.objects.get(name="topobank.testing.test"),
                 kwargs=dict(a=self._kwargs.c),
             ),
             "dep2": WorkflowDefinition(
                 subject=topography,
-                function=AnalysisFunction.objects.get(name="topobank.testing.test"),
+                function=Workflow.objects.get(name="topobank.testing.test"),
                 kwargs=dict(b=self._kwargs.c * "A"),
             ),
         }
@@ -238,7 +238,7 @@ class TestImplementationWithErrorInDependency(WorkflowImplementation):
         return {
             "dep": WorkflowDefinition(
                 subject=topography,
-                function=AnalysisFunction.objects.get(
+                function=Workflow.objects.get(
                     name="topobank.testing.test_error"
                 ),
                 kwargs=self._kwargs.model_dump(),
