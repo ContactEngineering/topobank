@@ -2,7 +2,7 @@ import pytest
 from django.contrib.contenttypes.models import ContentType
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import Analysis, Workflow
+from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.workflows import VIZ_SERIES
 from topobank.manager.models import Surface, Topography
 from topobank.manager.utils import subjects_to_base64
@@ -129,19 +129,19 @@ def test_series_card_if_no_successful_topo_analysis(
     )
 
     assert (
-        Analysis.objects.filter(
+        WorkflowResult.objects.filter(
             function=func1, subject_dispatch__topography_id=topo.id, task_state="su"
         ).count()
         == 0
     )
     assert (
-        Analysis.objects.filter(
+        WorkflowResult.objects.filter(
             function=func1, subject_dispatch__topography_id=topo.id, task_state="fa"
         ).count()
         == 1
     )
     assert (
-        Analysis.objects.filter(
+        WorkflowResult.objects.filter(
             function=func1,
             subject_dispatch__surface_id=topo.surface.id,
             task_state="su",

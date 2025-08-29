@@ -9,7 +9,12 @@ from django.db.models.signals import post_save
 from django.utils import timezone
 from factory import post_generation
 
-from ..analysis.models import Analysis, AnalysisSubject, Workflow, WorkflowTemplate
+from ..analysis.models import (
+    AnalysisSubject,
+    Workflow,
+    WorkflowResult,
+    WorkflowTemplate,
+)
 from ..manager.models import Surface, Tag, Topography
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
@@ -275,7 +280,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
         exclude = (
             "subject_topography",
             "subject_surface",
@@ -324,7 +329,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
         read_only=True,
     )
 
-    task_state = Analysis.SUCCESS
+    task_state = WorkflowResult.SUCCESS
 
     task_submission_time = factory.LazyFunction(timezone.now)
     task_start_time = factory.LazyFunction(
@@ -342,7 +347,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
 
 class AnalysisFactory(AnalysisFactoryWithoutResult):
     class Meta:
-        model = Analysis
+        model = WorkflowResult
         exclude = (
             "subject_topography",
             "subject_surface",
@@ -361,7 +366,7 @@ class TopographyAnalysisFactory(AnalysisFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
 
     subject_topography = factory.SubFactory(Topography2DFactory)
 
@@ -371,7 +376,7 @@ class FailedTopographyAnalysisFactory(AnalysisFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
 
     subject_topography = factory.SubFactory(Topography2DFactory)
     result = factory.LazyAttribute(_failed_analysis_result)
@@ -382,7 +387,7 @@ class SurfaceAnalysisFactory(AnalysisFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
 
     subject_surface = factory.SubFactory(SurfaceFactory)
 
@@ -392,7 +397,7 @@ class TagAnalysisFactory(AnalysisFactory):
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Analysis
+        model = WorkflowResult
 
     subject_tag = factory.SubFactory(TagFactory)
 

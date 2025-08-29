@@ -182,7 +182,7 @@ def sync_implementation_classes(cleanup=False):
         and also delete all analyses related to those functions.
         Be careful, might delete existing analyses.
     """
-    from .models import Analysis, Workflow
+    from .models import Workflow, WorkflowResult
 
     counts = dict(
         funcs_updated=0,
@@ -215,7 +215,7 @@ def sync_implementation_classes(cleanup=False):
     for func in Workflow.objects.all():
         if func.name not in names_used:
             _log.info(f"Function '{func.name}' is no longer used in the code.")
-            dangling_analyses = Analysis.objects.filter(function=func)
+            dangling_analyses = WorkflowResult.objects.filter(function=func)
             num_analyses = dangling_analyses.filter(function=func).count()
             _log.info(f"There are still {num_analyses} analyses for this function.")
             if cleanup:

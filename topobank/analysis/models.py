@@ -138,7 +138,7 @@ class AnalysisSubject(models.Model):
         super().save(*args, **kwargs)
 
 
-class Analysis(PermissionMixin, TaskStateModel):
+class WorkflowResult(PermissionMixin, TaskStateModel):
     """
     This class represents the result of a workflow. It refers to the actual
     implementation if the workflow and subject of the workflow and stores its output in
@@ -163,7 +163,7 @@ class Analysis(PermissionMixin, TaskStateModel):
 
     # Actual implementation of the analysis as a Python function
     function = models.ForeignKey(
-        "analysis.Workflow", on_delete=models.SET_NULL, null=True
+        "analysis.Workflow", related_name="results", on_delete=models.SET_NULL, null=True
     )
 
     # Definition of the subject
@@ -201,9 +201,6 @@ class Analysis(PermissionMixin, TaskStateModel):
 
     # Invalid is True if the subject was changed after the analysis was computed
     deprecation_time = models.DateTimeField(null=True)
-
-    class Meta:
-        verbose_name_plural = "analyses"
 
     def __init__(self, *args, result=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -428,7 +425,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         self.save(update_fields=["name", "description", "subject_dispatch"])
 
 
-def submit_analysis_task_to_celery(analysis: Analysis, force_submit: bool):
+def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool):
     """
     Send task to the queue after the analysis has been created. This is typically run
     in an on_commit hook. Note: on_commit will not execute in tests, unless
@@ -575,16 +572,16 @@ class Workflow(models.Model):
             q &= Q(permissions__user_permissions__user=user)
 
         # All existing analyses
-        existing_analyses = Analysis.objects.filter(q)
+        existing_analyses = WorkflowResult.objects.filter(q)
 
         # Analyses, excluding those that have failed or that have not been submitted
         # to the task queue for some reason (state "no"t run)
         successful_or_running_analyses = existing_analyses.filter(
             task_state__in=[
-                Analysis.PENDING,
-                Analysis.RETRY,
-                Analysis.STARTED,
-                Analysis.SUCCESS,
+                WorkflowResult.PENDING,
+                WorkflowResult.RETRY,
+                WorkflowResult.STARTED,
+                WorkflowResult.SUCCESS,
             ]
         )
 
@@ -605,7 +602,7 @@ class Workflow(models.Model):
                 folder = Folder.objects.create(permissions=permissions, read_only=True)
 
                 # Create new entry in the analysis table and grant access to current user
-                analysis = Analysis.objects.create(
+                analysis = WorkflowResult.objects.create(
                     permissions=permissions,
                     subject_dispatch=AnalysisSubject.objects.create(subject),
                     function=self,
@@ -624,13 +621,13 @@ class Workflow(models.Model):
 
         return analysis
 
-    def submit_again(self, analysis: Analysis):
+    def submit_again(self, analysis: WorkflowResult):
         """
         Submit analysis with same arguments and users.
 
         Parameters
         ----------
-        analysis: Analysis
+        analysis: WorkflowResult
             Analysis instance to be renewed.
 
         Returns

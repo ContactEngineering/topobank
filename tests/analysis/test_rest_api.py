@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import Analysis, Workflow, WorkflowTemplate
+from topobank.analysis.models import Workflow, WorkflowResult, WorkflowTemplate
 from topobank.manager.models import Tag
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
@@ -81,7 +81,7 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
-    assert Analysis.objects.count() == 2
+    assert WorkflowResult.objects.count() == 2
 
     # Try passing integer parameters as strings
     response = api_client.get(
@@ -92,7 +92,7 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
-    assert Analysis.objects.count() == 2
+    assert WorkflowResult.objects.count() == 2
 
     # Try a parameter set that does not validate
     response = api_client.get(
@@ -102,7 +102,7 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
         f"&kwargs={dict_to_base64(dict(a=2, c=7))}"
     )
     assert response.status_code == 400
-    assert Analysis.objects.count() == 2
+    assert WorkflowResult.objects.count() == 2
 
 
 def test_query_with_partial_kwargs(api_client, one_line_scan, test_analysis_function):
@@ -127,7 +127,7 @@ def test_query_with_partial_kwargs(api_client, one_line_scan, test_analysis_func
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
-    assert Analysis.objects.count() == 1
+    assert WorkflowResult.objects.count() == 1
 
 
 @pytest.mark.django_db
@@ -181,7 +181,7 @@ def test_query_tag_analysis(
     one_line_scan.surface.tags.add("my-tag")
     tag = Tag.objects.get(name="my-tag")
 
-    assert Analysis.objects.count() == 0
+    assert WorkflowResult.objects.count() == 0
 
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = api_client.get(
@@ -189,7 +189,7 @@ def test_query_tag_analysis(
             f"{subjects_to_base64([tag])}&workflow={test_analysis_function.name}"
         )
     assert len(callbacks) == 1
-    assert Analysis.objects.count() == 1
+    assert WorkflowResult.objects.count() == 1
     # Tag analyses always succeed...
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
@@ -205,7 +205,7 @@ def test_query_tag_analysis(
     # assert response.status_code == 200
     # assert len(response.data["analyses"]) == 1
     # file = response.data["result.json"]["file"][23:]
-    analysis = Analysis.objects.get(id=analysis_id)
+    analysis = WorkflowResult.objects.get(id=analysis_id)
     assert len(analysis.result["surfaces"]) == 0
 
     # Login
@@ -217,7 +217,7 @@ def test_query_tag_analysis(
             f"&workflow={test_analysis_function.name}"
         )
     assert len(callbacks) == 1
-    assert Analysis.objects.count() == 2
+    assert WorkflowResult.objects.count() == 2
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
     analysis_id = response.data["analyses"][0]["id"]
@@ -236,7 +236,7 @@ def test_query_tag_analysis(
     # file = response.data["result.json"]["file"][23:]
     # data = json.load(default_storage.open(file))
     # assert len(data["surfaces"] == 1)
-    analysis = Analysis.objects.get(id=analysis_id)
+    analysis = WorkflowResult.objects.get(id=analysis_id)
     assert len(analysis.result["surfaces"]) == 1
 
     response = api_client.get(
@@ -272,7 +272,7 @@ def test_query_with_unique_kwargs(
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
-    assert Analysis.objects.count() == 1
+    assert WorkflowResult.objects.count() == 1
 
     analysis_id = response.data["analyses"][0]["id"]
     unique_kwargs = response.data["unique_kwargs"]
@@ -286,7 +286,7 @@ def test_query_with_unique_kwargs(
     )
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
-    assert Analysis.objects.count() == 1
+    assert WorkflowResult.objects.count() == 1
     assert response.data["analyses"][0]["id"] == analysis_id  # Should yield the same
 
 
@@ -312,7 +312,7 @@ def test_query_with_error(
     assert response.status_code == 200
     assert response.data["analyses"][0]["task_state"] == "pe"
     assert len(response.data["analyses"]) == 1
-    assert Analysis.objects.count() == 1
+    assert WorkflowResult.objects.count() == 1
 
     # Second request is required to retrieve error (first is always pending)
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
@@ -325,7 +325,7 @@ def test_query_with_error(
     assert response.status_code == 200
     assert response.data["analyses"][0]["task_state"] == "fa"
     assert len(response.data["analyses"]) == 1
-    assert Analysis.objects.count() == 1
+    assert WorkflowResult.objects.count() == 1
 
     assert response.data["analyses"][0]["task_error"] == "An error occurred!"
     assert "return runner.eval" in response.data["analyses"][0]["task_traceback"]
@@ -355,7 +355,7 @@ def test_query_with_error_in_dependency(
     assert response.status_code == 200
     assert response.data["analyses"][0]["task_state"] == "pe"
     assert len(response.data["analyses"]) == 1
-    assert Analysis.objects.count() == 2
+    assert WorkflowResult.objects.count() == 2
 
     # Second request is required to retrieve error (first is always pending)
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
@@ -368,7 +368,7 @@ def test_query_with_error_in_dependency(
     assert response.status_code == 200
     assert response.data["analyses"][0]["task_state"] == "fa"
     assert len(response.data["analyses"]) == 1
-    assert Analysis.objects.count() == 2
+    assert WorkflowResult.objects.count() == 2
 
     assert response.data["analyses"][0]["task_error"] == "An error occurred!"
     # We currently do not get a traceback from dependencies
@@ -388,7 +388,7 @@ def test_save_tag_analysis(
     one_line_scan.surface.tags.add("my-tag")
     tag = Tag.objects.get(name="my-tag")
 
-    assert Analysis.objects.count() == 0
+    assert WorkflowResult.objects.count() == 0
 
     # Login
     api_client.force_login(user)
@@ -399,7 +399,7 @@ def test_save_tag_analysis(
             f"&workflow={test_analysis_function.name}"
         )
     assert len(callbacks) == 1
-    assert Analysis.objects.count() == 1
+    assert WorkflowResult.objects.count() == 1
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
     set_name_url = response.data["analyses"][0]["api"]["set_name"]
@@ -408,7 +408,7 @@ def test_save_tag_analysis(
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         response = api_client.get(reverse("analysis:named-result-list"))
     assert len(callbacks) == 0
-    assert Analysis.objects.count() == 1  # We still have one (the saved analysis)
+    assert WorkflowResult.objects.count() == 1  # We still have one (the saved analysis)
     assert response.status_code == 200
     assert len(response.data) == 0
 
@@ -417,8 +417,8 @@ def test_save_tag_analysis(
         set_name_url, {"name": "my-name", "description": "my-description"}
     )
     assert response.status_code == 200
-    assert Analysis.objects.count() == 1  # This does not make a copy
-    assert Analysis.objects.get(name="my-name").description == "my-description"
+    assert WorkflowResult.objects.count() == 1  # This does not make a copy
+    assert WorkflowResult.objects.get(name="my-name").description == "my-description"
 
     # Check that query the analysis again triggers a new one
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
@@ -428,13 +428,13 @@ def test_save_tag_analysis(
             f"&workflow={test_analysis_function.name}"
         )
     assert len(callbacks) == 1
-    assert Analysis.objects.count() == 2  # We now have two
+    assert WorkflowResult.objects.count() == 2  # We now have two
     assert response.status_code == 200
     assert len(response.data["analyses"]) == 1
 
     # Delete tag
     tag.delete()
-    assert Analysis.objects.count() == 1
+    assert WorkflowResult.objects.count() == 1
 
     # Check that we can query saved analysis
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
@@ -442,7 +442,7 @@ def test_save_tag_analysis(
             f"{reverse('analysis:named-result-list')}" f"?name=my-name"
         )
     assert len(callbacks) == 0
-    assert Analysis.objects.count() == 1  # We still have one (the saved analysis)
+    assert WorkflowResult.objects.count() == 1  # We still have one (the saved analysis)
     assert response.status_code == 200
     assert len(response.data) == 1
 
@@ -459,7 +459,7 @@ def test_query_pending(
     one_line_scan.surface.tags.add("my-tag")
     tag = Tag.objects.get(name="my-tag")
 
-    assert Analysis.objects.count() == 0
+    assert WorkflowResult.objects.count() == 0
 
     # Login
     api_client.force_login(user)

@@ -1,7 +1,7 @@
 import pydantic
 import pytest
 
-from topobank.analysis.models import Analysis
+from topobank.analysis.models import WorkflowResult
 from topobank.testing.factories import Topography1DFactory, TopographyAnalysisFactory
 
 
@@ -75,7 +75,7 @@ def test_different_kwargs(mocker, test_analysis_function):
     # Now there are three analyses for af+topo
     #
     assert (
-        Analysis.objects.filter(
+        WorkflowResult.objects.filter(
             subject_dispatch__topography=topo, function=test_analysis_function
         ).count()
         == 3
@@ -84,7 +84,7 @@ def test_different_kwargs(mocker, test_analysis_function):
     #
     # Only one analysis is marked for user 'user'
     #
-    analyses = Analysis.objects.filter(
+    analyses = WorkflowResult.objects.filter(
         subject_dispatch__topography=topo,
         function=test_analysis_function,
         permissions__user_permissions__user=user,
