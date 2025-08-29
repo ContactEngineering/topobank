@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
-from ..models import AnalysisSubject, Workflow, WorkflowResult, WorkflowTemplate
+from ..models import Workflow, WorkflowResult, WorkflowSubject, WorkflowTemplate
 from ..registry import WorkflowNotImplementedException
 from ..serializers import ResultSerializer
 from ..utils import find_children, merge_dicts
@@ -345,7 +345,7 @@ class AnalysisController:
         if self._subjects is not None and len(self._subjects):
             subjects_query = None
             for subject in self._subjects:
-                q = AnalysisSubject.Q(subject)
+                q = WorkflowSubject.Q(subject)
                 subjects_query = q if subjects_query is None else subjects_query | q
                 # adjusting this fixes the latest query test
             query = subjects_query & query

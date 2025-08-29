@@ -444,7 +444,7 @@ def current_statistics(user=None):
 
 
 def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool):
-    from .models import AnalysisSubject, WorkflowResult
+    from .models import WorkflowResult, WorkflowSubject
 
     finished_dependent_analyses = {}  # Everything that finished or failed
     scheduled_dependent_analyses = {}  # Everything that needs to be scheduled
@@ -500,7 +500,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             # Create new entry in the analysis table
             new_analysis = WorkflowResult.objects.create(
                 permissions=permissions,
-                subject_dispatch=AnalysisSubject.objects.create(dependency.subject),
+                subject_dispatch=WorkflowSubject.objects.create(dependency.subject),
                 function=function,
                 task_state=WorkflowResult.PENDING,  # We are submitting this right away
                 kwargs=kwargs,
