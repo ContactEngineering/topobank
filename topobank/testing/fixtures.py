@@ -17,12 +17,12 @@ from trackstats.models import Domain, Metric
 from ..manager.models import Surface
 from .factories import (
     ManifestFactory,
+    OrganizationFactory,
     SurfaceFactory,
     TagFactory,
     Topography1DFactory,
     Topography2DFactory,
     UserFactory,
-    OrganizationFactory,
 )
 
 _log = logging.getLogger(__name__)
@@ -279,9 +279,9 @@ def sync_analysis_functions(db):
 
 @pytest.fixture(scope="function")
 def test_analysis_function(sync_analysis_functions):
-    from ..analysis.models import AnalysisFunction
+    from ..analysis.models import Workflow
 
-    return AnalysisFunction.objects.get(name="topobank.testing.test")
+    return Workflow.objects.get(name="topobank.testing.test")
 
 
 @pytest.fixture

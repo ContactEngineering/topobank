@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import Analysis, AnalysisFunction, WorkflowTemplate
+from topobank.analysis.models import Analysis, Workflow, WorkflowTemplate
 from topobank.manager.models import Tag
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
@@ -23,7 +23,7 @@ def test_statistics(api_client, handle_usage_statistics):
     topo1b = Topography1DFactory(surface=surf1)
     topo2a = Topography1DFactory(surface=surf2)
 
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func = Workflow.objects.get(name="topobank.testing.test")
 
     #
     # Generate analyses for topographies with differing arguments
@@ -298,7 +298,7 @@ def test_query_with_error(
     handle_usage_statistics,
 ):
     user = one_line_scan.creator
-    function = AnalysisFunction.objects.get(name="topobank.testing.test_error")
+    function = Workflow.objects.get(name="topobank.testing.test_error")
 
     # Login
     api_client.force_login(user)
@@ -339,7 +339,7 @@ def test_query_with_error_in_dependency(
     handle_usage_statistics,
 ):
     user = one_line_scan.creator
-    function = AnalysisFunction.objects.get(
+    function = Workflow.objects.get(
         name="topobank.testing.test_error_in_dependency"
     )
 
@@ -581,8 +581,8 @@ def test_workflow_template_query(api_client, one_line_scan):
     user = one_line_scan.creator
 
     # Create a new workflow template
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
-    func2 = AnalysisFunction.objects.get(name="topobank.testing.test2")
+    func = Workflow.objects.get(name="topobank.testing.test")
+    func2 = Workflow.objects.get(name="topobank.testing.test2")
 
     # create different workflow template with from analysis
     WorkflowTemplateFactory(
@@ -607,4 +607,4 @@ def test_workflow_template_query(api_client, one_line_scan):
     url = f"http://testserver/analysis/api/workflow/{func.name}/"
     assert (
         response.data[0]["implementation"] == url
-    ), f"Expected matching AnalysisFunction, got {response.data['implementation']}"
+    ), f"Expected matching workflow, got {response.data['implementation']}"

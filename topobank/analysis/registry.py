@@ -119,7 +119,7 @@ def register_implementation(klass):
 
 def get_implementation(display_name=None, name=None):
     """
-    Return AnalysisFunctionImplementation for given analysis function and subject type.
+    Return WorkflowImplementation for given analysis function and subject type.
 
     Parameters
     ----------
@@ -182,7 +182,7 @@ def sync_implementation_classes(cleanup=False):
         and also delete all analyses related to those functions.
         Be careful, might delete existing analyses.
     """
-    from .models import Analysis, AnalysisFunction
+    from .models import Analysis, Workflow
 
     counts = dict(
         funcs_updated=0,
@@ -201,7 +201,7 @@ def sync_implementation_classes(cleanup=False):
     )
 
     for name in names_used:
-        func, created = AnalysisFunction.objects.update_or_create(name=name)
+        func, created = Workflow.objects.update_or_create(name=name)
         func.display_name = _implementation_classes_by_name[name].Meta.display_name
         func.save(update_fields=["display_name"])
         if created:
@@ -212,7 +212,7 @@ def sync_implementation_classes(cleanup=False):
     #
     # Optionally delete all analysis functions which are no longer needed
     #
-    for func in AnalysisFunction.objects.all():
+    for func in Workflow.objects.all():
         if func.name not in names_used:
             _log.info(f"Function '{func.name}' is no longer used in the code.")
             dangling_analyses = Analysis.objects.filter(function=func)

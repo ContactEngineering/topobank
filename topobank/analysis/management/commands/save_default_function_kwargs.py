@@ -3,7 +3,7 @@ from collections import defaultdict
 
 from django.core.management.base import BaseCommand
 
-from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.models import Analysis, Workflow
 from topobank.analysis.registry import WorkflowNotImplementedException
 
 _log = logging.getLogger(__name__)
@@ -37,7 +37,7 @@ class Command(BaseCommand):
         # in order to reduce database requests
         #
         default_kwargs = {}  # key: analysis function implementation
-        for af in AnalysisFunction.objects.all():
+        for af in Workflow.objects.all():
             for impl in af.implementations.all():
                 try:
                     dkw = impl.default_kwargs

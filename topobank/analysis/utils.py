@@ -119,7 +119,7 @@ def find_children(subjects):
 
 
 def filter_workflow_templates(request, qs):
-    from ..analysis.models import AnalysisFunction
+    from ..analysis.models import Workflow
     """Return queryset with workflow templates matching all filter criteria.
 
     Workflow templates should be
@@ -139,10 +139,10 @@ def filter_workflow_templates(request, qs):
     implementation = None
     if implementation_name is not None:
         try:
-            implementation = AnalysisFunction.objects.get(
+            implementation = Workflow.objects.get(
                 name=implementation_name
             )
-        except AnalysisFunction.DoesNotExist:
+        except Workflow.DoesNotExist:
             _log.warning(
                 "Workflow template filter: implementation %s not found",
                 implementation_name,
