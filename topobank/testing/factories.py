@@ -10,9 +10,9 @@ from django.utils import timezone
 from factory import post_generation
 
 from ..analysis.models import (
-    AnalysisSubject,
     Workflow,
     WorkflowResult,
+    WorkflowSubject,
     WorkflowTemplate,
 )
 from ..manager.models import Surface, Tag, Topography
@@ -268,7 +268,7 @@ def _analysis_default_kwargs(analysis):
 
 class AnalysisSubjectFactory(factory.django.DjangoModelFactory):
     class Meta:
-        model = AnalysisSubject
+        model = WorkflowSubject
 
 
 class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):

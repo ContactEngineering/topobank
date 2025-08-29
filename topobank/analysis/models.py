@@ -55,7 +55,7 @@ class AnalysisSubjectManager(models.Manager):
         return super().create(*args, **kwargs)
 
 
-class AnalysisSubject(models.Model):
+class WorkflowSubject(models.Model):
     """Analysis subject, which can be either a Tag, a Topography or a Surface"""
 
     objects = AnalysisSubjectManager()
@@ -168,7 +168,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     # Definition of the subject
     subject_dispatch = models.OneToOneField(
-        AnalysisSubject, on_delete=models.CASCADE, null=True
+        WorkflowSubject, on_delete=models.CASCADE, null=True
     )
 
     # Unique, user-specified name
@@ -564,7 +564,7 @@ class Workflow(models.Model):
         kwargs = self.clean_kwargs(kwargs)
 
         # Query for all existing analyses with the same parameters
-        q = AnalysisSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
+        q = WorkflowSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
 
         # If subject is tag, we need to restrict this to the current user because those
         # analyses cannot be shared
@@ -604,7 +604,7 @@ class Workflow(models.Model):
                 # Create new entry in the analysis table and grant access to current user
                 analysis = WorkflowResult.objects.create(
                     permissions=permissions,
-                    subject_dispatch=AnalysisSubject.objects.create(subject),
+                    subject_dispatch=WorkflowSubject.objects.create(subject),
                     function=self,
                     kwargs=kwargs,
                     folder=folder,

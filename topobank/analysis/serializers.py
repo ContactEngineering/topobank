@@ -8,10 +8,10 @@ import topobank.taskapp.serializers
 
 from ..supplib.serializers import StrictFieldMixin
 from .models import (
-    AnalysisSubject,
     Configuration,
     Workflow,
     WorkflowResult,
+    WorkflowSubject,
     WorkflowTemplate,
 )
 from .registry import get_visualization_type
@@ -66,7 +66,7 @@ class SubjectSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     class Meta:
-        model = AnalysisSubject
+        model = WorkflowSubject
         fields = ["id", "tag", "topography", "surface"]
 
     tag = serializers.HyperlinkedRelatedField(
