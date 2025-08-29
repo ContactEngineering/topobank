@@ -1,6 +1,7 @@
 import logging
 import sys
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 
@@ -128,7 +129,15 @@ class ResultSerializer(
         view_name="analysis:configuration-detail", read_only=True
     )
 
-    def get_api(self, obj):
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "set_name": {"type": "string"},
+            },
+        }
+    )
+    def get_api(self, obj: WorkflowResult) -> dict:
         return {
             "set_name": reverse(
                 "analysis:set-name",

@@ -200,13 +200,10 @@ WATCHMAN_AUTH_DECORATOR = "django.contrib.admin.views.decorators.staff_member_re
 
 # STATIC FILES
 # ------------------------------------------------------------------------------
-# We use whitenoise in production for delivering static files. Those files need
+# We use ServeStatic in production for delivering static files. Those files need
 # to be collected with `manage.py collectstatic` before. (This happens when
-# building the Docker container.) Now we insert `WhiteNoiseMiddleware` after
+# building the Docker container.) Now we insert `ServeStaticMiddleware` after
 # `SecurityMiddleware`.
-# See: http://whitenoise.evans.io/en/latest/django.html#enable-whitenoise
-# See also here for a discussion of Whitenoise vs S3:
-# http://whitenoise.evans.io/en/stable/#shouldn-t-i-be-pushing-my-static-files-to-s3-using-something-like-django-storages
 MIDDLEWARE.insert(  # noqa: F405
     MIDDLEWARE.index("django.middleware.security.SecurityMiddleware") + 1,  # noqa: F405
     "servestatic.middleware.ServeStaticMiddleware",

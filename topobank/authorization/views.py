@@ -32,7 +32,7 @@ class PermissionSetPermission(BasePermission):
 
 
 class PermissionSetViewSet(
-    viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.UpdateModelMixin
+    viewsets.GenericViewSet, mixins.RetrieveModelMixin
 ):
     queryset = PermissionSet.objects.all()
     serializer_class = PermissionSetSerializer

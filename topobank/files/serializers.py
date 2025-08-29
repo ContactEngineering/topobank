@@ -1,5 +1,6 @@
 import logging
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from ..supplib.serializers import StrictFieldMixin
@@ -57,5 +58,19 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
             instance.exists()  # Sets the actual file if not yet done
         super().__init__(instance=instance, data=data, **kwargs)
 
-    def get_upload_instructions(self, obj: Manifest):
+    @extend_schema_field(
+        {
+            "anyOf": [
+                {"type": "null"},
+                {
+                    "type": "object",
+                    "properties": {
+                        "method": {"type": "string"},
+                        "url": {"type": "string"},
+                    },
+                },
+            ],
+        }
+    )
+    def get_upload_instructions(self, obj: Manifest) -> dict | None:
         return None if obj.exists() else obj.get_upload_instructions()

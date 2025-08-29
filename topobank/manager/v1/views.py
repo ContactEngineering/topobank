@@ -17,23 +17,19 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
-from topobank.authorization.permissions import Permission
-from topobank.files.models import Manifest
-from topobank.manager.export_zip import write_container_zip
-from topobank.manager.filters import filter_surfaces
-from topobank.manager.models import Surface, Tag, Topography
-from topobank.manager.permissions import TagPermission
-from topobank.manager.tasks import import_container_from_url
-from topobank.manager.v1.serializers import (
-    SurfaceSerializer,
-    TagSerializer,
-    TopographySerializer,
-)
-from topobank.organizations.models import resolve_organization
-from topobank.supplib.versions import get_versions
-from topobank.taskapp.utils import run_task
-from topobank.usage_stats.utils import increase_statistics_by_date_and_object
-from topobank.users.models import User, resolve_user
+from ...authorization.permissions import Permission
+from ...files.models import Manifest
+from ...organizations.models import resolve_organization
+from ...supplib.versions import get_versions
+from ...taskapp.utils import run_task
+from ...usage_stats.utils import increase_statistics_by_date_and_object
+from ...users.models import User, resolve_user
+from ..export_zip import write_container_zip
+from ..filters import filter_surfaces
+from ..models import Surface, Tag, Topography
+from ..permissions import TagPermission
+from ..tasks import import_container_from_url
+from ..v1.serializers import SurfaceSerializer, TagSerializer, TopographySerializer
 
 _log = logging.getLogger(__name__)
 

@@ -1,4 +1,5 @@
 import pydantic
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
@@ -11,7 +12,7 @@ from ...taskapp.serializers import TaskStateModelSerializer
 from ..models import Surface, Topography, ZipContainer
 
 
-class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
+class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     class Meta:
         model = Topography
         fields = [
@@ -109,7 +110,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     # Everything else
     tags = TagRelatedManagerField(required=False)
     is_metadata_complete = serializers.SerializerMethodField()
-    permissions = serializers.SerializerMethodField()
 
     def validate(self, data):
         read_only_fields = []
@@ -135,7 +135,15 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
                 )
         return super().validate(data)
 
-    def get_api(self, obj):
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "force_inspect": {"type": "string"},
+            },
+        }
+    )
+    def get_api(self, obj: Topography) -> dict:
         return {
             "force_inspect": reverse(
                 "manager:force-inspect",
@@ -159,7 +167,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             raise serializers.ValidationError({"message": str(exc)})
 
 
-class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
         fields = [
@@ -206,16 +214,24 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         queryset=Organization.objects.all(),
         required=False,
     )
-    attachments = serializers.HyperlinkedRelatedField(
-        view_name="files:folder-api-detail", read_only=True
+    attachments_url = serializers.HyperlinkedRelatedField(
+        source="attachments", view_name="files:folder-api-detail", read_only=True
     )
 
     # Everything else
     properties = PropertiesField(required=False)
     tags = TagRelatedManagerField(required=False)
-    permissions = serializers.SerializerMethodField()
 
-    def get_api(self, obj):
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "async_download": {"type": "string"},
+                "topographies": {"type": "string"},
+            },
+        }
+    )
+    def get_api(self, obj: Surface) -> dict:
         request = self.context["request"]
         return {
             "async_download": reverse(
@@ -228,7 +244,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         }
 
 
-class ZipContainerSerializer(StrictFieldMixin, TaskStateModelSerializer):
+class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     """
     Serializer for ZipContainer model.
     """
@@ -236,9 +252,13 @@ class ZipContainerSerializer(StrictFieldMixin, TaskStateModelSerializer):
     class Meta:
         model = ZipContainer
         fields = [
+            # Self
             "url",
             "id",
-            "manifest",
+            # Hyperlinked resources
+            "manifest_url",
+            "permissions_url",
+            # Model fields
             "task_duration",
             "task_error",
             "task_progress",
@@ -247,8 +267,10 @@ class ZipContainerSerializer(StrictFieldMixin, TaskStateModelSerializer):
             "task_traceback",
             "celery_task_state",
             "self_reported_task_state",
+            "creation_time",
+            "modification_time",
         ]
-        read_only_fields = ["created_at", "updated_at", "owner"]
+        read_only_fields = ["creation_time", "modification_time"]
 
     # Self
     url = serializers.HyperlinkedIdentityField(
@@ -256,6 +278,13 @@ class ZipContainerSerializer(StrictFieldMixin, TaskStateModelSerializer):
     )
 
     # The actual file
-    manifest = serializers.HyperlinkedRelatedField(
-        view_name="files:manifest-api-detail", queryset=Manifest.objects.all()
+    manifest_url = serializers.HyperlinkedRelatedField(
+        source="manifest",
+        view_name="files:manifest-api-detail",
+        queryset=Manifest.objects.all(),
+    )
+    permissions_url = serializers.HyperlinkedRelatedField(
+        source="permissions",
+        view_name="authorization:permission-set-api-detail",
+        queryset=Manifest.objects.all(),
     )

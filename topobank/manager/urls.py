@@ -9,6 +9,8 @@ router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"api/tag", v1.TagViewSet, basename="tag-api")
 router.register(r"api/topography", v1.TopographyViewSet, basename="topography-api")
 router.register(r"api/surface", v1.SurfaceViewSet, basename="surface-api")
+router.register(r"v2/topography", v2.TopographyViewSet, basename="topography-v2")
+router.register(r"v2/surface", v2.SurfaceViewSet, basename="surface-v2")
 router.register(r"v2/zip-container", v2.ZipContainerViewSet, basename="zip-container-v2")
 
 urlpatterns = router.urls
