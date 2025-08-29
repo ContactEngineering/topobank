@@ -285,6 +285,6 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     )
     permissions_url = serializers.HyperlinkedRelatedField(
         source="permissions",
-        view_name="authorization:permission-set-api-detail",
+        view_name="authorization:permission-set-v1-detail",
         queryset=Manifest.objects.all(),
     )
