@@ -204,6 +204,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
         source="owner",
         view_name="organizations:organization-v1-detail",
         queryset=Organization.objects.all(),
+        required=False,
     )
     attachments = serializers.HyperlinkedRelatedField(
         view_name="files:folder-api-detail", read_only=True
