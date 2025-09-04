@@ -33,6 +33,7 @@ class OrganizationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeria
                 "add_user": {"type": "string"},
                 "remove_user": {"type": "string"},
             },
+            "required": ["users", "add_user", "remove_user"],
         }
     )
     def get_api(self, obj: Organization) -> dict:

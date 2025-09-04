@@ -61,6 +61,7 @@ class PermissionSetSerializer(serializers.ModelSerializer):
                 "add_organization": {"type": "string"},
                 "remove_organization": {"type": "string"},
             },
+            "required": ["add_user", "remove_user", "add_organization", "remove_organization"],
         }
     )
     def get_api(self, obj: PermissionSet) -> dict:
