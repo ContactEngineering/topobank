@@ -60,16 +60,13 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
 
     @extend_schema_field(
         {
-            "anyOf": [
-                {"type": "null"},
-                {
-                    "type": "object",
-                    "properties": {
-                        "method": {"type": "string"},
-                        "url": {"type": "string"},
-                    },
-                },
-            ],
+            "type": "object",
+            "properties": {
+                "method": {"type": "string"},
+                "url": {"type": "string"},
+                "fields": {"type": "object"},
+            },
+            "required": ["method", "url"],
         }
     )
     def get_upload_instructions(self, obj: Manifest) -> dict | None:

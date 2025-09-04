@@ -134,6 +134,7 @@ class ResultSerializer(
             "properties": {
                 "set_name": {"type": "string"},
             },
+            "required": ["set_name"],
         }
     )
     def get_api(self, obj: WorkflowResult) -> dict:

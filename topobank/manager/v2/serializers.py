@@ -69,7 +69,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
 
     # Self
     url = serializers.HyperlinkedIdentityField(
-        view_name="manager:topography-api-detail", read_only=True
+        view_name="manager:topography-v2-detail", read_only=True
     )
 
     # Hyperlinked resources
@@ -83,7 +83,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     )
     surface_url = serializers.HyperlinkedRelatedField(
         source="surface",
-        view_name="manager:surface-api-detail",
+        view_name="manager:surface-v2-detail",
         queryset=Surface.objects.all(),
     )
     datafile_url = serializers.HyperlinkedRelatedField(
@@ -141,6 +141,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "properties": {
                 "force_inspect": {"type": "string"},
             },
+            "required": ["force_inspect"],
         }
     )
     def get_api(self, obj: Topography) -> dict:
@@ -193,7 +194,7 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
 
     # Self
     url = serializers.HyperlinkedIdentityField(
-        view_name="manager:surface-api-detail", read_only=True
+        view_name="manager:surface-v2-detail", read_only=True
     )
 
     # Auxiliary API endpoints
@@ -229,6 +230,7 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
                 "async_download": {"type": "string"},
                 "topographies": {"type": "string"},
             },
+            "required": ["async_download", "topographies"],
         }
     )
     def get_api(self, obj: Surface) -> dict:

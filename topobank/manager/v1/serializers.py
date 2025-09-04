@@ -45,6 +45,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
                 "download": {"type": "string"},
                 "async_download": {"type": "string"},
             },
+            "required": ["set_permissions", "download", "async_download"],
         }
     )
     def get_api(self, obj: Tag) -> dict:
@@ -195,6 +196,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             "properties": {
                 "force_inspect": {"type": "string"},
             },
+            "required": ["force_inspect"],
         }
     )
     def get_api(self, obj: Topography) -> dict:
@@ -304,6 +306,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
                 "download": {"type": "string"},
                 "async_download": {"type": "string"},
             },
+            "required": ["set_permissions", "download", "async_download"],
         }
     )
     def get_api(self, obj: Surface) -> dict:
