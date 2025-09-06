@@ -344,11 +344,10 @@ CELERY_BEAT_SCHEDULE = {
 
 # django-allauth
 # ------------------------------------------------------------------------------
-# https://django-allauth.readthedocs.io/en/latest/configuration.html
+# https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_FORMS = {"signup": "topobank.users.forms.SignupFormWithName"}
 # ACCOUNT_EMAIL_VERIFICATION = 'mandatory'
 ACCOUNT_EMAIL_VERIFICATION = "none"
-# https://docs.allauth.org/en/latest/account/configuration.html
 ACCOUNT_ADAPTER = "topobank.users.adapters.AccountAdapter"
 # https://docs.allauth.org/en/latest/socialaccount/configuration.html
 SOCIALACCOUNT_ADAPTER = "topobank.users.adapters.SocialAccountAdapter"
