@@ -10,7 +10,6 @@ router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"api/configuration", v1.ConfigurationView, basename="configuration")
 router.register(r"api/workflow", v1.WorkflowView, basename="workflow")
 router.register(r"api/result", v1.ResultView, basename="result")
-router.register(r"api/template", v1.WorkflowTemplateView, basename="workflow-template")
 
 urlpatterns = router.urls
 

@@ -1,4 +1,5 @@
 import logging
+import sys
 
 from rest_framework import serializers
 from rest_framework.reverse import reverse
@@ -11,7 +12,6 @@ from .models import (
     AnalysisFunction,
     AnalysisSubject,
     Configuration,
-    WorkflowTemplate,
 )
 from .registry import get_visualization_type
 
@@ -142,28 +142,3 @@ class ResultSerializer(
             kwargs={"workflow_id": obj.id},
             request=self.context["request"],
         )
-
-
-class WorkflowTemplateSerializer(
-    StrictFieldMixin, serializers.HyperlinkedModelSerializer
-):
-    class Meta:
-        model = WorkflowTemplate
-        fields = [
-            "id",
-            "name",
-            "kwargs",
-            "implementation",
-            "creator",
-        ]
-
-    implementation = serializers.HyperlinkedRelatedField(
-        view_name="analysis:workflow-detail",
-        lookup_field="name",
-        queryset=AnalysisFunction.objects.all(),
-        allow_null=True,
-    )
-
-    creator = serializers.HyperlinkedRelatedField(
-        view_name="users:user-api-detail", read_only=True
-    )

@@ -45,6 +45,13 @@ urlpatterns = [
         include("topobank.plugins.urls", namespace="plugins"),
     ),
     #
+    # SDS-ML plugin
+    #
+    path(
+        "sds-ml/",
+        include("sds_ml.urls", namespace="sds_ml"),
+    ),
+    #
     # Django Admin, use {% url 'admin:index' %}
     #
     path(settings.ADMIN_URL, admin.site.urls),

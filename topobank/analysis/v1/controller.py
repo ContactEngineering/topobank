@@ -7,7 +7,7 @@ from django.shortcuts import get_object_or_404
 from rest_framework.exceptions import PermissionDenied
 
 from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
-from ..models import Analysis, AnalysisFunction, AnalysisSubject, WorkflowTemplate
+from ..models import Analysis, AnalysisFunction, AnalysisSubject
 from ..registry import WorkflowNotImplementedException
 from ..serializers import ResultSerializer
 from ..utils import find_children, merge_dicts
@@ -205,15 +205,6 @@ class AnalysisController:
         if workflow_kwargs is not None and isinstance(workflow_kwargs, str):
             workflow_kwargs = dict_from_base64(workflow_kwargs)
 
-        workflow_template_id, data = AnalysisController.get_request_parameter(
-            ["workflow_template"], data
-        )
-        if workflow_template_id is not None:
-            workflow_template = WorkflowTemplate.objects.get(id=workflow_template_id)
-            workflow_kwargs = merge_dicts(
-                workflow_template.kwargs,
-                [workflow_kwargs]
-            )
 
         if len(data) > 0:
             raise ValueError(
