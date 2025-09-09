@@ -13,7 +13,6 @@ from .models import (
     Workflow,
     WorkflowResult,
     WorkflowSubject,
-    WorkflowTemplate,
 )
 from .registry import get_visualization_type
 
