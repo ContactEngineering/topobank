@@ -131,7 +131,11 @@ def run_task(model_instance, *args, **kwargs):
     # has been flushed to the database (including a possible 'pe'nding state)
     celery_kwargs = {}
     if hasattr(model_instance, "celery_queue"):
+        # Static celery queue
         celery_kwargs["queue"] = model_instance.celery_queue
+    elif hasattr(model_instance, "get_celery_queue"):
+        # Dynamic celery queue
+        celery_kwargs["queue"] = model_instance.get_celery_queue()
 
     def submit_task_to_celery():
         model_instance.task_id = task_dispatch.apply_async(
