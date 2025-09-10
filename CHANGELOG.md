@@ -34,6 +34,7 @@
 # 1.63.1 (2025-09-10)
 
 - BUG: Route ZIP container creation to 'manager' Celery queue
+- ENH: Option for models to dynamically choose Celery routing target
 
 # 1.63.0 (2025-05-25)
 

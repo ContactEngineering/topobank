@@ -363,6 +363,13 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     def implementation(self):
         return self.function.implementation
 
+    def get_celery_queue(self) -> str:
+        impl = self.implementation
+        if impl.Meta.celery_queue is None:
+            return settings.TOPOBANK_ANALYSIS_QUEUE
+        else:
+            return impl.Meta.celery_queue
+
     def authorize_user(self, user: settings.AUTH_USER_MODEL):
         """
         Returns an exception if given user should not be able to see this analysis.

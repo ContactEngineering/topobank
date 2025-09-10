@@ -136,6 +136,7 @@ class WorkflowImplementation:
     """Class that holds the actual implementation of an analysis function"""
 
     class Meta:
+        celery_queue = None
         implementations = {}
         dependencies = {}
 
