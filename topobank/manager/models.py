@@ -1554,6 +1554,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
 
 class ZipContainer(PermissionMixin, TaskStateModel):
+    celery_queue = settings.TOPOBANK_MANAGER_QUEUE
+
     #
     # Manager
     #

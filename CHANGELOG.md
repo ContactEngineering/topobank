@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.63.1 (2025-09-10)
+
+- BUG: Route ZIP container creation to 'manager' Celery queue
+
 # 1.63.0 (2025-05-25)
 
 - ENH: Return task progress messages
