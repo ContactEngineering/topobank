@@ -64,7 +64,7 @@ def get_current_configuration():
 
 
 @app.task(bind=True)
-def perform_analysis(self, analysis_id: int, force: bool):
+def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
     """Perform an analysis which is already present in the database.
 
     Parameters
@@ -87,16 +87,15 @@ def perform_analysis(self, analysis_id: int, force: bool):
     """
     from .models import RESULT_FILE_BASENAME, WorkflowResult
 
-    _log.debug(f"{analysis_id}/{self.request.id}: Task for workflow started...")
-
     #
     # Get analysis instance from database
     #
     analysis = WorkflowResult.objects.get(id=analysis_id)
     _log.info(
-        f"{analysis_id}/{self.request.id}: Function: '{analysis.function.name}', "
-        f"subject: '{analysis.subject}', kwargs: {analysis.kwargs}, "
-        f"task_state: '{analysis.task_state}', force: {force}"
+        f"{analysis_id}/{self.request.id}: Task starting -- "
+        f"Routing key: {self.request.routing_key}, force recalculation: {force} -- "
+        f"Workflow: '{analysis.function.name}', subject: '{analysis.subject}', "
+        f"kwargs: {analysis.kwargs}, task_state: '{analysis.task_state}'"
     )
 
     #
