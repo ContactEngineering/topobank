@@ -90,10 +90,11 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
     #
     # Get analysis instance from database
     #
-    analysis = WorkflowResult.objects.get(id=analysis_id)
+    celery_queue = self.request.delivery_info['routing_key']
+    analysis = Analysis.objects.get(id=analysis_id)
     _log.info(
         f"{analysis_id}/{self.request.id}: Task starting -- "
-        f"Routing key: {self.request.routing_key}, force recalculation: {force} -- "
+        f"Queue: {celery_queue}, force recalculation: {force} -- "
         f"Workflow: '{analysis.function.name}', subject: '{analysis.subject}', "
         f"kwargs: {analysis.kwargs}, task_state: '{analysis.task_state}'"
     )
@@ -151,10 +152,10 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
             analysis.save()
             task = celery.chord(
                 (
-                    perform_analysis.si(dep.id, False)
+                    perform_analysis.si(dep.id, False).set(queue=celery_queue)
                     for dep in scheduled_dependencies.values()
                 ),
-                perform_analysis.si(analysis.id, False),
+                perform_analysis.si(analysis.id, False).set(queue=celery_queue),
             ).apply_async()
             # Store task id so it is reported as pending
             analysis.task_id = task.id
