@@ -367,7 +367,7 @@ class Analysis(PermissionMixin, TaskStateModel):
 
     def get_celery_queue(self) -> str:
         impl = self.implementation
-        if impl.Meta.celery_queue is not None:
+        if hasattr(impl.Meta, "celery_queue") and impl.Meta.celery_queue is not None:
             # Implementation-specific queue
             return impl.Meta.celery_queue
         else:
