@@ -3,7 +3,7 @@ import xarray
 from django.core.serializers.json import DjangoJSONEncoder
 
 try:
-    from jaxlib.xla_extension import ArrayImpl
+    from jaxlib._jax import ArrayImpl
 except ModuleNotFoundError:
     ArrayImpl = np.ndarray
 
