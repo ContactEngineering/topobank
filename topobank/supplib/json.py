@@ -70,6 +70,7 @@ class ExtendedJSONEncoder(DjangoJSONEncoder):
         np.ndarray: nan_to_none,
         np.ma.MaskedArray: nan_to_none,
         xarray.DataArray: nan_to_none,
+        ArrayImpl: nan_to_none,
     }
 
     def default(self, obj):
