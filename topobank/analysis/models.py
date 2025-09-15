@@ -445,7 +445,7 @@ def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool)
     _log.debug(f"Submitting task for analysis {analysis.id}...")
     analysis.task_id = perform_analysis.apply_async(
         args=[analysis.id, force_submit], queue=analysis.get_celery_queue()
-    ).idsour
+    ).id
     analysis.save(update_fields=["task_id"])
 
 
