@@ -31,7 +31,7 @@
 - MAINT: Bumped Django to 5.2 LTS and switched to ASGI
 - MAINT: Don't delete analyses when refreshing the cache, but mark them as invalid
 
-# 1.63.1 (2025-09-12)
+# 1.63.1 (2025-09-15)
 
 - BUG: Route ZIP container creation to 'manager' Celery queue
 - ENH: Option for models to dynamically choose Celery routing target
