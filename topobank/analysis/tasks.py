@@ -90,7 +90,10 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
     #
     # Get analysis instance from database
     #
-    celery_queue = self.request.delivery_info['routing_key']
+    try:
+        celery_queue = self.request.delivery_info['routing_key']
+    except TypeError:
+        celery_queue = None
     analysis = Analysis.objects.get(id=analysis_id)
     _log.info(
         f"{analysis_id}/{self.request.id}: Task starting -- "
