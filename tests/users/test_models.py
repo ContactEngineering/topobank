@@ -6,7 +6,7 @@ from topobank.testing.factories import OrcidSocialAccountFactory, UserFactory
 @pytest.mark.django_db
 def test_absolute_url():
     user = UserFactory(username="testuser")
-    assert user.get_absolute_url() == f"/users/api/user/{user.id}/"
+    assert user.get_absolute_url() == f"/users/v1/user/{user.id}/"
 
 
 @pytest.mark.django_db

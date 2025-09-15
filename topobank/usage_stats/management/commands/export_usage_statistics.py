@@ -237,7 +237,7 @@ def make_excel():
     #
     # Compile results for statistics for objects
     #
-    ct_af = ContentType.objects.get(model='analysisfunction')
+    ct_af = ContentType.objects.get(model='workflow')
     result_views_by_date_function_df = _statisticByDateAndObject2dataframe('analyses_results_view_count', ct_af)
     analysis_cpu_seconds_by_date_function_df = _statisticByDateAndObject2dataframe('total_analysis_cpu_ms',
                                                                                    ct_af) / 1000

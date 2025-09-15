@@ -5,6 +5,7 @@ Base settings to build other settings files upon.
 import importlib.metadata
 import random
 import string
+from datetime import timedelta
 
 import environ
 from backports.entry_points_selectable import entry_points
@@ -82,12 +83,9 @@ DJANGO_APPS = [
     "django.contrib.postgres",  # needed for 'search' lookup
 ]
 THIRD_PARTY_APPS = [
-    "crispy_forms",  # format forms
-    "crispy_bootstrap5",  # format forms with Bootstrap-5
     "allauth",  # authentication
     "allauth.account",
     "allauth.socialaccount",  # social authentication
-    "allauth.socialaccount.providers.orcid",  # ORCID provider
     "rest_framework",  # REST API
     "storages",  # S3 storage
     "guardian",  # needed for migrations only
@@ -265,9 +263,6 @@ TEMPLATES = [
         },
     },
 ]
-# http://django-crispy-forms.readthedocs.io/en/latest/install.html#template-packs
-CRISPY_ALLOWED_TEMPLATE_PACKS = "bootstrap5"
-CRISPY_TEMPLATE_PACK = "bootstrap5"
 
 # FIXTURES
 # ------------------------------------------------------------------------------
@@ -336,21 +331,17 @@ CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = True
 CELERY_BROKER_HEARTBEAT = 60
 CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 30
 
-# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-broker_url
-# CELERY_BROKER_URL = env('CELERY_BROKER_URL', default='django://')
-# CELERY_BROKER_URL = 'amqp://guest:guest@localhost:5672//'
-# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_backend
-# if CELERY_BROKER_URL == 'django://':
-#     CELERY_RESULT_BACKEND = 'redis://'
-# else:
-#     CELERY_RESULT_BACKEND = CELERY_BROKER_URL
-
-# http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
-# CELERY_ACCEPT_CONTENT = ['json', 'pickle']
-#  http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
-# CELERY_TASK_SERIALIZER = 'pickle'
-#  http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-result_serializer
-# CELERY_RESULT_SERIALIZER = 'pickle' # because of arrays
+# https://docs.celeryq.dev/en/latest/userguide/periodic-tasks.html
+CELERY_BEAT_SCHEDULE = {
+    "manager": {
+        "task": "topobank.manager.custodian.periodic_cleanup",
+        "schedule": 12 * 3600,  # Twice a day
+    },
+    "analysis": {
+        "task": "topobank.analysis.custodian.periodic_cleanup",
+        "schedule": 12 * 3600,  # Twice a day
+    },
+}
 
 # django-allauth
 # ------------------------------------------------------------------------------
@@ -377,7 +368,7 @@ REST_FRAMEWORK = {
         "rest_framework.authentication.SessionAuthentication",
     ],
     "DEFAULT_PERMISSION_CLASSES": (
-        # Anonymous user is not authenticated by needs read-only access
+        # Anonymous user is not authenticated but needs read-only access
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
@@ -385,12 +376,12 @@ REST_FRAMEWORK = {
 }
 
 SPECTACULAR_SETTINGS = {
-    "TITLE": "Topobank API",
-    "DESCRIPTION": "Topography Storage and Calculation Service for Contact Mechanics",
-    "VERSION": "1.0.0",
+    "TITLE": "topobank",
+    "DESCRIPTION": "A surface metrology cloud database",
+    "VERSION": topobank.__version__,
     "SERVE_INCLUDE_SCHEMA": False,
-    # OTHER SETTINGS
 }
+
 #
 # Settings for authentication with ORCID
 #
@@ -411,15 +402,16 @@ def ACCOUNT_USER_DISPLAY(user):
     return user.name
 
 
-#
-# Settings for handling terms and conditions
-#
+# Terms and conditions
+# ------------------------------------------------------------------------------
 TERMS_BASE_TEMPLATE = "pages/termsframe.html"
 TERMS_EXCLUDE_URL_LIST = {"/accounts/logout/"}
 # TERMS_EXCLUDE_URL_PREFIX_LIST = {'/users/'}
 TERMS_EXCLUDE_USERS_WITH_PERM = "users.can_skip_terms"
 TERMS_STORE_IP_ADDRESS = False
 
+# S3
+# ------------------------------------------------------------------------------
 AWS_LOCATION = env.str("AWS_MEDIA_PREFIX", default="media")
 
 AWS_ACCESS_KEY_ID = env.str("AWS_ACCESS_KEY_ID", default=None)
@@ -655,15 +647,6 @@ CONTACT_MECHANICS_KWARGS_LIMITS = {
     "pressures": dict(maxlen=50),
 }
 
-#
-# Settings related to contact characterization challenge
-#
-# Set to empty string in order to deactive corresponding test
-CHALLENGE_REDIRECT_URL = env.str(
-    "CHALLENGE_REDIRECT_URL", default="https://forms.gle/GB3jLqJggbMmNfFm6"
-)
-# CHALLENGE_REDIRECT_URL = ''
-
 # Configure watchman checks
 WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + (
     "topobank.taskapp.utils.celery_worker_check",
@@ -699,4 +682,5 @@ DELETE_EXISTING_FILES = env.bool("TOPOBANK_DELETE_EXISTING_FILES", default=False
 
 # TOPOBANK SPECIFIC
 # ------------------------------------------------------------------------------
-TOPOBANK_THUMBNAIL_FORMAT = "jpeg"
+TOPOBANK_THUMBNAIL_FORMAT = "jpeg"  # File format for thumbnails
+TOPOBANK_DELETE_DELAY = timedelta(days=7)  # Hold deleted datasets this long

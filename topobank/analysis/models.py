@@ -55,7 +55,7 @@ class AnalysisSubjectManager(models.Manager):
         return super().create(*args, **kwargs)
 
 
-class AnalysisSubject(models.Model):
+class WorkflowSubject(models.Model):
     """Analysis subject, which can be either a Tag, a Topography or a Surface"""
 
     objects = AnalysisSubjectManager()
@@ -138,12 +138,13 @@ class AnalysisSubject(models.Model):
         super().save(*args, **kwargs)
 
 
-class Analysis(PermissionMixin, TaskStateModel):
+class WorkflowResult(PermissionMixin, TaskStateModel):
     """
-    Concrete Analysis with state, function reference, arguments, and results.
-
-    Additionally, it saves the configuration which was present when
-    executing the analysis, i.e. versions of the main libraries needed.
+    This class represents the result of a workflow. It refers to the actual
+    implementation if the workflow and subject of the workflow and stores its output in
+    a folder. There is additional metadata stored in the database, such as the time
+    when the workflow was run and information about the server configuration when the
+    workflow was run.
     """
 
     #
@@ -162,12 +163,12 @@ class Analysis(PermissionMixin, TaskStateModel):
 
     # Actual implementation of the analysis as a Python function
     function = models.ForeignKey(
-        "AnalysisFunction", on_delete=models.SET_NULL, null=True
+        "analysis.Workflow", related_name="results", on_delete=models.SET_NULL, null=True
     )
 
     # Definition of the subject
     subject_dispatch = models.OneToOneField(
-        AnalysisSubject, on_delete=models.CASCADE, null=True
+        WorkflowSubject, on_delete=models.CASCADE, null=True
     )
 
     # Unique, user-specified name
@@ -200,9 +201,6 @@ class Analysis(PermissionMixin, TaskStateModel):
 
     # Invalid is True if the subject was changed after the analysis was computed
     deprecation_time = models.DateTimeField(null=True)
-
-    class Meta:
-        verbose_name_plural = "analyses"
 
     def __init__(self, *args, result=None, **kwargs):
         super().__init__(*args, **kwargs)
@@ -436,7 +434,7 @@ class Analysis(PermissionMixin, TaskStateModel):
         self.save(update_fields=["name", "description", "subject_dispatch"])
 
 
-def submit_analysis_task_to_celery(analysis: Analysis, force_submit: bool):
+def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool):
     """
     Send task to the queue after the analysis has been created. This is typically run
     in an on_commit hook. Note: on_commit will not execute in tests, unless
@@ -451,14 +449,14 @@ def submit_analysis_task_to_celery(analysis: Analysis, force_submit: bool):
     analysis.save(update_fields=["task_id"])
 
 
-class AnalysisFunction(models.Model):
+class Workflow(models.Model):
     """
-    A convenience wrapper around the AnalysisImplementation that has representation in the
-    SQL database.
+    A convenience wrapper around the AnalysisImplementation that has representation in
+    the SQL database.
     """
 
-    name = models.TextField(help_text="The name of this analysis function.", default="")
-    display_name = models.TextField(help_text="A human-readable name.")
+    name = models.TextField(help_text="Internal unique identifier")
+    display_name = models.TextField(help_text="Human-readable name")
 
     def __str__(self):
         return self.name
@@ -577,7 +575,7 @@ class AnalysisFunction(models.Model):
         kwargs = self.clean_kwargs(kwargs)
 
         # Query for all existing analyses with the same parameters
-        q = AnalysisSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
+        q = WorkflowSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
 
         # If subject is tag, we need to restrict this to the current user because those
         # analyses cannot be shared
@@ -585,16 +583,16 @@ class AnalysisFunction(models.Model):
             q &= Q(permissions__user_permissions__user=user)
 
         # All existing analyses
-        existing_analyses = Analysis.objects.filter(q)
+        existing_analyses = WorkflowResult.objects.filter(q)
 
         # Analyses, excluding those that have failed or that have not been submitted
         # to the task queue for some reason (state "no"t run)
         successful_or_running_analyses = existing_analyses.filter(
             task_state__in=[
-                Analysis.PENDING,
-                Analysis.RETRY,
-                Analysis.STARTED,
-                Analysis.SUCCESS,
+                WorkflowResult.PENDING,
+                WorkflowResult.RETRY,
+                WorkflowResult.STARTED,
+                WorkflowResult.SUCCESS,
             ]
         )
 
@@ -615,9 +613,9 @@ class AnalysisFunction(models.Model):
                 folder = Folder.objects.create(permissions=permissions, read_only=True)
 
                 # Create new entry in the analysis table and grant access to current user
-                analysis = Analysis.objects.create(
+                analysis = WorkflowResult.objects.create(
                     permissions=permissions,
-                    subject_dispatch=AnalysisSubject.objects.create(subject),
+                    subject_dispatch=WorkflowSubject.objects.create(subject),
                     function=self,
                     kwargs=kwargs,
                     folder=folder,
@@ -634,13 +632,13 @@ class AnalysisFunction(models.Model):
 
         return analysis
 
-    def submit_again(self, analysis: Analysis):
+    def submit_again(self, analysis: WorkflowResult):
         """
         Submit analysis with same arguments and users.
 
         Parameters
         ----------
-        analysis: Analysis
+        analysis: WorkflowResult
             Analysis instance to be renewed.
 
         Returns
@@ -662,7 +660,7 @@ class AnalysisFunction(models.Model):
 
 class WorkflowTemplate(PermissionMixin, models.Model):
     """
-    WorkflowTemplate is a model that stores the state for a workflow
+    Workflow template stores a set of parameters for a workflow.
     """
 
     #
@@ -674,8 +672,9 @@ class WorkflowTemplate(PermissionMixin, models.Model):
     # Permissions
     #
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+
     #
-    # name of stored parameters
+    # Name of stored parameters
     #
     name = models.CharField(max_length=255)
 
@@ -684,15 +683,18 @@ class WorkflowTemplate(PermissionMixin, models.Model):
     #
     kwargs = models.JSONField(default=dict, blank=True)
 
+    #
+    # Workflow implementation
+    #
     implementation = models.ForeignKey(
-        AnalysisFunction, on_delete=models.CASCADE, null=True
+        Workflow, on_delete=models.CASCADE, null=True
     )
 
     creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
 
     def __str__(self):
         return (
-            f"Work Flow Template {self.id} - {self.name} for"
+            f"Workflow Template {self.id} - {self.name} for"
             f" implementation {self.implementation.display_name}"
         )
 

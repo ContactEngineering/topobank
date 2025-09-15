@@ -10,6 +10,7 @@ from django.db.models import Q, QuerySet
 from notifications.signals import notify
 from rest_framework.exceptions import PermissionDenied
 
+from ..organizations.models import Organization
 from ..users.anonymous import get_anonymous_user
 from ..users.models import User
 
@@ -82,20 +83,42 @@ class PermissionSet(models.Model):
     def get_for_user(self, user: User):
         """Return permissions of a specific user"""
         anonymous_user = get_anonymous_user()
-        permissions = self.user_permissions.filter(
+
+        # Get user permissions
+        user_permissions = self.user_permissions.filter(
             Q(user=user) | Q(user=anonymous_user)
         )
-        nb_permissions = len(permissions)
-        if len(permissions) > 2:
+        nb_user_permissions = user_permissions.count()
+
+        # Get organization permissions
+        organization_permissions = self.organization_permissions.filter(
+            organization__group__in=user.groups.all()
+        )
+        nb_organization_permissions = organization_permissions.count()
+
+        # Idiot check
+        if nb_user_permissions > 2:
             raise RuntimeError(
-                f"More than one permission found for user {user}. "
+                f"More than one user permission found for user {user}. "
                 "This should not happen."
             )
-        elif nb_permissions > 0:
-            max_access_level = max(ACCESS_LEVELS[perm.allow] for perm in permissions)
-            return PERMISSION_CHOICES[max_access_level - 1][0]
-        else:
+
+        # Get maximum access level
+        max_access_level = 0
+        if nb_user_permissions > 0:
+            max_access_level = max(
+                max_access_level,
+                max(ACCESS_LEVELS[perm.allow] for perm in user_permissions),
+            )
+        if nb_organization_permissions > 0:
+            max_access_level = max(
+                max_access_level,
+                max(ACCESS_LEVELS[perm.allow] for perm in organization_permissions),
+            )
+        if max_access_level == 0:
             return None
+        else:
+            return PERMISSION_CHOICES[max_access_level - 1][0]
 
     def grant_for_user(self, user: User, allow: ViewEditFull):
         """Grant permission to user"""
@@ -108,7 +131,7 @@ class PermissionSet(models.Model):
             # Update permission if it already exists
             (permission,) = existing_permissions
             permission.allow = allow
-            permission.save()
+            permission.save(update_fields=["allow"])
         else:
             raise RuntimeError(
                 f"More than one permission found for user {user}. "
@@ -119,6 +142,53 @@ class PermissionSet(models.Model):
         """Revoke all permissions from user"""
         self.user_permissions.filter(user=user).delete()
 
+    def grant_for_organization(self, organization: Organization, allow: ViewEditFull):
+        """
+        Grant permission to an organization (which means to all users from
+        that organization)
+        """
+        existing_permissions = self.organization_permissions.filter(
+            organization=organization
+        )
+        nb_existing_permissions = len(existing_permissions)
+        if nb_existing_permissions == 0:
+            # Create new permission if none exists
+            OrganizationPermission.objects.create(
+                parent=self, organization=organization, allow=allow
+            )
+        elif nb_existing_permissions == 1:
+            # Update permission if it already exists
+            (permission,) = existing_permissions
+            permission.allow = allow
+            permission.save(update_fields=["allow"])
+        else:
+            raise RuntimeError(
+                f"More than one permission found for organization {organization}. "
+                "This should not happen."
+            )
+
+    def revoke_from_organization(self, organization: Organization):
+        """Revoke all permissions from an organization"""
+        self.organization_permissions.filter(organization=organization).delete()
+
+    def grant(self, user_or_organization: User | Organization, allow: ViewEditFull):
+        """Grant permission"""
+        if isinstance(user_or_organization, User):
+            return self.grant_for_user(user_or_organization, allow)
+        elif isinstance(user_or_organization, Organization):
+            return self.grant_for_organization(user_or_organization, allow)
+        else:
+            raise TypeError("`user_or_organization` must be a User or an Organization")
+
+    def revoke(self, user_or_organization: User | Organization):
+        """Revoke permission"""
+        if isinstance(user_or_organization, User):
+            return self.revoke_from_user(user_or_organization)
+        elif isinstance(user_or_organization, Organization):
+            return self.revoke_from_organization(user_or_organization)
+        else:
+            raise TypeError("`user_or_organization` must be a User or an Organization")
+
     def user_has_permission(self, user: User, access_level: ViewEditFull) -> bool:
         """Check if user has permission for access level given by `allow`"""
         perm = self.get_for_user(user)
@@ -128,7 +198,10 @@ class PermissionSet(models.Model):
             return False
 
     def authorize_user(self, user: User, access_level: ViewEditFull):
-        """Authorize user for access level given by `allow`"""
+        """
+        Authorize user for access level given by `allow`. Raise
+        `PermissionDenied` if user does not have access.
+        """
         perm = self.get_for_user(user)
         if perm is None:
             raise PermissionDenied(
@@ -174,6 +247,25 @@ class UserPermission(models.Model):
     allow = models.CharField(max_length=4, choices=PERMISSION_CHOICES)
 
 
+class OrganizationPermission(models.Model):
+    """Permission applying to all members of an organization"""
+
+    class Meta:
+        # There can only be one permission per user
+        unique_together = ("parent", "organization")
+
+    # The set this permission belongs to
+    parent = models.ForeignKey(
+        PermissionSet, on_delete=models.CASCADE, related_name="organization_permissions"
+    )
+
+    # Organization that this permission relates to
+    organization = models.ForeignKey(Organization, on_delete=models.CASCADE)
+
+    # The actual permission
+    allow = models.CharField(max_length=4, choices=PERMISSION_CHOICES)
+
+
 class AuthorizedManager(models.Manager):
     def create(self, **kwargs):
         # FIXME! Make sure that all objects have permission sets attached to them
@@ -185,13 +277,38 @@ class AuthorizedManager(models.Manager):
 
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
         if permission == "view":
-            # We do not need to filter on permission
+            # We do not need to filter on permission, just check that there
+            # is some permission for the user
             return self.get_queryset().filter(
-                Q(permissions__user_permissions__user=user)
-                | Q(permissions__user_permissions__user=get_anonymous_user())
+                # If anonymous has access, anybody can access
+                Q(permissions__user_permissions__user=get_anonymous_user())
+                # Direct user access
+                | Q(permissions__user_permissions__user=user)
+                # User access through an organization
+                | Q(
+                    permissions__organization_permissions__organization__group__in=user.groups.all()
+                )
             )
         else:
             return self.get_queryset().filter(
-                permissions__user_permissions__user=user,
-                permissions__user_permissions__allow__in=levels_with_access(permission),
+                # Direct user access
+                (
+                    Q(permissions__user_permissions__user=user)
+                    & Q(
+                        permissions__user_permissions__allow__in=levels_with_access(
+                            permission
+                        )
+                    )
+                )
+                # User access through an organization
+                | (
+                    Q(
+                        permissions__organization_permissions__organization__group__in=user.groups.all()
+                    )
+                    & Q(
+                        permissions__organization_permissions__allow__in=levels_with_access(
+                            permission
+                        )
+                    )
+                )
             )

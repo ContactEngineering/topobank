@@ -19,8 +19,8 @@ from ...files.serializers import ManifestSerializer
 from ...manager.models import Surface
 from ...manager.utils import demangle_content_type
 from ...usage_stats.utils import increase_statistics_by_date_and_object
-from ..models import Analysis, AnalysisFunction, Configuration, WorkflowTemplate
-from ..permissions import AnalysisFunctionPermissions
+from ..models import Configuration, Workflow, WorkflowResult, WorkflowTemplate
+from ..permissions import WorkflowPermissions
 from ..serializers import (
     ConfigurationSerializer,
     ResultSerializer,
@@ -43,13 +43,11 @@ class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     serializer_class = ConfigurationSerializer
 
 
-class WorkflowView(
-    viewsets.GenericViewSet, mixins.ListModelMixin, mixins.RetrieveModelMixin
-):
+class WorkflowView(viewsets.ReadOnlyModelViewSet):
     lookup_field = "name"
     lookup_value_regex = "[a-z0-9._-]+"
     serializer_class = WorkflowSerializer
-    permission_classes = [AnalysisFunctionPermissions]
+    permission_classes = [WorkflowPermissions]
 
     def get_queryset(self):
         # We need to filter the queryset to exclude functions in the list view
@@ -57,17 +55,17 @@ class WorkflowView(
         subject_type = self.request.query_params.get("subject_type", None)
         if subject_type is None:
             ids = [
-                f.id for f in AnalysisFunction.objects.all() if f.has_permission(user)
+                f.id for f in Workflow.objects.all() if f.has_permission(user)
             ]
         else:
             subject_class = demangle_content_type(subject_type)
             ids = [
                 f.id
-                for f in AnalysisFunction.objects.all()
+                for f in Workflow.objects.all()
                 if f.has_permission(user)
                 and f.implementation.has_implementation(subject_class.model_class())
             ]
-        return AnalysisFunction.objects.filter(pk__in=ids)
+        return Workflow.objects.filter(pk__in=ids)
 
 
 class ResultView(
@@ -75,7 +73,7 @@ class ResultView(
 ):
     """Retrieve status of analysis (GET) and renew analysis (PUT)"""
 
-    queryset = Analysis.objects.select_related(
+    queryset = WorkflowResult.objects.select_related(
         "function",
         "subject_dispatch__tag",
         "subject_dispatch__topography",
@@ -123,27 +121,27 @@ class ResultView(
 
 @api_view(["GET"])
 def dependencies(request, workflow_id):
-    analysis = get_object_or_404(Analysis, pk=workflow_id)
+    analysis = get_object_or_404(WorkflowResult, pk=workflow_id)
     analysis.authorize_user(request.user)
     dependencies = {}
     for name, id in analysis.dependencies.items():
         try:
-            dependencies[name] = Analysis.objects.get(pk=id).get_absolute_url(request)
-        except Analysis.DoesNotExist:
+            dependencies[name] = WorkflowResult.objects.get(pk=id).get_absolute_url(request)
+        except WorkflowResult.DoesNotExist:
             dependencies[name] = None
     return Response(dependencies)
 
 
 @api_view(["GET"])
 def pending(request):
-    queryset = Analysis.objects.for_user(request.user).filter(
-        task_state__in=[Analysis.PENDING, Analysis.STARTED]
+    queryset = WorkflowResult.objects.for_user(request.user).filter(
+        task_state__in=[WorkflowResult.PENDING, WorkflowResult.STARTED]
     )
     pending_workflows = []
     for analysis in queryset:
         # We need to get actually state from `get_task_state`, which combines self
         # reported states and states from Celery.
-        if analysis.get_task_state() in {Analysis.PENDING, Analysis.STARTED}:
+        if analysis.get_task_state() in {WorkflowResult.PENDING, WorkflowResult.STARTED}:
             pending_workflows += [analysis]
     return Response(
         ResultSerializer(
@@ -154,7 +152,7 @@ def pending(request):
 
 @api_view(["GET"])
 def named_result(request):
-    queryset = Analysis.objects.for_user(request.user)
+    queryset = WorkflowResult.objects.for_user(request.user)
     name = request.query_params.get("name", None)
     if name is None:
         queryset = queryset.filter(name__isnull=False)
@@ -482,7 +480,7 @@ def series_card_view(request, **kwargs):
 def set_name(request, workflow_id: int):
     name = request.data.get("name")
     description = request.data.get("description")
-    analysis = get_object_or_404(Analysis, id=workflow_id)
+    analysis = get_object_or_404(WorkflowResult, id=workflow_id)
     analysis.set_name(name, description)
     return Response({})
 
@@ -490,12 +488,12 @@ def set_name(request, workflow_id: int):
 @api_view(["GET"])
 def statistics(request):
     stats = {
-        "nb_analyses": Analysis.objects.count(),
+        "nb_analyses": WorkflowResult.objects.count(),
     }
     if not request.user.is_anonymous:
         stats = {
             **stats,
-            "nb_analyses_of_user": Analysis.objects.for_user(request.user).count(),
+            "nb_analyses_of_user": WorkflowResult.objects.for_user(request.user).count(),
         }
     return Response(stats)
 
@@ -503,7 +501,7 @@ def statistics(request):
 @api_view(["GET"])
 def memory_usage(request):
     m = defaultdict(list)
-    for function_id, function_name in AnalysisFunction.objects.values_list(
+    for function_id, function_name in Workflow.objects.values_list(
         "id", "name"
     ):
         max_nb_data_pts = Case(
@@ -557,7 +555,7 @@ def memory_usage(request):
             ),
         )
         for x in (
-            Analysis.objects.filter(function_id=function_id)
+            WorkflowResult.objects.filter(function_id=function_id)
             .values("task_memory")
             .annotate(
                 resolution_x=F("subject_dispatch__topography__resolution_x"),
@@ -580,7 +578,7 @@ def memory_usage(request):
 
 @api_view(["PATCH"])
 def set_result_permissions(request, workflow_id=None):
-    analysis_obj = Analysis.objects.get(pk=workflow_id)
+    analysis_obj = WorkflowResult.objects.get(pk=workflow_id)
     user = request.user
 
     # Check that user has the right to modify permissions
@@ -610,21 +608,14 @@ def set_result_permissions(request, workflow_id=None):
     return Response({}, status=204)
 
 
-class WorkflowTemplateView(
-    viewsets.GenericViewSet,
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.DestroyModelMixin,
-):
+class WorkflowTemplateView(viewsets.ModelViewSet):
     """
     Create, update, retrieve and delete workflow templates.
 
     """
 
     serializer_class = WorkflowTemplateSerializer
-    permission_classes = [AnalysisFunctionPermissions]
+    permission_classes = [WorkflowPermissions]
 
     def get_queryset(self):
         """
@@ -632,7 +623,7 @@ class WorkflowTemplateView(
         """
         workflows = [
             workflow.id
-            for workflow in AnalysisFunction.objects.all()
+            for workflow in Workflow.objects.all()
             if workflow.has_permission(self.request.user)
         ]
         qs = WorkflowTemplate.objects.filter(implementation__in=workflows)

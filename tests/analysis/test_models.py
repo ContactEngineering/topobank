@@ -6,7 +6,7 @@ from django.core.files.storage import default_storage
 from django.db.models.functions import Lower
 from django.utils import timezone
 
-from topobank.analysis.models import Analysis, AnalysisFunction
+from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.registry import WorkflowNotImplementedException
 from topobank.analysis.tasks import get_current_configuration
 from topobank.files.models import Manifest
@@ -26,7 +26,7 @@ from topobank.testing.workflows import TestImplementation
 @pytest.mark.django_db
 def test_topography_as_analysis_subject():
     topo = Topography1DFactory()
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func = Workflow.objects.get(name="topobank.testing.test")
     analysis = TopographyAnalysisFactory(subject_topography=topo, function=func)
     assert analysis.subject == topo
 
@@ -34,7 +34,7 @@ def test_topography_as_analysis_subject():
 @pytest.mark.django_db
 def test_surface_as_analysis_subject():
     surf = SurfaceFactory()
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func = Workflow.objects.get(name="topobank.testing.test")
     analysis = SurfaceAnalysisFactory(subject_surface=surf, function=func)
     assert analysis.subject == surf
 
@@ -46,7 +46,7 @@ def test_tag_as_analysis_subject():
     s3 = SurfaceFactory()
     st = TagFactory.create(surfaces=[s1, s2, s3])
     st.authorize_user(s1.creator, "view")
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func = Workflow.objects.get(name="topobank.testing.test")
     analysis = TagAnalysisFactory(subject_tag=st, function=func)
     assert analysis.subject == st
 
@@ -54,7 +54,7 @@ def test_tag_as_analysis_subject():
 @pytest.mark.django_db
 def test_exception_implementation_missing(test_analysis_function):
     # We create an implementation for surfaces, but not for analyses
-    function = AnalysisFunction.objects.get(name="topobank.testing.topography_only_test")
+    function = Workflow.objects.get(name="topobank.testing.topography_only_test")
     analysis = TopographyAnalysisFactory(function=function)
     analysis.folder.remove_files()
     function.eval(analysis)  # that's okay, it's implemented
@@ -86,7 +86,7 @@ def test_analysis_times(two_topos, test_analysis_function):
     analysis = TopographyAnalysisFactory.create(
         subject_topography=Topography.objects.first(),
         function=test_analysis_function,
-        task_state=Analysis.SUCCESS,
+        task_state=WorkflowResult.SUCCESS,
         kwargs={"a": 2, "b": "abcdef"},
         task_start_time=datetime.datetime(2018, 1, 1, 12),
         task_end_time=datetime.datetime(2018, 1, 1, 13),
@@ -111,16 +111,16 @@ def test_autoload_analysis_functions():
     call_command("register_analysis_functions")
 
     # remember number of functions
-    num_funcs = AnalysisFunction.objects.count()
+    num_funcs = Workflow.objects.count()
 
     # "test" function should be there
-    AnalysisFunction.objects.get(name="topobank.testing.test")
+    Workflow.objects.get(name="topobank.testing.test")
 
     #
     # Call should be idempotent
     #
     call_command("register_analysis_functions")
-    assert num_funcs == AnalysisFunction.objects.count()
+    assert num_funcs == Workflow.objects.count()
 
 
 @pytest.mark.django_db
@@ -129,7 +129,7 @@ def test_default_function_kwargs():
 
     call_command("register_analysis_functions")
 
-    func = AnalysisFunction.objects.get(name="topobank.testing.test")
+    func = Workflow.objects.get(name="topobank.testing.test")
 
     expected_kwargs = dict(a=1, b="foo")
     assert func.get_default_kwargs() == expected_kwargs
@@ -240,7 +240,7 @@ def test_fix_folder(test_analysis_function):
 def test_submit_again(test_analysis_function):
     analysis = TopographyAnalysisFactory(function=test_analysis_function)
     new_analysis = analysis.submit_again()
-    assert new_analysis.task_state == Analysis.PENDING
+    assert new_analysis.task_state == WorkflowResult.PENDING
 
 
 @pytest.mark.django_db

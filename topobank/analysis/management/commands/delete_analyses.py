@@ -2,7 +2,7 @@ import logging
 
 from django.core.management.base import BaseCommand
 
-from topobank.analysis.models import Analysis
+from topobank.analysis.models import WorkflowResult
 
 _log = logging.getLogger(__name__)
 
@@ -25,7 +25,7 @@ class Command(BaseCommand):
 
         if options['all']:
             _log.info("Deleting all analyses because of management command.")
-            num_deleted, _ = Analysis.objects.all().delete()
+            num_deleted, _ = WorkflowResult.objects.all().delete()
 
             self.stdout.write(self.style.SUCCESS("Deleted {} analyses from database.".format(num_deleted)))
         else:

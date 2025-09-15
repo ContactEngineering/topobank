@@ -1,9 +1,9 @@
 from django.contrib import admin  # type: ignore
 
-from .models import Analysis, AnalysisFunction, AnalysisSubject, WorkflowTemplate
+from .models import Workflow, WorkflowResult, WorkflowSubject, WorkflowTemplate
 
 
-@admin.register(Analysis)
+@admin.register(WorkflowResult)
 class AnalysisAdmin(admin.ModelAdmin):
     list_display = (
         "id",
@@ -19,13 +19,13 @@ class AnalysisAdmin(admin.ModelAdmin):
     ordering = ["-task_start_time"]
 
 
-@admin.register(AnalysisFunction)
-class AnalysisFunctionAdmin(admin.ModelAdmin):
+@admin.register(Workflow)
+class WorkflowAdmin(admin.ModelAdmin):
     list_display = ("id", "name", "display_name")
     ordering = ["id"]
 
 
-@admin.register(AnalysisSubject)
+@admin.register(WorkflowSubject)
 class AnalysisSubjectAdmin(admin.ModelAdmin):
     list_display = ('id', 'tag', 'surface', 'topography')
     ordering = ['id']

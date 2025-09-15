@@ -1,5 +1,6 @@
 import logging
 
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 
@@ -7,10 +8,10 @@ import topobank.taskapp.serializers
 
 from ..supplib.serializers import StrictFieldMixin
 from .models import (
-    Analysis,
-    AnalysisFunction,
-    AnalysisSubject,
     Configuration,
+    Workflow,
+    WorkflowResult,
+    WorkflowSubject,
     WorkflowTemplate,
 )
 from .registry import get_visualization_type
@@ -36,7 +37,7 @@ class WorkflowSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     class Meta:
-        model = AnalysisFunction
+        model = Workflow
         fields = [
             "id",
             "url",
@@ -65,7 +66,7 @@ class SubjectSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     class Meta:
-        model = AnalysisSubject
+        model = WorkflowSubject
         fields = ["id", "tag", "topography", "surface"]
 
     tag = serializers.HyperlinkedRelatedField(
@@ -83,7 +84,7 @@ class ResultSerializer(
     StrictFieldMixin, topobank.taskapp.serializers.TaskStateModelSerializer
 ):
     class Meta:
-        model = Analysis
+        model = WorkflowResult
         fields = [
             "url",
             "id",
@@ -127,7 +128,16 @@ class ResultSerializer(
         view_name="analysis:configuration-detail", read_only=True
     )
 
-    def get_api(self, obj):
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "set_name": {"type": "string"},
+            },
+            "required": ["set_name"],
+        }
+    )
+    def get_api(self, obj: WorkflowResult) -> dict:
         return {
             "set_name": reverse(
                 "analysis:set-name",
@@ -160,10 +170,10 @@ class WorkflowTemplateSerializer(
     implementation = serializers.HyperlinkedRelatedField(
         view_name="analysis:workflow-detail",
         lookup_field="name",
-        queryset=AnalysisFunction.objects.all(),
+        queryset=Workflow.objects.all(),
         allow_null=True,
     )
 
     creator = serializers.HyperlinkedRelatedField(
-        view_name="users:user-api-detail", read_only=True
+        view_name="users:user-v1-detail", read_only=True
     )

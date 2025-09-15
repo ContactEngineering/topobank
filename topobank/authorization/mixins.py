@@ -1,3 +1,4 @@
+from ..organizations.models import Organization
 from ..users.models import User
 from .models import ViewEditFull, ViewEditFullNone
 
@@ -10,11 +11,11 @@ class PermissionMixin:
         else:
             return perm
 
-    def grant_permission(self, user: User, allow: ViewEditFull = "view"):
-        self.permissions.grant_for_user(user, allow)
+    def grant_permission(self, user: User | Organization, allow: ViewEditFull = "view"):
+        self.permissions.grant(user, allow)
 
-    def revoke_permission(self, user: User):
-        self.permissions.revoke_from_user(user)
+    def revoke_permission(self, user: User | Organization):
+        self.permissions.revoke(user)
 
     def has_permission(self, user: User, access_level: ViewEditFull = "view") -> bool:
         return self.permissions.user_has_permission(user, access_level)

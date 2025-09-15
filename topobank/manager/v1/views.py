@@ -17,22 +17,19 @@ from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnl
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
-from topobank.authorization.permissions import Permission
-from topobank.files.models import Manifest
-from topobank.manager.export_zip import write_container_zip
-from topobank.manager.filters import filter_surfaces
-from topobank.manager.models import Surface, Tag, Topography
-from topobank.manager.permissions import TagPermission
-from topobank.manager.tasks import import_container_from_url
-from topobank.manager.v1.serializers import (
-    SurfaceSerializer,
-    TagSerializer,
-    TopographySerializer,
-)
-from topobank.supplib.versions import get_versions
-from topobank.taskapp.utils import run_task
-from topobank.usage_stats.utils import increase_statistics_by_date_and_object
-from topobank.users.models import User, resolve_user
+from ...authorization.permissions import Permission
+from ...files.models import Manifest
+from ...organizations.models import resolve_organization
+from ...supplib.versions import get_versions
+from ...taskapp.utils import run_task
+from ...usage_stats.utils import increase_statistics_by_date_and_object
+from ...users.models import User, resolve_user
+from ..export_zip import write_container_zip
+from ..filters import filter_surfaces
+from ..models import Surface, Tag, Topography
+from ..permissions import TagPermission
+from ..tasks import import_container_from_url
+from ..v1.serializers import SurfaceSerializer, TagSerializer, TopographySerializer
 
 _log = logging.getLogger(__name__)
 
@@ -57,14 +54,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         return Response(sorted(toplevel_tags))
 
 
-class SurfaceViewSet(
-    mixins.ListModelMixin,
-    mixins.CreateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.UpdateModelMixin,
-    mixins.DestroyModelMixin,
-    viewsets.GenericViewSet,
-):
+class SurfaceViewSet(viewsets.ModelViewSet):
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, Permission]
     pagination_class = LimitOffsetPagination
@@ -81,7 +71,9 @@ class SurfaceViewSet(
             )
 
     def get_queryset(self):
-        qs = Surface.objects.for_user(self.request.user)
+        qs = Surface.objects.for_user(self.request.user).filter(
+            deletion_time__isnull=True
+        )
         return filter_surfaces(self.request, qs)
 
     def perform_create(self, serializer):
@@ -122,11 +114,13 @@ class TopographyViewSet(
                 verb=verb,
                 recipient=u.user,
                 description=f"User '{user.name}' {verb}d digital surface twin "
-                            f"'{instance.name}'.",
+                f"'{instance.name}'.",
             )
 
     def get_queryset(self):
-        qs = Topography.objects.for_user(self.request.user)
+        qs = Topography.objects.for_user(self.request.user).filter(
+            deletion_time__isnull=True
+        )
         surface = self.request.query_params.get("surface", None)
         tag = self.request.query_params.get("tag", None)
         tag_startswith = self.request.query_params.get("tag_startswith", None)
@@ -166,7 +160,7 @@ class TopographyViewSet(
             self.permission_denied(
                 self.request,
                 message=f"User {self.request.user} has no permission to edit dataset "
-                        f"{parent.get_absolute_url()}.",
+                f"{parent.get_absolute_url()}.",
             )
 
         # Set creator to current user when creating a new topography
@@ -220,7 +214,7 @@ def download_surfaces(request, surfaces, container_filename=None):
     # If no: create a container for this surface on the fly
     #
     if len(surfaces) == 1:
-        surface, = surfaces
+        (surface,) = surfaces
         if surface.is_published:
             pub = surface.publication
             if container_filename is None:
@@ -241,7 +235,9 @@ def download_surfaces(request, surfaces, container_filename=None):
 
     if content_data is None:
         container_bytes = BytesIO()
-        _log.info(f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download...")
+        _log.info(
+            f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
+        )
         try:
             write_container_zip(container_bytes, surfaces)
         except FileNotFoundError:
@@ -305,7 +301,9 @@ def download_tag(request, name):
     tag.authorize_user(request.user, "view")
 
     # Trigger the actual download
-    return download_surfaces(request, tag.get_descendant_surfaces(), f"{slugify(tag.name)}.zip")
+    return download_surfaces(
+        request, tag.get_descendant_surfaces(), f"{slugify(tag.name)}.zip"
+    )
 
 
 @api_view(["POST"])
@@ -341,23 +339,39 @@ def set_surface_permissions(request, pk=None):
 
     # Check that the request does not ask to revoke permissions from the current user
     for permission in request.data:
-        other_user = resolve_user(permission["user"])
-        if other_user == logged_in_user:
-            if permission["permission"] != "full":
-                return Response(
-                    {"message": "Permissions cannot be revoked from logged in user"},
-                    status=405,
-                )  # Not allowed
+        if "user" in permission:
+            other_user = resolve_user(permission["user"])
+            if other_user == logged_in_user:
+                if permission["permission"] != "full":
+                    return Response(
+                        {
+                            "message": "Permissions cannot be revoked from logged in user"
+                        },
+                        status=405,
+                    )  # Not allowed
 
     # Everything looks okay, update permissions
     for permission in request.data:
-        other_user = resolve_user(permission["user"])
-        if other_user != logged_in_user:
-            perm = permission["permission"]
+        perm = permission.get("permission", None)
+        if perm is None:
+            return HttpResponseBadRequest(reason="Permission was not provided")
+        if "user" in permission:
+            other_user = resolve_user(permission["user"])
+            if other_user != logged_in_user:
+                if perm == "no-access":
+                    obj.revoke_permission(other_user)
+                else:
+                    obj.grant_permission(other_user, perm)
+        elif "organization" in permission:
+            organization = resolve_organization(permission["organization"])
             if perm == "no-access":
-                obj.revoke_permission(other_user)
+                obj.revoke_permission(organization)
             else:
-                obj.grant_permission(other_user, perm)
+                obj.grant_permission(organization, perm)
+        else:
+            return HttpResponseBadRequest(
+                reason="Can only set permissions for users or organizations."
+            )
 
     # Permissions were updated successfully, return 204 No Content
     return Response({}, status=204)
@@ -391,13 +405,28 @@ def set_tag_permissions(request, name=None):
             updated += [surface.get_absolute_url(request)]
             # Loop over permissions
             for permission in request.data:
-                other_user = resolve_user(permission["user"])
-                if other_user != logged_in_user:
-                    perm = permission["permission"]
+                perm = permission.get("permission", None)
+                if perm is None:
+                    return HttpResponseBadRequest(reason="Permission was not provided")
+
+                if "user" in permission:
+                    other_user = resolve_user(permission["user"])
+                    if other_user != logged_in_user:
+                        perm = permission["permission"]
+                        if perm == "no-access":
+                            surface.revoke_permission(other_user)
+                        else:
+                            surface.grant_permission(other_user, perm)
+                elif "organization" in permission:
+                    organization = resolve_organization(permission["organization"])
                     if perm == "no-access":
-                        surface.revoke_permission(other_user)
+                        obj.revoke_permission(organization)
                     else:
-                        surface.grant_permission(other_user, perm)
+                        obj.grant_permission(organization, perm)
+                else:
+                    return HttpResponseBadRequest(
+                        reason="Can only set permissions for users or organizations."
+                    )
         else:
             rejected += [surface.get_absolute_url(request)]
 
@@ -447,7 +476,8 @@ def versions(request):
 def statistics(request):
     # Global statistics
     stats = {
-        "nb_users": User.objects.count() - 1,  # -1 because we don't count the anonymous user
+        "nb_users": User.objects.count()
+        - 1,  # -1 because we don't count the anonymous user
         "nb_surfaces": Surface.objects.count(),
         "nb_topographies": Topography.objects.count(),
     }
@@ -471,6 +501,7 @@ def memory_usage(request):
         "resolution_x", "resolution_y", "task_memory"
     ).annotate(
         task_duration=F("task_end_time") - F("task_start_time"),
-        nb_data_pts=F("resolution_x") * Case(When(resolution_y__isnull=False, then=F("resolution_y")), default=1),
+        nb_data_pts=F("resolution_x")
+        * Case(When(resolution_y__isnull=False, then=F("resolution_y")), default=1),
     )
     return Response(list(r))

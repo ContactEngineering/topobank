@@ -1,9 +1,35 @@
 # Changelog for *TopoBank*
 
-# 1.63.1 (2025-09-15)
+# 1.65.0 (not yet released)
 
 - BUG: Route ZIP container creation to 'manager' Celery queue
+- API: Limit all user searches to organizations of the user
 - ENH: Option for models to dynamically choose Celery routing target
+- ENH: Advanced support for organizations
+- ENH: Advanced permissions for organizations
+- ENH: Lazy delete (recycle bin) for faster endpoint response (#1024)
+- ENH: Custodian that regularly cleans up database (lazy deletion)
+- ENH: Unified permission REST endpoints
+- MAINT: Refactored internal Analysis* models to Workflow* model (#1161)
+- MAINT: Removed automatic generation of default group "all"
+
+# 1.64.3 (2025-07-20)
+
+- BUG: Converting list of ids to a string
+
+# 1.64.2 (2025-07-28)
+
+- BUG: Skip failed analyses when preparing download
+- MAINT: Bumped SurfaceTopography to 1.18.2 (bug fix in JPK reader)
+
+# 1.64.1 (2025-07-28)
+
+- MAINT: Fixed weird characters in digital surface twin names
+
+# 1.64.0 (2025-07-28)
+
+- MAINT: Bumped Django to 5.2 LTS and switched to ASGI
+- MAINT: Don't delete analyses when refreshing the cache, but mark them as invalid
 
 # 1.63.0 (2025-05-25)
 

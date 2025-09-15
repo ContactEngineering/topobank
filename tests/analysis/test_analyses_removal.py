@@ -5,7 +5,7 @@ Test whether analyses are recalculated on certain events.
 import pytest
 from django.shortcuts import reverse
 
-from topobank.analysis.models import Analysis
+from topobank.analysis.models import WorkflowResult
 from topobank.manager.models import Topography
 from topobank.testing.factories import (
     SurfaceAnalysisFactory,
@@ -73,7 +73,7 @@ def test_analysis_removal_on_topography_change(
     )
     TopographyAnalysisFactory(subject_topography=topo, function=test_analysis_function)
 
-    assert Analysis.objects.filter(subject_dispatch__topography=topo).count() == 1
+    assert WorkflowResult.objects.filter(subject_dispatch__topography=topo).count() == 1
 
     api_client.force_login(user)
 
@@ -111,7 +111,7 @@ def test_analysis_removal_on_topography_change(
     # Nothing changed, so no callbacks
 
     # Check that analysis still exists
-    assert Analysis.objects.filter(subject_dispatch__topography=topo).count() == 1
+    assert WorkflowResult.objects.filter(subject_dispatch__topography=topo).count() == 1
 
     #
     # Now we post the changed data, some action (=callbacks) should be triggered
@@ -128,7 +128,7 @@ def test_analysis_removal_on_topography_change(
     # Check that the analysis has been deprecated
     if response_code == 200:
         assert (
-            Analysis.objects.filter(
+            WorkflowResult.objects.filter(
                 subject_dispatch__topography=topo, deprecation_time__isnull=False
             ).count()
             == 1
@@ -149,8 +149,12 @@ def test_analysis_removal_on_topography_deletion(
     SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
     SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
 
-    assert Analysis.objects.filter(subject_dispatch__topography=topo.id).count() == 1
-    assert Analysis.objects.filter(subject_dispatch__surface=surface.id).count() == 2
+    assert (
+        WorkflowResult.objects.filter(subject_dispatch__topography=topo.id).count() == 1
+    )
+    assert (
+        WorkflowResult.objects.filter(subject_dispatch__surface=surface.id).count() == 2
+    )
 
     assert surface.topography_set.count() == 1
 
@@ -168,7 +172,7 @@ def test_analysis_removal_on_topography_deletion(
     assert surface.topography_set.count() == 0
 
     # No more topography analyses left
-    assert Analysis.objects.filter(subject_dispatch__topography=topo).count() == 0
+    assert WorkflowResult.objects.filter(subject_dispatch__topography=topo).count() == 0
 
     # No more surface analyses left, because the surface no longer has topographies
     # The analysis of the surface is not deleting in this test, because the analysis

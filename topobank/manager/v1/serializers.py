@@ -1,16 +1,16 @@
 import logging
 
 import pydantic
-from django.db import transaction
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from topobank.files.serializers import ManifestSerializer
-from topobank.manager.models import Surface, Tag, Topography
-from topobank.properties.models import Property
-from topobank.supplib.serializers import StrictFieldMixin
-from topobank.taskapp.serializers import TaskStateModelSerializer
+from ...files.serializers import ManifestSerializer
+from ...manager.models import Surface, Tag, Topography
+from ...properties.serializers import PropertiesField
+from ...supplib.serializers import StrictFieldMixin
+from ...taskapp.serializers import TaskStateModelSerializer
 
 _log = logging.getLogger(__name__)
 
@@ -37,9 +37,19 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     api = serializers.SerializerMethodField()
     children = serializers.SerializerMethodField()
 
-    def get_api(self, obj):
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "set_permissions": {"type": "string"},
+                "download": {"type": "string"},
+                "async_download": {"type": "string"},
+            },
+            "required": ["set_permissions", "download", "async_download"],
+        }
+    )
+    def get_api(self, obj: Tag) -> dict:
         return {
-            "self": obj.get_absolute_url(self.context["request"]),
             "set_permissions": reverse(
                 "manager:set-tag-permissions",
                 kwargs={"name": obj.name},
@@ -80,14 +90,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             "thumbnail",
             "attachments",
             "deepzoom",
-            # Hyperlinked resources
-            # "surface_url",
-            # "creator_url",
-            # "datafile_url",
-            # "squeezed_datafile_url",
-            # "thumbnail_url",
-            # "attachments_url",
-            # "deepzoom_url",
             # Everything else
             "name",
             "datafile_format",
@@ -133,7 +135,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
     # Deprecated
     creator = serializers.HyperlinkedRelatedField(
-        view_name="users:user-api-detail", read_only=True
+        view_name="users:user-v1-detail", read_only=True
     )
     surface = serializers.HyperlinkedRelatedField(
         view_name="manager:surface-api-detail", queryset=Surface.objects.all()
@@ -148,28 +150,13 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         view_name="files:folder-api-detail", read_only=True
     )
 
-    # Hyperlinked resources
-    # creator_url = serializers.HyperlinkedRelatedField(
-    #     source="creator", view_name="users:user-api-detail", read_only=True
-    # )
-    # surface_url = serializers.HyperlinkedRelatedField(
-    #     source="surface", view_name="manager:surface-api-detail", queryset=Surface.objects.all()
-    # )
-    # datafile_url = serializers.HyperlinkedRelatedField(
-    #     source="datafile", view_name="files:manifest-api-detail", read_only=True
-    # )
-    # squeezed_datafile_url = serializers.HyperlinkedRelatedField(
-    #     source="squeezed_datafile", view_name="files:manifest-api-detail", read_only=True
-    # )
-    # thumbnail_url = serializers.HyperlinkedRelatedField(
-    #     source="thumbnail", view_name="files:manifest-api-detail", read_only=True
-    # )
-    # deepzoom_url = serializers.HyperlinkedRelatedField(
-    #     source="deepzoom", view_name="files:folder-api-detail", read_only=True
-    # )
-    # attachments_url = serializers.HyperlinkedRelatedField(
-    #     source="attachments", view_name="files:folder-api-detail", read_only=True
-    # )
+    # These fields have been renamed in the model
+    creation_datetime = serializers.DateTimeField(
+        source="creation_time", read_only=True
+    )
+    modification_datetime = serializers.DateTimeField(
+        source="modification_time", read_only=True
+    )
 
     # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
@@ -179,7 +166,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     is_metadata_complete = serializers.SerializerMethodField()
     permissions = serializers.SerializerMethodField()
 
-    def validate(self, data):
+    def validate(self, data: dict) -> dict:
         read_only_fields = []
         if self.instance is not None:
             if not self.instance.size_editable:
@@ -203,9 +190,17 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
                 )
         return super().validate(data)
 
-    def get_api(self, obj):
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "force_inspect": {"type": "string"},
+            },
+            "required": ["force_inspect"],
+        }
+    )
+    def get_api(self, obj: Topography) -> dict:
         return {
-            "self": obj.get_absolute_url(self.context["request"]),
             "force_inspect": reverse(
                 "manager:force-inspect",
                 kwargs={"pk": obj.id},
@@ -213,10 +208,10 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             ),
         }
 
-    def get_is_metadata_complete(self, obj):
+    def get_is_metadata_complete(self, obj: Topography) -> bool:
         return obj.is_metadata_complete
 
-    def get_permissions(self, obj):
+    def get_permissions(self, obj: Topography) -> dict:
         request = self.context["request"]
         current_user = request.user
         user_permissions = obj.permissions.user_permissions.all()
@@ -235,7 +230,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
             ],
         }
 
-    def update(self, instance, validated_data):
+    def update(self, instance: Topography, validated_data: dict):
         if "surface" in validated_data:
             raise serializers.ValidationError(
                 {"message": "You cannot change the `surface` of a topography"}
@@ -245,59 +240,6 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
         except pydantic.ValidationError as exc:
             # The kwargs that were provided do not match the function
             raise serializers.ValidationError({"message": str(exc)})
-
-
-class ValueField(serializers.Field):
-    def to_representation(self, value):
-        return value
-
-    def to_internal_value(self, data):
-        return data
-
-
-class PropertiesField(serializers.Field):
-    def to_representation(self, value):
-        ret = {}
-        for prop in value.all():
-            ret[prop.name] = {"value": prop.value}
-            if prop.unit is not None:
-                ret[prop.name]["unit"] = str(prop.unit)
-        return ret
-
-    def to_internal_value(self, data: dict[str, dict[str, str]]):
-        surface: Surface = self.root.instance
-        with (
-            transaction.atomic()
-        ):  # NOTE: This is probably not needed because django wraps views in a transaction.
-            # WARNING: with the current API design surfaces can only be created with no properties.
-            if surface is not None:
-                surface.properties.all().delete()
-                for property in data:
-                    # NOTE: Validate that a numeric value has a unit
-                    if (
-                        isinstance(data[property]["value"], (int, float))
-                        and "unit" not in data[property]
-                    ):
-                        raise serializers.ValidationError(
-                            {property: "numeric properties must have a unit"}
-                        )
-                    elif (
-                        isinstance(data[property]["value"], str)
-                        and "unit" in data[property]
-                    ):
-                        raise serializers.ValidationError(
-                            {property: "categorical properties must not have a unit"}
-                        )
-
-                    Property.objects.create(
-                        surface=surface,
-                        name=property,
-                        value=data[property]["value"],
-                        unit=data[property].get("unit"),
-                    )
-
-                return self.root.instance.properties.all()
-        return []
 
 
 class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
@@ -314,10 +256,6 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             "topography_set",
             "attachments",
             "topographies",
-            # Hyperlinked resources
-            # "creator_url",
-            # "topographies_url",
-            # "attachments_url",
             # Everything else
             "name",
             "category",
@@ -339,7 +277,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
 
     # Deprecations
     creator = serializers.HyperlinkedRelatedField(
-        view_name="users:user-api-detail", read_only=True
+        view_name="users:user-v1-detail", read_only=True
     )
     topography_set = TopographySerializer(many=True, read_only=True)
     attachments = serializers.HyperlinkedRelatedField(
@@ -347,23 +285,32 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
     )
     topographies = serializers.SerializerMethodField()
 
-    # Hyperlinked resources
-    # creator_url = serializers.HyperlinkedRelatedField(
-    #     view_name="users:user-api-detail", read_only=True
-    # )
-    # topographies_url = serializers.SerializerMethodField()
-    # attachments_url = serializers.HyperlinkedRelatedField(
-    #     view_name="files:folder-api-detail", read_only=True
-    # )
-
     # Everything else
     properties = PropertiesField(required=False)
     tags = TagRelatedManagerField(required=False)
     permissions = serializers.SerializerMethodField()
 
-    def get_api(self, obj):
+    # These fields have been renamed in the model
+    creation_datetime = serializers.DateTimeField(
+        source="creation_time", read_only=True
+    )
+    modification_datetime = serializers.DateTimeField(
+        source="modification_time", read_only=True
+    )
+
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "set_permissions": {"type": "string"},
+                "download": {"type": "string"},
+                "async_download": {"type": "string"},
+            },
+            "required": ["set_permissions", "download", "async_download"],
+        }
+    )
+    def get_api(self, obj: Surface) -> dict:
         return {
-            "self": obj.get_absolute_url(self.context["request"]),
             "set_permissions": reverse(
                 "manager:set-surface-permissions",
                 kwargs={"pk": obj.id},

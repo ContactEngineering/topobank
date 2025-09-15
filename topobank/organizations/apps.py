@@ -10,4 +10,8 @@ class OrganizationsAppConfig(AppConfig):
     name = 'topobank.organizations'
 
     def ready(self):
-        from . import signals  # noqa: F401
+        """
+        Override this to put in:
+        - Organization signal registration
+        """
+        pass
