@@ -140,10 +140,11 @@ class AnalysisSubject(models.Model):
 
 class Analysis(PermissionMixin, TaskStateModel):
     """
-    Concrete Analysis with state, function reference, arguments, and results.
-
-    Additionally, it saves the configuration which was present when
-    executing the analysis, i.e. versions of the main libraries needed.
+    This class represents the result of a workflow. It refers to the actual
+    implementation if the workflow and subject of the workflow and stores its output in
+    a folder. There is additional metadata stored in the database, such as the time
+    when the workflow was run and information about the server configuration when the
+    workflow was run.
     """
 
     #
@@ -442,8 +443,8 @@ def submit_analysis_task_to_celery(analysis: Analysis, force_submit: bool):
 
 class AnalysisFunction(models.Model):
     """
-    A convenience wrapper around the AnalysisImplementation that has representation in the
-    SQL database.
+    A convenience wrapper around the AnalysisImplementation that has representation in
+    the SQL database.
     """
 
     name = models.TextField(help_text="The name of this analysis function.", default="")
