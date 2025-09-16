@@ -1,3 +1,5 @@
+import logging
+
 from django.http import HttpResponseBadRequest
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, viewsets
@@ -17,6 +19,8 @@ from .serializers import (
     TopographyV2Serializer,
     ZipContainerV2Serializer,
 )
+
+_log = logging.getLogger(__name__)
 
 
 class SurfaceViewSet(v1.SurfaceViewSet):
@@ -99,5 +103,6 @@ def upload_zip_finish(request: Request, pk: int):
 
     # Dispatch task
     run_task(zip_container)
+    zip_container.save()  # run_task sets the initial task state to 'pe', so we need to save
 
     return Response({})

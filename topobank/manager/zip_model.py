@@ -109,13 +109,14 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         self.manifest.save_file(container_data)
 
     def import_zip(self):
+        _log.info(f"Importing ZIP container '{self.manifest.file.name}'...")
         permission = self.permissions.user_permissions.first()
         if permission.allow != "full":
             raise PermissionDenied(
                 "Internal error: The single user for ZIP uploads should have full permission."
             )
         with zipfile.ZipFile(self.manifest.file, mode='r') as z:
-            import_container_zip(z, permission.user)
+            import_container_zip(z, permission.user, ignore_missing=True)
 
     def task_worker(self, tag_name=None, surface_ids=None):
         if self.permissions.user_permissions.count() != 1:
@@ -126,12 +127,12 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         if self.manifest is None and (tag_name is not None or surface_ids is not None):
             # There is no file, but we have a tag or a list of datasets
             self.export_zip(tag_name=tag_name, surface_ids=surface_ids)
-        elif self.manifest is not None and bool(self.manifest.file.name):
+        elif self.manifest is not None and self.manifest.exists():
             # There is a file, which means we should try to import
             self.import_zip()
         else:
             # Nothing to do? Maybe we are still waiting for a file upload?
-            pass
+            _log.info("Nothing to do.")
 
     def get_absolute_url(self, request=None):
         """URL of API endpoint for this tag"""
