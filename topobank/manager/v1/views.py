@@ -24,7 +24,7 @@ from ...supplib.versions import get_versions
 from ...taskapp.utils import run_task
 from ...usage_stats.utils import increase_statistics_by_date_and_object
 from ...users.models import User, resolve_user
-from ..export_zip import write_container_zip
+from ..export_zip import export_container_zip
 from ..filters import filter_surfaces
 from ..models import Surface, Tag, Topography
 from ..permissions import TagPermission
@@ -239,7 +239,7 @@ def download_surfaces(request, surfaces, container_filename=None):
             f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
         )
         try:
-            write_container_zip(container_bytes, surfaces)
+            export_container_zip(container_bytes, surfaces)
         except FileNotFoundError:
             return HttpResponseBadRequest(
                 "Cannot create ZIP container for download because some data file "

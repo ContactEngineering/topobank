@@ -11,7 +11,7 @@ import yaml
 from notifications.models import Notification
 
 import topobank
-from topobank.manager.export_zip import write_container_zip
+from topobank.manager.export_zip import export_container_zip
 from topobank.manager.models import Surface, Topography
 from topobank.manager.tasks import import_container_from_url
 from topobank.testing.factories import (
@@ -80,7 +80,7 @@ def test_surface_container(example_authors):
     # Create container file
     #
     outfile = tempfile.NamedTemporaryFile(mode="wb", delete=False)
-    write_container_zip(outfile, surfaces)
+    export_container_zip(outfile, surfaces)
     outfile.close()
 
     # reopen and check contents

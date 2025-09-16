@@ -21,7 +21,7 @@ from topobank.supplib.json import ExtendedJSONEncoder
 _log = logging.getLogger(__name__)
 
 
-def write_container_zip(file, surfaces):
+def export_container_zip(file, surfaces):
     """
     Write container data to a file.
 

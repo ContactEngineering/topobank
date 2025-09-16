@@ -39,15 +39,29 @@ urlpatterns += [
     # Data routes (v2)
     # v2 API defers creation of ZIP containers to a Celery task
     #
+    # POST
     re_path(
         r"v2/download-surface/(?P<surface_ids>[\d,]+)/$",
         view=v2.download_surface,
         name="surface-download-v2",
     ),
+    # POST
     re_path(
         r"v2/download-tag/(?P<name>[^.]+)/$",
         view=v2.download_tag,
         name="tag-download-v2",
+    ),
+    # POST
+    path(
+        "v2/upload-zip/start/",
+        view=v2.upload_zip_start,
+        name="zip-upload-start-v2",
+    ),
+    # POST
+    path(
+        "v2/upload-zip/finish/<pk>/",
+        view=v2.upload_zip_finish,
+        name="zip-upload-finish-v2",
     ),
     #
     # API routes
