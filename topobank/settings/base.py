@@ -321,6 +321,7 @@ TOPOBANK_MANAGER_QUEUE = env.str("MANAGER_QUEUE_NAME", default="manager")
 TOPOBANK_ANALYSIS_QUEUE = env.str("ANALYSIS_QUEUE_NAME", default="analysis")
 
 CELERY_TASK_ROUTES = {
+    "topobank.manager.tasks.import_container_from_url": {"queue": TOPOBANK_MANAGER_QUEUE},
     "topobank.analysis.tasks.perform_analysis": {"queue": TOPOBANK_ANALYSIS_QUEUE},
 }
 

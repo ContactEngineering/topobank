@@ -1,11 +1,12 @@
 import importlib
+from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
 from watchman.decorators import check as watchman_check
 
 from .celeryapp import app
-from .models import Dependency, Version
+from .models import Dependency, TaskStateModel, Version
 
 
 class ConfigurationException(Exception):
@@ -125,13 +126,22 @@ def task_dispatch(celery_task, cls_id, obj_id, *args, **kwargs):
         pass
 
 
-def run_task(model_instance, *args, **kwargs):
+def run_task(
+    model_instance: TaskStateModel, celery_queue: Optional[str] = None, *args, **kwargs
+):
     model_instance.set_pending_state(autosave=False)
     # Only submit this on_commit, once save() has finalized and everything
     # has been flushed to the database (including a possible 'pe'nding state)
     celery_kwargs = {}
-    if hasattr(model_instance, "celery_queue"):
+    if celery_queue is not None:
+        # Explicit celery queue given
+        celery_kwargs["queue"] = celery_queue
+    elif hasattr(model_instance, "celery_queue"):
+        # Static celery queue
         celery_kwargs["queue"] = model_instance.celery_queue
+    elif hasattr(model_instance, "get_celery_queue"):
+        # Dynamic celery queue
+        celery_kwargs["queue"] = model_instance.get_celery_queue()
 
     def submit_task_to_celery():
         model_instance.task_id = task_dispatch.apply_async(

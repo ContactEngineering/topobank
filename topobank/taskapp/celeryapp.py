@@ -1,7 +1,7 @@
 import os
 
 from celery import Celery
-from celery.schedules import crontab
+# from celery.schedules import crontab
 from django.apps import AppConfig, apps
 from django.conf import settings
 
@@ -29,9 +29,9 @@ class CeleryAppConfig(AppConfig):
         # Therefore I'm using an explicit configuration of the schedule instead
         # of using the decorator.
         #
-        app.conf.beat_schedule = {
-            'save-landing-page-statistics': {
-                'task': 'topobank.taskapp.tasks.save_landing_page_statistics',
-                'schedule': crontab(hour='0', minute='0'),
-            }
-        }
+        # app.conf.beat_schedule = {
+        #     'save-landing-page-statistics': {
+        #         'task': 'topobank.taskapp.tasks.save_landing_page_statistics',
+        #         'schedule': crontab(hour='0', minute='0'),
+        #     }
+        # }
