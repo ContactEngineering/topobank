@@ -363,6 +363,15 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     def implementation(self):
         return self.function.implementation
 
+    def get_celery_queue(self) -> str:
+        impl = self.implementation
+        if hasattr(impl.Meta, "celery_queue") and impl.Meta.celery_queue is not None:
+            # Implementation-specific queue
+            return impl.Meta.celery_queue
+        else:
+            # Default queue for analysis tasks
+            return settings.TOPOBANK_ANALYSIS_QUEUE
+
     def authorize_user(self, user: settings.AUTH_USER_MODEL):
         """
         Returns an exception if given user should not be able to see this analysis.
@@ -434,7 +443,9 @@ def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool)
     from .tasks import perform_analysis
 
     _log.debug(f"Submitting task for analysis {analysis.id}...")
-    analysis.task_id = perform_analysis.delay(analysis.id, force_submit).id
+    analysis.task_id = perform_analysis.apply_async(
+        args=[analysis.id, force_submit], queue=analysis.get_celery_queue()
+    ).id
     analysis.save(update_fields=["task_id"])
 
 

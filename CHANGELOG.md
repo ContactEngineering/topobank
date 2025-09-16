@@ -2,7 +2,9 @@
 
 # 1.65.0 (not yet released)
 
+- BUG: Route ZIP container creation to 'manager' Celery queue
 - API: Limit all user searches to organizations of the user
+- ENH: Option for models to dynamically choose Celery routing target
 - ENH: Advanced support for organizations
 - ENH: Advanced permissions for organizations
 - ENH: Lazy delete (recycle bin) for faster endpoint response (#1024)
