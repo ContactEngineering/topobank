@@ -330,18 +330,6 @@ CELERY_WORKER_CANCEL_LONG_RUNNING_TASKS_ON_CONNECTION_LOSS = True
 CELERY_BROKER_HEARTBEAT = 60
 CELERY_REDIS_BACKEND_HEALTH_CHECK_INTERVAL = 30
 
-# https://docs.celeryq.dev/en/latest/userguide/periodic-tasks.html
-CELERY_BEAT_SCHEDULE = {
-    "manager": {
-        "task": "topobank.manager.custodian.periodic_cleanup",
-        "schedule": 12 * 3600,  # Twice a day
-    },
-    "analysis": {
-        "task": "topobank.analysis.custodian.periodic_cleanup",
-        "schedule": 12 * 3600,  # Twice a day
-    },
-}
-
 # django-allauth
 # ------------------------------------------------------------------------------
 # https://docs.allauth.org/en/latest/account/configuration.html
