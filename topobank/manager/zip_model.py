@@ -1,5 +1,6 @@
 import io
 import logging
+import zipfile
 
 from django.db import models
 from django.utils.text import slugify
@@ -48,7 +49,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         self.manifest = Manifest.objects.create(
             permissions=self.permissions, filename="container.zip", kind="raw"
         )
-        self.manifest.save()
+        self.save(update_fields=["manifest"])
 
     def export_zip(self, tag_name=None, surface_ids=None):
         #
@@ -113,7 +114,8 @@ class ZipContainer(PermissionMixin, TaskStateModel):
             raise PermissionDenied(
                 "Internal error: The single user for ZIP uploads should have full permission."
             )
-        import_container_zip(self.manifest.file, permission.user)
+        with zipfile.ZipFile(self.manifest.file, mode='r') as z:
+            import_container_zip(z, permission.user)
 
     def task_worker(self, tag_name=None, surface_ids=None):
         if self.permissions.user_permissions.count() != 1:
@@ -124,7 +126,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         if self.manifest is None and (tag_name is not None or surface_ids is not None):
             # There is no file, but we have a tag or a list of datasets
             self.export_zip(tag_name=tag_name, surface_ids=surface_ids)
-        elif self.manifest.file.exists():
+        elif self.manifest is not None and bool(self.manifest.file.name):
             # There is a file, which means we should try to import
             self.import_zip()
         else:

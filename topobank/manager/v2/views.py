@@ -1,8 +1,8 @@
 from django.http import HttpResponseBadRequest
 from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, viewsets
-from rest_framework.decorators import api_view
-from rest_framework.permissions import IsAuthenticatedOrReadOnly
+from rest_framework.decorators import api_view, permission_classes
+from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.request import Request
 from rest_framework.response import Response
 
@@ -74,6 +74,7 @@ def download_tag(request: Request, name: str):
 
 @extend_schema(responses=ZipContainerV2Serializer)
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def upload_zip_start(request: Request):
     # Create a ZIP container object
     zip_container = ZipContainer.objects.create(
@@ -90,6 +91,7 @@ def upload_zip_start(request: Request):
 
 
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def upload_zip_finish(request: Request, pk: int):
     # Get ZIP container
     zip_container = ZipContainer.objects.get(pk=pk)

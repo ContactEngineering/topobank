@@ -19,7 +19,7 @@ from topobank.testing.factories import (
     Topography2DFactory,
     UserFactory,
 )
-from topobank.testing.utils import upload_topography_file
+from topobank.testing.utils import upload_file, upload_topography_file
 
 filelist = [
     "10x10.txt",
@@ -1319,7 +1319,7 @@ def test_v2_download_surface(api_client, settings, handle_usage_statistics, djan
     api_client.force_login(user)
 
     with django_capture_on_commit_callbacks(execute=True):
-        response = api_client.get(
+        response = api_client.post(
             reverse("manager:surface-download-v2", kwargs=dict(surface_ids=surface.id)),
             follow=True,
         )
@@ -1348,7 +1348,7 @@ def test_v2_download_tag(api_client, settings, handle_usage_statistics, django_c
     api_client.force_login(user)
 
     with django_capture_on_commit_callbacks(execute=True):
-        response = api_client.get(
+        response = api_client.post(
             reverse("manager:tag-download-v2", kwargs=dict(name=tag.name)),
             follow=True,
         )
@@ -1485,3 +1485,41 @@ def test_squeezed_creation_fails(mocker):
     topo.refresh_cache()
     # should have no thumbnail picture
     assert topo.squeezed_datafile is None
+
+
+@pytest.mark.django_db
+def test_upload_zip(api_client, user_alice, django_capture_on_commit_callbacks):
+    settings.CELERY_TASK_ALWAYS_EAGER = True
+
+    name = "container.zip"
+    fn = Path(f"{FIXTURE_DATA_DIR}/{name}")
+
+    response = api_client.post(
+        reverse("manager:zip-upload-start-v2")
+    )
+    assert response.status_code == 403, response.content
+
+    assert Surface.objects.count() == 0
+    assert Topography.objects.count() == 0
+
+    # Login and create upload
+    api_client.force_login(user_alice)
+    response = api_client.post(
+        reverse("manager:zip-upload-start-v2")
+    )
+    assert response.status_code == 200, response.content
+    manifest_url = response.data["manifest_url"]
+    upload_finished_url = response.data["api"]["upload_finished"]
+
+    # Get manifest and upload instructions
+    response = api_client.get(manifest_url)
+    upload_file(api_client, response.data["upload_instructions"], fn)
+
+    # Tell server that upload has finished
+    with django_capture_on_commit_callbacks(execute=True):
+        response = api_client.post(upload_finished_url)
+    assert response.status_code == 200, response.content
+
+    # Check that the surface was created
+    assert Surface.objects.count() == 1
+    assert Topography.objects.count() == 1
