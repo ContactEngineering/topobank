@@ -3,6 +3,7 @@ from django.contrib import admin  # type: ignore
 from .models import Workflow, WorkflowResult, WorkflowSubject
 
 
+
 @admin.register(WorkflowResult)
 class AnalysisAdmin(admin.ModelAdmin):
     list_display = (

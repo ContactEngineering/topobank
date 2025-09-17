@@ -9,7 +9,11 @@ from django.db.models.signals import post_save
 from django.utils import timezone
 from factory import post_generation
 
-from ..analysis.models import Workflow, WorkflowResult, WorkflowSubject
+from ..analysis.models import (
+    Workflow,
+    WorkflowResult,
+    WorkflowSubject,
+)
 from ..manager.models import Surface, Tag, Topography
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR

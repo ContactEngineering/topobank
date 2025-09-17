@@ -4,8 +4,8 @@ from django.conf import settings
 from django.utils import timezone
 
 from ..taskapp.celeryapp import app
-
 from .models import Surface, Topography
+from .zip_model import ZipContainer
 
 _log = logging.getLogger(__name__)
 
@@ -39,3 +39,10 @@ def periodic_cleanup():
             f"Custodian: Deleting {q.count()} datasets because they have neither a creator nor an owner."
         )
         q.delete()
+
+    # Delete all ZIP containers (that are just temporary anyway)
+    q = ZipContainer.objects.filter(modification_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY)
+    if q.count() > 0:
+        _log.info(
+            f"Custodian: Deleting {q.count()} temporary ZIP containers."
+        )
