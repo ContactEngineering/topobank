@@ -94,7 +94,7 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
         celery_queue = self.request.delivery_info['routing_key']
     except TypeError:
         celery_queue = None
-    analysis = Analysis.objects.get(id=analysis_id)
+    analysis = WorkflowResult.objects.get(id=analysis_id)
     _log.info(
         f"{analysis_id}/{self.request.id}: Task starting -- "
         f"Queue: {celery_queue}, force recalculation: {force} -- "

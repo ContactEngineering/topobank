@@ -18,7 +18,6 @@ from topobank.testing.factories import (
     TagFactory,
     Topography1DFactory,
     TopographyAnalysisFactory,
-    WorkflowTemplateFactory,
 )
 from topobank.testing.workflows import TestImplementation
 
@@ -241,26 +240,3 @@ def test_submit_again(test_analysis_function):
     analysis = TopographyAnalysisFactory(function=test_analysis_function)
     new_analysis = analysis.submit_again()
     assert new_analysis.task_state == WorkflowResult.PENDING
-
-
-@pytest.mark.django_db
-def test_workflow_template(test_analysis_function):
-
-    surface = SurfaceFactory()
-    SurfaceAnalysisFactory(
-        subject_surface=surface,
-        function=test_analysis_function
-    )
-
-    expected_kwargs = dict(
-        a=2,
-        b="bar",
-    )
-
-    template = WorkflowTemplateFactory(
-        implementation=test_analysis_function,
-        kwargs=expected_kwargs,
-    )
-
-    assert template.implementation == test_analysis_function
-    assert template.kwargs == expected_kwargs
