@@ -10,7 +10,7 @@ from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_d
 from ..models import Workflow, WorkflowResult, WorkflowSubject
 from ..registry import WorkflowNotImplementedException
 from ..serializers import ResultSerializer
-from ..utils import find_children, merge_dicts
+from ..utils import find_children
 
 _log = logging.getLogger(__name__)
 
@@ -204,7 +204,6 @@ class AnalysisController:
         )
         if workflow_kwargs is not None and isinstance(workflow_kwargs, str):
             workflow_kwargs = dict_from_base64(workflow_kwargs)
-
 
         if len(data) > 0:
             raise ValueError(
