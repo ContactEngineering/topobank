@@ -24,7 +24,6 @@ from django.core.validators import MinValueValidator
 from django.db import models
 from django.db.models import Q
 from django.utils import timezone
-from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
@@ -40,7 +39,6 @@ from ..organizations.models import Organization
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import run_task
 from ..users.models import User
-from .export_zip import write_container_zip
 from .utils import get_topography_reader, render_deepzoom
 
 _log = logging.getLogger(__name__)
@@ -1595,92 +1593,3 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
     def task_worker(self):
         self.refresh_cache()
-
-
-class ZipContainer(PermissionMixin, TaskStateModel):
-    celery_queue = settings.TOPOBANK_MANAGER_QUEUE
-
-    #
-    # Manager
-    #
-    objects = AuthorizedManager()
-
-    #
-    # Model hierarchy and permissions
-    #
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
-
-    # The file itself
-    manifest = models.ForeignKey(
-        Manifest,
-        null=True,
-        on_delete=models.SET_NULL,
-        related_name="zip_containers",
-    )
-
-    # Timestamp of creation of this ZIP container
-    creation_time = models.DateTimeField(auto_now_add=True)
-    modification_time = models.DateTimeField(auto_now=True)
-
-    def task_worker(self, tag_name=None, surface_ids=None):
-        #
-        # Fetch user
-        #
-        user = self.permissions.user_permissions.first().user
-
-        #
-        # Fetch tag (if present)
-        #
-        if tag_name is not None:
-            tag = Tag.objects.get(name=tag_name)
-            tag.authorize_user(user, "view")
-            surfaces = list(tag.get_descendant_surfaces())
-        elif surface_ids is not None:
-            surfaces = [Surface.objects.get(id=id) for id in surface_ids]
-            for surface in surfaces:
-                if not surface.has_permission(user, "view"):
-                    raise PermissionDenied()
-        else:
-            raise RuntimeError("Please specify either a tag id or dataset ids.")
-
-        #
-        # Idiot check
-        #
-        if not len(surfaces) > 0:
-            raise RuntimeError("Please specify at least one dataset.")
-
-        #
-        # Guess a filename
-        #
-        if len(surfaces) == 1:
-            container_filename = f"{slugify(surfaces[0].name)}.zip"
-        else:
-            container_filename = "digital-surface-twins.zip"
-
-        container_data = io.BytesIO()
-        _log.info(
-            f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
-        )
-        try:
-            write_container_zip(container_data, surfaces)
-        except FileNotFoundError:
-            return RuntimeError(
-                "Cannot create ZIP container for download because some data file "
-                "could not be accessed. (The file may be missing.)"
-            )
-
-        #
-        # Create and write the file to storage
-        #
-        self.manifest = Manifest.objects.create(
-            permissions=self.permissions,
-            filename=container_filename,
-            kind="der",
-        )
-        self.manifest.save_file(container_data)
-
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this tag"""
-        return reverse(
-            "manager:zip-container-v2-detail", kwargs=dict(pk=self.id), request=request
-        )

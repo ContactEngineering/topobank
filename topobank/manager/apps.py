@@ -5,5 +5,8 @@ class ManagerAppConfig(AppConfig):
     name = 'topobank.manager'
 
     def ready(self):
-        # make sure the signals are registered now
-        import topobank.manager.signals  # noqa: F401
+        # Make sure the signals are registered now
+        # Make sure Celery tasks are registered now
+        from . import custodian  # noqa: F401
+        from . import signals  # noqa: F401
+        from . import tasks  # noqa: F401

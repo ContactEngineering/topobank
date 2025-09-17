@@ -9,7 +9,8 @@ from ...organizations.models import Organization
 from ...properties.serializers import PropertiesField
 from ...supplib.serializers import StrictFieldMixin
 from ...taskapp.serializers import TaskStateModelSerializer
-from ..models import Surface, Topography, ZipContainer
+from ..models import Surface, Topography
+from ..zip_model import ZipContainer
 
 
 class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
@@ -257,6 +258,8 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             # Self
             "url",
             "id",
+            # Auxiliary API endpoints
+            "api",
             # Hyperlinked resources
             "manifest_url",
             "permissions_url",
@@ -279,6 +282,9 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
         view_name="manager:zip-container-v2-detail", read_only=True
     )
 
+    # Auxiliary API endpoints
+    api = serializers.SerializerMethodField()
+
     # The actual file
     manifest_url = serializers.HyperlinkedRelatedField(
         source="manifest",
@@ -290,3 +296,22 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
         view_name="authorization:permission-set-v1-detail",
         queryset=Manifest.objects.all(),
     )
+
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "upload_finished": {"type": "string"},
+            },
+            "required": ["upload_finished"],
+        }
+    )
+    def get_api(self, obj: ZipContainer) -> dict:
+        request = self.context["request"]
+        return {
+            "upload_finished": reverse(
+                "manager:zip-upload-finish-v2",
+                kwargs={"pk": obj.id},
+                request=request,
+            )
+        }

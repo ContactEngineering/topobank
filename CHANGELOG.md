@@ -10,6 +10,7 @@
 - ENH: Lazy delete (recycle bin) for faster endpoint response (#1024)
 - ENH: Custodian that regularly cleans up database (lazy deletion)
 - ENH: Unified permission REST endpoints
+- ENH: Uploading ZIP containers
 - MAINT: Refactored internal Analysis* models to Workflow* model (#1161)
 - MAINT: Removed automatic generation of default group "all"
 
