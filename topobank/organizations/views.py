@@ -31,7 +31,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
         # Filter for specific user
         if user is not None:
-            qs = qs.filter(group__in=user.groups.all())
+            qs = qs.filter(group__user=user)
 
         # Return query set
         return qs.distinct()
