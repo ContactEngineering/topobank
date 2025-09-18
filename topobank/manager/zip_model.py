@@ -2,6 +2,7 @@ import io
 import logging
 import zipfile
 
+from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
@@ -19,6 +20,11 @@ _log = logging.getLogger(__name__)
 
 
 class ZipContainer(PermissionMixin, TaskStateModel):
+    #
+    # Celery task queue
+    #
+    celery_queue = settings.TOPOBANK_MANAGER_QUEUE
+
     #
     # Manager
     #
