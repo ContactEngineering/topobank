@@ -40,7 +40,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # Filter for organization
         if organization is not None:
-            qs = qs.filter(group=organization.group)
+            qs = qs.filter(groups__organization=organization)
 
         # Return query set
         return qs
