@@ -1,6 +1,6 @@
 from django.contrib import admin  # type: ignore
 
-from .models import Workflow, WorkflowResult, WorkflowSubject, WorkflowTemplate
+from .models import Workflow, WorkflowResult, WorkflowSubject
 
 
 @admin.register(WorkflowResult)
@@ -28,10 +28,4 @@ class WorkflowAdmin(admin.ModelAdmin):
 @admin.register(WorkflowSubject)
 class AnalysisSubjectAdmin(admin.ModelAdmin):
     list_display = ('id', 'tag', 'surface', 'topography')
-    ordering = ['id']
-
-
-@admin.register(WorkflowTemplate)
-class WorkflowTemplateAdmin(admin.ModelAdmin):
-    list_display = ('id', 'name', 'implementation', 'kwargs')
     ordering = ['id']

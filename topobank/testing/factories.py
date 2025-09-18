@@ -13,7 +13,6 @@ from ..analysis.models import (
     Workflow,
     WorkflowResult,
     WorkflowSubject,
-    WorkflowTemplate,
 )
 from ..manager.models import Surface, Tag, Topography
 from ..properties.models import Property
@@ -400,20 +399,3 @@ class TagAnalysisFactory(AnalysisFactory):
         model = WorkflowResult
 
     subject_tag = factory.SubFactory(TagFactory)
-
-
-class WorkflowTemplateFactory(factory.django.DjangoModelFactory):
-    """
-    Factory for generating WorkflowTemplate instances.
-    """
-
-    class Meta:
-        model = WorkflowTemplate
-
-    name = factory.Sequence(lambda n: f"Workflow Template {n}")
-    kwargs = {"param1": "value1", "param2": "value2"}  # Example JSON field
-    implementation = factory.SubFactory(WorkflowFactory)
-    creator = factory.SubFactory(UserFactory)
-    permissions = factory.SubFactory(
-        PermissionSetFactory, user=factory.SelfAttribute("..creator")
-    )

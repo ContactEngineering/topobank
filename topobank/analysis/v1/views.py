@@ -19,15 +19,14 @@ from ...files.serializers import ManifestSerializer
 from ...manager.models import Surface
 from ...manager.utils import demangle_content_type
 from ...usage_stats.utils import increase_statistics_by_date_and_object
-from ..models import Configuration, Workflow, WorkflowResult, WorkflowTemplate
+from ..models import Configuration, Workflow, WorkflowResult
 from ..permissions import WorkflowPermissions
 from ..serializers import (
     ConfigurationSerializer,
     ResultSerializer,
     WorkflowSerializer,
-    WorkflowTemplateSerializer,
 )
-from ..utils import filter_and_order_analyses, filter_workflow_templates
+from ..utils import filter_and_order_analyses
 from .controller import AnalysisController
 
 _log = logging.getLogger(__name__)
@@ -606,52 +605,3 @@ def set_result_permissions(request, workflow_id=None):
 
     # Permissions were updated successfully, return 204 No Content
     return Response({}, status=204)
-
-
-class WorkflowTemplateView(viewsets.ModelViewSet):
-    """
-    Create, update, retrieve and delete workflow templates.
-
-    """
-
-    serializer_class = WorkflowTemplateSerializer
-    permission_classes = [WorkflowPermissions]
-
-    def get_queryset(self):
-        """
-        Get the queryset for the workflow templates.
-        """
-        workflows = [
-            workflow.id
-            for workflow in Workflow.objects.all()
-            if workflow.has_permission(self.request.user)
-        ]
-        qs = WorkflowTemplate.objects.filter(implementation__in=workflows)
-
-        return filter_workflow_templates(self.request, qs)
-
-    def perform_create(self, serializer):
-        """
-        Create a new workflow template.
-        """
-        serializer.save(creator=self.request.user)
-
-    def performance_update(self, serializer):
-        """
-        Update an existing workflow template.
-        """
-        serializer.save()
-
-    def retrieve(self, request, *args, **kwargs):
-        """
-        Retrieve a workflow template.
-        """
-        instance = self.get_object()
-        serializer = self.get_serializer(instance)
-        return Response(serializer.data)
-
-    def perform_destroy(self, instance):
-        """
-        Delete a workflow template.
-        """
-        instance.delete()
