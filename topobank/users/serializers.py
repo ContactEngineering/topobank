@@ -1,3 +1,4 @@
+from allauth.account.utils import has_verified_email
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
@@ -21,14 +22,17 @@ class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
             "orcid",
             "email",
             "date_joined",
+            # Auth fields
+            "is_verified",
         ]
-        read_only_fields = ["id", "date_joined"]
+        read_only_fields = ["id", "date_joined", "is_verified"]
 
     url = serializers.HyperlinkedIdentityField(
         view_name="users:user-v1-detail", read_only=True
     )
     api = serializers.SerializerMethodField()
     orcid = serializers.SerializerMethodField()
+    is_verified = serializers.SerializerMethodField()
 
     @extend_schema_field(
         {
@@ -65,3 +69,6 @@ class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
             return obj.orcid_id
         except ORCIDException:
             return None
+
+    def get_is_verified(self, obj: User) -> bool:
+        return has_verified_email(obj)
