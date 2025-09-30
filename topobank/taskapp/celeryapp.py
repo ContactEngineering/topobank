@@ -1,3 +1,4 @@
+import logging
 import os
 
 from celery import Celery
@@ -5,11 +6,14 @@ from celery.schedules import crontab
 from django.apps import AppConfig, apps
 from django.conf import settings
 
+_log = logging.getLogger(__name__)
+
 if not settings.configured:
     # set the default Django settings module for the 'celery' program.
     os.environ.setdefault(
         "DJANGO_SETTINGS_MODULE", "topobank.settings.local"
     )  # pragma: no cover
+    _log.info("No configured. Using DJANGO_SETTINGS_MODULE='{}'".format(os.environ["DJANGO_SETTINGS_MODULE"]))
 
 app = Celery("topobank")
 
@@ -23,6 +27,7 @@ class CeleryAppConfig(AppConfig):
         # pickle the object when using Windows.
         app.config_from_object("django.conf:settings", namespace="CELERY")
         installed_apps = [app_config.name for app_config in apps.get_app_configs()]
+        _log.info("Autodiscovering tasks in apps: {}".format(installed_apps))
         app.autodiscover_tasks(lambda: installed_apps, force=True)
 
         #
