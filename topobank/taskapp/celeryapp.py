@@ -40,13 +40,16 @@ class CeleryAppConfig(AppConfig):
             "save-landing-page-statistics": {
                 "task": "topobank.taskapp.tasks.save_landing_page_statistics",
                 "schedule": crontab(hour="0", minute="0"),
+                "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
             },
             "manager-periodic-cleanup": {
                 "task": "topobank.manager.custodian.periodic_cleanup",
                 "schedule": 12 * 3600,  # Twice a day
+                "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
             },
             "analysis-periodic-cleanup": {
                 "task": "topobank.analysis.custodian.periodic_cleanup",
                 "schedule": 12 * 3600,  # Twice a day
+                "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
             },
         }
