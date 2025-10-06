@@ -63,7 +63,7 @@ def grant_user(request, pk: int):
             f"'{Permissions.full.name}'"
         )
     if allow == 'no-access':
-        permission_set.revoke_for_user(user)
+        permission_set.revoke_from_user(user)
     else:
         permission_set.grant_for_user(user, allow)
     return Response({})
@@ -97,7 +97,7 @@ def grant_organization(request, pk: int):
             f"'{Permissions.full.name}'"
         )
     if allow == 'no-access':
-        permission_set.revoke_for_organization(organization)
+        permission_set.revoke_from_organization(organization)
     else:
         permission_set.grant_for_organization(organization, allow)
     return Response({})
