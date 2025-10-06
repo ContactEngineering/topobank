@@ -78,7 +78,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
 
     # Hyperlinked resources
     permissions_url = serializers.HyperlinkedRelatedField(
-        source="permission_set",
+        source="permissions",
         view_name="authorization:permission-set-v1-detail",
         read_only=True,
     )
@@ -200,7 +200,7 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
             "tags",
             "creation_time",
             "modification_time",
-            "properties",
+            "properties"
         ]
 
     # Self
@@ -214,7 +214,7 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
 
     # Hyperlinked resources
     permissions_url = serializers.HyperlinkedRelatedField(
-        source="permission_set",
+        source="permissions",
         view_name="authorization:permission-set-v1-detail",
         read_only=True,
     )

@@ -331,10 +331,6 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
     class Meta:
         ordering = ["name"]
-        permissions = (
-            ("share_surface", "Can share surface"),
-            ("publish_surface", "Can publish surface"),
-        )
 
     #
     # Manager
