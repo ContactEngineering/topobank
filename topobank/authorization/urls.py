@@ -20,21 +20,21 @@ urlpatterns += [
     path(
         "v1/grant-user-access/<pk>/",
         view=v1.grant_user,
-        name="grant-user-v1",
+        name="grant-user-access-v1",
     ),
     path(
         "v1/revoke-user-access/<pk>/",
         view=v1.revoke_user,
-        name="revoke-user-v1",
+        name="revoke-user-access-v1",
     ),
     path(
         "v1/grant-organization-access/<pk>/",
         view=v1.grant_organization,
-        name="grant-organization-v1",
+        name="grant-organization-access-v1",
     ),
     path(
         "v1/revoke-organization-access/<pk>/",
         view=v1.revoke_organization,
-        name="revoke-organization-v1",
+        name="revoke-organization-access-v1",
     ),
 ]

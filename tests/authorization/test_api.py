@@ -8,18 +8,18 @@ def test_api():
         == "/authorization/v1/permission-set/123/"
     )
     assert (
-        reverse("authorization:grant-user-v1", kwargs=dict(pk=123))
+        reverse("authorization:grant-user-access-v1", kwargs=dict(pk=123))
         == "/authorization/v1/grant-user-access/123/"
     )
     assert (
-        reverse("authorization:revoke-user-v1", kwargs=dict(pk=123))
+        reverse("authorization:revoke-user-access-v1", kwargs=dict(pk=123))
         == "/authorization/v1/revoke-user-access/123/"
     )
     assert (
-        reverse("authorization:grant-organization-v1", kwargs=dict(pk=123))
+        reverse("authorization:grant-organization-access-v1", kwargs=dict(pk=123))
         == "/authorization/v1/grant-organization-access/123/"
     )
     assert (
-        reverse("authorization:revoke-organization-v1", kwargs=dict(pk=123))
+        reverse("authorization:revoke-organization-access-v1", kwargs=dict(pk=123))
         == "/authorization/v1/revoke-organization-access/123/"
     )
