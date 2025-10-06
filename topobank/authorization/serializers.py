@@ -9,16 +9,34 @@ from topobank.authorization.models import (
 )
 
 
+class UserStubSerializer(serializers.ModelSerializer):
+    """Serializer for user stubs"""
+
+    class Meta:
+        model = UserPermission.user.field.related_model  # type: ignore
+        fields = ("id", "username", "url")
+
+    url = serializers.HyperlinkedIdentityField(view_name="users:user-v1-detail")
+
+
+class OrganizationStubSerializer(serializers.ModelSerializer):
+    """Serializer for organization stubs"""
+
+    class Meta:
+        model = OrganizationPermission.organization.field.related_model  # type: ignore
+        fields = ("id", "name", "url")
+
+    url = serializers.HyperlinkedIdentityField(view_name="organizations:organization-v1-detail")
+
+
 class UserPermissionSerializer(serializers.ModelSerializer):
     """Serializer for user permissions"""
 
     class Meta:
         model = UserPermission
-        fields = ("user_url", "allow", "is_current_user")
+        fields = ("id", "user", "allow", "is_current_user")
 
-    user_url = serializers.HyperlinkedRelatedField(
-        source="user", view_name="users:user-v1-detail", read_only=True
-    )
+    user = UserStubSerializer(read_only=True)
     is_current_user = serializers.SerializerMethodField()
 
     def get_is_current_user(self, obj: UserPermission) -> bool:
@@ -30,13 +48,9 @@ class OrganizationPermissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrganizationPermission
-        fields = ("organization_url", "allow")
+        fields = ("id", "organization", "allow")
 
-    organization_url = serializers.HyperlinkedRelatedField(
-        source="organization",
-        view_name="organizations:organization-v1-detail",
-        read_only=True,
-    )
+    organization = OrganizationStubSerializer(read_only=True)
 
 
 class PermissionSetSerializer(serializers.ModelSerializer):
