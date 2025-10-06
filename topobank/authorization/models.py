@@ -8,7 +8,7 @@ from typing import Literal
 from django.db import models
 from django.db.models import Q, QuerySet
 from notifications.signals import notify
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied
 
 from ..organizations.models import Organization
 from ..users.anonymous import get_anonymous_user
@@ -200,14 +200,13 @@ class PermissionSet(models.Model):
     def authorize_user(self, user: User, access_level: ViewEditFull):
         """
         Authorize user for access level given by `allow`. Raise
-        `PermissionDenied` if user does not have access.
+        `PermissionDenied` if user does not have sufficient access.
+        Raise `NotFound` if user has no access at all.
         """
         perm = self.get_for_user(user)
         if perm is None:
-            raise PermissionDenied(
-                f"User '{user}' has no access permission, cannot elevate to permission "
-                f"'{access_level}'."
-            )
+            # User has no access at all, raise 404 to not leak information
+            raise NotFound()
         elif ACCESS_LEVELS[perm] < ACCESS_LEVELS[access_level]:
             raise PermissionDenied(
                 f"User '{user}' has permission '{perm}', cannot elevate to "

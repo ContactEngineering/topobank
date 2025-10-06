@@ -21,8 +21,7 @@ def test_add_remove_user(api_client, one_line_scan, user_alice):
         reverse("authorization:add-user-v1", kwargs={"pk": surface.permissions.id}),
         data={"user": user_alice.get_absolute_url(), "allow": "view"},
     )
-    # FIXME Should this be a 404 since Alice cannot see the surface at all?
-    assert response.status_code == 403, response.content
+    assert response.status_code == 404, response.content
 
     # But the owner of the surface can give access to Alice
     api_client.force_authenticate(surface.creator)
@@ -82,8 +81,7 @@ def test_add_remove_organization(api_client, one_line_scan, user_alice, org_blof
         ),
         data={"organization": org_blofield.get_absolute_url(), "allow": "view"},
     )
-    # FIXME Should this be a 404 since Alice cannot see the surface at all?
-    assert response.status_code == 403, response.content
+    assert response.status_code == 404, response.content
 
     # But the owner of the surface can give access to Alice through the Blofield organization
     api_client.force_authenticate(surface.creator)
