@@ -200,7 +200,7 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
             "tags",
             "creation_time",
             "modification_time",
-            "properties"
+            "properties",
         ]
 
     # Self

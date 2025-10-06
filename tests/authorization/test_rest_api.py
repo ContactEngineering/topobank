@@ -18,7 +18,7 @@ def test_add_remove_user(api_client, one_line_scan, user_alice):
 
     # Alice cannot give itself access to the surface
     response = api_client.post(
-        reverse("authorization:add-user-v1", kwargs={"pk": surface.permissions.id}),
+        reverse("authorization:grant-user-v1", kwargs={"pk": surface.permissions.id}),
         data={"user": user_alice.get_absolute_url(), "allow": "view"},
     )
     assert response.status_code == 403, response.content
@@ -26,7 +26,7 @@ def test_add_remove_user(api_client, one_line_scan, user_alice):
     # But the owner of the surface can give access to Alice
     api_client.force_authenticate(surface.creator)
     response = api_client.post(
-        reverse("authorization:add-user-v1", kwargs={"pk": surface.permissions.id}),
+        reverse("authorization:grant-user-v1", kwargs={"pk": surface.permissions.id}),
         data={"user": user_alice.get_absolute_url(), "allow": "view"},
     )
     assert response.status_code == 200, response.content
@@ -38,7 +38,7 @@ def test_add_remove_user(api_client, one_line_scan, user_alice):
 
     # Alice cannot revoke access to the surface from itself
     response = api_client.post(
-        reverse("authorization:remove-user-v1", kwargs={"pk": surface.permissions.id}),
+        reverse("authorization:revoke-user-v1", kwargs={"pk": surface.permissions.id}),
         data={"user": user_alice.get_absolute_url()},
     )
     assert response.status_code == 403, response.content
@@ -46,7 +46,7 @@ def test_add_remove_user(api_client, one_line_scan, user_alice):
     # But the owner of the surface can revoke access to Alice
     api_client.force_authenticate(surface.creator)
     response = api_client.post(
-        reverse("authorization:remove-user-v1", kwargs={"pk": surface.permissions.id}),
+        reverse("authorization:revoke-user-v1", kwargs={"pk": surface.permissions.id}),
         data={"user": user_alice.get_absolute_url()},
     )
     assert response.status_code == 200, response.content
@@ -77,7 +77,7 @@ def test_add_remove_organization(api_client, one_line_scan, user_alice, org_blof
     # Alice cannot give itself access to the surface
     response = api_client.post(
         reverse(
-            "authorization:add-organization-v1", kwargs={"pk": surface.permissions.id}
+            "authorization:grant-organization-v1", kwargs={"pk": surface.permissions.id}
         ),
         data={"organization": org_blofield.get_absolute_url(), "allow": "view"},
     )
@@ -87,7 +87,7 @@ def test_add_remove_organization(api_client, one_line_scan, user_alice, org_blof
     api_client.force_authenticate(surface.creator)
     response = api_client.post(
         reverse(
-            "authorization:add-organization-v1", kwargs={"pk": surface.permissions.id}
+            "authorization:grant-organization-v1", kwargs={"pk": surface.permissions.id}
         ),
         data={"organization": org_blofield.get_absolute_url(), "allow": "view"},
     )
@@ -101,7 +101,7 @@ def test_add_remove_organization(api_client, one_line_scan, user_alice, org_blof
     # Alice cannot revoke access to the surface from itself
     response = api_client.post(
         reverse(
-            "authorization:remove-organization-v1",
+            "authorization:revoke-organization-v1",
             kwargs={"pk": surface.permissions.id},
         ),
         data={"organization": org_blofield.get_absolute_url()},
@@ -112,7 +112,7 @@ def test_add_remove_organization(api_client, one_line_scan, user_alice, org_blof
     api_client.force_authenticate(surface.creator)
     response = api_client.post(
         reverse(
-            "authorization:remove-organization-v1",
+            "authorization:revoke-organization-v1",
             kwargs={"pk": surface.permissions.id},
         ),
         data={"organization": org_blofield.get_absolute_url()},

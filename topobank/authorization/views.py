@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from ..organizations.models import resolve_organization
 from ..users.models import resolve_user
 from .models import Permissions, PermissionSet
-from .serializers import PermissionSetSerializer
+from .serializers import PermissionSetSerializer, UserPermissionSerializer
 
 
 class PermissionSetPermission(BasePermission):
@@ -31,16 +31,22 @@ class PermissionSetPermission(BasePermission):
             return obj.user_has_permission(request.user, "full")
 
 
-class PermissionSetViewSet(
-    viewsets.GenericViewSet, mixins.RetrieveModelMixin
-):
+class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     queryset = PermissionSet.objects.all()
     serializer_class = PermissionSetSerializer
     permission_classes = [PermissionSetPermission]
 
 
+class UserPermissionViewSet(
+    viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.UpdateModelMixin
+):
+    queryset = PermissionSet.objects.all()
+    serializer_class = UserPermissionSerializer
+    permission_classes = [PermissionSetPermission]
+
+
 @api_view(["POST"])
-def add_user(request, pk: int):
+def grant_user(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
@@ -59,7 +65,7 @@ def add_user(request, pk: int):
 
 
 @api_view(["POST"])
-def remove_user(request, pk: int):
+def revoke_user(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
@@ -69,7 +75,7 @@ def remove_user(request, pk: int):
 
 
 @api_view(["POST"])
-def add_organization(request, pk: int):
+def grant_organization(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
@@ -88,7 +94,7 @@ def add_organization(request, pk: int):
 
 
 @api_view(["POST"])
-def remove_organization(request, pk: int):
+def revoke_organization(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
