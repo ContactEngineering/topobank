@@ -53,14 +53,19 @@ def grant_user(request, pk: int):
     user = resolve_user(request.data.get("user"))
     allow = request.data.get("allow")
     if allow not in {
+        "no-access",
         Permissions.view.name,
         Permissions.edit.name,
         Permissions.full.name,
     }:
         return HttpResponseBadRequest(
-            f"`allow` must be one of '{Permissions.view.name}', '{Permissions.edit.name}', '{Permissions.full.name}'"
+            f"`allow` must be one of 'no-access', '{Permissions.view.name}', '{Permissions.edit.name}', "
+            f"'{Permissions.full.name}'"
         )
-    permission_set.grant_for_user(user, allow)
+    if allow == 'no-access':
+        permission_set.revoke_for_user(user)
+    else:
+        permission_set.grant_for_user(user, allow)
     return Response({})
 
 
@@ -82,14 +87,19 @@ def grant_organization(request, pk: int):
     organization = resolve_organization(request.data.get("organization"))
     allow = request.data.get("allow")
     if allow not in {
+        "no-access",
         Permissions.view.name,
         Permissions.edit.name,
         Permissions.full.name,
     }:
         return HttpResponseBadRequest(
-            f"`allow` must be one of {Permissions.view.name}, {Permissions.edit.name}, {Permissions.full.name}"
+            f"`allow` must be one of 'no-access', '{Permissions.view.name}', '{Permissions.edit.name}', "
+            f"'{Permissions.full.name}'"
         )
-    permission_set.grant_for_organization(organization, allow)
+    if allow == 'no-access':
+        permission_set.revoke_for_organization(organization)
+    else:
+        permission_set.grant_for_organization(organization, allow)
     return Response({})
 
 
