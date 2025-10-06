@@ -7,7 +7,7 @@ from rest_framework.response import Response
 from ..organizations.models import resolve_organization
 from ..users.models import resolve_user
 from .models import Permissions, PermissionSet
-from .serializers import PermissionSetSerializer, UserPermissionSerializer
+from .serializers import PermissionSetSerializer
 
 
 class PermissionSetPermission(BasePermission):
@@ -34,14 +34,6 @@ class PermissionSetPermission(BasePermission):
 class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     queryset = PermissionSet.objects.all()
     serializer_class = PermissionSetSerializer
-    permission_classes = [PermissionSetPermission]
-
-
-class UserPermissionViewSet(
-    viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.UpdateModelMixin
-):
-    queryset = PermissionSet.objects.all()
-    serializer_class = UserPermissionSerializer
     permission_classes = [PermissionSetPermission]
 
 
