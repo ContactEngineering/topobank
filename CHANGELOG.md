@@ -4,6 +4,7 @@
 
 - BUG: Route ZIP container creation to 'manager' Celery queue
 - BUG: Fixed check of user permissions in serializer
+- BUG: Return permission set URL in serializer
 - API: Limit all user searches to organizations of the user
 - ENH: Return access level of current user in Surface and Topography
   serializers
