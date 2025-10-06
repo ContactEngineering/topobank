@@ -21,6 +21,7 @@ def test_add_remove_user(api_client, one_line_scan, user_alice):
         reverse("authorization:add-user-v1", kwargs={"pk": surface.permissions.id}),
         data={"user": user_alice.get_absolute_url(), "allow": "view"},
     )
+    # FIXME Should this be a 404 since Alice cannot see the surface at all?
     assert response.status_code == 403, response.content
 
     # But the owner of the surface can give access to Alice
@@ -29,7 +30,7 @@ def test_add_remove_user(api_client, one_line_scan, user_alice):
         reverse("authorization:add-user-v1", kwargs={"pk": surface.permissions.id}),
         data={"user": user_alice.get_absolute_url(), "allow": "view"},
     )
-    assert response.status_code == 200, response.content
+    assert response.status_code == 201, response.content
 
     # Alice can now access the surface
     api_client.force_authenticate(user_alice)
@@ -49,7 +50,7 @@ def test_add_remove_user(api_client, one_line_scan, user_alice):
         reverse("authorization:remove-user-v1", kwargs={"pk": surface.permissions.id}),
         data={"user": user_alice.get_absolute_url()},
     )
-    assert response.status_code == 200, response.content
+    assert response.status_code == 204, response.content
 
     # Alice can no longer access the surface
     api_client.force_authenticate(user_alice)
@@ -81,6 +82,7 @@ def test_add_remove_organization(api_client, one_line_scan, user_alice, org_blof
         ),
         data={"organization": org_blofield.get_absolute_url(), "allow": "view"},
     )
+    # FIXME Should this be a 404 since Alice cannot see the surface at all?
     assert response.status_code == 403, response.content
 
     # But the owner of the surface can give access to Alice through the Blofield organization
@@ -91,7 +93,7 @@ def test_add_remove_organization(api_client, one_line_scan, user_alice, org_blof
         ),
         data={"organization": org_blofield.get_absolute_url(), "allow": "view"},
     )
-    assert response.status_code == 200, response.content
+    assert response.status_code == 201, response.content
 
     # Alice can now access the surface
     api_client.force_authenticate(user_alice)
@@ -117,7 +119,7 @@ def test_add_remove_organization(api_client, one_line_scan, user_alice, org_blof
         ),
         data={"organization": org_blofield.get_absolute_url()},
     )
-    assert response.status_code == 200, response.content
+    assert response.status_code == 204, response.content
 
     # Alice can no longer access the surface
     api_client.force_authenticate(user_alice)
