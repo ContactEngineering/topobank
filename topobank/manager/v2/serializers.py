@@ -4,6 +4,7 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
+from ...authorization.models import ViewEditFull
 from ...files.models import Manifest
 from ...organizations.models import Organization
 from ...properties.serializers import PropertiesField
@@ -31,6 +32,8 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "thumbnail_url",
             "attachments_url",
             "deepzoom_url",
+            # Permissions
+            "access_level",
             # Everything else
             "name",
             "datafile_format",
@@ -110,6 +113,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
 
     # Everything else
     tags = TagRelatedManagerField(required=False)
+    access_level = serializers.SerializerMethodField()
     is_metadata_complete = serializers.SerializerMethodField()
 
     def validate(self, data):
@@ -154,6 +158,10 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             ),
         }
 
+    def get_access_level(self, obj: Topography) -> ViewEditFull:
+        request = self.context["request"]
+        return obj.get_permission(request.user)
+
     def get_is_metadata_complete(self, obj):
         return obj.is_metadata_complete
 
@@ -183,6 +191,8 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
             "creator_url",
             "owner_url",
             "attachments_url",
+            # Permissions
+            "access_level",
             # Everything else
             "name",
             "category",
@@ -200,6 +210,7 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
 
     # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
+    access_level = serializers.SerializerMethodField()
 
     # Hyperlinked resources
     permissions_url = serializers.HyperlinkedRelatedField(
@@ -245,6 +256,10 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
             "topographies": reverse("manager:topography-v2-list", request=request)
             + f"?surface={obj.id}",
         }
+
+    def get_access_level(self, obj: Surface) -> ViewEditFull:
+        request = self.context["request"]
+        return obj.get_permission(request.user)
 
 
 class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
