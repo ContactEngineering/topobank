@@ -24,8 +24,8 @@ jobs:
           - ['hello-world', 'inmemorystorage.InMemoryStorage', 'POST']
           # We need the bitnami image because minios standard image does not start the
           # server without a custom command, which we cannot pass in gh-actions
-          - ['bitnamilegacy/minio:2025.7.23-debian-12-r5', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
-          - ['bitnamilegacy/minio:2025.7.23-debian-12-r5', 'storages.backends.s3boto3.S3Boto3Storage', 'PUT']
+          - ['minio/minio:latest-cicd', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
+          - ['minio/minio:latest-cicd', 'storages.backends.s3boto3.S3Boto3Storage', 'PUT']
         python-version: ['3.10', '3.13']
 
     services:
@@ -43,6 +43,7 @@ jobs:
         env:
           MINIO_ROOT_USER: admin
           MINIO_ROOT_PASSWORD: secret12
+        command: ["server", "start"]
         ports:
           - 9000:9000
 
