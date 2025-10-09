@@ -4,7 +4,7 @@ from functools import reduce
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
-from rest_framework.exceptions import PermissionDenied
+from rest_framework.exceptions import NotFound, PermissionDenied
 
 from ...manager.utils import dict_from_base64, subjects_from_dict, subjects_to_dict
 from ..models import Workflow, WorkflowResult, WorkflowSubject, WorkflowTemplate
@@ -87,7 +87,7 @@ class AnalysisController:
                 try:
                     subject.authorize_user(self._user, "view")
                     self._subjects += [subject]
-                except PermissionDenied:
+                except (PermissionDenied, NotFound):
                     pass
 
             # Surface permissions are checked in `subjects_from_dict`. Since children

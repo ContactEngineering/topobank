@@ -56,6 +56,11 @@ def download_analyses(request, ids, file_format):
     for aid in analyses_ids:
         analysis = WorkflowResult.objects.get(id=aid)
 
+        #
+        # Check whether user has view permission for requested analysis
+        #
+        analysis.authorize_user(request.user)
+
         if analysis.get_task_state() != WorkflowResult.SUCCESS:
             # Analysis is not successful, skip it
             continue
@@ -71,11 +76,6 @@ def download_analyses(request, ids, file_format):
                 return HttpResponseNotFound(
                     "Cannot combine results of selected analyses into a single download"
                 )
-
-        #
-        # Check whether user has view permission for requested analysis
-        #
-        analysis.authorize_user(request.user)
 
         #
         # Exclude analysis for surfaces having only one topography

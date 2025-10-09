@@ -634,7 +634,7 @@ def test_download_analysis_results_without_permission(
     handle_usage_statistics,
 ):
     # two_topos belong to a user "testuser"
-    user_2 = django_user_model.objects.create_user(username="attacker")
+    user_2 = UserFactory(username="attacker")
     api_client.force_login(user_2)
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
@@ -643,13 +643,13 @@ def test_download_analysis_results_without_permission(
     )
 
     response = api_client.get(download_url)
-    assert response.status_code == 403  # Permission denied
+    assert response.status_code == 404  # Not Found
 
     # when user_2 has view permissions for one topography of both, it's still not okay
     # to download
     two_topos[0].surface.grant_permission(user_2)
     response = api_client.get(download_url)
-    assert response.status_code == 403  # Permission denied
+    assert response.status_code == 404  # Not Found, user does not know that there is a second topography
 
     # when user_2 has view permissions for all related surfaces, it's okay to download
     # as analyses permissions are automatically granted if the user has access to the
