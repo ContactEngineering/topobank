@@ -14,15 +14,19 @@ class UserPermissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserPermission
-        fields = ("user_url", "allow", "is_current_user")
+        fields = ("url", "user_url", "allow", "is_current_user")
 
+    url = serializers.HyperlinkedIdentityField(
+        view_name="authorization:permission-set-v1-detail", read_only=True
+    )
     user_url = serializers.HyperlinkedRelatedField(
         source="user", view_name="users:user-v1-detail", read_only=True
     )
     is_current_user = serializers.SerializerMethodField()
+    api = serializers.SerializerMethodField()
 
     def get_is_current_user(self, obj: UserPermission) -> bool:
-        return self.context['request'].user == obj.user
+        return self.context["request"].user == obj.user
 
 
 class OrganizationPermissionSerializer(serializers.ModelSerializer):
@@ -56,34 +60,39 @@ class PermissionSetSerializer(serializers.ModelSerializer):
         {
             "type": "object",
             "properties": {
-                "add_user": {"type": "string"},
-                "remove_user": {"type": "string"},
-                "add_organization": {"type": "string"},
-                "remove_organization": {"type": "string"},
+                "grant_user_access": {"type": "string"},
+                "revoke_user_access": {"type": "string"},
+                "grant_organization_access": {"type": "string"},
+                "revoke_organization_access": {"type": "string"},
             },
-            "required": ["add_user", "remove_user", "add_organization", "remove_organization"],
+            "required": [
+                "grant_user_access",
+                "remove_userrevoke_user_access",
+                "grant_organization_access",
+                "revoke_organization_access",
+            ],
         }
     )
     def get_api(self, obj: PermissionSet) -> dict:
         request = self.context["request"]
         return {
-            "add_user": reverse(
-                "authorization:add-user-v1",
+            "grant_user_access": reverse(
+                "authorization:grant-user-access-v1",
                 kwargs={"pk": obj.id},
                 request=request,
             ),
-            "remove_user": reverse(
-                "authorization:remove-user-v1",
+            "revoke_user_access": reverse(
+                "authorization:revoke-user-access-v1",
                 kwargs={"pk": obj.id},
                 request=request,
             ),
-            "add_organization": reverse(
-                "authorization:add-organization-v1",
+            "grant_organization_access": reverse(
+                "authorization:grant-organization-access-v1",
                 kwargs={"pk": obj.id},
                 request=request,
             ),
-            "remove_organization": reverse(
-                "authorization:remove-organization-v1",
+            "revoke_organization_access": reverse(
+                "authorization:revoke-organization-access-v1",
                 kwargs={"pk": obj.id},
                 request=request,
             ),
