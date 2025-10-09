@@ -1,10 +1,10 @@
-import logging
 import traceback
 import tracemalloc
 from datetime import date
 from typing import Any, Dict
 
 import celery
+from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import transaction
 from django.db.models import F
@@ -22,7 +22,7 @@ from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
 from .workflows import WorkflowDefinition
 
-_log = logging.getLogger(__name__)
+_log = get_task_logger(__name__)
 
 
 def get_current_configuration():
