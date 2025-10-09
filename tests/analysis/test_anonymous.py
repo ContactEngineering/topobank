@@ -30,4 +30,4 @@ def test_download_analyses_without_permission(
             "analysis:download", kwargs=dict(ids=f"{analysis.id}", file_format="txt")
         )
     )
-    assert response.status_code == 403
+    assert response.status_code == 404

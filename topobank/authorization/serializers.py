@@ -7,6 +7,8 @@ from topobank.authorization.models import (
     PermissionSet,
     UserPermission,
 )
+from topobank.organizations.serializers import OrganizationSerializer
+from topobank.users.serializers import UserSerializer
 
 
 class UserPermissionSerializer(serializers.ModelSerializer):
@@ -14,11 +16,9 @@ class UserPermissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = UserPermission
-        fields = ("user_url", "allow", "is_current_user")
+        fields = ("id", "user", "allow", "is_current_user")
 
-    user_url = serializers.HyperlinkedRelatedField(
-        source="user", view_name="users:user-v1-detail", read_only=True
-    )
+    user = UserSerializer(read_only=True)
     is_current_user = serializers.SerializerMethodField()
 
     def get_is_current_user(self, obj: UserPermission) -> bool:
@@ -30,13 +30,9 @@ class OrganizationPermissionSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = OrganizationPermission
-        fields = ("organization_url", "allow")
+        fields = ("id", "organization", "allow")
 
-    organization_url = serializers.HyperlinkedRelatedField(
-        source="organization",
-        view_name="organizations:organization-v1-detail",
-        read_only=True,
-    )
+    organization = OrganizationSerializer(read_only=True)
 
 
 class PermissionSetSerializer(serializers.ModelSerializer):
