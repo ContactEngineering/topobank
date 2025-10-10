@@ -2,6 +2,7 @@
 Definition of celery tasks used in TopoBank.
 """
 
+import celery
 import pydantic
 from celery.app.log import TaskFormatter
 from celery.signals import after_setup_task_logger
@@ -25,26 +26,26 @@ class ProgressRecorder:
 
     PROGRESS_STATE = "PROGRESS"
 
-    def __init__(self, task):
+    def __init__(self, task: celery.Task):
         self._task = task
         self._total = None
         self._message = None
 
-    def started(self, message=None):
+    def started(self, message: str | None = None):
         if message is None:
             message = self._message
         self._message = message
         total = self._total if self._total else 1
         return self.set_progress(0, total, message=message)
 
-    def finished(self, message=None):
+    def finished(self, message: str | None = None):
         if message is None:
             message = self._message
         self._message = message
         total = self._total if self._total else 1
         return self.set_progress(total, total, message=message)
 
-    def set_progress(self, current, total, message=None):
+    def set_progress(self, current: float, total: float, message: str | None = None):
         if message is None:
             message = self._message
         self._message = message
@@ -57,7 +58,10 @@ class ProgressRecorder:
             total=total,
             message=message,
         ).model_dump()
-        self._task.update_state(state=state, meta=meta)
+        if self._task.request.id:
+            # Eager tasks don't have a request id (task id), and this leads to problems
+            # updating the task state with the Django DB backend in testing.
+            self._task.update_state(state=state, meta=meta)
         return state, meta
 
 
