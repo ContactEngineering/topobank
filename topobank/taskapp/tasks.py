@@ -50,6 +50,7 @@ class ProgressRecorder:
         self._message = message
         self._total = total
         state = self.PROGRESS_STATE
+        _log.debug(f"Task progress: {state}, {current}/{total}, {message}")
         meta = self.Model(
             pending=False,
             current=current,

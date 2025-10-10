@@ -33,6 +33,8 @@ class TestImplementation(WorkflowImplementation):
 
     def topography_implementation(self, analysis, progress_recorder=None):
         topography = analysis.subject
+        if progress_recorder:
+            progress_recorder.set_progress(1, 2, "Hello from the test topography workflow!")
         analysis.folder.save_file("test.txt", "der", ContentFile("Test!!!"))
         fib = dict(
             name="Fibonacci series",
@@ -76,6 +78,8 @@ class TestImplementation(WorkflowImplementation):
 
     def surface_implementation(self, analysis, progress_recorder=None):
         surface = analysis.subject
+        if progress_recorder:
+            progress_recorder.set_progress(1, 2, "Hello from the test surface workflow!")
         return {
             "name": "Test result for test function called for surface {}.".format(
                 surface
