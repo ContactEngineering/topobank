@@ -104,6 +104,8 @@ class ResultSerializer(
             "task_start_time",
             "task_end_time",
             "task_duration",
+            "task_id",
+            "launcher_task_id",
             "dois",
             "configuration",
             "folder",
