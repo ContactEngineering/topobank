@@ -45,6 +45,8 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
             "task_traceback": None,
             "folder": f"http://testserver/files/folder/{analysis.folder.id}/",
             "name": None,
+            "task_id": ASSERT_EQUAL_IGNORE_VALUE,
+            "launcher_task_id": ASSERT_EQUAL_IGNORE_VALUE
         },
     )
 
@@ -92,5 +94,7 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
             "task_traceback": None,
             "folder": f"http://testserver/files/folder/{analysis.folder.id}/",
             "name": None,
+            "task_id": ASSERT_EQUAL_IGNORE_VALUE,
+            "launcher_task_id": ASSERT_EQUAL_IGNORE_VALUE
         },
     )
