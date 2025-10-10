@@ -52,3 +52,31 @@ class StrictFieldMixin:
             raise serializers.ValidationError(errors)
 
         return attrs
+
+
+# https://www.django-rest-framework.org/api-guide/serializers/#example
+class DynamicFieldsModelSerializer(serializers.ModelSerializer):
+    """
+    A ModelSerializer that takes an additional `fields` argument that
+    controls which fields should be displayed.
+    """
+
+    def __init__(self, *args, **kwargs):
+        # Instantiate the superclass normally
+        super(DynamicFieldsModelSerializer, self).__init__(*args, **kwargs)
+
+        fields = self.context['request'].query_params.get('fields')
+        exclude = self.context['request'].query_params.get('exclude')
+        if exclude:
+            exclude = exclude.split(',')
+            # Drop any fields that are specified in the `exclude` argument.
+            for field_name in exclude:
+                if field_name in self.fields:
+                    self.fields.pop(field_name)
+        if fields:
+            fields = fields.split(',')
+            # Drop any fields that are not specified in the `fields` argument.
+            allowed = set(fields)
+            existing = set(self.fields.keys())
+            for field_name in existing - allowed:
+                self.fields.pop(field_name)
