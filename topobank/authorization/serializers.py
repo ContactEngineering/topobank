@@ -23,7 +23,6 @@ class UserPermissionSerializer(serializers.ModelSerializer):
         source="user", view_name="users:user-v1-detail", read_only=True
     )
     is_current_user = serializers.SerializerMethodField()
-    api = serializers.SerializerMethodField()
 
     def get_is_current_user(self, obj: UserPermission) -> bool:
         return self.context["request"].user == obj.user
