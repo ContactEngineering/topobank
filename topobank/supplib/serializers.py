@@ -113,7 +113,7 @@ class PermissionsField(serializers.Field):
     view_name : str, optional
         The name of the DRF view used to generate the hyperlink.
         Must correspond to a valid URL pattern name in the project.
-        (Default: 'authorization:permission-set-v1-detail')
+        (Default: 'authorization:permission-set-v2-detail')
     lookup_field : str, optional
         The name of the model field used for URL lookup.
         (Default: 'pk')
@@ -123,7 +123,7 @@ class PermissionsField(serializers.Field):
 
     def __init__(
         self,
-        view_name="authorization:permission-set-v1-detail",
+        view_name="authorization:permission-set-v2-detail",
         lookup_field="pk",
         **kwargs,
     ):
