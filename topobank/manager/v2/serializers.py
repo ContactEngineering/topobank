@@ -4,11 +4,10 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from ...authorization.models import ViewEditFull
 from ...files.models import Manifest
 from ...organizations.models import Organization
 from ...properties.serializers import PropertiesField
-from ...supplib.serializers import StrictFieldMixin
+from ...supplib.serializers import PermissionsField, StrictFieldMixin
 from ...taskapp.serializers import TaskStateModelSerializer
 from ..models import Surface, Topography
 from ..zip_model import ZipContainer
@@ -23,8 +22,9 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "id",
             # Auxiliary API endpoints
             "api",
+            # Permissions
+            "permissions",
             # Hyperlinked resources
-            "permissions_url",
             "surface_url",
             "creator_url",
             "datafile_url",
@@ -32,8 +32,6 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "thumbnail_url",
             "attachments_url",
             "deepzoom_url",
-            # Permissions
-            "access_level",
             # Everything else
             "name",
             "datafile_format",
@@ -77,11 +75,6 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     )
 
     # Hyperlinked resources
-    permissions_url = serializers.HyperlinkedRelatedField(
-        source="permissions",
-        view_name="authorization:permission-set-v1-detail",
-        read_only=True,
-    )
     creator_url = serializers.HyperlinkedRelatedField(
         source="creator", view_name="users:user-v1-detail", read_only=True
     )
@@ -111,9 +104,11 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
 
+    # Permissions
+    permissions = PermissionsField()
+
     # Everything else
     tags = TagRelatedManagerField(required=False)
-    access_level = serializers.SerializerMethodField()
     is_metadata_complete = serializers.SerializerMethodField()
 
     def validate(self, data):
@@ -158,10 +153,6 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             ),
         }
 
-    def get_access_level(self, obj: Topography) -> ViewEditFull:
-        request = self.context["request"]
-        return obj.get_permission(request.user)
-
     def get_is_metadata_complete(self, obj):
         return obj.is_metadata_complete
 
@@ -186,13 +177,12 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
             "id",
             # Auxiliary API endpoints
             "api",
+            # Permissions
+            "permissions",
             # Hyperlinked resources
-            "permissions_url",
             "creator_url",
             "owner_url",
             "attachments_url",
-            # Permissions
-            "access_level",
             # Everything else
             "name",
             "category",
@@ -210,14 +200,11 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
 
     # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
-    access_level = serializers.SerializerMethodField()
+
+    # Permissions
+    permissions = PermissionsField()
 
     # Hyperlinked resources
-    permissions_url = serializers.HyperlinkedRelatedField(
-        source="permissions",
-        view_name="authorization:permission-set-v1-detail",
-        read_only=True,
-    )
     creator_url = serializers.HyperlinkedRelatedField(
         source="creator", view_name="users:user-v1-detail", read_only=True
     )
@@ -257,10 +244,6 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
             + f"?surface={obj.id}",
         }
 
-    def get_access_level(self, obj: Surface) -> ViewEditFull:
-        request = self.context["request"]
-        return obj.get_permission(request.user)
-
 
 class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     """
@@ -275,9 +258,10 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "id",
             # Auxiliary API endpoints
             "api",
+            # Permissions
+            "permissions",
             # Hyperlinked resources
             "manifest_url",
-            "permissions_url",
             # Model fields
             "task_duration",
             "task_error",
@@ -300,15 +284,13 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
 
+    # Permissions
+    permissions = PermissionsField()
+
     # The actual file
     manifest_url = serializers.HyperlinkedRelatedField(
         source="manifest",
         view_name="files:manifest-api-detail",
-        queryset=Manifest.objects.all(),
-    )
-    permissions_url = serializers.HyperlinkedRelatedField(
-        source="permissions",
-        view_name="authorization:permission-set-v1-detail",
         queryset=Manifest.objects.all(),
     )
 

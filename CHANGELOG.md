@@ -6,6 +6,7 @@
 - BUG: Fixed check of user permissions in serializer
 - BUG: Return permission set URL in serializer
 - API: Limit all user searches to organizations of the user
+- API: `permissions` key now return id, URL and permissions of current user
 - ENH: Return access level of current user in Surface and Topography
   serializers
 - ENH: Option for models to dynamically choose Celery routing target
