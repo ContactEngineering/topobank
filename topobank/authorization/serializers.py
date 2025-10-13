@@ -59,7 +59,7 @@ class PermissionSetSerializer(serializers.ModelSerializer):
             },
             "required": [
                 "grant_user_access",
-                "remove_userrevoke_user_access",
+                "revoke_user_access",
                 "grant_organization_access",
                 "revoke_organization_access",
             ],
