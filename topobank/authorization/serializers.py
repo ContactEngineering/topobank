@@ -69,22 +69,22 @@ class PermissionSetSerializer(serializers.ModelSerializer):
         request = self.context["request"]
         return {
             "grant_user_access": reverse(
-                "authorization:grant-user-access-v1",
+                "authorization:grant-user-access-v2",
                 kwargs={"pk": obj.id},
                 request=request,
             ),
             "revoke_user_access": reverse(
-                "authorization:revoke-user-access-v1",
+                "authorization:revoke-user-access-v2",
                 kwargs={"pk": obj.id},
                 request=request,
             ),
             "grant_organization_access": reverse(
-                "authorization:grant-organization-access-v1",
+                "authorization:grant-organization-access-v2",
                 kwargs={"pk": obj.id},
                 request=request,
             ),
             "revoke_organization_access": reverse(
-                "authorization:revoke-organization-access-v1",
+                "authorization:revoke-organization-access-v2",
                 kwargs={"pk": obj.id},
                 request=request,
             ),
