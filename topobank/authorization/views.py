@@ -1,5 +1,5 @@
 from django.http import HttpResponseBadRequest
-from rest_framework import mixins, viewsets
+from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.response import Response
@@ -7,7 +7,11 @@ from rest_framework.response import Response
 from ..organizations.models import resolve_organization
 from ..users.models import resolve_user
 from .models import Permissions, PermissionSet
-from .serializers import PermissionSetSerializer
+from .serializers import (
+    OrganizationPermissionSerializer,
+    PermissionSetSerializer,
+    UserPermissionSerializer,
+)
 
 
 class PermissionSetPermission(BasePermission):
@@ -54,11 +58,12 @@ def grant_user(request, pk: int):
             f"`allow` must be one of 'no-access', '{Permissions.view.name}', '{Permissions.edit.name}', "
             f"'{Permissions.full.name}'"
         )
-    if allow == 'no-access':
-        permission_set.revoke_from_user(user)
-    else:
-        permission_set.grant_for_user(user, allow)
-    return Response({})
+    permission_set.grant_for_user(user, allow)
+    serializer = UserPermissionSerializer(
+        permission_set.user_permissions.get(user=user),
+        context={'request': request}
+    )
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])
@@ -68,7 +73,7 @@ def revoke_user(request, pk: int):
     permission_set.authorize_user(request.user, "full")
     user = resolve_user(request.data.get("user"))
     permission_set.revoke_from_user(user)
-    return Response({})
+    return Response({}, status=status.HTTP_204_NO_CONTENT)
 
 
 @api_view(["POST"])
@@ -88,11 +93,12 @@ def grant_organization(request, pk: int):
             f"`allow` must be one of 'no-access', '{Permissions.view.name}', '{Permissions.edit.name}', "
             f"'{Permissions.full.name}'"
         )
-    if allow == 'no-access':
-        permission_set.revoke_from_organization(organization)
-    else:
-        permission_set.grant_for_organization(organization, allow)
-    return Response({})
+    permission_set.grant_for_organization(organization, allow)
+    serializer = OrganizationPermissionSerializer(
+        permission_set.organization_permissions.get(organization=organization),
+        context={'request': request}
+    )
+    return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
 @api_view(["POST"])
@@ -102,4 +108,4 @@ def revoke_organization(request, pk: int):
     permission_set.authorize_user(request.user, "full")
     organization = resolve_organization(request.data.get("organization"))
     permission_set.revoke_from_organization(organization)
-    return Response({})
+    return Response({}, status=status.HTTP_204_NO_CONTENT)
