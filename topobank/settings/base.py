@@ -63,6 +63,32 @@ else:
     }
 DATABASES["default"]["ATOMIC_REQUESTS"] = True
 
+# CACHES
+# ------------------------------------------------------------------------------
+CACHES = {
+    "default": {
+        "BACKEND": env.str(
+            "DJANGO_DEFAULT_CACHE_BACKEND", default="django_redis.cache.RedisCache"
+        ),
+        "LOCATION": env.str(
+            "DJANGO_DEFAULT_CACHE_LOCATION", default="redis://redis:6379/0"
+        ),
+        "OPTIONS": {
+            "CLIENT_CLASS": "django_redis.client.DefaultClient",
+        },
+    }
+    # 'default': {
+    #     'BACKEND': 'django_redis.cache.RedisCache',
+    #     'LOCATION': env('REDIS_URL'),
+    #     'OPTIONS': {
+    #         'CLIENT_CLASS': 'django_redis.client.DefaultClient',
+    #         # Mimicing memcache behavior.
+    #         # http://niwinz.github.io/django-redis/latest/#_memcached_exceptions_behavior
+    #         'IGNORE_EXCEPTIONS': True,
+    #     }
+    # }
+}
+
 # URLS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#root-urlconf

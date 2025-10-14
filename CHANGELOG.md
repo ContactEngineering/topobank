@@ -3,7 +3,12 @@
 # 1.65.0 (not yet released)
 
 - BUG: Route ZIP container creation to 'manager' Celery queue
+- BUG: Fixed check of user permissions in serializer
+- BUG: Return permission set URL in serializer
 - API: Limit all user searches to organizations of the user
+- API: `permissions` key now return id, URL and permissions of current user
+- ENH: Return access level of current user in Surface and Topography
+  serializers
 - ENH: Option for models to dynamically choose Celery routing target
 - ENH: Advanced support for organizations
 - ENH: Advanced permissions for organizations
@@ -13,6 +18,7 @@
 - ENH: Uploading ZIP containers
 - MAINT: Refactored internal Analysis* models to Workflow* model (#1161)
 - MAINT: Removed automatic generation of default group "all"
+- MAINT: Route beat tasks to manager queue
 
 # 1.64.3 (2025-07-20)
 

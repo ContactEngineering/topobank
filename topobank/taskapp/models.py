@@ -106,7 +106,7 @@ class TaskStateModel(models.Model):
         return app.AsyncResult(str(self.task_id))
 
     def get_async_results(self):
-        """Return the Celery result objects of current and depndent tasks"""
+        """Return the Celery result objects of current and dependent tasks"""
         task_result = self.get_async_result()
         launcher_task_result = (
             app.AsyncResult(str(self.launcher_task_id))

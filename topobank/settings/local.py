@@ -18,23 +18,6 @@ ALLOWED_HOSTS = [
     "127.0.0.1",
 ]
 
-# CACHES
-# ------------------------------------------------------------------------------
-# https://docs.djangoproject.com/en/dev/ref/settings/#caches
-CACHES = {
-    "default": {
-        "BACKEND": env.str(
-            "DJANGO_DEFAULT_CACHE_BACKEND", default="django_redis.cache.RedisCache"
-        ),
-        "LOCATION": env.str(
-            "DJANGO_DEFAULT_CACHE_LOCATION", default="redis://localhost:6379/0"
-        ),
-        "OPTIONS": {
-            "CLIENT_CLASS": "django_redis.client.DefaultClient",
-        },
-    }
-}
-
 # TEMPLATES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#templates

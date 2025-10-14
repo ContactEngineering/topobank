@@ -4,6 +4,7 @@ import pytest
 from django.contrib.auth.models import Permission
 from django.urls import reverse
 
+from topobank.authorization.models import PermissionSet
 from topobank.manager.models import Surface, Topography
 from topobank.testing.data import FIXTURE_DATA_DIR
 
@@ -80,9 +81,15 @@ def test_prevent_topography_access_by_other_user(
         username=username1, password=password1
     )
 
-    surface = Surface.objects.create(id=surface_id, name="Surface 1", creator=user1)
+    surface = Surface.objects.create(
+        id=surface_id,
+        name="Surface 1",
+        creator=user1,
+        permissions=PermissionSet.objects.create(),
+    )
     assert surface.id == surface_id
     surface.save()
+    surface.grant_permission(user1, "edit")
 
     #
     # Mock a topography
@@ -100,10 +107,20 @@ def test_prevent_topography_access_by_other_user(
         size_x=1,
         size_y=1,
         resolution_x=1,
-        resolution_y=1
+        resolution_y=1,
     )
     topography.save_datafile(open(input_file_path, "rb"))
     topography_id = topography.id
+
+    #
+    # Login as user 1
+    #
+    assert api_client.login(username=username1, password=password1)
+    response = api_client.get(
+        reverse("manager:topography-v2-detail", kwargs=dict(pk=topography_id))
+    )
+    assert response.status_code == 200
+    assert response.data["permissions"]["allow"] == "edit"
 
     #
     # Login as user 2

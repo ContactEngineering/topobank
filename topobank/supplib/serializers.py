@@ -1,5 +1,7 @@
 from django.utils.translation import gettext_lazy as _
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
+from rest_framework.reverse import reverse
 
 
 # From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
@@ -65,18 +67,99 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
         # Instantiate the superclass normally
         super(DynamicFieldsModelSerializer, self).__init__(*args, **kwargs)
 
-        fields = self.context['request'].query_params.get('fields')
-        exclude = self.context['request'].query_params.get('exclude')
+        fields = self.context["request"].query_params.get("fields")
+        exclude = self.context["request"].query_params.get("exclude")
         if exclude:
-            exclude = exclude.split(',')
+            exclude = exclude.split(",")
             # Drop any fields that are specified in the `exclude` argument.
             for field_name in exclude:
                 if field_name in self.fields:
                     self.fields.pop(field_name)
         if fields:
-            fields = fields.split(',')
+            fields = fields.split(",")
             # Drop any fields that are not specified in the `fields` argument.
             allowed = set(fields)
             existing = set(self.fields.keys())
             for field_name in existing - allowed:
                 self.fields.pop(field_name)
+
+
+@extend_schema_field(
+    {
+        "type": "object",
+        "properties": {
+            "id": {"type": "number"},
+            "url": {"type": "string"},
+            "allow": {"enum": ["view", "edit", "full"]},
+        },
+        "required": ["id", "url", "allow"],
+    }
+)
+class PermissionsField(serializers.Field):
+    """
+    A reusable Django REST Framework field that returns a dictionary
+    containing both the object's identifier and a hyperlinked URL.
+
+    The serialized representation takes the form:
+
+        {
+            "id": <object id>,
+            "url": <hyperlinked URL>
+            "allow": <permissions of current user>
+        }
+
+    Parameters
+    ----------
+    view_name : str, optional
+        The name of the DRF view used to generate the hyperlink.
+        Must correspond to a valid URL pattern name in the project.
+        (Default: 'authorization:permission-set-v2-detail')
+    lookup_field : str, optional
+        The name of the model field used for URL lookup.
+        (Default: 'pk')
+    **kwargs
+        Additional keyword arguments passed to the parent `Field` class.
+    """
+
+    def __init__(
+        self,
+        view_name="authorization:permission-set-v2-detail",
+        lookup_field="pk",
+        **kwargs,
+    ):
+        self.view_name = view_name
+        self.lookup_field = lookup_field
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        """
+        Convert the model instance into a dictionary containing
+        both the object's ID and its hyperlinked URL.
+
+        Parameters
+        ----------
+        obj : Model instance
+            The model instance being serialized.
+
+        Returns
+        -------
+        dict
+            A dictionary with the following structure:
+            {
+                "id": <object id>,
+                "url": <hyperlinked URL>
+                "allow": <permissions of current user>
+            }
+        """
+        request = self.context.get("request", None)
+        lookup_value = getattr(obj, self.lookup_field, None)
+
+        url = None
+        if lookup_value is not None and self.view_name:
+            url = reverse(
+                self.view_name,
+                kwargs={self.lookup_field: lookup_value},
+                request=request,
+            )
+
+        return {"id": lookup_value, "url": url, "allow": obj.get_for_user(request.user)}

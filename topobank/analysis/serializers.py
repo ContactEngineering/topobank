@@ -1,5 +1,3 @@
-import logging
-
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
@@ -15,8 +13,6 @@ from .models import (
     WorkflowTemplate,
 )
 from .registry import get_visualization_type
-
-_log = logging.getLogger(__name__)
 
 
 class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):

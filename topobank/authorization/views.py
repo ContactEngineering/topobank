@@ -35,28 +35,28 @@ class PermissionSetPermission(BasePermission):
             return obj.user_has_permission(request.user, "full")
 
 
-class PermissionSetViewSet(
-    viewsets.GenericViewSet, mixins.RetrieveModelMixin
-):
+class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     queryset = PermissionSet.objects.all()
     serializer_class = PermissionSetSerializer
     permission_classes = [PermissionSetPermission]
 
 
 @api_view(["POST"])
-def add_user(request, pk: int):
+def grant_user(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
     user = resolve_user(request.data.get("user"))
     allow = request.data.get("allow")
     if allow not in {
+        "no-access",
         Permissions.view.name,
         Permissions.edit.name,
         Permissions.full.name,
     }:
         return HttpResponseBadRequest(
-            f"`allow` must be one of '{Permissions.view.name}', '{Permissions.edit.name}', '{Permissions.full.name}'"
+            f"`allow` must be one of 'no-access', '{Permissions.view.name}', '{Permissions.edit.name}', "
+            f"'{Permissions.full.name}'"
         )
     permission_set.grant_for_user(user, allow)
     serializer = UserPermissionSerializer(
@@ -67,7 +67,7 @@ def add_user(request, pk: int):
 
 
 @api_view(["POST"])
-def remove_user(request, pk: int):
+def revoke_user(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
@@ -77,19 +77,21 @@ def remove_user(request, pk: int):
 
 
 @api_view(["POST"])
-def add_organization(request, pk: int):
+def grant_organization(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
     organization = resolve_organization(request.data.get("organization"))
     allow = request.data.get("allow")
     if allow not in {
+        "no-access",
         Permissions.view.name,
         Permissions.edit.name,
         Permissions.full.name,
     }:
         return HttpResponseBadRequest(
-            f"`allow` must be one of {Permissions.view.name}, {Permissions.edit.name}, {Permissions.full.name}"
+            f"`allow` must be one of 'no-access', '{Permissions.view.name}', '{Permissions.edit.name}', "
+            f"'{Permissions.full.name}'"
         )
     permission_set.grant_for_organization(organization, allow)
     serializer = OrganizationPermissionSerializer(
@@ -100,7 +102,7 @@ def add_organization(request, pk: int):
 
 
 @api_view(["POST"])
-def remove_organization(request, pk: int):
+def revoke_organization(request, pk: int):
     permission_set = PermissionSet.objects.get(pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")

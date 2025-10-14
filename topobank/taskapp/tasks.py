@@ -4,8 +4,6 @@ Definition of celery tasks used in TopoBank.
 
 import celery
 import pydantic
-from celery.app.log import TaskFormatter
-from celery.signals import after_setup_task_logger
 from celery.utils.log import get_task_logger
 
 from ..usage_stats.utils import current_statistics
@@ -63,16 +61,6 @@ class ProgressRecorder:
             # updating the task state with the Django DB backend in testing.
             self._task.update_state(state=state, meta=meta)
         return state, meta
-
-
-@after_setup_task_logger.connect
-def setup_task_logger(logger, *args, **kwargs):
-    fmt = (
-        "%(asctime)s - %(task_id)s - %(task_name)s - %(name)s - %(levelname)s - "
-        "%(message)s"
-    )
-    for handler in logger.handlers:
-        handler.setFormatter(TaskFormatter(fmt))
 
 
 @app.task
