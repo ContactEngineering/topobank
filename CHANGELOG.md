@@ -7,6 +7,8 @@
 - BUG: Return permission set URL in serializer
 - API: Limit all user searches to organizations of the user
 - API: `permissions` key now return id, URL and permissions of current user
+- API: `creator` key now returns id, URL, and username
+- ENH: Added creator field to WorkflowResult
 - ENH: Return access level of current user in Surface and Topography
   serializers
 - ENH: Option for models to dynamically choose Celery routing target

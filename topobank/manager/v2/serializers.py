@@ -105,7 +105,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     api = serializers.SerializerMethodField()
 
     # Permissions
-    permissions = PermissionsField()
+    permissions = PermissionsField(read_only=True)
 
     # Everything else
     tags = TagRelatedManagerField(required=False)
@@ -202,7 +202,7 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
     api = serializers.SerializerMethodField()
 
     # Permissions
-    permissions = PermissionsField()
+    permissions = PermissionsField(read_only=True)
 
     # Hyperlinked resources
     creator_url = serializers.HyperlinkedRelatedField(

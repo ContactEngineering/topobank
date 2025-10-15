@@ -4,7 +4,7 @@ from rest_framework.reverse import reverse
 
 import topobank.taskapp.serializers
 
-from ..supplib.serializers import StrictFieldMixin
+from ..supplib.serializers import CreatorField, StrictFieldMixin
 from .models import (
     Configuration,
     Workflow,
@@ -106,6 +106,7 @@ class ResultSerializer(
             "configuration",
             "folder",
             "name",
+            "creator"
         ]
         read_only_fields = fields
 
@@ -125,6 +126,7 @@ class ResultSerializer(
     configuration = serializers.HyperlinkedRelatedField(
         view_name="analysis:configuration-detail", read_only=True
     )
+    creator = CreatorField()
 
     @extend_schema_field(
         {

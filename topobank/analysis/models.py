@@ -199,6 +199,11 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # Timestamp of creation of this analysis instance
     creation_time = models.DateTimeField(auto_now_add=True)
 
+    # Creator of this analysis instance
+    creator = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
+    )
+
     # Invalid is True if the subject was changed after the analysis was computed
     deprecation_time = models.DateTimeField(null=True)
 
@@ -619,6 +624,7 @@ class Workflow(models.Model):
                     function=self,
                     kwargs=kwargs,
                     folder=folder,
+                    creator=user,
                 )
                 analysis.set_pending_state()
                 transaction.on_commit(

@@ -163,3 +163,83 @@ class PermissionsField(serializers.Field):
             )
 
         return {"id": lookup_value, "url": url, "allow": obj.get_for_user(request.user)}
+
+@extend_schema_field(
+    {
+        "type": "object",
+        "properties": {
+            "id": {"type": "number"},
+            "url": {"type": "string"},
+            "username": {"type": "string"},
+        },
+        "required": ["id", "url", "username"],
+    }
+)
+class CreatorField(serializers.Field):
+    """
+    A reusable Django REST Framework field that returns a dictionary
+    containing both the user's identifier, a hyperlinked URL, and username.
+
+    The serialized representation takes the form:
+
+        {
+            "id": <user id>,
+            "url": <hyperlinked URL>,
+            "username": <user_username>
+        }
+
+    Parameters
+    ----------
+    view_name : str, optional
+        The name of the DRF view used to generate the hyperlink.
+        Must correspond to a valid URL pattern name in the project.
+        (Default: 'users:user-v1-detail')
+    lookup_field : str, optional
+        The name of the model field used for URL lookup.
+        (Default: 'pk')
+    **kwargs
+        Additional keyword arguments passed to the parent `Field` class.
+    """
+
+    def __init__(
+        self,
+        view_name="users:user-v1-detail",
+        lookup_field="pk",
+        **kwargs,
+    ):
+        self.view_name = view_name
+        self.lookup_field = lookup_field
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        """
+        Convert the user model instance into a dictionary containing
+        both the user's ID, username, and its hyperlinked URL.
+
+        Parameters
+        ----------
+        obj : User model instance
+            The user model instance being serialized.
+
+        Returns
+        -------
+        dict
+            A dictionary with the following structure:
+            {
+                "id": <user id>,
+                "url": <hyperlinked URL>,
+                "username": <user_username>
+            }
+        """
+        request = self.context.get("request", None)
+        lookup_value = getattr(obj, self.lookup_field, None)
+
+        url = None
+        if lookup_value is not None and self.view_name:
+            url = reverse(
+                self.view_name,
+                kwargs={self.lookup_field: lookup_value},
+                request=request,
+            )
+
+        return {"id": lookup_value, "url": url, "username": obj.username}
