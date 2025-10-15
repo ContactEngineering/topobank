@@ -164,6 +164,7 @@ class PermissionsField(serializers.Field):
 
         return {"id": lookup_value, "url": url, "allow": obj.get_for_user(request.user)}
 
+
 @extend_schema_field(
     {
         "type": "object",
