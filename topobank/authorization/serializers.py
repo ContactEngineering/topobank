@@ -8,7 +8,7 @@ from topobank.authorization.models import (
     UserPermission,
 )
 from topobank.organizations.serializers import OrganizationSerializer
-from topobank.users.serializers import UserSerializer
+from topobank.supplib.serializers import UserField
 
 
 class UserPermissionSerializer(serializers.ModelSerializer):
@@ -18,7 +18,7 @@ class UserPermissionSerializer(serializers.ModelSerializer):
         model = UserPermission
         fields = ("id", "user", "allow", "is_current_user")
 
-    user = UserSerializer(read_only=True)
+    user = UserField(read_only=True)
     is_current_user = serializers.SerializerMethodField()
 
     def get_is_current_user(self, obj: UserPermission) -> bool:

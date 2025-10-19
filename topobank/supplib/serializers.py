@@ -95,9 +95,9 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
         "required": ["id", "url", "allow"],
     }
 )
-class PermissionsField(serializers.Field):
+class PermissionsField(serializers.RelatedField):
     """
-    A reusable Django REST Framework field that returns a dictionary
+    A reusable Django REST Framework related field that returns a dictionary
     containing both the object's identifier and a hyperlinked URL.
 
     The serialized representation takes the form:
@@ -165,6 +165,71 @@ class PermissionsField(serializers.Field):
         return {"id": lookup_value, "url": url, "allow": obj.get_for_user(request.user)}
 
 
+class ModelRelatedField(serializers.RelatedField):
+    """
+    A reusable Django REST Framework related field that returns a dictionary
+    representation of an object with ID, URL, and optionally additional fields.
+
+    Parameters
+    ----------
+    view_name : str
+        The name of the DRF view used to generate the hyperlink.
+        Must correspond to a valid URL pattern name in the project.
+    lookup_field : str, optional
+        The name of the model field used for URL lookup.
+        (Default: 'pk')
+    fields : list of str, optional
+        A list of additional model fields to include in the serialized output.
+        (Default: None)
+    """
+
+    def __init__(
+        self,
+        view_name,
+        lookup_field="pk",
+        fields=None,
+        **kwargs,
+    ):
+        self.view_name = view_name
+        self.lookup_field = lookup_field
+        self.fields = fields
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        """
+        Convert the model instance into a dictionary.
+
+        Parameters
+        ----------
+        obj : Model instance
+            The model instance being serialized.
+
+        Returns
+        -------
+        dict
+            A dictionary representation of the model instance.
+            {
+                "id": <object id>,
+                "url": <hyperlinked URL>,
+                "<field1>": <value1>,
+                "<field2>": <value2>,
+                ...
+            }
+        """
+        data = {
+            "id": obj.id,
+            "url": reverse(
+                self.view_name,
+                kwargs={self.lookup_field: getattr(obj, self.lookup_field)},
+                request=self.context.get("request", None),
+            )
+        }
+        if self.fields:
+            for field in self.fields:
+                data[field] = getattr(obj, field)
+        return data
+
+
 @extend_schema_field(
     {
         "type": "object",
@@ -176,7 +241,7 @@ class PermissionsField(serializers.Field):
         "required": ["id", "url", "username"],
     }
 )
-class CreatorField(serializers.RelatedField):
+class UserField(ModelRelatedField):
     """
     A reusable Django REST Framework related field that returns a dictionary
     containing the user's identifier, a hyperlinked URL, and username.
@@ -191,31 +256,28 @@ class CreatorField(serializers.RelatedField):
     """
 
     def __init__(self, **kwargs):
-        super().__init__(**kwargs)
+        super().__init__(view_name="users:user-v1-detail",
+                         lookup_field="pk",
+                         fields=["username"],
+                         **kwargs)
 
-    def to_representation(self, obj):
-        """
-        Convert the user model instance into a dictionary containing
-        both the user's ID, username, and its hyperlinked URL.
 
-        Parameters
-        ----------
-        obj : User model instance
-            The user model instance being serialized.
+class OrganizationField(ModelRelatedField):
+    """
+    A reusable Django REST Framework related field that returns a dictionary
+    containing the organization's identifier, a hyperlinked URL, and name.
 
-        Returns
-        -------
-        dict
-            A dictionary with the following structure:
-            {
-                "id": <user id>,
-                "url": <hyperlinked URL>,
-                "username": <user_username>
-            }
-        """
-        url = reverse(
-            "users:user-v1-detail",
-            kwargs={"pk": obj.id},
-            request=self.context.get("request", None),
-        )
-        return {"id": obj.id, "url": url, "username": obj.username}
+    The serialized representation takes the form:
+
+        {
+            "id": <organization id>,
+            "url": <hyperlinked URL>,
+            "name": <organization_name>
+        }
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(view_name="organizations:organization-v1-detail",
+                         lookup_field="pk",
+                         fields=["name"],
+                         **kwargs)

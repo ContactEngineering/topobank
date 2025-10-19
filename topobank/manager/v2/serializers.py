@@ -4,10 +4,14 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
-from ...files.models import Manifest
-from ...organizations.models import Organization
 from ...properties.serializers import PropertiesField
-from ...supplib.serializers import PermissionsField, StrictFieldMixin
+from ...supplib.serializers import (
+    ModelRelatedField,
+    OrganizationField,
+    PermissionsField,
+    StrictFieldMixin,
+    UserField,
+)
 from ...taskapp.serializers import TaskStateModelSerializer
 from ..models import Surface, Topography
 from ..zip_model import ZipContainer
@@ -25,13 +29,13 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             # Permissions
             "permissions",
             # Hyperlinked resources
-            "surface_url",
-            "creator_url",
-            "datafile_url",
-            "squeezed_datafile_url",
-            "thumbnail_url",
-            "attachments_url",
-            "deepzoom_url",
+            "surface",
+            "creator",
+            "datafile",
+            "squeezed_datafile",
+            "thumbnail",
+            "attachments",
+            "deepzoom",
             # Everything else
             "name",
             "datafile_format",
@@ -75,30 +79,24 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     )
 
     # Hyperlinked resources
-    creator_url = serializers.HyperlinkedRelatedField(
-        source="creator", view_name="users:user-v1-detail", read_only=True
+    creator = UserField(read_only=True)
+    surface = ModelRelatedField(
+        view_name="manager:surface-v2-detail", read_only=True
     )
-    surface_url = serializers.HyperlinkedRelatedField(
-        source="surface",
-        view_name="manager:surface-v2-detail",
-        queryset=Surface.objects.all(),
+    datafile = ModelRelatedField(
+        view_name="files:manifest-api-detail", read_only=True
     )
-    datafile_url = serializers.HyperlinkedRelatedField(
-        source="datafile", view_name="files:manifest-api-detail", read_only=True
+    squeezed_datafile = ModelRelatedField(
+        view_name="files:manifest-api-detail", read_only=True
     )
-    squeezed_datafile_url = serializers.HyperlinkedRelatedField(
-        source="squeezed_datafile",
-        view_name="files:manifest-api-detail",
-        read_only=True,
+    thumbnail = ModelRelatedField(
+        view_name="files:manifest-api-detail", read_only=True
     )
-    thumbnail_url = serializers.HyperlinkedRelatedField(
-        source="thumbnail", view_name="files:manifest-api-detail", read_only=True
+    deepzoom = ModelRelatedField(
+        view_name="files:folder-api-detail", read_only=True
     )
-    deepzoom_url = serializers.HyperlinkedRelatedField(
-        source="deepzoom", view_name="files:folder-api-detail", read_only=True
-    )
-    attachments_url = serializers.HyperlinkedRelatedField(
-        source="attachments", view_name="files:folder-api-detail", read_only=True
+    attachments = ModelRelatedField(
+        view_name="files:folder-api-detail", read_only=True
     )
 
     # Auxiliary API endpoints
@@ -180,9 +178,9 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
             # Permissions
             "permissions",
             # Hyperlinked resources
-            "creator_url",
-            "owner_url",
-            "attachments_url",
+            "creator",
+            "owner",
+            "attachments",
             # Everything else
             "name",
             "category",
@@ -205,17 +203,12 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
     permissions = PermissionsField(read_only=True)
 
     # Hyperlinked resources
-    creator_url = serializers.HyperlinkedRelatedField(
-        source="creator", view_name="users:user-v1-detail", read_only=True
-    )
-    owner_url = serializers.HyperlinkedRelatedField(
-        source="owner",
-        view_name="organizations:organization-v1-detail",
-        queryset=Organization.objects.all(),
-        required=False,
-    )
-    attachments_url = serializers.HyperlinkedRelatedField(
-        source="attachments", view_name="files:folder-api-detail", read_only=True
+    creator = UserField(read_only=True)
+
+    owner = OrganizationField(read_only=True, required=False)
+
+    attachments = ModelRelatedField(
+        view_name="files:folder-api-detail", read_only=True
     )
 
     # Everything else
@@ -261,7 +254,7 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             # Permissions
             "permissions",
             # Hyperlinked resources
-            "manifest_url",
+            "manifest",
             # Model fields
             "task_duration",
             "task_error",
@@ -285,13 +278,11 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     api = serializers.SerializerMethodField()
 
     # Permissions
-    permissions = PermissionsField()
+    permissions = PermissionsField(read_only=True)
 
     # The actual file
-    manifest_url = serializers.HyperlinkedRelatedField(
-        source="manifest",
-        view_name="files:manifest-api-detail",
-        queryset=Manifest.objects.all(),
+    manifest_url = ModelRelatedField(
+        view_name="files:manifest-api-detail", read_only=True
     )
 
     @extend_schema_field(
