@@ -126,7 +126,7 @@ class ResultSerializer(
     configuration = serializers.HyperlinkedRelatedField(
         view_name="analysis:configuration-detail", read_only=True
     )
-    creator = CreatorField()
+    creator = CreatorField(read_only=True)
 
     @extend_schema_field(
         {

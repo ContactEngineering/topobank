@@ -176,10 +176,10 @@ class PermissionsField(serializers.Field):
         "required": ["id", "url", "username"],
     }
 )
-class CreatorField(serializers.Field):
+class CreatorField(serializers.RelatedField):
     """
-    A reusable Django REST Framework field that returns a dictionary
-    containing both the user's identifier, a hyperlinked URL, and username.
+    A reusable Django REST Framework related field that returns a dictionary
+    containing the user's identifier, a hyperlinked URL, and username.
 
     The serialized representation takes the form:
 
@@ -188,28 +188,9 @@ class CreatorField(serializers.Field):
             "url": <hyperlinked URL>,
             "username": <user_username>
         }
-
-    Parameters
-    ----------
-    view_name : str, optional
-        The name of the DRF view used to generate the hyperlink.
-        Must correspond to a valid URL pattern name in the project.
-        (Default: 'users:user-v1-detail')
-    lookup_field : str, optional
-        The name of the model field used for URL lookup.
-        (Default: 'pk')
-    **kwargs
-        Additional keyword arguments passed to the parent `Field` class.
     """
 
-    def __init__(
-        self,
-        view_name="users:user-v1-detail",
-        lookup_field="pk",
-        **kwargs,
-    ):
-        self.view_name = view_name
-        self.lookup_field = lookup_field
+    def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
     def to_representation(self, obj):
@@ -232,15 +213,9 @@ class CreatorField(serializers.Field):
                 "username": <user_username>
             }
         """
-        request = self.context.get("request", None)
-        lookup_value = getattr(obj, self.lookup_field, None)
-
-        url = None
-        if lookup_value is not None and self.view_name:
-            url = reverse(
-                self.view_name,
-                kwargs={self.lookup_field: lookup_value},
-                request=request,
-            )
-
-        return {"id": lookup_value, "url": url, "username": obj.username}
+        url = reverse(
+            "users:user-v1-detail",
+            kwargs={"pk": obj.id},
+            request=self.context.get("request", None),
+        )
+        return {"id": obj.id, "url": url, "username": obj.username}
