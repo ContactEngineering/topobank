@@ -281,7 +281,7 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     permissions = PermissionsField(read_only=True)
 
     # The actual file
-    manifest_url = ModelRelatedField(
+    manifest = ModelRelatedField(
         view_name="files:manifest-api-detail", read_only=True
     )
 

@@ -1324,13 +1324,13 @@ def test_v2_download_surface(api_client, settings, handle_usage_statistics, djan
             follow=True,
         )
     assert response.status_code == 200, response.reason_phrase
-    assert "manifest_url" in response.data
+    assert "manifest" in response.data
     assert response.data["task_state"] == "pe"
     response = api_client.get(response.data["url"])
     assert response.status_code == 200, response.reason_phrase
-    assert "manifest_url" in response.data
+    assert "manifest" in response.data
     assert response.data["task_state"] == "su"
-    response = api_client.get(response.data["manifest_url"])
+    response = api_client.get(response.data["manifest"]["url"])
     assert response.status_code == 200, response.reason_phrase
     assert "file" in response.data
 
@@ -1353,13 +1353,13 @@ def test_v2_download_tag(api_client, settings, handle_usage_statistics, django_c
             follow=True,
         )
     assert response.status_code == 200, response.reason_phrase
-    assert "manifest_url" in response.data
+    assert "manifest" in response.data
     assert response.data["task_state"] == "pe"
     response = api_client.get(response.data["url"])
     assert response.status_code == 200, response.reason_phrase
-    assert "manifest_url" in response.data
+    assert "manifest" in response.data
     assert response.data["task_state"] == "su"
-    response = api_client.get(response.data["manifest_url"])
+    response = api_client.get(response.data["manifest"]["url"])
     assert response.status_code == 200, response.reason_phrase
     assert "file" in response.data
 
@@ -1508,7 +1508,7 @@ def test_upload_zip(api_client, user_alice, django_capture_on_commit_callbacks):
         reverse("manager:zip-upload-start-v2")
     )
     assert response.status_code == 200, response.content
-    manifest_url = response.data["manifest_url"]
+    manifest_url = response.data["manifest"]["url"]
     upload_finished_url = response.data["api"]["upload_finished"]
 
     # Get manifest and upload instructions
