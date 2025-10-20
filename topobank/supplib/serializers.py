@@ -229,6 +229,22 @@ class ModelRelatedField(serializers.RelatedField):
                 data[field] = getattr(obj, field)
         return data
 
+    def to_internal_value(self, data):
+        """
+        Convert the input data back into a model instance.
+
+        Parameters
+        ----------
+        data : dict
+            The input data containing at least the 'id' of the model instance.
+
+        Returns
+        -------
+        Model instance
+            The corresponding model instance.
+        """
+        return self.get_queryset().get(id=data)
+
 
 @extend_schema_field(
     {

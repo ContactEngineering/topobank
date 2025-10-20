@@ -81,7 +81,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     # Hyperlinked resources
     creator = UserField(read_only=True)
     surface = ModelRelatedField(
-        view_name="manager:surface-v2-detail", read_only=True
+        view_name="manager:surface-v2-detail", queryset=Surface.objects.all()
     )
     datafile = ModelRelatedField(
         view_name="files:manifest-api-detail", read_only=True
