@@ -113,6 +113,7 @@ THIRD_PARTY_APPS = [
     "allauth.account",
     "allauth.socialaccount",  # social authentication
     "rest_framework",  # REST API
+    "django_filters",
     "storages",  # S3 storage
     "guardian",  # needed for migrations only
     "notifications",
@@ -386,6 +387,7 @@ REST_FRAMEWORK = {
     ),
     "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
+    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 }
 
 SPECTACULAR_SETTINGS = {
