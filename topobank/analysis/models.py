@@ -29,7 +29,7 @@ RESULT_FILE_BASENAME = "result"
 
 
 class SubjectNotReadyException(APIException):
-    """Subject is not in SUCCESS state when triggering an analysis."""
+    """Subject is not in SUCCESS state when triggering a workflow result."""
 
     def __init__(self, subject):
         self._subject = subject
@@ -56,7 +56,7 @@ class AnalysisSubjectManager(models.Manager):
 
 
 class WorkflowSubject(models.Model):
-    """Analysis subject, which can be either a Tag, a Topography or a Surface"""
+    """WorkflowResult subject, which can be either a Tag, a Topography or a Surface"""
 
     objects = AnalysisSubjectManager()
 
@@ -140,11 +140,11 @@ class WorkflowSubject(models.Model):
 
 class WorkflowResult(PermissionMixin, TaskStateModel):
     """
-    This class represents the result of a workflow. It refers to the actual
-    implementation if the workflow and subject of the workflow and stores its output in
+    This class represents the result of a Workflow. It refers to the actual
+    implementation of the Workflow and subject of the Workflow and stores its output in
     a folder. There is additional metadata stored in the database, such as the time
-    when the workflow was run and information about the server configuration when the
-    workflow was run.
+    when the Workflow was run and information about the server configuration when the
+    Workflow was run.
     """
 
     #
@@ -158,10 +158,10 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
 
     #
-    # Analysis parameters
+    # Workflow result parameters
     #
 
-    # Actual implementation of the analysis as a Python function
+    # Actual implementation of the workflow result as a Python function
     function = models.ForeignKey(
         "analysis.Workflow", related_name="results", on_delete=models.SET_NULL, null=True
     )
@@ -179,8 +179,11 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         null=True, help_text="Optional description of the analysis."
     )
 
-    # Keyword arguments passed to the Python analysis function
+    # Keyword arguments passed to the Python workflow result function
     kwargs = models.JSONField(default=dict)
+
+    # Metadata describing the report generation
+    metadata = models.JSONField(default=dict, blank=True, null=True)
 
     # Dependencies
     dependencies = models.JSONField(default=dict)
@@ -196,10 +199,15 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         Configuration, null=True, on_delete=models.SET_NULL
     )
 
-    # Timestamp of creation of this analysis instance
+    # Timestamp of creation of this WorkflowResult instance
     creation_time = models.DateTimeField(auto_now_add=True)
 
-    # Invalid is True if the subject was changed after the analysis was computed
+    # Creator of this WorkflowResult instance
+    creator = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
+    )
+
+    # Invalid is True if the subject was changed after the WorkflowResult was computed
     deprecation_time = models.DateTimeField(null=True)
 
     def __init__(self, *args, result=None, **kwargs):
@@ -210,12 +218,12 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     def __str__(self):
         return (
-            f"Analysis {self.id} on subject {self.subject} with state {self.task_state}"
+            f"WorkflowResult {self.id} on subject {self.subject} with state {self.task_state}"
         )
 
     def save(self, *args, **kwargs):
         """
-        Save the analysis instance to the database.
+        Save the WorkflowResult instance to the database.
 
         This method performs the following steps:
         1. Calls the parent class's save method to save the instance.
@@ -239,13 +247,13 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     @property
     def subject(self):
         """
-        Return the subject of the analysis, which can be a Tag, a Topography, or a
+        Return the subject of the WorkflowResult, which can be a Tag, a Topography, or a
         Surface.
 
         Returns
         -------
         Tag, Topography, or Surface
-            The subject of the analysis.
+            The subject of the WorkflowResult.
         """
         if self.subject_dispatch:
             return self.subject_dispatch.get()
@@ -320,7 +328,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         """
         if self.id is None:
             raise RuntimeError(
-                "This `Analysis` does not have an id yet; the storage prefix is not "
+                "This `WorkflowResult` does not have an id yet; the storage prefix is not "
                 "yet known."
             )
         return "analyses/{}".format(self.id)
@@ -337,7 +345,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             return
         if self.id is None:
             raise RuntimeError(
-                "This `Analysis` does not have an id yet; the storage file names is "
+                "This `WorkflowResult` does not have an id yet; the storage file names is "
                 "not yet known."
             )
         self.folder = Folder.objects.create(
@@ -356,7 +364,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             manifest.save(update_fields=["file"])
 
     def get_related_surfaces(self):
-        """Returns sequence of surface instances related to the subject of this analysis."""
+        """Returns sequence of surface instances related to the subject of this WorkflowResult."""
         return self.subject.get_related_surfaces()
 
     @property
@@ -369,40 +377,40 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             # Implementation-specific queue
             return impl.Meta.celery_queue
         else:
-            # Default queue for analysis tasks
+            # Default queue for workflow result tasks
             return settings.TOPOBANK_ANALYSIS_QUEUE
 
     def authorize_user(self, user: settings.AUTH_USER_MODEL):
         """
-        Returns an exception if given user should not be able to see this analysis.
+        Returns an exception if given user should not be able to see this WorkflowResult.
         """
-        # Check availability of analysis function
+        # Check availability of workflow result function
         if not self.implementation.has_permission(user):
             raise PermissionDenied(
-                f"User {user} is not allowed to use this analysis function."
+                f"User {user} is not allowed to use this WorkflowResult function."
             )
 
         if self.is_tag_related:
-            # Check if the user can access this analysis
+            # Check if the user can access this WorkflowResult
             super().authorize_user(user, "view")
 
-        # Check if user can access the subject of this analysis
+        # Check if user can access the subject of this WorkflowResult
         self.subject.authorize_user(user, "view")
         self.grant_permission(user, "view")  # Required so files can be accessed
 
     @property
     def is_topography_related(self):
-        """Returns True, if the analysis subject is a topography, else False."""
+        """Returns True, if the WorkflowResult subject is a topography, else False."""
         return self.subject_dispatch.topography is not None
 
     @property
     def is_surface_related(self):
-        """Returns True, if the analysis subject is a surface, else False."""
+        """Returns True, if the WorkflowResult subject is a surface, else False."""
         return self.subject_dispatch.surface is not None
 
     @property
     def is_tag_related(self):
-        """Returns True, if the analysis subject is a tag, else False."""
+        """Returns True, if the WorkflowResult subject is a tag, else False."""
         return self.subject_dispatch.tag is not None
 
     def eval_self(self, **auxiliary_kwargs):
@@ -410,7 +418,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             users = self.permissions.user_permissions.all()
             if users.count() != 1:
                 raise PermissionError(
-                    "This is a tag analysis, which should only be assigned to a single "
+                    "This is a tag WorkflowResult, which should only be assigned to a single "
                     "user."
                 )
             self.subject.authorize_user(users.first().user, "view")
@@ -425,8 +433,8 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     def set_name(self, name: str, description: str = None):
         """
-        Setting a name essentially saves the analysis, i.e. it is no longer deleted
-        when the analysis subject is deleted.
+        Setting a name essentially saves the WorkflowResult, i.e. it is no longer deleted
+        when the WorkflowResult subject is deleted.
         """
         self.name = name
         self.description = description
@@ -436,13 +444,13 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
 def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool):
     """
-    Send task to the queue after the analysis has been created. This is typically run
+    Send task to the queue after the WorkflowResult has been created. This is typically run
     in an on_commit hook. Note: on_commit will not execute in tests, unless
     transaction=True is added to pytest.mark.django_db
     """
     from .tasks import perform_analysis
 
-    _log.debug(f"Submitting task for analysis {analysis.id}...")
+    _log.debug(f"Submitting task for WorkflowResult {analysis.id}...")
     analysis.task_id = perform_analysis.apply_async(
         args=[analysis.id, force_submit], queue=analysis.get_celery_queue()
     ).id
@@ -487,7 +495,7 @@ class Workflow(models.Model):
 
     def has_permission(self, user: settings.AUTH_USER_MODEL):
         """
-        Check if this analysis function is available to the user. The function
+        Check if this Workflow function is available to the user. The function
         is available to `user` if it is available for any of the `models`
         specified.
         """
@@ -530,7 +538,7 @@ class Workflow(models.Model):
 
     def eval(self, analysis, **auxiliary_kwargs):
         """
-        First argument is the subject of the analysis (`Surface`, `Topography` or `Tag`).
+        First argument is the subject of the WorkflowResult (`Surface`, `Topography` or `Tag`).
         """
         runner = self.implementation(**analysis.kwargs)
         return runner.eval(analysis, **auxiliary_kwargs)
@@ -544,22 +552,22 @@ class Workflow(models.Model):
     ):
         """
         user : topobank.users.models.User
-            Users which should see the analysis.
+            Users which should see the WorkflowResult.
         subject : Tag or Topography or Surface
-            Instance which will be subject of the analysis (first argument of analysis
+            Instance which will be subject of the WorkflowResult (first argument of WorkflowResult
             function).
         kwargs : dict, optional
             Keyword arguments for the function which should be saved to database. If
-            None is given, the default arguments for the given analysis function are
+            None is given, the default arguments for the given WorkflowResult function are
             used. The default arguments are the ones used in the function
             implementation (python function). (Default: None)
         force_submit : bool, optional
-            Submit even if analysis already exists. (Default: False)
+            Submit even if WorkflowResult already exists. (Default: False)
         """
         # Check if user can actually access the subject
         subject.authorize_user(user, "view")
 
-        # Check whether there is an implementation for this workflow/subject combination
+        # Check whether there is an implementation for this Workflow/subject combination
         if not self.has_implementation(type(subject)):
             raise WorkflowNotImplementedException(self.name, type(subject))
 
@@ -574,18 +582,18 @@ class Workflow(models.Model):
         # (will trigger validation error if not)
         kwargs = self.clean_kwargs(kwargs)
 
-        # Query for all existing analyses with the same parameters
+        # Query for all existing WorkflowResults with the same parameters
         q = WorkflowSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
 
         # If subject is tag, we need to restrict this to the current user because those
-        # analyses cannot be shared
+        # WorkflowResults cannot be shared
         if isinstance(subject, Tag):
             q &= Q(permissions__user_permissions__user=user)
 
-        # All existing analyses
+        # All existing WorkflowResults for this subject and parameter set
         existing_analyses = WorkflowResult.objects.filter(q)
 
-        # Analyses, excluding those that have failed or that have not been submitted
+        # WorkflowResults, excluding those that have failed or that have not been submitted
         # to the task queue for some reason (state "no"t run)
         successful_or_running_analyses = existing_analyses.filter(
             task_state__in=[
@@ -596,29 +604,30 @@ class Workflow(models.Model):
             ]
         )
 
-        # We submit a new analysis only if we are either forced to do so or if there is
-        # no analysis with the same parameter pending, running or successfully completed.
+        # We submit a new WorkflowResult only if we are either forced to do so or if there is
+        # no WorkflowResult with the same parameter pending, running or successfully completed.
         if force_submit or successful_or_running_analyses.count() == 0:
-            # Delete *all* existing analyses (which now may only contain failed ones),
+            # Delete *all* existing WorkflowResults (which now may only contain failed ones),
             # excluding saved/named ones (name__isnull is a redundant since all saved
             # analyses no longer have subjects)
             existing_analyses.filter(name__isnull=True).delete()
 
             with transaction.atomic():
-                # New analysis needs its own permissions
+                # New WorkflowResult needs its own permissions
                 permissions = PermissionSet.objects.create()
-                permissions.grant_for_user(user, "view")  # analysis can never be edited
+                permissions.grant_for_user(user, "view")  # WorkflowResult can never be edited
 
                 # Folder will store results
                 folder = Folder.objects.create(permissions=permissions, read_only=True)
 
-                # Create new entry in the analysis table and grant access to current user
+                # Create new entry in the WorkflowResult table and grant access to current user
                 analysis = WorkflowResult.objects.create(
                     permissions=permissions,
                     subject_dispatch=WorkflowSubject.objects.create(subject),
                     function=self,
                     kwargs=kwargs,
                     folder=folder,
+                    creator=user,
                 )
                 analysis.set_pending_state()
                 transaction.on_commit(
@@ -634,19 +643,19 @@ class Workflow(models.Model):
 
     def submit_again(self, analysis: WorkflowResult):
         """
-        Submit analysis with same arguments and users.
+        Submit WorkflowResult with same arguments and users.
 
         Parameters
         ----------
         analysis: WorkflowResult
-            Analysis instance to be renewed.
+            WorkflowResult instance to be renewed.
 
         Returns
         -------
-        New analysis object.
+        New WorkflowResult object.
         """
         _log.info(
-            f"Renewing analysis {analysis.id}: Users "
+            f"Renewing WorkflowResult {analysis.id}: Users "
             f"{[user for user, allow in analysis.permissions.get_users()]}, "
             f"function {self}, subject {analysis.subject}, kwargs: {analysis.kwargs}"
         )

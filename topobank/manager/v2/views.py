@@ -1,7 +1,7 @@
 import logging
 
 from django.http import HttpResponseBadRequest
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -27,6 +27,23 @@ class SurfaceViewSet(v1.SurfaceViewSet):
     serializer_class = SurfaceV2Serializer
 
 
+@extend_schema_view(
+    retrieve=extend_schema(
+        description="Retrieve a specific Topography by its ID.",
+    ),
+    list=extend_schema(
+        description="List all topographies accessible to the authenticated user. "
+                    "Optionally filter by surface ID or tags.",
+        parameters=[
+            OpenApiParameter(name="surface", description="Filter topographies by surface ID",
+                             required=False, type=int),
+            OpenApiParameter(name="tag", description="Filter topographies by tag",
+                             required=False, type=str),
+            OpenApiParameter(name="tag_startswith", description="Filter topographies by tag prefix",
+                             required=False, type=str),
+        ]
+    )
+)
 class TopographyViewSet(v1.TopographyViewSet):
     serializer_class = TopographyV2Serializer
 

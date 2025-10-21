@@ -136,7 +136,7 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
         # Okay, we have dependencies so let us check what their states are
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
         finished_dependencies, scheduled_dependencies = prepare_dependency_tasks(
-            dependencies, force
+            dependencies, force, analysis.creator
         )
         if len(scheduled_dependencies) > 0:
             # We just created new `Analysis` instances or decided that an existing
@@ -446,7 +446,7 @@ def current_statistics(user=None):
     )
 
 
-def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool):
+def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None):
     from .models import WorkflowResult, WorkflowSubject
 
     finished_dependent_analyses = {}  # Everything that finished or failed
@@ -508,6 +508,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                 task_state=WorkflowResult.PENDING,  # We are submitting this right away
                 kwargs=kwargs,
                 folder=folder,
+                creator=user,
             )
             scheduled_dependent_analyses[key] = new_analysis
         elif all_results.count() == 1:
