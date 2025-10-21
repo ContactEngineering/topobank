@@ -252,29 +252,29 @@ class ModelRelatedField(serializers.RelatedField):
         "properties": {
             "id": {"type": "number"},
             "url": {"type": "string"},
-            "username": {"type": "string"},
+            "name": {"type": "string"},
         },
-        "required": ["id", "url", "username"],
+        "required": ["id", "url", "name"],
     }
 )
 class UserField(ModelRelatedField):
     """
     A reusable Django REST Framework related field that returns a dictionary
-    containing the user's identifier, a hyperlinked URL, and username.
+    containing the user's identifier, a hyperlinked URL, and name.
 
     The serialized representation takes the form:
 
         {
             "id": <user id>,
             "url": <hyperlinked URL>,
-            "username": <user_username>
+            "name": <user_name>
         }
     """
 
     def __init__(self, **kwargs):
         super().__init__(view_name="users:user-v1-detail",
                          lookup_field="pk",
-                         fields=["username"],
+                         fields=["name"],
                          **kwargs)
 
 
