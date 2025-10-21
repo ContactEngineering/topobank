@@ -182,8 +182,8 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # Keyword arguments passed to the Python workflow result function
     kwargs = models.JSONField(default=dict)
 
-    # Keyword arguments passed to report generation
-    report_parameters = models.JSONField(default=dict, blank=True, null=True)
+    # Metadata describing the report generation
+    metadata = models.JSONField(default=dict, blank=True, null=True)
 
     # Dependencies
     dependencies = models.JSONField(default=dict)

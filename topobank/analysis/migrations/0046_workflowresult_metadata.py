@@ -12,7 +12,7 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name='workflowresult',
-            name='report_parameters',
+            name='metadata',
             field=models.JSONField(blank=True, default=dict, null=True),
         ),
     ]
