@@ -133,7 +133,7 @@ class WorkflowDefinition:
 
 
 class WorkflowImplementation:
-    """Class that holds the actual implementation of an analysis function"""
+    """Class that holds the actual implementation of a workflow"""
 
     class Meta:
         celery_queue = None
