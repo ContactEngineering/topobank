@@ -99,7 +99,11 @@ class Organization(models.Model):
 
 
 def resolve_organization(url):
-    match = resolve(urlparse(url).path)
-    if match.view_name != "organizations:organization-v1-detail":
-        raise ValueError("URL does not resolve to an Organization instance")
-    return Organization.objects.get(**match.kwargs)
+    try:
+        id = int(url)
+        return Organization.objects.get(pk=id)
+    except ValueError:
+        match = resolve(urlparse(url).path)
+        if match.view_name != "organizations:organization-v1-detail":
+            raise ValueError("URL does not resolve to an Organization instance")
+        return Organization.objects.get(**match.kwargs)

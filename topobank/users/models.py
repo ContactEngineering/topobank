@@ -155,7 +155,12 @@ class User(AbstractUser):
 
 
 def resolve_user(url):
-    match = resolve(urlparse(url).path)
-    if match.view_name != "users:user-v1-detail":
-        raise ValueError("URL does not resolve to an User instance")
-    return User.objects.get(**match.kwargs)
+    """Resolve user from URL or ID"""
+    try:
+        id = int(url)
+        return User.objects.get(pk=id)
+    except ValueError:
+        match = resolve(urlparse(url).path)
+        if match.view_name != "users:user-v1-detail":
+            raise ValueError("URL does not resolve to an User instance")
+        return User.objects.get(**match.kwargs)
