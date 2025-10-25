@@ -1,3 +1,4 @@
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import LimitOffsetPagination
@@ -38,7 +39,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
 
 def get_user_and_organization(request, pk):
-    organization = Organization.objects.get(pk=pk)
+    organization = get_object_or_404(Organization, pk=pk)
     user_url = request.data.get("user")
     user = resolve_user(user_url)
     return user, organization

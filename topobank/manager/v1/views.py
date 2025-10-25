@@ -13,7 +13,7 @@ from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ParseError, PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
@@ -310,7 +310,7 @@ def download_tag(request, name):
 @permission_classes([IsAuthenticated])
 def force_inspect(request, pk=None):
     user = request.user
-    instance = Topography.objects.get(pk=pk)
+    instance = get_object_or_404(Topography, pk=pk)
 
     # Check that user has the right to modify this measurement
     if not user.is_staff and not instance.has_permission(user, "edit"):
@@ -331,7 +331,7 @@ def force_inspect(request, pk=None):
 @permission_classes([IsAuthenticated])
 def set_surface_permissions(request, pk=None):
     logged_in_user = request.user
-    obj = Surface.objects.get(pk=pk)
+    obj = get_object_or_404(Surface, pk=pk)
 
     # Check that user has the right to modify permissions
     if not obj.has_permission(logged_in_user, "full"):
@@ -381,7 +381,7 @@ def set_surface_permissions(request, pk=None):
 @permission_classes([IsAuthenticated])
 def set_tag_permissions(request, name=None):
     logged_in_user = request.user
-    obj = Tag.objects.get(name=name)
+    obj = get_object_or_404(Tag, name=name)
 
     # Check that the request does not ask to revoke permissions from the current user
     for permission in request.data:
@@ -420,9 +420,9 @@ def set_tag_permissions(request, name=None):
                 elif "organization" in permission:
                     organization = resolve_organization(permission["organization"])
                     if perm == "no-access":
-                        obj.revoke_permission(organization)
+                        surface.revoke_permission(organization)
                     else:
-                        obj.grant_permission(organization, perm)
+                        surface.grant_permission(organization, perm)
                 else:
                     return HttpResponseBadRequest(
                         reason="Can only set permissions for users or organizations."
@@ -473,6 +473,7 @@ def versions(request):
 
 
 @api_view(["GET"])
+@permission_classes([IsAuthenticated])
 def statistics(request):
     # Global statistics
     stats = {
@@ -481,21 +482,22 @@ def statistics(request):
         "nb_surfaces": Surface.objects.count(),
         "nb_topographies": Topography.objects.count(),
     }
-    if not request.user.is_anonymous:
-        stats = {
-            **stats,
-            "nb_surfaces_of_user": Surface.objects.for_user(request.user).count(),
-            "nb_topographies_of_user": Topography.objects.for_user(
-                request.user
-            ).count(),
-            "nb_surfaces_shared_with_user": Surface.objects.for_user(request.user)
-            .exclude(creator=request.user)
-            .count(),
-        }
+    # User-specific statistics
+    stats = {
+        **stats,
+        "nb_surfaces_of_user": Surface.objects.for_user(request.user).count(),
+        "nb_topographies_of_user": Topography.objects.for_user(
+            request.user
+        ).count(),
+        "nb_surfaces_shared_with_user": Surface.objects.for_user(request.user)
+        .exclude(creator=request.user)
+        .count(),
+    }
     return Response(stats)
 
 
 @api_view(["GET"])
+@permission_classes([IsAdminUser])
 def memory_usage(request):
     r = Topography.objects.values(
         "resolution_x", "resolution_y", "task_memory"

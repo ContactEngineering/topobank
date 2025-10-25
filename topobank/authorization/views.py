@@ -1,4 +1,5 @@
 from django.http import HttpResponseBadRequest
+from django.shortcuts import get_object_or_404
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.permissions import SAFE_METHODS, BasePermission
@@ -43,7 +44,7 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 
 @api_view(["POST"])
 def grant_user(request, pk: int):
-    permission_set = PermissionSet.objects.get(pk=pk)
+    permission_set = get_object_or_404(PermissionSet, pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
     user = resolve_user(request.data.get("user"))
@@ -68,7 +69,7 @@ def grant_user(request, pk: int):
 
 @api_view(["POST"])
 def revoke_user(request, pk: int):
-    permission_set = PermissionSet.objects.get(pk=pk)
+    permission_set = get_object_or_404(PermissionSet, pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
     user = resolve_user(request.data.get("user"))
@@ -78,7 +79,7 @@ def revoke_user(request, pk: int):
 
 @api_view(["POST"])
 def grant_organization(request, pk: int):
-    permission_set = PermissionSet.objects.get(pk=pk)
+    permission_set = get_object_or_404(PermissionSet, pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
     organization = resolve_organization(request.data.get("organization"))
@@ -103,7 +104,7 @@ def grant_organization(request, pk: int):
 
 @api_view(["POST"])
 def revoke_organization(request, pk: int):
-    permission_set = PermissionSet.objects.get(pk=pk)
+    permission_set = get_object_or_404(PermissionSet, pk=pk)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
     organization = resolve_organization(request.data.get("organization"))
