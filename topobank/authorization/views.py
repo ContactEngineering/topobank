@@ -51,7 +51,7 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     responses={201: UserPermissionSerializer},
     parameters=[
         OpenApiParameter(
-            name="pk",
+            name="id",
             type=int,
             location=OpenApiParameter.PATH,
             description="Permission set ID",
@@ -61,8 +61,8 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     tags=["authorization"],
 )
 @api_view(["POST"])
-def grant_user(request, pk: int):
-    permission_set = get_object_or_404(PermissionSet, pk=pk)
+def grant_user(request, id: int):
+    permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
 
@@ -86,7 +86,7 @@ def grant_user(request, pk: int):
     responses={204: None},
     parameters=[
         OpenApiParameter(
-            name="pk",
+            name="id",
             type=int,
             location=OpenApiParameter.PATH,
             description="Permission set ID",
@@ -96,8 +96,8 @@ def grant_user(request, pk: int):
     tags=["authorization"],
 )
 @api_view(["POST"])
-def revoke_user(request, pk: int):
-    permission_set = get_object_or_404(PermissionSet, pk=pk)
+def revoke_user(request, id: int):
+    permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
 
@@ -115,7 +115,7 @@ def revoke_user(request, pk: int):
     responses={201: OrganizationPermissionSerializer},
     parameters=[
         OpenApiParameter(
-            name="pk",
+            name="id",
             type=int,
             location=OpenApiParameter.PATH,
             description="Permission set ID",
@@ -125,8 +125,8 @@ def revoke_user(request, pk: int):
     tags=["authorization"],
 )
 @api_view(["POST"])
-def grant_organization(request, pk: int):
-    permission_set = get_object_or_404(PermissionSet, pk=pk)
+def grant_organization(request, id: int):
+    permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
 
@@ -150,7 +150,7 @@ def grant_organization(request, pk: int):
     responses={204: None},
     parameters=[
         OpenApiParameter(
-            name="pk",
+            name="id",
             type=int,
             location=OpenApiParameter.PATH,
             description="Permission set ID",
@@ -160,8 +160,8 @@ def grant_organization(request, pk: int):
     tags=["authorization"],
 )
 @api_view(["POST"])
-def revoke_organization(request, pk: int):
-    permission_set = get_object_or_404(PermissionSet, pk=pk)
+def revoke_organization(request, id: int):
+    permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
     permission_set.authorize_user(request.user, "full")
 
