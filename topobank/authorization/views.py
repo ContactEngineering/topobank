@@ -10,12 +10,8 @@ from ..organizations.models import resolve_organization
 from ..users.models import resolve_user
 from .models import Permissions, PermissionSet
 from .serializers import (
-    GrantOrganizationRequestSerializer,
-    GrantUserRequestSerializer,
     OrganizationPermissionSerializer,
     PermissionSetSerializer,
-    RevokeOrganizationRequestSerializer,
-    RevokeUserRequestSerializer,
     UserPermissionSerializer,
 )
 
@@ -48,7 +44,21 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 
 
 @extend_schema(
-    request=GrantUserRequestSerializer,
+    request={
+        "type": "object",
+        "properties": {
+            "user": {
+                "type": "string",
+                "description": "User identifier (URL or ID) to grant access to"
+            },
+            "allow": {
+                "type": "string",
+                "enum": ["no-access", "view", "edit", "full"],
+                "description": "Permission level to grant"
+            }
+        },
+        "required": ["user", "allow"]
+    },
     responses={201: UserPermissionSerializer},
     parameters=[
         OpenApiParameter(
@@ -87,7 +97,16 @@ def grant_user(request, pk: int):
 
 
 @extend_schema(
-    request=RevokeUserRequestSerializer,
+    request={
+        "type": "object",
+        "properties": {
+            "user": {
+                "type": "string",
+                "description": "User identifier (URL or ID) to revoke access from"
+            }
+        },
+        "required": ["user"]
+    },
     responses={204: None},
     parameters=[
         OpenApiParameter(
@@ -111,7 +130,21 @@ def revoke_user(request, pk: int):
 
 
 @extend_schema(
-    request=GrantOrganizationRequestSerializer,
+    request={
+        "type": "object",
+        "properties": {
+            "organization": {
+                "type": "string",
+                "description": "Organization identifier (URL or ID) to grant access to"
+            },
+            "allow": {
+                "type": "string",
+                "enum": ["no-access", "view", "edit", "full"],
+                "description": "Permission level to grant"
+            }
+        },
+        "required": ["organization", "allow"]
+    },
     responses={201: OrganizationPermissionSerializer},
     parameters=[
         OpenApiParameter(
@@ -150,7 +183,16 @@ def grant_organization(request, pk: int):
 
 
 @extend_schema(
-    request=RevokeOrganizationRequestSerializer,
+    request={
+        "type": "object",
+        "properties": {
+            "organization": {
+                "type": "string",
+                "description": "Organization identifier (URL or ID) to revoke access from"
+            }
+        },
+        "required": ["organization"]
+    },
     responses={204: None},
     parameters=[
         OpenApiParameter(
