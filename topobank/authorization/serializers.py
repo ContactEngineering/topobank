@@ -4,8 +4,8 @@ from rest_framework.reverse import reverse
 
 from topobank.authorization.models import (
     OrganizationPermission,
-    PermissionSet,
     Permissions,
+    PermissionSet,
     UserPermission,
 )
 from topobank.organizations.serializers import OrganizationSerializer
@@ -71,22 +71,22 @@ class PermissionSetSerializer(serializers.ModelSerializer):
         return {
             "grant_user_access": reverse(
                 "authorization:grant-user-access-v2",
-                kwargs={"pk": obj.id},
+                kwargs={"id": obj.id},
                 request=request,
             ),
             "revoke_user_access": reverse(
                 "authorization:revoke-user-access-v2",
-                kwargs={"pk": obj.id},
+                kwargs={"id": obj.id},
                 request=request,
             ),
             "grant_organization_access": reverse(
                 "authorization:grant-organization-access-v2",
-                kwargs={"pk": obj.id},
+                kwargs={"id": obj.id},
                 request=request,
             ),
             "revoke_organization_access": reverse(
                 "authorization:revoke-organization-access-v2",
-                kwargs={"pk": obj.id},
+                kwargs={"id": obj.id},
                 request=request,
             ),
         }
