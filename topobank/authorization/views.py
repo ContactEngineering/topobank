@@ -1,5 +1,6 @@
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
 from rest_framework.permissions import SAFE_METHODS, BasePermission
@@ -9,8 +10,12 @@ from ..organizations.models import resolve_organization
 from ..users.models import resolve_user
 from .models import Permissions, PermissionSet
 from .serializers import (
+    GrantOrganizationRequestSerializer,
+    GrantUserRequestSerializer,
     OrganizationPermissionSerializer,
     PermissionSetSerializer,
+    RevokeOrganizationRequestSerializer,
+    RevokeUserRequestSerializer,
     UserPermissionSerializer,
 )
 
@@ -42,6 +47,20 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     permission_classes = [PermissionSetPermission]
 
 
+@extend_schema(
+    request=GrantUserRequestSerializer,
+    responses={201: UserPermissionSerializer},
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Permission set ID",
+        )
+    ],
+    description="Grant user access to a permission set. Requires 'full' permission on the permission set.",
+    tags=["authorization"],
+)
 @api_view(["POST"])
 def grant_user(request, pk: int):
     permission_set = get_object_or_404(PermissionSet, pk=pk)
@@ -67,6 +86,20 @@ def grant_user(request, pk: int):
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(
+    request=RevokeUserRequestSerializer,
+    responses={204: None},
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Permission set ID",
+        )
+    ],
+    description="Revoke user access from a permission set. Requires 'full' permission on the permission set.",
+    tags=["authorization"],
+)
 @api_view(["POST"])
 def revoke_user(request, pk: int):
     permission_set = get_object_or_404(PermissionSet, pk=pk)
@@ -77,6 +110,20 @@ def revoke_user(request, pk: int):
     return Response({}, status=status.HTTP_204_NO_CONTENT)
 
 
+@extend_schema(
+    request=GrantOrganizationRequestSerializer,
+    responses={201: OrganizationPermissionSerializer},
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Permission set ID",
+        )
+    ],
+    description="Grant organization access to a permission set. Requires 'full' permission on the permission set.",
+    tags=["authorization"],
+)
 @api_view(["POST"])
 def grant_organization(request, pk: int):
     permission_set = get_object_or_404(PermissionSet, pk=pk)
@@ -102,6 +149,20 @@ def grant_organization(request, pk: int):
     return Response(serializer.data, status=status.HTTP_201_CREATED)
 
 
+@extend_schema(
+    request=RevokeOrganizationRequestSerializer,
+    responses={204: None},
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Permission set ID",
+        )
+    ],
+    description="Revoke organization access from a permission set. Requires 'full' permission on the permission set.",
+    tags=["authorization"],
+)
 @api_view(["POST"])
 def revoke_organization(request, pk: int):
     permission_set = get_object_or_404(PermissionSet, pk=pk)
