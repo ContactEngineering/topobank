@@ -1,10 +1,13 @@
 from django.db.models import Q
+from django.http import HttpResponseForbidden
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
 
 from ..organizations.models import resolve_organization
+from ..organizations.permissions import OrganizationPermission
 from .anonymous import get_anonymous_user
 from .models import User
 from .permissions import UserPermission
@@ -47,7 +50,7 @@ class UserViewSet(viewsets.ModelViewSet):
 
 
 def get_user_and_organization(request, pk):
-    user = User.objects.get(pk=pk)
+    user = get_object_or_404(User, pk=pk)
     organization_url = request.data.get("organization")
     organization = resolve_organization(organization_url)
     return user, organization
@@ -57,6 +60,16 @@ def get_user_and_organization(request, pk):
 @permission_classes([UserPermission])
 def add_organization(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
+
+    # Explicit object-level permission checks
+    user_permission = UserPermission()
+    if not user_permission.has_object_permission(request, None, user):
+        return HttpResponseForbidden("You do not have permission to modify this user.")
+
+    org_permission = OrganizationPermission()
+    if not org_permission.has_object_permission(request, None, organization):
+        return HttpResponseForbidden("You do not have permission to modify this organization.")
+
     user.groups.add(organization.group)
     return Response({})
 
@@ -65,5 +78,15 @@ def add_organization(request, pk: int):
 @permission_classes([UserPermission])
 def remove_organization(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
+
+    # Explicit object-level permission checks
+    user_permission = UserPermission()
+    if not user_permission.has_object_permission(request, None, user):
+        return HttpResponseForbidden("You do not have permission to modify this user.")
+
+    org_permission = OrganizationPermission()
+    if not org_permission.has_object_permission(request, None, organization):
+        return HttpResponseForbidden("You do not have permission to modify this organization.")
+
     user.groups.remove(organization.group)
     return Response({})

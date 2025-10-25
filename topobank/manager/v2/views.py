@@ -1,6 +1,7 @@
 import logging
 
 from django.http import HttpResponseBadRequest
+from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -115,7 +116,7 @@ def upload_zip_start(request: Request):
 @permission_classes([IsAuthenticated])
 def upload_zip_finish(request: Request, pk: int):
     # Get ZIP container
-    zip_container = ZipContainer.objects.get(pk=pk)
+    zip_container = get_object_or_404(ZipContainer, pk=pk)
     zip_container.authorize_user(request.user)
 
     # Dispatch task

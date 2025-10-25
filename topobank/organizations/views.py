@@ -1,3 +1,5 @@
+from django.http import HttpResponseForbidden
+from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import LimitOffsetPagination
@@ -38,7 +40,7 @@ class OrganizationViewSet(viewsets.ModelViewSet):
 
 
 def get_user_and_organization(request, pk):
-    organization = Organization.objects.get(pk=pk)
+    organization = get_object_or_404(Organization, pk=pk)
     user_url = request.data.get("user")
     user = resolve_user(user_url)
     return user, organization
@@ -48,6 +50,12 @@ def get_user_and_organization(request, pk):
 @permission_classes([OrganizationPermission])
 def add_user(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
+
+    # Explicit object-level permission check
+    permission = OrganizationPermission()
+    if not permission.has_object_permission(request, None, organization):
+        return HttpResponseForbidden("You do not have permission to modify this organization.")
+
     user.groups.add(organization.group)
     return Response({})
 
@@ -56,5 +64,11 @@ def add_user(request, pk: int):
 @permission_classes([OrganizationPermission])
 def remove_user(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
+
+    # Explicit object-level permission check
+    permission = OrganizationPermission()
+    if not permission.has_object_permission(request, None, organization):
+        return HttpResponseForbidden("You do not have permission to modify this organization.")
+
     user.groups.remove(organization.group)
     return Response({})
