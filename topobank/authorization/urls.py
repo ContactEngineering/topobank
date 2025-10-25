@@ -18,22 +18,22 @@ urlpatterns += [
     # API routes
     #
     path(
-        "v2/grant-user-access/<pk>/",
+        "v2/grant-user-access/<int:id>/",
         view=v2.grant_user,
         name="grant-user-access-v2",
     ),
     path(
-        "v2/revoke-user-access/<pk>/",
+        "v2/revoke-user-access/<int:id>/",
         view=v2.revoke_user,
         name="revoke-user-access-v2",
     ),
     path(
-        "v2/grant-organization-access/<pk>/",
+        "v2/grant-organization-access/<int:id>/",
         view=v2.grant_organization,
         name="grant-organization-access-v2",
     ),
     path(
-        "v2/revoke-organization-access/<pk>/",
+        "v2/revoke-organization-access/<int:id>/",
         view=v2.revoke_organization,
         name="revoke-organization-access-v2",
     ),

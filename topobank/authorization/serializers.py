@@ -5,6 +5,7 @@ from rest_framework.reverse import reverse
 from topobank.authorization.models import (
     OrganizationPermission,
     PermissionSet,
+    Permissions,
     UserPermission,
 )
 from topobank.organizations.serializers import OrganizationSerializer
@@ -89,3 +90,53 @@ class PermissionSetSerializer(serializers.ModelSerializer):
                 request=request,
             ),
         }
+
+
+class GrantUserRequestSerializer(serializers.Serializer):
+    """Serializer for granting user access request"""
+
+    user = serializers.CharField(
+        help_text="User identifier (URL or ID) to grant access to"
+    )
+    allow = serializers.ChoiceField(
+        choices=[
+            ("no-access", "No Access"),
+            (Permissions.view.name, "View"),
+            (Permissions.edit.name, "Edit"),
+            (Permissions.full.name, "Full"),
+        ],
+        help_text="Permission level to grant",
+    )
+
+
+class RevokeUserRequestSerializer(serializers.Serializer):
+    """Serializer for revoking user access request"""
+
+    user = serializers.CharField(
+        help_text="User identifier (URL or ID) to revoke access from"
+    )
+
+
+class GrantOrganizationRequestSerializer(serializers.Serializer):
+    """Serializer for granting organization access request"""
+
+    organization = serializers.CharField(
+        help_text="Organization identifier (URL or ID) to grant access to"
+    )
+    allow = serializers.ChoiceField(
+        choices=[
+            ("no-access", "No Access"),
+            (Permissions.view.name, "View"),
+            (Permissions.edit.name, "Edit"),
+            (Permissions.full.name, "Full"),
+        ],
+        help_text="Permission level to grant",
+    )
+
+
+class RevokeOrganizationRequestSerializer(serializers.Serializer):
+    """Serializer for revoking organization access request"""
+
+    organization = serializers.CharField(
+        help_text="Organization identifier (URL or ID) to revoke access from"
+    )
