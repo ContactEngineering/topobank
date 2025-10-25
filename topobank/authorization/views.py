@@ -72,7 +72,11 @@ def grant_user(request, id: int):
 
     user = resolve_user(serializer.validated_data["user"])
     allow = serializer.validated_data["allow"]
-    permission_set.grant_for_user(user, allow)
+    if allow == "no-access":
+        permission_set.revoke_from_user(user)
+        return Response({}, status=status.HTTP_204_NO_CONTENT)
+    else:
+        permission_set.grant_for_user(user, allow)
 
     response_serializer = UserPermissionSerializer(
         permission_set.user_permissions.get(user=user),
@@ -136,7 +140,11 @@ def grant_organization(request, id: int):
 
     organization = resolve_organization(serializer.validated_data["organization"])
     allow = serializer.validated_data["allow"]
-    permission_set.grant_for_organization(organization, allow)
+    if allow == "no-access":
+        permission_set.revoke_from_organization(organization)
+        return Response({}, status=status.HTTP_204_NO_CONTENT)
+    else:
+        permission_set.grant_for_organization(organization, allow)
 
     response_serializer = OrganizationPermissionSerializer(
         permission_set.organization_permissions.get(organization=organization),

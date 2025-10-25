@@ -41,8 +41,11 @@ class PermissionSetSerializer(serializers.ModelSerializer):
 
     class Meta:
         model = PermissionSet
-        fields = ("user_permissions", "organization_permissions", "api")
+        fields = ("id", "url", "user_permissions", "organization_permissions", "api")
 
+    url = serializers.HyperlinkedIdentityField(
+        view_name="authorization:permission-set-v2-detail", lookup_field="pk", read_only=True
+    )
     user_permissions = UserPermissionSerializer(many=True, read_only=True)
     organization_permissions = OrganizationPermissionSerializer(
         many=True, read_only=True
