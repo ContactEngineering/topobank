@@ -18,6 +18,7 @@
 - ENH: Custodian that regularly cleans up database (lazy deletion)
 - ENH: Unified permission REST endpoints
 - ENH: Uploading ZIP containers
+- ENH: Query for multiple surfaces/tags
 - MAINT: Refactored internal Analysis* models to Workflow* model (#1161)
 - MAINT: Removed automatic generation of default group "all"
 - MAINT: Route beat tasks to manager queue
