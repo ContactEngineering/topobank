@@ -157,7 +157,7 @@ class TopographyViewSet(
                 )
             return qs
         else:
-            return qs.filter(subject_q)
+            return qs.filter(subject_q).distinct()
 
     def perform_create(self, serializer):
         # Check whether the user is allowed to write to the parent surface; if not, we
