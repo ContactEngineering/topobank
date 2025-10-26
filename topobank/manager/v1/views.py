@@ -13,7 +13,11 @@ from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.exceptions import ParseError, PermissionDenied
 from rest_framework.pagination import LimitOffsetPagination
-from rest_framework.permissions import IsAdminUser, IsAuthenticated, IsAuthenticatedOrReadOnly
+from rest_framework.permissions import (
+    IsAdminUser,
+    IsAuthenticated,
+    IsAuthenticatedOrReadOnly,
+)
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
@@ -121,36 +125,39 @@ class TopographyViewSet(
         qs = Topography.objects.for_user(self.request.user).filter(
             deletion_time__isnull=True
         )
-        surface = self.request.query_params.get("surface", None)
-        tag = self.request.query_params.get("tag", None)
-        tag_startswith = self.request.query_params.get("tag_startswith", None)
-        if sum([surface is not None, tag is not None, tag_startswith is not None]) > 1:
-            raise ParseError(
-                "Please specify only one of `surface`, `tag` or `tag_startswith`."
-            )
-        if surface is not None:
-            qs = qs.filter(surface__id=int(surface))
-        elif tag is not None:
-            if tag:
-                qs = qs.filter(surface__tags__name=tag)
-            else:
-                qs = qs.filter(surface__tags=None)
-        elif tag_startswith is not None:
-            if tag_startswith:
-                qs = qs.filter(
-                    Q(surface__tags__name=tag_startswith)
-                    | Q(
-                        surface__tags__name__startswith=tag_startswith.rstrip("/") + "/"
+        surfaces = self.request.query_params.getlist("surface")
+        tags = self.request.query_params.getlist("tag")
+        tags_startswith = self.request.query_params.getlist("tag_startswith")
+        subject_q = Q()
+        if len(surfaces) > 0:
+            for surface in surfaces:
+                try:
+                    surface_id = int(surface)
+                except ValueError:
+                    raise ParseError(
+                        f"Invalid surface ID '{surface}'. Please provide an integer."
                     )
-                ).distinct()
-            else:
-                raise ParseError("`tag_startswith` cannot be empty")
-        elif self.action == "list":
-            raise ParseError(
-                "Please limit your request with query parameters. Possible parameters "
-                "are: `surface`, `tag`, `tag_startswith`"
-            )
-        return qs
+                subject_q |= Q(surface__id=surface_id)
+        elif len(tags) > 0:
+            for tag in tags:
+                if tag:
+                    subject_q |= Q(surface__tags__name=tag)
+                else:
+                    subject_q |= Q(surface__tags=None)
+        elif len(tags_startswith) > 0:
+            for tag_startswith in tags_startswith:
+                subject_q |= (Q(surface__tags__name=tag_startswith)
+                              | Q(surface__tags__name__startswith=tag_startswith.rstrip("/") + "/"))
+
+        if len(subject_q) == 0:
+            if self.action == "list":
+                raise ParseError(
+                    "Please limit your request with query parameters. Possible parameters "
+                    "are: `surface`, `tag`, `tag_startswith`"
+                )
+            return qs
+        else:
+            return qs.filter(subject_q)
 
     def perform_create(self, serializer):
         # Check whether the user is allowed to write to the parent surface; if not, we
