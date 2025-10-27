@@ -15,7 +15,7 @@ from topobank.testing.utils import ASSERT_EQUAL_IGNORE_VALUE, assert_dict_equal
 
 
 @pytest.mark.django_db
-def test_statistics(api_client, handle_usage_statistics):
+def test_statistics(api_client, user_staff, handle_usage_statistics):
     user = UserFactory()
     surf1 = SurfaceFactory(creator=user)
     surf2 = SurfaceFactory(creator=user)
@@ -42,6 +42,7 @@ def test_statistics(api_client, handle_usage_statistics):
     AnalysisFactory(subject_surface=surf1, function=func, kwargs=kwargs_1)
     AnalysisFactory(subject_surface=surf2, function=func, kwargs=kwargs_2)
 
+    api_client.force_login(user_staff)
     response = api_client.get(reverse("manager:statistics"))
     # assert response.data["nb_users"] == 1
     assert response.data["nb_surfaces"] == 2

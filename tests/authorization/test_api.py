@@ -4,7 +4,7 @@ from rest_framework.reverse import reverse
 def test_api():
     """Test API routes"""
     assert (
-        reverse("authorization:permission-set-v2-detail", kwargs=dict(id=123))
+        reverse("authorization:permission-set-v2-detail", kwargs=dict(pk=123))
         == "/authorization/v2/permission-set/123/"
     )
     assert (
