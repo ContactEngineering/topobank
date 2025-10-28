@@ -33,9 +33,38 @@ class MyUserCreationForm(UserCreationForm):
 class MyUserAdmin(AuthUserAdmin):
     form = MyUserChangeForm
     add_form = MyUserCreationForm
-    fieldsets = (("User profile", {"fields": ("name",)}),) + AuthUserAdmin.fieldsets
+    fieldsets = (
+        ("User profile", {"fields": ("name",)}),
+        (None, {"fields": ("username", "password")}),
+        ("Personal info", {"fields": ("first_name", "last_name", "email")}),
+        (
+            "Permissions",
+            {
+                "fields": (
+                    "is_active",
+                    "is_staff",
+                    "is_superuser",
+                    "groups",
+                    "user_permissions",
+                ),
+            },
+        ),
+        ("Important dates", {"fields": ("last_login", "date_joined")}),
+    )
+    add_fieldsets = (
+        (
+            None,
+            {
+                "classes": ("wide",),
+                "fields": ("username", "password1", "password2"),
+            },
+        ),
+        ("User profile", {"fields": ("name",)}),
+        ("Personal info", {"fields": ("first_name", "last_name", "email")}),
+    )
     list_display = ("id", "username", "name", "is_superuser", "orcid_uri")
     search_fields = ["name"]
+    readonly_fields = ["last_login", "date_joined"]
 
     @admin.display(description="ORCID URI")
     def orcid_uri(self, user):

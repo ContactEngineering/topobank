@@ -1,3 +1,4 @@
+from allauth.utils import generate_unique_username
 from django.db.models import Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
@@ -47,6 +48,17 @@ class UserViewSet(viewsets.ModelViewSet):
 
         # Return query set
         return qs
+
+    def create(self, request, *args, **kwargs):
+        data: dict = request.data
+        if data.get("username"):
+            username = data.pop("username")
+        else:
+            username = generate_unique_username([data.get("email"), data.get("name")])
+        serializer = self.get_serializer(data={**data, "username": username})
+        serializer.is_valid(raise_exception=True)
+        serializer.save()
+        return Response(serializer.data, status=201)
 
 
 def get_user_and_organization(request, pk):
