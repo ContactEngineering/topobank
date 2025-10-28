@@ -22,10 +22,8 @@ jobs:
           - ['postgres:17', 'postgres://postgres:secret@localhost/topobank-test']
         storage:
           - ['hello-world', 'inmemorystorage.InMemoryStorage', 'POST']
-          # We need the bitnami image because minios standard image does not start the
-          # server without a custom command, which we cannot pass in gh-actions
-          - ['ghcr.io/hedge10/minio-gh-workflow:latest', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
-          - ['ghcr.io/hedge10/minio-gh-workflow:latest', 'storages.backends.s3boto3.S3Boto3Storage', 'PUT']
+          - ['minio', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
+          - ['minio', 'storages.backends.s3boto3.S3Boto3Storage', 'PUT']
         python-version: ['3.10', '3.13']
 
     services:
@@ -38,14 +36,6 @@ jobs:
         ports:
           - 5432:5432
 
-      minio:
-        image: ${{ matrix.storage[0] }}
-        env:
-          MINIO_ROOT_USER: admin
-          MINIO_ROOT_PASSWORD: secret12
-        ports:
-          - 9000:9000
-
     env:
       DATABASE_URL: ${{ matrix.database[1] }}
       STORAGE_BACKEND: ${{ matrix.storage[1] }}
@@ -56,13 +46,38 @@ jobs:
       AWS_S3_ENDPOINT_URL: http://localhost:9000
 
     steps:
+    - name: Start Minio
+      if: endsWith(matrix.storage[1], 'S3Boto3Storage')
+      run: |
+        docker run -d \
+          --name minio \
+          -p 9000:9000 \
+          -p 9001:9001 \
+          -e MINIO_ROOT_USER=$AWS_ACCESS_KEY_ID \
+          -e MINIO_ROOT_PASSWORD=$AWS_SECRET_ACCESS_KEY \
+          minio/minio:latest \
+          server /data --console-address ":9001"
+
     - name: Create bucket
       if: endsWith(matrix.storage[1], 'S3Boto3Storage')
       run: |
         curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
         chmod +x $HOME/minio-binaries/mc
         export PATH=$PATH:$HOME/minio-binaries/
-        mc alias set minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY
+
+        # Wait for Minio to be ready
+        echo "Waiting for Minio to be ready..."
+        for i in {1..30}; do
+          if mc alias set minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY 2>/dev/null; then
+            echo "Minio is ready!"
+            break
+          fi
+          echo "Attempt $i: Minio not ready yet, waiting..."
+          sleep 2
+        done
+
+        # Verify the alias was set successfully
+        mc alias list minio
         mc mb --ignore-existing minio/$AWS_STORAGE_BUCKET_NAME
 
     - name: Checkout source code
