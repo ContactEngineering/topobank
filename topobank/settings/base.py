@@ -699,3 +699,10 @@ DELETE_EXISTING_FILES = env.bool("TOPOBANK_DELETE_EXISTING_FILES", default=False
 # ------------------------------------------------------------------------------
 TOPOBANK_THUMBNAIL_FORMAT = "jpeg"  # File format for thumbnails
 TOPOBANK_DELETE_DELAY = timedelta(days=7)  # Hold deleted datasets this long
+
+
+# ALLAUTH SETTINGS
+# ------------------------------------------------------------------------------
+ACCOUNT_USERNAME_REQUIRED = True
+USER_MODEL_USERNAME_FIELD = "username"
+USERNAME_MIN_LENGTH = 3
