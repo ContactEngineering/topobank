@@ -1,4 +1,5 @@
 from django.db import transaction
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from topobank.properties.models import Property
@@ -12,6 +13,22 @@ class ValueField(serializers.Field):
         return data
 
 
+@extend_schema_field(
+    {
+        "type": "object",
+        "patternProperties": {
+            "^.*$": {
+                "type": "object",
+                "properties": {
+                    "value": {"anyOf": [{"type": "string"}, {"type": "number"}]},
+                    "unit": {"type": "string"},
+                },
+                "required": ["value"],
+            },
+        },
+        "additionalProperties": False,
+    }
+)
 class PropertiesField(serializers.Field):
     def to_representation(self, value):
         ret = {}
