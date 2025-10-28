@@ -62,7 +62,20 @@ jobs:
         curl https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
         chmod +x $HOME/minio-binaries/mc
         export PATH=$PATH:$HOME/minio-binaries/
-        mc alias set minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY
+
+        # Wait for Minio to be ready
+        echo "Waiting for Minio to be ready..."
+        for i in {1..30}; do
+          if mc alias set minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY 2>/dev/null; then
+            echo "Minio is ready!"
+            break
+          fi
+          echo "Attempt $i: Minio not ready yet, waiting..."
+          sleep 2
+        done
+
+        # Verify the alias was set successfully
+        mc alias list minio
         mc mb --ignore-existing minio/$AWS_STORAGE_BUCKET_NAME
 
     - name: Checkout source code
