@@ -41,9 +41,8 @@ class StrictFieldMixin:
             return attrs
 
         # collect declared read only fields and read only fields from Meta
-        read_only_fields = {
-            field_name for field_name, field in self.fields.items() if field.read_only
-        } | set(getattr(self.Meta, "read_only_fields", set()))
+        read_only_fields = {field_name for field_name, field in self.fields.items() if field.read_only} | set(
+            getattr(self.Meta, "read_only_fields", set()))
 
         received_read_only_fields = set(self.initial_data) & read_only_fields
 
@@ -177,7 +176,7 @@ class PermissionsField(serializers.RelatedField):
         },
     }
 )
-class ModelRelatedField(serializers.HyperlinkedRelatedField):
+class ModelRelatedField(serializers.RelatedField):
     """
     A reusable Django REST Framework related field that returns a dictionary
     representation of an object with ID, URL, and optionally additional fields.
@@ -194,6 +193,10 @@ class ModelRelatedField(serializers.HyperlinkedRelatedField):
         A list of additional model fields to include in the serialized output.
         (Default: None)
     """
+
+    default_error_messages = {
+        'id_url_not_present': _('Either "id" or "url" must be present in the input data.')
+    }
 
     def __init__(
         self,
@@ -229,7 +232,7 @@ class ModelRelatedField(serializers.HyperlinkedRelatedField):
             }
         """
         data = {
-            "id": obj.id,
+            "id": obj.pk,
             "url": reverse(
                 self.view_name,
                 kwargs={self.lookup_field: getattr(obj, self.lookup_field)},
@@ -260,12 +263,12 @@ class ModelRelatedField(serializers.HyperlinkedRelatedField):
         if id is None and url is not None:
             match = resolve(urlparse(url=url).path)
             if match.view_name != self.view_name:
-                raise ValueError("URL does not resolve to an Organization instance")
+                self.fail('incorrect_match')
             return self.get_queryset().get(**match.kwargs)
         elif id is not None:
             return self.get_queryset().get(id=id)
         else:
-            raise TypeError("Need `id` or `url` in input data to identify object")
+            self.fail('id_url_not_present')
 
 
 @extend_schema_field(
