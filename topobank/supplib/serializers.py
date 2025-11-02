@@ -1,3 +1,6 @@
+from urllib.parse import urlparse
+
+from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
@@ -172,10 +175,9 @@ class PermissionsField(serializers.RelatedField):
             "id": {"type": "number"},
             "url": {"type": "string"},
         },
-        "required": ["id", "url"],
     }
 )
-class ModelRelatedField(serializers.RelatedField):
+class ModelRelatedField(serializers.HyperlinkedRelatedField):
     """
     A reusable Django REST Framework related field that returns a dictionary
     representation of an object with ID, URL, and optionally additional fields.
@@ -253,7 +255,17 @@ class ModelRelatedField(serializers.RelatedField):
         Model instance
             The corresponding model instance.
         """
-        return self.get_queryset().get(id=data)
+        id = data.get("id", None)
+        url = data.get("url", None)
+        if id is None and url is not None:
+            match = resolve(urlparse(url=url).path)
+            if match.view_name != self.view_name:
+                raise ValueError("URL does not resolve to an Organization instance")
+            return self.get_queryset().get(**match.kwargs)
+        elif id is not None:
+            return self.get_queryset().get(id=id)
+        else:
+            raise TypeError("Need `id` or `url` in input data to identify object")
 
 
 @extend_schema_field(
