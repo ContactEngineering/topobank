@@ -649,13 +649,6 @@ class OrganizationField(ModelRelatedField):
             ]
         }
 
-    Input for deserialization::
-
-        {
-            "name": "New Project",
-            "owner_organization": {"id": 5}
-        }
-
     Notes
     -----
     - This field is pre-configured to use the 'organizations:organization-v1-detail' view name
