@@ -560,13 +560,6 @@ class UserField(ModelRelatedField):
             }
         }
 
-    Input for deserialization::
-
-        {
-            "text": "Updated comment",
-            "last_edited_by": {"id": 42}
-        }
-
     Notes
     -----
     - This field is pre-configured to use the 'users:user-v1-detail' view name
