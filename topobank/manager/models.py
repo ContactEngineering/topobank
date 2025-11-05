@@ -155,6 +155,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
             "manager:tag-api-detail", kwargs=dict(name=self.name), request=request
         )
 
+    # TODO: Make this work with permission mixin
     def authorize_user(
         self,
         user: User = None,
@@ -347,7 +348,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     #
 
     # `creator` is only NULL if user is deleted after dataset has been created.
-    # Custodian should NOT remove datasets with NULL organization
+    # Custodian should NOT remove datasets with NULL creator
     creator = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True
     )

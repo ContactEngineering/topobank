@@ -136,7 +136,7 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
         # Okay, we have dependencies so let us check what their states are
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
         finished_dependencies, scheduled_dependencies = prepare_dependency_tasks(
-            dependencies, force, analysis.creator
+            dependencies, force, analysis.created_by
         )
         if len(scheduled_dependencies) > 0:
             # We just created new `Analysis` instances or decided that an existing
@@ -494,8 +494,9 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             # No analysis exists, we create a new one.
             # New analysis needs its own permissions
             permissions = PermissionSet.objects.create()
-            # Nobody can formally access this analysis, but access will be granted
-            # automatically when requesting it directly (through the GET route)
+            permissions.grant_for_user(user, "view")
+            # User needs at least view permission to dependency
+            # TODO: We should have dependency permissions match the 'parent' analysis permissions
 
             # Folder will store any resulting files
             folder = Folder.objects.create(permissions=permissions, read_only=True)
@@ -508,7 +509,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                 task_state=WorkflowResult.PENDING,  # We are submitting this right away
                 kwargs=kwargs,
                 folder=folder,
-                creator=user,
+                created_by=user,
             )
             scheduled_dependent_analyses[key] = new_analysis
         elif all_results.count() == 1:

@@ -465,36 +465,90 @@ class ModelRelatedField(serializers.RelatedField):
         }
         if self.fields:
             for field in self.fields:
-                data[field] = getattr(obj, field)
+                value = getattr(obj, field)
+                if value.__class__.__name__ == "FieldFile":
+                    data[field] = value.url if value else None
+                    continue
+                data[field] = value
         return data
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: dict):
         """
         Convert the input data back into a model instance.
 
         Parameters
         ----------
         data : dict
-            The input data containing at least the 'id' of the model instance.
+            The input data containing at least the 'id' or 'url' of the model instance.
 
         Returns
         -------
         Model instance
             The corresponding model instance.
         """
-        id = data.get("id", None)
-        url = data.get("url", None)
-        if id is None and url is not None:
+        keys = data.keys()
+        if "id" in keys and "url" in keys:
+            self.fail('id_url_both_present')
+        elif "id" not in keys and "url" not in keys:
+            self.fail('id_url_not_present')
+
+        if url := data.get("url", None):
             match = resolve(urlparse(url=url).path)
             if match.view_name != self.view_name:
                 self.fail('incorrect_match')
             return self.get_queryset().get(**match.kwargs)
-        elif id is not None and url is None:
+        elif id := data.get("id", None):
             return self.get_queryset().get(id=id)
-        elif id is None and url is None:
-            self.fail('id_url_not_present')
-        else:
-            self.fail('id_url_both_present')
+
+
+    def display_value(self, instance):
+        """
+        Return a string representation for use in HTML forms.
+
+        This method is called by DRF's browsable API when rendering
+        select dropdowns. It needs to return a string, not a dict.
+
+        Parameters
+        ----------
+        instance : Model instance
+            The model instance to display.
+
+        Returns
+        -------
+        str
+            A string representation of the instance.
+        """
+        return str(instance)
+
+    def get_choices(self, cutoff=None):
+        """
+        Return a dict of choices for use in HTML forms.
+
+        This overrides the parent method to use the primary key as the
+        dictionary key instead of the full to_representation() output,
+        since to_representation() returns a dict which is unhashable.
+
+        Parameters
+        ----------
+        cutoff : int, optional
+            Maximum number of choices to return.
+
+        Returns
+        -------
+        OrderedDict
+            A dictionary mapping primary keys to display strings.
+        """
+        queryset = self.get_queryset()
+        if queryset is None:
+            return {}
+
+        if cutoff is not None:
+            queryset = queryset[:cutoff]
+
+        return {
+            getattr(item, self.lookup_field): self.display_value(item)
+            for item in queryset
+        }
 
 
 @extend_schema_field(
@@ -661,3 +715,59 @@ class OrganizationField(ModelRelatedField):
                          lookup_field="pk",
                          fields=["name"],
                          **kwargs)
+
+
+class SubjectField(serializers.RelatedField):
+    """
+    A reusable Django REST Framework related field that returns a dictionary
+    containing the subject's identifier, a hyperlinked URL, and name.
+
+    The serialized representation takes the form:
+
+        {
+            "id": <subject id>,
+            "url": <hyperlinked URL>,
+            "name": <subject_name>,
+            "type": <subject_type>
+        }
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        subject_type = obj.__class__.__name__.lower()
+        view_name = f"manager:{subject_type}-v2-detail"
+        kwargs = {"pk": obj.id}
+        if subject_type == "tag":
+            view_name = "manager:tag-api-detail"
+            kwargs = {"name": obj.name}
+        data = {
+            "id": obj.id,
+            "url": reverse(
+                view_name,
+                kwargs=kwargs,
+                request=self.context.get("request", None),
+            ),
+            "name": obj.name,
+            "type": subject_type,
+        }
+        return data
+
+
+class StringOrIntegerField(serializers.Field):
+    """
+    A field that accepts either a string or an integer.
+    """
+    def to_internal_value(self, data):
+        if isinstance(data, int):
+            return data
+        elif isinstance(data, str):
+            return data
+        else:
+            raise serializers.ValidationError(
+                "Subject must be either an integer (for Surface/Topography) or a string (for Tag name)."
+            )
+
+    def to_representation(self, value):
+        return value

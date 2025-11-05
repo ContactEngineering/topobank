@@ -12,7 +12,7 @@ from rest_framework.response import Response
 import topobank.manager.v1.views as v1
 
 from ...authorization.models import PermissionSet
-from ...authorization.permissions import Permission
+from ...authorization.permissions import ObjectPermission
 from ...taskapp.utils import run_task
 from ..zip_model import ZipContainer
 from .serializers import (
@@ -52,7 +52,7 @@ class TopographyViewSet(v1.TopographyViewSet):
 class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     queryset = ZipContainer.objects.all()
     serializer_class = ZipContainerV2Serializer
-    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
 
 
 @api_view(["POST"])

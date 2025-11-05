@@ -126,7 +126,8 @@ class ResultSerializer(
     configuration = serializers.HyperlinkedRelatedField(
         view_name="analysis:configuration-detail", read_only=True
     )
-    creator = UserField(read_only=True)
+    creation_time = serializers.DateTimeField(source="created_at", read_only=True)
+    creator = UserField(source="created_by", read_only=True)
 
     @extend_schema_field(
         {

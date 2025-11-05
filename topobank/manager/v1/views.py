@@ -21,7 +21,7 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
-from ...authorization.permissions import Permission
+from ...authorization.permissions import ObjectPermission
 from ...files.models import Manifest
 from ...organizations.models import resolve_organization
 from ...supplib.versions import get_versions
@@ -60,7 +60,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
 
 class SurfaceViewSet(viewsets.ModelViewSet):
     serializer_class = SurfaceSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
     pagination_class = LimitOffsetPagination
 
     def _notify(self, instance, verb):
@@ -106,7 +106,7 @@ class TopographyViewSet(
     viewsets.GenericViewSet,
 ):
     serializer_class = TopographySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
     pagination_class = LimitOffsetPagination
 
     def _notify(self, instance, verb):

@@ -576,6 +576,7 @@ def memory_usage(request):
     return Response(m, status=200)
 
 
+# TODO: Delete this function. Permissions are handled in auth ViewSet now.
 @api_view(["PATCH"])
 def set_result_permissions(request, workflow_id=None):
     analysis_obj = WorkflowResult.objects.get(pk=workflow_id)

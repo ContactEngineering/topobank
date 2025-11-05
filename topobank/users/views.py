@@ -39,6 +39,7 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
         # Filter for name
+        # TODO: query name, username, email together
         if name is not None:
             qs = qs.filter(name__icontains=name)
 

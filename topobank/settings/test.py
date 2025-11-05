@@ -6,6 +6,8 @@ from .base import *  # noqa
 from .base import env
 
 # GENERAL
+
+SDS_PREDICTION_QUEUE = env.str("PREDICTION_QUEUE_NAME", default="prediction")
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
 DEBUG = False
