@@ -2,7 +2,8 @@ import logging
 
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from django_filters.rest_framework import backends
+from drf_spectacular.utils import extend_schema, extend_schema_view
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -10,13 +11,17 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 import topobank.manager.v1.views as v1
+from topobank.manager.filters import TopographyViewFilterSet
+from topobank.supplib.pagination import TopobankPaginator
 
 from ...authorization.models import PermissionSet
-from ...authorization.permissions import ObjectPermission
+from ...authorization.permissions import ObjectPermission, PermissionFilterBackend
 from ...taskapp.utils import run_task
+from ..models import Topography
 from ..zip_model import ZipContainer
 from .serializers import (
     SurfaceV2Serializer,
+    TopographyV2ListSerializer,
     TopographyV2Serializer,
     ZipContainerV2Serializer,
 )
@@ -34,19 +39,34 @@ class SurfaceViewSet(v1.SurfaceViewSet):
     ),
     list=extend_schema(
         description="List all topographies accessible to the authenticated user. "
-                    "Optionally filter by surface ID or tags.",
-        parameters=[
-            OpenApiParameter(name="surface", description="Filter topographies by surface ID",
-                             required=False, type=int),
-            OpenApiParameter(name="tag", description="Filter topographies by tag",
-                             required=False, type=str),
-            OpenApiParameter(name="tag_startswith", description="Filter topographies by tag prefix",
-                             required=False, type=str),
-        ]
+                    "Optionally filter by surface ID or tags."
     )
 )
-class TopographyViewSet(v1.TopographyViewSet):
+class TopographyViewSet(viewsets.ModelViewSet):
     serializer_class = TopographyV2Serializer
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
+    pagination_class = TopobankPaginator
+    filter_backends = [PermissionFilterBackend, backends.DjangoFilterBackend]
+    filterset_class = TopographyViewFilterSet
+
+    def get_queryset(self):
+        return Topography.objects.for_user(self.request.user).filter(
+            deletion_time__isnull=True
+        ).select_related(
+            'surface',
+            'permissions',
+            'creator',
+            'attachments',
+            'thumbnail',
+            'deepzoom',
+            'datafile',
+            'squeezed_datafile',
+        ).order_by('-creation_time')
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return TopographyV2ListSerializer
+        return super().get_serializer_class()
 
 
 class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):

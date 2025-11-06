@@ -1,24 +1,27 @@
+import tagulous.models.fields
 from django.contrib import admin
 from tagulous.admin import TagModelAdmin
-import tagulous.models.fields
 
-from .models import Surface, Topography, Tag
+from .models import Surface, Tag, Topography
 
 # Monkey-patch FakeQuerySet to display properly in admin
 # This is needed for Django 5.2 compatibility with tagulous
 _original_fakequeryset_str = tagulous.models.fields.FakeQuerySet.__str__
+
+
 def _fakequeryset_str(self):
     """Return the tag string instead of object representation"""
     if hasattr(self.obj, 'pk') and isinstance(self.obj.pk, str):
         return self.obj.pk
     return _original_fakequeryset_str(self)
 
+
 tagulous.models.fields.FakeQuerySet.__str__ = _fakequeryset_str
 
 
 class TagFieldAdminMixin:
     """Mixin to fix TagField compatibility with Django 5.2
-    
+
     If we upgrade to a tagulous version that supports Django 5.2,
     this mixin can be removed.
     """
@@ -79,6 +82,7 @@ class TagFieldAdminMixin:
 class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
     list_display = ("id", "name", "creation_time")
     ordering = ["-creation_time"]
+    search_fields = ("name", "id")
 
 
 @admin.register(Topography)
@@ -86,6 +90,7 @@ class TopographyAdmin(TagFieldAdminMixin, admin.ModelAdmin):
     list_display = ("id", "name", "creation_time", "task_state", "task_id")
     list_filter = ("task_state",)
     ordering = ["-creation_time"]
+    search_fields = ("name", "id", "task_id")
 
 
 @admin.register(Tag)

@@ -17,6 +17,43 @@ from ..models import Surface, Topography
 from ..zip_model import ZipContainer
 
 
+class TopographyV2ListSerializer(TaskStateModelSerializer):
+    class Meta:
+        model = Topography
+        fields = [
+            # Self
+            "url",
+            "id",
+            # Hyperlinked resources
+            "surface",
+            "creator",
+            "thumbnail",
+            # Everything else
+            "name",
+            "size_x",
+            "size_y",
+            "unit",
+            "creation_time",
+            "modification_time",
+            "task_state",
+            "tags",
+        ]
+
+    # Self
+    url = serializers.HyperlinkedIdentityField(
+        view_name="manager:topography-v2-detail", read_only=True
+    )
+    thumbnail = serializers.FileField(source='thumbnail.file', read_only=True)
+    # Hyperlinked resources
+    creator = UserField(read_only=True)
+    surface = ModelRelatedField(
+        view_name="manager:surface-v2-detail", queryset=Surface.objects.all()
+    )
+
+    # Tags
+    tags = TagRelatedManagerField(required=False)
+
+
 class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     class Meta:
         model = Topography

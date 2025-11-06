@@ -1,12 +1,63 @@
 from django.contrib.postgres.search import SearchQuery, SearchVector
 from django.db.models import Q, Subquery, TextField, Value
 from django.db.models.functions import Replace
+from django_filters.rest_framework import FilterSet, filters
 from rest_framework.exceptions import ParseError, PermissionDenied
 
-from topobank.manager.models import Surface
+from topobank.manager.models import Surface, Topography
 
 ORDER_BY_FILTER_CHOICES = {"name": "name", "date": "-creation_time"}
 SHARING_STATUS_FILTER_CHOICES = set(["all", "own", "others", "published"])
+
+
+class TopographyViewFilterSet(FilterSet):
+    """
+    FilterSet for Topography model.
+
+    Filters:
+    - surface: Filter by surface IDs (list)
+    - tag: Filter by exact tag name
+    - tag_contains: Filter by tag name containing substring
+    """
+
+    surface = filters.BaseInFilter(method="filter_ids", field_name="surface__id")
+    tag = filters.CharFilter(method="filter_tag_iexact", field_name="surface__tags__name", lookup_expr="iexact")
+    tag_contains = filters.CharFilter(method="filter_tag_icontains", field_name="surface__tags__name",
+                                      lookup_expr="icontains")
+
+    class Meta:
+        model = Topography
+        fields = ["surface", "tag", "tag_contains"]
+
+    def filter_ids(self, queryset, name, value):
+        """
+        Filter by surface ID(s).
+
+        Usage: ?surface=1,2,3
+        """
+
+        return queryset.filter(surface__id__in=value)
+
+    def filter_tag_iexact(self, queryset, name, value):
+        """
+        Filter by exact tag name (case-insensitive) and all child tags.
+        """
+        print(f"Filtering by tag (iexact): {value}")
+        # Filter by exact tag name OR child tags (tags that start with "parent/")
+        return queryset.filter(
+            Q(surface__tags__name__iexact=value)
+            | Q(surface__tags__name__istartswith=value.rstrip("/") + "/")
+        ).distinct()
+
+    def filter_tag_icontains(self, queryset, name, value):
+        """
+        Filter by tag name containing substring (case-insensitive).
+        """
+        # TODO: we need to filter by tag id's here to avoid issues with similar tag names
+        print(f"Filtering by tag (icontains): {value}")
+        return queryset.filter(
+            surface__tags__name__icontains=value
+        ).distinct()
 
 
 def filter_by_search_term(
