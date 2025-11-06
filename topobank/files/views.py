@@ -23,7 +23,7 @@ class FileManifestViewSet(
 ):
     queryset = Manifest.objects.all()
     serializer_class = ManifestSerializer
-    # permission_classes = [IsAuthenticatedOrReadOnly, ManifestPermission]
+    permission_classes = [IsAuthenticatedOrReadOnly, ManifestPermission]
 
     def perform_create(self, serializer):
         if "folder" in serializer.validated_data:
@@ -88,8 +88,8 @@ def upload_local(request, manifest_id: int):
 def list_manifests(request, pk=None):
     """List all manifests in a folder"""
     obj = get_object_or_404(Folder, pk=pk)
-    # if not obj.has_permission(request.user, "view"):
-    #     return HttpResponseForbidden()
+    if not obj.has_permission(request.user, "view"):
+        return HttpResponseForbidden()
     return Response({
         manifest.filename: ManifestSerializer(manifest,
                                               context={"request": request}).data
