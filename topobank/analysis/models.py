@@ -12,7 +12,9 @@ from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
+from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
+
 from topobank.organizations.models import Organization
 
 from ..authorization.mixins import PermissionMixin
@@ -141,7 +143,7 @@ class WorkflowSubject(models.Model):
 
     def get_type(self):
         return self.get().__class__
-    
+
     def is_ready(self) -> bool:
         """Check whether the subject is in SUCCESS state."""
         subject = self.get()
@@ -473,6 +475,27 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             # Default queue for workflow result tasks
             return settings.TOPOBANK_ANALYSIS_QUEUE
 
+    # FIXME: discuss whether to remove this method and use the generic one from PermissionMixin
+    # overrides PermissionMixin.authorize_user <- this one returns nothing, raises exception on failure
+    # v This one grants the user permission to access the WorkflowResult without permission.
+    def authorize_user(self, user: settings.AUTH_USER_MODEL):
+        """
+        Returns an exception if given user should not be able to see this WorkflowResult.
+        """
+        # Check availability of workflow result function
+        if not self.implementation.has_permission(user):
+            raise PermissionDenied(
+                f"User {user} is not allowed to use this WorkflowResult function."
+            )
+
+        if self.is_tag_related:
+            # Check if the user can access this WorkflowResult
+            super().authorize_user(user, "view")
+
+        # Check if user can access the subject of this WorkflowResult
+        self.subject.authorize_user(user, "view")
+        self.grant_permission(user, "view")  # Required so files can be accessed
+
     @property
     def is_topography_related(self) -> bool:
         """Returns True, if the WorkflowResult subject is a topography, else False."""
@@ -692,7 +715,8 @@ class Workflow(models.Model):
         # We submit a new WorkflowResult only if we are either forced to do so or if there is
         # no WorkflowResult with the same parameter pending, running or successfully completed.
         if force_submit or successful_or_running_analyses.count() == 0:
-            # Delete *all* existing WorkflowResults with this subject/parameter set (which now may only contain failed ones),
+            # Delete *all* existing WorkflowResults with this subject/parameter set
+            # (which now may only contain failed ones),
             # excluding saved/named ones (name__isnull is a redundant since all saved
             # analyses no longer have subjects)
             existing_analyses.filter(name__isnull=True).delete()
@@ -703,13 +727,12 @@ class Workflow(models.Model):
             analysis = existing_analyses.order_by("task_start_time").last()
             return analysis
 
-    
     def _submit_new_analysis(
-            self,
-            user: settings.AUTH_USER_MODEL,
-            subject: Union[Tag, Topography, Surface],
-            kwargs: dict
-        ):
+        self,
+        user: settings.AUTH_USER_MODEL,
+        subject: Union[Tag, Topography, Surface],
+        kwargs: dict
+    ):
         """
         Create and submit a new WorkflowResult analysis.
 
