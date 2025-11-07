@@ -17,17 +17,17 @@ class TopographyViewFilterSet(FilterSet):
     Filters:
     - surface: Filter by surface IDs (list)
     - tag: Filter by exact tag name
-    - tag_contains: Filter by tag name containing substring
+    - tag_startswith: Filter by tag name starting with substring
     """
 
     surface = filters.BaseInFilter(method="filter_ids", field_name="surface__id")
-    tag = filters.CharFilter(method="filter_tag_iexact", field_name="surface__tags__name", lookup_expr="iexact")
-    tag_contains = filters.CharFilter(method="filter_tag_icontains", field_name="surface__tags__name",
-                                      lookup_expr="icontains")
+    tag = filters.CharFilter(method="filter_tag_iexact", field_name="surface__tags__path", lookup_expr="iexact")
+    tag_startswith = filters.CharFilter(method="filter_tag_istartswith", field_name="surface__tags__path",
+                                        lookup_expr="istartswith")
 
     class Meta:
         model = Topography
-        fields = ["surface", "tag", "tag_contains"]
+        fields = ["surface", "tag", "tag_startswith"]
 
     def filter_ids(self, queryset, name, value):
         """
@@ -40,23 +40,41 @@ class TopographyViewFilterSet(FilterSet):
 
     def filter_tag_iexact(self, queryset, name, value):
         """
-        Filter by exact tag name (case-insensitive) and all child tags.
+        Filter by exact tag path (case-insensitive) and all child tags.
         """
-        print(f"Filtering by tag (iexact): {value}")
-        # Filter by exact tag name OR child tags (tags that start with "parent/")
+        # Filter by exact tag path OR child tags (tags that start with "parent/")
         return queryset.filter(
-            Q(surface__tags__name__iexact=value)
-            | Q(surface__tags__name__istartswith=value.rstrip("/") + "/")
+            Q(surface__tags__path__iexact=value)
+            | Q(surface__tags__path__istartswith=value.rstrip("/") + "/")
         ).distinct()
 
-    def filter_tag_icontains(self, queryset, name, value):
+    def filter_tag_istartswith(self, queryset, name, value):
         """
-        Filter by tag name containing substring (case-insensitive).
+        Filter by tag path starting with substring (case-insensitive).
+
+        Note:
+        ----
+        This matches any tag path that starts with the given substring.
+        It should only be used for broad searches as it may return many results.
+        ALWAYS use `tag` filter for specific tag filtering.
+
+        Example:
+        --------
+        `?tag_startswith=training` matches:
+
+        /
+        ├── data
+        │   └── training  <- match + sub-tags
+        ├── training  <- match + sub-tags
+        │   └── data
+        └── bigdata
+            └── subtag
+                ├── GroupA
+                │   └── training  <- match + sub-tags
+                └── GroupB
         """
-        # TODO: we need to filter by tag id's here to avoid issues with similar tag names
-        print(f"Filtering by tag (icontains): {value}")
         return queryset.filter(
-            surface__tags__name__icontains=value
+            surface__tags__path__istartswith=value
         ).distinct()
 
 

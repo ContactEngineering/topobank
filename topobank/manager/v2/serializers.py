@@ -43,7 +43,7 @@ class TopographyV2ListSerializer(TaskStateModelSerializer):
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:topography-v2-detail", read_only=True
     )
-    thumbnail = serializers.FileField(source='thumbnail.file', read_only=True)
+    thumbnail = serializers.SerializerMethodField()
     # Hyperlinked resources
     creator = UserField(read_only=True)
     surface = ModelRelatedField(
@@ -52,6 +52,17 @@ class TopographyV2ListSerializer(TaskStateModelSerializer):
 
     # Tags
     tags = TagRelatedManagerField(required=False)
+
+    def get_thumbnail(self, obj):
+        request = self.context.get("request")
+        include_thumbnail = request.query_params.get("link_thumbnail", "false").lower()
+        if include_thumbnail in ["true", "1", "yes"]:
+            return serializers.FileField().to_representation(obj.thumbnail)
+        return reverse(
+            "files:manifest-api-detail",
+            kwargs={"pk": obj.thumbnail.id},
+            request=request,
+        ) if obj.thumbnail else None
 
 
 class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):

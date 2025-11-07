@@ -3,7 +3,7 @@ import logging
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import backends
-from drf_spectacular.utils import extend_schema, extend_schema_view
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -39,7 +39,15 @@ class SurfaceViewSet(v1.SurfaceViewSet):
     ),
     list=extend_schema(
         description="List all topographies accessible to the authenticated user. "
-                    "Optionally filter by surface ID or tags."
+                    "Optionally filter by surface ID or tags.",
+        parameters=[
+            OpenApiParameter(
+                name="link_thumbnail",
+                type=bool,
+                description="If set to true, the response will include the direct URL to the thumbnail.",
+                required=False,
+            ),
+        ],
     )
 )
 class TopographyViewSet(viewsets.ModelViewSet):

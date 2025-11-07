@@ -2,6 +2,7 @@ from django.db.models import Q
 from django_filters.rest_framework import FilterSet, filters
 
 from topobank.analysis.models import Workflow, WorkflowResult
+from topobank.manager.models import Surface, Tag, Topography
 from topobank.organizations.models import Organization
 from topobank.taskapp.utils import TASK_STATE_CHOICES
 
@@ -15,6 +16,7 @@ APP_CHOICES = (
     (STATISTICS, "Statistics")
 )
 
+
 class WorkflowViewFilterSet(FilterSet):
     """
     FilterSet for Workflow model.
@@ -23,15 +25,20 @@ class WorkflowViewFilterSet(FilterSet):
     - name: Filter by workflow name (case-insensitive contains)
     - display_name: Filter by display name (case-insensitive contains)
     - app: Filter by app/plugin name (checks if user has access to plugin)
+    - subject_type: Filter by subject type they can process (tag, surface, topography)
     """
 
     name = filters.CharFilter(lookup_expr="icontains")
     display_name = filters.CharFilter(lookup_expr="icontains")
     app = filters.ChoiceFilter(choices=APP_CHOICES, method="filter_app")
+    subject_type = filters.ChoiceFilter(
+        method="filter_subject_type",
+        choices=[("tag", "Tag"), ("surface", "Surface"), ("topography", "Topography")]
+    )
 
     class Meta:
         model = Workflow
-        fields = ["name", "display_name", "app"]
+        fields = ["name", "display_name", "app", "subject_type"]
 
     def filter_app(self, queryset, name, value):
         """
@@ -58,6 +65,35 @@ class WorkflowViewFilterSet(FilterSet):
             return queryset.filter(name__icontains=value)
 
         return queryset.none()
+
+    def filter_subject_type(self, queryset, name, value):
+        """
+        Filter workflows by subject type they can process.
+
+        Args:
+            queryset: Initial queryset
+            name: Filter field name
+            value: Subject type to filter by ("tag", "surface", "topography")
+
+        Returns:
+            Filtered queryset
+        """
+        match value.lower():
+            case "tag":
+                model_class = Tag
+            case "surface":
+                model_class = Surface
+            case "topography":
+                model_class = Topography
+            case _:
+                return queryset.none()
+
+        workflow_ids = [
+            workflow.id
+            for workflow in queryset
+            if workflow.has_implementation(model_class)
+        ]
+        return queryset.filter(id__in=workflow_ids)
 
 
 class ResultViewFilterSet(FilterSet):
@@ -188,7 +224,7 @@ class ResultViewFilterSet(FilterSet):
                 return queryset.filter(q)
             case _:
                 return queryset.none()
-    
+
     def filter_subject_name(self, queryset, name, value):
         """
         Filter by subject name (case-insensitive contains).
