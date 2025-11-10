@@ -5,6 +5,7 @@ import pydantic
 from django.conf import settings
 from django.db.models import Case, F, Max, Sum, Value, When
 from django.http import HttpResponseBadRequest, HttpResponseForbidden
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
@@ -68,6 +69,25 @@ class WorkflowView(viewsets.ReadOnlyModelViewSet):
         return Workflow.objects.filter(pk__in=ids)
 
 
+@extend_schema_view(
+    list=extend_schema(
+        description="List all results for a given workflow.",
+        parameters=[
+            OpenApiParameter(
+                name="workflow",
+                type=str,
+                description="The name of the workflow to filter results by.",
+                required=False,
+            ),
+            OpenApiParameter(
+                name="tag",
+                type=str,
+                description="The tag to filter results by.",
+                required=False,
+            ),
+        ],
+    )
+)
 class ResultView(
     viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.DestroyModelMixin
 ):
