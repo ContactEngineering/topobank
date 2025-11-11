@@ -1,8 +1,8 @@
-from rest_framework.pagination import PageNumberPagination
+from rest_framework.pagination import LimitOffsetPagination
 
 
-class TopobankPaginator(PageNumberPagination):
-    page_size = 25
-    page_query_param = 'page'
-    page_size_query_param = 'count'
-    max_page_size = 100
+class TopobankPaginator(LimitOffsetPagination):
+    default_limit = 25
+    max_limit = 100
+    limit_query_param = 'limit'
+    offset_query_param = 'offset'

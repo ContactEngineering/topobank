@@ -1,10 +1,16 @@
+from django.db import transaction
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 
-from topobank.organizations.models import Organization
 import topobank.taskapp.serializers as taskapp_serializers
-from topobank.analysis.models import Configuration, Workflow, WorkflowResult, WorkflowSubject
+from topobank.analysis.models import (
+    Configuration,
+    Workflow,
+    WorkflowResult,
+    WorkflowSubject,
+    resolve_workflow,
+)
 from topobank.manager.models import Surface, Tag, Topography
 from topobank.supplib.serializers import (
     ModelRelatedField,
@@ -61,34 +67,43 @@ class ResultCreateSerializer(serializers.ModelSerializer):
             "kwargs",
         ]
 
-    function = serializers.IntegerField()
+    function = StringOrIntegerField()
     subject = StringOrIntegerField()
     subject_type = serializers.CharField()
 
     def create(self, validated_data: dict) -> WorkflowResult:
         workflow = validated_data.pop("function")
-        user = self.context["request"].user
 
-        instance = WorkflowResult.objects.create(
-            created_by=user,
-            updated_by=user,
-            owned_by=Organization.objects.for_user(user).first(),  # TODO: Limit to one organization per user
-            function=workflow,
-            subject_dispatch=WorkflowSubject.objects.create(validated_data.pop("subject")),
-            kwargs=validated_data.get("kwargs", {}),
-            task_state=WorkflowResult.NOTRUN
-        )
-        instance.grant_permission(user, "edit")
+        with transaction.atomic():
+            # Create the WorkflowSubject
+            subject_dispatch = WorkflowSubject.objects.create(validated_data.pop("subject"))
+
+            # Create the WorkflowResult instance
+            instance = WorkflowResult.objects.create(
+                function=workflow,
+                subject_dispatch=subject_dispatch,
+                kwargs=validated_data.get("kwargs", {}),
+                task_state=WorkflowResult.NOTRUN
+            )
+            # Permissions are set in WorkflowResult.save()
+            # created_by, updated_by, owned_by are set by the view mixin UserUpdateMixin
 
         # Return the created WorkflowResult instance
         return instance
 
     def validate_function(self, value):
-        """Validate that the workflow exists and return the instance"""
+        """
+        Validate that the workflow exists and return the instance
+
+        Possible inputs:
+            - Integer ID of the workflow
+            - String name of the workflow
+            - URL to the workflow detail endpoint
+        """
         try:
-            value = Workflow.objects.get(id=value)
-        except Workflow.DoesNotExist:
-            raise serializers.ValidationError({"function": "Workflow with given ID does not exist."})
+            value = resolve_workflow(value)
+        except ValueError as e:
+            raise serializers.ValidationError({"function": str(e)})
         return value
 
     def validate_subject_type(self, value):
@@ -170,7 +185,7 @@ class ResultCreateSerializer(serializers.ModelSerializer):
                 # Authorize tag for user (tags only support "view" permission)
                 try:
                     tag.authorize_user(user, "view")
-                except PermissionDenied as e:
+                except PermissionDenied:
                     raise serializers.ValidationError({
                         "subject": f"Tag '{subject_value}' {not_found_error_msg}."
                     })
@@ -257,7 +272,8 @@ class ResultDetailSerializer(
             "created_by",
             "updated_by",
             "owned_by",
-            "permissions"
+            "permissions",
+            "metadata"
         ] + task_state_fields
         # Name can be changed by the user
         fields = read_only_fields + ["name", "description"]
@@ -266,26 +282,30 @@ class ResultDetailSerializer(
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:result-v2-detail", read_only=True
     )
-    function = WorkflowSerializer(
-        read_only=True
-    )
+    # Related fields
+    function = WorkflowSerializer(read_only=True)
+
+    created_by = UserField(read_only=True)
+    updated_by = UserField(read_only=True)
+
+    owned_by = OrganizationField(read_only=True)
+
+    permissions = PermissionsField(read_only=True)
+
+    subject = SubjectField(read_only=True)
     folder = ModelRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
     configuration = ModelRelatedField(
         view_name="analysis:configuration-v2-detail", read_only=True
     )
-    created_by = UserField(read_only=True)
-    updated_by = UserField(read_only=True)
-    owned_by = OrganizationField(read_only=True)
-    permissions = PermissionsField(read_only=True)
-    subject = SubjectField(read_only=True)
+    # Methods
     dependencies = serializers.SerializerMethodField()
 
     def get_dependencies(self, obj: WorkflowResult):
         ret = {
             "count": len(obj.dependencies.items()),
-            "url": reverse("analysis:result-v2-deps", kwargs={"pk": obj.id})
+            "url": reverse("analysis:result-v2-dependency", kwargs={"pk": obj.id})
         }
         return ret
 

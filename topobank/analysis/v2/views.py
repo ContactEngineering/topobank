@@ -1,21 +1,26 @@
 from django_filters.rest_framework import backends
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from drf_spectacular.utils import extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
 from rest_framework.response import Response
 
+import topobank.analysis.v1.views as v1
 from topobank.analysis.v2.serializers import (
     ConfigurationSerializer,
+    DependencyListSerializer,
     ResultCreateSerializer,
     ResultDetailSerializer,
     ResultListSerializer,
     WorkflowSerializer,
-    DependencyListSerializer
 )
-from topobank.authorization.permissions import METHOD_TO_PERM, ObjectPermission, PermissionFilterBackend
+from topobank.authorization.permissions import (
+    METHOD_TO_PERM,
+    ObjectPermission,
+    PermissionFilterBackend,
+)
+from topobank.supplib.mixins import UserUpdateMixin
 from topobank.supplib.pagination import TopobankPaginator
-import topobank.analysis.v1.views as v1
 
 from ..models import Workflow, WorkflowResult
 from ..permissions import WorkflowPermissions
@@ -37,6 +42,7 @@ class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.Li
 
 
 class ResultView(
+    UserUpdateMixin,
     viewsets.GenericViewSet,
     mixins.RetrieveModelMixin,
     mixins.DestroyModelMixin,
@@ -49,7 +55,7 @@ class ResultView(
     - Destroy - Delete a specific workflow result.
     - List - List all workflow results accessible to the authenticated user.
     - Update - Update details of a specific workflow result.
-    - Renew - Renew an existing workflow result (custom action).
+    - Run - Start an existing workflow result (custom action).
     """
 
     serializer_class = ResultDetailSerializer
@@ -84,7 +90,7 @@ class ResultView(
         if self.action == 'renew':
             return 'view'  # Assuming renew requires view permission
         return METHOD_TO_PERM.get(self.request.method)
-    
+
     # Override get_object to specify return type
     def get_object(self) -> WorkflowResult:
         return super().get_object()
@@ -102,7 +108,6 @@ class ResultView(
         output_serializer = ResultDetailSerializer(analysis, context={'request': request})
         return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
-
     @extend_schema(request=None)
     @action(detail=True, methods=["PUT"], url_path="run")
     def run(self, request, *args, **kwargs):
@@ -110,7 +115,7 @@ class ResultView(
         analysis: WorkflowResult = self.get_object()
         force_submit = request.query_params.get('force', 'false').lower() == 'true'
         task_state = analysis.task_state
-        
+
         if analysis.name:
             return Response({"message": "Cannot renew named analysis"},
                             status=status.HTTP_403_FORBIDDEN)
@@ -134,9 +139,9 @@ class ResultView(
 
         serializer = self.get_serializer(analysis, context={'request': request})
         return Response(serializer.data, status=status.HTTP_200_OK)
-    
+
     @extend_schema(request=None)
-    @action(detail=True, methods=['GET'], url_path="dependencies", url_name="deps")
+    @action(detail=True, methods=['GET'], url_path="dependencies", url_name="dependency")
     def dependencies(self, request, *args, **kwargs):
         """Get dependencies for the WorkflowResult"""
         analysis: WorkflowResult = self.get_object()

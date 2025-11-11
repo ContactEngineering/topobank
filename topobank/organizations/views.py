@@ -2,8 +2,9 @@ from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
-from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
+
+from topobank.supplib.pagination import TopobankPaginator
 
 from ..users.models import resolve_user
 from .models import Organization
@@ -13,7 +14,7 @@ from .serializers import OrganizationSerializer
 
 class OrganizationViewSet(viewsets.ModelViewSet):
     serializer_class = OrganizationSerializer
-    pagination_class = LimitOffsetPagination
+    pagination_class = TopobankPaginator
     permission_classes = [OrganizationPermission]
 
     def get_queryset(self):

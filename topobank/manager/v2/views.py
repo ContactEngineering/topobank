@@ -12,6 +12,7 @@ from rest_framework.response import Response
 
 import topobank.manager.v1.views as v1
 from topobank.manager.filters import TopographyViewFilterSet
+from topobank.supplib.mixins import UserUpdateMixin
 from topobank.supplib.pagination import TopobankPaginator
 
 from ...authorization.models import PermissionSet
@@ -29,7 +30,7 @@ from .serializers import (
 _log = logging.getLogger(__name__)
 
 
-class SurfaceViewSet(v1.SurfaceViewSet):
+class SurfaceViewSet(UserUpdateMixin, v1.SurfaceViewSet):
     serializer_class = SurfaceV2Serializer
 
 
@@ -50,7 +51,7 @@ class SurfaceViewSet(v1.SurfaceViewSet):
         ],
     )
 )
-class TopographyViewSet(viewsets.ModelViewSet):
+class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
     serializer_class = TopographyV2Serializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
     pagination_class = TopobankPaginator

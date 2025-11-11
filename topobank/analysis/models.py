@@ -6,15 +6,19 @@ import json
 import logging
 from functools import partial
 from typing import Union
+from urllib.parse import urlparse
 
 from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
+from django.urls import resolve
+from django.urls.exceptions import Resolver404
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 
+from topobank.authorization.permissions import EDIT
 from topobank.organizations.models import Organization
 
 from ..authorization.mixins import PermissionMixin
@@ -300,6 +304,20 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         **kwargs : dict
             Arbitrary keyword arguments.
         """
+
+        # Ensure permissions and folder are set
+        if not self.permissions:
+            _log.debug("Attempted to save WorkflowResult without permissions set.")
+            raise RuntimeError(
+                "Cannot save WorkflowResult without permissions set."
+            )
+        if not self.folder:
+            _log.debug("Attempted to save WorkflowResult without folder set.")
+            raise RuntimeError("Cannot save WorkflowResult without folder set.")
+
+        if not self.pk:
+            # New instance - ensure creator has EDIT permission
+            self.permissions.grant(self.created_by, EDIT)
 
         # If the analysis has a name, we remove the subject dispatch to prevent CASCADE deletion
         # when the subject (Tag/Topography/Surface) is deleted
@@ -794,6 +812,42 @@ class Workflow(models.Model):
                 partial(submit_analysis_task_to_celery, analysis, True)
             )
         return analysis
+
+
+def resolve_workflow(identifier: str | int) -> Workflow:
+    """Resolve workflow from URL, ID, or name."""
+    errors = []
+
+    # Try resolving as integer ID
+    try:
+        workflow_id = int(identifier)
+        return Workflow.objects.get(pk=workflow_id)
+    except ValueError:
+        errors.append("not a valid integer ID")
+    except Workflow.DoesNotExist:
+        errors.append(f"no workflow found with ID {workflow_id}")
+
+    # Try resolving as name
+    try:
+        return Workflow.objects.get(name=identifier)
+    except Workflow.DoesNotExist:
+        errors.append(f"no workflow found with name '{identifier}'")
+
+    # Try resolving as URL
+    try:
+        match = resolve(urlparse(identifier).path)
+        return Workflow.objects.get(**match.kwargs)
+    except Resolver404:
+        errors.append("invalid URL path")
+    except Workflow.DoesNotExist:
+        errors.append("URL resolved but no workflow found")
+    except Exception as e:
+        errors.append(f"URL resolution failed: {type(e).__name__}")
+
+    raise ValueError(
+        f"Could not resolve Workflow from '{identifier}'. "
+        f"Attempted: ID, name, URL. Errors: {'; '.join(errors)}"
+    )
 
 
 class WorkflowTemplate(PermissionMixin, models.Model):

@@ -1,10 +1,10 @@
 from django.contrib import admin  # type: ignore
 from django.urls import reverse
 from django.utils.html import format_html
+from django.utils.translation import gettext_lazy as _
 
 from .models import Workflow, WorkflowResult, WorkflowSubject
 
-from django.utils.translation import gettext_lazy as _
 
 def create_null_filter(field_name, filter_title):
     """
@@ -138,7 +138,5 @@ class AnalysisSubjectAdmin(admin.ModelAdmin):
         if not subject:
             return None
         name = subject.__class__.__name__.lower()
-        if name == "tag":
-            return None
         url = reverse(f'admin:manager_{name}_change', args=[subject.id])
         return format_html('<a href="{}">{}</a>', url, subject.id)
