@@ -135,7 +135,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
     # Deprecated
     creator = serializers.HyperlinkedRelatedField(
-        view_name="users:user-v1-detail", read_only=True
+        source="created_by", view_name="users:user-v1-detail", read_only=True
     )
     surface = serializers.HyperlinkedRelatedField(
         view_name="manager:surface-api-detail", queryset=Surface.objects.all()
@@ -152,10 +152,10 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
     # These fields have been renamed in the model
     creation_datetime = serializers.DateTimeField(
-        source="creation_time", read_only=True
+        source="created_at", read_only=True
     )
     modification_datetime = serializers.DateTimeField(
-        source="modification_time", read_only=True
+        source="updated_at", read_only=True
     )
 
     # Auxiliary API endpoints
@@ -277,7 +277,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
 
     # Deprecations
     creator = serializers.HyperlinkedRelatedField(
-        view_name="users:user-v1-detail", read_only=True
+        source="created_by", view_name="users:user-v1-detail", read_only=True
     )
     topography_set = TopographySerializer(many=True, read_only=True)
     attachments = serializers.HyperlinkedRelatedField(
@@ -292,10 +292,10 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
 
     # These fields have been renamed in the model
     creation_datetime = serializers.DateTimeField(
-        source="creation_time", read_only=True
+        source="created_at", read_only=True
     )
     modification_datetime = serializers.DateTimeField(
-        source="modification_time", read_only=True
+        source="updated_at", read_only=True
     )
 
     @extend_schema_field(

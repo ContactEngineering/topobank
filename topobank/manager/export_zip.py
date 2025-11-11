@@ -128,7 +128,7 @@ def export_container_zip(file, surfaces):
     metadata = dict(
         versions=dict(topobank=topobank.__version__),
         surfaces=surfaces_dicts,
-        creation_time=str(now()),
+        created_at=str(now()),
     )
 
     zf.writestr("index.json", json.dumps(metadata, indent=4, cls=ExtendedJSONEncoder))

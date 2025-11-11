@@ -6,10 +6,11 @@ from rest_framework.exceptions import ParseError, PermissionDenied
 
 from topobank.manager.models import Surface, Topography
 
-ORDER_BY_FILTER_CHOICES = {"name": "name", "date": "-creation_time"}
+ORDER_BY_FILTER_CHOICES = {"name": "name", "date": "-created_at"}
 SHARING_STATUS_FILTER_CHOICES = set(["all", "own", "others", "published"])
 
 
+# v2 filters
 class TopographyViewFilterSet(FilterSet):
     """
     FilterSet for Topography model.
@@ -78,6 +79,7 @@ class TopographyViewFilterSet(FilterSet):
         ).distinct()
 
 
+# v1 filter
 def filter_by_search_term(
     request,
     qs,
@@ -154,6 +156,7 @@ def filter_by_search_term(
     return qs
 
 
+# v1 filter
 def filter_by_sharing_status(request, qs):
     sharing_status = request.GET.get("sharing_status", default="all")
     if sharing_status not in SHARING_STATUS_FILTER_CHOICES:
@@ -182,6 +185,7 @@ def filter_by_sharing_status(request, qs):
     return qs
 
 
+# v1 filter
 def filter_by_tag(request, qs):
     tag = request.query_params.get("tag", None)
     tag_startswith = request.query_params.get("tag_startswith", None)
@@ -209,6 +213,7 @@ def filter_by_tag(request, qs):
     return qs
 
 
+# v1 filter
 def order_results(request, qs):
     order_by = request.GET.get("order_by", default="date")
     if order_by not in ORDER_BY_FILTER_CHOICES:
@@ -219,6 +224,7 @@ def order_results(request, qs):
     return qs
 
 
+# v1 filter
 def filter_surfaces(request, qs):
     """Return queryset with surfaces matching all filter criteria.
 

@@ -80,16 +80,16 @@ class TagFieldAdminMixin:
 
 @admin.register(Surface)
 class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
-    list_display = ("id", "name", "creation_time")
-    ordering = ["-creation_time"]
+    list_display = ("id", "name", "created_at")
+    ordering = ["-created_at"]
     search_fields = ("name", "id")
 
 
 @admin.register(Topography)
 class TopographyAdmin(TagFieldAdminMixin, admin.ModelAdmin):
-    list_display = ("id", "name", "creation_time", "task_state", "task_id")
+    list_display = ("id", "name", "created_at", "task_state", "task_id")
     list_filter = ("task_state",)
-    ordering = ["-creation_time"]
+    ordering = ["-created_at"]
     search_fields = ("name", "id", "task_id")
 
 

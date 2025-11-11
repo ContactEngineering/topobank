@@ -44,8 +44,8 @@ class ZipContainer(PermissionMixin, TaskStateModel):
     )
 
     # Timestamp of creation of this ZIP container
-    creation_time = models.DateTimeField(auto_now_add=True)
-    modification_time = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def create_empty_manifest(self):
         if self.manifest is not None:

@@ -33,7 +33,7 @@ def periodic_cleanup():
         q.delete()
 
     # Delete all surfaces without creator and owner
-    q = Surface.objects.filter(creator__isnull=True, owner__isnull=True)
+    q = Surface.objects.filter(created_by__isnull=True, owned_by__isnull=True)
     if q.count() > 0:
         _log.info(
             f"Custodian: Deleting {q.count()} datasets because they have neither a creator nor an owner."
@@ -41,8 +41,9 @@ def periodic_cleanup():
         q.delete()
 
     # Delete all ZIP containers (that are just temporary anyway)
-    q = ZipContainer.objects.filter(modification_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY)
+    q = ZipContainer.objects.filter(updated_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY)
     if q.count() > 0:
         _log.info(
             f"Custodian: Deleting {q.count()} temporary ZIP containers."
         )
+        q.delete()

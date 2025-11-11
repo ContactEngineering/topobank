@@ -18,13 +18,13 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
             "id",
             # Hyperlinked resources
             "folder",  # should become folder_url in v2
-            "uploaded_by",  # should become upload_user_url in v2
+            "uploaded_by",  # should become created_by in v2
             # Model fields
             "filename",
             "file",
             "kind",
-            "created",  # should become creation_time in v2
-            "updated",  # should become modification_time in v2
+            "created",  # should become created_at in v2
+            "updated",  # should become updated_at in v2
             "upload_confirmed",  # should become upload_confirmation_time in v2
             "upload_instructions",
         ]
@@ -43,13 +43,13 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
         view_name="files:folder-api-detail", queryset=Folder.objects.all()
     )
     uploaded_by = serializers.HyperlinkedRelatedField(
-        view_name="users:user-v1-detail", read_only=True
+        source="created_by", view_name="users:user-v1-detail", read_only=True
     )
 
     file = serializers.FileField(read_only=True)
     kind = serializers.ChoiceField(choices=Manifest.FILE_KIND_CHOICES, read_only=True)
-    created = serializers.DateTimeField(read_only=True)
-    updated = serializers.DateTimeField(read_only=True)
+    created = serializers.DateTimeField(source="created_at", read_only=True)
+    updated = serializers.DateTimeField(source="updated_at", read_only=True)
     upload_confirmed = serializers.DateTimeField(read_only=True)
     upload_instructions = serializers.SerializerMethodField()
 

@@ -42,9 +42,9 @@ class SurfaceViewSet(v1.SurfaceViewSet):
                     "Optionally filter by surface ID or tags.",
         parameters=[
             OpenApiParameter(
-                name="link_thumbnail",
+                name="link_file",
                 type=bool,
-                description="If set to true, the response will include the direct URL to the thumbnail.",
+                description="If set to true, the response will include the direct URL to the file (thumbnail).",
                 required=False,
             ),
         ],
@@ -69,7 +69,7 @@ class TopographyViewSet(viewsets.ModelViewSet):
             'deepzoom',
             'datafile',
             'squeezed_datafile',
-        ).order_by('-creation_time')
+        ).order_by('-created_at')
 
     def get_serializer_class(self):
         if self.action == 'list':

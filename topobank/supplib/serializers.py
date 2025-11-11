@@ -10,6 +10,9 @@ functionality with common patterns used throughout the application:
 - ModelRelatedField: Generic field for serializing related objects with URLs
 - UserField: Specialized field for user objects
 - OrganizationField: Specialized field for organization objects
+- SubjectField: Field for serializing subject objects
+- ManifestField: Field for serializing manifest objects
+- StringOrIntegerField: Accepts either string or integer input
 
 These components help maintain consistency across API endpoints and provide enhanced
 validation and flexibility for API consumers.
@@ -21,6 +24,8 @@ from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
+
+from topobank.analysis.models import WorkflowSubject
 
 
 # From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
@@ -191,9 +196,9 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
     {
         "type": "object",
         "properties": {
-            "id": {"type": "number"},
-            "url": {"type": "string"},
-            "allow": {"enum": ["view", "edit", "full"]},
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "allow": {"enum": ["view", "edit", "full"], "readOnly": True},
         },
         "required": ["id", "url", "allow"],
     }
@@ -306,8 +311,8 @@ class PermissionsField(serializers.RelatedField):
     {
         "type": "object",
         "properties": {
-            "id": {"type": "number"},
-            "url": {"type": "string"},
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
         },
     }
 )
@@ -500,7 +505,6 @@ class ModelRelatedField(serializers.RelatedField):
         elif id := data.get("id", None):
             return self.get_queryset().get(id=id)
 
-
     def display_value(self, instance):
         """
         Return a string representation for use in HTML forms.
@@ -555,9 +559,9 @@ class ModelRelatedField(serializers.RelatedField):
     {
         "type": "object",
         "properties": {
-            "id": {"type": "number"},
-            "url": {"type": "string"},
-            "name": {"type": "string"},
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "name": {"type": "string", "readOnly": True},
         },
         "required": ["id", "url", "name"],
     }
@@ -629,6 +633,17 @@ class UserField(ModelRelatedField):
                          **kwargs)
 
 
+@extend_schema_field(
+    {
+        "type": "object",
+        "properties": {
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "name": {"type": "string", "readOnly": True},
+        },
+        "required": ["id", "url", "name"],
+    }
+)
 class OrganizationField(ModelRelatedField):
     """
     A specialized field for representing Organization model instances in API responses.
@@ -717,6 +732,18 @@ class OrganizationField(ModelRelatedField):
                          **kwargs)
 
 
+@extend_schema_field(
+    {
+        "type": "object",
+        "properties": {
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "name": {"type": "string", "readOnly": True},
+            "type": {"type": "string", "readOnly": True},
+        },
+        "required": ["id", "url", "name", "type"],
+    }
+)
 class SubjectField(serializers.RelatedField):
     """
     A reusable Django REST Framework related field that returns a dictionary
@@ -730,20 +757,76 @@ class SubjectField(serializers.RelatedField):
             "name": <subject_name>,
             "type": <subject_type>
         }
+
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments passed to ModelRelatedField.
+        Common options include 'queryset' and 'read_only'.
+
+    Usage
+    -----
+    Use this field whenever you need to represent a WorkflowSubject relationship::
+
+        class ResultSerializer(serializers.ModelSerializer):
+            subject = SubjectField(read_only=True)
+
+            class Meta:
+                model = WorkflowResult
+                fields = ['id', 'url', 'subject', ...]
+
+    Examples
+    --------
+    Serialized output for a Surface subject::
+
+        {
+            "id": 10,
+            "url": "<app_base_url>/manager/v2/surface/10/",
+            "name": "Sample Surface",
+            "type": "surface"
+        }
+
+    Serialized output for a Topography subject::
+
+        {
+            "id": 10,
+            "url": "<app_base_url>/manager/v2/topography/10/",
+            "name": "Sample Topography",
+            "type": "topography"
+        }
+
+    Serialized output for a Tag subject::
+        {
+            "id": 10,
+            "url": "<app_base_url>/manager/api/sample-tag/",
+            "name": "Sample-Tag",
+            "type": "tag"
+        }
+
+    Notes
+    -----
+    - The 'type' field indicates whether the subject is a 'tag', 'surface', or 'topography'.
+        This is useful since the WorkflowSubject is a generic relation.
+        (i.e., A surface and topography can both have the same ID and we need a way to distinguish them.)
+    - This field requires a request context to generate URLs.
+    - The 'view_name' is determined dynamically based on the subject type.
     """
 
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def to_representation(self, obj):
+    def to_representation(self, obj: WorkflowSubject):
         subject_type = obj.__class__.__name__.lower()
-        view_name = f"manager:{subject_type}-v2-detail"
-        kwargs = {"pk": obj.id}
+        subject_id = obj.get().id  # Get the actual related object's ID
         if subject_type == "tag":
             view_name = "manager:tag-api-detail"
             kwargs = {"name": obj.name}
+        else:
+            view_name = f"manager:{subject_type}-v2-detail"
+            kwargs = {"pk": subject_id}
+
         data = {
-            "id": obj.id,
+            "id": subject_id,
             "url": reverse(
                 view_name,
                 kwargs=kwargs,
@@ -752,12 +835,107 @@ class SubjectField(serializers.RelatedField):
             "name": obj.name,
             "type": subject_type,
         }
+
+        return data
+
+
+@extend_schema_field(
+    {
+        "type": "object",
+        "properties": {
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "file": {"type": "string", "readOnly": True},
+        },
+        "required": ["id", "url"],
+    }
+)
+class ManifestField(serializers.RelatedField):
+    """
+    A reusable Django REST Framework related field that returns a dictionary
+    containing the manifest's identifier, a hyperlinked URL, and the file URL if the query_param
+    'link_file' is present.
+
+    The serialized representation takes the form:
+
+        {
+            "id": <manifest id>,
+            "url": <hyperlinked URL>,
+            "file": <manifest_file_url>
+        }
+
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments passed to ManifestField.
+        Common options include 'queryset' and 'read_only'.
+
+    Usage
+    -----
+    Use this field whenever you need to represent a Manifest relationship::
+
+        class TopographySerializer(serializers.ModelSerializer):
+            thumbnail = ManifestField(read_only=True)
+            datafile = ManifestField(read_only=True)
+
+            class Meta:
+                model = Topography
+                fields = ['id', 'name', 'thumbnail', 'datafile']
+
+    Examples
+    --------
+    Serialized output for a single Manifest::
+
+        {
+            "id": 1,
+            "url": "<app_base_url>/files/manifest/1/"
+        }
+
+    Serialized output with query parameter 'link_file' set to true::
+
+        {
+            "id": 1,
+            "url": "<app_base_url>/files/manifest/1/",
+            "file": "<s3_or_local_file_url>"
+        }
+
+    Notes
+    -----
+    - This field is pre-configured to use the 'files:manager-api-detail' view name
+    - The 'file' field is only included if the query parameter 'link_file' is set to true/1/yes
+    """
+
+    def __init__(
+        self,
+        view_name="files:manifest-api-detail",
+        lookup_field="pk",
+        **kwargs,
+    ):
+        super().__init__(**kwargs)
+        self.view_name = view_name
+        self.lookup_field = lookup_field
+
+    def to_representation(self, obj):
+        request = self.context.get("request", None)
+        data = {
+            "id": obj.id,
+            "url": reverse(
+                self.view_name,
+                kwargs={"pk": obj.id},
+                request=request,
+            )
+        }
+        link_file_param = request.query_params.get("link_file", "false").lower() if request else "false"
+        if link_file_param in ["true", "1", "yes"]:
+            data["file"] = serializers.FileField().to_representation(obj.file)
+
         return data
 
 
 class StringOrIntegerField(serializers.Field):
     """
-    A field that accepts either a string or an integer.
+    A field that accepts either a string or an integer. Used for subject representation.
+    Tags are represented by their name (string) and Surfaces/Topographies by their ID (integer).
     """
     def to_internal_value(self, data):
         if isinstance(data, int):

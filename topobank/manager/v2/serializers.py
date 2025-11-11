@@ -6,6 +6,7 @@ from tagulous.contrib.drf import TagRelatedManagerField
 
 from ...properties.serializers import PropertiesField
 from ...supplib.serializers import (
+    ManifestField,
     ModelRelatedField,
     OrganizationField,
     PermissionsField,
@@ -26,79 +27,80 @@ class TopographyV2ListSerializer(TaskStateModelSerializer):
             "id",
             # Hyperlinked resources
             "surface",
-            "creator",
+            "created_by",
+            "updated_by",
+            "owned_by",
             "thumbnail",
             # Everything else
             "name",
             "size_x",
             "size_y",
             "unit",
-            "creation_time",
-            "modification_time",
+            "created_at",
+            "updated_at",
             "task_state",
             "tags",
         ]
+        read_only_fields = fields
 
     # Self
     url = serializers.HyperlinkedIdentityField(
         view_name="manager:topography-v2-detail", read_only=True
     )
-    thumbnail = serializers.SerializerMethodField()
     # Hyperlinked resources
-    creator = UserField(read_only=True)
+    created_by = UserField(read_only=True)
+    updated_by = UserField(read_only=True)
+    owned_by = OrganizationField(read_only=True)
     surface = ModelRelatedField(
         view_name="manager:surface-v2-detail", queryset=Surface.objects.all()
     )
+    thumbnail = ManifestField(read_only=True)
 
     # Tags
     tags = TagRelatedManagerField(required=False)
-
-    def get_thumbnail(self, obj):
-        request = self.context.get("request")
-        include_thumbnail = request.query_params.get("link_thumbnail", "false").lower()
-        if include_thumbnail in ["true", "1", "yes"]:
-            return serializers.FileField().to_representation(obj.thumbnail)
-        return reverse(
-            "files:manifest-api-detail",
-            kwargs={"pk": obj.thumbnail.id},
-            request=request,
-        ) if obj.thumbnail else None
 
 
 class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     class Meta:
         model = Topography
-        fields = [
-            # Self
+        read_only_fields = [
             "url",
             "id",
-            # Auxiliary API endpoints
             "api",
-            # Permissions
             "permissions",
-            # Hyperlinked resources
             "surface",
-            "creator",
+            "created_by",
+            "updated_by",
+            "owned_by",
             "datafile",
             "squeezed_datafile",
             "thumbnail",
-            "attachments",
             "deepzoom",
-            # Everything else
-            "name",
             "datafile_format",
             "channel_names",
             "data_source",
+            "created_at",
+            "updated_at",
+            "task_duration",
+            "task_error",
+            "task_progress",
+            "task_state",
+            "size_editable",
+            "unit_editable",
+            "height_scale_editable",
+            "has_undefined_data",
+            "is_periodic_editable",
+            "is_metadata_complete",
+        ]
+        fields = read_only_fields + [
+            "attachments",
+            "name",
             "description",
             "measurement_date",
-            "size_editable",
             "size_x",
             "size_y",
-            "unit_editable",
             "unit",
-            "height_scale_editable",
             "height_scale",
-            "has_undefined_data",
             "fill_undefined_data_mode",
             "detrend_mode",
             "resolution_x",
@@ -106,18 +108,10 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "bandwidth_lower",
             "bandwidth_upper",
             "short_reliability_cutoff",
-            "is_periodic_editable",
             "is_periodic",
             "instrument_name",
             "instrument_type",
             "instrument_parameters",
-            "is_metadata_complete",
-            "creation_time",
-            "modification_time",
-            "task_duration",
-            "task_error",
-            "task_progress",
-            "task_state",
             "tags",
         ]
 
@@ -127,19 +121,15 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     )
 
     # Hyperlinked resources
-    creator = UserField(read_only=True)
+    created_by = UserField(read_only=True)
+    updated_by = UserField(read_only=True)
+    owned_by = OrganizationField(read_only=True)
     surface = ModelRelatedField(
-        view_name="manager:surface-v2-detail", queryset=Surface.objects.all()
+        view_name="manager:surface-v2-detail", read_only=True
     )
-    datafile = ModelRelatedField(
-        view_name="files:manifest-api-detail", read_only=True
-    )
-    squeezed_datafile = ModelRelatedField(
-        view_name="files:manifest-api-detail", read_only=True
-    )
-    thumbnail = ModelRelatedField(
-        view_name="files:manifest-api-detail", read_only=True
-    )
+    datafile = ManifestField(read_only=True)
+    squeezed_datafile = ManifestField(read_only=True)
+    thumbnail = ManifestField(read_only=True)
     deepzoom = ModelRelatedField(
         view_name="files:folder-api-detail", read_only=True
     )
@@ -158,27 +148,30 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     is_metadata_complete = serializers.SerializerMethodField()
 
     def validate(self, data):
-        read_only_fields = []
-        if self.instance is not None:
-            if not self.instance.size_editable:
-                if "size_x" in data:
-                    read_only_fields += ["size_x"]
-                if "size_y" in data:
-                    read_only_fields += ["size_y"]
-            if not self.instance.unit_editable:
-                if "unit" in data:
-                    read_only_fields += ["unit"]
-            if not self.instance.height_scale_editable:
-                if "unit" in data:
-                    read_only_fields += ["height_scale"]
-            if not self.instance.is_periodic_editable:
-                if "is_periodic" in data:
-                    read_only_fields += ["is_periodic"]
-            if len(read_only_fields) > 0:
-                s = ", ".join([f"`{name}`" for name in read_only_fields])
-                raise serializers.ValidationError(
-                    f"{s} is given by the data file and cannot be set"
-                )
+        if self.instance is None:
+            return super().validate(data)
+
+        # Map fields to their editability checks
+        editability_checks = {
+            'size_x': self.instance.size_editable,
+            'size_y': self.instance.size_editable,
+            'unit': self.instance.unit_editable,
+            'height_scale': self.instance.height_scale_editable,
+            'is_periodic': self.instance.is_periodic_editable,
+        }
+
+        # Find fields that are in data but not editable
+        read_only_fields = [
+            field for field, is_editable in editability_checks.items()
+            if field in data and not is_editable
+        ]
+
+        if read_only_fields:
+            s = ", ".join([f"`{name}`" for name in read_only_fields])
+            raise serializers.ValidationError(
+                f"{s} {'is' if len(read_only_fields) == 1 else 'are'} given by the data file and cannot be set"
+            )
+
         return super().validate(data)
 
     @extend_schema_field(
@@ -199,14 +192,10 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             ),
         }
 
-    def get_is_metadata_complete(self, obj):
+    def get_is_metadata_complete(self, obj: Topography) -> bool:
         return obj.is_metadata_complete
 
     def update(self, instance, validated_data):
-        if "surface" in validated_data:
-            raise serializers.ValidationError(
-                {"message": "You cannot change the `surface` of a topography"}
-            )
         try:
             return super().update(instance, validated_data)
         except pydantic.ValidationError as exc:
@@ -217,25 +206,23 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
 class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     class Meta:
         model = Surface
-        fields = [
-            # Self
+        read_only_fields = [
             "url",
             "id",
-            # Auxiliary API endpoints
             "api",
-            # Permissions
             "permissions",
-            # Hyperlinked resources
-            "creator",
-            "owner",
+            "created_by",
+            "updated_by",
+            "owned_by",
+            "created_at",
+            "updated_at",
+        ]
+        fields = read_only_fields + [
             "attachments",
-            # Everything else
             "name",
             "category",
             "description",
             "tags",
-            "creation_time",
-            "modification_time",
             "properties",
         ]
 
@@ -251,9 +238,9 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
     permissions = PermissionsField(read_only=True)
 
     # Hyperlinked resources
-    creator = UserField(read_only=True)
-
-    owner = OrganizationField(read_only=True, required=False)
+    created_by = UserField(read_only=True)
+    updated_by = UserField(read_only=True)
+    owned_by = OrganizationField(read_only=True)
 
     attachments = ModelRelatedField(
         view_name="files:folder-api-detail", read_only=True
@@ -293,17 +280,11 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
 
     class Meta:
         model = ZipContainer
-        fields = [
-            # Self
+        read_only_fields = [
             "url",
             "id",
-            # Auxiliary API endpoints
             "api",
-            # Permissions
             "permissions",
-            # Hyperlinked resources
-            "manifest",
-            # Model fields
             "task_duration",
             "task_error",
             "task_progress",
@@ -312,10 +293,14 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "task_traceback",
             "celery_task_state",
             "self_reported_task_state",
-            "creation_time",
-            "modification_time",
+            "created_at",
+            "updated_at",
+            "created_by",
+            "updated_by",
         ]
-        read_only_fields = ["creation_time", "modification_time"]
+        fields = read_only_fields + [
+            "manifest",
+        ]
 
     # Self
     url = serializers.HyperlinkedIdentityField(
@@ -328,10 +313,12 @@ class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     # Permissions
     permissions = PermissionsField(read_only=True)
 
+    # Hyperlinked resources
+    created_by = UserField(read_only=True)
+    updated_by = UserField(read_only=True)
+
     # The actual file
-    manifest = ModelRelatedField(
-        view_name="files:manifest-api-detail", read_only=True
-    )
+    manifest = ManifestField(read_only=True)
 
     @extend_schema_field(
         {
