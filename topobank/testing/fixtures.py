@@ -393,9 +393,8 @@ def simple_surface():
     return WrapSurface([WrapTopography(t) for t in topographies])
 
 
-@pytest.mark.django_db
 @pytest.fixture
-def test_instances(test_analysis_function):
+def test_instances(db, test_analysis_function):
     users = [UserFactory(username="user1"), UserFactory(username="user2")]
 
     surfaces = [
