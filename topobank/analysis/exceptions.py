@@ -1,5 +1,6 @@
 from rest_framework.exceptions import APIException
 
+
 class SubjectNotReadyException(APIException):
     """Subject is not in SUCCESS state when triggering a workflow result."""
 
