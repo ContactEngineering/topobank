@@ -2,6 +2,7 @@ import logging
 
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -36,7 +37,7 @@ class FileManifestViewSet(
                     message="This folder is read-only.",
                 )
             serializer.save(permissions=folder.permissions, folder=folder,
-                            uploaded_by=self.request.user)
+                            created_by=self.request.user)
         else:
             self.permission_denied(
                 self.request,
@@ -88,6 +89,19 @@ def upload_local(request, manifest_id: int):
     return Response({}, status=204)
 
 
+@extend_schema(
+    description="List all manifests in a folder",
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Folder ID",
+        ),
+    ],
+    request=None,
+    responses=OpenApiTypes.OBJECT,
+)
 @api_view(["GET"])
 def list_manifests(request, pk=None):
     """List all manifests in a folder"""

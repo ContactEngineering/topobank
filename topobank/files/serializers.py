@@ -10,6 +10,7 @@ _log = logging.getLogger(__name__)
 
 
 class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    """Serializer for Manifest model."""
     class Meta:
         model = Manifest
         fields = [

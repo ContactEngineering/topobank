@@ -1,5 +1,6 @@
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.response import Response
@@ -47,6 +48,19 @@ def get_user_and_organization(request, pk):
     return user, organization
 
 
+@extend_schema(
+    description="Add a user to an organization",
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Organization ID",
+        ),
+    ],
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.NONE},
+)
 @api_view(["POST"])
 @permission_classes([OrganizationPermission])
 def add_user(request, pk: int):
@@ -61,6 +75,19 @@ def add_user(request, pk: int):
     return Response({})
 
 
+@extend_schema(
+    description="Remove a user from an organization",
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Organization ID",
+        ),
+    ],
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.NONE},
+)
 @api_view(["POST"])
 @permission_classes([OrganizationPermission])
 def remove_user(request, pk: int):

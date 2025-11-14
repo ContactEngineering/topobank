@@ -1,5 +1,6 @@
 from django.db.models import Q
 from django_filters.rest_framework import FilterSet, filters
+from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 
 from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.manager.models import Surface, Tag, Topography
@@ -166,6 +167,7 @@ class ResultViewFilterSet(FilterSet):
             "named"
         ]
 
+    @extend_schema_field(OpenApiTypes.STR)
     def filter_subject_ids(self, queryset, name, value):
         """
         Filter by multiple subject IDs across all subject types.

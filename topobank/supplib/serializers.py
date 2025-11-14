@@ -25,8 +25,6 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import WorkflowSubject
-
 
 # From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
 class StrictFieldMixin:
@@ -198,7 +196,7 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
         "properties": {
             "id": {"type": "number", "readOnly": True},
             "url": {"type": "string", "readOnly": True},
-            "allow": {"enum": ["view", "edit", "full"], "readOnly": True},
+            "allow": {"$ref": "#/components/schemas/PermissionAllowEnum", "readOnly": True},
         },
         "required": ["id", "url", "allow"],
     }
@@ -311,8 +309,8 @@ class PermissionsField(serializers.RelatedField):
     {
         "type": "object",
         "properties": {
-            "id": {"type": "number", "readOnly": True},
-            "url": {"type": "string", "readOnly": True},
+            "id": {"type": "number"},
+            "url": {"type": "string"},
         },
     }
 )
@@ -469,12 +467,14 @@ class ModelRelatedField(serializers.RelatedField):
             )
         }
         if self.fields:
+            # Include additional specified fields
             for field in self.fields:
-                value = getattr(obj, field)
-                if value.__class__.__name__ == "FieldFile":
-                    data[field] = value.url if value else None
-                    continue
-                data[field] = value
+                try:
+                    # Get the field value from the model instance
+                    # If the field does not exist, skip it
+                    data[field] = getattr(obj, field)
+                except AttributeError:
+                    pass
         return data
 
     def to_internal_value(self, data: dict):
@@ -492,6 +492,7 @@ class ModelRelatedField(serializers.RelatedField):
             The corresponding model instance.
         """
         keys = data.keys()
+        # Fail quickly if both or neither id/url are provided
         if "id" in keys and "url" in keys:
             self.fail('id_url_both_present')
         elif "id" not in keys and "url" not in keys:
@@ -511,6 +512,7 @@ class ModelRelatedField(serializers.RelatedField):
 
         This method is called by DRF's browsable API when rendering
         select dropdowns. It needs to return a string, not a dict.
+        This is currently only used in Admin forms/ browsable API.
 
         Parameters
         ----------
@@ -815,12 +817,26 @@ class SubjectField(serializers.RelatedField):
     def __init__(self, **kwargs):
         super().__init__(**kwargs)
 
-    def to_representation(self, obj: WorkflowSubject):
-        subject_type = obj.__class__.__name__.lower()
-        subject_id = obj.get().id  # Get the actual related object's ID
+    def to_representation(self, obj):
+        # Handle both WorkflowSubject and direct subject objects (Tag/Topography/Surface)
+        from topobank.analysis.models import WorkflowSubject
+        from topobank.manager.models import Surface, Tag, Topography
+
+        if isinstance(obj, WorkflowSubject):
+            # If obj is a WorkflowSubject, get the actual subject
+            subject = obj.get()
+        elif isinstance(obj, (Tag, Topography, Surface)):
+            # If obj is already a subject, use it directly
+            subject = obj
+        else:
+            raise TypeError(f"Expected WorkflowSubject or Tag/Topography/Surface, got {type(obj)}")
+
+        subject_type = subject.__class__.__name__.lower()
+        subject_id = subject.id
+
         if subject_type == "tag":
             view_name = "manager:tag-api-detail"
-            kwargs = {"name": obj.name}
+            kwargs = {"name": subject.name}
         else:
             view_name = f"manager:{subject_type}-v2-detail"
             kwargs = {"pk": subject_id}
@@ -832,7 +848,7 @@ class SubjectField(serializers.RelatedField):
                 kwargs=kwargs,
                 request=self.context.get("request", None),
             ),
-            "name": obj.name,
+            "name": subject.name,
             "type": subject_type,
         }
 
@@ -850,7 +866,7 @@ class SubjectField(serializers.RelatedField):
         "required": ["id", "url"],
     }
 )
-class ManifestField(serializers.RelatedField):
+class ManifestField(ModelRelatedField):
     """
     A reusable Django REST Framework related field that returns a dictionary
     containing the manifest's identifier, a hyperlinked URL, and the file URL if the query_param
@@ -861,7 +877,7 @@ class ManifestField(serializers.RelatedField):
         {
             "id": <manifest id>,
             "url": <hyperlinked URL>,
-            "file": <manifest_file_url>
+            "file": <manifest_file_url>  <-- only if 'link_file' query param is set
         }
 
     Parameters
@@ -911,31 +927,33 @@ class ManifestField(serializers.RelatedField):
         lookup_field="pk",
         **kwargs,
     ):
-        super().__init__(**kwargs)
-        self.view_name = view_name
-        self.lookup_field = lookup_field
+        super().__init__(view_name=view_name, lookup_field=lookup_field, **kwargs)
 
     def to_representation(self, obj):
+        data = super().to_representation(obj)
         request = self.context.get("request", None)
-        data = {
-            "id": obj.id,
-            "url": reverse(
-                self.view_name,
-                kwargs={"pk": obj.id},
-                request=request,
-            )
-        }
+
+        # Check for 'link_file' query parameter
         link_file_param = request.query_params.get("link_file", "false").lower() if request else "false"
         if link_file_param in ["true", "1", "yes"]:
+            # Include the file URL in the representation
             data["file"] = serializers.FileField().to_representation(obj.file)
 
         return data
 
 
+@extend_schema_field(
+    {
+        "oneOf": [
+            {"type": "string"},
+            {"type": "integer"},
+        ],
+        "description": "A field that accepts either a string or an integer.",
+    }
+)
 class StringOrIntegerField(serializers.Field):
     """
-    A field that accepts either a string or an integer. Used for subject representation.
-    Tags are represented by their name (string) and Surfaces/Topographies by their ID (integer).
+    A field that accepts either a string or an integer.
     """
     def to_internal_value(self, data):
         if isinstance(data, int):
@@ -944,7 +962,7 @@ class StringOrIntegerField(serializers.Field):
             return data
         else:
             raise serializers.ValidationError(
-                "Subject must be either an integer (for Surface/Topography) or a string (for Tag name)."
+                "Value must be either an integer or a string."
             )
 
     def to_representation(self, value):

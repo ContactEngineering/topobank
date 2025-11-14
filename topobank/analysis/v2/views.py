@@ -7,12 +7,12 @@ from rest_framework.response import Response
 
 import topobank.analysis.v1.views as v1
 from topobank.analysis.v2.serializers import (
-    ConfigurationSerializer,
-    DependencyListSerializer,
-    ResultCreateSerializer,
-    ResultDetailSerializer,
-    ResultListSerializer,
-    WorkflowSerializer,
+    ConfigurationV2Serializer,
+    DependencyV2ListSerializer,
+    ResultV2CreateSerializer,
+    ResultV2DetailSerializer,
+    ResultV2ListSerializer,
+    WorkflowV2Serializer,
 )
 from topobank.authorization.permissions import (
     METHOD_TO_PERM,
@@ -28,11 +28,11 @@ from .filters import ResultViewFilterSet, WorkflowViewFilterSet
 
 
 class ConfigurationView(v1.ConfigurationView):
-    serializer_class = ConfigurationSerializer
+    serializer_class = ConfigurationV2Serializer
 
 
 class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.ListModelMixin):
-    serializer_class = WorkflowSerializer
+    serializer_class = WorkflowV2Serializer
     permission_classes = [WorkflowPermissions, IsAuthenticated]
     filter_backends = [backends.DjangoFilterBackend]
     filterset_class = WorkflowViewFilterSet
@@ -44,6 +44,7 @@ class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.Li
 class ResultView(
     UserUpdateMixin,
     viewsets.GenericViewSet,
+    mixins.CreateModelMixin,
     mixins.RetrieveModelMixin,
     mixins.DestroyModelMixin,
     mixins.ListModelMixin,
@@ -58,7 +59,7 @@ class ResultView(
     - Run - Start an existing workflow result (custom action).
     """
 
-    serializer_class = ResultDetailSerializer
+    serializer_class = ResultV2DetailSerializer
     pagination_class = TopobankPaginator
     permission_classes = [ObjectPermission, IsAuthenticated]
     filter_backends = [PermissionFilterBackend, backends.DjangoFilterBackend]
@@ -80,11 +81,11 @@ class ResultView(
 
     def get_serializer_class(self):
         if self.action == 'list':
-            return ResultListSerializer
+            return ResultV2ListSerializer
         elif self.action == 'create':
-            return ResultCreateSerializer
+            return ResultV2CreateSerializer
         else:
-            return ResultDetailSerializer
+            return super().get_serializer_class()
 
     def get_permission_level(self):
         if self.action == 'renew':
@@ -94,19 +95,6 @@ class ResultView(
     # Override get_object to specify return type
     def get_object(self) -> WorkflowResult:
         return super().get_object()
-
-    @extend_schema(request=ResultCreateSerializer,
-                   responses={201: ResultDetailSerializer})
-    def create(self, request, *args, **kwargs):
-        """Submit new analysis (POST). Submits a new workflow analysis (WorkflowResult) based on the provided data."""
-        serializer = self.get_serializer(data=request.data, context={'request': request})
-
-        serializer.is_valid(raise_exception=True)
-        # Serializer validation checks if user has permission to access the subject(s)
-        analysis = serializer.save()
-
-        output_serializer = ResultDetailSerializer(analysis, context={'request': request})
-        return Response(output_serializer.data, status=status.HTTP_201_CREATED)
 
     @extend_schema(request=None)
     @action(detail=True, methods=["PUT"], url_path="run")
@@ -145,5 +133,14 @@ class ResultView(
     def dependencies(self, request, *args, **kwargs):
         """Get dependencies for the WorkflowResult"""
         analysis: WorkflowResult = self.get_object()
-        serializer = DependencyListSerializer(analysis.dependencies, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        serializer = DependencyV2ListSerializer(analysis.dependencies, context={'request': request})
+
+        # Get the serialized data (a list)
+        data = serializer.data
+
+        # Paginate the list (Have to do this manually since this is a custom action)
+        paginator = self.pagination_class()
+        paginated_data = paginator.paginate_queryset(data, request, view=self)
+
+        # Return paginated response
+        return paginator.get_paginated_response(paginated_data)

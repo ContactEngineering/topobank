@@ -5,26 +5,18 @@ from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
 from rest_framework.views import APIView
 
-GET = "view"
-OPTIONS = "view"
-HEAD = "view"
-POST = "edit"
-PUT = "edit"
-PATCH = "edit"
-DELETE = "full"
-
 VIEW = "view"
 EDIT = "edit"
 FULL = "full"
 
 METHOD_TO_PERM = {
-    "GET": GET,
-    "OPTIONS": OPTIONS,
-    "HEAD": HEAD,
-    "POST": POST,
-    "PUT": PUT,
-    "PATCH": PATCH,
-    "DELETE": DELETE,
+    "GET": VIEW,
+    "OPTIONS": VIEW,
+    "HEAD": VIEW,
+    "POST": EDIT,
+    "PUT": EDIT,
+    "PATCH": EDIT,
+    "DELETE": FULL,
 }
 
 

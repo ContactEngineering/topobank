@@ -15,6 +15,8 @@ from ..users.anonymous import get_anonymous_user
 from ..users.models import User
 
 _log = logging.getLogger(__name__)
+
+
 # The types of permissions
 class Permissions(Enum):
     view = 1
@@ -319,11 +321,13 @@ class AuthorizedManager(models.Manager):
         if "permissions" not in kwargs:
             # Create a new PermissionSet if one wasn't provided
             kwargs["permissions"] = PermissionSet.objects.create()
-            _log.debug("AuthorizedManager created new PermissionSet for %s", self.model)
+            _log.debug("AuthorizedManager created new PermissionSet for %s - id: %s",
+                       self.model, kwargs["permissions"].id)
         if "folder" in [f.name for f in self.model._meta.get_fields()] and "folder" not in kwargs:
             # Import here to avoid circular import
             from topobank.files.models import Folder
-            # Create a new PermissionSet for the folder as well
+
+            # Folder uses same permissions as the model
             kwargs["folder"] = Folder.objects.create(
                 permissions=kwargs["permissions"],
                 read_only=True,

@@ -5,7 +5,12 @@ import pydantic
 from django.conf import settings
 from django.db.models import Case, F, Max, Sum, Value, When
 from django.http import HttpResponseBadRequest, HttpResponseForbidden
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from pint import DimensionalityError, UndefinedUnitError, UnitRegistry
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import api_view
@@ -139,6 +144,19 @@ class ResultView(
             )
 
 
+@extend_schema(
+    description="Get dependencies for a workflow result",
+    parameters=[
+        OpenApiParameter(
+            name="workflow_id",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="ID of the workflow result",
+        ),
+    ],
+    request=None,
+    responses=OpenApiTypes.OBJECT,
+)
 @api_view(["GET"])
 def dependencies(request, workflow_id):
     analysis = get_object_or_404(WorkflowResult, pk=workflow_id)
@@ -152,6 +170,11 @@ def dependencies(request, workflow_id):
     return Response(dependencies)
 
 
+@extend_schema(
+    description="Get all pending workflow results for the current user",
+    request=None,
+    responses=ResultSerializer(many=True),
+)
 @api_view(["GET"])
 def pending(request):
     queryset = WorkflowResult.objects.for_user(request.user).filter(
@@ -170,6 +193,19 @@ def pending(request):
     )
 
 
+@extend_schema(
+    parameters=[
+        OpenApiParameter(
+            name="name",
+            type=str,
+            location=OpenApiParameter.QUERY,
+            description="Filter results by name (case-insensitive contains)",
+            required=False,
+        ),
+    ],
+    request=None,
+    responses=ResultSerializer(many=True),
+)
 @api_view(["GET"])
 def named_result(request):
     queryset = WorkflowResult.objects.for_user(request.user)
@@ -187,6 +223,11 @@ def named_result(request):
     )
 
 
+@extend_schema(
+    description="Get series card view data for plotting workflow results",
+    request=None,
+    responses=OpenApiTypes.OBJECT,
+)
 @api_view(["GET"])
 def series_card_view(request, **kwargs):
     controller = AnalysisController.from_request(request, **kwargs)
@@ -496,6 +537,19 @@ def series_card_view(request, **kwargs):
     return Response(context)
 
 
+@extend_schema(
+    description="Set name and description for a workflow result",
+    parameters=[
+        OpenApiParameter(
+            name="workflow_id",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="ID of the workflow result",
+        ),
+    ],
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.NONE},
+)
 @api_view(["POST"])
 def set_name(request, workflow_id: int):
     name = request.data.get("name")
@@ -505,6 +559,11 @@ def set_name(request, workflow_id: int):
     return Response({})
 
 
+@extend_schema(
+    description="Get statistics about workflow results",
+    request=None,
+    responses=OpenApiTypes.OBJECT,
+)
 @api_view(["GET"])
 def statistics(request):
     stats = {
@@ -518,6 +577,11 @@ def statistics(request):
     return Response(stats)
 
 
+@extend_schema(
+    description="Get memory usage statistics for workflow results",
+    request=None,
+    responses=OpenApiTypes.OBJECT,
+)
 @api_view(["GET"])
 def memory_usage(request):
     m = defaultdict(list)
@@ -597,6 +661,19 @@ def memory_usage(request):
 
 
 # TODO: Delete this function. Permissions are handled in auth ViewSet now.
+@extend_schema(
+    description="Set permissions for a workflow result",
+    parameters=[
+        OpenApiParameter(
+            name="workflow_id",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="ID of the workflow result",
+        ),
+    ],
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.NONE, 204: OpenApiTypes.NONE, 405: OpenApiTypes.OBJECT},
+)
 @api_view(["PATCH"])
 def set_result_permissions(request, workflow_id=None):
     analysis_obj = WorkflowResult.objects.get(pk=workflow_id)

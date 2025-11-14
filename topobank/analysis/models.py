@@ -22,7 +22,7 @@ from topobank.authorization.permissions import EDIT
 from topobank.organizations.models import Organization
 
 from ..authorization.mixins import PermissionMixin
-from ..authorization.models import AuthorizedManager, PermissionSet
+from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFull
 from ..files.models import Folder, Manifest
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
@@ -306,40 +306,30 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         """
 
         # Ensure permissions and folder are set
-        if not self.permissions:
-            _log.debug("Attempted to save WorkflowResult without permissions set.")
+        if self.permissions is None:
             raise RuntimeError(
                 "Cannot save WorkflowResult without permissions set."
             )
-        if not self.folder:
-            _log.debug("Attempted to save WorkflowResult without folder set.")
+        if self.folder is None:
             raise RuntimeError("Cannot save WorkflowResult without folder set.")
 
         if not self.pk:
             # New instance - ensure creator has EDIT permission
-            self.permissions.grant(self.created_by, EDIT)
+            if self.created_by:
+                self.permissions.grant(self.created_by, EDIT)
+            else:
+                # This should be an error, but v1 does not enforce it like v2 does
+                _log.warning("WorkflowResult saved without created_by user set.")
 
         # If the analysis has a name, we remove the subject dispatch to prevent CASCADE deletion
         # when the subject (Tag/Topography/Surface) is deleted
-        dispatch_to_cleanup = None
         if self.name and self.subject_dispatch:
-            # Store reference to the WorkflowSubject for later cleanup
-            dispatch_to_cleanup = self.subject_dispatch
             self.subject_dispatch = None
-            # Only update the subject_dispatch field to minimize database operations
-            if self.pk is not None:
-                # Handle update_fields carefully to avoid mutating caller's list or breaking on None
-                if 'update_fields' in kwargs:
-                    # If explicitly set to None, leave it (means update all fields in Django)
-                    if kwargs['update_fields'] is not None:
-                        # Create a new list to avoid mutating the caller's list
-                        existing_fields = list(kwargs['update_fields'])
-                        if 'subject_dispatch' not in existing_fields:
-                            existing_fields.append('subject_dispatch')
-                        kwargs['update_fields'] = existing_fields
-                else:
-                    # No update_fields specified, so only update subject_dispatch
-                    kwargs['update_fields'] = ['subject_dispatch']
+            if 'update_fields' in kwargs:
+                # If explicitly set to None, leave it (means update all fields in Django)
+                if kwargs['update_fields'] is not None:
+                    if 'subject_dispatch' not in kwargs['update_fields']:
+                        kwargs['update_fields'].append('subject_dispatch')
 
         # If a result dict is given on input, we store it. However, we can only do
         # this once we have an id. This happens during testing.
@@ -350,12 +340,6 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         if self._result:
             store_split_dict(self.folder, RESULT_FILE_BASENAME, self._result)
             self._result = None
-
-        # Clean up orphaned dispatch after the FK is cleared in the database
-        # so CASCADE won't affect this WorkflowResult
-        if dispatch_to_cleanup:
-            with transaction.atomic():
-                dispatch_to_cleanup.delete()
 
     @property
     def subject(self):
@@ -496,7 +480,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # FIXME: discuss whether to remove this method and use the generic one from PermissionMixin
     # overrides PermissionMixin.authorize_user <- this one returns nothing, raises exception on failure
     # v This one grants the user permission to access the WorkflowResult without permission.
-    def authorize_user(self, user: settings.AUTH_USER_MODEL):
+    def authorize_user(self, user: settings.AUTH_USER_MODEL, access_level: ViewEditFull = "view"):
         """
         Returns an exception if given user should not be able to see this WorkflowResult.
         """
@@ -506,13 +490,16 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 f"User {user} is not allowed to use this WorkflowResult function."
             )
 
-        if self.is_tag_related:
-            # Check if the user can access this WorkflowResult
-            super().authorize_user(user, "view")
+        super().authorize_user(user, access_level)
 
-        # Check if user can access the subject of this WorkflowResult
-        self.subject.authorize_user(user, "view")
-        self.grant_permission(user, "view")  # Required so files can be accessed
+        # Disabling automatic permission granting to avoid unintended access
+        # if self.is_tag_related:
+        #     # Check if the user can access this WorkflowResult
+        #     super().authorize_user(user, access_level)
+
+        # # Check if user can access the subject of this WorkflowResult
+        # self.subject.authorize_user(user, access_level)
+        # self.grant_permission(user, access_level)  # Required so files can be accessed
 
     @property
     def is_topography_related(self) -> bool:

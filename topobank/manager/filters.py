@@ -86,12 +86,12 @@ def filter_by_search_term(
     search_fields=[
         "description",
         "name",
-        "creator__name",
+        "created_by__name",
         "tag_names_for_search",
         "topography_name_for_search",
         "topography__description",
         "topography_tag_names_for_search",
-        "topography__creator__name",
+        "topography__created_by__name",
     ],
 ):
     """Filter queryset for a given search term.
@@ -162,13 +162,13 @@ def filter_by_sharing_status(request, qs):
     if sharing_status not in SHARING_STATUS_FILTER_CHOICES:
         raise ParseError(f"Cannot filter for sharing status '{sharing_status}'.")
     if sharing_status == "own":
-        qs = qs.filter(creator=request.user)
+        qs = qs.filter(created_by=request.user)
         if hasattr(Surface, "publication"):
             qs = qs.exclude(
                 publication__isnull=False
             )  # exclude published and own surfaces
     elif sharing_status == "others":
-        qs = qs.exclude(creator=request.user)
+        qs = qs.exclude(created_by=request.user)
         if hasattr(Surface, "publication"):
             qs = qs.exclude(
                 publication__isnull=False

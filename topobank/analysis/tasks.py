@@ -402,7 +402,7 @@ def current_statistics(user=None):
     ----------
         user: User instance
             If given, the statistics is only related to the surfaces of a given user
-            (as creator)
+            (as created_by)
 
     Returns
     -------
@@ -417,7 +417,7 @@ def current_statistics(user=None):
     if hasattr(Surface, "publication"):
         if user:
             unpublished_surfaces = Surface.objects.filter(
-                creator=user, publication__isnull=True, deletion_time__isnull=True
+                created_by=user, publication__isnull=True, deletion_time__isnull=True
             )
         else:
             unpublished_surfaces = Surface.objects.filter(
@@ -426,7 +426,7 @@ def current_statistics(user=None):
     else:
         if user:
             unpublished_surfaces = Surface.objects.filter(
-                creator=user, deletion_time__isnull=True
+                created_by=user, deletion_time__isnull=True
             )
         else:
             unpublished_surfaces = Surface.objects.filter(deletion_time__isnull=True)

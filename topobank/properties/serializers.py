@@ -6,6 +6,7 @@ from topobank.properties.models import Property
 
 
 class ValueField(serializers.Field):
+    """Custom field for handling value representation."""
     def to_representation(self, value):
         return value
 
@@ -30,6 +31,7 @@ class ValueField(serializers.Field):
     }
 )
 class PropertiesField(serializers.Field):
+    """Custom field for handling surface properties."""
     def to_representation(self, value):
         ret = {}
         for prop in value.all():

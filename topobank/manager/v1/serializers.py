@@ -16,6 +16,7 @@ _log = logging.getLogger(__name__)
 
 
 class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    """Serializer for Tag model."""
     class Meta:
         model = Tag
         fields = [
@@ -67,6 +68,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
             ),
         }
 
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_children(self, obj: Tag):
         request = self.context["request"]
         obj.authorize_user(request.user, "view")
@@ -74,6 +76,7 @@ class TagSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
 
 
 class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
+    """Serializer for Topography model."""
     class Meta:
         model = Topography
         fields = [
@@ -211,6 +214,30 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
     def get_is_metadata_complete(self, obj: Topography) -> bool:
         return obj.is_metadata_complete
 
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "current_user": {
+                    "type": "object",
+                    "properties": {
+                        "user": {"type": "string", "format": "uri"},
+                        "permission": {"type": "string"},
+                    },
+                },
+                "other_users": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "user": {"type": "string", "format": "uri"},
+                            "permission": {"type": "string"},
+                        },
+                    },
+                },
+            },
+        }
+    )
     def get_permissions(self, obj: Topography) -> dict:
         request = self.context["request"]
         current_user = request.user
@@ -243,6 +270,7 @@ class TopographySerializer(StrictFieldMixin, TaskStateModelSerializer):
 
 
 class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    """Serializer for Surface model."""
     class Meta:
         model = Surface
         fields = [
@@ -328,6 +356,30 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             ),
         }
 
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "current_user": {
+                    "type": "object",
+                    "properties": {
+                        "user": {"type": "string", "format": "uri"},
+                        "permission": {"type": "string"},
+                    },
+                },
+                "other_users": {
+                    "type": "array",
+                    "items": {
+                        "type": "object",
+                        "properties": {
+                            "user": {"type": "string", "format": "uri"},
+                            "permission": {"type": "string"},
+                        },
+                    },
+                },
+            },
+        }
+    )
     def get_permissions(self, obj):
         request = self.context["request"]
         current_user = request.user
@@ -347,6 +399,7 @@ class SurfaceSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer
             ],
         }
 
+    @extend_schema_field(serializers.URLField())
     def get_topographies(self, obj):
         request = self.context["request"]
         return (

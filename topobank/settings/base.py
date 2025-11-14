@@ -395,6 +395,9 @@ SPECTACULAR_SETTINGS = {
     "DESCRIPTION": "A surface metrology cloud database",
     "VERSION": topobank.__version__,
     "SERVE_INCLUDE_SCHEMA": False,
+    "ENUM_NAME_OVERRIDES": {
+        "PermissionAllowEnum": "topobank.authorization.models.PERMISSION_CHOICES",
+    },
 }
 
 #

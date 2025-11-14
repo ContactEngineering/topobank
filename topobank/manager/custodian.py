@@ -32,11 +32,11 @@ def periodic_cleanup():
         )
         q.delete()
 
-    # Delete all surfaces without creator and owner
+    # Delete all surfaces without created_by and owned_by
     q = Surface.objects.filter(created_by__isnull=True, owned_by__isnull=True)
     if q.count() > 0:
         _log.info(
-            f"Custodian: Deleting {q.count()} datasets because they have neither a creator nor an owner."
+            f"Custodian: Deleting {q.count()} datasets because they have neither a created_by nor an owned_by."
         )
         q.delete()
 

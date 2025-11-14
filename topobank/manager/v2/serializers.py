@@ -18,49 +18,8 @@ from ..models import Surface, Topography
 from ..zip_model import ZipContainer
 
 
-class TopographyV2ListSerializer(TaskStateModelSerializer):
-    class Meta:
-        model = Topography
-        fields = [
-            # Self
-            "url",
-            "id",
-            # Hyperlinked resources
-            "surface",
-            "created_by",
-            "updated_by",
-            "owned_by",
-            "thumbnail",
-            # Everything else
-            "name",
-            "size_x",
-            "size_y",
-            "unit",
-            "created_at",
-            "updated_at",
-            "task_state",
-            "tags",
-        ]
-        read_only_fields = fields
-
-    # Self
-    url = serializers.HyperlinkedIdentityField(
-        view_name="manager:topography-v2-detail", read_only=True
-    )
-    # Hyperlinked resources
-    created_by = UserField(read_only=True)
-    updated_by = UserField(read_only=True)
-    owned_by = OrganizationField(read_only=True)
-    surface = ModelRelatedField(
-        view_name="manager:surface-v2-detail", queryset=Surface.objects.all()
-    )
-    thumbnail = ManifestField(read_only=True)
-
-    # Tags
-    tags = TagRelatedManagerField(required=False)
-
-
 class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
+    """v2 Serializer for Topography model."""
     class Meta:
         model = Topography
         read_only_fields = [
@@ -68,7 +27,6 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "id",
             "api",
             "permissions",
-            "surface",
             "created_by",
             "updated_by",
             "owned_by",
@@ -94,6 +52,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
         ]
         fields = read_only_fields + [
             "attachments",
+            "surface",
             "name",
             "description",
             "measurement_date",
@@ -125,7 +84,9 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     updated_by = UserField(read_only=True)
     owned_by = OrganizationField(read_only=True)
     surface = ModelRelatedField(
-        view_name="manager:surface-v2-detail", read_only=True
+        view_name="manager:surface-v2-detail",
+        queryset=Surface.objects.all(),
+        required=True
     )
     datafile = ManifestField(read_only=True)
     squeezed_datafile = ManifestField(read_only=True)
@@ -204,6 +165,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
 
 
 class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    """v2 Serializer for Surface model."""
     class Meta:
         model = Surface
         read_only_fields = [
@@ -274,9 +236,7 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
 
 
 class ZipContainerV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
-    """
-    Serializer for ZipContainer model.
-    """
+    """v2 Serializer for ZipContainer model."""
 
     class Meta:
         model = ZipContainer

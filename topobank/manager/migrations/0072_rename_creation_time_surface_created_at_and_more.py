@@ -72,4 +72,9 @@ class Migration(migrations.Migration):
             name='updated_by',
             field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, related_name='+', to=settings.AUTH_USER_MODEL),
         ),
+        migrations.AddField(
+            model_name='topography',
+            name='owned_by',
+            field=models.ForeignKey(null=True, on_delete=django.db.models.deletion.SET_NULL, to='organizations.organization'),
+        ),
     ]

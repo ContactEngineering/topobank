@@ -1,4 +1,5 @@
 from django.db import transaction
+from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
@@ -23,13 +24,29 @@ from topobank.supplib.serializers import (
 )
 
 
-class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+class ConfigurationV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    """v2 Serializer for Configuration model."""
     class Meta:
         model = Configuration
         fields = ["valid_since", "versions"]
 
     versions = serializers.SerializerMethodField()
 
+    @extend_schema_field(
+        {
+            "type": "object",
+            "additionalProperties": {
+                "type": "string",
+                "description": "Version number"
+            },
+            "description": "Dictionary mapping dependency names to their version numbers",
+            "example": {
+                "numpy": "1.24.3",
+                "scipy": "1.10.1",
+                "pandas": "2.0.2"
+            }
+        }
+    )
     def get_versions(self, obj):
         versions = {}
         for version in obj.versions.all():
@@ -37,9 +54,10 @@ class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeri
         return versions
 
 
-class WorkflowSerializer(
+class WorkflowV2Serializer(
     serializers.ModelSerializer
 ):
+    """v2 Serializer for Workflow model."""
     class Meta:
         model = Workflow
         fields = [
@@ -55,7 +73,8 @@ class WorkflowSerializer(
     )
 
 
-class ResultCreateSerializer(serializers.ModelSerializer):
+class ResultV2CreateSerializer(serializers.ModelSerializer):
+    """v2 Serializer for creating WorkflowResult instances."""
     class Meta:
         model = WorkflowResult
         required_fields = [
@@ -73,23 +92,37 @@ class ResultCreateSerializer(serializers.ModelSerializer):
 
     def create(self, validated_data: dict) -> WorkflowResult:
         workflow = validated_data.pop("function")
+        subject = validated_data.pop("subject")
+
+        # Extract user tracking fields (passed from UserUpdateMixin via serializer.save())
+        created_by = validated_data.pop("created_by", None)
+        updated_by = validated_data.pop("updated_by", None)
+        owned_by = validated_data.pop("owned_by", None)
 
         with transaction.atomic():
             # Create the WorkflowSubject
-            subject_dispatch = WorkflowSubject.objects.create(validated_data.pop("subject"))
+            subject_dispatch = WorkflowSubject.objects.create(subject)
 
             # Create the WorkflowResult instance
+            # AuthorizedManager.create() will automatically create permissions and folder
             instance = WorkflowResult.objects.create(
                 function=workflow,
                 subject_dispatch=subject_dispatch,
                 kwargs=validated_data.get("kwargs", {}),
-                task_state=WorkflowResult.NOTRUN
+                task_state=WorkflowResult.NOTRUN,
+                created_by=created_by,
+                updated_by=updated_by,
+                owned_by=owned_by,
             )
-            # Permissions are set in WorkflowResult.save()
-            # created_by, updated_by, owned_by are set by the view mixin UserUpdateMixin
 
         # Return the created WorkflowResult instance
         return instance
+
+    def to_representation(self, instance):
+        '''
+        Use ResultV2DetailSerializer for output representation
+        '''
+        return ResultV2DetailSerializer(instance, context=self.context).data
 
     def validate_function(self, value):
         """
@@ -201,9 +234,10 @@ class ResultCreateSerializer(serializers.ModelSerializer):
         return data
 
 
-class ResultListSerializer(
+class ResultV2ListSerializer(
     taskapp_serializers.TaskStateModelSerializer,
 ):
+    """v2 Serializer for WorkflowResult List model."""
     class Meta:
         model = WorkflowResult
         fields = [
@@ -229,7 +263,7 @@ class ResultListSerializer(
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:result-v2-detail", read_only=True
     )
-    function = WorkflowSerializer(
+    function = WorkflowV2Serializer(
         read_only=True
     )
     created_by = UserField(read_only=True)
@@ -238,9 +272,10 @@ class ResultListSerializer(
     subject = SubjectField(read_only=True)
 
 
-class ResultDetailSerializer(
+class ResultV2DetailSerializer(
     StrictFieldMixin, taskapp_serializers.TaskStateModelSerializer
 ):
+    """v2 Serializer for WorkflowResult Detail model."""
     class Meta:
         model = WorkflowResult
         task_state_fields = [
@@ -283,7 +318,7 @@ class ResultDetailSerializer(
         view_name="analysis:result-v2-detail", read_only=True
     )
     # Related fields
-    function = WorkflowSerializer(read_only=True)
+    function = WorkflowV2Serializer(read_only=True)
 
     created_by = UserField(read_only=True)
     updated_by = UserField(read_only=True)
@@ -302,29 +337,37 @@ class ResultDetailSerializer(
     # Methods
     dependencies = serializers.SerializerMethodField()
 
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "count": {"type": "integer", "readOnly": True},
+                "url": {"type": "string", "format": "uri", "readOnly": True},
+            },
+            "required": ["count", "url"],
+        }
+    )
     def get_dependencies(self, obj: WorkflowResult):
         ret = {
             "count": len(obj.dependencies.items()),
-            "url": reverse("analysis:result-v2-dependency", kwargs={"pk": obj.id})
+            "url": reverse("analysis:result-v2-dependency", kwargs={"pk": obj.id},
+                           request=self.context.get("request"))
         }
         return ret
 
 
-class DependencyListSerializer(serializers.Serializer):
+class DependencyV2ListSerializer(serializers.BaseSerializer):
     """
     Serializer for WorkflowResult dependencies.
 
-    Transforms a dictionary mapping subject IDs to WorkflowResult IDs into a paginated
-    response with count and results. Subject IDs are discarded during serialization.
+    Transforms a dictionary mapping subject IDs to WorkflowResult IDs into a list of
+    WorkflowResult's with their ID, URL, and task state. Subject IDs are discarded during serialization.
 
     Input:
         dict: {subject_id: workflow_result_id, ...}
 
     Output:
-        dict: {
-            "count": int,
-            "results": [{"id": int, "url": str, "task_state": str}, ...]
-        }
+        [{"id": int, "url": str, "task_state": str}, ...]
 
     Note:
         Uses bulk querying to avoid N+1 database queries when fetching multiple
@@ -332,12 +375,9 @@ class DependencyListSerializer(serializers.Serializer):
     """
 
     def to_representation(self, data: dict):
-        """Convert the dependencies dict to a dict with count and results list"""
+        """Convert the dependencies dict to a list of serialized WorkflowResults"""
         if not data:
-            return {
-                "count": 0,
-                "results": []
-            }
+            return []
 
         # Get all workflow result IDs at once to avoid N+1 queries
         workflow_result_ids = list(data.values())
@@ -354,7 +394,4 @@ class DependencyListSerializer(serializers.Serializer):
                     "task_state": dep_wr.task_state,
                 })
 
-        return {
-            "count": len(dependencies_list),
-            "results": dependencies_list
-        }
+        return dependencies_list

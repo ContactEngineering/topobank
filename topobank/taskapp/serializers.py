@@ -7,6 +7,7 @@ _log = get_task_logger(__name__)
 
 
 class TaskStateModelSerializer(serializers.HyperlinkedModelSerializer):
+    """Serializer mixin for models with task state information."""
     class Meta:
         abstract = True
         model = TaskStateModel

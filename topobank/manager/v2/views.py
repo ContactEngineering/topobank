@@ -3,7 +3,12 @@ import logging
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import backends
-from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from drf_spectacular.utils import (
+    OpenApiParameter,
+    OpenApiTypes,
+    extend_schema,
+    extend_schema_view,
+)
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -22,7 +27,6 @@ from ..models import Topography
 from ..zip_model import ZipContainer
 from .serializers import (
     SurfaceV2Serializer,
-    TopographyV2ListSerializer,
     TopographyV2Serializer,
     ZipContainerV2Serializer,
 )
@@ -49,6 +53,8 @@ class SurfaceViewSet(UserUpdateMixin, v1.SurfaceViewSet):
                 required=False,
             ),
         ],
+        request=None,
+        responses={200: TopographyV2Serializer},
     )
 )
 class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
@@ -64,7 +70,9 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
         ).select_related(
             'surface',
             'permissions',
-            'creator',
+            'created_by',
+            'updated_by',
+            'owned_by',
             'attachments',
             'thumbnail',
             'deepzoom',
@@ -73,8 +81,6 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
         ).order_by('-created_at')
 
     def get_serializer_class(self):
-        if self.action == 'list':
-            return TopographyV2ListSerializer
         return super().get_serializer_class()
 
 
@@ -84,6 +90,8 @@ class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
 
 
+@extend_schema(request=None,
+               responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 def download_surface(request: Request, surface_ids: str):
     # `surface_ids` is a comma-separated list of surface IDs as a string,
@@ -107,6 +115,8 @@ def download_surface(request: Request, surface_ids: str):
     )
 
 
+@extend_schema(request=None,
+               responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 def download_tag(request: Request, name: str):
     # Create a ZIP container object
@@ -123,7 +133,8 @@ def download_tag(request: Request, name: str):
     )
 
 
-@extend_schema(responses=ZipContainerV2Serializer)
+@extend_schema(request=None,
+               responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def upload_zip_start(request: Request):
@@ -141,6 +152,9 @@ def upload_zip_start(request: Request):
     )
 
 
+@extend_schema(
+    request=None,
+    responses={200: OpenApiTypes.NONE})
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def upload_zip_finish(request: Request, pk: int):
