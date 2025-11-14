@@ -26,7 +26,7 @@ def test_prevent_surface_access_by_other_user(
         username=username1, password=password1
     )
 
-    surface = Surface.objects.create(id=surface_id, name="Surface 1", creator=user1)
+    surface = Surface.objects.create(id=surface_id, name="Surface 1", created_by=user1)
     assert surface.id == surface_id
     surface.save()
 
@@ -84,7 +84,7 @@ def test_prevent_topography_access_by_other_user(
     surface = Surface.objects.create(
         id=surface_id,
         name="Surface 1",
-        creator=user1,
+        created_by=user1,
         permissions=PermissionSet.objects.create(),
     )
     assert surface.id == surface_id

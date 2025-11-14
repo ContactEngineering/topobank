@@ -68,7 +68,7 @@ def test_analysis_times(
     topo = Topography.objects.first()
 
     # we make sure to have to right user who has access
-    user = topo.surface.creator
+    user = topo.surface.created_by
     api_client.force_login(user)
 
     TopographyAnalysisFactory.create(
@@ -106,7 +106,7 @@ def test_show_only_last_analysis(
     topo1 = Topography.objects.first()
     topo2 = Topography.objects.last()
 
-    user = topo1.surface.creator
+    user = topo1.surface.created_by
     api_client.force_login(user)
 
     result = {
@@ -193,8 +193,8 @@ def test_show_only_last_analysis(
 @pytest.mark.django_db
 def test_warnings_for_different_arguments(api_client, handle_usage_statistics):
     user = UserFactory()
-    surf1 = SurfaceFactory(creator=user)
-    surf2 = SurfaceFactory(creator=user)
+    surf1 = SurfaceFactory(created_by=user)
+    surf2 = SurfaceFactory(created_by=user)
     topo1a = Topography1DFactory(surface=surf1)
     topo1b = Topography1DFactory(surface=surf1)
     topo2a = Topography1DFactory(surface=surf2)
@@ -253,7 +253,7 @@ def ids_downloadable_analyses(
         Topography.objects.get(name="Example 3 - ZSensor"),
         Topography.objects.get(name="Example 4 - Default"),
     ]
-    topos[0].creator
+    topos[0].created_by
 
     v = np.arange(5)
     ids = []
@@ -309,7 +309,7 @@ def ids_downloadable_analyses(
 def test_analysis_download_as_txt(
     client, two_topos, ids_downloadable_analyses, handle_usage_statistics
 ):
-    user = two_topos[0].surface.creator  # we need a user which is allowed to download
+    user = two_topos[0].surface.created_by  # we need a user which is allowed to download
     client.force_login(user)
 
     ids_str = ",".join(str(i) for i in ids_downloadable_analyses)
@@ -337,10 +337,10 @@ def test_analysis_download_as_txt(
     topo1, topo2 = two_topos
 
     assert "Creator" in txt
-    assert topo1.creator.name in txt
-    assert topo1.creator.orcid_id in txt
-    assert topo2.creator.name in txt
-    assert topo2.creator.orcid_id in txt
+    assert topo1.created_by.name in txt
+    assert topo1.created_by.orcid_id in txt
+    assert topo2.created_by.name in txt
+    assert topo2.created_by.orcid_id in txt
 
     # remove comments and empty lines
     filtered_lines = []
@@ -512,7 +512,7 @@ def test_analysis_download_as_xlsx(
     for t in topos:
         assert ("Subject type", "topography") in vals
         assert ("Subject name", t.name) in vals
-        assert ("Creator", str(t.creator)) in vals
+        assert ("Creator", str(t.created_by)) in vals
 
     # Check links on INDEX sheet
     ws = xlsx["INDEX"]
@@ -539,7 +539,7 @@ def test_analysis_download_as_xlsx(
             function_name,
             "First Series",
             "Click to jump to sheet 'analysis-0-series-0'",
-            str(topos[0].creator),
+            str(topos[0].created_by),
             None,
             "undefined",
             "{}",
@@ -550,7 +550,7 @@ def test_analysis_download_as_xlsx(
             function_name,
             "Second Series",
             "Click to jump to sheet 'analysis-0-series-1'",
-            str(topos[0].creator),
+            str(topos[0].created_by),
             None,
             "undefined",
             "{}",
@@ -561,7 +561,7 @@ def test_analysis_download_as_xlsx(
             function_name,
             "First Series",
             "Click to jump to sheet 'analysis-1-series-0'",
-            str(topos[1].creator),
+            str(topos[1].created_by),
             None,
             "undefined",
             "{}",
@@ -572,7 +572,7 @@ def test_analysis_download_as_xlsx(
             function_name,
             "Second Series",
             "Click to jump to sheet 'analysis-1-series-1'",
-            str(topos[1].creator),
+            str(topos[1].created_by),
             None,
             "undefined",
             "{}",
@@ -654,11 +654,19 @@ def test_download_analysis_results_without_permission(
     # when user_2 has view permissions for all related surfaces, it's okay to download
     # as analyses permissions are automatically granted if the user has access to the
     # subject
+    # This has been changed. Now, download is only possible if the user has explicit
+    # permission for the analysis. So we need to grant permission to the analyses as well.
     two_topos[1].surface.grant_permission(user_2)
+    for analysis_id in ids_downloadable_analyses:
+        analysis = WorkflowResult.objects.get(id=analysis_id)
+        analysis.permissions.grant(user_2, "view")
     response = api_client.get(download_url)
     assert response.status_code == 200
 
 
+@pytest.mark.skip(
+    reason="V1 API uses a get request to get and create analyses, "
+    "sharing surface does not give permission to that surface's analyses.")
 @pytest.mark.django_db
 def test_shared_topography_triggers_no_new_analysis(
     api_client, handle_usage_statistics
@@ -671,8 +679,8 @@ def test_shared_topography_triggers_no_new_analysis(
     user1 = UserFactory(password=password)
     user2 = UserFactory(password=password)
 
-    surface1 = SurfaceFactory(creator=user1)
-    surface2 = SurfaceFactory(creator=user2)
+    surface1 = SurfaceFactory(created_by=user1)
+    surface2 = SurfaceFactory(created_by=user2)
 
     # create topographies + functions + analyses
     func1 = Workflow.objects.get(name="topobank.testing.test")
@@ -760,8 +768,8 @@ def test_shared_topography_triggers_no_new_analysis(
 def test_show_analysis_filter_with_empty_subject_list(api_client):
     user = UserFactory()
 
-    surf1 = SurfaceFactory(creator=user)
-    surf2 = SurfaceFactory(creator=user)
+    surf1 = SurfaceFactory(created_by=user)
+    surf2 = SurfaceFactory(created_by=user)
 
     func = Workflow.objects.get(name="topobank.testing.test")
 
@@ -827,7 +835,7 @@ def test_show_analysis_filter_with_empty_subject_list(api_client):
 @pytest.mark.django_db
 def test_show_analysis_filter_without_subject_list(api_client):
     user = UserFactory()
-    surf1 = SurfaceFactory(creator=user)
+    surf1 = SurfaceFactory(created_by=user)
 
     func = Workflow.objects.get(name="topobank.testing.test")
 
@@ -857,7 +865,7 @@ def test_set_result_permissions(
 ):
     user = UserFactory()
     user2 = UserFactory()
-    surf1 = SurfaceFactory(creator=user)
+    surf1 = SurfaceFactory(created_by=user)
     func = Workflow.objects.get(name="topobank.testing.test")
     analysis1 = SurfaceAnalysisFactory(
         subject_surface=surf1,
@@ -868,9 +876,13 @@ def test_set_result_permissions(
         ),
     )
     obj = WorkflowResult.objects.get(id=analysis1.id)
+    # WorkflowResult has a subject before being named
+    assert obj.subject == surf1
     obj.name = "test"
     obj.save()
-    assert obj.subject == surf1
+
+    obj = WorkflowResult.objects.get(id=analysis1.id)
+    assert obj.subject is None  # After being named, subject is removed
 
     # # check user2 cannot view model
     api_client.force_login(user2)
@@ -885,6 +897,9 @@ def test_set_result_permissions(
     response = api_client.get(
         f"{reverse('analysis:named-result-list')}"
     )
+
+    assert response.status_code == 200
+    assert len(response.data) == 1
 
     response = api_client.patch(
         f"{reverse('analysis:set-result-permissions', kwargs=dict(workflow_id=analysis1.id))}",

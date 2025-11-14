@@ -19,7 +19,7 @@ def test_download_analyses_without_permission(
     api_client, test_analysis_function, handle_usage_statistics
 ):
     bob = UserFactory()
-    surface = SurfaceFactory(creator=bob)
+    surface = SurfaceFactory(created_by=bob)
     topo = Topography1DFactory(surface=surface)
     analysis = TopographyAnalysisFactory(
         subject_topography=topo, function=test_analysis_function

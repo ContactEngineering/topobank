@@ -82,7 +82,7 @@ def test_topography_str(two_topos):
 @pytest.mark.django_db
 def test_topography_to_dict():
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     name = "Some nice topography"
     size_x = 10
     size_y = 20
@@ -137,7 +137,7 @@ def test_topography_to_dict():
         "description": description,
         "unit": unit,
         "data_source": topo.data_source,
-        "creator": dict(name=user.name, orcid=user.orcid_id),
+        "created_by": dict(name=user.name, orcid=user.orcid_id),
         "measurement_date": measurement_date,
         "is_periodic": is_periodic,
         "tags": tags,
@@ -167,7 +167,7 @@ def test_call_topography_method_multiple_times(two_topos):
 @pytest.mark.django_db
 def test_unique_topography_name_in_same_surface():
     user = UserFactory()
-    surface1 = SurfaceFactory(creator=user)
+    surface1 = SurfaceFactory(created_by=user)
 
     Topography1DFactory(surface=surface1, name="TOPO")
 
@@ -176,7 +176,7 @@ def test_unique_topography_name_in_same_surface():
             Topography1DFactory(surface=surface1, name="TOPO")
 
     # no problem with another surface
-    surface2 = SurfaceFactory(creator=user)
+    surface2 = SurfaceFactory(created_by=user)
     Topography1DFactory(surface=surface2, name="TOPO")
 
 
@@ -187,7 +187,7 @@ def test_surface_description(django_user_model):
 
     user = django_user_model.objects.create_user(username=username, password=password)
 
-    surface = Surface.objects.create(name="Surface 1", creator=user)
+    surface = Surface.objects.create(name="Surface 1", created_by=user)
 
     assert "" == surface.description
 
@@ -206,7 +206,7 @@ def test_surface_share_and_unshare():
     user1 = UserFactory(password=password)
     user2 = UserFactory(password=password)
 
-    surface = SurfaceFactory(creator=user1)
+    surface = SurfaceFactory(created_by=user1)
 
     #
     # no permissions at beginning
@@ -255,7 +255,7 @@ def test_other_methods_about_sharing():
     user2 = UserFactory()
 
     # create surface, at first user 2 has no access
-    surface = SurfaceFactory(creator=user1)
+    surface = SurfaceFactory(created_by=user1)
     assert not surface.is_shared(user2)
     assert surface.get_permission(user2) is None
 
@@ -282,7 +282,7 @@ def test_other_methods_about_sharing():
 def test_notifications_are_deleted_when_surface_deleted():
     password = "abcd$1234"
     user = UserFactory(password=password)
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     surface_id = surface.id
 
     notify.send(
@@ -328,7 +328,7 @@ def test_notifications_are_deleted_when_surface_deleted():
 def test_notifications_are_deleted_when_topography_deleted():
     password = "abcd$1234"
     user = UserFactory(password=password)
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
 
     topo = Topography1DFactory(surface=surface)
     topo_id = topo.id
@@ -439,7 +439,7 @@ def test_squeezed_datafile(
 
 @pytest.mark.django_db
 def test_deepcopy_delete_does_not_delete_files(user_bob, handle_usage_statistics):
-    surface = SurfaceFactory(creator=user_bob)
+    surface = SurfaceFactory(created_by=user_bob)
     topo = Topography2DFactory(surface=surface)
 
     assert PermissionSet.objects.count() == 1
@@ -466,9 +466,9 @@ def test_deepcopy_delete_does_not_delete_files(user_bob, handle_usage_statistics
 
 @pytest.mark.django_db
 def test_descendant_surfaces(user_alice):
-    surface1 = SurfaceFactory(creator=user_alice)
-    surface2 = SurfaceFactory(creator=user_alice)
-    surface3 = SurfaceFactory(creator=user_alice)
+    surface1 = SurfaceFactory(created_by=user_alice)
+    surface2 = SurfaceFactory(created_by=user_alice)
+    surface3 = SurfaceFactory(created_by=user_alice)
 
     surface1.tags = ["a&C"]
     surface1.save()
@@ -503,7 +503,7 @@ def test_descendant_surfaces(user_alice):
 
 @pytest.mark.django_db
 def test_deepcopy_copies_attachments(user_bob, handle_usage_statistics):
-    surface = SurfaceFactory(creator=user_bob)
+    surface = SurfaceFactory(created_by=user_bob)
     topo = Topography2DFactory(surface=surface)
 
     surface.attachments.save_file(

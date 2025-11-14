@@ -46,8 +46,8 @@ def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
 
     user2 = UserFactory()
 
-    surface4 = SurfaceFactory(creator=user2)
-    surface5 = SurfaceFactory(creator=user2)
+    surface4 = SurfaceFactory(created_by=user2)
+    surface5 = SurfaceFactory(created_by=user2)
 
     surface4.grant_permission(user1)
 

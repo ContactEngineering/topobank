@@ -102,7 +102,7 @@ class ManifestFactory(factory.django.DjangoModelFactory):
         ["10x10.txt", "dektak-1.csv", "example.opd", "example3.di", "plux-1.plux"]
     )
     permissions = factory.LazyAttribute(
-        lambda obj: obj.folder.permissions if hasattr(obj, "folder") else None
+        lambda obj: obj.folder.permissions if getattr(obj, "folder", None) is not None else None
     )
     upload_confirmed = factory.LazyFunction(timezone.now)
 
@@ -137,9 +137,9 @@ class SurfaceFactory(factory.django.DjangoModelFactory):
     name = factory.Sequence(
         lambda n: "surface-{:05d}".format(n)
     )  # format because of defined order by name
-    creator = factory.SubFactory(UserFactory)
+    created_by = factory.SubFactory(UserFactory)
     permissions = factory.SubFactory(
-        PermissionSetFactory, user=factory.SelfAttribute("..creator")
+        PermissionSetFactory, user=factory.SelfAttribute("..created_by")
     )
 
 
@@ -191,7 +191,7 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
 
     permissions = factory.SelfAttribute("surface.permissions")
     surface = factory.SubFactory(SurfaceFactory)
-    # creator is set automatically to surface's creator if not set, see signals
+    # created_by is set automatically to surface's created_by if not set, see signals
     name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
     filename = "line_scan_1.asc"
     datafile = factory.SubFactory(
@@ -295,12 +295,12 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
 
     user = factory.LazyAttribute(
         lambda obj: (
-            obj.subject_surface.creator
+            obj.subject_surface.created_by
             if obj.subject_surface
             else (
-                obj.subject_topography.creator
+                obj.subject_topography.created_by
                 if obj.subject_topography
-                else obj.subject_tag.get_related_surfaces().first().creator
+                else obj.subject_tag.get_related_surfaces().first().created_by
             )
         )
     )
@@ -413,7 +413,7 @@ class WorkflowTemplateFactory(factory.django.DjangoModelFactory):
     name = factory.Sequence(lambda n: f"Workflow Template {n}")
     kwargs = {"param1": "value1", "param2": "value2"}  # Example JSON field
     implementation = factory.SubFactory(WorkflowFactory)
-    creator = factory.SubFactory(UserFactory)
+    created_by = factory.SubFactory(UserFactory)
     permissions = factory.SubFactory(
-        PermissionSetFactory, user=factory.SelfAttribute("..creator")
+        PermissionSetFactory, user=factory.SelfAttribute("..created_by")
     )

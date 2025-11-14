@@ -1,7 +1,7 @@
 import pytest
 from rest_framework.reverse import reverse
 
-from topobank.analysis.models import Workflow, WorkflowResult, WorkflowTemplate
+from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.manager.models import Tag
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import (
@@ -9,7 +9,6 @@ from topobank.testing.factories import (
     SurfaceFactory,
     Topography1DFactory,
     UserFactory,
-    WorkflowTemplateFactory,
 )
 from topobank.testing.utils import ASSERT_EQUAL_IGNORE_VALUE, assert_dict_equal
 
@@ -17,8 +16,8 @@ from topobank.testing.utils import ASSERT_EQUAL_IGNORE_VALUE, assert_dict_equal
 @pytest.mark.django_db
 def test_statistics(api_client, user_staff, handle_usage_statistics):
     user = UserFactory()
-    surf1 = SurfaceFactory(creator=user)
-    surf2 = SurfaceFactory(creator=user)
+    surf1 = SurfaceFactory(created_by=user)
+    surf2 = SurfaceFactory(created_by=user)
     topo1a = Topography1DFactory(surface=surf1)
     topo1b = Topography1DFactory(surface=surf1)
     topo2a = Topography1DFactory(surface=surf2)
@@ -54,7 +53,7 @@ def test_statistics(api_client, user_staff, handle_usage_statistics):
 
 @pytest.mark.django_db
 def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_function):
-    user = one_line_scan.creator
+    user = one_line_scan.created_by
     one_line_scan.grant_permission(user, "view")
     response = api_client.get(
         f"{reverse('analysis:result-list')}?topography={one_line_scan.id}"
@@ -107,7 +106,7 @@ def test_query_with_wrong_kwargs(api_client, one_line_scan, test_analysis_functi
 
 
 def test_query_with_partial_kwargs(api_client, one_line_scan, test_analysis_function):
-    user = one_line_scan.creator
+    user = one_line_scan.created_by
     one_line_scan.grant_permission(user, "view")
     response = api_client.get(
         f"{reverse('analysis:result-list')}?topography={one_line_scan.id}"
@@ -177,7 +176,7 @@ def test_query_tag_analysis(
     django_capture_on_commit_callbacks,
     handle_usage_statistics,
 ):
-    user = one_line_scan.creator
+    user = one_line_scan.created_by
     # Add tag to surface
     one_line_scan.surface.tags.add("my-tag")
     tag = Tag.objects.get(name="my-tag")
@@ -255,7 +254,7 @@ def test_query_tag_analysis(
 def test_query_with_unique_kwargs(
     api_client, one_line_scan, test_analysis_function, handle_usage_statistics
 ):
-    user = one_line_scan.creator
+    user = one_line_scan.created_by
     one_line_scan.grant_permission(user, "view")
     response = api_client.get(
         f"{reverse('analysis:result-list')}?subjects="
@@ -298,7 +297,7 @@ def test_query_with_error(
     django_capture_on_commit_callbacks,
     handle_usage_statistics,
 ):
-    user = one_line_scan.creator
+    user = one_line_scan.created_by
     function = Workflow.objects.get(name="topobank.testing.test_error")
 
     # Login
@@ -339,7 +338,7 @@ def test_query_with_error_in_dependency(
     django_capture_on_commit_callbacks,
     handle_usage_statistics,
 ):
-    user = one_line_scan.creator
+    user = one_line_scan.created_by
     function = Workflow.objects.get(
         name="topobank.testing.test_error_in_dependency"
     )
@@ -384,7 +383,7 @@ def test_save_tag_analysis(
     django_capture_on_commit_callbacks,
     handle_usage_statistics,
 ):
-    user = one_line_scan.creator
+    user = one_line_scan.created_by
     # Add tag to surface
     one_line_scan.surface.tags.add("my-tag")
     tag = Tag.objects.get(name="my-tag")
@@ -455,7 +454,7 @@ def test_query_pending(
     test_analysis_function,
     handle_usage_statistics,
 ):
-    user = one_line_scan.creator
+    user = one_line_scan.created_by
     # Add tag to surface
     one_line_scan.surface.tags.add("my-tag")
     tag = Tag.objects.get(name="my-tag")
@@ -478,7 +477,7 @@ def test_query_pending(
 def test_query_with_not_implemented_subject(
     api_client, one_line_scan, test_analysis_function
 ):
-    user = one_line_scan.creator
+    user = one_line_scan.created_by
     one_line_scan.grant_permission(user, "view")
     surface = one_line_scan.surface
     response = api_client.get(
@@ -487,125 +486,3 @@ def test_query_with_not_implemented_subject(
     )
     assert response.status_code == 200
     assert response.data["analyses"] == []
-
-
-@pytest.mark.django_db
-def test_workflow_template_api(api_client, one_line_scan, test_analysis_function):
-
-    user = one_line_scan.creator
-    one_line_scan.grant_permission(user, "view")
-
-    kwargs = dict(a=1, b="foo")
-    url = f"http://testserver/analysis/api/workflow/{test_analysis_function.name}/"
-
-    expected_template = {
-        "name": "my-template",
-        "kwargs": kwargs,
-        "implementation": url,
-    }
-
-    api_client.force_authenticate(user)
-
-    response = api_client.post(
-        reverse("analysis:workflow-template-list"),
-        data=expected_template,
-        format="json",
-    )
-
-    assert response.status_code == 201
-    assert response.data["name"] == "my-template"
-
-    template = WorkflowTemplate.objects.get(name=expected_template["name"])
-    assert (
-        response.data["kwargs"] == kwargs
-    ), f"Expected same name, got {template.name} != {expected_template['name']}"
-    assert (
-        template.name == expected_template["name"]
-    ), f"Expected same name, got {template.name} != {expected_template['name']}"
-    assert (
-        template.kwargs == expected_template["kwargs"]
-    ), f"Expected same kwargs, got {template.kwargs} != {expected_template['kwargs']}"
-    assert (
-        template.implementation == test_analysis_function
-    ), f"Expected same analysis function, got {template.implementation} \
-            != {test_analysis_function.name}"
-
-    # test retrieving the template
-    response = api_client.get(
-        reverse("analysis:workflow-template-detail", kwargs=dict(pk=template.id))
-    )
-
-    assert response.status_code == 200
-    assert response.data["name"] == expected_template["name"]
-    assert response.data["kwargs"] == expected_template["kwargs"]
-
-    # test update template
-    expected_template["kwargs"]
-    updated_kwargs = expected_template["kwargs"]
-    updated_kwargs["a"] = 2
-
-    response = api_client.patch(
-        reverse("analysis:workflow-template-detail", kwargs={"pk": template.id}),
-        {"kwargs": updated_kwargs},
-        format="json",
-    )
-
-    assert response.status_code == 200
-    assert response.data["name"] == expected_template["name"]
-    assert response.data["kwargs"] == updated_kwargs
-
-    # template list
-    template2 = WorkflowTemplateFactory(
-        name="my-template-2",
-        kwargs=dict(a=2, b="foo2"),
-        implementation=test_analysis_function,
-        creator=user,
-    )
-
-    response = api_client.get(reverse("analysis:workflow-template-list"))
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    assert len(response.data) == 2, f"Expected 2 template, got {len(response.data)}"
-
-    # test deleting the template
-    api_client.force_authenticate(user)
-    response = api_client.delete(
-        reverse("analysis:workflow-template-detail", kwargs=dict(pk=template2.id))
-    )
-    templates = WorkflowTemplate.objects.all()
-
-    assert response.status_code == 204
-    assert len(templates) == 1, f"Expected 1 template, got {len(templates)}"
-
-
-@pytest.mark.django_db
-def test_workflow_template_query(api_client, one_line_scan):
-    user = one_line_scan.creator
-
-    # Create a new workflow template
-    func = Workflow.objects.get(name="topobank.testing.test")
-    func2 = Workflow.objects.get(name="topobank.testing.test2")
-
-    # create different workflow template with from analysis
-    WorkflowTemplateFactory(
-        name="my-template-1",
-        kwargs=dict(a=2, b="foo2"),
-        implementation=func,
-        creator=user,
-    )
-    WorkflowTemplateFactory(
-        name="my-template-2",
-        kwargs=dict(a=2, b="foo2"),
-        implementation=func2,
-        creator=user,
-    )
-    url = f'{reverse("analysis:workflow-template-list")}' f"?implementation={func.name}"
-
-    api_client.force_authenticate(user)
-    response = api_client.get(url)
-
-    assert response.status_code == 200, f"Expected 200, got {response.status_code}"
-    assert len(response.data) == 1, f"Expected 1 template, got {len(response.data)}"
-    url = f"http://testserver/analysis/api/workflow/{func.name}/"
-    assert (
-        response.data[0]["implementation"] == url
-    ), f"Expected matching workflow, got {response.data['implementation']}"
