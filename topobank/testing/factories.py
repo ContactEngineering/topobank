@@ -5,6 +5,7 @@ import os
 
 import factory
 from django.core.files import File
+from django.db import models
 from django.db.models.signals import post_save
 from django.utils import timezone
 from factory import post_generation
@@ -25,6 +26,7 @@ _log = logging.getLogger(__name__)
 class OrcidSocialAccountFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "socialaccount.SocialAccount"
+        skip_postgeneration_save = True
 
     user_id = 0  # overwrite on construction
     provider = "orcid"
@@ -40,7 +42,7 @@ class OrcidSocialAccountFactory(factory.django.DjangoModelFactory):
                 "host": "orcid.org",
             }
         }
-        self.save()
+        models.Model.save(self)
 
 
 class UserFactory(factory.django.DjangoModelFactory):
@@ -52,10 +54,14 @@ class UserFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "users.User"
         django_get_or_create = ("username",)
+        # NOTE: fix for factory_boy deprecation warning
+        skip_postgeneration_save = True
 
     @factory.post_generation
     def create_orcid_account(self, create, value, **kwargs):
         OrcidSocialAccountFactory(user_id=self.id)
+        # NOTE: tests break without this save
+        models.Model.save(self)
 
 
 class OrganizationFactory(factory.django.DjangoModelFactory):
@@ -83,6 +89,7 @@ class PermissionSetFactory(factory.django.DjangoModelFactory):
             "user",
             "allow",
         )
+        skip_postgeneration_save = True
 
     user = factory.SubFactory(UserFactory)
     allow = "full"
@@ -97,6 +104,7 @@ class PermissionSetFactory(factory.django.DjangoModelFactory):
 class ManifestFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "files.Manifest"
+        skip_postgeneration_save = True
 
     filename = factory.Iterator(
         ["10x10.txt", "dektak-1.csv", "example.opd", "example3.di", "plux-1.plux"]
@@ -148,6 +156,7 @@ class TagFactory(factory.django.DjangoModelFactory):
 
     class Meta:
         model = Tag
+        skip_postgeneration_save = True
 
     name = factory.Sequence(lambda n: "tag-{:05d}".format(n))
 
@@ -188,6 +197,7 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = Topography
         exclude = ("filename",)
+        skip_postgeneration_save = True
 
     permissions = factory.SelfAttribute("surface.permissions")
     surface = factory.SubFactory(SurfaceFactory)
@@ -288,6 +298,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
             "subject",
             "user",
         )
+        skip_postgeneration_save = True
 
     subject_topography = None  # factory.SubFactory(Topography2DFactory)
     subject_surface = None
@@ -337,12 +348,13 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     )
     task_end_time = factory.LazyFunction(timezone.now)
 
-    @post_generation
+    @factory.post_generation
     def import_folder(obj, create, value, **kwargs):
         if "name" in kwargs:
             for fn in glob.glob(f"{kwargs['name']}/*"):
                 obj.folder.save_file(os.path.basename(fn), "der", File(open(fn, "rb")))
             obj.kwargs = obj.folder.read_json("model.json")["kwargs"]
+            models.Model.save(obj)
 
 
 class AnalysisFactory(AnalysisFactoryWithoutResult):

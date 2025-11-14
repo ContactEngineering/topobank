@@ -1,5 +1,4 @@
 from django.db.models import QuerySet
-from rest_framework.exceptions import MethodNotAllowed
 from rest_framework.filters import BaseFilterBackend
 from rest_framework.permissions import BasePermission
 from rest_framework.request import Request
@@ -39,6 +38,8 @@ class ObjectPermission(BasePermission):
 class PermissionFilterBackend(BaseFilterBackend):
     """
     Filter backend that restricts queryset to objects the user has permission to access.
+    i.e., only objects for which `obj.authorize_user(user, perm)` succeeds. Default is "view" permission.
+    Object level permissions in the view can then further restrict access depending on the action or method.
 
     Requirements:
     - Model's manager must implement `for_user(user, permission)` method
@@ -69,10 +70,6 @@ class PermissionFilterBackend(BaseFilterBackend):
         elif hasattr(view, "permission_level"):
             perm = view.permission_level
         else:
-            try:
-                perm = METHOD_TO_PERM.get(request.method)
-            except KeyError:
-                # Unknown HTTP method (CONNECT, TRACE, etc.)
-                raise MethodNotAllowed(request.method)
+            perm = "view"
 
         return queryset.for_user(request.user, perm)

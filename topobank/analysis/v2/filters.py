@@ -239,7 +239,11 @@ class ResultViewFilterSet(FilterSet):
         Returns:
             Filtered queryset
         """
-        return queryset.filter(subject_dispatch__subject_name__icontains=value)
+        return queryset.filter(
+            Q(subject_dispatch__tag__name__icontains=value)
+            | Q(subject_dispatch__surface__name__icontains=value)
+            | Q(subject_dispatch__topography__name__icontains=value)
+        )
 
     def filter_tag_name(self, queryset, name, value):
         """

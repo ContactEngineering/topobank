@@ -1,5 +1,5 @@
 from django_filters.rest_framework import backends
-from drf_spectacular.utils import extend_schema
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
 from rest_framework.decorators import action
 from rest_framework.permissions import IsAuthenticated
@@ -14,11 +14,7 @@ from topobank.analysis.v2.serializers import (
     ResultV2ListSerializer,
     WorkflowV2Serializer,
 )
-from topobank.authorization.permissions import (
-    METHOD_TO_PERM,
-    ObjectPermission,
-    PermissionFilterBackend,
-)
+from topobank.authorization.permissions import ObjectPermission, PermissionFilterBackend
 from topobank.supplib.mixins import UserUpdateMixin
 from topobank.supplib.pagination import TopobankPaginator
 
@@ -33,7 +29,8 @@ class ConfigurationView(v1.ConfigurationView):
 
 class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.ListModelMixin):
     serializer_class = WorkflowV2Serializer
-    permission_classes = [WorkflowPermissions, IsAuthenticated]
+    permission_classes = [IsAuthenticated, WorkflowPermissions]
+    pagination_class = TopobankPaginator
     filter_backends = [backends.DjangoFilterBackend]
     filterset_class = WorkflowViewFilterSet
 
@@ -43,12 +40,7 @@ class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.Li
 
 class ResultView(
     UserUpdateMixin,
-    viewsets.GenericViewSet,
-    mixins.CreateModelMixin,
-    mixins.RetrieveModelMixin,
-    mixins.DestroyModelMixin,
-    mixins.ListModelMixin,
-    mixins.UpdateModelMixin
+    viewsets.ModelViewSet
 ):
     """
     WorkflowResult ViewSet - Allows CRUD operations on Workflow Results.
@@ -61,7 +53,7 @@ class ResultView(
 
     serializer_class = ResultV2DetailSerializer
     pagination_class = TopobankPaginator
-    permission_classes = [ObjectPermission, IsAuthenticated]
+    permission_classes = [IsAuthenticated, ObjectPermission]
     filter_backends = [PermissionFilterBackend, backends.DjangoFilterBackend]
     filterset_class = ResultViewFilterSet
 
@@ -87,46 +79,58 @@ class ResultView(
         else:
             return super().get_serializer_class()
 
-    def get_permission_level(self):
-        if self.action == 'renew':
-            return 'view'  # Assuming renew requires view permission
-        return METHOD_TO_PERM.get(self.request.method)
-
     # Override get_object to specify return type
     def get_object(self) -> WorkflowResult:
         return super().get_object()
 
-    @extend_schema(request=None)
-    @action(detail=True, methods=["PUT"], url_path="run")
+    @extend_schema(
+        request=None,
+        parameters=[
+            OpenApiParameter(
+                name='force',
+                type=bool,
+                location=OpenApiParameter.QUERY,
+                description='Force re-run of analysis even if already running or completed',
+                required=False,
+            ),
+        ]
+    )
+    @action(detail=True, methods=["POST"], url_path="run")
     def run(self, request, *args, **kwargs):
         """Start the analysis task for the given WorkflowResult instance."""
         analysis: WorkflowResult = self.get_object()
-        force_submit = request.query_params.get('force', 'false').lower() == 'true'
-        task_state = analysis.task_state
+        force_submit = request.query_params.get('force', '').lower() in ('true', '1', 'yes')
 
+        # Validation checks
         if analysis.name:
-            return Response({"message": "Cannot renew named analysis"},
-                            status=status.HTTP_403_FORBIDDEN)
+            return Response(
+                {"message": "Cannot renew named analysis"},
+                status=status.HTTP_403_FORBIDDEN
+            )
+
         if not analysis.subject_dispatch.is_ready():
             return Response(
                 {"message": f"{analysis.subject_dispatch.get_type().__name__} subject(s) not ready."},
                 status=status.HTTP_400_BAD_REQUEST
             )
 
-        if task_state == WorkflowResult.NOTRUN:
-            analysis.updated_by = request.user
-            analysis.submit()
-        elif not force_submit:
+        # If already running or completed, reject unless force is set
+        if analysis.task_state != WorkflowResult.NOTRUN and not force_submit:
             return Response(
-                {"message": "Analysis is already running or completed. To re-run, use the force=True parameter."},
+                {
+                    "message": "Analysis is already running or completed. "
+                               "To re-run, use the force=true query parameter."
+                },
                 status=status.HTTP_400_BAD_REQUEST
             )
-        else:
-            analysis.updated_by = request.user
-            analysis.submit_again(force_submit=True)
+
+        # UserUpdateMixin doesnt handle custom actions, so set updated_by manually
+        analysis.updated_by = request.user
+        analysis.save(update_fields=['updated_by'])
+        analysis.submit(force_submit=force_submit)
 
         serializer = self.get_serializer(analysis, context={'request': request})
-        return Response(serializer.data, status=status.HTTP_200_OK)
+        return Response(serializer.data, status=status.HTTP_202_ACCEPTED)
 
     @extend_schema(request=None)
     @action(detail=True, methods=['GET'], url_path="dependencies", url_name="dependency")
