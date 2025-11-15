@@ -8,6 +8,22 @@ from watchman.decorators import check as watchman_check
 from .celeryapp import app
 from .models import Dependency, TaskStateModel, Version
 
+PENDING = "pe"
+STARTED = "st"
+RETRY = "re"
+FAILURE = "fa"
+SUCCESS = "su"
+NOTRUN = "no"
+
+TASK_STATE_CHOICES = (
+    (PENDING, "pending"),
+    (STARTED, "started"),
+    (RETRY, "retry"),
+    (FAILURE, "failure"),
+    (SUCCESS, "success"),
+    (NOTRUN, "not run"),
+)
+
 
 class ConfigurationException(Exception):
     pass

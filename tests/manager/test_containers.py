@@ -40,9 +40,9 @@ def test_surface_container(example_authors):
     user = UserFactory()
     tag1 = TagFactory(name="apple")
     tag2 = TagFactory(name="banana")
-    surface1 = SurfaceFactory(creator=user, tags=[tag1])
-    surface2 = SurfaceFactory(creator=user)
-    surface3 = SurfaceFactory(creator=user, description="Nice results")
+    surface1 = SurfaceFactory(created_by=user, tags=[tag1])
+    surface2 = SurfaceFactory(created_by=user)
+    surface3 = SurfaceFactory(created_by=user, description="Nice results")
 
     PropertyFactory.create(name="categorical", value="abc", surface=surface2)
     PropertyFactory.create(name="numerical", value=1, unit="m", surface=surface2)
@@ -95,8 +95,8 @@ def test_surface_container(example_authors):
             assert meta_surfaces[surf_idx]["name"] == surf.name
             assert meta_surfaces[surf_idx]["category"] == surf.category
             assert meta_surfaces[surf_idx]["description"] == surf.description
-            assert meta_surfaces[surf_idx]["creator"]["name"] == surf.creator.name
-            assert meta_surfaces[surf_idx]["creator"]["orcid"] == surf.creator.orcid_id
+            assert meta_surfaces[surf_idx]["created_by"]["name"] == surf.created_by.name
+            assert meta_surfaces[surf_idx]["created_by"]["orcid"] == surf.created_by.orcid_id
             assert (
                 len(meta_surfaces[surf_idx]["topographies"])
                 == surf.topography_set.count()
@@ -116,7 +116,7 @@ def test_surface_container(example_authors):
 
         # check version information
         assert meta["versions"]["topobank"] == topobank.__version__
-        assert "creation_time" in meta
+        assert "created_at" in meta
 
         # check publication fields
         assert not meta_surfaces[0]["is_published"]

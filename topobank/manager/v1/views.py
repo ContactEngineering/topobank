@@ -8,6 +8,7 @@ from django.db.models import Case, F, Q, When
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
 from django.utils.text import slugify
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from notifications.signals import notify
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
@@ -21,7 +22,7 @@ from rest_framework.permissions import (
 from rest_framework.response import Response
 from trackstats.models import Metric, Period
 
-from ...authorization.permissions import Permission
+from ...authorization.permissions import ObjectPermission
 from ...files.models import Manifest
 from ...organizations.models import resolve_organization
 from ...supplib.versions import get_versions
@@ -60,7 +61,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
 
 class SurfaceViewSet(viewsets.ModelViewSet):
     serializer_class = SurfaceSerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
     pagination_class = LimitOffsetPagination
 
     def _notify(self, instance, verb):
@@ -81,8 +82,8 @@ class SurfaceViewSet(viewsets.ModelViewSet):
         return filter_surfaces(self.request, qs)
 
     def perform_create(self, serializer):
-        # Set creator to current user when creating a new surface
-        instance = serializer.save(creator=self.request.user)
+        # Set created_by to current user when creating a new surface
+        instance = serializer.save(created_by=self.request.user)
 
         # We now have an id, set name if missing
         if "name" not in serializer.data or serializer.data["name"] == "":
@@ -106,7 +107,7 @@ class TopographyViewSet(
     viewsets.GenericViewSet,
 ):
     serializer_class = TopographySerializer
-    permission_classes = [IsAuthenticatedOrReadOnly, Permission]
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
     pagination_class = LimitOffsetPagination
 
     def _notify(self, instance, verb):
@@ -122,6 +123,10 @@ class TopographyViewSet(
             )
 
     def get_queryset(self):
+        # Return empty queryset for schema generation
+        if getattr(self, "swagger_fake_view", False):
+            return Topography.objects.none()
+
         qs = Topography.objects.for_user(self.request.user).filter(
             deletion_time__isnull=True
         )
@@ -170,14 +175,14 @@ class TopographyViewSet(
                 f"{parent.get_absolute_url()}.",
             )
 
-        # Set creator to current user when creating a new topography
-        instance = serializer.save(creator=self.request.user)
+        # Set created_by to current user when creating a new topography
+        instance = serializer.save(created_by=self.request.user)
 
         # File name is passed in the 'name' field on create. It is the only field that
         # needs to be present for them create (POST) request.
         filename = serializer.validated_data["name"]
         instance.datafile = Manifest.objects.create(
-            permissions=instance.permissions, filename=filename, kind="raw"
+            permissions=instance.permissions, filename=filename, kind="raw", folder=None
         )
         instance.save()
 
@@ -202,6 +207,7 @@ class TopographyViewSet(
         return Response(serializer.data)
 
 
+@extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 def download_surfaces(request, surfaces, container_filename=None):
     #
     # Check existence and permissions for given surface
@@ -285,6 +291,7 @@ def download_surfaces(request, surfaces, container_filename=None):
     return response
 
 
+@extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
 def download_surface(request, surface_ids):
     # `surface_ids` is a comma-separated list of surface IDs as a string,
@@ -301,6 +308,7 @@ def download_surface(request, surface_ids):
     return download_surfaces(request, surfaces)
 
 
+@extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
 def download_tag(request, name):
     # `tag_name` is the name of the tag, we need to parse it
@@ -313,6 +321,19 @@ def download_tag(request, name):
     )
 
 
+@extend_schema(
+    description="Force inspection of a topography",
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Topography ID",
+        ),
+    ],
+    request=None,
+    responses=OpenApiTypes.OBJECT,
+)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def force_inspect(request, pk=None):
@@ -334,6 +355,19 @@ def force_inspect(request, pk=None):
     return Response(data)
 
 
+@extend_schema(
+    description="Set permissions for a surface",
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Surface ID",
+        ),
+    ],
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.NONE, 405: OpenApiTypes.OBJECT},
+)
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def set_surface_permissions(request, pk=None):
@@ -384,6 +418,7 @@ def set_surface_permissions(request, pk=None):
     return Response({}, status=204)
 
 
+@extend_schema(request=None, responses=None)
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
 def set_tag_permissions(request, name=None):
@@ -441,6 +476,7 @@ def set_tag_permissions(request, name=None):
     return Response({"updated": updated, "rejected": rejected})
 
 
+@extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tag_numerical_properties(request, name=None):
@@ -450,6 +486,7 @@ def tag_numerical_properties(request, name=None):
     return Response(dict(names=list(prop_values.keys())))
 
 
+@extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
 def tag_categorical_properties(request, name=None):
@@ -459,6 +496,7 @@ def tag_categorical_properties(request, name=None):
     return Response(dict(names=list(prop_values.keys())))
 
 
+@extend_schema(request=None, responses=None)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def import_surface(request):
@@ -474,14 +512,21 @@ def import_surface(request):
     return Response({})
 
 
+@extend_schema(
+    description="Get version information for all installed packages",
+    request=None,
+    responses=OpenApiTypes.OBJECT,
+)
 @api_view(["GET"])
 def versions(request):
     return Response(get_versions())
 
 
+@extend_schema(request=None, responses=None)
 @api_view(["GET"])
-@permission_classes([IsAuthenticated])
+@permission_classes([IsAuthenticated, IsAdminUser])
 def statistics(request):
+    # Why was this open to any authenticated user before? Now restricted to admin users.
     # Global statistics
     stats = {
         "nb_users": User.objects.count()
@@ -497,12 +542,13 @@ def statistics(request):
             request.user
         ).count(),
         "nb_surfaces_shared_with_user": Surface.objects.for_user(request.user)
-        .exclude(creator=request.user)
+        .exclude(created_by=request.user)
         .count(),
     }
     return Response(stats)
 
 
+@extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
 def memory_usage(request):

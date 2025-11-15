@@ -99,7 +99,7 @@ class Command(BaseCommand):
             self.style.NOTICE(f"  Topography name: '{topo_dict['name']}'")
         )
         self.stdout.write(
-            self.style.NOTICE(f"  Original creator is '{topo_dict['creator']}'.")
+            self.style.NOTICE(f"  Original creator is '{topo_dict['created_by']}'.")
         )
 
         topo_name = topo_dict["name"]
@@ -107,14 +107,14 @@ class Command(BaseCommand):
         size_x, *size_rest = topo_dict["size"]
         size_y = None if len(size_rest) == 0 else size_rest[0]
 
-        user = surface.creator
+        user = surface.created_by
 
         if ignore_missing:
             for k, default in TOPOGRAPHY_DEFAULT_ATTR_VALUES.items():
                 topo_dict.setdefault(k, default)
 
         topo_kwargs = dict(
-            creator=user,
+            created_by=user,
             name=topo_name,
             surface=surface,
             size_x=size_x,
@@ -206,7 +206,7 @@ class Command(BaseCommand):
                     f'\n\nImported from file "{surface_zip.filename}" on {import_time}.'
                 )
                 surface = Surface(
-                    creator=user,
+                    created_by=user,
                     name=surface_dict["name"],
                     category=surface_dict["category"],
                     description=surface_description,

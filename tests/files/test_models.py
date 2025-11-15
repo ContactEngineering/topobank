@@ -9,7 +9,7 @@ def test_direct_file_delete(user_alice, mocker):
     permissions = PermissionSet.objects.create()
     folder = Folder.objects.create(permissions=permissions)
     file = Manifest.objects.create(
-        permissions=permissions, folder=folder, uploaded_by=user_alice
+        permissions=permissions, folder=folder, created_by=user_alice
     )
     file.delete()
     assert m.call_count == 1
@@ -22,13 +22,13 @@ def test_file_delete_via_folder(user_alice, mocker):
     Manifest.objects.create(
         permissions=permissions,
         folder=folder,
-        uploaded_by=user_alice,
+        created_by=user_alice,
         filename="file1.txt",
     )
     Manifest.objects.create(
         permissions=permissions,
         folder=folder,
-        uploaded_by=user_alice,
+        created_by=user_alice,
         filename="file2.txt",
     )
     assert Manifest.objects.count() == 2

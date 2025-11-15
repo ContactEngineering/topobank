@@ -12,8 +12,6 @@ from django.utils import timezone
 from SurfaceTopography.Support import doi
 from trackstats.models import Period, StatisticByDate, StatisticByDateAndObject
 
-from ..authorization.models import PermissionSet
-from ..files.models import Folder
 from ..manager.models import Surface, Topography
 from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
@@ -136,7 +134,7 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
         # Okay, we have dependencies so let us check what their states are
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
         finished_dependencies, scheduled_dependencies = prepare_dependency_tasks(
-            dependencies, force, analysis.creator
+            dependencies, force, analysis.created_by, analysis
         )
         if len(scheduled_dependencies) > 0:
             # We just created new `Analysis` instances or decided that an existing
@@ -404,7 +402,7 @@ def current_statistics(user=None):
     ----------
         user: User instance
             If given, the statistics is only related to the surfaces of a given user
-            (as creator)
+            (as created_by)
 
     Returns
     -------
@@ -419,7 +417,7 @@ def current_statistics(user=None):
     if hasattr(Surface, "publication"):
         if user:
             unpublished_surfaces = Surface.objects.filter(
-                creator=user, publication__isnull=True, deletion_time__isnull=True
+                created_by=user, publication__isnull=True, deletion_time__isnull=True
             )
         else:
             unpublished_surfaces = Surface.objects.filter(
@@ -428,7 +426,7 @@ def current_statistics(user=None):
     else:
         if user:
             unpublished_surfaces = Surface.objects.filter(
-                creator=user, deletion_time__isnull=True
+                created_by=user, deletion_time__isnull=True
             )
         else:
             unpublished_surfaces = Surface.objects.filter(deletion_time__isnull=True)
@@ -446,7 +444,7 @@ def current_statistics(user=None):
     )
 
 
-def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None):
+def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None, parent=None):
     from .models import WorkflowResult, WorkflowSubject
 
     finished_dependent_analyses = {}  # Everything that finished or failed
@@ -491,25 +489,17 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
         )
 
         if all_results.count() == 0:
-            # No analysis exists, we create a new one.
-            # New analysis needs its own permissions
-            permissions = PermissionSet.objects.create()
-            # Nobody can formally access this analysis, but access will be granted
-            # automatically when requesting it directly (through the GET route)
-
-            # Folder will store any resulting files
-            folder = Folder.objects.create(permissions=permissions, read_only=True)
-
-            # Create new entry in the analysis table
-            new_analysis = WorkflowResult.objects.create(
-                permissions=permissions,
-                subject_dispatch=WorkflowSubject.objects.create(dependency.subject),
-                function=function,
-                task_state=WorkflowResult.PENDING,  # We are submitting this right away
-                kwargs=kwargs,
-                folder=folder,
-                creator=user,
-            )
+            with transaction.atomic():
+                # Create new entry in the analysis table
+                new_analysis = WorkflowResult.objects.create(
+                    permissions=parent.permissions,
+                    subject_dispatch=WorkflowSubject.objects.create(dependency.subject),
+                    function=function,
+                    task_state=WorkflowResult.PENDING,  # We are submitting this right away
+                    kwargs=kwargs,
+                    created_by=user,
+                    owned_by=parent.owned_by,
+                )
             scheduled_dependent_analyses[key] = new_analysis
         elif all_results.count() == 1:
             # An analysis exists. Check whether it is successful or failed.

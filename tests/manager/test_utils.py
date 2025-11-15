@@ -15,6 +15,7 @@ from topobank.manager.utils import (
 from topobank.testing.factories import SurfaceFactory, UserFactory
 
 
+@pytest.mark.django_db
 def test_subjects_to_dict(user_three_topographies_three_surfaces_three_tags):
     topo1, topo2, topo3 = Topography.objects.all()
     surf1, surf2, surf3 = Surface.objects.all()
@@ -25,6 +26,7 @@ def test_subjects_to_dict(user_three_topographies_three_surfaces_three_tags):
     ]
 
 
+@pytest.mark.django_db
 def test_subjects_to_url(user_three_topographies_three_surfaces_three_tags):
     topo1, topo2, topo3 = Topography.objects.all()
     surf1, surf2, surf3 = Surface.objects.all()
@@ -46,8 +48,8 @@ def test_surfaces_for_user(user_three_topographies_three_surfaces_three_tags):
 
     user2 = UserFactory()
 
-    surface4 = SurfaceFactory(creator=user2)
-    surface5 = SurfaceFactory(creator=user2)
+    surface4 = SurfaceFactory(created_by=user2)
+    surface5 = SurfaceFactory(created_by=user2)
 
     surface4.grant_permission(user1)
 

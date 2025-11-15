@@ -59,7 +59,7 @@ urlpatterns += [
     ),
     # POST
     path(
-        "v2/upload-zip/finish/<pk>/",
+        "v2/upload-zip/finish/<int:pk>/",
         view=v2.upload_zip_finish,
         name="zip-upload-finish-v2",
     ),
@@ -67,12 +67,12 @@ urlpatterns += [
     # API routes
     #
     path(
-        "api/topography/<pk>/force-inspect/",
+        "api/topography/<int:pk>/force-inspect/",
         view=v1.force_inspect,
         name="force-inspect",
     ),
     path(
-        "api/surface/<pk>/set-permissions/",
+        "api/surface/<int:pk>/set-permissions/",
         view=v1.set_surface_permissions,
         name="set-surface-permissions",
     ),

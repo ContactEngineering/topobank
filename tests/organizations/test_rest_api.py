@@ -15,6 +15,7 @@ def test_create_organization(api_client, user_alice, user_staff):
         data=organization_dict,
         format="json",
     )
+    # FIXME: Should be 401 Unauthorized
     assert response.status_code == 403, response.content
 
     assert Organization.objects.count() == 0
@@ -67,41 +68,43 @@ def test_create_organization(api_client, user_alice, user_staff):
 def test_list_organizations(api_client, user_alice, user_bob, user_staff):
     # Searching for a user as the anonymous user should not be allowed
     response = api_client.get(reverse("organizations:organization-v1-list"))
+    # FIXME: Should be 401 Unauthorized
     assert response.status_code == 403, response.content
 
     # Listing when logged in should yield the organization of the user
     api_client.force_authenticate(user_alice)
     response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
-    assert len(response.data) == 0  # No organization assigned to alice
+    # List is now paginated. Check results in 'results' key, or count in 'count' key
+    assert response.data["count"] == 0  # No organization assigned to alice
 
     org1 = OrganizationFactory()
     user_alice.groups.add(org1.group)
     response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
-    assert len(response.data) == 1  # No organization assigned to alice
-    assert response.data[0]["name"] == org1.name
+    assert response.data["count"] == 1  # Alice has an organization now
+    assert response.data["results"][0]["name"] == org1.name
 
     org2 = OrganizationFactory()
     user_bob.groups.add(org2.group)
     response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
-    assert len(response.data) == 1  # No organization assigned to alice
-    assert response.data[0]["name"] == org1.name
+    assert response.data["count"] == 1  # Alice can only see her own organization
+    assert response.data["results"][0]["name"] == org1.name
 
     # Login as bob and see whether he sees organization 2
     api_client.force_authenticate(user_bob)
     response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
-    assert len(response.data) == 1  # No organization assigned to alice
-    assert response.data[0]["name"] == org2.name
+    assert response.data["count"] == 1  # Bob can only see his own organization
+    assert response.data["results"][0]["name"] == org2.name
 
     # Login as staff and see all organizations
     api_client.force_authenticate(user_staff)
     response = api_client.get(reverse("organizations:organization-v1-list"))
     assert response.status_code == 200, response.content
-    assert len(response.data) == 2  # No organization assigned to alice
-    assert {response.data[0]["name"], response.data[1]["name"]} == {
+    assert response.data["count"] == 2  # Staff can see all organizations
+    assert {response.data["results"][0]["name"], response.data["results"][1]["name"]} == {
         org1.name,
         org2.name,
     }

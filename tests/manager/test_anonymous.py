@@ -13,7 +13,7 @@ from topobank.testing.factories import SurfaceFactory, Topography1DFactory, User
 def test_anonymous_user_cannot_change(client, handle_usage_statistics):
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
-    surface = SurfaceFactory(creator=bob, name=surface_name)
+    surface = SurfaceFactory(created_by=bob, name=surface_name)
     topo = Topography1DFactory(surface=surface)
 
     response = client.get(reverse('manager:surface-api-list'))

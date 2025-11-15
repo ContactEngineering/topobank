@@ -62,7 +62,7 @@ def test_analysis_removal_on_topography_change(
     """Check whether methods for renewal are called on significant topography change."""
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     topo = Topography2DFactory(
         surface=surface,
         size_x=1,
@@ -142,12 +142,12 @@ def test_analysis_removal_on_topography_deletion(
     """Check whether surface analyses are deleted if topography is deleted."""
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
-    topo = Topography1DFactory(surface=surface)
+    surface = SurfaceFactory(created_by=user)
+    topo = Topography1DFactory(surface=surface, created_by=user)
 
-    TopographyAnalysisFactory(subject_topography=topo, function=test_analysis_function)
-    SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
-    SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function)
+    TopographyAnalysisFactory(subject_topography=topo, function=test_analysis_function, created_by=user)
+    SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function, created_by=user)
+    SurfaceAnalysisFactory(subject_surface=surface, function=test_analysis_function, created_by=user)
 
     assert (
         WorkflowResult.objects.filter(subject_dispatch__topography=topo.id).count() == 1

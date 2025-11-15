@@ -31,7 +31,7 @@ def test_individual_read_access_permissions(
         username=username_2, password=password
     )
 
-    surface = SurfaceFactory(creator=user_1)
+    surface = SurfaceFactory(created_by=user_1)
 
     surface_detail_url = reverse(
         "manager:surface-api-detail", kwargs=dict(pk=surface.pk)
@@ -89,7 +89,7 @@ def test_list_surface_permissions(api_client, handle_usage_statistics):
     user2 = UserFactory(name="Bob Marley")
     user3 = UserFactory(name="Alice Cooper")
 
-    surface = SurfaceFactory(creator=user1)
+    surface = SurfaceFactory(created_by=user1)
     surface.grant_permission(user2)
     surface.grant_permission(user3, "edit")
 
@@ -126,7 +126,7 @@ def test_list_surface_permissions(api_client, handle_usage_statistics):
 def test_notification_when_deleting_shared_stuff(api_client):
     user1 = UserFactory()
     user2 = UserFactory()
-    surface = SurfaceFactory(creator=user1)
+    surface = SurfaceFactory(created_by=user1)
     topography = Topography1DFactory(surface=surface)
 
     surface.grant_permission(user2, "full")
@@ -180,7 +180,7 @@ def test_upload_topography_for_shared_surface(
     user1 = UserFactory(password=password)
     user2 = UserFactory(password=password)
 
-    surface = SurfaceFactory(creator=user1)
+    surface = SurfaceFactory(created_by=user1)
     surface.grant_permission(user2)  # first without allowing change
 
     assert api_client.login(username=user2.username, password=password)
@@ -231,7 +231,7 @@ def test_upload_topography_for_shared_surface(
     assert "example3" in t.datafile.filename
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
-    assert t.creator == user2
+    assert t.created_by == user2
 
     #
     # Test little badge which shows who uploaded data

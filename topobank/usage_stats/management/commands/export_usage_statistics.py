@@ -218,15 +218,15 @@ def make_excel():
     #
     # Compile distribution of measurements over users
     #
-    measurement_dist_qs = Topography.objects.values('creator').annotate(meas_count=Count('creator')).order_by(
+    measurement_dist_qs = Topography.objects.values('created_by').annotate(meas_count=Count('created_by')).order_by(
         '-meas_count')
     measurement_dist_df = pd.DataFrame.from_records(measurement_dist_qs)
     if not measurement_dist_df.empty:
-        surface_dist_qs = Surface.objects.values('creator').annotate(surf_count=Count('creator')).order_by(
+        surface_dist_qs = Surface.objects.values('created_by').annotate(surf_count=Count('created_by')).order_by(
             '-surf_count')
         surface_dist_df = pd.DataFrame.from_records(surface_dist_qs)
-        measurement_dist_df = measurement_dist_df.merge(surface_dist_df, on='creator', how='left')
-        del measurement_dist_df['creator']
+        measurement_dist_df = measurement_dist_df.merge(surface_dist_df, on='created_by', how='left')
+        del measurement_dist_df['created_by']
         measurement_dist_df.sort_values('meas_count', ascending=False)
         measurement_dist_df.rename(columns={'meas_count': 'number of measurement uploads',
                                             'surf_count': 'number of surfaces'},

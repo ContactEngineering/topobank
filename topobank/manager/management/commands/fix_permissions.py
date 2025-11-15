@@ -45,7 +45,7 @@ class Command(BaseCommand):
         num_fixed_permissions_for_unpublished = defaultdict(lambda: 0)
 
         for surface in Surface.objects.all():
-            creator = surface.creator
+            creator = surface.created_by
             if surface.is_published:
                 if surface.get_permission(creator) in ALL_PERMISSIONS:
                     if not options["dry_run"]:

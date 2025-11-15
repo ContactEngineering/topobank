@@ -176,8 +176,11 @@ class Manifest(PermissionMixin, models.Model):
 
     # User that uploaded this file (if the file is not automatically generated as
     # indicated by file kind "der")
-    uploaded_by = models.ForeignKey(
+    created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
+    )
+    updated_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
 
     # Folder can be null, in which case this is a single file that belongs to some
@@ -197,9 +200,9 @@ class Manifest(PermissionMixin, models.Model):
     # the date the file was uploaded.
     upload_confirmed = models.DateTimeField(blank=True, null=True)
     # The date the manifest was created
-    created = models.DateTimeField(auto_now_add=True)
+    created_at = models.DateTimeField(auto_now_add=True)
     # The date the manifest was last updated
-    updated = models.DateTimeField(auto_now=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def __str__(self):
         return f"Manifest <{self.filename}>"

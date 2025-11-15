@@ -1,11 +1,14 @@
 import logging
 
-from django.http import HttpResponseBadRequest, HttpResponseForbidden
+from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.response import Response
+
+from topobank.authorization.permissions import EDIT, VIEW
 
 from .models import Folder, Manifest
 from .permissions import ManifestPermission
@@ -34,7 +37,7 @@ class FileManifestViewSet(
                     message="This folder is read-only.",
                 )
             serializer.save(permissions=folder.permissions, folder=folder,
-                            uploaded_by=self.request.user)
+                            created_by=self.request.user)
         else:
             self.permission_denied(
                 self.request,
@@ -51,7 +54,7 @@ class FileManifestViewSet(
                     message="You are trying to move a file to a folder which is "
                             "read-only.",
                 )
-            if not folder.has_permission(self.request.user, "edit"):
+            if not folder.has_permission(self.request.user, EDIT):
                 self.permission_denied(
                     self.request,
                     message="You are trying to move a file. The user does not have "
@@ -64,8 +67,10 @@ class FileManifestViewSet(
 @permission_classes([IsAuthenticated])
 def upload_local(request, manifest_id: int):
     # Get manifest instance and authorize
-    manifest = get_object_or_404(Manifest, id=manifest_id)
-    manifest.authorize_user(request.user, "edit")
+    manifest = get_object_or_404(Manifest.objects.for_user(request.user, VIEW), id=manifest_id)
+    # 404 if not found or no view permission
+    # 403 if no edit permission
+    manifest.authorize_user(request.user, EDIT)
 
     # Check if there already is a file
     if manifest.file:
@@ -84,12 +89,23 @@ def upload_local(request, manifest_id: int):
     return Response({}, status=204)
 
 
+@extend_schema(
+    description="List all manifests in a folder",
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="Folder ID",
+        ),
+    ],
+    request=None,
+    responses=OpenApiTypes.OBJECT,
+)
 @api_view(["GET"])
 def list_manifests(request, pk=None):
     """List all manifests in a folder"""
-    obj = get_object_or_404(Folder, pk=pk)
-    if not obj.has_permission(request.user, "view"):
-        return HttpResponseForbidden()
+    obj = get_object_or_404(Folder.objects.for_user(request.user, VIEW), pk=pk)
     return Response({
         manifest.filename: ManifestSerializer(manifest,
                                               context={"request": request}).data

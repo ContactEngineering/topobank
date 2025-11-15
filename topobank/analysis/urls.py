@@ -3,6 +3,7 @@ from django.urls import path, re_path
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
 import topobank.analysis.v1.views as v1
+import topobank.analysis.v2.views as v2
 
 from . import downloads, workflows
 
@@ -10,7 +11,9 @@ router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"api/configuration", v1.ConfigurationView, basename="configuration")
 router.register(r"api/workflow", v1.WorkflowView, basename="workflow")
 router.register(r"api/result", v1.ResultView, basename="result")
-router.register(r"api/template", v1.WorkflowTemplateView, basename="workflow-template")
+router.register(r"v2/configurations", v2.ConfigurationView, basename="configuration-v2")
+router.register(r"v2/workflows", v2.WorkflowView, basename="workflow-v2")
+router.register(r"v2/results", v2.ResultView, basename="result-v2")
 
 urlpatterns = router.urls
 

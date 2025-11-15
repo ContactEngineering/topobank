@@ -150,7 +150,7 @@ def test_upload_topography_di(
     assert "example3" in t.datafile.filename
     assert 256 == t.resolution_x
     assert 256 == t.resolution_y
-    assert t.creator == user
+    assert t.created_by == user
     assert t.datafile_format == "di"
 
 
@@ -164,7 +164,7 @@ def test_upload_topography_npy(
     settings.CELERY_TASK_ALWAYS_EAGER = True  # perform tasks locally
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user, name="surface1")
+    surface = SurfaceFactory(created_by=user, name="surface1")
     description = "Some description"
     api_client.force_login(user)
 
@@ -242,7 +242,7 @@ def test_upload_topography_npy(
     assert "example-2d" in t.datafile.filename
     assert 2 == t.resolution_x
     assert 2 == t.resolution_y
-    assert t.creator == user
+    assert t.created_by == user
     assert t.datafile_format == "npy"
 
 
@@ -661,7 +661,7 @@ def test_upload_topography_and_name_like_an_existing_for_same_surface(
     input_file_path = Path(FIXTURE_DATA_DIR + "/10x10.txt")
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     Topography1DFactory(
         surface=surface, name="TOPO"
     )  # <-- we will try to create another topography named TOPO later
@@ -767,7 +767,7 @@ def test_trying_upload_of_topography_file_with_too_long_format_name(
 
     api_client.force_login(user)
 
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
 
     response = upload_topography_file(
         str(input_file_path), surface.id, api_client, django_capture_on_commit_callbacks
@@ -843,7 +843,7 @@ def test_upload_opd_file_check(
     settings.CELERY_TASK_ALWAYS_EAGER = True
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user, name="surface1")
+    surface = SurfaceFactory(created_by=user, name="surface1")
     description = "Some description"
     api_client.force_login(user)
 
@@ -884,7 +884,7 @@ def test_upload_opd_file_check(
     assert t.resolution_x == approx(199)
     assert t.resolution_y == approx(201)
     assert t.height_scale == approx(0.0005343980102539062)
-    assert t.creator == user
+    assert t.created_by == user
     assert t.datafile_format == "opd"
     assert not t.size_editable
     assert not t.height_scale_editable
@@ -905,7 +905,7 @@ def test_topography_list(
     #
     # all topographies for 'testuser' and surface1 should be listed
     #
-    surface = Surface.objects.get(name="Surface 1", creator__username=username)
+    surface = Surface.objects.get(name="Surface 1", created_by__username=username)
     topos = Topography.objects.filter(surface=surface)
 
     url = reverse("manager:surface-api-detail", kwargs=dict(pk=surface.pk))
@@ -1059,7 +1059,7 @@ def test_edit_line_scan(
     url = reverse("manager:topography-api-detail", kwargs=dict(pk=topo_id))
     assert f"http://testserver{url}" == response.data["url"]
 
-    topos = Topography.objects.filter(surface__creator__username=username).order_by(
+    topos = Topography.objects.filter(surface__created_by__username=username).order_by(
         "pk"
     )
 
@@ -1179,7 +1179,7 @@ def test_only_positive_size_values_on_edit(api_client, handle_usage_statistics):
     password = "abcd$1234"
 
     user = UserFactory(username=username, password=password)
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     topography = Topography2DFactory(
         surface=surface, size_x=1024, size_y=1024, size_editable=True
     )
@@ -1222,7 +1222,7 @@ def test_edit_surface(api_client):
     category = "sim"
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user, category=category)
+    surface = SurfaceFactory(created_by=user, category=category)
 
     api_client.force_login(user)
 
@@ -1269,7 +1269,7 @@ def test_delete_surface(api_client, one_topography, handle_usage_statistics):
 @pytest.mark.django_db
 def test_v1_download_surface(api_client, handle_usage_statistics):
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     Topography1DFactory(surface=surface)
     Topography2DFactory(surface=surface)
 
@@ -1290,7 +1290,7 @@ def test_v1_download_surface(api_client, handle_usage_statistics):
 def test_v1_download_tag(api_client, handle_usage_statistics):
     user = UserFactory()
     tag = TagFactory(name="test_tag")
-    surface = SurfaceFactory(creator=user, tags=[tag])
+    surface = SurfaceFactory(created_by=user, tags=[tag])
     Topography1DFactory(surface=surface)
     Topography2DFactory(surface=surface)
 
@@ -1312,7 +1312,7 @@ def test_v2_download_surface(api_client, settings, handle_usage_statistics, djan
     settings.CELERY_TASK_ALWAYS_EAGER = True
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     Topography1DFactory(surface=surface)
     Topography2DFactory(surface=surface)
 
@@ -1341,7 +1341,7 @@ def test_v2_download_tag(api_client, settings, handle_usage_statistics, django_c
 
     user = UserFactory()
     tag = TagFactory(name="test_tag")
-    surface = SurfaceFactory(creator=user, tags=[tag])
+    surface = SurfaceFactory(created_by=user, tags=[tag])
     Topography1DFactory(surface=surface)
     Topography2DFactory(surface=surface)
 
@@ -1376,7 +1376,7 @@ def test_automatic_extraction_of_measurement_date(
     )  # maybe use package 'pytest-datafiles' here instead
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
 
     api_client.force_login(user)
 
@@ -1424,7 +1424,7 @@ def test_automatic_extraction_of_instrument_parameters(
     )  # maybe use package 'pytest-datafiles' here instead
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
 
     api_client.force_login(user)
 

@@ -18,12 +18,12 @@ urlpatterns += [
     # API routes
     #
     path(
-        "v1/add-user/<pk>/",
+        "v1/add-user/<int:pk>/",
         view=v1.add_user,
         name="add-user-v1",
     ),
     path(
-        "v1/remove-user/<pk>/",
+        "v1/remove-user/<int:pk>/",
         view=v1.remove_user,
         name="remove-user-v1",
     ),

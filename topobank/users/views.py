@@ -2,6 +2,7 @@ from allauth.utils import generate_unique_username
 from django.db.models import Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
+from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
 from rest_framework import viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.pagination import LimitOffsetPagination
@@ -39,6 +40,7 @@ class UserViewSet(viewsets.ModelViewSet):
             )
 
         # Filter for name
+        # TODO: query name, username, email together
         if name is not None:
             qs = qs.filter(name__icontains=name)
 
@@ -68,6 +70,19 @@ def get_user_and_organization(request, pk):
     return user, organization
 
 
+@extend_schema(
+    description="Add a user to an organization",
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="User ID",
+        ),
+    ],
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.NONE},
+)
 @api_view(["POST"])
 @permission_classes([UserPermission])
 def add_organization(request, pk: int):
@@ -86,6 +101,19 @@ def add_organization(request, pk: int):
     return Response({})
 
 
+@extend_schema(
+    description="Remove a user from an organization",
+    parameters=[
+        OpenApiParameter(
+            name="pk",
+            type=int,
+            location=OpenApiParameter.PATH,
+            description="User ID",
+        ),
+    ],
+    request=OpenApiTypes.OBJECT,
+    responses={200: OpenApiTypes.NONE},
+)
 @api_view(["POST"])
 @permission_classes([UserPermission])
 def remove_organization(request, pk: int):

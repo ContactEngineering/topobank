@@ -1,5 +1,7 @@
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 
+from .models import Organization
+
 
 class OrganizationPermission(BasePermission):
     """
@@ -11,14 +13,24 @@ class OrganizationPermission(BasePermission):
         if not request.user or request.user.is_anonymous:
             return False
 
-        return bool(request.user.is_staff or request.method in SAFE_METHODS)
+        # Staff users have full access. List access to normal users is allowed.
+        if request.user.is_staff or request.method in SAFE_METHODS:
+            return True
+
+        # Only staff can create/update/delete
+        return False
 
     def has_object_permission(self, request, view, obj):
         if not request.user or request.user.is_anonymous:
             return False
+
         # Admin users can do any operation on organizations
-        elif request.user.is_staff:
+        if request.user.is_staff:
             return True
-        # Read access to normal users is granted if the users are members of
-        # the organization they are accessing
-        return obj.group.id in request.user.groups.values_list("id", flat=True)
+
+        # Read access to normal users is granted if they are members of the organization
+        if request.method in SAFE_METHODS:
+            return obj in Organization.objects.for_user(request.user)
+
+        # Only staff can modify organizations
+        return False

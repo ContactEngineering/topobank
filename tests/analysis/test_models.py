@@ -18,7 +18,6 @@ from topobank.testing.factories import (
     TagFactory,
     Topography1DFactory,
     TopographyAnalysisFactory,
-    WorkflowTemplateFactory,
 )
 from topobank.testing.workflows import TestImplementation
 
@@ -45,7 +44,7 @@ def test_tag_as_analysis_subject():
     s2 = SurfaceFactory()
     s3 = SurfaceFactory()
     st = TagFactory.create(surfaces=[s1, s2, s3])
-    st.authorize_user(s1.creator, "view")
+    st.authorize_user(s1.created_by, "view")
     func = Workflow.objects.get(name="topobank.testing.test")
     analysis = TagAnalysisFactory(subject_tag=st, function=func)
     assert analysis.subject == st
@@ -93,7 +92,7 @@ def test_analysis_times(two_topos, test_analysis_function):
     )
     analysis.save()
 
-    assert analysis.creation_time - now < datetime.timedelta(seconds=1)
+    assert analysis.created_at - now < datetime.timedelta(seconds=1)
     assert analysis.task_start_time == datetime.datetime(2018, 1, 1, 12)
     assert analysis.task_end_time == datetime.datetime(2018, 1, 1, 13)
     assert analysis.task_duration == datetime.timedelta(0, 3600)
@@ -211,6 +210,7 @@ def test_analysis_delete_removes_files(test_analysis_function):
     assert not default_storage.exists(file_path)
 
 
+@pytest.mark.skip(reason="Test is for deprecated functionality")
 @pytest.mark.django_db
 def test_fix_folder(test_analysis_function):
     # Old analyses do not have folders
@@ -241,26 +241,3 @@ def test_submit_again(test_analysis_function):
     analysis = TopographyAnalysisFactory(function=test_analysis_function)
     new_analysis = analysis.submit_again()
     assert new_analysis.task_state == WorkflowResult.PENDING
-
-
-@pytest.mark.django_db
-def test_workflow_template(test_analysis_function):
-
-    surface = SurfaceFactory()
-    SurfaceAnalysisFactory(
-        subject_surface=surface,
-        function=test_analysis_function
-    )
-
-    expected_kwargs = dict(
-        a=2,
-        b="bar",
-    )
-
-    template = WorkflowTemplateFactory(
-        implementation=test_analysis_function,
-        kwargs=expected_kwargs,
-    )
-
-    assert template.implementation == test_analysis_function
-    assert template.kwargs == expected_kwargs

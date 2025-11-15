@@ -44,8 +44,8 @@ class ZipContainer(PermissionMixin, TaskStateModel):
     )
 
     # Timestamp of creation of this ZIP container
-    creation_time = models.DateTimeField(auto_now_add=True)
-    modification_time = models.DateTimeField(auto_now=True)
+    created_at = models.DateTimeField(auto_now_add=True)
+    updated_at = models.DateTimeField(auto_now=True)
 
     def create_empty_manifest(self):
         if self.manifest is not None:
@@ -53,7 +53,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
                 "This ZIP container already has a manifest. Cannot create a new one."
             )
         self.manifest = Manifest.objects.create(
-            permissions=self.permissions, filename="container.zip", kind="raw"
+            permissions=self.permissions, filename="container.zip", kind="raw", folder=None
         )
         self.save(update_fields=["manifest"])
 
@@ -110,6 +110,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         self.manifest = Manifest.objects.create(
             permissions=self.permissions,
             filename=container_filename,
+            folder=None,
             kind="der",
         )
         self.manifest.save_file(container_data)

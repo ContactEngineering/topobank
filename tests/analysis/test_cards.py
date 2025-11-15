@@ -25,7 +25,7 @@ def test_series_card_data_sources(api_client, handle_usage_statistics):
     #
     password = "secret"
     user = UserFactory(password=password)
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     func1 = Workflow.objects.get(name="topobank.testing.test")
 
     topo1 = Topography2DFactory(surface=surface)
@@ -109,7 +109,7 @@ def test_series_card_if_no_successful_topo_analysis(
     ContentType.objects.get_for_model(Surface)
     func1 = Workflow.objects.get(name="topobank.testing.test")
 
-    surf = SurfaceFactory(creator=user)
+    surf = SurfaceFactory(created_by=user)
     topo = Topography1DFactory(surface=surf)  # also generates the surface
 
     # There is a successful surface analysis, but no successful topography analysis

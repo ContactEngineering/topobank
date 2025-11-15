@@ -15,9 +15,9 @@ def user_three_surfaces_four_topographies():
     # Create some database objects
     #
     user = UserFactory()
-    surface1 = SurfaceFactory(creator=user, category="exp")
-    surface2 = SurfaceFactory(creator=user, category="sim")
-    surface3 = SurfaceFactory(creator=user, category="dum")
+    surface1 = SurfaceFactory(created_by=user, category="exp")
+    surface2 = SurfaceFactory(created_by=user, category="sim")
+    surface3 = SurfaceFactory(created_by=user, category="dum")
 
     topo1a = Topography1DFactory(surface=surface1)
     topo1b = Topography1DFactory(surface=surface1)
@@ -36,7 +36,7 @@ def user_three_surfaces_four_topographies():
 def test_search_expressions(api_client):
     user = UserFactory()
 
-    surface1 = SurfaceFactory(creator=user)
+    surface1 = SurfaceFactory(created_by=user)
 
     topo1a = Topography1DFactory(surface=surface1, description="a big tiger")
     topo1b = Topography1DFactory(surface=surface1, description="a big elephant")
@@ -45,7 +45,7 @@ def test_search_expressions(api_client):
     )
     topo1d = Topography1DFactory(surface=surface1, description="not me, big snake")
 
-    surface2 = SurfaceFactory(creator=user)
+    surface2 = SurfaceFactory(created_by=user)
 
     topo2a = Topography1DFactory(surface=surface2, name="Measurement 2A")
     Topography1DFactory(
@@ -127,8 +127,8 @@ def test_search_for_user(api_client):
     user1 = UserFactory(name="Bob Marley")
     user2 = UserFactory(name="Bob Dylan")
 
-    surf1 = SurfaceFactory(creator=user1)
-    surf2 = SurfaceFactory(creator=user2)
+    surf1 = SurfaceFactory(created_by=user1)
+    surf2 = SurfaceFactory(created_by=user2)
 
     #
     # So far nothing has been shared
@@ -188,7 +188,7 @@ def test_search_for_user(api_client):
     #
     # User1 adds a topography to shared surface, it should be findable by both users using first user's name
     #
-    topo1a = Topography1DFactory(surface=surf1, creator=user1)
+    topo1a = Topography1DFactory(surface=surf1, created_by=user1)
 
     # User 1 searches, finds also topography
     api_client.force_login(user1)
@@ -226,7 +226,7 @@ def test_search_for_user(api_client):
     #
     # User2 adds a topography to shared surface, it should be findable by both users using user2's last name
     #
-    topo1b = Topography1DFactory(surface=surf1, creator=user2)
+    topo1b = Topography1DFactory(surface=surf1, created_by=user2)
 
     # User 1 searches, finds topographies, depending on search term
     api_client.force_login(user1)

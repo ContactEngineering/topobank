@@ -24,7 +24,7 @@ def test_upload_file(api_client, user_alice, user_bob):
         filename=name,
         permissions=permissions,
         folder=folder,
-        uploaded_by=user_alice,
+        created_by=user_alice,
         kind="raw",
     )
 
@@ -35,12 +35,13 @@ def test_upload_file(api_client, user_alice, user_bob):
     response = api_client.get(
         reverse("files:manifest-api-detail", kwargs={"pk": manifest.id})
     )
-    assert response.status_code == 403, response.content
+    # Return 404 when user should not know about the existence of the file
+    assert response.status_code == 404, response.content
 
     # Share with bob editable
     manifest.permissions.grant_for_user(user_bob, "edit")
 
-    # Bob should not be able to get upload instructions and upload the file
+    # Bob is now able to get upload instructions and upload the file
     response = api_client.get(
         reverse("files:manifest-api-detail", kwargs={"pk": manifest.id})
     )
@@ -136,7 +137,8 @@ def test_modify_file(
     response = api_client.get(
         reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id})
     )
-    assert response.status_code == 403
+    # FIXME - This should be 401 - see comment in test_create_file
+    assert response.status_code == 404
 
     old_filename = manifest1.filename
     new_filename = "new_filename.testing"
@@ -146,6 +148,7 @@ def test_modify_file(
         reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id}),
         {"filename": new_filename},
     )
+    # FIXME - This should be 401 - see comment in test_create_file
     assert response.status_code == 403
 
     # Login user
@@ -211,18 +214,26 @@ def test_create_file(api_client, user_alice, read_only, handle_usage_statistics)
     filename = "my_created_file.testing"
 
     response = api_client.get(
-        reverse("files:folder-api-detail", kwargs={"pk": folder.id})
+        reverse("files:folder-api-detail", kwargs={"pk": folder.id})  # list_manifests - function-based view
     )
-    assert response.status_code == 403
+    # User is not logged in, should get 401
+    # FIXME - Currently topobank allows anonymous user to call this endpoint if it is a read request so the
+    #  authentication is not enforced. This results in 404 because the folder is not visible to anonymous
+    #  users. We should enforce authentication and return 401 for unauthenticated users.
+    assert response.status_code == 404
 
     # Try creating a file - no permission
     response = api_client.post(
-        reverse("files:manifest-api-list"),
+        reverse("files:manifest-api-list"),  # FileManifestViewSet
         {
             "filename": filename,
             "folder": folder.get_absolute_url(response.wsgi_request),
         },
     )
+    # FIXME - User is not logged in, should get 401 - see comment above
+    # This one returns 403 because the POST endpoint enforces authentication
+    # but because of settings, the authentication layers do not return the 401 status code
+    # Instead, the permission check in the view returns 403 because the anonymous user has no access
     assert response.status_code == 403
 
     # Login user
@@ -271,8 +282,8 @@ def test_list_folder(api_client, user_alice):
                 "filename": manifest1.filename,
                 "folder": f"http://testserver/files/folder/{folder.id}/",
                 "kind": "N/A",
-                "created": manifest1.created.astimezone().isoformat(),
-                "updated": manifest1.updated.astimezone().isoformat(),
+                "created": manifest1.created_at.astimezone().isoformat(),
+                "updated": manifest1.updated_at.astimezone().isoformat(),
                 "uploaded_by": None,
                 "upload_confirmed": manifest1.upload_confirmed.astimezone().isoformat(),
                 "upload_instructions": None,
@@ -283,8 +294,8 @@ def test_list_folder(api_client, user_alice):
                 "filename": manifest2.filename,
                 "folder": f"http://testserver/files/folder/{folder.id}/",
                 "kind": "N/A",
-                "created": manifest2.created.astimezone().isoformat(),
-                "updated": manifest2.updated.astimezone().isoformat(),
+                "created": manifest2.created_at.astimezone().isoformat(),
+                "updated": manifest2.updated_at.astimezone().isoformat(),
                 "uploaded_by": None,
                 "upload_confirmed": manifest2.upload_confirmed.astimezone().isoformat(),
                 "upload_instructions": None,

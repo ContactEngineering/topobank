@@ -10,6 +10,9 @@ functionality with common patterns used throughout the application:
 - ModelRelatedField: Generic field for serializing related objects with URLs
 - UserField: Specialized field for user objects
 - OrganizationField: Specialized field for organization objects
+- SubjectField: Field for serializing subject objects
+- ManifestField: Field for serializing manifest objects
+- StringOrIntegerField: Accepts either string or integer input
 
 These components help maintain consistency across API endpoints and provide enhanced
 validation and flexibility for API consumers.
@@ -191,9 +194,9 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
     {
         "type": "object",
         "properties": {
-            "id": {"type": "number"},
-            "url": {"type": "string"},
-            "allow": {"enum": ["view", "edit", "full"]},
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "allow": {"$ref": "#/components/schemas/PermissionAllowEnum", "readOnly": True},
         },
         "required": ["id", "url", "allow"],
     }
@@ -464,46 +467,106 @@ class ModelRelatedField(serializers.RelatedField):
             )
         }
         if self.fields:
+            # Include additional specified fields
             for field in self.fields:
-                data[field] = getattr(obj, field)
+                try:
+                    # Get the field value from the model instance
+                    # If the field does not exist, skip it
+                    data[field] = getattr(obj, field)
+                except AttributeError:
+                    pass
         return data
 
-    def to_internal_value(self, data):
+    def to_internal_value(self, data: dict):
         """
         Convert the input data back into a model instance.
 
         Parameters
         ----------
         data : dict
-            The input data containing at least the 'id' of the model instance.
+            The input data containing at least the 'id' or 'url' of the model instance.
 
         Returns
         -------
         Model instance
             The corresponding model instance.
         """
-        id = data.get("id", None)
-        url = data.get("url", None)
-        if id is None and url is not None:
+        try:
+            keys = data.keys()
+        except AttributeError:
+            self.fail('invalid')
+        # Fail quickly if both or neither id/url are provided
+        if "id" in keys and "url" in keys:
+            self.fail('id_url_both_present')
+        elif "id" not in keys and "url" not in keys:
+            self.fail('id_url_not_present')
+
+        if url := data.get("url", None):
             match = resolve(urlparse(url=url).path)
             if match.view_name != self.view_name:
                 self.fail('incorrect_match')
             return self.get_queryset().get(**match.kwargs)
-        elif id is not None and url is None:
+        elif id := data.get("id", None):
             return self.get_queryset().get(id=id)
-        elif id is None and url is None:
-            self.fail('id_url_not_present')
-        else:
-            self.fail('id_url_both_present')
+
+    def display_value(self, instance):
+        """
+        Return a string representation for use in HTML forms.
+
+        This method is called by DRF's browsable API when rendering
+        select dropdowns. It needs to return a string, not a dict.
+        This is currently only used in Admin forms/ browsable API.
+
+        Parameters
+        ----------
+        instance : Model instance
+            The model instance to display.
+
+        Returns
+        -------
+        str
+            A string representation of the instance.
+        """
+        return str(instance)
+
+    def get_choices(self, cutoff=None):
+        """
+        Return a dict of choices for use in HTML forms.
+
+        This overrides the parent method to use the primary key as the
+        dictionary key instead of the full to_representation() output,
+        since to_representation() returns a dict which is unhashable.
+
+        Parameters
+        ----------
+        cutoff : int, optional
+            Maximum number of choices to return.
+
+        Returns
+        -------
+        OrderedDict
+            A dictionary mapping primary keys to display strings.
+        """
+        queryset = self.get_queryset()
+        if queryset is None:
+            return {}
+
+        if cutoff is not None:
+            queryset = queryset[:cutoff]
+
+        return {
+            getattr(item, self.lookup_field): self.display_value(item)
+            for item in queryset
+        }
 
 
 @extend_schema_field(
     {
         "type": "object",
         "properties": {
-            "id": {"type": "number"},
-            "url": {"type": "string"},
-            "name": {"type": "string"},
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "name": {"type": "string", "readOnly": True},
         },
         "required": ["id", "url", "name"],
     }
@@ -575,6 +638,17 @@ class UserField(ModelRelatedField):
                          **kwargs)
 
 
+@extend_schema_field(
+    {
+        "type": "object",
+        "properties": {
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "name": {"type": "string", "readOnly": True},
+        },
+        "required": ["id", "url", "name"],
+    }
+)
 class OrganizationField(ModelRelatedField):
     """
     A specialized field for representing Organization model instances in API responses.
@@ -661,3 +735,238 @@ class OrganizationField(ModelRelatedField):
                          lookup_field="pk",
                          fields=["name"],
                          **kwargs)
+
+
+@extend_schema_field(
+    {
+        "type": "object",
+        "properties": {
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "name": {"type": "string", "readOnly": True},
+            "type": {"type": "string", "readOnly": True},
+        },
+        "required": ["id", "url", "name", "type"],
+    }
+)
+class SubjectField(serializers.RelatedField):
+    """
+    A reusable Django REST Framework related field that returns a dictionary
+    containing the subject's identifier, a hyperlinked URL, and name.
+
+    The serialized representation takes the form:
+
+        {
+            "id": <subject id>,
+            "url": <hyperlinked URL>,
+            "name": <subject_name>,
+            "type": <subject_type>
+        }
+
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments passed to ModelRelatedField.
+        Common options include 'queryset' and 'read_only'.
+
+    Usage
+    -----
+    Use this field whenever you need to represent a WorkflowSubject relationship::
+
+        class ResultSerializer(serializers.ModelSerializer):
+            subject = SubjectField(read_only=True)
+
+            class Meta:
+                model = WorkflowResult
+                fields = ['id', 'url', 'subject', ...]
+
+    Examples
+    --------
+    Serialized output for a Surface subject::
+
+        {
+            "id": 10,
+            "url": "<app_base_url>/manager/v2/surface/10/",
+            "name": "Sample Surface",
+            "type": "surface"
+        }
+
+    Serialized output for a Topography subject::
+
+        {
+            "id": 10,
+            "url": "<app_base_url>/manager/v2/topography/10/",
+            "name": "Sample Topography",
+            "type": "topography"
+        }
+
+    Serialized output for a Tag subject::
+        {
+            "id": 10,
+            "url": "<app_base_url>/manager/api/sample-tag/",
+            "name": "Sample-Tag",
+            "type": "tag"
+        }
+
+    Notes
+    -----
+    - The 'type' field indicates whether the subject is a 'tag', 'surface', or 'topography'.
+        This is useful since the WorkflowSubject is a generic relation.
+        (i.e., A surface and topography can both have the same ID and we need a way to distinguish them.)
+    - This field requires a request context to generate URLs.
+    - The 'view_name' is determined dynamically based on the subject type.
+    """
+
+    def __init__(self, **kwargs):
+        super().__init__(**kwargs)
+
+    def to_representation(self, obj):
+        # Handle both WorkflowSubject and direct subject objects (Tag/Topography/Surface)
+        from topobank.analysis.models import WorkflowSubject
+        from topobank.manager.models import Surface, Tag, Topography
+
+        if isinstance(obj, WorkflowSubject):
+            # If obj is a WorkflowSubject, get the actual subject
+            subject = obj.get()
+        elif isinstance(obj, (Tag, Topography, Surface)):
+            # If obj is already a subject, use it directly
+            subject = obj
+        else:
+            raise TypeError(f"Expected WorkflowSubject or Tag/Topography/Surface, got {type(obj)}")
+
+        subject_type = subject.__class__.__name__.lower()
+        subject_id = subject.id
+
+        if subject_type == "tag":
+            view_name = "manager:tag-api-detail"
+            kwargs = {"name": subject.name}
+        else:
+            view_name = f"manager:{subject_type}-v2-detail"
+            kwargs = {"pk": subject_id}
+
+        data = {
+            "id": subject_id,
+            "url": reverse(
+                view_name,
+                kwargs=kwargs,
+                request=self.context.get("request", None),
+            ),
+            "name": subject.name,
+            "type": subject_type,
+        }
+
+        return data
+
+
+@extend_schema_field(
+    {
+        "type": "object",
+        "properties": {
+            "id": {"type": "number", "readOnly": True},
+            "url": {"type": "string", "readOnly": True},
+            "file": {"type": "string", "readOnly": True},
+        },
+        "required": ["id", "url"],
+    }
+)
+class ManifestField(ModelRelatedField):
+    """
+    A reusable Django REST Framework related field that returns a dictionary
+    containing the manifest's identifier, a hyperlinked URL, and the file URL if the query_param
+    'link_file' is present.
+
+    The serialized representation takes the form:
+
+        {
+            "id": <manifest id>,
+            "url": <hyperlinked URL>,
+            "file": <manifest_file_url>  <-- only if 'link_file' query param is set
+        }
+
+    Parameters
+    ----------
+    **kwargs
+        Additional keyword arguments passed to ManifestField.
+        Common options include 'queryset' and 'read_only'.
+
+    Usage
+    -----
+    Use this field whenever you need to represent a Manifest relationship::
+
+        class TopographySerializer(serializers.ModelSerializer):
+            thumbnail = ManifestField(read_only=True)
+            datafile = ManifestField(read_only=True)
+
+            class Meta:
+                model = Topography
+                fields = ['id', 'name', 'thumbnail', 'datafile']
+
+    Examples
+    --------
+    Serialized output for a single Manifest::
+
+        {
+            "id": 1,
+            "url": "<app_base_url>/files/manifest/1/"
+        }
+
+    Serialized output with query parameter 'link_file' set to true::
+
+        {
+            "id": 1,
+            "url": "<app_base_url>/files/manifest/1/",
+            "file": "<s3_or_local_file_url>"
+        }
+
+    Notes
+    -----
+    - This field is pre-configured to use the 'files:manager-api-detail' view name
+    - The 'file' field is only included if the query parameter 'link_file' is set to true/1/yes
+    """
+
+    def __init__(
+        self,
+        view_name="files:manifest-api-detail",
+        lookup_field="pk",
+        **kwargs,
+    ):
+        super().__init__(view_name=view_name, lookup_field=lookup_field, **kwargs)
+
+    def to_representation(self, obj):
+        data = super().to_representation(obj)
+        request = self.context.get("request", None)
+
+        # Check for 'link_file' query parameter
+        link_file_param = request.query_params.get("link_file", "false").lower() if request else "false"
+        if link_file_param in ["true", "1", "yes"]:
+            # Include the file URL in the representation
+            data["file"] = serializers.FileField().to_representation(obj.file)
+
+        return data
+
+
+@extend_schema_field(
+    {
+        "oneOf": [
+            {"type": "string"},
+            {"type": "integer"},
+        ],
+        "description": "A field that accepts either a string or an integer.",
+    }
+)
+class StringOrIntegerField(serializers.Field):
+    """
+    A field that accepts either a string or an integer.
+    """
+    def to_internal_value(self, data):
+        if isinstance(data, int):
+            return data
+        elif isinstance(data, str):
+            return data
+        else:
+            raise serializers.ValidationError(
+                "Value must be either an integer or a string."
+            )
+
+    def to_representation(self, value):
+        return value

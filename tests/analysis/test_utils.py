@@ -20,7 +20,7 @@ def test_request_analysis(two_topos, test_analysis_function):
         subject_dispatch__topography__in=[topo1, topo2]
     ).delete()
 
-    user = topo1.creator
+    user = topo1.created_by
 
     analysis = test_analysis_function.submit(user=user, subject=topo1)
 
@@ -34,7 +34,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     topo1 = Topography.objects.get(name="Example 3 - ZSensor")
     topo2 = Topography.objects.get(name="Example 4 - Default")
 
-    user = topo1.creator
+    user = topo1.created_by
 
     # delete all prior analyses for these two topographies in order to have a clean state
     WorkflowResult.objects.filter(

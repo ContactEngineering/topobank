@@ -56,7 +56,7 @@ def test_download_view_permission_for_function_from_plugin(
     )
     m.return_value = user_has_plugin
 
-    api_client.force_login(analysis.subject.creator)
+    api_client.force_login(analysis.subject.created_by)
 
     response = api_client.get(
         reverse(

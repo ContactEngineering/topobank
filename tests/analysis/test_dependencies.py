@@ -14,7 +14,7 @@ def test_dependencies(api_client, django_capture_on_commit_callbacks):
     """Test whether existing analyses can be renewed by API call."""
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     topo1 = Topography1DFactory(surface=surface)
 
     func = Workflow.objects.get(name="topobank.testing.test2")
@@ -63,7 +63,7 @@ def test_dependency_status():
     """Test whether existing analyses can be renewed by API call."""
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     topo1 = Topography1DFactory(surface=surface)
 
     func = Workflow.objects.get(name="topobank.testing.test2")
@@ -109,7 +109,7 @@ def test_error_propagation(
     """Test whether errors propagate from dependencies."""
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     topo1 = Topography1DFactory(surface=surface)
 
     func = Workflow.objects.get(

@@ -22,8 +22,8 @@ def test_surface_retrieve_routes(
     api_client, is_authenticated, with_children, two_topos, handle_usage_statistics
 ):
     topo1, topo2 = two_topos
-    user = topo1.creator
-    assert topo2.creator == user
+    user = topo1.created_by
+    assert topo2.created_by == user
 
     surface1 = topo1.surface
     surface2 = topo2.surface
@@ -56,8 +56,8 @@ def test_surface_retrieve_routes(
             "download": ASSERT_EQUAL_IGNORE_VALUE,
             "async_download": ASSERT_EQUAL_IGNORE_VALUE,
         },
-        "creation_datetime": surface1.creation_time.astimezone().isoformat(),
-        "modification_datetime": surface1.modification_time.astimezone().isoformat(),
+        "creation_datetime": surface1.created_at.astimezone().isoformat(),
+        "modification_datetime": surface1.updated_at.astimezone().isoformat(),
         "attachments": surface1.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface1.id}",
         "properties": {},
@@ -112,8 +112,8 @@ def test_surface_retrieve_routes(
             "channel_names": [],
             "data_source": 0,
             "is_metadata_complete": True,
-            "creation_datetime": topo1.creation_time.astimezone().isoformat(),
-            "modification_datetime": topo1.modification_time.astimezone().isoformat(),
+            "creation_datetime": topo1.created_at.astimezone().isoformat(),
+            "modification_datetime": topo1.updated_at.astimezone().isoformat(),
             "permissions": ASSERT_EQUAL_IGNORE_VALUE,
         }
     ]
@@ -130,8 +130,8 @@ def test_surface_retrieve_routes(
             "download": ASSERT_EQUAL_IGNORE_VALUE,
             "async_download": ASSERT_EQUAL_IGNORE_VALUE,
         },
-        "creation_datetime": surface2.creation_time.astimezone().isoformat(),
-        "modification_datetime": surface2.modification_time.astimezone().isoformat(),
+        "creation_datetime": surface2.created_at.astimezone().isoformat(),
+        "modification_datetime": surface2.updated_at.astimezone().isoformat(),
         "attachments": surface2.attachments.get_absolute_url(response.wsgi_request),
         "topographies": f"{topography_api_list_url}?surface={surface2.id}",
         "properties": {},
@@ -186,8 +186,8 @@ def test_surface_retrieve_routes(
             "channel_names": [],
             "data_source": 0,
             "is_metadata_complete": True,
-            "creation_datetime": topo2.creation_time.astimezone().isoformat(),
-            "modification_datetime": topo2.modification_time.astimezone().isoformat(),
+            "creation_datetime": topo2.created_at.astimezone().isoformat(),
+            "modification_datetime": topo2.updated_at.astimezone().isoformat(),
             "permissions": ASSERT_EQUAL_IGNORE_VALUE,
         }
     ]
@@ -239,8 +239,8 @@ def test_topography_retrieve_routes(
     api_client, is_authenticated, two_topos, handle_usage_statistics
 ):
     topo1, topo2 = two_topos
-    user = topo1.creator
-    assert topo2.creator == user
+    user = topo1.created_by
+    assert topo2.created_by == user
 
     topo1.surface.tags = ["my/super/tag", "my/super"]
     topo1.surface.save()
@@ -307,8 +307,8 @@ def test_topography_retrieve_routes(
             ["Phase", None],
             ["Height", "nm"],
         ],
-        "creation_datetime": topo1.creation_time.astimezone().isoformat(),
-        "modification_datetime": topo1.modification_time.astimezone().isoformat(),
+        "creation_datetime": topo1.created_at.astimezone().isoformat(),
+        "modification_datetime": topo1.updated_at.astimezone().isoformat(),
         "attachments": topo1.attachments.get_absolute_url(response.wsgi_request),
         "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
         "datafile": ASSERT_EQUAL_IGNORE_VALUE,
@@ -362,8 +362,8 @@ def test_topography_retrieve_routes(
         "task_duration": None,
         "data_source": 0,
         "channel_names": [],
-        "creation_datetime": topo2.creation_time.astimezone().isoformat(),
-        "modification_datetime": topo2.modification_time.astimezone().isoformat(),
+        "creation_datetime": topo2.created_at.astimezone().isoformat(),
+        "modification_datetime": topo2.updated_at.astimezone().isoformat(),
         "attachments": topo2.attachments.get_absolute_url(response.wsgi_request),
         "deepzoom": ASSERT_EQUAL_IGNORE_VALUE,
         "datafile": ASSERT_EQUAL_IGNORE_VALUE,
@@ -383,7 +383,7 @@ def test_topography_retrieve_routes(
         # topo1 is updated but the get command, because it is triggering file inspection
         topo1 = Topography.objects.get(pk=topo1.id)
         topo1_dict["modification_datetime"] = (
-            topo1.modification_time.astimezone().isoformat()
+            topo1.updated_at.astimezone().isoformat()
         )
         assert_dict_equal(data, topo1_dict)
     else:
@@ -399,7 +399,7 @@ def test_topography_retrieve_routes(
         # topo2 is updated but the get command, because it is triggering file inspection
         topo2 = Topography.objects.get(pk=topo2.id)
         topo2_dict["modification_datetime"] = (
-            topo2.modification_time.astimezone().isoformat()
+            topo2.updated_at.astimezone().isoformat()
         )
         assert_dict_equal(data, topo2_dict)
     else:
@@ -438,14 +438,14 @@ def test_create_surface_routes(api_client, two_users, handle_usage_statistics):
 
     assert Surface.objects.count() == 4
     s = Surface.objects.get(id=response.data["id"])
-    assert s.creator.name == user1.name
+    assert s.created_by.name == user1.name
 
 
 @pytest.mark.django_db
 def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
     (user1, user2), (surface1, surface2, surface3) = two_users
     topo1, topo2, topo3 = Topography.objects.all()
-    user = topo1.creator
+    user = topo1.created_by
     surface1 = topo1.surface
     surface2 = topo2.surface
 
@@ -509,7 +509,7 @@ def test_delete_surface_routes(api_client, two_users, handle_usage_statistics):
 @pytest.mark.django_db
 def test_delete_topography_routes(api_client, two_topos, handle_usage_statistics):
     topo1, topoe2 = two_topos
-    user = topo1.creator
+    user = topo1.created_by
 
     # Delete as anonymous user should fail
     response = api_client.delete(
@@ -534,7 +534,7 @@ def test_delete_topography_routes(api_client, two_topos, handle_usage_statistics
 @pytest.mark.django_db
 def test_patch_surface_routes(api_client, two_topos, handle_usage_statistics):
     topo1, topo2 = two_topos
-    user = topo1.creator
+    user = topo1.created_by
     surface1 = topo1.surface
     surface2 = topo2.surface
 
@@ -564,14 +564,14 @@ def test_patch_surface_routes(api_client, two_topos, handle_usage_statistics):
     surface1, surface2 = Surface.objects.all()
     assert surface1.name == new_name
 
-    assert surface1.modification_time > surface1.creation_time
+    assert surface1.updated_at > surface1.created_at
 
 
 @pytest.mark.django_db
 def test_patch_topography_routes(api_client, two_users, handle_usage_statistics):
     (user1, user2), (surface1, surface2, surface3) = two_users
     topo1, topo2, topo3 = Topography.objects.all()
-    assert topo1.creator == user1
+    assert topo1.created_by == user1
 
     new_name = "My new name"
 
@@ -597,7 +597,7 @@ def test_patch_topography_routes(api_client, two_users, handle_usage_statistics)
     assert Topography.objects.count() == 3
     topo1, topo2, topo3 = Topography.objects.all()
     assert topo1.name == new_name
-    assert topo1.modification_time > topo1.creation_time
+    assert topo1.updated_at > topo1.created_at
 
     new_name = "My second new name"
 
@@ -679,6 +679,12 @@ def test_statistics(api_client, two_users, user_staff, handle_usage_statistics):
 def test_statistics2(api_client, test_instances, handle_usage_statistics):
     (user_1, user_2), (surface_1, surface_2), (topography_1,) = test_instances
     surface_2.grant_permission(user_2)
+    # Made the statistics view require staff status
+    # Add staff status to both users
+    user_1.is_staff = True
+    user_2.is_staff = True
+    user_1.save()
+    user_2.save()
 
     #
     # Test statistics if user_1 is authenticated
@@ -780,11 +786,11 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "id": surface3.id,
                 "name": surface3.name,
                 "category": None,
-                "creator": surface2.creator.get_absolute_url(response.wsgi_request),
+                "creator": surface2.created_by.get_absolute_url(response.wsgi_request),
                 "description": "",
                 "tags": [st.name],
-                "creation_datetime": surface3.creation_time.astimezone().isoformat(),
-                "modification_datetime": surface3.modification_time.astimezone().isoformat(),
+                "creation_datetime": surface3.created_at.astimezone().isoformat(),
+                "modification_datetime": surface3.updated_at.astimezone().isoformat(),
                 "attachments": surface3.attachments.get_absolute_url(
                     response.wsgi_request
                 ),
@@ -803,11 +809,11 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
                 "id": surface2.id,
                 "name": surface2.name,
                 "category": None,
-                "creator": surface2.creator.get_absolute_url(response.wsgi_request),
+                "creator": surface2.created_by.get_absolute_url(response.wsgi_request),
                 "description": "",
                 "tags": [st.name],
-                "creation_datetime": surface2.creation_time.astimezone().isoformat(),
-                "modification_datetime": surface2.modification_time.astimezone().isoformat(),
+                "creation_datetime": surface2.created_at.astimezone().isoformat(),
+                "modification_datetime": surface2.updated_at.astimezone().isoformat(),
                 "attachments": surface2.attachments.get_absolute_url(
                     response.wsgi_request
                 ),
@@ -882,7 +888,7 @@ def test_tag_retrieve_routes(api_client, two_users, handle_usage_statistics):
 
 
 def test_create_topography(api_client, user_alice, handle_usage_statistics):
-    surface = SurfaceFactory(creator=user_alice)
+    surface = SurfaceFactory(created_by=user_alice)
 
     # Not logged in
     response = api_client.post(
@@ -926,7 +932,7 @@ def test_create_topography(api_client, user_alice, handle_usage_statistics):
 def test_create_topography_with_blank_name_fails(
     api_client, user_alice, handle_usage_statistics
 ):
-    surface = SurfaceFactory(creator=user_alice)
+    surface = SurfaceFactory(created_by=user_alice)
     api_client.force_login(user_alice)
 
     # Existing surface id
@@ -945,7 +951,7 @@ def test_create_topography_with_blank_name_fails(
 def test_set_surface_permissions_user(
     api_client, user_alice, user_bob, handle_usage_statistics
 ):
-    surface = SurfaceFactory(creator=user_alice)
+    surface = SurfaceFactory(created_by=user_alice)
     surface.grant_permission(user_alice, "full")
 
     api_client.force_login(user_bob)
@@ -1010,7 +1016,7 @@ def test_set_surface_permissions_organization(
     org_blofield.add(user_bob)
 
     # Create a surface and give Alice full access
-    surface = SurfaceFactory(creator=user_alice)
+    surface = SurfaceFactory(created_by=user_alice)
     surface.grant_permission(user_alice, "full")
 
     # Bob cannot see this surface
@@ -1042,8 +1048,8 @@ def test_set_surface_permissions_organization(
 
 
 def test_set_tag_permissions(api_client, user_alice, user_bob, handle_usage_statistics):
-    surface1 = SurfaceFactory(creator=user_alice)
-    surface2 = SurfaceFactory(creator=user_alice)
+    surface1 = SurfaceFactory(created_by=user_alice)
+    surface2 = SurfaceFactory(created_by=user_alice)
     surface1.grant_permission(user_alice, "full")
     surface2.grant_permission(user_alice, "edit")
     tag = TagFactory(surfaces=[surface1, surface2])
