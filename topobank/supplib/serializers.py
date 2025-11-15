@@ -491,7 +491,10 @@ class ModelRelatedField(serializers.RelatedField):
         Model instance
             The corresponding model instance.
         """
-        keys = data.keys()
+        try:
+            keys = data.keys()
+        except AttributeError:
+            self.fail('invalid')
         # Fail quickly if both or neither id/url are provided
         if "id" in keys and "url" in keys:
             self.fail('id_url_both_present')
