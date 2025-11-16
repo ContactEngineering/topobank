@@ -23,7 +23,7 @@ def test_import_downloaded_surface_archive(client, handle_usage_statistics):
     surface_name = "Test Surface for Import"
     surface_category = 'dum'
     user = UserFactory(username=username)
-    surface = SurfaceFactory(creator=user, name=surface_name, category=surface_category)
+    surface = SurfaceFactory(created_by=user, name=surface_name, category=surface_category)
     Topography2DFactory(surface=surface, name='2D Measurement', size_x=10, size_y=10, unit='mm')
     Topography1DFactory(surface=surface, name='1D Measurement', size_x=9, unit='µm')
 
@@ -61,7 +61,7 @@ def test_import_downloaded_surface_archive(client, handle_usage_statistics):
         # Compare individual topographies
         #
         for attrname in ['name', 'description', 'size_x', 'size_y', 'height_scale',
-                         'measurement_date', 'unit', 'creator', 'data_source', 'tags']:
+                         'measurement_date', 'unit', 'created_by', 'data_source', 'tags']:
             assert getattr(tc, attrname) == getattr(t, attrname)
 
 

@@ -28,7 +28,7 @@ class Command(BaseCommand):
                 "User '{}' does not exist.".format(options['username'])))
             sys.exit(1)
 
-        surfaces = Surface.objects.filter(creator=user)
+        surfaces = Surface.objects.filter(created_by=user)
         topographies = Topography.objects.filter(surface__in=surfaces)
         analyses = WorkflowResult.objects.filter(topography__in=topographies)
         userterms = UserTermsAndConditions.objects.filter(user=user)

@@ -47,14 +47,14 @@ def import_measurement(topo_dict, topo_file, surface, ignore_missing=False):
     size_x, *size_rest = topo_dict["size"]
     size_y = None if len(size_rest) == 0 else size_rest[0]
 
-    user = surface.creator
+    user = surface.created_by
 
     if ignore_missing:
         for k, default in TOPOGRAPHY_DEFAULT_ATTR_VALUES.items():
             topo_dict.setdefault(k, default)
 
     topo_kwargs = dict(
-        creator=user,
+        created_by=user,
         name=topo_name,
         surface=surface,
         size_x=size_x,
@@ -90,7 +90,7 @@ def import_measurement(topo_dict, topo_file, surface, ignore_missing=False):
 
     topography = Topography(**topo_kwargs)
     topography.datafile = Manifest.objects.create(
-        permissions=surface.permissions, filename=topo_name, uploaded_by=user
+        permissions=surface.permissions, filename=topo_name, created_by=user, folder=None
     )
     topography.datafile.save_file(File(topo_file))
     # We need to save again to store the new file name
@@ -109,7 +109,7 @@ def import_container_zip(
     Import surfaces from a ZIP archive and create corresponding Surface instances in the database.
 
     This function processes a ZIP archive containing surface data, including metadata and topography files. It creates
-    Surface instances for each surface in the archive, sets the creator to the specified user, and imports topographies
+    Surface instances for each surface in the archive, sets created_by to the specified user, and imports topographies
     associated with each surface. It also handles optional tagging of surfaces, setting of default values for missing
     attributes, and the choice between safe and unsafe YAML loading for metadata.
 
@@ -118,7 +118,7 @@ def import_container_zip(
     surface_zip : zipfile.ZipFile
         The ZIP archive containing surfaces and their metadata.
     user : topobank.users.models.User
-        The user who will be set as the creator of the imported surfaces.
+        The user who will be set as created_by of the imported surfaces.
     datafile_attribute : str, optional
         The attribute name in the metadata file that stores the file name for a topography's data file.
         Default is 'datafile'.
@@ -161,7 +161,7 @@ def import_container_zip(
             if tag is not None:
                 tags.add(tag)
             surface = Surface.objects.create(
-                creator=user,
+                created_by=user,
                 name=surface_dict["name"],
                 category=surface_dict["category"],
                 description=surface_description,

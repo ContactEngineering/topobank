@@ -12,6 +12,7 @@ import pandas as pd
 import pint
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseNotFound
 from django.utils.text import slugify
+from drf_spectacular.utils import OpenApiParameter, extend_schema
 from openpyxl.styles import Font
 from openpyxl.worksheet.hyperlink import Hyperlink
 from rest_framework.decorators import api_view
@@ -27,6 +28,25 @@ from .utils import filter_and_order_analyses
 from .workflows import VIZ_SERIES
 
 
+@extend_schema(
+    description="Download analyses results in specified format",
+    parameters=[
+        OpenApiParameter(
+            name="ids",
+            type=str,
+            location=OpenApiParameter.PATH,
+            description="Comma-separated list of analysis IDs",
+        ),
+        OpenApiParameter(
+            name="file_format",
+            type=str,
+            location=OpenApiParameter.PATH,
+            description="File format (e.g., 'txt', 'xlsx')",
+        ),
+    ],
+    request=None,
+    responses={(200, "application/octet-stream"): bytes},
+)
 @api_view(["GET"])
 def download_analyses(request, ids, file_format):
     """View returning a file comprised from analyses results.
@@ -154,7 +174,7 @@ def analyses_meta_data_dataframe(analyses, request):
         values += [
             str(subject.get_content_type().model),
             str(subject.name),
-            str(subject.creator) if hasattr(subject, "creator") else "",
+            str(subject.created_by) if hasattr(subject, "created_by") else "",
             str(subject.instrument_name) if hasattr(subject, "instrument_name") else "",
             str(subject.instrument_type) if hasattr(subject, "instrument_type") else "",
             (
@@ -243,8 +263,8 @@ def analysis_header_for_txt_file(analysis, as_comment=True, dois=False):
     headline = f"{subject_type_str}: {subject.name}"
 
     s = f"{headline}\n" + "=" * len(headline) + "\n"
-    if hasattr(subject, "creator"):
-        s += f"Creator: {subject.creator}\n"
+    if hasattr(subject, "created_by"):
+        s += f"Creator: {subject.created_by}\n"
     if hasattr(subject, "instrument_name"):
         s += f"Instrument name: {subject.instrument_name}\n"
     if hasattr(subject, "instrument_type"):
@@ -508,7 +528,7 @@ def download_plot_analyses_to_xlsx(request, analyses):
         column3 = "standard error of {} ({})".format(ylabel, yunit)
         column4 = "comment"
 
-        creator = str(subject.creator) if hasattr(subject, "creator") else ""
+        creator = str(subject.created_by) if hasattr(subject, "created_by") else ""
         instrument_name = (
             str(subject.instrument_name) if hasattr(subject, "instrument_name") else ""
         )
@@ -778,7 +798,7 @@ def download_plot_analyses_to_csv(request, analyses):
             subject_type = (
                 "measurement"  # this is how topographies are denoted in the UI
             )
-        creator = str(subject.creator) if hasattr(subject, "creator") else ""
+        creator = str(subject.created_by) if hasattr(subject, "created_by") else ""
         instrument_name = (
             str(subject.instrument_name) if hasattr(subject, "instrument_name") else ""
         )

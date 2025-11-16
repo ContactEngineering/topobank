@@ -14,7 +14,7 @@ def test_request_analysis(mocker, test_analysis_function):
     )  # we don't want to calculate anything
 
     topo = Topography1DFactory()
-    user = topo.creator
+    user = topo.created_by
 
     # just an abbreviation
     def assert_correct_args(analysis, expected_kwargs):
@@ -54,7 +54,7 @@ def test_different_kwargs(mocker, test_analysis_function):
     m.return_value = {"result1": 1, "result2": 2}
 
     topo = Topography1DFactory()
-    user = topo.creator
+    user = topo.created_by
 
     a1 = TopographyAnalysisFactory(
         subject_topography=topo,

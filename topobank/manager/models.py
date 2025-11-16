@@ -155,6 +155,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
             "manager:tag-api-detail", kwargs=dict(name=self.name), request=request
         )
 
+    # TODO: Make this work with permission mixin
     def authorize_user(
         self,
         user: User = None,
@@ -346,16 +347,19 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     # Ownership
     #
 
-    # `creator` is only NULL if user is deleted after dataset has been created.
-    # Custodian should NOT remove datasets with NULL organization
-    creator = models.ForeignKey(
+    # `created_by` is only NULL if user is deleted after dataset has been created.
+    # Custodian should NOT remove datasets with NULL created_by
+    created_by = models.ForeignKey(
         User, on_delete=models.SET_NULL, null=True
     )
+    updated_by = models.ForeignKey(
+        User, on_delete=models.SET_NULL, null=True, related_name="+"
+    )
 
-    # `owner` is always an organization. The field is only NULL if
+    # `owned_by` is always an organization. The field is only NULL if
     # organization is deleted after dataset has been created.
     # Custodian should remove all datasets with NULL organization.
-    owner = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True)
+    owned_by = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True)
 
     #
     # Dataset metadata
@@ -370,8 +374,8 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     #
     # Time stamps
     #
-    creation_time = models.DateTimeField(auto_now_add=True, null=True)
-    modification_time = models.DateTimeField(auto_now=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
     # If deletion date is set, the datasets will be deleted after TOPOBANK_DELETE_DELAY
     deletion_time = models.DateTimeField(null=True)
 
@@ -424,8 +428,8 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             )
         super().save(*args, **kwargs)
         if created:
-            # Grant permissions to creator
-            self.permissions.grant_for_user(self.creator, "full")
+            # Grant permissions to created_by
+            self.permissions.grant_for_user(self.created_by, "full")
 
     def lazy_delete(self):
         self.deletion_time = timezone.now()
@@ -444,13 +448,13 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         Returns:
             dict
         """
-        creator = {"name": self.creator.name}
-        if self.creator.orcid_id is not None:
-            creator["orcid"] = self.creator.orcid_id
+        created_by = {"name": self.created_by.name}
+        if self.created_by.orcid_id is not None:
+            created_by["orcid"] = self.created_by.orcid_id
         d = {
             "name": self.name,
             "category": self.category,
-            "creator": creator,
+            "created_by": created_by,
             "description": self.description,
             "tags": [t.name for t in self.tags.order_by("name")],
             "is_published": self.is_published,
@@ -643,8 +647,23 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Descriptive fields
     #
     name = models.TextField()  # This must be identical to the file name on upload
-    creator = models.ForeignKey(
+    #
+    # User who created this topography
+    #
+    created_by = models.ForeignKey(
         User, null=True, on_delete=models.SET_NULL
+    )
+    #
+    # User who last updated this topography (no reverse lookup needed)
+    #
+    updated_by = models.ForeignKey(
+        User, null=True, on_delete=models.SET_NULL, related_name="+"
+    )
+    #
+    # Organization owning this topography. (Cleanup only happens if the surface is deleted)
+    #
+    owned_by = models.ForeignKey(
+        Organization, null=True, on_delete=models.SET_NULL
     )
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
@@ -654,8 +673,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     # Time stamps
     #
-    creation_time = models.DateTimeField(auto_now_add=True, null=True)
-    modification_time = models.DateTimeField(auto_now=True, null=True)
+    created_at = models.DateTimeField(auto_now_add=True, null=True)
+    updated_at = models.DateTimeField(auto_now=True, null=True)
     # If deletion date is set, the datasets will be deleted after TOPOBANK_DELETE_DELAY
     deletion_time = models.DateTimeField(null=True)
 
@@ -759,9 +778,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         related_name="topography_deepzooms",
     )
 
-    # Timestamp of creation of this measurement instance
-    creation_time = models.DateTimeField(auto_now_add=True)
-
     # Changes in these fields trigger a refresh of the topography cache and of all analyses
     _significant_fields = {
         "size_x",
@@ -780,10 +796,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     def save(self, *args, **kwargs):
         update_fields = kwargs.get("update_fields", None)
-        created = self.pk is None
-        if created:
-            if self.creator is None:
-                self.creator = self.surface.creator
+        _created = self.pk is None
+        if _created:
+            if self.created_by is None:
+                self.created_by = self.surface.created_by
             self.permissions = self.surface.permissions
         if self.attachments is None:
             _log.debug(
@@ -852,6 +868,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def save_datafile(self, fobj):
         self.datafile = Manifest.objects.create(
             permissions=self.permissions,
+            folder=None,
             filename=self.name,
             kind="raw",
             file=File(fobj),
@@ -903,10 +920,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         """
         return [self.surface]
 
-    def get_absolute_url(self, request=None):
+    def get_absolute_url(self, request=None, version="api"):
         """URL of API endpoint for this topography."""
         return reverse(
-            "manager:topography-api-detail", kwargs=dict(pk=self.pk), request=request
+            f"manager:topography-{version}-detail", kwargs=dict(pk=self.pk), request=request
         )
 
     def is_shared(self, user: User) -> bool:
@@ -1085,7 +1102,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             "fill_undefined_data_mode": self.fill_undefined_data_mode,
             "detrend_mode": self.detrend_mode,
             "is_periodic": self.is_periodic,
-            "creator": {"name": self.creator.name, "orcid": self.creator.orcid_id},
+            "created_by": {"name": self.created_by.name, "orcid": self.created_by.orcid_id},
             "measurement_date": self.measurement_date,
             "description": self.description,
             "unit": self.unit,
@@ -1229,7 +1246,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.thumbnail.delete()
         filename = f"thumbnail.{settings.TOPOBANK_THUMBNAIL_FORMAT}"
         self.thumbnail = Manifest.objects.create(
-            permissions=self.permissions, filename=filename, kind="der"
+            permissions=self.permissions, filename=filename, kind="der", folder=None
         )
         self.thumbnail.save_file(ContentFile(image_file.getvalue()))
 
@@ -1264,6 +1281,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             squeezed_name = f"{orig_stem}-squeezed.nc"
             self.squeezed_datafile = Manifest.objects.create(
                 permissions=self.permissions,
+                folder=None,
                 filename=squeezed_name,
                 kind="der",
                 file=File(open(tmp.name, mode="rb")),

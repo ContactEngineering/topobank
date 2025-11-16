@@ -1,26 +1,97 @@
 from django.contrib.postgres.search import SearchQuery, SearchVector
 from django.db.models import Q, Subquery, TextField, Value
 from django.db.models.functions import Replace
+from django_filters.rest_framework import FilterSet, filters
 from rest_framework.exceptions import ParseError, PermissionDenied
 
-from topobank.manager.models import Surface
+from topobank.manager.models import Surface, Topography
 
-ORDER_BY_FILTER_CHOICES = {"name": "name", "date": "-creation_time"}
+ORDER_BY_FILTER_CHOICES = {"name": "name", "date": "-created_at"}
 SHARING_STATUS_FILTER_CHOICES = set(["all", "own", "others", "published"])
 
 
+# v2 filters
+class TopographyViewFilterSet(FilterSet):
+    """
+    FilterSet for Topography model.
+
+    Filters:
+    - surface: Filter by surface IDs (list)
+    - tag: Filter by exact tag name
+    - tag_startswith: Filter by tag name starting with substring
+    """
+
+    surface = filters.BaseInFilter(method="filter_ids", field_name="surface__id")
+    tag = filters.CharFilter(method="filter_tag_iexact", field_name="surface__tags__path", lookup_expr="iexact")
+    tag_startswith = filters.CharFilter(method="filter_tag_istartswith", field_name="surface__tags__path",
+                                        lookup_expr="istartswith")
+
+    class Meta:
+        model = Topography
+        fields = ["surface", "tag", "tag_startswith"]
+
+    def filter_ids(self, queryset, name, value):
+        """
+        Filter by surface ID(s).
+
+        Usage: ?surface=1,2,3
+        """
+
+        return queryset.filter(surface__id__in=value)
+
+    def filter_tag_iexact(self, queryset, name, value):
+        """
+        Filter by exact tag path (case-insensitive) and all child tags.
+        """
+        # Filter by exact tag path OR child tags (tags that start with "parent/")
+        return queryset.filter(
+            Q(surface__tags__path__iexact=value)
+            | Q(surface__tags__path__istartswith=value.rstrip("/") + "/")
+        ).distinct()
+
+    def filter_tag_istartswith(self, queryset, name, value):
+        """
+        Filter by tag path starting with substring (case-insensitive).
+
+        Note:
+        ----
+        This matches any tag path that starts with the given substring.
+        It should only be used for broad searches as it may return many results.
+        ALWAYS use `tag` filter for specific tag filtering.
+
+        Example:
+        --------
+        `?tag_startswith=training` matches:
+
+        /
+        ├── data
+        │   └── training  <- match + sub-tags
+        ├── training  <- match + sub-tags
+        │   └── data
+        └── bigdata
+            └── subtag
+                ├── GroupA
+                │   └── training  <- match + sub-tags
+                └── GroupB
+        """
+        return queryset.filter(
+            surface__tags__path__istartswith=value
+        ).distinct()
+
+
+# v1 filter
 def filter_by_search_term(
     request,
     qs,
     search_fields=[
         "description",
         "name",
-        "creator__name",
+        "created_by__name",
         "tag_names_for_search",
         "topography_name_for_search",
         "topography__description",
         "topography_tag_names_for_search",
-        "topography__creator__name",
+        "topography__created_by__name",
     ],
 ):
     """Filter queryset for a given search term.
@@ -85,18 +156,19 @@ def filter_by_search_term(
     return qs
 
 
+# v1 filter
 def filter_by_sharing_status(request, qs):
     sharing_status = request.GET.get("sharing_status", default="all")
     if sharing_status not in SHARING_STATUS_FILTER_CHOICES:
         raise ParseError(f"Cannot filter for sharing status '{sharing_status}'.")
     if sharing_status == "own":
-        qs = qs.filter(creator=request.user)
+        qs = qs.filter(created_by=request.user)
         if hasattr(Surface, "publication"):
             qs = qs.exclude(
                 publication__isnull=False
             )  # exclude published and own surfaces
     elif sharing_status == "others":
-        qs = qs.exclude(creator=request.user)
+        qs = qs.exclude(created_by=request.user)
         if hasattr(Surface, "publication"):
             qs = qs.exclude(
                 publication__isnull=False
@@ -113,6 +185,7 @@ def filter_by_sharing_status(request, qs):
     return qs
 
 
+# v1 filter
 def filter_by_tag(request, qs):
     tag = request.query_params.get("tag", None)
     tag_startswith = request.query_params.get("tag_startswith", None)
@@ -140,6 +213,7 @@ def filter_by_tag(request, qs):
     return qs
 
 
+# v1 filter
 def order_results(request, qs):
     order_by = request.GET.get("order_by", default="date")
     if order_by not in ORDER_BY_FILTER_CHOICES:
@@ -150,6 +224,7 @@ def order_results(request, qs):
     return qs
 
 
+# v1 filter
 def filter_surfaces(request, qs):
     """Return queryset with surfaces matching all filter criteria.
 

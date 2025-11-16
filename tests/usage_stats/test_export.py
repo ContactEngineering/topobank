@@ -18,7 +18,7 @@ def test_export_with_empty_statistics():
 def test_sheets(api_client, handle_usage_statistics):
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     Topography2DFactory(surface=surface)
     Topography2DFactory(surface=surface)
 

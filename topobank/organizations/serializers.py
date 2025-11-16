@@ -7,6 +7,7 @@ from .models import Organization
 
 
 class OrganizationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    """Serializer for Organization model."""
     class Meta:
         model = Organization
         fields = [

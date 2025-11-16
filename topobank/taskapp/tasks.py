@@ -24,7 +24,7 @@ class ProgressRecorder:
 
     PROGRESS_STATE = "PROGRESS"
 
-    def __init__(self, task: celery.Task):
+    def __init__(self, task: celery.Task | None = None):
         self._task = task
         self._total = None
         self._message = None
@@ -56,7 +56,7 @@ class ProgressRecorder:
             total=total,
             message=message,
         ).model_dump()
-        if self._task.request.id:
+        if self._task and self._task.request.id:
             # Eager tasks don't have a request id (task id), and this leads to problems
             # updating the task state with the Django DB backend in testing.
             self._task.update_state(state=state, meta=meta)

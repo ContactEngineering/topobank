@@ -8,6 +8,7 @@ from .models import ORCIDException, User
 
 
 class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    """Serializer for User model."""
     class Meta:
         model = User
         fields = [
@@ -38,9 +39,9 @@ class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
         {
             "type": "object",
             "properties": {
-                "organizations": {"type": "string"},
-                "add_organization": {"type": "string"},
-                "remove_organization": {"type": "string"},
+                "organizations": {"type": "string", "readOnly": True},
+                "add_organization": {"type": "string", "readOnly": True},
+                "remove_organization": {"type": "string", "readOnly": True},
             },
             "required": ["organizations", "add_organization", "remove_organization"],
         }

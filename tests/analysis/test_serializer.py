@@ -12,7 +12,7 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
     topo = one_line_scan
     request = api_rf.get("/")
     analysis = AnalysisFactory(
-        subject_topography=topo, user=topo.creator, function=test_analysis_function
+        subject_topography=topo, user=topo.created_by, function=test_analysis_function
     )
     data = ResultSerializer(analysis, context={"request": request}).data
     assert_dict_equal(
@@ -34,7 +34,7 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
             "task_state": "su",
             "task_messages": ASSERT_EQUAL_IGNORE_VALUE,
             "task_memory": None,
-            "creation_time": analysis.creation_time.astimezone().isoformat(),
+            "creation_time": analysis.created_at.astimezone().isoformat(),
             "task_submission_time": analysis.task_submission_time.astimezone().isoformat(),
             "task_start_time": analysis.task_start_time.astimezone().isoformat(),
             "task_end_time": analysis.task_end_time.astimezone().isoformat(),
@@ -59,10 +59,10 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
     topo.save()
     assert Tag.objects.count() == 1
     tag = Tag.objects.all().first()
-    tag.authorize_user(topo.creator)
+    tag.authorize_user(topo.created_by)
     request = api_rf.get("/")
     analysis = AnalysisFactory(
-        subject_tag=tag, user=topo.creator, function=test_analysis_function
+        subject_tag=tag, user=topo.created_by, function=test_analysis_function
     )
     data = ResultSerializer(analysis, context={"request": request}).data
     assert_dict_equal(
@@ -84,7 +84,7 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
             "task_state": "su",
             "task_messages": ASSERT_EQUAL_IGNORE_VALUE,
             "task_memory": None,
-            "creation_time": analysis.creation_time.astimezone().isoformat(),
+            "creation_time": analysis.created_at.astimezone().isoformat(),
             "task_submission_time": analysis.task_submission_time.astimezone().isoformat(),
             "task_start_time": analysis.task_start_time.astimezone().isoformat(),
             "task_end_time": analysis.task_end_time.astimezone().isoformat(),

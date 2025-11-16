@@ -1,7 +1,7 @@
-from topobank.authorization.permissions import Permission
+from topobank.authorization.permissions import ObjectPermission
 
 
-class ManifestPermission(Permission):
+class ManifestPermission(ObjectPermission):
     def has_object_permission(self, request, view, obj):
         # If this manifest is part of a folder and that folder is set to read-only,
         # then deny all write accesses

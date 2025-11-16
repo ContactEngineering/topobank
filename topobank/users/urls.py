@@ -16,12 +16,12 @@ urlpatterns += [
     # API routes
     #
     path(
-        "v1/add-organization/<pk>/",
+        "v1/add-organization/<int:pk>/",
         view=v1.add_organization,
         name="add-organization-v1",
     ),
     path(
-        "v1/remove-organization/<pk>/",
+        "v1/remove-organization/<int:pk>/",
         view=v1.remove_organization,
         name="remove-organization-v1",
     ),

@@ -16,12 +16,14 @@ from .registry import get_visualization_type
 
 
 class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+    """Serializer for Configuration model."""
     class Meta:
         model = Configuration
         fields = ["valid_since", "versions"]
 
     versions = serializers.SerializerMethodField()
 
+    @extend_schema_field(serializers.DictField(child=serializers.CharField()))
     def get_versions(self, obj):
         versions = {}
         for version in obj.versions.all():
@@ -32,6 +34,7 @@ class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeri
 class WorkflowSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
+    """Serializer for Workflow model."""
     class Meta:
         model = Workflow
         fields = [
@@ -51,9 +54,11 @@ class WorkflowSerializer(
 
     kwargs_schema = serializers.SerializerMethodField()
 
+    @extend_schema_field(serializers.CharField())
     def get_visualization_type(self, obj):
         return get_visualization_type(name=obj.name)
 
+    @extend_schema_field(serializers.DictField())
     def get_kwargs_schema(self, obj):
         return obj.get_kwargs_schema()
 
@@ -61,6 +66,7 @@ class WorkflowSerializer(
 class SubjectSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
+    """Serializer for WorkflowSubject model."""
     class Meta:
         model = WorkflowSubject
         fields = ["id", "tag", "topography", "surface"]
@@ -79,6 +85,7 @@ class SubjectSerializer(
 class ResultSerializer(
     StrictFieldMixin, topobank.taskapp.serializers.TaskStateModelSerializer
 ):
+    """Serializer for WorkflowResult model."""
     class Meta:
         model = WorkflowResult
         fields = [
@@ -126,7 +133,8 @@ class ResultSerializer(
     configuration = serializers.HyperlinkedRelatedField(
         view_name="analysis:configuration-detail", read_only=True
     )
-    creator = UserField(read_only=True)
+    creation_time = serializers.DateTimeField(source="created_at", read_only=True)
+    creator = UserField(source="created_by", read_only=True)
 
     @extend_schema_field(
         {
@@ -146,6 +154,7 @@ class ResultSerializer(
             ),
         }
 
+    @extend_schema_field(serializers.URLField())
     def get_dependencies_url(self, obj):
         return reverse(
             "analysis:dependencies",

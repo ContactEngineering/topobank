@@ -48,7 +48,7 @@ def test_renewal_on_topography_detrend_mode_change(
     )
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     topo = Topography1DFactory(surface=surface, size_y=1, detrend_mode="center")
 
     api_client.force_login(user)
@@ -91,7 +91,7 @@ def test_no_renewal_on_measurement_date_change(
     )
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     topo = Topography1DFactory(surface=surface, size_y=1, detrend_mode="center")
 
     api_client.force_login(user)

@@ -5,9 +5,9 @@ from django.conf import settings
 from freezegun import freeze_time
 
 from topobank.testing.factories import (
-    TopographyAnalysisFactory,
     SurfaceFactory,
     Topography1DFactory,
+    TopographyAnalysisFactory,
     UserFactory,
 )
 from topobank.usage_stats.utils import (
@@ -123,9 +123,9 @@ def test_increase_statistics_by_date_and_object(handle_usage_statistics):
 def stats_instances(db, test_analysis_function):
     user_1 = UserFactory()
     user_2 = UserFactory()
-    surf_1A = SurfaceFactory(creator=user_1)
-    surf_1B = SurfaceFactory(creator=user_1)
-    surf_2A = SurfaceFactory(creator=user_2)
+    surf_1A = SurfaceFactory(created_by=user_1)
+    surf_1B = SurfaceFactory(created_by=user_1)
+    surf_2A = SurfaceFactory(created_by=user_2)
     topo_1Aa = Topography1DFactory(surface=surf_1A)
     topo_1Ab = Topography1DFactory(surface=surf_1A)
     Topography1DFactory(surface=surf_1B)

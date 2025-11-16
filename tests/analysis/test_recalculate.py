@@ -17,7 +17,7 @@ def test_refresh_analyses_api(
     """Test whether existing analyses can be renewed by API call."""
 
     user = UserFactory()
-    surface = SurfaceFactory(creator=user)
+    surface = SurfaceFactory(created_by=user)
     topo1 = Topography1DFactory(surface=surface)
     topo2 = Topography1DFactory(surface=surface)
 

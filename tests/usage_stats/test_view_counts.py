@@ -17,7 +17,7 @@ def test_counts_analyses_views(
 ):
     analysis = TopographyAnalysisFactory.create(function=test_analysis_function)
     topography = analysis.subject
-    user = topography.surface.creator
+    user = topography.surface.created_by
 
     metric = Metric.objects.ANALYSES_RESULTS_VIEW_COUNT
 

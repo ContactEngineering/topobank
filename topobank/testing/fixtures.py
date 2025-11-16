@@ -121,8 +121,8 @@ def two_topos(settings):
     call_command("register_analysis_functions")
 
     user = UserFactory(username="testuser", password="abcd$1234")
-    surface1 = SurfaceFactory(name="Surface 1", creator=user)
-    surface2 = SurfaceFactory(name="Surface 2", creator=user)
+    surface1 = SurfaceFactory(name="Surface 1", created_by=user)
+    surface2 = SurfaceFactory(name="Surface 2", created_by=user)
 
     settings.DELETE_EXISTING_FILES = True  # There can be remnants from failed tests
     datafile1 = ManifestFactory(filename="example3.di")
@@ -130,7 +130,7 @@ def two_topos(settings):
 
     topos1 = Topography2DFactory(
         surface=surface1,
-        creator=user,
+        created_by=user,
         name="Example 3 - ZSensor",
         data_source=0,
         measurement_date=datetime.date(2018, 1, 1),
@@ -150,7 +150,7 @@ def two_topos(settings):
 
     topos2 = Topography2DFactory(
         surface=surface2,
-        creator=user,
+        created_by=user,
         name="Example 4 - Default",
         data_source=0,
         measurement_date=datetime.date(2018, 1, 2),
@@ -171,7 +171,7 @@ def two_topos(settings):
 @pytest.fixture
 def one_line_scan():
     user = UserFactory(username="testuser", password="abcd$1234")
-    surface = Surface(name="Line Scans", creator=user)
+    surface = Surface(name="Line Scans", created_by=user)
     surface.save()
 
     datafile = ManifestFactory(filename="line_scan_1.asc")
@@ -191,10 +191,10 @@ def one_line_scan():
 @pytest.fixture
 def one_topography():
     user = UserFactory(username="testuser", password="abcd$1234")
-    surface = Surface(name="Line Scans", creator=user)
+    surface = Surface(name="Line Scans", created_by=user)
     surface.save()
 
-    datafile = ManifestFactory(filename="example.opd")
+    datafile = ManifestFactory(filename="example.opd", folder=None)
 
     topo = Topography1DFactory(
         surface=surface,
@@ -232,14 +232,14 @@ def user_three_topographies_three_surfaces_three_tags():
     tag2.authorize_user(user, "view")
     tag3.authorize_user(user, "view")
 
-    surface1 = SurfaceFactory(creator=user, tags=[tag1])
+    surface1 = SurfaceFactory(created_by=user, tags=[tag1])
     topo1a = Topography1DFactory(surface=surface1)
     topo1b = Topography1DFactory(surface=surface1, tags=[tag2, tag3])
 
-    surface2 = SurfaceFactory(creator=user, tags=[tag2])
+    surface2 = SurfaceFactory(created_by=user, tags=[tag2])
     topo2a = Topography1DFactory(surface=surface2, tags=[tag1])
 
-    surface3 = SurfaceFactory(creator=user, tags=[tag3])  # empty
+    surface3 = SurfaceFactory(created_by=user, tags=[tag3])  # empty
 
     return (
         user,
@@ -256,13 +256,13 @@ def two_users(settings):
     user1 = UserFactory(username="testuser1", password="abcd$1234")
     user2 = UserFactory(username="testuser2", password="abcd$1234")
 
-    surface1 = SurfaceFactory(creator=user1)
+    surface1 = SurfaceFactory(created_by=user1)
     Topography1DFactory(surface=surface1)
 
-    surface2 = SurfaceFactory(creator=user2)
+    surface2 = SurfaceFactory(created_by=user2)
     Topography1DFactory(surface=surface2)
 
-    surface3 = SurfaceFactory(creator=user2)
+    surface3 = SurfaceFactory(created_by=user2)
     Topography1DFactory(surface=surface3)
 
     return (user1, user2), (surface1, surface2, surface3)
@@ -278,7 +278,7 @@ def sync_analysis_functions(db):
 
 
 @pytest.fixture(scope="function")
-def test_analysis_function(sync_analysis_functions):
+def test_analysis_function():
     from ..analysis.models import Workflow
 
     return Workflow.objects.get(name="topobank.testing.test")
@@ -393,18 +393,17 @@ def simple_surface():
     return WrapSurface([WrapTopography(t) for t in topographies])
 
 
-@pytest.mark.django_db
 @pytest.fixture
-def test_instances(test_analysis_function):
+def test_instances(db, test_analysis_function):
     users = [UserFactory(username="user1"), UserFactory(username="user2")]
 
     surfaces = [
-        SurfaceFactory(creator=users[0]),
-        SurfaceFactory(creator=users[0]),
+        SurfaceFactory(created_by=users[0]),
+        SurfaceFactory(created_by=users[0]),
     ]
 
     topographies = [Topography1DFactory(surface=surfaces[0])]
 
-    test_analysis_function.submit(topographies[0].creator, topographies[0])
+    test_analysis_function.submit(topographies[0].created_by, topographies[0])
 
     return users, surfaces, topographies
