@@ -106,8 +106,7 @@ dependencies = [
     'xarray',
 
     # notifications
-    # (static/js/notify.js appears to be missing from 1.8.0 and above)
-    'django-notifications-hq @ git+https://github.com/django-notifications/django-notifications.git',
+    'django-notifications-hq>=1.8.3',
 
     # openpyxl
     'openpyxl',
