@@ -22,8 +22,8 @@ class TopographyViewFilterSet(FilterSet):
     """
 
     surface = filters.BaseInFilter(method="filter_ids", field_name="surface__id")
-    tag = filters.CharFilter(method="filter_tag_iexact", field_name="surface__tags__path", lookup_expr="iexact")
-    tag_startswith = filters.CharFilter(method="filter_tag_istartswith", field_name="surface__tags__path",
+    tag = filters.CharFilter(method="filter_tag_iexact", field_name="topography__tags__path", lookup_expr="iexact")
+    tag_startswith = filters.CharFilter(method="filter_tag_istartswith", field_name="topography__tags__path",
                                         lookup_expr="istartswith")
 
     class Meta:
@@ -45,8 +45,8 @@ class TopographyViewFilterSet(FilterSet):
         """
         # Filter by exact tag path OR child tags (tags that start with "parent/")
         return queryset.filter(
-            Q(surface__tags__path__iexact=value)
-            | Q(surface__tags__path__istartswith=value.rstrip("/") + "/")
+            Q(tags__path__iexact=value)
+            | Q(tags__path__istartswith=value.rstrip("/") + "/")
         ).distinct()
 
     def filter_tag_istartswith(self, queryset, name, value):
@@ -75,7 +75,7 @@ class TopographyViewFilterSet(FilterSet):
                 └── GroupB
         """
         return queryset.filter(
-            surface__tags__path__istartswith=value
+            tags__path__istartswith=value
         ).distinct()
 
 

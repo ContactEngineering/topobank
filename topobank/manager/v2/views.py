@@ -3,12 +3,7 @@ import logging
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import backends
-from drf_spectacular.utils import (
-    OpenApiParameter,
-    OpenApiTypes,
-    extend_schema,
-    extend_schema_view,
-)
+from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
@@ -23,10 +18,11 @@ from topobank.supplib.pagination import TopobankPaginator
 from ...authorization.models import PermissionSet
 from ...authorization.permissions import ObjectPermission, PermissionFilterBackend
 from ...taskapp.utils import run_task
-from ..models import Topography
+from ..models import Surface, Topography
 from ..zip_model import ZipContainer
 from .serializers import (
     SurfaceV2Serializer,
+    TopographyV2CreateSerializer,
     TopographyV2Serializer,
     ZipContainerV2Serializer,
 )
@@ -36,6 +32,11 @@ _log = logging.getLogger(__name__)
 
 class SurfaceViewSet(UserUpdateMixin, v1.SurfaceViewSet):
     serializer_class = SurfaceV2Serializer
+    pagination_class = TopobankPaginator
+
+    def perform_destroy(self, instance):
+        """Perform soft delete by setting deletion_time instead of hard delete."""
+        instance.lazy_delete()
 
 
 @extend_schema_view(
@@ -81,7 +82,13 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
         ).order_by('-created_at')
 
     def get_serializer_class(self):
+        if self.action == 'create':
+            return TopographyV2CreateSerializer
         return super().get_serializer_class()
+
+    def perform_destroy(self, instance):
+        """Perform soft delete by setting deletion_time instead of hard delete."""
+        instance.lazy_delete()
 
 
 class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -93,6 +100,7 @@ class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
 @extend_schema(request=None,
                responses=ZipContainerV2Serializer)
 @api_view(["POST"])
+@permission_classes([IsAuthenticated])
 def download_surface(request: Request, surface_ids: str):
     # `surface_ids` is a comma-separated list of surface IDs as a string,
     # e.g. "1,2,3", we need to parse it
@@ -101,6 +109,14 @@ def download_surface(request: Request, surface_ids: str):
     except ValueError:
         return HttpResponseBadRequest("Invalid surface ID(s).")
 
+    # We need to check that the user has access to the requested surfaces
+    surface_qs = Surface.objects.for_user(request.user).filter(
+        id__in=surface_ids,
+        deletion_time__isnull=True
+    )
+    if surface_qs.count() != len(surface_ids):
+        invalid_ids = set(surface_ids) - set(surface_qs.values_list('id', flat=True))
+        return HttpResponseBadRequest(f"One or more surfaces do not exist or are inaccessible: {invalid_ids}")
     # Create a ZIP container object
     zip_container = ZipContainer.objects.create(
         permissions=PermissionSet.objects.create(user=request.user, allow="view")
@@ -154,7 +170,7 @@ def upload_zip_start(request: Request):
 
 @extend_schema(
     request=None,
-    responses={200: OpenApiTypes.NONE})
+    responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def upload_zip_finish(request: Request, pk: int):
@@ -166,4 +182,6 @@ def upload_zip_finish(request: Request, pk: int):
     run_task(zip_container)
     zip_container.save()  # run_task sets the initial task state to 'pe', so we need to save
 
-    return Response({})
+    return Response(
+        ZipContainerV2Serializer(zip_container, context={"request": request}).data
+    )
