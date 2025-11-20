@@ -251,6 +251,40 @@ class TopographyV2CreateSerializer(serializers.ModelSerializer):
         return TopographyV2Serializer(instance, context=self.context).data
 
 
+class TopographyV2CreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Topography
+        required_fields = [
+            "surface",
+            "name"
+        ]
+        fields = required_fields + [
+            "tags",
+            "description"
+        ]
+
+    surface = ModelRelatedField(
+        view_name="manager:surface-v2-detail",
+        queryset=Surface.objects.none()
+    )
+    tags = TagRelatedManagerField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+
+        if request and hasattr(request, 'user'):
+            # Limit queryset to surfaces where user has view permission
+            # This is the best way to allow drf to validate the permissions and
+            # return correct errors automatically.
+            self.fields['surface'].queryset = Surface.objects.for_user(
+                request.user
+            )
+
+    def to_representation(self, instance):
+        return TopographyV2Serializer(instance, context=self.context).data
+
+
 class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     """v2 Serializer for Surface model."""
     class Meta:
