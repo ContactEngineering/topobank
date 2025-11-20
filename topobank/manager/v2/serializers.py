@@ -206,11 +206,10 @@ class TopographyV2CreateSerializer(serializers.ModelSerializer):
             )
 
     def create(self, validated_data):
-        if 'permissions' in validated_data:
-            raise serializers.ValidationError(
-                "You can not set permissions directly when creating a Topography."
-            )
-        validated_data['permissions'] = validated_data['surface'].permissions
+        if 'permissions' not in validated_data:
+            # Permissions should not be set directly, but inherited from surface
+            # But if we are passing them directly we respect that.
+            validated_data['permissions'] = validated_data['surface'].permissions
         return super().create(validated_data)
 
     def to_representation(self, instance):
