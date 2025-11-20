@@ -9,7 +9,7 @@ from tagulous.contrib.drf import TagRelatedManagerField
 from ...files.serializers import ManifestSerializer
 from ...manager.models import Surface, Tag, Topography
 from ...properties.serializers import PropertiesField
-from ...supplib.serializers import StrictFieldMixin
+from ...supplib.mixins import StrictFieldMixin
 from ...taskapp.serializers import TaskStateModelSerializer
 
 _log = logging.getLogger(__name__)

@@ -13,11 +13,11 @@ from topobank.analysis.models import (
     resolve_workflow,
 )
 from topobank.manager.models import Surface, Tag, Topography
+from topobank.supplib.mixins import StrictFieldMixin
 from topobank.supplib.serializers import (
     ModelRelatedField,
     OrganizationField,
     PermissionsField,
-    StrictFieldMixin,
     StringOrIntegerField,
     SubjectField,
     UserField,

@@ -7,12 +7,12 @@ from tagulous.contrib.drf import TagRelatedManagerField
 from topobank.files.models import Manifest
 
 from ...properties.serializers import PropertiesField
+from ...supplib.mixins import StrictFieldMixin
 from ...supplib.serializers import (
     ManifestField,
     ModelRelatedField,
     OrganizationField,
     PermissionsField,
-    StrictFieldMixin,
     UserField,
 )
 from ...taskapp.serializers import TaskStateModelSerializer
@@ -53,8 +53,8 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "is_metadata_complete",
         ]
         fields = read_only_fields + [
-            "attachments",
             "surface",
+            "attachments",
             "name",
             "description",
             "measurement_date",
@@ -87,8 +87,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     owned_by = OrganizationField(read_only=True)
     surface = ModelRelatedField(
         view_name="manager:surface-v2-detail",
-        queryset=Surface.objects.all(),
-        required=True
+        queryset=Surface.objects.all()
     )
     datafile = ManifestField(read_only=True)
     squeezed_datafile = ManifestField(read_only=True)
@@ -111,9 +110,6 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     is_metadata_complete = serializers.SerializerMethodField()
 
     def validate(self, data):
-        if self.instance is None:
-            return super().validate(data)
-
         # Map fields to their editability checks
         editability_checks = {
             'size_x': self.instance.size_editable,
@@ -216,6 +212,40 @@ class TopographyV2CreateSerializer(serializers.ModelSerializer):
             )
         validated_data['permissions'] = validated_data['surface'].permissions
         return super().create(validated_data)
+
+    def to_representation(self, instance):
+        return TopographyV2Serializer(instance, context=self.context).data
+
+
+class TopographyV2CreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Topography
+        required_fields = [
+            "surface",
+            "name"
+        ]
+        fields = required_fields + [
+            "tags",
+            "description"
+        ]
+
+    surface = ModelRelatedField(
+        view_name="manager:surface-v2-detail",
+        queryset=Surface.objects.none()
+    )
+    tags = TagRelatedManagerField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+
+        if request and hasattr(request, 'user'):
+            # Limit queryset to surfaces where user has view permission
+            # This is the best way to allow drf to validate the permissions and
+            # return correct errors automatically.
+            self.fields['surface'].queryset = Surface.objects.for_user(
+                request.user
+            )
 
     def to_representation(self, instance):
         return TopographyV2Serializer(instance, context=self.context).data

@@ -2,7 +2,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
 
-from ..supplib.serializers import StrictFieldMixin
+from ..supplib.mixins import StrictFieldMixin
 from .models import Organization
 
 

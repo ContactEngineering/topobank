@@ -53,7 +53,7 @@ class TopographyViewFilterSet(FilterSet):
         Filter by tag path starting with substring (case-insensitive).
         """
         return queryset.filter(
-            surface__tags__path__istartswith=value
+            tags__path__istartswith=value
         ).distinct()
 
 
