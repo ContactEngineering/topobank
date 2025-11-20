@@ -175,7 +175,7 @@ def test_modify_file(
     # Check that modifying other fields always fails
     response = api_client.patch(
         reverse("files:manifest-api-detail", kwargs={"pk": manifest1.id}),
-        {"upload_confirmed": "2022-02-02"},
+        {"confirmed_at": "2022-02-02"},
     )
     assert response.status_code == (403 if read_only else 400)
 
@@ -285,7 +285,7 @@ def test_list_folder(api_client, user_alice):
                 "created": manifest1.created_at.astimezone().isoformat(),
                 "updated": manifest1.updated_at.astimezone().isoformat(),
                 "uploaded_by": None,
-                "upload_confirmed": manifest1.upload_confirmed.astimezone().isoformat(),
+                "confirmed_at": manifest1.confirmed_at.astimezone().isoformat(),
                 "upload_instructions": None,
             },
             manifest2.filename: {
@@ -297,7 +297,7 @@ def test_list_folder(api_client, user_alice):
                 "created": manifest2.created_at.astimezone().isoformat(),
                 "updated": manifest2.updated_at.astimezone().isoformat(),
                 "uploaded_by": None,
-                "upload_confirmed": manifest2.upload_confirmed.astimezone().isoformat(),
+                "confirmed_at": manifest2.confirmed_at.astimezone().isoformat(),
                 "upload_instructions": None,
             },
         },

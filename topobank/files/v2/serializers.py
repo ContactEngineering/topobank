@@ -19,14 +19,14 @@ class ManifestV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSeriali
             "updated_by",
             "created_at",
             "updated_at",
+            "confirmed_at",
+            "upload_instructions",
         ]
         fields = read_only_fields + [
             "folder",
             "filename",
             "file",
             "kind",
-            "upload_confirmed",
-            "upload_instructions",
         ]
 
     #
@@ -47,7 +47,7 @@ class ManifestV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSeriali
 
     file = serializers.FileField(read_only=True)
     kind = serializers.ChoiceField(choices=Manifest.FILE_KIND_CHOICES, read_only=True)
-    upload_confirmed = serializers.DateTimeField(read_only=True)
+    confirmed_at = serializers.DateTimeField(read_only=True)
     upload_instructions = serializers.SerializerMethodField()
 
     def __init__(self, instance=None, data=serializers.empty, **kwargs):

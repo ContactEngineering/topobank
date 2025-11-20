@@ -112,7 +112,7 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     permissions = factory.LazyAttribute(
         lambda obj: obj.folder.permissions if getattr(obj, "folder", None) is not None else None
     )
-    upload_confirmed = factory.LazyFunction(timezone.now)
+    confirmed_at = factory.LazyFunction(timezone.now)
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):

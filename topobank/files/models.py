@@ -81,7 +81,7 @@ class Folder(PermissionMixin, models.Model):
         if not created:
             manifest.file.delete()
         manifest.file = fobj
-        manifest.upload_confirmed = timezone.now()
+        manifest.confirmed_at = timezone.now()
         manifest.save()
 
     def save_json(self, filename: str, data: dict):
@@ -110,7 +110,7 @@ class Folder(PermissionMixin, models.Model):
 
     def get_valid_files(self) -> models.QuerySet["Manifest"]:
         # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
-        return self.get_files().filter(upload_confirmed__isnull=False)
+        return self.get_files().filter(confirmed_at__isnull=False)
 
     def find_file(self, filename: str) -> models.QuerySet["Manifest"]:
         return Manifest.objects.get(folder=self, filename=filename)
@@ -198,7 +198,7 @@ class Manifest(PermissionMixin, models.Model):
 
     # The date the upload was confirmed by the `finish_upload` method. This is typically
     # the date the file was uploaded.
-    upload_confirmed = models.DateTimeField(blank=True, null=True)
+    confirmed_at = models.DateTimeField(blank=True, null=True)
     # The date the manifest was created
     created_at = models.DateTimeField(auto_now_add=True)
     # The date the manifest was last updated
@@ -238,14 +238,14 @@ class Manifest(PermissionMixin, models.Model):
                 self.file = self.file.field.attr_class(
                     self, self.file.field, storage_path
                 )
-                self.upload_confirmed = timezone.now()
-                self.save(update_fields=["file", "upload_confirmed"])
+                self.confirmed_at = timezone.now()
+                self.save(update_fields=["file", "confirmed_at"])
             else:
                 _log.debug("...no file found. Cannot finish upload.")
         else:
             self.file.save(self.filename, file, save=False)
-            self.upload_confirmed = timezone.now()
-            self.save(update_fields=["file", "upload_confirmed"])
+            self.confirmed_at = timezone.now()
+            self.save(update_fields=["file", "confirmed_at"])
 
     def exists(self):
         """Check if a file exists"""
