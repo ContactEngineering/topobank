@@ -79,6 +79,7 @@ class ManifestV2CreateSerializer(StrictFieldMixin, serializers.HyperlinkedModelS
         ]
         fields = required_fields + [
             "folder",
+            "kind"
         ]
 
     def create(self, validated_data):
