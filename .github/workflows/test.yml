@@ -81,7 +81,7 @@ jobs:
         mc mb --ignore-existing minio/$AWS_STORAGE_BUCKET_NAME
 
     - name: Checkout source code
-      uses: actions/checkout@v5
+      uses: actions/checkout@v6
       with:
         fetch-depth: 0
         submodules: recursive
