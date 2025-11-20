@@ -3,7 +3,7 @@ import logging
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
-from ..supplib.serializers import StrictFieldMixin
+from ..supplib.mixins import StrictFieldMixin
 from .models import Folder, Manifest
 
 _log = logging.getLogger(__name__)

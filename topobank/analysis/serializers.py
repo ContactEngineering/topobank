@@ -4,7 +4,8 @@ from rest_framework.reverse import reverse
 
 import topobank.taskapp.serializers
 
-from ..supplib.serializers import StrictFieldMixin, UserField
+from ..supplib.mixins import StrictFieldMixin
+from ..supplib.serializers import UserField
 from .models import (
     Configuration,
     Workflow,

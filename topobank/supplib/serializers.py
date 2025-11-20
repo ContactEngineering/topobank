@@ -4,7 +4,6 @@ Custom Django REST Framework serializers and fields for the topobank application
 This module provides reusable serializer components that extend Django REST Framework
 functionality with common patterns used throughout the application:
 
-- StrictFieldMixin: Enforces strict validation of input fields
 - DynamicFieldsModelSerializer: Enables dynamic field selection via query parameters
 - PermissionsField: Serializes objects with permission information
 - ModelRelatedField: Generic field for serializing related objects with URLs
@@ -19,95 +18,12 @@ validation and flexibility for API consumers.
 """
 from urllib.parse import urlparse
 
+from django.core.exceptions import ObjectDoesNotExist
 from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 from rest_framework.reverse import reverse
-
-
-# From: RomanKhudobei, https://github.com/encode/django-rest-framework/issues/1655
-class StrictFieldMixin:
-    """
-    A mixin that enforces strict field validation for Django REST Framework serializers.
-
-    This mixin provides two levels of validation:
-    1. Ensures that only fields defined in the serializer are accepted in input data
-    2. Prevents read-only fields from being included in input data
-
-    By default, DRF silently ignores unknown fields and read-only fields in input data.
-    This mixin makes the API more explicit by raising validation errors when clients
-    attempt to provide invalid fields, helping catch bugs and improve API clarity.
-
-    Usage
-    -----
-    Mix this class into your serializer before the base serializer class::
-
-        class MySerializer(StrictFieldMixin, serializers.ModelSerializer):
-            class Meta:
-                model = MyModel
-                fields = ['id', 'name', 'description']
-                read_only_fields = ['id']
-
-    Examples
-    --------
-    With the above serializer, these requests would raise validation errors:
-
-    - Invalid field: ``{"name": "Test", "invalid_field": "value"}``
-      Error: ``{"invalid_field": "This field does not exist"}``
-
-    - Read-only field: ``{"id": 123, "name": "Test"}``
-      Error: ``{"id": "This field is read only"}``
-
-    Notes
-    -----
-    Credit: RomanKhudobei
-    Source: https://github.com/encode/django-rest-framework/issues/1655
-    """
-
-    default_error_messages = {
-        "read_only": _("This field is read only"),
-        "does_not_exist": _("This field does not exist"),
-    }
-
-    def to_internal_value(self, data):
-        field_names = set(field.field_name for field in self._writable_fields)
-        errors = {}
-
-        # check that all dictionary keys are fields
-        for key in data.keys():
-            if key not in field_names:
-                errors[key] = serializers.ErrorDetail(
-                    self.error_messages["does_not_exist"], code="does_not_exist"
-                )
-
-        if errors != {}:
-            raise serializers.ValidationError(errors)
-
-        return super().to_internal_value(data)
-
-    def validate(self, attrs):
-        attrs = super().validate(attrs)
-
-        if not hasattr(self, "initial_data"):
-            return attrs
-
-        # collect declared read only fields and read only fields from Meta
-        read_only_fields = {field_name for field_name, field in self.fields.items() if field.read_only} | set(
-            getattr(self.Meta, "read_only_fields", set()))
-
-        received_read_only_fields = set(self.initial_data) & read_only_fields
-
-        if received_read_only_fields:
-            errors = {}
-            for field_name in received_read_only_fields:
-                errors[field_name] = serializers.ErrorDetail(
-                    self.error_messages["read_only"], code="read_only"
-                )
-
-            raise serializers.ValidationError(errors)
-
-        return attrs
 
 
 # https://www.django-rest-framework.org/api-guide/serializers/#example
@@ -422,7 +338,9 @@ class ModelRelatedField(serializers.RelatedField):
 
     default_error_messages = {
         'id_url_both_present': _('"id" and "url" are both present, please provide only one.'),
-        'id_url_not_present': _('Either "id" or "url" must be present in the input data.')
+        'id_url_not_present': _('Either "id" or "url" must be present in the input data.'),
+        'does_not_exist': _('Requested object does not exist or you lack permissions to view it.'),
+        'unexpected_input': _('Unexpected input. Input type should be of type dict, url, int.')
     }
 
     def __init__(
@@ -469,21 +387,18 @@ class ModelRelatedField(serializers.RelatedField):
         if self.fields:
             # Include additional specified fields
             for field in self.fields:
-                try:
-                    # Get the field value from the model instance
-                    # If the field does not exist, skip it
+                if hasattr(obj, field):
+                    # Add field to data if it exists, otherwise skip
                     data[field] = getattr(obj, field)
-                except AttributeError:
-                    pass
         return data
 
-    def to_internal_value(self, data: dict):
+    def to_internal_value(self, data):
         """
         Convert the input data back into a model instance.
 
         Parameters
         ----------
-        data : dict
+        data : dict, int, str
             The input data containing at least the 'id' or 'url' of the model instance.
 
         Returns
@@ -491,23 +406,36 @@ class ModelRelatedField(serializers.RelatedField):
         Model instance
             The corresponding model instance.
         """
-        try:
-            keys = data.keys()
-        except AttributeError:
-            self.fail('invalid')
-        # Fail quickly if both or neither id/url are provided
-        if "id" in keys and "url" in keys:
-            self.fail('id_url_both_present')
-        elif "id" not in keys and "url" not in keys:
-            self.fail('id_url_not_present')
+        if isinstance(data, dict):
+            # Parse the dict for url/id
+            url = data.get("url", None)
+            id = data.get("id", None)
 
-        if url := data.get("url", None):
+            # Fail quickly if both or neither id/url are provided
+            if id and url:
+                self.fail('id_url_both_present')
+            elif not id and not url:
+                self.fail('id_url_not_present')
+
+        if id or isinstance(data, int):
+            # Try data as an id if id is None
+            id = id if id else data
+            try:
+                return self.get_queryset().get(id=id)
+            except ObjectDoesNotExist:
+                self.fail('does_not_exist')
+        elif url or isinstance(data, str):
+            # Try as a URL
+            url = url if url else data
             match = resolve(urlparse(url=url).path)
             if match.view_name != self.view_name:
                 self.fail('incorrect_match')
-            return self.get_queryset().get(**match.kwargs)
-        elif id := data.get("id", None):
-            return self.get_queryset().get(id=id)
+            try:
+                return self.get_queryset().get(**match.kwargs)
+            except ObjectDoesNotExist:
+                self.fail('does_not_exist')
+        else:
+            self.fail('unexpected_input')
 
     def display_value(self, instance):
         """
