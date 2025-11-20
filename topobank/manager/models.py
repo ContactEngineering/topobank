@@ -410,13 +410,16 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         return self.topography_set.count()
 
     def save(self, *args, **kwargs):
-        created = self.pk is None
-        if created and self.permissions is None:
-            # Create a new permission set for this dataset
-            _log.debug(
-                f"NEW DATASET: Creating an empty permission set for dataset {self}."
-            )
-            self.permissions = PermissionSet.objects.create()
+        created = self.pk is not None
+        if not created:
+            if self.permissions is None:
+                # Create a new permission set for this dataset
+                _log.debug(
+                    f"NEW DATASET: Creating an empty permission set for dataset {self}."
+                )
+                self.permissions = PermissionSet.objects.create()
+            # Grant permissions to created_by
+            self.permissions.grant_for_user(self.created_by, "full")
         if self.attachments is None:
             # Create a new folder for attachments
             _log.debug(
@@ -427,9 +430,6 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
                 permissions=self.permissions, read_only=False
             )
         super().save(*args, **kwargs)
-        if created:
-            # Grant permissions to created_by
-            self.permissions.grant_for_user(self.created_by, "full")
 
     def lazy_delete(self):
         self.deletion_time = timezone.now()

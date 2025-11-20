@@ -323,16 +323,6 @@ class AuthorizedManager(models.Manager):
             kwargs["permissions"] = PermissionSet.objects.create()
             _log.debug("AuthorizedManager created new PermissionSet for %s - id: %s",
                        self.model, kwargs["permissions"].id)
-        if "folder" in [f.name for f in self.model._meta.get_fields()] and "folder" not in kwargs:
-            # Import here to avoid circular import
-            from topobank.files.models import Folder
-
-            # Folder uses same permissions as the model
-            kwargs["folder"] = Folder.objects.create(
-                permissions=kwargs["permissions"],
-                read_only=True,
-            )
-            _log.debug("AuthorizedManager created new Folder for %s", self.model)
         return super().create(**kwargs)
 
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:

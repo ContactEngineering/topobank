@@ -311,7 +311,12 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 "Cannot save WorkflowResult without permissions set."
             )
         if self.folder is None:
-            raise RuntimeError("Cannot save WorkflowResult without folder set.")
+            self.folder = Folder.objects.create(
+                permissions=self.permissions, read_only=True
+            )
+            if 'update_fields' in kwargs:
+                if kwargs['update_fields'] is not None:
+                    kwargs['update_fields'].append('folder')
 
         if not self.pk:
             # New instance - ensure creator has EDIT permission

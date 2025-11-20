@@ -270,21 +270,21 @@ class Manifest(PermissionMixin, models.Model):
         return self.file.read(*args, **kwargs)
 
     def save(self, *args, **kwargs):
-        created = self.pk is None  # True on creation of the manifest
+        created = self.pk is not None  # True on creation of the manifest
         file = None
-        if created and self.file:
+        if not created and self.file:
             # We have a file but no id yet hence cannot create a storage path
             file = self.file
             self.file = None
         super().save(*args, **kwargs)
         if file:
-            # No set the file name; we have an id and can create a storaga path and
+            # Now set the file name; we have an id and can create a storage path and
             # upload the file
             self.file = file
             super().save(update_fields=["file"])
         # We have no file but a file name; make sure no file with the same name already
         # exists at the targeted storage location
-        if created and not self.file and self.filename:
+        if not created and not self.file and self.filename:
             # We just created this manifest and no file was passed on creation
             try:
                 storage_path = self.generate_storage_path()

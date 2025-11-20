@@ -104,7 +104,8 @@ class ResultV2CreateSerializer(serializers.ModelSerializer):
             subject_dispatch = WorkflowSubject.objects.create(subject)
 
             # Create the WorkflowResult instance
-            # AuthorizedManager.create() will automatically create permissions and folder
+            # NOTE: WorkflowResult model save method handles setting permissions
+            # and creating its folder
             instance = WorkflowResult.objects.create(
                 function=workflow,
                 subject_dispatch=subject_dispatch,

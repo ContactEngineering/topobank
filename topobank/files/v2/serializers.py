@@ -5,7 +5,7 @@ from topobank.authorization.permissions import FULL, VIEW
 from topobank.supplib.serializers import ModelRelatedField, UserField
 
 from ...supplib.mixins import StrictFieldMixin
-from ..models import Folder, Manifest
+from ..models import Manifest
 
 
 class ManifestV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
@@ -75,15 +75,11 @@ class ManifestV2CreateSerializer(StrictFieldMixin, serializers.HyperlinkedModelS
     class Meta:
         model = Manifest
         required_fields = [
-            "folder",
             "filename",
         ]
-        fields = required_fields
-
-    folder = serializers.HyperlinkedRelatedField(
-        view_name="files:folder-api-detail", queryset=Folder.objects.all(),
-        allow_null=True
-    )
+        fields = required_fields + [
+            "folder",
+        ]
 
     def create(self, validated_data):
         # Get folder if specified
