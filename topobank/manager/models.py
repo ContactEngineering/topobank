@@ -236,7 +236,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
             )
         return (
             Surface.objects.for_user(self._user)
-            .filter(Q(tags=self) | Q(tags__name__startswith=f"{self.name}/"))
+            .filter(Q(tags=self) | Q(tags__path__istartswith=self.path))
             .distinct()
         )
 
@@ -795,12 +795,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Methods
     #
     def save(self, *args, **kwargs):
-        update_fields = kwargs.get("update_fields", None)
-        _created = self.pk is None
-        if _created:
-            if self.created_by is None:
-                self.created_by = self.surface.created_by
-            self.permissions = self.surface.permissions
+        update_fields: list = kwargs.get("update_fields", None)
         if self.attachments is None:
             _log.debug(
                 "ATTACHMENTS MISSING: Creating an empty folder for attachments to "
@@ -809,6 +804,19 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.attachments = Folder.objects.create(
                 permissions=self.permissions, read_only=False
             )
+            if update_fields is not None and 'attachments' not in update_fields:
+                update_fields.append('attachments')
+        if self.datafile is None:
+            _log.debug(f"Creating datafile manifest for Topography: {self}")
+            self.datafile = Manifest.objects.create(
+                permissions=self.surface.permissions,
+                filename=self.name,
+                kind="raw",
+                created_by=self.created_by,
+                folder=None
+            )
+            if update_fields is not None and 'datafile' not in update_fields:
+                update_fields.append('datafile')
 
         # Reset to no refresh
         refresh_dependent_data = False
@@ -1268,7 +1276,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
     def _make_squeezed(self, st_topo=None, save=False):
         if st_topo is None:
-            st_topo = self.read()
+            st_topo = self.read(allow_squeezed=False)
         with tempfile.NamedTemporaryFile() as tmp:
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)
@@ -1607,3 +1615,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
     def task_worker(self):
         self.refresh_cache()
+
+    def ensure_task_started(self):
+        """Ensures that the task has started running"""
+        if self.task_state == "no" and self.datafile is not None:
+            run_task(self)
+            self.save()

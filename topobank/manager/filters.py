@@ -22,9 +22,8 @@ class TopographyViewFilterSet(FilterSet):
     """
 
     surface = filters.BaseInFilter(method="filter_ids", field_name="surface__id")
-    tag = filters.CharFilter(method="filter_tag_iexact", field_name="surface__tags__path", lookup_expr="iexact")
-    tag_startswith = filters.CharFilter(method="filter_tag_istartswith", field_name="surface__tags__path",
-                                        lookup_expr="istartswith")
+    tag = filters.CharFilter(method="filter_tag_iexact")
+    tag_startswith = filters.CharFilter(method="filter_tag_istartswith")
 
     class Meta:
         model = Topography
@@ -42,37 +41,16 @@ class TopographyViewFilterSet(FilterSet):
     def filter_tag_iexact(self, queryset, name, value):
         """
         Filter by exact tag path (case-insensitive) and all child tags.
+
+        Note:
+        -----
+        This filter will only return the exact tag and not its children.
         """
-        # Filter by exact tag path OR child tags (tags that start with "parent/")
-        return queryset.filter(
-            Q(surface__tags__path__iexact=value)
-            | Q(surface__tags__path__istartswith=value.rstrip("/") + "/")
-        ).distinct()
+        return queryset.filter(surface__tags__path__iexact=value).distinct()
 
     def filter_tag_istartswith(self, queryset, name, value):
         """
         Filter by tag path starting with substring (case-insensitive).
-
-        Note:
-        ----
-        This matches any tag path that starts with the given substring.
-        It should only be used for broad searches as it may return many results.
-        ALWAYS use `tag` filter for specific tag filtering.
-
-        Example:
-        --------
-        `?tag_startswith=training` matches:
-
-        /
-        ├── data
-        │   └── training  <- match + sub-tags
-        ├── training  <- match + sub-tags
-        │   └── data
-        └── bigdata
-            └── subtag
-                ├── GroupA
-                │   └── training  <- match + sub-tags
-                └── GroupB
         """
         return queryset.filter(
             surface__tags__path__istartswith=value

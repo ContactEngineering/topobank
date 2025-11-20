@@ -4,6 +4,8 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
+from topobank.files.models import Manifest
+
 from ...properties.serializers import PropertiesField
 from ...supplib.serializers import (
     ManifestField,
@@ -162,6 +164,61 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
         except pydantic.ValidationError as exc:
             # The kwargs that were provided do not match the function
             raise serializers.ValidationError({"message": str(exc)})
+
+    def to_representation(self, instance: Topography):
+        # Ensure that retrieving the Topography starts the task if it is ready.
+        instance.ensure_task_started()
+        return super().to_representation(instance)
+
+
+class TopographyV2CreateSerializer(serializers.ModelSerializer):
+    class Meta:
+        model = Topography
+        required_fields = [
+            "surface",
+            "name",
+            "datafile",
+        ]
+        fields = required_fields + [
+            "tags",
+            "description"
+        ]
+
+    surface = ModelRelatedField(
+        view_name="manager:surface-v2-detail",
+        queryset=Surface.objects.none()
+    )
+    datafile = ModelRelatedField(
+        view_name="files:manifest-v2-detail",
+        queryset=Manifest.objects.none()
+    )
+    tags = TagRelatedManagerField(required=False)
+
+    def __init__(self, *args, **kwargs):
+        super().__init__(*args, **kwargs)
+        request = self.context.get('request')
+
+        if request and hasattr(request, 'user'):
+            # Limit queryset to surfaces where user has view permission
+            # This is the best way to allow drf to validate the permissions and
+            # return correct errors automatically.
+            self.fields['surface'].queryset = Surface.objects.for_user(
+                request.user
+            )
+            self.fields['datafile'].queryset = Manifest.objects.for_user(
+                request.user
+            )
+
+    def create(self, validated_data):
+        if 'permissions' in validated_data:
+            raise serializers.ValidationError(
+                "You can not set permissions directly when creating a Topography."
+            )
+        validated_data['permissions'] = validated_data['surface'].permissions
+        return super().create(validated_data)
+
+    def to_representation(self, instance):
+        return TopographyV2Serializer(instance, context=self.context).data
 
 
 class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):

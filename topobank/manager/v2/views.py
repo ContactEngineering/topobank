@@ -1,5 +1,6 @@
 import logging
 
+from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import backends
@@ -66,7 +67,7 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Topography.objects.for_user(self.request.user).filter(
-            deletion_time__isnull=True
+            Q(deletion_time__isnull=True) | Q(surface__deletion_time__isnull=True)
         ).select_related(
             'surface',
             'permissions',
@@ -78,7 +79,7 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             'deepzoom',
             'datafile',
             'squeezed_datafile',
-        ).order_by('-created_at')
+        ).distinct().order_by('-created_at')
 
     def get_serializer_class(self):
         return super().get_serializer_class()
