@@ -80,9 +80,14 @@ class TagFieldAdminMixin:
 
 @admin.register(Surface)
 class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
-    list_display = ("id", "name", "created_at")
+    list_display = ("id", "name", "tags_display", "created_at")
     ordering = ["-created_at"]
-    search_fields = ("name", "id")
+    search_fields = ("name", "id", "tags__name")
+
+    @admin.display(description="Tags")
+    def tags_display(self, obj):
+        """Display tags as a comma-separated string."""
+        return str(obj.tags) if obj.tags else ""
 
 
 @admin.register(Topography)

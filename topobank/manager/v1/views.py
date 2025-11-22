@@ -51,7 +51,8 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         all_tags = set(
             "" if tag_name is None else tag_name
             for tag_name in itertools.chain.from_iterable(
-                Surface.objects.for_user(request.user).values_list("tags__name")
+                # Need to ensure we only get tags of non-deleted surfaces
+                Surface.objects.for_user(request.user).filter(deletion_time__isnull=True).values_list("tags__name")
             )
         )
 

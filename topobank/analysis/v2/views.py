@@ -15,6 +15,7 @@ from topobank.analysis.v2.serializers import (
     WorkflowV2Serializer,
 )
 from topobank.authorization.permissions import ObjectPermission, PermissionFilterBackend
+from topobank.files.v2.serializers import ManifestV2Serializer
 from topobank.supplib.mixins import UserUpdateMixin
 from topobank.supplib.pagination import TopobankPaginator
 
@@ -148,3 +149,20 @@ class ResultView(
 
         # Return paginated response
         return paginator.get_paginated_response(paginated_data)
+
+    @extend_schema(request=None)
+    @action(detail=True, methods=['GET'], url_path="files", url_name="folder")
+    def list_manifests(self, request, *args, **kwargs):
+        """Get the folder of the WorkflowResult"""
+        analysis: WorkflowResult = self.get_object()
+        folder = analysis.folder
+        if folder is None:
+            return Response(
+                {"message": "This analysis does not have a folder."},
+                status=status.HTTP_404_NOT_FOUND
+            )
+        return Response({
+            manifest.filename: ManifestV2Serializer(manifest,
+                                                    context={"request": request}).data
+            for manifest in folder.files.all()
+        })

@@ -50,11 +50,11 @@ def periodic_cleanup():
         )
         q.delete()
 
-    # Delete all Manifests that are not linked to any Topography or Folder
+    # Delete all Manifests that are not confirmed, have no file, and too old
     q = Manifest.objects.filter(
         created_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY,
-        topography__isnull=True,
-        folder__isnull=True
+        confirmed_at__isnull=True,
+        file__isnull=True,
     )
     if q.count() > 0:
         _log.info(
