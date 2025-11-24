@@ -25,6 +25,7 @@ from trackstats.models import Metric, Period
 from ...authorization.permissions import ObjectPermission
 from ...files.models import Manifest
 from ...organizations.models import resolve_organization
+from ...supplib.mixins import UserUpdateMixin
 from ...supplib.versions import get_versions
 from ...taskapp.utils import run_task
 from ...usage_stats.utils import increase_statistics_by_date_and_object
@@ -60,7 +61,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         return Response(sorted(toplevel_tags))
 
 
-class SurfaceViewSet(viewsets.ModelViewSet):
+class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
     serializer_class = SurfaceSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
     pagination_class = LimitOffsetPagination
@@ -84,7 +85,7 @@ class SurfaceViewSet(viewsets.ModelViewSet):
 
     def perform_create(self, serializer):
         # Set created_by to current user when creating a new surface
-        instance = serializer.save(created_by=self.request.user)
+        instance = super().perform_create(serializer)
 
         # We now have an id, set name if missing
         if "name" not in serializer.data or serializer.data["name"] == "":
@@ -92,7 +93,7 @@ class SurfaceViewSet(viewsets.ModelViewSet):
             instance.save()
 
     def perform_update(self, serializer):
-        serializer.save()
+        super().perform_update(serializer)
 
     def perform_destroy(self, instance):
         self._notify(instance, "delete")
@@ -177,18 +178,20 @@ class TopographyViewSet(
             )
 
         # Set created_by to current user when creating a new topography
+        # Don't pass permissions - let the save() method inherit from parent surface
         instance = serializer.save(created_by=self.request.user)
 
         # File name is passed in the 'name' field on create. It is the only field that
         # needs to be present for them create (POST) request.
-        filename = serializer.validated_data["name"]
-        instance.datafile = Manifest.objects.create(
-            permissions=instance.permissions, filename=filename, kind="raw", folder=None
-        )
-        instance.save()
+        if instance.datafile is None:
+            filename = serializer.validated_data["name"]
+            instance.datafile = Manifest.objects.create(
+                permissions=instance.permissions, filename=filename, kind="raw", folder=None
+            )
+            instance.save()
 
     def perform_update(self, serializer):
-        serializer.save()
+        super().perform_update(serializer)
 
     def perform_destroy(self, instance):
         self._notify(instance, "delete")

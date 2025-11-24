@@ -6,7 +6,12 @@ from rest_framework import status
 
 from topobank.manager.models import Surface, Topography
 from topobank.manager.zip_model import ZipContainer
-from topobank.testing.factories import SurfaceFactory, TagFactory, Topography1DFactory
+from topobank.testing.factories import (
+    PermissionSetFactory,
+    SurfaceFactory,
+    TagFactory,
+    Topography1DFactory,
+)
 
 # TopographyViewSet Tests - List
 
@@ -156,10 +161,11 @@ def test_topography_retrieve_unauthenticated(api_client, one_line_scan):
 
 
 @pytest.mark.django_db
-def test_topography_create_success(api_client, user_alice, handle_usage_statistics):
+def test_topography_create_success(api_client, user_alice, handle_usage_statistics, one_line_scan):
     """Test creating a topography."""
     surface = SurfaceFactory(created_by=user_alice)
     surface.grant_permission(user_alice, "edit")
+    one_line_scan.datafile.grant_permission(user_alice, "view")
 
     api_client.force_login(user_alice)
     url = reverse("manager:topography-v2-list")
@@ -167,6 +173,7 @@ def test_topography_create_success(api_client, user_alice, handle_usage_statisti
         "name": "New Topography",
         "surface": {"id": surface.id},
         "description": "Test description",
+        "datafile": {"id": one_line_scan.datafile.id},
     }
     response = api_client.post(url, data)
 
@@ -219,10 +226,12 @@ def test_topography_create_without_surface_permission(api_client, user_alice, us
 
 
 @pytest.mark.django_db
-def test_topography_create_with_tags(api_client, user_alice, handle_usage_statistics):
+def test_topography_create_with_tags(api_client, user_alice, handle_usage_statistics, one_line_scan):
     """Test creating topography with tags."""
     surface = SurfaceFactory(created_by=user_alice)
     surface.grant_permission(user_alice, "edit")
+    one_line_scan.datafile.grant_permission(user_alice, "view")
+
     tag1 = TagFactory(name="tag1")
     tag2 = TagFactory(name="tag2")
 
@@ -232,6 +241,7 @@ def test_topography_create_with_tags(api_client, user_alice, handle_usage_statis
         "name": "New Topography",
         "surface": {"id": surface.id},
         "tags": [tag1.name, tag2.name],
+        "datafile": {"id": one_line_scan.datafile.id},
     }
     response = api_client.post(url, data, format="json")
 
@@ -616,8 +626,8 @@ def test_surface_delete_no_permission(api_client, user_alice, user_bob):
 @pytest.mark.django_db
 def test_zip_container_retrieve_success(api_client, user_alice):
     """Test retrieving a ZIP container."""
-    zip_container = ZipContainer.objects.create()
-    zip_container.grant_permission(user_alice, "view")
+    permissions = PermissionSetFactory(user=user_alice, allow="view")
+    zip_container = ZipContainer.objects.create(permissions=permissions)
 
     api_client.force_login(user_alice)
     url = reverse("manager:zip-container-v2-detail", kwargs={"pk": zip_container.id})
@@ -632,8 +642,8 @@ def test_zip_container_retrieve_success(api_client, user_alice):
 @pytest.mark.django_db
 def test_zip_container_retrieve_no_permission(api_client, user_alice, user_bob):
     """Test retrieving ZIP container without permission returns 404."""
-    zip_container = ZipContainer.objects.create()
-    zip_container.grant_permission(user_bob, "view")
+    permissions = PermissionSetFactory(user=user_bob, allow="view")
+    zip_container = ZipContainer.objects.create(permissions=permissions)
 
     api_client.force_login(user_alice)
     url = reverse("manager:zip-container-v2-detail", kwargs={"pk": zip_container.id})
@@ -767,8 +777,8 @@ def test_upload_zip_start_unauthenticated(api_client):
 @pytest.mark.django_db
 def test_upload_zip_finish_success(api_client, user_alice, handle_usage_statistics):
     """Test finishing a ZIP upload."""
-    zip_container = ZipContainer.objects.create()
-    zip_container.grant_permission(user_alice, "full")
+    permissions = PermissionSetFactory(user=user_alice, allow="full")
+    zip_container = ZipContainer.objects.create(permissions=permissions)
 
     api_client.force_login(user_alice)
     url = reverse("manager:zip-upload-finish-v2", kwargs={"pk": zip_container.id})
@@ -796,8 +806,8 @@ def test_upload_zip_finish_not_found(api_client, user_alice):
 @pytest.mark.django_db
 def test_upload_zip_finish_no_permission(api_client, user_alice, user_bob):
     """Test that user without permission cannot finish upload."""
-    zip_container = ZipContainer.objects.create()
-    zip_container.grant_permission(user_bob, "full")
+    permissions = PermissionSetFactory(user=user_bob, allow="full")
+    zip_container = ZipContainer.objects.create(permissions=permissions)
 
     api_client.force_login(user_alice)
     url = reverse("manager:zip-upload-finish-v2", kwargs={"pk": zip_container.id})
@@ -809,7 +819,8 @@ def test_upload_zip_finish_no_permission(api_client, user_alice, user_bob):
 @pytest.mark.django_db
 def test_upload_zip_finish_unauthenticated(api_client):
     """Test that unauthenticated users cannot finish upload."""
-    zip_container = ZipContainer.objects.create()
+    permissions = PermissionSetFactory()
+    zip_container = ZipContainer.objects.create(permissions=permissions)
 
     url = reverse("manager:zip-upload-finish-v2", kwargs={"pk": zip_container.id})
     response = api_client.post(url)

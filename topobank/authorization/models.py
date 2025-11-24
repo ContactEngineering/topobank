@@ -318,11 +318,6 @@ class AuthorizedManager(models.Manager):
         return AuthorizedQuerySet(self.model, using=self._db)
 
     def create(self, **kwargs):
-        if "permissions" not in kwargs:
-            # Create a new PermissionSet if one wasn't provided
-            kwargs["permissions"] = PermissionSet.objects.create()
-            _log.debug("AuthorizedManager created new PermissionSet for %s - id: %s",
-                       self.model, kwargs["permissions"].id)
         return super().create(**kwargs)
 
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:

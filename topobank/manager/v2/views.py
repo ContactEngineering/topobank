@@ -31,7 +31,7 @@ from .serializers import (
 _log = logging.getLogger(__name__)
 
 
-class SurfaceViewSet(UserUpdateMixin, v1.SurfaceViewSet):
+class SurfaceViewSet(v1.SurfaceViewSet):
     serializer_class = SurfaceV2Serializer
     pagination_class = TopobankPaginator
 

@@ -203,6 +203,7 @@ def test_upload_topography_for_shared_surface(
     # Now allow to change and get response again
     #
     surface.grant_permission(user2, "edit")
+    api_client.force_login(user2)
     response = upload_topography_file(
         str(input_file_path),
         surface.id,

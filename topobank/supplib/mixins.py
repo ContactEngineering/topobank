@@ -117,10 +117,10 @@ class UserUpdateMixin:
         # Can't call super() here because we need to pass kwargs to save()
         user = self.request.user
         owned_by = Organization.objects.for_user(user).first()  # TODO: Limit to one organization per user
-        serializer.save(owned_by=owned_by, created_by=user, updated_by=user)
+        return serializer.save(owned_by=owned_by, created_by=user, updated_by=user)
 
     def perform_update(self, serializer):
         """Set updated_by when updating objects."""
         # Set the field on the instance then call super() to maintain MRO chain
         serializer.instance.updated_by = self.request.user
-        super().perform_update(serializer)
+        return super().perform_update(serializer)

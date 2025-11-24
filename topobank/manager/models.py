@@ -236,7 +236,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
             )
         return (
             Surface.objects.for_user(self._user)
-            .filter(Q(tags=self) | Q(tags__path__istartswith=self.path))
+            .filter(Q(tags=self) | Q(tags__path__istartswith=f"{self.path}/"))
             .distinct()
         )
 
@@ -410,8 +410,8 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         return self.topography_set.count()
 
     def save(self, *args, **kwargs):
-        created = self.pk is not None
-        if not created:
+        created = self.pk is None
+        if created:
             if self.permissions is None:
                 # Create a new permission set for this dataset
                 _log.debug(
@@ -796,6 +796,18 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     def save(self, *args, **kwargs):
         update_fields: list = kwargs.get("update_fields", None)
+        created = self.pk is None
+        if created:
+            if self.permissions is None:
+                _log.debug(
+                    f"NEW TOPOGRAPHY: Attaching topography to surface permissions {self}."
+                )
+                if self.surface.permissions is not None:
+                    self.permissions = self.surface.permissions
+                else:
+                    raise RuntimeError(
+                        "Cannot create topography because surface has no permissions."
+                    )
         if self.attachments is None:
             _log.debug(
                 "ATTACHMENTS MISSING: Creating an empty folder for attachments to "
@@ -807,9 +819,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             if update_fields is not None and 'attachments' not in update_fields:
                 update_fields.append('attachments')
         if self.datafile is None:
-            _log.debug(f"Creating datafile manifest for Topography: {self}")
+            _log.debug(f"DATAFILE MISSING: Creating datafile manifest for Topography: {self}")
             self.datafile = Manifest.objects.create(
-                permissions=self.surface.permissions,
+                permissions=self.permissions,
                 filename=self.name,
                 kind="raw",
                 created_by=self.created_by,
