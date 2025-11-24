@@ -104,7 +104,8 @@ class ResultV2CreateSerializer(serializers.ModelSerializer):
             subject_dispatch = WorkflowSubject.objects.create(subject)
 
             # Create the WorkflowResult instance
-            # AuthorizedManager.create() will automatically create permissions and folder
+            # NOTE: WorkflowResult model save method handles setting permissions
+            # and creating its folder
             instance = WorkflowResult.objects.create(
                 function=workflow,
                 subject_dispatch=subject_dispatch,
@@ -224,7 +225,7 @@ class ResultV2CreateSerializer(serializers.ModelSerializer):
                     })
 
                 # Verify tag has accessible surfaces
-                if tag.get_related_surfaces().count() == 0:
+                if tag.get_descendant_surfaces().count() == 0:
                     raise serializers.ValidationError({
                         "subject": f"Tag '{subject_value}' has no accessible surfaces."
                     })

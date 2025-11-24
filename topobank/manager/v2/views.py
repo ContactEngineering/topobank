@@ -1,5 +1,6 @@
 import logging
 
+from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import backends
@@ -30,7 +31,7 @@ from .serializers import (
 _log = logging.getLogger(__name__)
 
 
-class SurfaceViewSet(UserUpdateMixin, v1.SurfaceViewSet):
+class SurfaceViewSet(v1.SurfaceViewSet):
     serializer_class = SurfaceV2Serializer
     pagination_class = TopobankPaginator
 
@@ -67,7 +68,7 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Topography.objects.for_user(self.request.user).filter(
-            deletion_time__isnull=True
+            Q(deletion_time__isnull=True) | Q(surface__deletion_time__isnull=True)
         ).select_related(
             'surface',
             'permissions',
@@ -79,7 +80,7 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             'deepzoom',
             'datafile',
             'squeezed_datafile',
-        ).order_by('-created_at')
+        ).distinct().order_by('-created_at')
 
     def get_serializer_class(self):
         if self.action == 'create':

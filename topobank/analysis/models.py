@@ -18,7 +18,7 @@ from django.urls.exceptions import Resolver404
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 
-from topobank.authorization.permissions import EDIT
+from topobank.authorization.permissions import EDIT, FULL
 from topobank.organizations.models import Organization
 
 from ..authorization.mixins import PermissionMixin
@@ -224,7 +224,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     # user-specified description
     description = models.TextField(
-        null=True, help_text="Optional description of the analysis."
+        null=True, blank=True, help_text="Optional description of the analysis."
     )
 
     # Keyword arguments passed to the Python workflow result function
@@ -307,11 +307,22 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
         # Ensure permissions and folder are set
         if self.permissions is None:
-            raise RuntimeError(
-                "Cannot save WorkflowResult without permissions set."
-            )
+            _log.debug(
+                "WorkflowResult has no permissions. Attempting to create new permission set.")
+            if self.created_by:
+                self.permissions = PermissionSet.objects.create()
+                self.permissions.grant(self.created_by, FULL)
+            else:
+                raise RuntimeError(
+                    "WorkflowResult is missing permission set and created_by. Cannot create permissions."
+                )
         if self.folder is None:
-            raise RuntimeError("Cannot save WorkflowResult without folder set.")
+            self.folder = Folder.objects.create(
+                permissions=self.permissions, read_only=True
+            )
+            if 'update_fields' in kwargs:
+                if kwargs['update_fields'] is not None:
+                    kwargs['update_fields'].append('folder')
 
         if not self.pk:
             # New instance - ensure creator has EDIT permission

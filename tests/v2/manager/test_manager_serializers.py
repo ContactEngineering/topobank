@@ -2,13 +2,20 @@
 
 import pytest
 
+from topobank.manager.models import Manifest
 from topobank.manager.v2.serializers import (
     SurfaceV2Serializer,
     TopographyV2CreateSerializer,
     TopographyV2Serializer,
     ZipContainerV2Serializer,
 )
-from topobank.testing.factories import PropertyFactory, SurfaceFactory, TagFactory
+from topobank.manager.zip_model import ZipContainer
+from topobank.testing.factories import (
+    PermissionSetFactory,
+    PropertyFactory,
+    SurfaceFactory,
+    TagFactory,
+)
 
 # TopographyV2Serializer Tests
 
@@ -336,10 +343,12 @@ def test_topography_v2_serializer_user_fields(api_rf, user_alice, one_line_scan)
 
 
 @pytest.mark.django_db
-def test_topography_v2_create_serializer_required_fields(api_rf, user_alice):
+def test_topography_v2_create_serializer_required_fields(api_rf, user_alice, one_line_scan):
     """Test that surface field is required for creation."""
     surface = SurfaceFactory(created_by=user_alice)
     surface.grant_permission(user_alice, "edit")
+    manifest = one_line_scan.datafile
+    manifest.grant_permission(user_alice, "view")
 
     request = api_rf.post("/")
     request.query_params = {}
@@ -347,21 +356,30 @@ def test_topography_v2_create_serializer_required_fields(api_rf, user_alice):
 
     # Without surface
     serializer = TopographyV2CreateSerializer(
-        data={"name": "Test Topo"}, context={"request": request}
+        data={"name": "Test Topo", "datafile": {"id": manifest.id}}, context={"request": request}
     )
     assert not serializer.is_valid()
     assert "surface" in serializer.errors
 
     # Without name
     serializer = TopographyV2CreateSerializer(
-        data={"surface": {"id": surface.id}}, context={"request": request}
+        data={
+            "surface": {"id": surface.id},
+            "datafile": {"id": manifest.id}
+        },
+        context={"request": request}
     )
     assert not serializer.is_valid()
     assert "name" in serializer.errors
 
     # With both
     serializer = TopographyV2CreateSerializer(
-        data={"name": "Test Topo", "surface": {"id": surface.id}}, context={"request": request}
+        data={
+            "name": "Test Topo",
+            "surface": {"id": surface.id},
+            "datafile": {"id": manifest.id}
+        },
+        context={"request": request}
     )
     assert serializer.is_valid()
 
@@ -583,10 +601,8 @@ def test_surface_v2_serializer_update(api_rf, user_alice):
 @pytest.mark.django_db
 def test_zip_container_v2_serializer_api_field(api_rf, user_alice):
     """Test that api field contains correct URLs."""
-    from topobank.manager.zip_model import ZipContainer
-
-    zip_container = ZipContainer.objects.create()
-    zip_container.grant_permission(user_alice, "view")
+    permissions = PermissionSetFactory(user=user_alice, allow="view")
+    zip_container = ZipContainer.objects.create(permissions=permissions)
 
     request = api_rf.get("/")
     request.query_params = {}
@@ -605,10 +621,8 @@ def test_zip_container_v2_serializer_api_field(api_rf, user_alice):
 @pytest.mark.django_db
 def test_zip_container_v2_serializer_url_field(api_rf, user_alice):
     """Test that url field generates correct hyperlink."""
-    from topobank.manager.zip_model import ZipContainer
-
-    zip_container = ZipContainer.objects.create()
-    zip_container.grant_permission(user_alice, "view")
+    permissions = PermissionSetFactory(user=user_alice, allow="view")
+    zip_container = ZipContainer.objects.create(permissions=permissions)
 
     request = api_rf.get("/")
     request.query_params = {}
@@ -626,14 +640,11 @@ def test_zip_container_v2_serializer_url_field(api_rf, user_alice):
 @pytest.mark.django_db
 def test_zip_container_v2_serializer_manifest_field(api_rf, user_alice):
     """Test that manifest field is serialized correctly."""
-    from topobank.files.models import Manifest
-    from topobank.manager.zip_model import ZipContainer
-
-    zip_container = ZipContainer.objects.create()
+    permissions = PermissionSetFactory(user=user_alice, allow="view")
+    zip_container = ZipContainer.objects.create(permissions=permissions)
     manifest = Manifest.objects.create()
     zip_container.manifest = manifest
     zip_container.save()
-    zip_container.grant_permission(user_alice, "view")
 
     request = api_rf.get("/")
     request.query_params = {}
@@ -650,10 +661,8 @@ def test_zip_container_v2_serializer_manifest_field(api_rf, user_alice):
 @pytest.mark.django_db
 def test_zip_container_v2_serializer_permissions_field(api_rf, user_alice):
     """Test that permissions field is serialized correctly."""
-    from topobank.manager.zip_model import ZipContainer
-
-    zip_container = ZipContainer.objects.create()
-    zip_container.grant_permission(user_alice, "view")
+    permissions = PermissionSetFactory(user=user_alice, allow="view")
+    zip_container = ZipContainer.objects.create(permissions=permissions)
 
     request = api_rf.get("/")
     request.query_params = {}

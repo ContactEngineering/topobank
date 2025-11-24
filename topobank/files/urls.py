@@ -3,11 +3,13 @@ from django.urls import path
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
 from . import views
+from .v2 import views as v2_views
 
 app_name = "files"
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"manifest", views.FileManifestViewSet, basename="manifest-api")
+router.register(r"v2/manifest", v2_views.FileManifestViewSet, basename="manifest-v2")
 
 urlpatterns = router.urls
 urlpatterns += [

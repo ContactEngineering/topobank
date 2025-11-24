@@ -89,7 +89,6 @@ class PermissionSetFactory(factory.django.DjangoModelFactory):
             "user",
             "allow",
         )
-        skip_postgeneration_save = True
 
     user = factory.SubFactory(UserFactory)
     allow = "full"
@@ -112,7 +111,7 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     permissions = factory.LazyAttribute(
         lambda obj: obj.folder.permissions if getattr(obj, "folder", None) is not None else None
     )
-    upload_confirmed = factory.LazyFunction(timezone.now)
+    confirmed_at = factory.LazyFunction(timezone.now)
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):
@@ -201,7 +200,8 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
 
     permissions = factory.SelfAttribute("surface.permissions")
     surface = factory.SubFactory(SurfaceFactory)
-    # created_by is set automatically to surface's created_by if not set, see signals
+    # Set created_by explicitly from surface's created_by
+    created_by = factory.SelfAttribute("surface.created_by")
     name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
     filename = "line_scan_1.asc"
     datafile = factory.SubFactory(
@@ -315,6 +315,9 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
             )
         )
     )
+
+    # Store user for later use
+    created_by = factory.LazyAttribute(lambda obj: obj.user)
 
     permissions = factory.SubFactory(
         PermissionSetFactory, user=factory.SelfAttribute("..user"), allow="view"

@@ -3,6 +3,8 @@ import logging
 from django.conf import settings
 from django.utils import timezone
 
+from topobank.files.models import Manifest
+
 from ..taskapp.celeryapp import app
 from .models import Surface, Topography
 from .zip_model import ZipContainer
@@ -45,5 +47,17 @@ def periodic_cleanup():
     if q.count() > 0:
         _log.info(
             f"Custodian: Deleting {q.count()} temporary ZIP containers."
+        )
+        q.delete()
+
+    # Delete all Manifests that are not confirmed, have no file, and too old
+    q = Manifest.objects.filter(
+        created_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY,
+        confirmed_at__isnull=True,
+        file__isnull=True,
+    )
+    if q.count() > 0:
+        _log.info(
+            f"Custodian: Deleting {q.count()} unlinked Manifests."
         )
         q.delete()

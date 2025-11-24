@@ -4,6 +4,8 @@ from rest_framework import serializers
 from rest_framework.reverse import reverse
 from tagulous.contrib.drf import TagRelatedManagerField
 
+from topobank.files.models import Manifest
+
 from ...properties.serializers import PropertiesField
 from ...supplib.mixins import StrictFieldMixin
 from ...supplib.serializers import (
@@ -159,13 +161,19 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             # The kwargs that were provided do not match the function
             raise serializers.ValidationError({"message": str(exc)})
 
+    def to_representation(self, instance: Topography):
+        # Ensure that retrieving the Topography starts the task if it is ready.
+        instance.ensure_task_started()
+        return super().to_representation(instance)
+
 
 class TopographyV2CreateSerializer(serializers.ModelSerializer):
     class Meta:
         model = Topography
         required_fields = [
             "surface",
-            "name"
+            "name",
+            "datafile",
         ]
         fields = required_fields + [
             "tags",
@@ -175,6 +183,10 @@ class TopographyV2CreateSerializer(serializers.ModelSerializer):
     surface = ModelRelatedField(
         view_name="manager:surface-v2-detail",
         queryset=Surface.objects.none()
+    )
+    datafile = ModelRelatedField(
+        view_name="files:manifest-v2-detail",
+        queryset=Manifest.objects.none()
     )
     tags = TagRelatedManagerField(required=False)
 
@@ -189,6 +201,16 @@ class TopographyV2CreateSerializer(serializers.ModelSerializer):
             self.fields['surface'].queryset = Surface.objects.for_user(
                 request.user
             )
+            self.fields['datafile'].queryset = Manifest.objects.for_user(
+                request.user
+            )
+
+    def create(self, validated_data):
+        if 'permissions' not in validated_data:
+            # Permissions should not be set directly, but inherited from surface
+            # But if we are passing them directly we respect that.
+            validated_data['permissions'] = validated_data['surface'].permissions
+        return super().create(validated_data)
 
     def to_representation(self, instance):
         return TopographyV2Serializer(instance, context=self.context).data

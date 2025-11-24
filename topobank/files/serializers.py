@@ -51,7 +51,7 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
     kind = serializers.ChoiceField(choices=Manifest.FILE_KIND_CHOICES, read_only=True)
     created = serializers.DateTimeField(source="created_at", read_only=True)
     updated = serializers.DateTimeField(source="updated_at", read_only=True)
-    upload_confirmed = serializers.DateTimeField(read_only=True)
+    upload_confirmed = serializers.DateTimeField(source="confirmed_at", read_only=True)
     upload_instructions = serializers.SerializerMethodField()
 
     def __init__(self, instance=None, data=serializers.empty, **kwargs):
