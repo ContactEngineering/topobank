@@ -98,7 +98,7 @@ class ManifestV2CreateSerializer(StrictFieldMixin, serializers.HyperlinkedModelS
             # TODO: consider allowing permissions object to be passed in request
             # so it can be tied to surface/topography
             validated_data['permissions'] = PermissionSet.objects.create()
-            validated_data['permissions'].grant_permission(
+            validated_data['permissions'].grant(
                 self.context['request'].user, FULL
             )
 
