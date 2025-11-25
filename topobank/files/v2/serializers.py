@@ -1,6 +1,7 @@
 from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
+from topobank.authorization.models import PermissionSet
 from topobank.authorization.permissions import FULL, VIEW
 from topobank.supplib.serializers import ModelRelatedField, UserField
 
@@ -92,12 +93,18 @@ class ManifestV2CreateSerializer(StrictFieldMixin, serializers.HyperlinkedModelS
         if folder is not None:
             # Set permissions based on folder if it exists
             validated_data['permissions'] = folder.permissions
-        # PermissionSet will be created by manager if none is given
+        else:
+            # Create new permissios set
+            # TODO: consider allowing permissions object to be passed in request
+            # so it can be tied to surface/topography
+            validated_data['permissions'] = PermissionSet.objects.create()
+            validated_data['permissions'].grant(
+                self.context['request'].user, FULL
+            )
 
         instance = Manifest.objects.create(
             **validated_data
         )
-        instance.grant_permission(self.context['request'].user, FULL)
         return instance
 
     def validate_folder(self, value):
