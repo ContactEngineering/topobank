@@ -48,8 +48,8 @@ class UserViewSet(viewsets.ModelViewSet):
         if organization is not None:
             qs = qs.filter(groups__organization=organization)
 
-        # Return query set
-        return qs
+        # Return query set with distinct to avoid duplicates from group joins
+        return qs.distinct()
 
     def create(self, request, *args, **kwargs):
         data: dict = request.data
