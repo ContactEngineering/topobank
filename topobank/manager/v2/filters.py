@@ -1,3 +1,4 @@
+from django.db.models import Count
 from django_filters.rest_framework import FilterSet, filters
 
 from topobank.manager.models import Surface, Topography
@@ -74,6 +75,7 @@ class SurfaceViewFilterSet(FilterSet):
     tag = filters.CharFilter(method="filter_tag_iexact")
     tag_startswith = filters.CharFilter(method="filter_tag_istartswith")
     tag_contains = filters.CharFilter(method="filter_tag_contains")
+    has_tags = filters.BooleanFilter(method="filter_has_tags")
     property = filters.CharFilter(field_name="properties__name", lookup_expr="istartswith", distinct=True)
     topography = filters.BaseInFilter(field_name="topography__id")
 
@@ -92,6 +94,7 @@ class SurfaceViewFilterSet(FilterSet):
             "tag",
             "tag_startswith",
             "tag_contains",
+            "has_tags",
             "name",
             "property",
             "topography",
@@ -132,3 +135,12 @@ class SurfaceViewFilterSet(FilterSet):
         return queryset.filter(
             tags__path__icontains=path
         ).distinct()
+
+    def filter_has_tags(self, queryset, name, value):
+        """
+        Filter surfaces that have (or do not have) any tags.
+        """
+        if value:
+            return queryset.annotate(tag_count=Count('tags')).filter(tag_count__gt=0)
+        else:
+            return queryset.annotate(tag_count=Count('tags')).filter(tag_count=0)
