@@ -26,7 +26,6 @@ def periodic_cleanup():
     # Delete all WorkflowSubjects that are not linked to any WorkflowResult
     # This happens when a name is set on a WorkflowResult
     q = WorkflowSubject.objects.filter(
-        created_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY,
         workflowresult__isnull=True
     )
     if q.count() > 0:
