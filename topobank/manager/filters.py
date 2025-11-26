@@ -1,61 +1,12 @@
 from django.contrib.postgres.search import SearchQuery, SearchVector
 from django.db.models import Q, Subquery, TextField, Value
 from django.db.models.functions import Replace
-from django_filters.rest_framework import FilterSet, filters
 from rest_framework.exceptions import ParseError, PermissionDenied
 
-from topobank.manager.models import Surface, Topography
+from topobank.manager.models import Surface
 
 ORDER_BY_FILTER_CHOICES = {"name": "name", "date": "-created_at"}
 SHARING_STATUS_FILTER_CHOICES = set(["all", "own", "others", "published"])
-
-
-# v2 filters
-class TopographyViewFilterSet(FilterSet):
-    """
-    FilterSet for Topography model.
-
-    Filters:
-    - surface: Filter by surface IDs (list)
-    - tag: Filter by exact tag name
-    - tag_startswith: Filter by tag name starting with substring
-    """
-
-    surface = filters.BaseInFilter(method="filter_ids", field_name="surface__id")
-    tag = filters.CharFilter(method="filter_tag_iexact")
-    tag_startswith = filters.CharFilter(method="filter_tag_istartswith")
-
-    class Meta:
-        model = Topography
-        fields = ["surface", "tag", "tag_startswith"]
-
-    def filter_ids(self, queryset, name, value):
-        """
-        Filter by surface ID(s).
-
-        Usage: ?surface=1,2,3
-        """
-
-        return queryset.filter(surface__id__in=value)
-
-    def filter_tag_iexact(self, queryset, name, value):
-        """
-        Filter by exact tag path (case-insensitive) and all child tags.
-
-        Note:
-        -----
-        This filter will only return the exact tag and not its children.
-        """
-        return queryset.filter(surface__tags__path__iexact=value).distinct()
-
-    def filter_tag_istartswith(self, queryset, name, value):
-        """
-        Filter by tag path starting with substring (case-insensitive).
-        """
-        path = value.replace(" ", "-")
-        return queryset.filter(
-            surface__tags__path__istartswith=path
-        ).distinct()
 
 
 # v1 filter

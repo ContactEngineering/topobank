@@ -1,18 +1,16 @@
-import logging
-
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from django_filters.rest_framework import backends
 from drf_spectacular.utils import OpenApiParameter, extend_schema, extend_schema_view
+from notifications.signals import notify
 from rest_framework import mixins, viewsets
 from rest_framework.decorators import api_view, permission_classes
 from rest_framework.permissions import IsAuthenticated, IsAuthenticatedOrReadOnly
 from rest_framework.request import Request
 from rest_framework.response import Response
 
-import topobank.manager.v1.views as v1
-from topobank.manager.filters import TopographyViewFilterSet
+from topobank.manager.v2.filters import SurfaceViewFilterSet, TopographyViewFilterSet
 from topobank.supplib.mixins import UserUpdateMixin
 from topobank.supplib.pagination import TopobankPaginator
 
@@ -28,15 +26,40 @@ from .serializers import (
     ZipContainerV2Serializer,
 )
 
-_log = logging.getLogger(__name__)
 
-
-class SurfaceViewSet(v1.SurfaceViewSet):
+class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
     serializer_class = SurfaceV2Serializer
+    permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
     pagination_class = TopobankPaginator
+    filter_backends = [PermissionFilterBackend, backends.DjangoFilterBackend]
+    filterset_class = SurfaceViewFilterSet
+
+    def _notify(self, instance, verb):
+        user = self.request.user
+        other_users = instance.permissions.user_permissions.filter(~Q(user__id=user.id))
+        for u in other_users:
+            notify.send(
+                sender=user,
+                verb=verb,
+                recipient=u.user,
+                description=f"User '{user.name}' {verb}d digital surface twin '{instance.name}'.",
+            )
+
+    def get_queryset(self):
+        return Surface.objects.for_user(self.request.user).filter(
+            deletion_time__isnull=True
+        ).select_related(
+            'permissions',
+            'created_by',
+            'updated_by',
+            'owned_by',
+        ).prefetch_related(
+            'topography_set',
+        ).distinct().order_by('-created_at')
 
     def perform_destroy(self, instance):
         """Perform soft delete by setting deletion_time instead of hard delete."""
+        self._notify(instance, verb="delete")
         instance.lazy_delete()
 
 
@@ -78,8 +101,6 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             'attachments',
             'thumbnail',
             'deepzoom',
-            'datafile',
-            'squeezed_datafile',
         ).distinct().order_by('-created_at')
 
     def get_serializer_class(self):
