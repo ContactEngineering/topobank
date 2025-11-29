@@ -425,7 +425,7 @@ def download_plot_analyses_to_txt(request, analyses):
                 try:
                     std_err_y = series["std_err_y"] * yconv
                     if hasattr(std_err_y, "filled"):
-                        std_err_y = std_err_y.filled(np.nan)
+                        std_err_y = np.ma.filled(std_err_y, fill_value=np.nan)
                     series_data.append(std_err_y)
                 except KeyError:
                     pass
