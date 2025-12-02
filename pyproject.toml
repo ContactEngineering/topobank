@@ -176,7 +176,7 @@ dev = [
 
     # Documentation
     # ------------------------------------------------------------------------------
-    'Sphinx<8.2.4',
+    'Sphinx<9.0.2',
     # https://github.com/sphinx-doc/sphinx
     'sphinx_rtd_theme',
 
