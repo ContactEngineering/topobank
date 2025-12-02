@@ -36,7 +36,7 @@ class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.Li
     filterset_class = WorkflowViewFilterSet
 
     def get_queryset(self):
-        return Workflow.objects.all()
+        return Workflow.objects.all().order_by('name')
 
 
 class ResultView(
