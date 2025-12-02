@@ -91,7 +91,7 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
 
     def get_queryset(self):
         return Topography.objects.for_user(self.request.user).filter(
-            Q(deletion_time__isnull=True) | Q(surface__deletion_time__isnull=True)
+            Q(deletion_time__isnull=True) & Q(surface__deletion_time__isnull=True)
         ).select_related(
             'surface',
             'permissions',
