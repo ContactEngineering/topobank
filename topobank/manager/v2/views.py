@@ -55,7 +55,7 @@ class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             'owned_by',
         ).prefetch_related(
             'topography_set',
-        ).distinct().order_by('-created_at')
+        ).distinct().order_by('name')
 
     def perform_destroy(self, instance):
         """Perform soft delete by setting deletion_time instead of hard delete."""
@@ -101,7 +101,7 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             'attachments',
             'thumbnail',
             'deepzoom',
-        ).distinct().order_by('-created_at')
+        ).distinct().order_by('name')
 
     def get_serializer_class(self):
         if self.action == 'create':
