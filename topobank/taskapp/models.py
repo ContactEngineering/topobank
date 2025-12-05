@@ -341,7 +341,7 @@ class TaskStateModel(models.Model):
             if r and isinstance(r.info, Exception):
                 # Generate error string
                 self.task_state = self.FAILURE
-                self.task_error = str(r.info)
+                self.task_error = str(r.info).replace('\x00', '')
                 # There seems to be an error, store for future reference
                 self.save(update_fields=["task_state", "task_error"])
                 return self.task_error
@@ -395,13 +395,13 @@ class TaskStateModel(models.Model):
         except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
             self.task_error = "The data file is of an unknown or unsupported format."
-            self.task_traceback = traceback.format_exc()
+            self.task_traceback = traceback.format_exc().replace('\x00', '')
         except Exception as exc:
             self.task_state = TaskStateModel.FAILURE
             # Store string representation of exception and traceback as user-reported
             # error string
-            self.task_error = str(exc)
-            self.task_traceback = traceback.format_exc()
+            self.task_error = str(exc).replace('\x00', '')
+            self.task_traceback = traceback.format_exc().replace('\x00', '')
             # we want a real exception here so celery's flower can show the task as
             # failure
             raise

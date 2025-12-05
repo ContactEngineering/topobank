@@ -245,9 +245,9 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
             f"{analysis_id}/{self.request.id}: Exception during evaluation: {exc}"
         )
         analysis.task_state = WorkflowResult.FAILURE
-        analysis.task_traceback = traceback.format_exc()
+        analysis.task_traceback = traceback.format_exc().replace('\x00', '')
         # Store string representation of exception as user-reported error string
-        analysis.task_error = str(exc)
+        analysis.task_error = str(exc).replace('\x00', '')
         analysis.save()
         # We want a real exception here so celery's flower can show the task as failure
         raise
