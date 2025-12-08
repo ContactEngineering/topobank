@@ -51,6 +51,12 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 
     @action(detail=True, methods=["GET"], url_path="users", url_name="users")
     def users_list(self, request, pk=None):
+        """
+        List all users who have access to this permission set.
+        Requires at least 'view' permission on the permission set.
+        NOTE: This intentionally allows listing users the requesting user may not normally see.
+        This is to allow users to see who else has access to the same resources.
+        """
         permission_set = self.get_object()
         permission_set.authorize_user(request.user, "view")
 
