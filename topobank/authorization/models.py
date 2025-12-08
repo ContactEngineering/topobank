@@ -66,6 +66,33 @@ class PermissionSetManager(models.Manager):
             # Create a new PermissionSet without any permissions
             return super().create(**kwargs)
 
+    def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
+        """Return all PermissionSets where user has at least the given permission level"""
+        if permission == "view":
+            # We do not need to filter on permission level, just check that there
+            # is some permission for the user
+            return self.filter(
+                # If anonymous has access, anybody can access
+                Q(user_permissions__user=get_anonymous_user())
+                # Direct user access
+                | Q(user_permissions__user=user)
+                # User access through an organization
+                | Q(organization_permissions__organization__group__in=user.groups.all())
+            )
+        else:
+            return self.filter(
+                # Direct user access
+                (
+                    Q(user_permissions__user=user)
+                    & Q(user_permissions__allow__in=levels_with_access(permission))
+                )
+                # User access through an organization
+                | (
+                    Q(organization_permissions__organization__group__in=user.groups.all())
+                    & Q(organization_permissions__allow__in=levels_with_access(permission))
+                )
+            )
+
 
 class PermissionSet(models.Model):
     """A set of permissions"""
