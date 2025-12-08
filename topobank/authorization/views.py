@@ -49,23 +49,6 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     serializer_class = PermissionSetSerializer
     permission_classes = [PermissionSetPermission]
 
-    @action(detail=True, methods=["GET"], url_path="users", url_name="users")
-    def users_list(self, request, pk=None):
-        """
-        List all users who have access to this permission set.
-        Requires at least 'view' permission on the permission set.
-        NOTE: This intentionally allows listing users the requesting user may not normally see.
-        This is to allow users to see who else has access to the same resources.
-        """
-        permission_set = self.get_object()
-        permission_set.authorize_user(request.user, "view")
-
-        user_permissions = permission_set.user_permissions.all()
-        serializer = UserPermissionSerializer(
-            user_permissions, many=True, context={'request': request}
-        )
-        return Response(serializer.data)
-
     @extend_schema(
         parameters=[
             OpenApiParameter(
@@ -89,8 +72,8 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
         summary="Get user intersection across permission sets",
         tags=["authorization"],
     )
-    @action(detail=False, methods=["GET"], url_path="intersection", url_name="intersection")
-    def permissions_intersection(self, request, *args, **kwargs):
+    @action(detail=False, methods=["GET"], url_path="shared", url_name="shared")
+    def shared_permissions(self, request, *args, **kwargs):
         """
         Given a list of permission set IDs, return users that are in ALL sets
         along with their lowest permission level across those sets.
@@ -174,8 +157,8 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
             )
             result_data.append(temp_permission)
 
-        # Sort by username for consistent ordering
-        result_data.sort(key=lambda x: x.user.username)
+        # Sort by name for consistent ordering
+        result_data.sort(key=lambda x: x.user.name)
 
         # Use the UserPermissionSerializer for consistent formatting
         serializer = UserPermissionSerializer(
