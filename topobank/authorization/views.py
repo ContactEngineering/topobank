@@ -1,7 +1,7 @@
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
-from rest_framework.decorators import api_view
+from rest_framework.decorators import action, api_view
 from rest_framework.permissions import SAFE_METHODS, BasePermission
 from rest_framework.response import Response
 
@@ -44,6 +44,17 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     queryset = PermissionSet.objects.all()
     serializer_class = PermissionSetSerializer
     permission_classes = [PermissionSetPermission]
+
+    @action(detail=True, methods=["GET"], url_path="users", url_name="users")
+    def users_list(self, request, pk=None):
+        permission_set = self.get_object()
+        permission_set.authorize_user(request.user, "view")
+
+        user_permissions = permission_set.user_permissions.all()
+        serializer = UserPermissionSerializer(
+            user_permissions, many=True, context={'request': request}
+        )
+        return Response(serializer.data)
 
 
 @extend_schema(
