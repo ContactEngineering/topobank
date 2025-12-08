@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
@@ -117,6 +119,170 @@ class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
     queryset = ZipContainer.objects.all()
     serializer_class = ZipContainerV2Serializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
+
+
+@extend_schema(
+    request=None,
+    parameters=[
+        OpenApiParameter(
+            name="tag",
+            type=str,
+            description="Optional root tag to use as the starting point for the tree. "
+                        "Only this tag and its descendants will be included. "
+                        "Example: 'material' or 'material/steel'",
+            required=False,
+        ),
+    ],
+    responses={200: {
+        "type": "object",
+        "description": "A nested tree structure of all tags accessible to the user",
+        "example": {
+            "material": {
+                "surface_count": 3,
+                "children": {
+                    "material/steel": {
+                        "surface_count": 0,
+                        "children": {
+                            "material/steel/stainless": {
+                                "surface_count": 5,
+                                "children": {}
+                            },
+                            "material/steel/carbon": {
+                                "surface_count": 5,
+                                "children": {}
+                            }
+                        }
+                    },
+                    "material/aluminum": {
+                        "surface_count": 7,
+                        "children": {}
+                    }
+                }
+            }
+        }
+    }},
+    description="Returns the complete hierarchical tag tree for all tags accessible to the user. "
+                "Each node includes 'surface_count' (number of surfaces with this exact tag, not descendants) "
+                "and 'children' (nested child tags). Optionally filter by a root tag using ?tag=tag_name"
+)
+@api_view(["GET"])
+@permission_classes([IsAuthenticated])
+def tag_tree(request: Request):
+    """
+    Returns the full hierarchical tag tree structure with surface counts.
+
+    The response is a nested dictionary representing the complete tag hierarchy
+    where each node contains 'surface_count' (surfaces with this exact tag) and
+    'children' (nested child tags).
+
+    Query parameters:
+    - tag (optional): Root tag name to filter the tree. Only this tag and its
+                      descendants will be included.
+
+    Example response:
+    {
+        "material": {
+            "surface_count": 3,
+            "children": {
+                "material/steel": {
+                    "surface_count": 0,
+                    "children": {
+                        "material/steel/stainless": {
+                            "surface_count": 5,
+                            "children": {}
+                        }
+                    }
+                }
+            }
+        }
+    }
+    """
+
+    root_tag = request.query_params.get("tag")
+
+    # Build query for surface-tag pairs with optional root filter
+    # We only consider surfaces accessible to the user and not deleted
+    query = (
+        Surface.objects.for_user(request.user)
+        .filter(deletion_time__isnull=True, tags__name__isnull=False)
+        .values_list("id", "tags__name")
+    )
+
+    if root_tag:
+        query = query.filter(
+            Q(tags__name=root_tag) | Q(tags__name__startswith=f"{root_tag}/")
+        )
+
+    surface_tags = query.distinct()
+
+    # Count unique surfaces per tag using defaultdict
+    tag_to_surfaces = defaultdict(set)
+    for surface_id, tag_name in surface_tags:
+        tag_to_surfaces[tag_name].add(surface_id)
+
+    # Convert to counts
+    tag_counts = {tag: len(surfaces) for tag, surfaces in tag_to_surfaces.items()}
+
+    if not tag_counts:
+        return Response({})
+
+    # Build tree structure
+    if root_tag:
+        # When root_tag is specified, build only the subtree
+        # by stripping the root prefix from all paths
+        root_prefix_len = len(root_tag)
+
+        # Start with the root node
+        tree = {
+            root_tag: {
+                "surface_count": tag_counts.get(root_tag, 0),
+                "children": {}
+            }
+        }
+
+        # Build only descendants
+        for tag_name in sorted(tag_counts.keys()):
+            if tag_name == root_tag:
+                continue
+
+            # For descendants, navigate relative to root
+            if tag_name.startswith(f"{root_tag}/"):
+                # Get the relative path after the root
+                relative_path = tag_name[root_prefix_len + 1:]  # +1 for the "/"
+                parts = relative_path.split("/")
+
+                # Start from the root's children
+                current = tree[root_tag]["children"]
+
+                # Build path progressively from root
+                for i, part in enumerate(parts):
+                    full_path = f"{root_tag}/{'/'.join(relative_path.split('/')[:i + 1])}"
+
+                    if full_path not in current:
+                        current[full_path] = {
+                            "surface_count": tag_counts.get(full_path, 0),
+                            "children": {}
+                        }
+                    current = current[full_path]["children"]
+    else:
+        # Build full tree when no root specified
+        tree = {}
+        for tag_name in sorted(tag_counts.keys()):
+            parts = tag_name.split("/")
+            current = tree
+
+            # Build path progressively
+            for i, part in enumerate(parts):
+                full_path = "/".join(parts[:i + 1])
+
+                if full_path not in current:
+                    current[full_path] = {
+                        "surface_count": tag_counts.get(full_path, 0),
+                        "children": {}
+                    }
+                current = current[full_path]["children"]
+
+    return Response(tree)
 
 
 @extend_schema(request=None,
