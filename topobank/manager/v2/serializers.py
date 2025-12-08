@@ -38,7 +38,6 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "deepzoom",
             "datafile_format",
             "channel_names",
-            "data_source",
             "created_at",
             "updated_at",
             "task_duration",
@@ -54,6 +53,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
         ]
         fields = read_only_fields + [
             "surface",
+            "data_source",
             "attachments",
             "name",
             "description",
