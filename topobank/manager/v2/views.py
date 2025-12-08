@@ -1,3 +1,5 @@
+from collections import defaultdict
+
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
@@ -195,7 +197,6 @@ def tag_tree(request: Request):
         }
     }
     """
-    from collections import defaultdict
 
     root_tag = request.query_params.get("tag")
 
