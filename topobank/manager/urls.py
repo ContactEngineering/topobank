@@ -51,6 +51,12 @@ urlpatterns += [
         view=v2.download_tag,
         name="tag-download-v2",
     ),
+    # GET
+    path(
+        "v2/tag-tree/",
+        view=v2.tag_tree,
+        name="tag-tree-v2",
+    ),
     # POST
     path(
         "v2/upload-zip/start/",
