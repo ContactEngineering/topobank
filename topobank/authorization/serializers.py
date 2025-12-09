@@ -95,6 +95,52 @@ class PermissionSetSerializer(serializers.ModelSerializer):
         }
 
 
+class SharedUserPermissionSerializer(serializers.Serializer):
+    """Serializer for shared user permissions across multiple permission sets"""
+
+    user = UserField(read_only=True)
+    allow = serializers.ChoiceField(
+        choices=[
+            ("no-access", "No Access"),
+            (Permissions.view.name, "View"),
+            (Permissions.edit.name, "Edit"),
+            (Permissions.full.name, "Full"),
+        ],
+        help_text="Effective permission level across all considered permission sets",
+    )
+    is_current_user = serializers.BooleanField()
+    is_unique = serializers.BooleanField(
+        help_text="True if the permission level is the same across all permission sets"
+    )
+
+
+class SharedOrganizationPermissionSerializer(serializers.Serializer):
+    """Serializer for shared organization permissions across multiple permission sets"""
+
+    organization = OrganizationSerializer(read_only=True)
+    allow = serializers.ChoiceField(
+        choices=[
+            ('no-access', "No Access"),
+            (Permissions.view.name, "View"),
+            (Permissions.edit.name, "Edit"),
+            (Permissions.full.name, "Full"),
+        ],
+        help_text="Effective permission level across all considered permission sets",
+    )
+    is_unique = serializers.BooleanField(
+        help_text="True if the permission level is the same across all permission sets"
+    )
+
+
+class SharedPermissionSetSerializer(serializers.Serializer):
+    """Serializer for shared permission sets"""
+
+    user_permissions = SharedUserPermissionSerializer(many=True)
+    organization_permissions = SharedOrganizationPermissionSerializer(
+        many=True
+    )
+
+
 class GrantUserRequestSerializer(serializers.Serializer):
     """Serializer for granting user access request"""
 

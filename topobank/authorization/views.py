@@ -1,5 +1,4 @@
 from collections import defaultdict
-from types import SimpleNamespace
 
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -19,6 +18,7 @@ from .serializers import (
     PermissionSetSerializer,
     RevokeOrganizationRequestSerializer,
     RevokeUserRequestSerializer,
+    SharedPermissionSetSerializer,
     UserPermissionSerializer,
 )
 
@@ -62,12 +62,13 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
                 explode=True,
             )
         ],
-        responses={200: UserPermissionSerializer(many=True)},
+        responses={200: SharedPermissionSetSerializer},
         description=(
             "Find users that have access to ALL of the specified permission sets. "
             "Returns each user with their lowest permission level across those sets. "
             "For example, if a user has 'full' permission in set A and 'view' permission in set B, "
-            "the returned permission will be 'view'."
+            "the returned permission will be 'view'. "
+            "The 'is_unique' field indicates whether the permission level is the same across all sets."
         ),
         summary="Get user intersection across permission sets",
         tags=["authorization"],
@@ -127,7 +128,7 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
                     })
 
         # Find users that appear in ALL permission sets
-        user_ids_to_lowest_perm = {}
+        user_ids_to_perm_info = {}
         for user_id, perms_list in user_permissions_map.items():
             # Group by permission_set_id and get the maximum permission for each set
             perm_set_to_max_level = {}
@@ -141,28 +142,40 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
             if len(perm_set_to_max_level) == len(requested_ids):
                 # Find the minimum permission level across all sets
                 min_perm = min(perm_set_to_max_level.values(), key=lambda x: x['access_level'])
-                user_ids_to_lowest_perm[user_id] = min_perm['allow']
+
+                # Check if all permission levels are the same (is_unique)
+                all_perms = list(perm_set_to_max_level.values())
+                is_unique = all(p['allow'] == all_perms[0]['allow'] for p in all_perms)
+
+                user_ids_to_perm_info[user_id] = {
+                    'allow': min_perm['allow'],
+                    'is_unique': is_unique
+                }
 
         # Bulk fetch all users in a single query
-        users = {u.id: u for u in User.objects.filter(id__in=user_ids_to_lowest_perm.keys())}
+        users = {u.id: u for u in User.objects.filter(id__in=user_ids_to_perm_info.keys())}
 
         # Build result data
-        result_data = []
-        for user_id, lowest_perm in user_ids_to_lowest_perm.items():
-            # Create a temporary UserPermission-like object for serialization
-            temp_permission = SimpleNamespace(
-                id=None,  # This is a computed result, not a stored permission
-                user=users[user_id],
-                allow=lowest_perm
-            )
-            result_data.append(temp_permission)
+        user_permissions_data = []
+        for user_id, perm_info in user_ids_to_perm_info.items():
+            user_permissions_data.append({
+                'user': users[user_id],
+                'allow': perm_info['allow'],
+                'is_current_user': request.user.id == user_id,
+                'is_unique': perm_info['is_unique']
+            })
 
         # Sort by name for consistent ordering
-        result_data.sort(key=lambda x: x.user.name)
+        user_permissions_data.sort(key=lambda x: x['user'].name)
 
-        # Use the UserPermissionSerializer for consistent formatting
-        serializer = UserPermissionSerializer(
-            result_data, many=True, context={'request': request}
+        # Use the SharedPermissionSetSerializer for the response
+        response_data = {
+            'user_permissions': user_permissions_data,
+            'organization_permissions': []  # Empty for now, as we only return users
+        }
+
+        serializer = SharedPermissionSetSerializer(
+            response_data, context={'request': request}
         )
         return Response(serializer.data)
 
