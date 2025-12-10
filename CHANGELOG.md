@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# 1.65.0 (not yet released)
+# 1.65.0 (2025-12-10)
 
 - BUG: Route ZIP container creation to 'manager' Celery queue
 - BUG: Fixed check of user permissions in serializer
@@ -8,6 +8,7 @@
 - API: Limit all user searches to organizations of the user
 - API: `permissions` key now return id, URL and permissions of current user
 - API: `creator` key now returns id, URL, and username
+- ENH: New V2 API
 - ENH: Added creator field to WorkflowResult
 - ENH: Return access level of current user in Surface and Topography
   serializers
@@ -19,9 +20,19 @@
 - ENH: Unified permission REST endpoints
 - ENH: Uploading ZIP containers
 - ENH: Query for multiple surfaces/tags
+- ENH: Enhanced wokflow routing
+- ENH: Uploading ZIP containers
+- ENH: Added email verification status to user serializer output
+- ENH: Added dynamic fields model serializer
+- ENH: Added endpoint for retrieving the intersection of PermissionSets
+- ENH: Created endpoint that returns tag tree structure and count
 - MAINT: Refactored internal Analysis* models to Workflow* model (#1161)
 - MAINT: Removed automatic generation of default group "all"
 - MAINT: Route beat tasks to manager queue
+- MAINT: Added stub serializers for users/orgs to reduce extra API calls
+- MAINT: Return task_id and launcher_task_id
+- MAINT: Added username generation to user view
+- MAINT: Consistent use of filters for V2 API
 
 # 1.64.3 (2025-07-20)
 
