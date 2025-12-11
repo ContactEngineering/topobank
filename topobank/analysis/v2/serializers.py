@@ -256,6 +256,7 @@ class ResultV2ListSerializer(
         task_state_fields = [
             "task_state",
             "task_progress",
+            "task_messages",
         ]
         fields += task_state_fields
         read_only_fields = fields
