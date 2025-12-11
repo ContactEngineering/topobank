@@ -112,7 +112,10 @@ class ResultViewFilterSet(FilterSet):
     - named: Boolean - True for named analyses, False for unnamed
     """
 
-    task_state = filters.MultipleChoiceFilter(choices=TASK_STATE_CHOICES)
+    task_state = filters.MultipleChoiceFilter(
+        choices=TASK_STATE_CHOICES,
+        help_text="Filter by task state. Can be specified multiple times: task_state=su&task_state=fa"
+    )
 
     # Filter by creation time on or after (greater than or equal)
     created_gte = filters.DateTimeFilter(

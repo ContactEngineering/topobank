@@ -58,6 +58,24 @@ class ResultView(
     filter_backends = [PermissionFilterBackend, backends.DjangoFilterBackend]
     filterset_class = ResultViewFilterSet
 
+    # Required for schema generation to know that this filter should be exploded.
+    @extend_schema(
+        parameters=[
+            OpenApiParameter(
+                name='task_state',
+                type={'type': 'array', 'items': {'type': 'string'}},
+                location=OpenApiParameter.QUERY,
+                description='Filter by task state. Can be specified multiple times: task_state=su&task_state=fa',
+                required=False,
+                explode=True,
+                style='form',
+                enum=['pe', 'st', 're', 'fa', 'su', 'no']
+            ),
+        ]
+    )
+    def list(self, request, *args, **kwargs):
+        return super().list(request, *args, **kwargs)
+
     def get_queryset(self):
         return WorkflowResult.objects.select_related(
             "function",
