@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+# 1.66.0 (2025-12-11)
+
+- ENH: Allow task state to filter by multiple states
+- BUG: Fixed schema generation for filter requiring exploded list
+
 # 1.65.0 (2025-12-10)
 
 - BUG: Route ZIP container creation to 'manager' Celery queue
