@@ -101,7 +101,7 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 
         if not user_sets.exists():
             raise NotFound("No accessible permission sets found.")
-        if user_sets.count() != len(requested_ids):
+        if user_sets.count() < len(requested_ids):
             raise NotFound("One or more permission sets do not exist or are inaccessible.")
 
         # Build a mapping of user_id -> list of (permission_set_id, permission_level)
