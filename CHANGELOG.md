@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.66.1 (2025-12-12)
+
+- BUG: Fixed logic flaw in shared permissions (#1263)
+
 # 1.66.0 (2025-12-11)
 
 - ENH: Allow task state to filter by multiple states
@@ -7,37 +11,61 @@
 
 # 1.65.0 (2025-12-10)
 
-- BUG: Route ZIP container creation to 'manager' Celery queue
-- BUG: Fixed check of user permissions in serializer
-- BUG: Return permission set URL in serializer
-- API: Limit all user searches to organizations of the user
-- API: `permissions` key now return id, URL and permissions of current user
-- API: `creator` key now returns id, URL, and username
 - ENH: New V2 API
-- ENH: Added creator field to WorkflowResult
-- ENH: Return access level of current user in Surface and Topography
-  serializers
-- ENH: Option for models to dynamically choose Celery routing target
 - ENH: Advanced support for organizations
 - ENH: Advanced permissions for organizations
+- ENH: Unified permission REST endpoints
 - ENH: Lazy delete (recycle bin) for faster endpoint response (#1024)
 - ENH: Custodian that regularly cleans up database (lazy deletion)
-- ENH: Unified permission REST endpoints
 - ENH: Uploading ZIP containers
 - ENH: Query for multiple surfaces/tags
-- ENH: Enhanced wokflow routing
-- ENH: Uploading ZIP containers
+- ENH: Enhanced workflow routing
 - ENH: Added email verification status to user serializer output
 - ENH: Added dynamic fields model serializer
-- ENH: Added endpoint for retrieving the intersection of PermissionSets
-- ENH: Created endpoint that returns tag tree structure and count
+- ENH: Added endpoint for retrieving the intersection of PermissionSets (#1257)
+- ENH: Created endpoint that returns tag tree structure and count (#1256)
+- ENH: Added creator field to WorkflowResult (#1226)
+- ENH: Return access level of current user in Surface and Topography serializers
+- ENH: Option for models to dynamically choose Celery routing target
+- ENH: Huge performance increase on thumbnail loading
+- ENH: Resolve via ID or URL
+- ENH: Standardized permissions response
+- API: Limit all user searches to organizations of the user
+- API: `permissions` key now returns id, URL and permissions of current user
+- API: `creator` key now returns id, URL, and username
+- API: Changed default ordering on surfaces and topographies to alphabetical (#1253)
+- API: Return `id` and `url` in `PermissionSet` serializer
 - MAINT: Refactored internal Analysis* models to Workflow* model (#1161)
 - MAINT: Removed automatic generation of default group "all"
 - MAINT: Route beat tasks to manager queue
 - MAINT: Added stub serializers for users/orgs to reduce extra API calls
 - MAINT: Return task_id and launcher_task_id
-- MAINT: Added username generation to user view
+- MAINT: Added username generation to user view (#1233)
 - MAINT: Consistent use of filters for V2 API
+- MAINT: Updated manager filters for v2 and aligned surface v2 with other v2 changes
+- MAINT: Added ordering to workflow endpoint (#1250)
+- MAINT: Disabled logging of task progress
+- MAINT: Added tests for manager v2 and fixed issues found in testing (#1239)
+- MAINT: Renamed upload_confirmed to confirmed_at
+- MAINT: OpenAPI annotations
+- MAINT: Added serializers for shared permission sets endpoint (#1259)
+- BUG: Route ZIP container creation to 'manager' Celery queue
+- BUG: Fixed check of user permissions in serializer
+- BUG: Return permission set URL in serializer
+- BUG: Fixed custodian bug referencing non-existent field (#1246)
+- BUG: Fixed bug where deleted topos were returned if surface was not deleted (#1251)
+- BUG: Added filter for has_tags since django skips filters with no value
+- BUG: Fixed user queryset not being distinct
+- BUG: Fix grant permission call
+- BUG: Fix manifest permissions to create permission set
+- BUG: Fixed tag_startswith to work on tags with spaces
+- BUG: Fixed serializer overwrite from rebase
+- BUG: Topography filter needs to filter on surface tags
+- BUG: data_source should be writeable
+- BUG: Strip NUL from error which Postgres cannot store
+- BUG: Input for `ModelRelatedField` must accept `id` or `url`
+- SECURITY: Fix vulnerabilities #7 and #10 from security audit
+- SECURITY: Fix all critical vulnerabilities from security audit
 
 # 1.64.3 (2025-07-20)
 
