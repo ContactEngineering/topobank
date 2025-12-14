@@ -362,3 +362,7 @@ docker/local/django/pip-packages/*
 data/
 .envs/.local/.pypi-authfile
 
+# Django media directories
+
+topographies
+topobank/analysis/tests/topographies
