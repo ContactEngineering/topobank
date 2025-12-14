@@ -386,6 +386,7 @@ def render_deepzoom(
     colorbar_title=None,
     cmap=None,
     storage_prefix="",
+    generate_netcdf=True,
 ):
     """
     Make JPG Deep Zoom Image (DZI) files given data on a two-dimensional grid.
@@ -393,6 +394,8 @@ def render_deepzoom(
     The DZI format specifies multiple files:
         1. A JSON file containing structural information on the file
         2. A set of image files at different zoom levels
+
+    Optionally also generates NetCDF tiles for the interactive Three.js viewer.
 
     Parameters
     ----------
@@ -418,6 +421,9 @@ def render_deepzoom(
         (Default: None)
     storage_prefix : str, optional
         Prefix to attach in front of the DZI filenames. (Default: '')
+    generate_netcdf : bool, optional
+        If True, also generate NetCDF tiles alongside JPG tiles for the
+        interactive Three.js viewer. (Default: True)
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
         try:
@@ -454,3 +460,37 @@ def render_deepzoom(
             )
             # Upload to S3
             folder.save_file(storage_filename, "der", File(open(filename, mode="rb")))
+
+        # Generate NetCDF tiles for interactive viewer
+        if generate_netcdf:
+            try:
+                # This is a Topography
+                nc_filenames = data.to_dzi(
+                    "dzi-nc",
+                    root_directory=tmpdirname,
+                    meta_format="json",
+                    format="nc",
+                )
+            except AttributeError:
+                # This is likely just a numpy array
+                if physical_sizes is not None and unit is not None:
+                    nc_filenames = write_dzi(
+                        data,
+                        "dzi-nc",
+                        physical_sizes,
+                        unit,
+                        root_directory=tmpdirname,
+                        meta_format="json",
+                        format="nc",
+                    )
+                else:
+                    nc_filenames = []
+            for filename in nc_filenames:
+                # Strip tmp directory
+                storage_filename = os.path.join(
+                    storage_prefix, filename[len(tmpdirname) + 1 :]
+                )
+                # Upload to S3
+                folder.save_file(
+                    storage_filename, "der", File(open(filename, mode="rb"))
+                )
