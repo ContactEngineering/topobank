@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.67.0 (2025-12-16)
+
+- ENH: Generate NetCDF tile pyramid
+
 # 1.66.1 (2025-12-12)
 
 - BUG: Fixed logic flaw in shared permissions (#1263)
