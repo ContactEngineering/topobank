@@ -132,3 +132,10 @@ STORAGES = {
     "default": {"BACKEND": "storages.backends.s3boto3.S3Boto3Storage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+# ORCID
+# ------------------------------------------------------------------------------
+INSTALLED_APPS.insert(
+    INSTALLED_APPS.index("allauth.socialaccount") + 1,
+    "allauth.socialaccount.providers.orcid",
+)

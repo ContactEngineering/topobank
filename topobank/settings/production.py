@@ -192,3 +192,10 @@ STORAGES = {
         "BACKEND": "servestatic.storage.CompressedManifestStaticFilesStorage"
     },
 }
+
+# ORCID
+# ------------------------------------------------------------------------------
+INSTALLED_APPS.insert(
+    INSTALLED_APPS.index("allauth.socialaccount") + 1,
+    "allauth.socialaccount.providers.orcid",
+)
