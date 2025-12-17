@@ -133,7 +133,7 @@ class ResultViewFilterSet(FilterSet):
     # Filter by workflow name
     workflow_name = filters.CharFilter(
         field_name="function__name",
-        lookup_expr="icontains",
+        lookup_expr="iexact",
         label="Workflow name"
     )
 
