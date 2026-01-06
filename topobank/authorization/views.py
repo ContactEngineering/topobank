@@ -16,6 +16,7 @@ from .serializers import (
     GrantUserRequestSerializer,
     OrganizationPermissionSerializer,
     PermissionSetSerializer,
+    PluginSerializer,
     RevokeOrganizationRequestSerializer,
     RevokeUserRequestSerializer,
     SharedPermissionSetSerializer,
@@ -178,6 +179,34 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
             response_data, context={'request': request}
         )
         return Response(serializer.data)
+
+
+@extend_schema(
+    responses={200: PluginSerializer(many=True)},
+    description="List all plugins available to the current user.",
+    tags=["authorization"],
+)
+@api_view(["GET"])
+def plugins_available(request):
+    from django.apps import apps
+    from django.conf import settings
+
+    from topobank.organizations.models import Organization
+
+    organization_plugins = Organization.objects.get_plugins_available(request.user)
+
+    # Get app configs for available plugins by matching module names.
+    # Plugins that are not restricted are always included.
+    plugin_apps = [
+        app_config for app_config in apps.get_app_configs()
+        if app_config.name in settings.PLUGIN_MODULES
+        and (app_config.name in organization_plugins
+             or not getattr(getattr(app_config, 'TopobankPluginMeta', None), 'restricted', True))
+    ]
+    serializer = PluginSerializer(
+        plugin_apps, many=True, context={'request': request}
+    )
+    return Response(serializer.data)
 
 
 @extend_schema(

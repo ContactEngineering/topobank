@@ -2,8 +2,10 @@ import logging
 from typing import Set
 from urllib.parse import urlparse
 
+from django.apps import apps
 from django.conf import settings
 from django.contrib.auth.models import Group
+from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
@@ -15,6 +17,24 @@ DEFAULT_ORGANIZATION_NAME = "World"
 DEFAULT_GROUP_NAME = "all"
 
 
+def get_plugin_choices():
+    """
+    Get list of valid plugin choices from installed plugins.
+
+    Returns a list of restricted plugins as tuples (name, verbose_name) suitable for Django choices.
+    Dynamically discovers plugins via entry points.
+
+    # Note: This function defaults plugins to restricted=True if not specified.
+    """
+
+    return [
+        (app_config.name, app_config.verbose_name)
+        for app_config in apps.get_app_configs()
+        if app_config.name in settings.PLUGIN_MODULES
+        and getattr(getattr(app_config, 'TopobankPluginMeta', None), 'restricted', True)
+    ]
+
+
 class OrganizationManager(models.Manager):
     def for_user(self, user: settings.AUTH_USER_MODEL) -> models.QuerySet:
         """Return queryset with all organizations the given user belongs to."""
@@ -24,8 +44,9 @@ class OrganizationManager(models.Manager):
         """Return list with names of effective plugins available."""
 
         result = set()
-        for pa in self.for_user(user).values_list("plugins_available"):
-            result.update(x.strip() for x in pa[0].split(","))
+        for pa in self.for_user(user).values_list("plugins_available", flat=True):
+            if pa:  # Skip empty lists
+                result.update(pa)
 
         return result
 
@@ -34,13 +55,12 @@ class Organization(models.Model):
     """Represents an organization like a company or a scientific workgroup in a university."""
 
     name = models.CharField(_("Name of Organization"), max_length=255, unique=True)
-    plugins_available = models.CharField(
-        _("Available Plugins"),
-        max_length=255,
+    plugins_available = ArrayField(
+        models.CharField(max_length=100, choices=get_plugin_choices),
         blank=True,
-        help_text="""Comma-separated list of names of plugin packages
-                                         available for this organization.
-                                         """,
+        default=list,
+        verbose_name=_("Available Plugins"),
+        help_text=_("Select from available plugin packages for this organization."),
     )
     group = models.OneToOneField(
         Group,
@@ -52,6 +72,23 @@ class Organization(models.Model):
 
     def __str__(self) -> str:
         return self.name
+
+    def clean(self):
+        """Validate that all plugin names are valid installed plugins."""
+        from django.core.exceptions import ValidationError
+
+        super().clean()
+
+        valid_plugins = set(getattr(settings, 'PLUGIN_MODULES', []))
+        invalid_plugins = set(self.plugins_available) - valid_plugins
+
+        if invalid_plugins:
+            raise ValidationError({
+                'plugins_available': _(
+                    f"Invalid plugin names: {', '.join(sorted(invalid_plugins))}. "
+                    f"Available plugins: {', '.join(sorted(valid_plugins))}"
+                )
+            })
 
     def save(self, *args, **kwargs):
         """

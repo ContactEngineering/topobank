@@ -37,4 +37,9 @@ urlpatterns += [
         view=v2.revoke_organization,
         name="revoke-organization-access-v2",
     ),
+    path(
+        "v2/plugins-available/",
+        view=v2.plugins_available,
+        name="plugins-available-v2",
+    ),
 ]
