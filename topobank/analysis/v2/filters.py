@@ -8,12 +8,10 @@ from topobank.organizations.models import Organization
 from topobank.taskapp.utils import TASK_STATE_CHOICES
 
 ML = "sds_ml"
-CONTACT = "topobank_statistics"
-STATISTICS = "topobank_contact"
+STATISTICS = "topobank_statistics"
 
 APP_CHOICES = (
     (ML, "SDS ML"),
-    (CONTACT, "Contact"),
     (STATISTICS, "Statistics")
 )
 
