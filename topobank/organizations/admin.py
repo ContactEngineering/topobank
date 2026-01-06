@@ -11,7 +11,7 @@ class OrganizationAdminForm(forms.ModelForm):
         choices=get_plugin_choices,
         widget=forms.CheckboxSelectMultiple,
         required=False,
-        help_text="Select plugin packages available for this organization.",
+        help_text="Select restricted plugin packages available for this organization.",
     )
 
     class Meta:

@@ -12,7 +12,7 @@ from topobank.testing.factories import OrganizationFactory, UserFactory
 @pytest.mark.django_db
 def test_plugins_available_for_user():
     organization = OrganizationFactory(
-        name="My University", plugins_available=["topobank_statistics", "sds_ml"]
+        name="My University", plugins_available=["topobank_statistics", "topobank_contact"]
     )
     user = UserFactory()
     user.groups.add(organization.group)
@@ -22,7 +22,7 @@ def test_plugins_available_for_user():
     assert orgs_for_user.first() == organization
 
     assert Organization.objects.get_plugins_available(user) == set(
-        ("topobank_statistics", "sds_ml")
+        ("topobank_statistics", "topobank_contact")
     )
 
 

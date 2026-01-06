@@ -1,3 +1,5 @@
+from django.apps import apps
+from django.conf import settings
 from django.db.models import Q
 from django_filters.rest_framework import FilterSet, filters
 from drf_spectacular.utils import OpenApiTypes, extend_schema_field
@@ -7,13 +9,12 @@ from topobank.manager.models import Surface, Tag, Topography
 from topobank.organizations.models import Organization
 from topobank.taskapp.utils import TASK_STATE_CHOICES
 
-ML = "sds_ml"
-STATISTICS = "topobank_statistics"
-
-APP_CHOICES = (
-    (ML, "SDS ML"),
-    (STATISTICS, "Statistics")
-)
+APP_CHOICES = [
+    (app_config.name, app_config.verbose_name)
+    for app_config in apps.get_app_configs()
+    if app_config.name in settings.PLUGIN_MODULES
+    and app_config.name not in getattr(settings, 'EXCLUDED_PLUGIN_CHOICES', [])
+]
 
 
 class WorkflowViewFilterSet(FilterSet):
