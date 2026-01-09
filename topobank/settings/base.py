@@ -326,6 +326,7 @@ CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://127.0.0.1:
 # and there is a problem with Python 3.7's keyword 'async' which is used in the celery code
 
 CELERY_RESULT_PERSISTENT = True
+CELERY_RESULT_EXPIRES = 86400  # 1 day
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
 CELERY_ACCEPT_CONTENT = ["json"]
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer

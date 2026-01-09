@@ -137,9 +137,12 @@ def task_dispatch(celery_task, cls_id, obj_id, *args, **kwargs):
     try:
         obj = ct.get_object_for_this_type(id=obj_id)
         obj.run_task(celery_task, *args, **kwargs)
+        # Return True so Celery knows the task completed successfully
+        # This is important for tasks that do not return anything
+        return True
     except ct.model_class().DoesNotExist:
         # Ignore the task if the instance no longer exists
-        pass
+        return None
 
 
 def run_task(
