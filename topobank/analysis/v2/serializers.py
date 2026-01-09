@@ -273,6 +273,11 @@ class ResultV2ListSerializer(
     permissions = PermissionsField(read_only=True)
     subject = SubjectField(read_only=True)
 
+    # Override parent's task_state to use direct DB field instead of expensive
+    # get_task_state() which queries Celery backend. List views prioritize
+    # performance over state reconciliation.
+    task_state = serializers.CharField(source="task_state", read_only=True)
+
 
 class ResultV2DetailSerializer(
     StrictFieldMixin, taskapp_serializers.TaskStateModelSerializer
