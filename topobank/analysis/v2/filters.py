@@ -51,10 +51,7 @@ class WorkflowViewFilterSet(FilterSet):
         Returns:
             Filtered queryset or empty queryset if app not found
         """
-        if value in dict(APP_CHOICES):
-            return queryset.filter(name__icontains=value)
-
-        return queryset.none()
+        return queryset.filter(name__icontains=value)
 
     def filter_subject_type(self, queryset, name, value):
         """

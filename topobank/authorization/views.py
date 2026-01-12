@@ -188,21 +188,9 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 )
 @api_view(["GET"])
 def plugins_available(request):
-    from django.apps import apps
-    from django.conf import settings
+    from .utils import get_user_available_plugins
 
-    from topobank.organizations.models import Organization
-
-    organization_plugins = Organization.objects.get_plugins_available(request.user)
-
-    # Get app configs for available plugins by matching module names.
-    # Plugins that are not restricted are always included.
-    plugin_apps = [
-        app_config for app_config in apps.get_app_configs()
-        if app_config.name in settings.PLUGIN_MODULES
-        and (app_config.name in organization_plugins
-             or not getattr(getattr(app_config, 'TopobankPluginMeta', None), 'restricted', True))
-    ]
+    plugin_apps = get_user_available_plugins(request.user)
     serializer = PluginSerializer(
         plugin_apps, many=True, context={'request': request}
     )
