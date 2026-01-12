@@ -6,7 +6,6 @@ from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 
 from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.manager.models import Surface, Tag, Topography
-from topobank.organizations.models import Organization
 from topobank.taskapp.utils import TASK_STATE_CHOICES
 
 APP_CHOICES = [
@@ -43,7 +42,6 @@ class WorkflowViewFilterSet(FilterSet):
     def filter_app(self, queryset, name, value):
         """
         Filter workflows by app/plugin name.
-        Only returns workflows if the user has access to the specified plugin.
 
         Args:
             queryset: Initial queryset
@@ -51,17 +49,9 @@ class WorkflowViewFilterSet(FilterSet):
             value: App/plugin name to filter by
 
         Returns:
-            Filtered queryset (empty if user lacks access to plugin)
+            Filtered queryset or empty queryset if app not found
         """
-        user = getattr(self.request, 'user', None)
-
-        if not user:
-            return queryset.none()
-
-        # Check if user has access to this plugin
-        plugins_available = Organization.objects.get_plugins_available(user)
-
-        if value in plugins_available:
+        if value in dict(APP_CHOICES):
             return queryset.filter(name__icontains=value)
 
         return queryset.none()
