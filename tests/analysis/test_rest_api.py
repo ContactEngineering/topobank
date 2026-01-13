@@ -371,8 +371,8 @@ def test_query_with_error_in_dependency(
     assert WorkflowResult.objects.count() == 2
 
     assert response.data["analyses"][0]["task_error"] == "An error occurred!"
-    # We currently do not get a traceback from dependencies
-    assert response.data["analyses"][0]["task_traceback"] is None
+    # Traceback should be passed up from the dependency
+    assert response.data["analyses"][0]["task_traceback"] is not None
 
 
 @pytest.mark.django_db

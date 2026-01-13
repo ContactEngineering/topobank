@@ -1,19 +1,18 @@
+import logging
 import traceback
 import tracemalloc
 from decimal import Decimal
 
-import celery.result
 import celery.states
 import django.db.models as models
 import pydantic
-from celery.utils.log import get_task_logger
 from django.utils import timezone
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
 from .celeryapp import app
 from .tasks import ProgressRecorder
 
-_log = get_task_logger(__name__)
+_log = logging.getLogger(__name__)
 
 
 class TaskStateModel(models.Model):
@@ -159,6 +158,11 @@ class TaskStateModel(models.Model):
         """
         # This is self-reported by the task runner
         self_reported_task_state = self.task_state
+        if self_reported_task_state in (TaskStateModel.SUCCESS, TaskStateModel.FAILURE):
+            # If the task self-reports success or failure, we trust it without further checks
+            return self_reported_task_state
+
+        # Self-reported state is not SUCCESS or FAILURE, check with Celery
         # This is what Celery reports back
         celery_task_state = self.get_celery_state()
 
@@ -166,20 +170,11 @@ class TaskStateModel(models.Model):
             # We're good!
             return self_reported_task_state
         else:
-            if self_reported_task_state == TaskStateModel.SUCCESS:
-                # Something is wrong, but we return success if the task self-reports
-                # success.
-                _log.info(
-                    f"The {self.__class__} instance with id {self.id} self-reported "
-                    f"the state '{self_reported_task_state}', but Celery reported "
-                    f"'{celery_task_state}'. I am returning a success."
-                )
-                return TaskStateModel.SUCCESS
-            elif celery_task_state == TaskStateModel.FAILURE:
+            if celery_task_state == TaskStateModel.FAILURE:
                 # Celery seems to think this task failed, we trust it as the
                 # self-reported state will be unreliable in this case.
-                _log.info(
-                    f"The {self.__class__} instance with id {self.id} self-reported "
+                _log.error(
+                    f"The {self.__class__.__name__} instance with id {self.id} self-reported "
                     f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning a failure."
                 )
@@ -199,8 +194,8 @@ class TaskStateModel(models.Model):
                 if timezone.now() - self.task_submission_time > timezone.timedelta(
                     seconds=self.COMMIT_EXPIRATION
                 ):
-                    _log.info(
-                        f"The {self.__class__} instance with id {self.id} "
+                    _log.error(
+                        f"The {self.__class__.__name__} instance with id {self.id} "
                         f"self-reported the state '{self_reported_task_state}', but "
                         f"Celery reported '{celery_task_state}'. The database object "
                         f"was created more than {self.COMMIT_EXPIRATION} seconds ago. "
@@ -208,8 +203,8 @@ class TaskStateModel(models.Model):
                     )
                     return TaskStateModel.FAILURE
                 else:
-                    _log.info(
-                        f"The {self.__class__} instance with id {self.id} "
+                    _log.debug(
+                        f"The {self.__class__.__name__} instance with id {self.id} "
                         f"self-reported the state '{self_reported_task_state}', but "
                         f"Celery reported '{celery_task_state}'. The database object "
                         f"was created less than {self.COMMIT_EXPIRATION} seconds ago. "
@@ -218,8 +213,8 @@ class TaskStateModel(models.Model):
                     return TaskStateModel.PENDING
             else:
                 # In all other cases, we trust the self-reported state.
-                _log.info(
-                    f"The {self.__class__} instance with id {self.id} self-reported "
+                _log.debug(
+                    f"The {self.__class__.__name__} instance with id {self.id} self-reported "
                     f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning the self-reported state."
                 )
