@@ -511,7 +511,7 @@ TRACKED_DEPENDENCIES += [
         "https://github.com/ContactEngineering/SurfaceTopography",
     ),
     ("NuMPI", "NuMPI.__version__", "MIT", "https://github.com/IMTEK-Simulation/NuMPI"),
-    ("muFFT", "muFFT.__version__", "LGPL-3.0", "https://github.com/muSpectre/muFFT"),
+    ("muGrid", "muGrid.__version__", "LGPL-3.0", "https://github.com/muSpectre/muGrid"),
     ("numpy", "numpy.__version__", "BSD 3-Clause", "https://numpy.org/"),
     ("scipy", "scipy.__version__", "BSD 3-Clause", "https://scipy.org/"),
     ("pandas", "pandas.__version__", "BSD 3-Clause", "https://pandas.pydata.org/"),

@@ -5,7 +5,7 @@ Test for results view.
 import datetime
 import tempfile
 
-import muFFT
+import muGrid
 import NuMPI
 import numpy as np
 import openpyxl
@@ -330,7 +330,7 @@ def test_analysis_download_as_txt(
     # check whether version numbers are in there
     assert SurfaceTopography.__version__.split("+")[0] in txt
     assert NuMPI.__version__ in txt
-    assert muFFT.version.description() in txt
+    assert muGrid.__version__ in txt
     assert topobank.__version__ in txt
 
     # check whether creator of topography is listed
@@ -505,7 +505,7 @@ def test_analysis_download_as_xlsx(
 
     assert_version_in_vals("SurfaceTopography", SurfaceTopography.__version__)
     assert_version_in_vals("NuMPI", NuMPI.__version__)
-    assert_version_in_vals("muFFT", muFFT.version.description())
+    assert_version_in_vals("muGrid", muGrid.__version__)
     assert_version_in_vals("topobank", topobank.__version__)
 
     # subject names should also be included, as well as the creator
