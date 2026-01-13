@@ -491,6 +491,7 @@ def set_tag_permissions(request, name=None):
 @extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def tag_numerical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
@@ -501,6 +502,7 @@ def tag_numerical_properties(request, name=None):
 @extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def tag_categorical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
@@ -532,6 +534,7 @@ def import_surface(request):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def versions(request):
     return Response(get_versions())
 
@@ -539,6 +542,7 @@ def versions(request):
 @extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated, IsAdminUser])
+@transaction.non_atomic_requests
 def statistics(request):
     # Why was this open to any authenticated user before? Now restricted to admin users.
     # Global statistics
@@ -565,6 +569,7 @@ def statistics(request):
 @extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
+@transaction.non_atomic_requests
 def memory_usage(request):
     r = Topography.objects.values(
         "resolution_x", "resolution_y", "task_memory"

@@ -64,12 +64,14 @@ urlpatterns = [
     path(settings.ADMIN_URL, admin.site.urls),
     #
     # Notifications - see package django-notifications
+    # Note: plugin's may provided optimized wrapper views that take precedence
     #
     re_path(
         "^inbox/notifications/", include(notifications.urls, namespace="notifications")
     ),
     #
     # Watchman - see package django-watchman
+    # Note: plugin's may provided optimized wrapper views that take precedence
     #
     path("watchman/", include(("watchman.urls", "watchman"), namespace="watchman")),
     #
@@ -160,4 +162,7 @@ for app in apps.get_app_configs():
                     # include((url_module.urlpatterns, app.label))
                 )
 
-urlpatterns.extend(plugin_patterns)
+# Plugin URLs are prepended to allow plugins to override default routes
+# This is important! It allows plugins to provide optimized versions
+# of infrastructure endpoints (e.g., watchman, notifications with @transaction.non_atomic_requests)
+urlpatterns = plugin_patterns + urlpatterns

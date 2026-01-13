@@ -160,6 +160,7 @@ class ResultView(
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def dependencies(request, workflow_id):
     analysis = get_object_or_404(WorkflowResult, pk=workflow_id)
     analysis.authorize_user(request.user)
@@ -178,6 +179,7 @@ def dependencies(request, workflow_id):
     responses=ResultSerializer(many=True),
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def pending(request):
     queryset = WorkflowResult.objects.for_user(request.user).filter(
         task_state__in=[WorkflowResult.PENDING, WorkflowResult.STARTED]
@@ -209,6 +211,7 @@ def pending(request):
     responses=ResultSerializer(many=True),
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def named_result(request):
     queryset = WorkflowResult.objects.for_user(request.user)
     name = request.query_params.get("name", None)
@@ -568,6 +571,7 @@ def set_name(request, workflow_id: int):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def statistics(request):
     stats = {
         "nb_analyses": WorkflowResult.objects.count(),
@@ -586,6 +590,7 @@ def statistics(request):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def memory_usage(request):
     m = defaultdict(list)
     for function_id, function_name in Workflow.objects.values_list(

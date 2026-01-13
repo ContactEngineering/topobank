@@ -168,6 +168,7 @@ class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def tag_tree(request: Request):
     """
     Returns the full hierarchical tag tree structure with surface counts.

@@ -105,6 +105,7 @@ def upload_local(request, manifest_id: int):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def list_manifests(request, pk=None):
     """List all manifests in a folder"""
     obj = get_object_or_404(Folder.objects.for_user(request.user, VIEW), pk=pk)

@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
@@ -187,6 +188,7 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     tags=["authorization"],
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def plugins_available(request):
     from .utils import get_user_available_plugins
 
