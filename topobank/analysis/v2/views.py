@@ -1,3 +1,7 @@
+import operator
+from functools import reduce
+
+from django.db.models import Q
 from django_filters.rest_framework import backends
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
@@ -15,6 +19,7 @@ from topobank.analysis.v2.serializers import (
     WorkflowV2Serializer,
 )
 from topobank.authorization.permissions import ObjectPermission, PermissionFilterBackend
+from topobank.authorization.utils import get_user_available_plugins
 from topobank.files.v2.serializers import ManifestV2Serializer
 from topobank.supplib.mixins import UserUpdateMixin
 from topobank.supplib.pagination import TopobankPaginator
@@ -36,7 +41,22 @@ class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.Li
     filterset_class = WorkflowViewFilterSet
 
     def get_queryset(self):
-        return Workflow.objects.all().order_by('name')
+        queryset = Workflow.objects.all().order_by('name')
+
+        # Filter by available plugins when listing workflows
+        # Workflow names follow the pattern: plugin_name.workflow.version
+        if hasattr(self, 'request') and self.request:
+            user = self.request.user
+            available_plugins = [app_config.name for app_config in get_user_available_plugins(user)]
+
+            if available_plugins:
+                # Create Q objects for each plugin to check if workflow name starts with "plugin."
+                queries = [Q(name__startswith=f"{plugin}.") for plugin in available_plugins]
+                queryset = queryset.filter(reduce(operator.or_, queries))
+            else:
+                queryset = queryset.none()
+
+        return queryset
 
 
 class ResultView(
@@ -103,7 +123,24 @@ class ResultView(
         return super().get_object()
 
     @extend_schema(
-        request=None,
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'metadata': {
+                        'type': 'object',
+                        'description': 'Optional metadata dictionary to store with the analysis',
+                        'additionalProperties': True,
+                    }
+                },
+                'example': {
+                    'metadata': {
+                        'description': 'Analysis for project X',
+                        'batch_id': '2024-01-07'
+                    }
+                }
+            }
+        },
         parameters=[
             OpenApiParameter(
                 name='force',
@@ -119,6 +156,7 @@ class ResultView(
         """Start the analysis task for the given WorkflowResult instance."""
         analysis: WorkflowResult = self.get_object()
         force_submit = request.query_params.get('force', '').lower() in ('true', '1', 'yes')
+        metadata = request.data.get('metadata')
 
         # Validation checks
         if analysis.name:
@@ -144,8 +182,20 @@ class ResultView(
             )
 
         # UserUpdateMixin doesnt handle custom actions, so set updated_by manually
+        update_fields = ['updated_by']
         analysis.updated_by = request.user
-        analysis.save(update_fields=['updated_by'])
+
+        # Validate metadata is a dictionary if provided
+        if metadata is not None:
+            if not isinstance(metadata, dict):
+                return Response(
+                    {"message": "metadata must be a dictionary"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            analysis.metadata = metadata
+            update_fields.append('metadata')
+
+        analysis.save(update_fields=update_fields)
         analysis.submit(force_submit=force_submit)
 
         serializer = self.get_serializer(analysis, context={'request': request})

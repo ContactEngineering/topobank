@@ -244,6 +244,7 @@ class ResultV2ListSerializer(
         fields = [
             "id",
             "url",
+            "dependencies",
             "function",
             "subject",
             "created_at",
@@ -257,6 +258,8 @@ class ResultV2ListSerializer(
             "task_state",
             "task_progress",
             "task_messages",
+            "task_error",
+            "task_traceback",
         ]
         fields += task_state_fields
         read_only_fields = fields
@@ -277,6 +280,27 @@ class ResultV2ListSerializer(
     # get_task_state() which queries Celery backend. List views prioritize
     # performance over state reconciliation.
     task_state = serializers.CharField(read_only=True)
+ 
+    # Methods
+    dependencies = serializers.SerializerMethodField()
+
+    @extend_schema_field(
+        {
+            "type": "object",
+            "properties": {
+                "count": {"type": "integer", "readOnly": True},
+                "url": {"type": "string", "format": "uri", "readOnly": True},
+            },
+            "required": ["count", "url"],
+        }
+    )
+    def get_dependencies(self, obj: WorkflowResult):
+        ret = {
+            "count": len(obj.dependencies.items()),
+            "url": reverse("analysis:result-v2-dependency", kwargs={"pk": obj.id},
+                           request=self.context.get("request"))
+        }
+        return ret
 
 
 class ResultV2DetailSerializer(
@@ -399,6 +423,9 @@ class DependencyV2ListSerializer(serializers.BaseSerializer):
                     "url": reverse("analysis:result-v2-detail", kwargs={"pk": workflow_result_id},
                                    request=self.context.get("request")),
                     "task_state": dep_wr.task_state,
+                    "task_error": dep_wr.task_error,
+                    "function": dep_wr.function.display_name,
+                    "subject": dep_wr.subject.name
                 })
 
         return dependencies_list
