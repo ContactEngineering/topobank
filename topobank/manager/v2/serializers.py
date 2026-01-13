@@ -22,6 +22,7 @@ from ..zip_model import ZipContainer
 
 class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     """v2 Serializer for Topography model."""
+
     class Meta:
         model = Topography
         read_only_fields = [
@@ -86,18 +87,13 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     updated_by = UserField(read_only=True)
     owned_by = OrganizationField(read_only=True)
     surface = ModelRelatedField(
-        view_name="manager:surface-v2-detail",
-        queryset=Surface.objects.all()
+        view_name="manager:surface-v2-detail", queryset=Surface.objects.all()
     )
     datafile = ManifestField(read_only=True)
     squeezed_datafile = ManifestField(read_only=True)
     thumbnail = ManifestField(read_only=True)
-    deepzoom = ModelRelatedField(
-        view_name="files:folder-api-detail", read_only=True
-    )
-    attachments = ModelRelatedField(
-        view_name="files:folder-api-detail", read_only=True
-    )
+    deepzoom = ModelRelatedField(view_name="files:folder-api-detail", read_only=True)
+    attachments = ModelRelatedField(view_name="files:folder-api-detail", read_only=True)
 
     # Auxiliary API endpoints
     api = serializers.SerializerMethodField()
@@ -112,16 +108,17 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
     def validate(self, data):
         # Map fields to their editability checks
         editability_checks = {
-            'size_x': self.instance.size_editable,
-            'size_y': self.instance.size_editable,
-            'unit': self.instance.unit_editable,
-            'height_scale': self.instance.height_scale_editable,
-            'is_periodic': self.instance.is_periodic_editable,
+            "size_x": self.instance.size_editable,
+            "size_y": self.instance.size_editable,
+            "unit": self.instance.unit_editable,
+            "height_scale": self.instance.height_scale_editable,
+            "is_periodic": self.instance.is_periodic_editable,
         }
 
         # Find fields that are in data but not editable
         read_only_fields = [
-            field for field, is_editable in editability_checks.items()
+            field
+            for field, is_editable in editability_checks.items()
             if field in data and not is_editable
         ]
 
@@ -175,41 +172,32 @@ class TopographyV2CreateSerializer(serializers.ModelSerializer):
             "name",
             "datafile",
         ]
-        fields = required_fields + [
-            "tags",
-            "description"
-        ]
+        fields = required_fields + ["tags", "description"]
 
     surface = ModelRelatedField(
-        view_name="manager:surface-v2-detail",
-        queryset=Surface.objects.none()
+        view_name="manager:surface-v2-detail", queryset=Surface.objects.none()
     )
     datafile = ModelRelatedField(
-        view_name="files:manifest-v2-detail",
-        queryset=Manifest.objects.none()
+        view_name="files:manifest-v2-detail", queryset=Manifest.objects.none()
     )
     tags = TagRelatedManagerField(required=False)
 
     def __init__(self, *args, **kwargs):
         super().__init__(*args, **kwargs)
-        request = self.context.get('request')
+        request = self.context.get("request")
 
-        if request and hasattr(request, 'user'):
+        if request and hasattr(request, "user"):
             # Limit queryset to surfaces where user has view permission
             # This is the best way to allow drf to validate the permissions and
             # return correct errors automatically.
-            self.fields['surface'].queryset = Surface.objects.for_user(
-                request.user
-            )
-            self.fields['datafile'].queryset = Manifest.objects.for_user(
-                request.user
-            )
+            self.fields["surface"].queryset = Surface.objects.for_user(request.user)
+            self.fields["datafile"].queryset = Manifest.objects.for_user(request.user)
 
     def create(self, validated_data):
-        if 'permissions' not in validated_data:
+        if "permissions" not in validated_data:
             # Permissions should not be set directly, but inherited from surface
             # But if we are passing them directly we respect that.
-            validated_data['permissions'] = validated_data['surface'].permissions
+            validated_data["permissions"] = validated_data["surface"].permissions
         return super().create(validated_data)
 
     def to_representation(self, instance):
@@ -218,6 +206,7 @@ class TopographyV2CreateSerializer(serializers.ModelSerializer):
 
 class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
     """v2 Serializer for Surface model."""
+
     class Meta:
         model = Surface
         read_only_fields = [
@@ -256,9 +245,7 @@ class SurfaceV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializ
     updated_by = UserField(read_only=True)
     owned_by = OrganizationField(read_only=True)
 
-    attachments = ModelRelatedField(
-        view_name="files:folder-api-detail", read_only=True
-    )
+    attachments = ModelRelatedField(view_name="files:folder-api-detail", read_only=True)
 
     # Everything else
     properties = PropertiesField(required=False)
