@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import pydantic
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Case, F, Max, Sum, Value, When
 from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from drf_spectacular.utils import (
@@ -107,6 +108,7 @@ class ResultView(
     serializer_class = ResultSerializer
     pagination_class = LimitOffsetPagination
 
+    @transaction.non_atomic_requests
     def list(self, request, *args, **kwargs):
         try:
             controller = AnalysisController.from_request(request, **kwargs)
@@ -229,6 +231,7 @@ def named_result(request):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def series_card_view(request, **kwargs):
     controller = AnalysisController.from_request(request, **kwargs)
 

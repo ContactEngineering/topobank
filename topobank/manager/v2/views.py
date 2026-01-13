@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
@@ -289,6 +290,7 @@ def tag_tree(request: Request):
                responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def download_surface(request: Request, surface_ids: str):
     # `surface_ids` is a comma-separated list of surface IDs as a string,
     # e.g. "1,2,3", we need to parse it
@@ -305,13 +307,14 @@ def download_surface(request: Request, surface_ids: str):
     if surface_qs.count() != len(surface_ids):
         invalid_ids = set(surface_ids) - set(surface_qs.values_list('id', flat=True))
         return HttpResponseBadRequest(f"One or more surfaces do not exist or are inaccessible: {invalid_ids}")
-    # Create a ZIP container object
-    zip_container = ZipContainer.objects.create(
-        permissions=PermissionSet.objects.create(user=request.user, allow="view")
-    )
 
-    # Dispatch task
-    run_task(zip_container, surface_ids=surface_ids)
+    # Create ZIP container and dispatch task within transaction
+    with transaction.atomic():
+        zip_container = ZipContainer.objects.create(
+            permissions=PermissionSet.objects.create(user=request.user, allow="view")
+        )
+        run_task(zip_container, surface_ids=surface_ids)
+        zip_container.save()
 
     # Return status
     return Response(
@@ -322,14 +325,15 @@ def download_surface(request: Request, surface_ids: str):
 @extend_schema(request=None,
                responses=ZipContainerV2Serializer)
 @api_view(["POST"])
+@transaction.non_atomic_requests
 def download_tag(request: Request, name: str):
-    # Create a ZIP container object
-    zip_container = ZipContainer.objects.create(
-        permissions=PermissionSet.objects.create(user=request.user, allow="view")
-    )
-
-    # Dispatch task
-    run_task(zip_container, tag_name=name)
+    # Create ZIP container and dispatch task within transaction
+    with transaction.atomic():
+        zip_container = ZipContainer.objects.create(
+            permissions=PermissionSet.objects.create(user=request.user, allow="view")
+        )
+        run_task(zip_container, tag_name=name)
+        zip_container.save()
 
     # Return status
     return Response(
@@ -341,14 +345,16 @@ def download_tag(request: Request, name: str):
                responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def upload_zip_start(request: Request):
-    # Create a ZIP container object
-    zip_container = ZipContainer.objects.create(
-        permissions=PermissionSet.objects.create(user=request.user, allow="full")
-    )
+    # Create a ZIP container object within transaction
+    with transaction.atomic():
+        zip_container = ZipContainer.objects.create(
+            permissions=PermissionSet.objects.create(user=request.user, allow="full")
+        )
 
-    # Create an empty manifest
-    zip_container.create_empty_manifest()
+        # Create an empty manifest
+        zip_container.create_empty_manifest()
 
     # Return status
     return Response(
@@ -361,14 +367,16 @@ def upload_zip_start(request: Request):
     responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def upload_zip_finish(request: Request, pk: int):
     # Get ZIP container
     zip_container = get_object_or_404(ZipContainer, pk=pk)
     zip_container.authorize_user(request.user)
 
-    # Dispatch task
-    run_task(zip_container)
-    zip_container.save()  # run_task sets the initial task state to 'pe', so we need to save
+    # Dispatch task after transaction commits
+    with transaction.atomic():
+        run_task(zip_container)
+        zip_container.save()
 
     return Response(
         ZipContainerV2Serializer(zip_container, context={"request": request}).data

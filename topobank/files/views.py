@@ -1,5 +1,6 @@
 import logging
 
+from django.db import transaction
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
@@ -63,6 +64,7 @@ class FileManifestViewSet(
         serializer.save()
 
 
+@transaction.non_atomic_requests
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def upload_local(request, manifest_id: int):

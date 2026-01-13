@@ -1,6 +1,7 @@
 import operator
 from functools import reduce
 
+from django.db import transaction
 from django.db.models import Q
 from django_filters.rest_framework import backends
 from drf_spectacular.utils import OpenApiParameter, extend_schema
@@ -49,9 +50,15 @@ class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.Li
             user = self.request.user
             available_plugins = [app_config.name for app_config in get_user_available_plugins(user)]
 
+            # Always include topobank workflows (e.g., topobank.testing, etc.)
+            # in addition to plugin workflows
+            queries = [Q(name__startswith="topobank.")]
+
             if available_plugins:
-                # Create Q objects for each plugin to check if workflow name starts with "plugin."
-                queries = [Q(name__startswith=f"{plugin}.") for plugin in available_plugins]
+                # Add Q objects for each plugin to check if workflow name starts with "plugin."
+                queries.extend([Q(name__startswith=f"{plugin}.") for plugin in available_plugins])
+
+            if queries:
                 queryset = queryset.filter(reduce(operator.or_, queries))
             else:
                 queryset = queryset.none()
@@ -152,6 +159,7 @@ class ResultView(
         ]
     )
     @action(detail=True, methods=["POST"], url_path="run")
+    @transaction.non_atomic_requests
     def run(self, request, *args, **kwargs):
         """Start the analysis task for the given WorkflowResult instance."""
         analysis: WorkflowResult = self.get_object()
@@ -182,8 +190,8 @@ class ResultView(
             )
 
         # UserUpdateMixin doesnt handle custom actions, so set updated_by manually
-        update_fields = ['updated_by']
         analysis.updated_by = request.user
+        update_fields = ['updated_by']
 
         # Validate metadata is a dictionary if provided
         if metadata is not None:
@@ -195,8 +203,10 @@ class ResultView(
             analysis.metadata = metadata
             update_fields.append('metadata')
 
-        analysis.save(update_fields=update_fields)
-        analysis.submit(force_submit=force_submit)
+        # Wrap DB writes and task submission in transaction
+        with transaction.atomic():
+            analysis.save(update_fields=update_fields)
+            analysis.submit(force_submit=force_submit)
 
         serializer = self.get_serializer(analysis, context={'request': request})
         return Response(serializer.data, status=status.HTTP_202_ACCEPTED)

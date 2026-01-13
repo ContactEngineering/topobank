@@ -4,6 +4,7 @@ import os.path
 from io import BytesIO
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Case, F, Q, When
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
@@ -198,6 +199,7 @@ class TopographyViewSet(
         instance.delete()
 
     # From mixins.RetrieveModelMixin
+    @transaction.non_atomic_requests
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance.task_state == Topography.NOTRUN:
@@ -205,12 +207,14 @@ class TopographyViewSet(
             _log.info(
                 f"Creating cached properties of new {instance.get_subject_type()} {instance.id}..."
             )
-            run_task(instance)
-            instance.save()  # run_task sets the initial task state to 'pe', so we need to save
+            with transaction.atomic():
+                run_task(instance)  # Sets task state to 'pe' and triggers task on commit
+                instance.save()  # Save the pending state
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
 
+@transaction.non_atomic_requests
 @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 def download_surfaces(request, surfaces, container_filename=None):
     #
@@ -295,6 +299,7 @@ def download_surfaces(request, surfaces, container_filename=None):
     return response
 
 
+@transaction.non_atomic_requests
 @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
 def download_surface(request, surface_ids):
@@ -312,6 +317,7 @@ def download_surface(request, surface_ids):
     return download_surfaces(request, surfaces)
 
 
+@transaction.non_atomic_requests
 @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
 def download_tag(request, name):
@@ -340,6 +346,7 @@ def download_tag(request, name):
 )
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def force_inspect(request, pk=None):
     user = request.user
     instance = get_object_or_404(Topography, pk=pk)
@@ -350,9 +357,10 @@ def force_inspect(request, pk=None):
 
     _log.debug(f"Forcing renewal of cache for {instance}...")
 
-    # Force renewal of cache
-    run_task(instance)
-    instance.save()
+    # Force renewal of cache within transaction
+    with transaction.atomic():
+        run_task(instance)
+        instance.save()
 
     # Return current state of object
     data = TopographySerializer(instance, context={"request": request}).data
@@ -503,6 +511,7 @@ def tag_categorical_properties(request, name=None):
 @extend_schema(request=None, responses=None)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def import_surface(request):
     url = request.data.get("url")
 
@@ -511,7 +520,8 @@ def import_surface(request):
 
     user = request.user
     # Need to pass id here because user is not JSON serializable
-    import_container_from_url.delay(user.id, url)
+    with transaction.atomic():
+        transaction.on_commit(lambda: import_container_from_url.delay(user.id, url))
 
     return Response({})
 
