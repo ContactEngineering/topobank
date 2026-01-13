@@ -123,7 +123,24 @@ class ResultView(
         return super().get_object()
 
     @extend_schema(
-        request=None,
+        request={
+            'application/json': {
+                'type': 'object',
+                'properties': {
+                    'metadata': {
+                        'type': 'object',
+                        'description': 'Optional metadata dictionary to store with the analysis',
+                        'additionalProperties': True,
+                    }
+                },
+                'example': {
+                    'metadata': {
+                        'description': 'Analysis for project X',
+                        'batch_id': '2024-01-07'
+                    }
+                }
+            }
+        },
         parameters=[
             OpenApiParameter(
                 name='force',
@@ -139,6 +156,7 @@ class ResultView(
         """Start the analysis task for the given WorkflowResult instance."""
         analysis: WorkflowResult = self.get_object()
         force_submit = request.query_params.get('force', '').lower() in ('true', '1', 'yes')
+        metadata = request.data.get('metadata')
 
         # Validation checks
         if analysis.name:
@@ -164,8 +182,20 @@ class ResultView(
             )
 
         # UserUpdateMixin doesnt handle custom actions, so set updated_by manually
+        update_fields = ['updated_by']
         analysis.updated_by = request.user
-        analysis.save(update_fields=['updated_by'])
+
+        # Validate metadata is a dictionary if provided
+        if metadata is not None:
+            if not isinstance(metadata, dict):
+                return Response(
+                    {"message": "metadata must be a dictionary"},
+                    status=status.HTTP_400_BAD_REQUEST
+                )
+            analysis.metadata = metadata
+            update_fields.append('metadata')
+
+        analysis.save(update_fields=update_fields)
         analysis.submit(force_submit=force_submit)
 
         serializer = self.get_serializer(analysis, context={'request': request})
