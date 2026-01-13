@@ -1,19 +1,18 @@
 import pytest
 from django.contrib.auth.models import Group
 
-from topobank.testing.factories import UserFactory, OrganizationFactory
-
 from topobank.organizations.models import (
     DEFAULT_GROUP_NAME,
     DEFAULT_ORGANIZATION_NAME,
     Organization,
 )
+from topobank.testing.factories import OrganizationFactory, UserFactory
 
 
 @pytest.mark.django_db
 def test_plugins_available_for_user():
     organization = OrganizationFactory(
-        name="My University", plugins_available="topobank_statistics, topobank_contact"
+        name="My University", plugins_available=["topobank_statistics", "topobank_contact"]
     )
     user = UserFactory()
     user.groups.add(organization.group)

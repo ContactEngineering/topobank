@@ -16,6 +16,7 @@ from .serializers import (
     GrantUserRequestSerializer,
     OrganizationPermissionSerializer,
     PermissionSetSerializer,
+    PluginSerializer,
     RevokeOrganizationRequestSerializer,
     RevokeUserRequestSerializer,
     SharedPermissionSetSerializer,
@@ -178,6 +179,22 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
             response_data, context={'request': request}
         )
         return Response(serializer.data)
+
+
+@extend_schema(
+    responses={200: PluginSerializer(many=True)},
+    description="List all plugins available to the current user.",
+    tags=["authorization"],
+)
+@api_view(["GET"])
+def plugins_available(request):
+    from .utils import get_user_available_plugins
+
+    plugin_apps = get_user_available_plugins(request.user)
+    serializer = PluginSerializer(
+        plugin_apps, many=True, context={'request': request}
+    )
+    return Response(serializer.data)
 
 
 @extend_schema(
