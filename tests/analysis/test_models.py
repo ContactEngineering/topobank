@@ -150,10 +150,10 @@ def test_current_configuration(settings):
             "https://github.com/IMTEK-Simulation/NuMPI",
         ),
         (
-            "muFFT",
-            "muFFT.__version__",
+            "muGrid",
+            "muGrid.__version__",
             "LGPL-3.0",
-            "https://gitlab.com/muSpectre/muFFT",
+            "https://github.com/muSpectre/muGrid",
         ),
         (
             "topobank",
@@ -173,10 +173,10 @@ def test_current_configuration(settings):
 
     v1, v2, v3, v4, v5 = versions
 
-    import muFFT
+    import muGrid
 
-    assert v1.dependency.import_name == "muFFT"
-    assert v1.number_as_string() == muFFT.version.description()
+    assert v1.dependency.import_name == "muGrid"
+    assert v1.number_as_string() == muGrid.__version__
 
     import NuMPI
 

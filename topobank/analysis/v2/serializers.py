@@ -24,8 +24,11 @@ from topobank.supplib.serializers import (
 )
 
 
-class ConfigurationV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
+class ConfigurationV2Serializer(
+    StrictFieldMixin, serializers.HyperlinkedModelSerializer
+):
     """v2 Serializer for Configuration model."""
+
     class Meta:
         model = Configuration
         fields = ["valid_since", "versions"]
@@ -35,16 +38,9 @@ class ConfigurationV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSe
     @extend_schema_field(
         {
             "type": "object",
-            "additionalProperties": {
-                "type": "string",
-                "description": "Version number"
-            },
+            "additionalProperties": {"type": "string", "description": "Version number"},
             "description": "Dictionary mapping dependency names to their version numbers",
-            "example": {
-                "numpy": "1.24.3",
-                "scipy": "1.10.1",
-                "pandas": "2.0.2"
-            }
+            "example": {"numpy": "1.24.3", "scipy": "1.10.1", "pandas": "2.0.2"},
         }
     )
     def get_versions(self, obj):
@@ -54,10 +50,9 @@ class ConfigurationV2Serializer(StrictFieldMixin, serializers.HyperlinkedModelSe
         return versions
 
 
-class WorkflowV2Serializer(
-    serializers.ModelSerializer
-):
+class WorkflowV2Serializer(serializers.ModelSerializer):
     """v2 Serializer for Workflow model."""
+
     class Meta:
         model = Workflow
         fields = [
@@ -75,6 +70,7 @@ class WorkflowV2Serializer(
 
 class ResultV2CreateSerializer(serializers.ModelSerializer):
     """v2 Serializer for creating WorkflowResult instances."""
+
     class Meta:
         model = WorkflowResult
         required_fields = [
@@ -120,9 +116,9 @@ class ResultV2CreateSerializer(serializers.ModelSerializer):
         return instance
 
     def to_representation(self, instance):
-        '''
+        """
         Use ResultV2DetailSerializer for output representation
-        '''
+        """
         return ResultV2DetailSerializer(instance, context=self.context).data
 
     def validate_function(self, value):
@@ -145,7 +141,9 @@ class ResultV2CreateSerializer(serializers.ModelSerializer):
         value = value.lower()
         if value not in ["surface", "tag", "topography"]:
             raise serializers.ValidationError(
-                {"subject_type": "Subject type must be either 'surface', 'tag', or 'topography'."}
+                {
+                    "subject_type": "Subject type must be either 'surface', 'tag', or 'topography'."
+                }
             )
         return value
 
@@ -165,70 +163,78 @@ class ResultV2CreateSerializer(serializers.ModelSerializer):
                 try:
                     subject_id = int(subject_value)
                 except (ValueError, TypeError):
-                    raise serializers.ValidationError({
-                        "subject": "Surface subject must be an integer ID."
-                    })
+                    raise serializers.ValidationError(
+                        {"subject": "Surface subject must be an integer ID."}
+                    )
 
                 try:
                     # Verify surface exists and user has permission
                     data["subject"] = Surface.objects.for_user(user).get(id=subject_id)
                 except Surface.DoesNotExist:
-                    raise serializers.ValidationError({
-                        "subject": f"Surface '{subject_value}' {not_found_error_msg}."
-                    })
+                    raise serializers.ValidationError(
+                        {"subject": f"Surface '{subject_value}' {not_found_error_msg}."}
+                    )
 
             case "topography":
                 # Topography requires integer ID
                 try:
                     subject_id = int(subject_value)
                 except (ValueError, TypeError):
-                    raise serializers.ValidationError({
-                        "subject": "Topography subject must be an integer ID."
-                    })
+                    raise serializers.ValidationError(
+                        {"subject": "Topography subject must be an integer ID."}
+                    )
 
                 try:
                     # Verify topography exists and user has permission
-                    data["subject"] = Topography.objects.for_user(user).get(id=subject_id)
+                    data["subject"] = Topography.objects.for_user(user).get(
+                        id=subject_id
+                    )
                 except Topography.DoesNotExist:
-                    raise serializers.ValidationError({
-                        "subject": f"Topography '{subject_value}' {not_found_error_msg}."
-                    })
+                    raise serializers.ValidationError(
+                        {
+                            "subject": f"Topography '{subject_value}' {not_found_error_msg}."
+                        }
+                    )
 
             case "tag":
                 # Tag accepts: integer ID or string name
                 tag = None
 
                 # Try as integer ID first
-                if isinstance(subject_value, int) or (isinstance(subject_value, str) and subject_value.isdigit()):
+                if isinstance(subject_value, int) or (
+                    isinstance(subject_value, str) and subject_value.isdigit()
+                ):
                     try:
                         tag_id = int(subject_value)
                         tag = Tag.objects.get(id=tag_id)
                     except Tag.DoesNotExist:
-                        raise serializers.ValidationError({
-                            "subject": f"Tag '{tag_id}' {not_found_error_msg}."
-                        })
+                        raise serializers.ValidationError(
+                            {"subject": f"Tag '{tag_id}' {not_found_error_msg}."}
+                        )
                 else:
                     # Try as tag name
                     try:
                         tag = Tag.objects.get(name=subject_value)
                     except Tag.DoesNotExist:
-                        raise serializers.ValidationError({
-                            "subject": f"Tag '{subject_value}' {not_found_error_msg}."
-                        })
+                        raise serializers.ValidationError(
+                            {"subject": f"Tag '{subject_value}' {not_found_error_msg}."}
+                        )
 
                 # Authorize tag for user (tags only support "view" permission)
                 try:
                     tag.authorize_user(user, "view")
                 except PermissionDenied:
-                    raise serializers.ValidationError({
-                        "subject": f"Tag '{subject_value}' {not_found_error_msg}."
-                    })
+                    raise serializers.ValidationError(
+                        {"subject": f"Tag '{subject_value}' {not_found_error_msg}."}
+                    )
 
                 # Verify tag has accessible surfaces
                 if tag.get_descendant_surfaces().count() == 0:
-                    raise serializers.ValidationError({
-                        "subject": f"Tag '{subject_value}' has no accessible surfaces."
-                    })
+                    raise serializers.ValidationError(
+                        {
+                            "subject": f"Tag '{subject_value}' has no accessible surfaces."
+                        }
+                    )
 
                 data["subject"] = tag
 
@@ -239,6 +245,7 @@ class ResultV2ListSerializer(
     taskapp_serializers.TaskStateModelSerializer,
 ):
     """v2 Serializer for WorkflowResult List model."""
+
     class Meta:
         model = WorkflowResult
         fields = [
@@ -252,7 +259,7 @@ class ResultV2ListSerializer(
             "name",
             "created_by",
             "updated_by",
-            "permissions"
+            "permissions",
         ]
         task_state_fields = [
             "task_state",
@@ -268,9 +275,7 @@ class ResultV2ListSerializer(
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:result-v2-detail", read_only=True
     )
-    function = WorkflowV2Serializer(
-        read_only=True
-    )
+    function = WorkflowV2Serializer(read_only=True)
     created_by = UserField(read_only=True)
     updated_by = UserField(read_only=True)
     permissions = PermissionsField(read_only=True)
@@ -280,7 +285,7 @@ class ResultV2ListSerializer(
     # get_task_state() which queries Celery backend. List views prioritize
     # performance over state reconciliation.
     task_state = serializers.CharField(read_only=True)
- 
+
     # Methods
     dependencies = serializers.SerializerMethodField()
 
@@ -297,8 +302,11 @@ class ResultV2ListSerializer(
     def get_dependencies(self, obj: WorkflowResult):
         ret = {
             "count": len(obj.dependencies.items()),
-            "url": reverse("analysis:result-v2-dependency", kwargs={"pk": obj.id},
-                           request=self.context.get("request"))
+            "url": reverse(
+                "analysis:result-v2-dependency",
+                kwargs={"pk": obj.id},
+                request=self.context.get("request"),
+            ),
         }
         return ret
 
@@ -307,6 +315,7 @@ class ResultV2DetailSerializer(
     StrictFieldMixin, taskapp_serializers.TaskStateModelSerializer
 ):
     """v2 Serializer for WorkflowResult Detail model."""
+
     class Meta:
         model = WorkflowResult
         task_state_fields = [
@@ -339,7 +348,7 @@ class ResultV2DetailSerializer(
             "updated_by",
             "owned_by",
             "permissions",
-            "metadata"
+            "metadata",
         ] + task_state_fields
         # Name can be changed by the user
         fields = read_only_fields + ["name", "description"]
@@ -359,9 +368,7 @@ class ResultV2DetailSerializer(
     permissions = PermissionsField(read_only=True)
 
     subject = SubjectField(read_only=True)
-    folder = ModelRelatedField(
-        view_name="files:folder-api-detail", read_only=True
-    )
+    folder = ModelRelatedField(view_name="files:folder-api-detail", read_only=True)
     configuration = ModelRelatedField(
         view_name="analysis:configuration-v2-detail", read_only=True
     )
@@ -381,8 +388,11 @@ class ResultV2DetailSerializer(
     def get_dependencies(self, obj: WorkflowResult):
         ret = {
             "count": len(obj.dependencies.items()),
-            "url": reverse("analysis:result-v2-dependency", kwargs={"pk": obj.id},
-                           request=self.context.get("request"))
+            "url": reverse(
+                "analysis:result-v2-dependency",
+                kwargs={"pk": obj.id},
+                request=self.context.get("request"),
+            ),
         }
         return ret
 
@@ -412,20 +422,27 @@ class DependencyV2ListSerializer(serializers.BaseSerializer):
 
         # Get all workflow result IDs at once to avoid N+1 queries
         workflow_result_ids = list(data.values())
-        workflow_results = WorkflowResult.objects.filter(id__in=workflow_result_ids).in_bulk()
+        workflow_results = WorkflowResult.objects.filter(
+            id__in=workflow_result_ids
+        ).in_bulk()
 
         dependencies_list = []
         for subject_id, workflow_result_id in data.items():
             dep_wr = workflow_results.get(workflow_result_id)
             if dep_wr:
-                dependencies_list.append({
-                    "id": workflow_result_id,
-                    "url": reverse("analysis:result-v2-detail", kwargs={"pk": workflow_result_id},
-                                   request=self.context.get("request")),
-                    "task_state": dep_wr.task_state,
-                    "task_error": dep_wr.task_error,
-                    "function": dep_wr.function.display_name,
-                    "subject": dep_wr.subject.name
-                })
+                dependencies_list.append(
+                    {
+                        "id": workflow_result_id,
+                        "url": reverse(
+                            "analysis:result-v2-detail",
+                            kwargs={"pk": workflow_result_id},
+                            request=self.context.get("request"),
+                        ),
+                        "task_state": dep_wr.task_state,
+                        "task_error": dep_wr.task_error,
+                        "function": dep_wr.function.display_name,
+                        "subject": dep_wr.subject.name,
+                    }
+                )
 
         return dependencies_list

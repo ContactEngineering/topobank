@@ -1,5 +1,20 @@
 # Changelog for *TopoBank*
 
+# 1.68.0 (not yet released)
+
+- ENH: Allow metadata to be passed on analysis POST
+- ENH: Added more task state info to list serializer
+- MAINT: Improved performance of celery task_state resolution (SD-483)
+- MAINT: Changed organizations plugins available from string to choice array
+- MAINT: Fixed plugin logic to be handled dynamically
+- MAINT: Fixed permissions for workflows view
+- MAINT: Removed redundant source on serializer field
+- MAINT: muFFT no longer exists and has been folded into muGrid
+- MAINT: Updated Django to 5.2.10
+- MAINT: Updated Sphinx dependency
+- BUG: Fixed app filter
+- TST: Fixed test to reflect tracebacks are now passed up from deps
+
 # 1.67.0 (2025-12-16)
 
 - ENH: Generate NetCDF tile pyramid

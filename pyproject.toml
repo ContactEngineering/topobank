@@ -94,7 +94,7 @@ dependencies = [
     # tornado>=4.2.0, <6.0.0
 
     # Surface topography I/O and analysis
-    'SurfaceTopography>=1.18.2',
+    'SurfaceTopography>=1.20.0',
 
     # Validation
     'pydantic',
