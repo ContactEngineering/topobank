@@ -49,9 +49,15 @@ class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.Li
             user = self.request.user
             available_plugins = [app_config.name for app_config in get_user_available_plugins(user)]
 
+            # Always include topobank workflows (e.g., topobank.testing, etc.)
+            # in addition to plugin workflows
+            queries = [Q(name__startswith="topobank.")]
+
             if available_plugins:
-                # Create Q objects for each plugin to check if workflow name starts with "plugin."
-                queries = [Q(name__startswith=f"{plugin}.") for plugin in available_plugins]
+                # Add Q objects for each plugin to check if workflow name starts with "plugin."
+                queries.extend([Q(name__startswith=f"{plugin}.") for plugin in available_plugins])
+
+            if queries:
                 queryset = queryset.filter(reduce(operator.or_, queries))
             else:
                 queryset = queryset.none()
