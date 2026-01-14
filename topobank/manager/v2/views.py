@@ -60,10 +60,19 @@ class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             'topography_set',
         ).distinct().order_by('name')
 
+    @transaction.atomic
     def perform_destroy(self, instance):
         """Perform soft delete by setting deletion_time instead of hard delete."""
         self._notify(instance, verb="delete")
         instance.lazy_delete()
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        return super().perform_update(serializer)
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        return super().perform_create(serializer)
 
 
 @extend_schema_view(
@@ -111,9 +120,18 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             return TopographyV2CreateSerializer
         return super().get_serializer_class()
 
+    @transaction.atomic
     def perform_destroy(self, instance):
         """Perform soft delete by setting deletion_time instead of hard delete."""
         instance.lazy_delete()
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        return super().perform_update(serializer)
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        return super().perform_create(serializer)
 
 
 class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):

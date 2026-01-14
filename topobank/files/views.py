@@ -29,6 +29,7 @@ class FileManifestViewSet(
     serializer_class = ManifestSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ManifestPermission]
 
+    @transaction.atomic
     def perform_create(self, serializer):
         if "folder" in serializer.validated_data:
             folder = serializer.validated_data["folder"]
@@ -46,6 +47,7 @@ class FileManifestViewSet(
                         "folder.",
             )
 
+    @transaction.atomic
     def perform_update(self, serializer):
         if "folder" in serializer.validated_data:
             folder = serializer.validated_data["folder"]
@@ -86,7 +88,8 @@ def upload_local(request, manifest_id: int):
         nb_files += 1
         if nb_files > 1:
             return HttpResponseBadRequest("Upload can only accept single files.")
-        manifest.finish_upload(file)
+        with transaction.atomic():
+            manifest.finish_upload(file)
 
     return Response({}, status=204)
 

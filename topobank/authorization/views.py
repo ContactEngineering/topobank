@@ -214,6 +214,7 @@ def plugins_available(request):
     tags=["authorization"],
 )
 @api_view(["POST"])
+@transaction.atomic
 def grant_user(request, id: int):
     permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
@@ -253,6 +254,7 @@ def grant_user(request, id: int):
     tags=["authorization"],
 )
 @api_view(["POST"])
+@transaction.atomic
 def revoke_user(request, id: int):
     permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
@@ -282,6 +284,7 @@ def revoke_user(request, id: int):
     tags=["authorization"],
 )
 @api_view(["POST"])
+@transaction.atomic
 def grant_organization(request, id: int):
     permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
@@ -321,6 +324,7 @@ def grant_organization(request, id: int):
     tags=["authorization"],
 )
 @api_view(["POST"])
+@transaction.atomic
 def revoke_organization(request, id: int):
     permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions

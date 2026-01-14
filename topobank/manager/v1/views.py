@@ -84,6 +84,7 @@ class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
         )
         return filter_surfaces(self.request, qs)
 
+    @transaction.atomic
     def perform_create(self, serializer):
         # Set created_by to current user when creating a new surface
         instance = super().perform_create(serializer)
@@ -93,9 +94,11 @@ class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             instance.name = f"Digital surface twin #{instance.id}"
             instance.save()
 
+    @transaction.atomic
     def perform_update(self, serializer):
         super().perform_update(serializer)
 
+    @transaction.atomic
     def perform_destroy(self, instance):
         self._notify(instance, "delete")
         instance.delete()
@@ -167,6 +170,7 @@ class TopographyViewSet(
         else:
             return qs.filter(subject_q).distinct()
 
+    @transaction.atomic
     def perform_create(self, serializer):
         # Check whether the user is allowed to write to the parent surface; if not, we
         # cannot add a topography
@@ -191,9 +195,11 @@ class TopographyViewSet(
             )
             instance.save()
 
+    @transaction.atomic
     def perform_update(self, serializer):
         super().perform_update(serializer)
 
+    @transaction.atomic
     def perform_destroy(self, instance):
         self._notify(instance, "delete")
         instance.delete()
@@ -214,8 +220,8 @@ class TopographyViewSet(
         return Response(serializer.data)
 
 
-@transaction.non_atomic_requests
 @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
+@transaction.non_atomic_requests
 def download_surfaces(request, surfaces, container_filename=None):
     #
     # Check existence and permissions for given surface
@@ -299,9 +305,9 @@ def download_surfaces(request, surfaces, container_filename=None):
     return response
 
 
-@transaction.non_atomic_requests
 @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def download_surface(request, surface_ids):
     # `surface_ids` is a comma-separated list of surface IDs as a string,
     # e.g. "1,2,3", we need to parse it
@@ -317,9 +323,9 @@ def download_surface(request, surface_ids):
     return download_surfaces(request, surfaces)
 
 
-@transaction.non_atomic_requests
 @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def download_tag(request, name):
     # `tag_name` is the name of the tag, we need to parse it
     tag = get_object_or_404(Tag, name=name)
@@ -382,6 +388,7 @@ def force_inspect(request, pk=None):
 )
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
+@transaction.atomic
 def set_surface_permissions(request, pk=None):
     logged_in_user = request.user
     obj = get_object_or_404(Surface, pk=pk)
@@ -433,6 +440,7 @@ def set_surface_permissions(request, pk=None):
 @extend_schema(request=None, responses=None)
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
+@transaction.atomic
 def set_tag_permissions(request, name=None):
     logged_in_user = request.user
     obj = get_object_or_404(Tag, name=name)

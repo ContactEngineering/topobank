@@ -131,6 +131,7 @@ class ResultView(
 
         return Response(context)
 
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         """Renew existing analysis (PUT)."""
         analysis = self.get_object()
@@ -144,6 +145,10 @@ class ResultView(
                 {"message": "Cannot renew named analysis"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        return super().perform_destroy(instance)
 
 
 @extend_schema(
@@ -557,6 +562,7 @@ def series_card_view(request, **kwargs):
     responses={200: OpenApiTypes.NONE},
 )
 @api_view(["POST"])
+@transaction.atomic
 def set_name(request, workflow_id: int):
     name = request.data.get("name")
     description = request.data.get("description")
@@ -683,6 +689,7 @@ def memory_usage(request):
     responses={200: OpenApiTypes.NONE, 204: OpenApiTypes.NONE, 405: OpenApiTypes.OBJECT},
 )
 @api_view(["PATCH"])
+@transaction.atomic
 def set_result_permissions(request, workflow_id=None):
     analysis_obj = WorkflowResult.objects.get(pk=workflow_id)
     user = request.user

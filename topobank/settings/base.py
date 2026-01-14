@@ -61,7 +61,7 @@ else:
             "PORT": env("POSTGRES_PORT"),
         }
     }
-DATABASES["default"]["ATOMIC_REQUESTS"] = True
+DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
 # CACHES
 # ------------------------------------------------------------------------------
