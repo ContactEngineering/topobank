@@ -275,6 +275,7 @@ class ResultView(
 
         if not dependencies_dict:
             paginator = self.pagination_class()
+            paginator.paginate_queryset([], request, view=self)
             return paginator.get_paginated_response([])
 
         # Get paginator
