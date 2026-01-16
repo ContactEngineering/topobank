@@ -549,10 +549,8 @@ def versions(request):
 
 @extend_schema(request=None, responses=None)
 @api_view(["GET"])
-@permission_classes([IsAuthenticated, IsAdminUser])
-@transaction.non_atomic_requests
+@permission_classes([IsAuthenticated])
 def statistics(request):
-    # Why was this open to any authenticated user before? Now restricted to admin users.
     # Global statistics
     stats = {
         "nb_users": User.objects.count()
