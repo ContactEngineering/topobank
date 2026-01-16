@@ -50,7 +50,9 @@ class TopographyViewFilterSet(FilterSet):
         """
         # Tag path replaces spaces with hyphens
         path = value.replace(" ", "-")
-        return queryset.filter(surface__tags__path__iexact=path).distinct()
+        # Note: .distinct() is applied in the viewset's filter_queryset() method
+        # when tag filters are detected to handle ManyToMany JOIN duplicates
+        return queryset.filter(surface__tags__path__iexact=path)
 
     def filter_tag_istartswith(self, queryset, name, value):
         """
@@ -60,7 +62,7 @@ class TopographyViewFilterSet(FilterSet):
         path = value.replace(" ", "-")
         return queryset.filter(
             surface__tags__path__istartswith=path
-        ).distinct()
+        )
 
 
 class SurfaceViewFilterSet(FilterSet):
@@ -114,7 +116,7 @@ class SurfaceViewFilterSet(FilterSet):
         """
         # Tag path replaces spaces with hyphens
         path = value.replace(" ", "-")
-        return queryset.filter(tags__path__iexact=path).distinct()
+        return queryset.filter(tags__path__iexact=path)
 
     def filter_tag_istartswith(self, queryset, name, value):
         """
@@ -124,7 +126,7 @@ class SurfaceViewFilterSet(FilterSet):
         path = value.replace(" ", "-")
         return queryset.filter(
             tags__path__istartswith=path
-        ).distinct()
+        )
 
     def filter_tag_contains(self, queryset, name, value):
         """
@@ -134,7 +136,7 @@ class SurfaceViewFilterSet(FilterSet):
         path = value.replace(" ", "-")
         return queryset.filter(
             tags__path__icontains=path
-        ).distinct()
+        )
 
     def filter_has_tags(self, queryset, name, value):
         """

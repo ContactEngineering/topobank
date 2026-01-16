@@ -122,7 +122,7 @@ def _celery_worker_check():
 
     MIN_NUM_WORKERS_EXPECTED = 1
     d = app.control.broadcast(
-        "ping", reply=True, timeout=0.5, limit=MIN_NUM_WORKERS_EXPECTED
+        "ping", reply=True, timeout=0.1, limit=MIN_NUM_WORKERS_EXPECTED
     )
     return {
         "num_workers_available": len(d),

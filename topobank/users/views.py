@@ -1,4 +1,5 @@
 from allauth.utils import generate_unique_username
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
@@ -54,6 +55,7 @@ class UserViewSet(viewsets.ModelViewSet):
         # Return query set with distinct to avoid duplicates from group joins
         return qs.distinct()
 
+    @transaction.atomic
     def create(self, request, *args, **kwargs):
         data: dict = request.data
         if data.get("username"):
@@ -64,6 +66,18 @@ class UserViewSet(viewsets.ModelViewSet):
         serializer.is_valid(raise_exception=True)
         serializer.save()
         return Response(serializer.data, status=201)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        return super().perform_update(serializer)
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        return super().perform_create(serializer)
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        return super().perform_destroy(instance)
 
 
 def get_user_and_organization(request, pk):
@@ -88,6 +102,7 @@ def get_user_and_organization(request, pk):
 )
 @api_view(["POST"])
 @permission_classes([UserPermission])
+@transaction.atomic
 def add_organization(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
 
@@ -119,6 +134,7 @@ def add_organization(request, pk: int):
 )
 @api_view(["POST"])
 @permission_classes([UserPermission])
+@transaction.atomic
 def remove_organization(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
 

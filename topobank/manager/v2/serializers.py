@@ -160,7 +160,9 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
 
     def to_representation(self, instance: Topography):
         # Ensure that retrieving the Topography starts the task if it is ready.
-        instance.ensure_task_started()
+        # Only check if task needs starting when task_state is "no" to avoid overhead
+        if instance.task_state == "no":
+            instance.ensure_task_started()
         return super().to_representation(instance)
 
 

@@ -4,6 +4,7 @@ import os.path
 from io import BytesIO
 
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Case, F, Q, When
 from django.http import HttpResponse, HttpResponseBadRequest, HttpResponseForbidden
 from django.shortcuts import get_object_or_404, redirect
@@ -83,6 +84,7 @@ class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
         )
         return filter_surfaces(self.request, qs)
 
+    @transaction.atomic
     def perform_create(self, serializer):
         # Set created_by to current user when creating a new surface
         instance = super().perform_create(serializer)
@@ -92,9 +94,11 @@ class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             instance.name = f"Digital surface twin #{instance.id}"
             instance.save()
 
+    @transaction.atomic
     def perform_update(self, serializer):
         super().perform_update(serializer)
 
+    @transaction.atomic
     def perform_destroy(self, instance):
         self._notify(instance, "delete")
         instance.delete()
@@ -166,6 +170,7 @@ class TopographyViewSet(
         else:
             return qs.filter(subject_q).distinct()
 
+    @transaction.atomic
     def perform_create(self, serializer):
         # Check whether the user is allowed to write to the parent surface; if not, we
         # cannot add a topography
@@ -190,14 +195,17 @@ class TopographyViewSet(
             )
             instance.save()
 
+    @transaction.atomic
     def perform_update(self, serializer):
         super().perform_update(serializer)
 
+    @transaction.atomic
     def perform_destroy(self, instance):
         self._notify(instance, "delete")
         instance.delete()
 
     # From mixins.RetrieveModelMixin
+    @transaction.non_atomic_requests
     def retrieve(self, request, *args, **kwargs):
         instance = self.get_object()
         if instance.task_state == Topography.NOTRUN:
@@ -205,13 +213,15 @@ class TopographyViewSet(
             _log.info(
                 f"Creating cached properties of new {instance.get_subject_type()} {instance.id}..."
             )
-            run_task(instance)
-            instance.save()  # run_task sets the initial task state to 'pe', so we need to save
+            with transaction.atomic():
+                run_task(instance)  # Sets task state to 'pe' and triggers task on commit
+                instance.save()  # Save the pending state
         serializer = self.get_serializer(instance)
         return Response(serializer.data)
 
 
 @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
+@transaction.non_atomic_requests
 def download_surfaces(request, surfaces, container_filename=None):
     #
     # Check existence and permissions for given surface
@@ -297,6 +307,7 @@ def download_surfaces(request, surfaces, container_filename=None):
 
 @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def download_surface(request, surface_ids):
     # `surface_ids` is a comma-separated list of surface IDs as a string,
     # e.g. "1,2,3", we need to parse it
@@ -314,6 +325,7 @@ def download_surface(request, surface_ids):
 
 @extend_schema(request=None, responses=OpenApiTypes.OBJECT)
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def download_tag(request, name):
     # `tag_name` is the name of the tag, we need to parse it
     tag = get_object_or_404(Tag, name=name)
@@ -340,6 +352,7 @@ def download_tag(request, name):
 )
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def force_inspect(request, pk=None):
     user = request.user
     instance = get_object_or_404(Topography, pk=pk)
@@ -350,9 +363,10 @@ def force_inspect(request, pk=None):
 
     _log.debug(f"Forcing renewal of cache for {instance}...")
 
-    # Force renewal of cache
-    run_task(instance)
-    instance.save()
+    # Force renewal of cache within transaction
+    with transaction.atomic():
+        run_task(instance)
+        instance.save()
 
     # Return current state of object
     data = TopographySerializer(instance, context={"request": request}).data
@@ -374,6 +388,7 @@ def force_inspect(request, pk=None):
 )
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
+@transaction.atomic
 def set_surface_permissions(request, pk=None):
     logged_in_user = request.user
     obj = get_object_or_404(Surface, pk=pk)
@@ -425,6 +440,7 @@ def set_surface_permissions(request, pk=None):
 @extend_schema(request=None, responses=None)
 @api_view(["PATCH"])
 @permission_classes([IsAuthenticated])
+@transaction.atomic
 def set_tag_permissions(request, name=None):
     logged_in_user = request.user
     obj = get_object_or_404(Tag, name=name)
@@ -483,6 +499,7 @@ def set_tag_permissions(request, name=None):
 @extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def tag_numerical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
@@ -493,6 +510,7 @@ def tag_numerical_properties(request, name=None):
 @extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def tag_categorical_properties(request, name=None):
     obj = get_object_or_404(Tag, name=name)
     obj.authorize_user(request.user, "view")
@@ -503,6 +521,7 @@ def tag_categorical_properties(request, name=None):
 @extend_schema(request=None, responses=None)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def import_surface(request):
     url = request.data.get("url")
 
@@ -511,7 +530,8 @@ def import_surface(request):
 
     user = request.user
     # Need to pass id here because user is not JSON serializable
-    import_container_from_url.delay(user.id, url)
+    with transaction.atomic():
+        transaction.on_commit(lambda: import_container_from_url.delay(user.id, url))
 
     return Response({})
 
@@ -522,6 +542,7 @@ def import_surface(request):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def versions(request):
     return Response(get_versions())
 
@@ -554,6 +575,7 @@ def statistics(request):
 @extend_schema(request=None, responses=None)
 @api_view(["GET"])
 @permission_classes([IsAdminUser])
+@transaction.non_atomic_requests
 def memory_usage(request):
     r = Topography.objects.values(
         "resolution_x", "resolution_y", "task_memory"

@@ -106,6 +106,10 @@ class TaskStateModel(models.Model):
 
     def get_async_results(self):
         """Return the Celery result objects of current and dependent tasks"""
+        # Check if results are cached (for performance during serialization)
+        if hasattr(self, '_cached_async_results'):
+            return self._cached_async_results
+
         task_result = self.get_async_result()
         launcher_task_result = (
             app.AsyncResult(str(self.launcher_task_id))
@@ -128,10 +132,17 @@ class TaskStateModel(models.Model):
         if task_result:
             task_results += [task_result]
 
+        # Cache the results on the instance to avoid repeated Celery queries
+        self._cached_async_results = task_results
+
         return task_results
 
     def get_celery_state(self):
         """Return the state of the task as reported by Celery"""
+        # Optimization: If task is in terminal state, return DB value without querying Celery
+        if self.task_state in (TaskStateModel.SUCCESS, TaskStateModel.FAILURE):
+            return self.task_state
+
         # Check if any of the dependent tasks failed
         for r in self.get_async_results():
             if r.state in celery.states.EXCEPTION_STATES:
@@ -222,6 +233,12 @@ class TaskStateModel(models.Model):
 
     def get_task_progress(self):
         """Return progress of task, if running"""
+        # Optimization: If task is in terminal state, return appropriate value without querying Celery
+        if self.task_state == TaskStateModel.SUCCESS:
+            return 100.0
+        elif self.task_state == TaskStateModel.FAILURE:
+            return None
+
         # Get all tasks
         task_results = self.get_async_results()
 
@@ -271,6 +288,10 @@ class TaskStateModel(models.Model):
 
     def get_task_messages(self):
         """Return progress message(s) of the task, if running"""
+        # Optimization: If task is in terminal state, return empty list without querying Celery
+        if self.task_state in (TaskStateModel.SUCCESS, TaskStateModel.FAILURE):
+            return []
+
         # Get all tasks
         task_results = self.get_async_results()
 

@@ -1,5 +1,6 @@
 import logging
 
+from django.db import transaction
 from django_filters.rest_framework import backends
 from rest_framework import viewsets
 from rest_framework.permissions import IsAuthenticatedOrReadOnly
@@ -31,6 +32,7 @@ class FileManifestViewSet(
             return ManifestV2CreateSerializer
         return ManifestV2Serializer
 
+    @transaction.atomic
     def perform_update(self, serializer):
         if "folder" in serializer.validated_data:
             folder = serializer.validated_data["folder"]
@@ -47,3 +49,11 @@ class FileManifestViewSet(
                             "write access to the target folder.",
                 )
         serializer.save()
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        return super().perform_create(serializer)
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        return super().perform_destroy(instance)

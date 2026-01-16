@@ -68,6 +68,12 @@ class PermissionSetManager(models.Manager):
 
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
         """Return all PermissionSets where user has at least the given permission level"""
+        # Cache user groups to prevent query re-evaluation and improve query plan stability
+        # Check if already cached (e.g., by viewset list() method)
+        if not hasattr(user, '_cached_group_ids'):
+            user._cached_group_ids = list(user.groups.values_list('id', flat=True))
+        user_group_ids = user._cached_group_ids
+
         if permission == "view":
             # We do not need to filter on permission level, just check that there
             # is some permission for the user
@@ -76,8 +82,8 @@ class PermissionSetManager(models.Manager):
                 Q(user_permissions__user=get_anonymous_user())
                 # Direct user access
                 | Q(user_permissions__user=user)
-                # User access through an organization
-                | Q(organization_permissions__organization__group__in=user.groups.all())
+                # User access through an organization (using group IDs for stable query plans)
+                | Q(organization_permissions__organization__group_id__in=user_group_ids)
             )
         else:
             return self.filter(
@@ -86,9 +92,9 @@ class PermissionSetManager(models.Manager):
                     Q(user_permissions__user=user)
                     & Q(user_permissions__allow__in=levels_with_access(permission))
                 )
-                # User access through an organization
+                # User access through an organization (using group IDs for stable query plans)
                 | (
-                    Q(organization_permissions__organization__group__in=user.groups.all())
+                    Q(organization_permissions__organization__group_id__in=user_group_ids)
                     & Q(organization_permissions__allow__in=levels_with_access(permission))
                 )
             )
@@ -113,17 +119,40 @@ class PermissionSet(models.Model):
         """Return permissions of a specific user"""
         anonymous_user = get_anonymous_user()
 
-        # Get user permissions
-        user_permissions = self.user_permissions.filter(
-            Q(user=user) | Q(user=anonymous_user)
-        )
-        nb_user_permissions = user_permissions.count()
+        # Check if user_permissions data is prefetched
+        if 'user_permissions' in getattr(self, '_prefetched_objects_cache', {}):
+            # Use prefetched data (no query)
+            user_permissions = [
+                p for p in self.user_permissions.all()
+                if p.user == user or p.user == anonymous_user
+            ]
+        else:
+            # Fall back to query
+            user_permissions = list(self.user_permissions.filter(
+                Q(user=user) | Q(user=anonymous_user)
+            ))
 
-        # Get organization permissions
-        organization_permissions = self.organization_permissions.filter(
-            organization__group__in=user.groups.all()
-        )
-        nb_organization_permissions = organization_permissions.count()
+        nb_user_permissions = len(user_permissions)
+
+        # Cache user groups on user object to prevent re-evaluation
+        if not hasattr(user, '_cached_group_ids'):
+            user._cached_group_ids = list(user.groups.values_list('id', flat=True))
+        user_group_ids = user._cached_group_ids
+
+        # Check if organization_permissions data is prefetched
+        if 'organization_permissions' in getattr(self, '_prefetched_objects_cache', {}):
+            # Use prefetched data (no query)
+            organization_permissions = [
+                p for p in self.organization_permissions.all()
+                if p.organization.group_id in user_group_ids
+            ]
+        else:
+            # Fall back to query
+            organization_permissions = list(self.organization_permissions.filter(
+                organization__group_id__in=user_group_ids
+            ))
+
+        nb_organization_permissions = len(organization_permissions)
 
         # Idiot check
         if nb_user_permissions > 1:
@@ -302,6 +331,12 @@ class OrganizationPermission(models.Model):
 class AuthorizedQuerySet(QuerySet):
     """QuerySet with permission filtering capabilities."""
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
+        # Cache user groups to prevent query re-evaluation and improve query plan stability
+        # Check if already cached (e.g., by viewset list() method)
+        if not hasattr(user, '_cached_group_ids'):
+            user._cached_group_ids = list(user.groups.values_list('id', flat=True))
+        user_group_ids = user._cached_group_ids
+
         if permission == "view":
             # We do not need to filter on permission, just check that there
             # is some permission for the user
@@ -310,9 +345,9 @@ class AuthorizedQuerySet(QuerySet):
                 Q(permissions__user_permissions__user=get_anonymous_user())
                 # Direct user access
                 | Q(permissions__user_permissions__user=user)
-                # User access through an organization
+                # User access through an organization (using group IDs for stable query plans)
                 | Q(
-                    permissions__organization_permissions__organization__group__in=user.groups.all()
+                    permissions__organization_permissions__organization__group_id__in=user_group_ids
                 )
             )
         else:
@@ -326,10 +361,10 @@ class AuthorizedQuerySet(QuerySet):
                         )
                     )
                 )
-                # User access through an organization
+                # User access through an organization (using group IDs for stable query plans)
                 | (
                     Q(
-                        permissions__organization_permissions__organization__group__in=user.groups.all()
+                        permissions__organization_permissions__organization__group_id__in=user_group_ids
                     )
                     & Q(
                         permissions__organization_permissions__allow__in=levels_with_access(

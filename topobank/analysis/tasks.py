@@ -92,7 +92,14 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
         celery_queue = self.request.delivery_info['routing_key']
     except TypeError:
         celery_queue = None
-    analysis = WorkflowResult.objects.get(id=analysis_id)
+    # Optimize query with select_related to reduce DB round trips
+    analysis = WorkflowResult.objects.select_related(
+        'function',
+        'subject_dispatch',
+        'configuration',
+        'created_by',
+        'owned_by'
+    ).prefetch_related('permissions').get(id=analysis_id)
     _log.info(
         f"{analysis_id}/{self.request.id}: Task starting -- "
         f"Queue: {celery_queue}, force recalculation: {force} -- "
@@ -475,6 +482,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                 ),
                 kwargs=kwargs,
             )
+            .select_related('function', 'subject_dispatch')  # Optimize DB queries
             .order_by(
                 "subject_dispatch__topography_id",
                 "subject_dispatch__surface_id",
@@ -488,7 +496,9 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             )
         )
 
-        if all_results.count() == 0:
+        # Cache count to avoid multiple queries
+        results_count = all_results.count()
+        if results_count == 0:
             with transaction.atomic():
                 # Create new entry in the analysis table
                 new_analysis = WorkflowResult.objects.create(
@@ -501,7 +511,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                     owned_by=parent.owned_by,
                 )
             scheduled_dependent_analyses[key] = new_analysis
-        elif all_results.count() == 1:
+        elif results_count == 1:
             # An analysis exists. Check whether it is successful or failed.
             existing_analysis = all_results.first()
             # task_state is the *self reported* state, not the Celery state
