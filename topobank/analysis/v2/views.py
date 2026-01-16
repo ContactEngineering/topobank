@@ -25,12 +25,13 @@ from topobank.files.v2.serializers import ManifestV2Serializer
 from topobank.supplib.mixins import UserUpdateMixin
 from topobank.supplib.pagination import TopobankPaginator
 
-from ..models import Workflow, WorkflowResult
+from ..models import Configuration, Workflow, WorkflowResult
 from ..permissions import WorkflowPermissions
 from .filters import ResultViewFilterSet, WorkflowViewFilterSet
 
 
 class ConfigurationView(v1.ConfigurationView):
+    queryset = Configuration.objects.prefetch_related("versions")
     serializer_class = ConfigurationV2Serializer
 
 
@@ -48,7 +49,13 @@ class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.Li
         # Workflow names follow the pattern: plugin_name.workflow.version
         if hasattr(self, 'request') and self.request:
             user = self.request.user
-            available_plugins = [app_config.name for app_config in get_user_available_plugins(user)]
+
+            # Cache available plugins on the user object for this request
+            if not hasattr(user, '_cached_available_plugins'):
+                user._cached_available_plugins = [
+                    app_config.name for app_config in get_user_available_plugins(user)
+                ]
+            available_plugins = user._cached_available_plugins
 
             # Always include topobank workflows (e.g., topobank.testing, etc.)
             # in addition to plugin workflows
@@ -64,6 +71,16 @@ class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.Li
                 queryset = queryset.none()
 
         return queryset
+
+    def list(self, request, *args, **kwargs):
+        """Override list to initialize permission cache for performance"""
+        if request.user.is_authenticated:
+            # Cache user groups once per request
+            if not hasattr(request.user, '_cached_group_ids'):
+                request.user._cached_group_ids = list(
+                    request.user.groups.values_list('id', flat=True)
+                )
+        return super().list(request, *args, **kwargs)
 
 
 class ResultView(
@@ -85,6 +102,62 @@ class ResultView(
     filter_backends = [PermissionFilterBackend, backends.DjangoFilterBackend]
     filterset_class = ResultViewFilterSet
 
+    def get_queryset(self):
+        # First, get IDs of accessible results (with deduplication)
+        # This avoids expensive DISTINCT on all WorkflowResult columns
+        accessible_ids = WorkflowResult.objects.for_user(self.request.user).values_list('id', flat=True).distinct()
+
+        # Then fetch full result objects for those IDs, ordered by task_start_time
+        # This query is faster because it doesn't need JOINs with permission tables
+        qs = WorkflowResult.objects.filter(
+            id__in=accessible_ids
+        ).select_related(
+            "function",
+            "subject_dispatch__tag",
+            "subject_dispatch__topography",
+            "subject_dispatch__surface",
+            "created_by",
+            "updated_by",
+            "permissions",
+        )
+
+        # Optimize prefetching based on action to reduce unnecessary data loading
+        if self.action == 'list':
+            # List view: minimal data needed
+            qs = qs.prefetch_related(
+                'permissions__user_permissions',
+                'permissions__organization_permissions',
+            ).defer(
+                # Defer large JSONFields not displayed in list serializer
+                'kwargs',        # Not shown in list view
+                'metadata',      # Not shown in list view
+            )
+        else:
+            # Detail/update/delete views: fetch complete data
+            qs = qs.select_related(
+                "owned_by",
+                "folder",
+                "configuration",
+            ).prefetch_related(
+                'permissions__user_permissions__user',
+                'permissions__organization_permissions__organization',
+                'configuration__versions',
+            )
+
+        return qs.order_by("-task_start_time")
+
+    def get_serializer_class(self):
+        if self.action == 'list':
+            return ResultV2ListSerializer
+        elif self.action == 'create':
+            return ResultV2CreateSerializer
+        else:
+            return super().get_serializer_class()
+
+    # Override get_object to specify return type
+    def get_object(self) -> WorkflowResult:
+        return super().get_object()
+
     # Required for schema generation to know that this filter should be exploded.
     @extend_schema(
         parameters=[
@@ -101,33 +174,15 @@ class ResultView(
         ]
     )
     def list(self, request, *args, **kwargs):
+        """Override list to initialize permission cache for performance"""
+        # Initialize cache on user object to avoid repeated queries during serialization
+        if request.user.is_authenticated:
+            # Cache user groups once per request
+            if not hasattr(request.user, '_cached_group_ids'):
+                request.user._cached_group_ids = list(
+                    request.user.groups.values_list('id', flat=True)
+                )
         return super().list(request, *args, **kwargs)
-
-    def get_queryset(self):
-        return WorkflowResult.objects.select_related(
-            "function",
-            "subject_dispatch__tag",
-            "subject_dispatch__topography",
-            "subject_dispatch__surface",
-            "created_by",
-            "updated_by",
-            "owned_by",
-            "permissions",
-            "folder",
-            "configuration"
-        ).order_by("-task_start_time")
-
-    def get_serializer_class(self):
-        if self.action == 'list':
-            return ResultV2ListSerializer
-        elif self.action == 'create':
-            return ResultV2CreateSerializer
-        else:
-            return super().get_serializer_class()
-
-    # Override get_object to specify return type
-    def get_object(self) -> WorkflowResult:
-        return super().get_object()
 
     @extend_schema(
         request={
@@ -216,17 +271,32 @@ class ResultView(
     def dependencies(self, request, *args, **kwargs):
         """Get dependencies for the WorkflowResult"""
         analysis: WorkflowResult = self.get_object()
-        serializer = DependencyV2ListSerializer(analysis.dependencies, context={'request': request})
+        dependencies_dict = analysis.dependencies
 
-        # Get the serialized data (a list)
-        data = serializer.data
+        if not dependencies_dict:
+            paginator = self.pagination_class()
+            return paginator.get_paginated_response([])
 
-        # Paginate the list (Have to do this manually since this is a custom action)
+        # Get paginator
         paginator = self.pagination_class()
-        paginated_data = paginator.paginate_queryset(data, request, view=self)
+
+        # Get workflow result IDs and create an ordered list for pagination
+        # The dependencies dict maps subject_id -> workflow_result_id
+        workflow_result_ids = list(dependencies_dict.values())
+
+        # Paginate the IDs list first (before fetching/serializing)
+        page_ids = paginator.paginate_queryset(workflow_result_ids, request, view=self)
+
+        # Create a filtered dependencies dict with only the page items
+        page_ids_set = set(page_ids)
+        paginated_deps = {k: v for k, v in dependencies_dict.items() if v in page_ids_set}
+
+        # Use the serializer to handle fetching and serialization (with optimized queries)
+        serializer = DependencyV2ListSerializer(paginated_deps, context={'request': request})
+        page_data = serializer.data
 
         # Return paginated response
-        return paginator.get_paginated_response(paginated_data)
+        return paginator.get_paginated_response(page_data)
 
     @extend_schema(request=None)
     @action(detail=True, methods=['GET'], url_path="files", url_name="folder")
@@ -239,8 +309,24 @@ class ResultView(
                 {"message": "This analysis does not have a folder."},
                 status=status.HTTP_404_NOT_FOUND
             )
+
+        # Prefetch related users to avoid N+1 queries
+        manifests = folder.files.select_related('created_by', 'updated_by').all()
+
         return Response({
             manifest.filename: ManifestV2Serializer(manifest,
                                                     context={"request": request}).data
-            for manifest in folder.files.all()
+            for manifest in manifests
         })
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        return super().perform_destroy(instance)
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        return super().perform_update(serializer)
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        return super().perform_create(serializer)
