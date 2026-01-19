@@ -141,8 +141,7 @@ class WorkflowImplementation:
         dependencies = {}
 
     class Parameters(pydantic.BaseModel):
-        class Config:
-            extra = "forbid"
+        model_config = pydantic.ConfigDict(extra="forbid")
 
     def __init__(self, **kwargs):
         self._kwargs = self.Parameters(**kwargs)
