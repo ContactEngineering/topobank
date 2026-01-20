@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+from django.db import transaction
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, extend_schema
 from rest_framework import mixins, status, viewsets
@@ -187,6 +188,7 @@ class PermissionSetViewSet(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
     tags=["authorization"],
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def plugins_available(request):
     from .utils import get_user_available_plugins
 
@@ -212,6 +214,7 @@ def plugins_available(request):
     tags=["authorization"],
 )
 @api_view(["POST"])
+@transaction.atomic
 def grant_user(request, id: int):
     permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
@@ -251,6 +254,7 @@ def grant_user(request, id: int):
     tags=["authorization"],
 )
 @api_view(["POST"])
+@transaction.atomic
 def revoke_user(request, id: int):
     permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
@@ -280,6 +284,7 @@ def revoke_user(request, id: int):
     tags=["authorization"],
 )
 @api_view(["POST"])
+@transaction.atomic
 def grant_organization(request, id: int):
     permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions
@@ -319,6 +324,7 @@ def grant_organization(request, id: int):
     tags=["authorization"],
 )
 @api_view(["POST"])
+@transaction.atomic
 def revoke_organization(request, id: int):
     permission_set = get_object_or_404(PermissionSet, pk=id)
     # The user needs 'full' permission to modify permissions

@@ -1,3 +1,4 @@
+from django.db import transaction
 from drf_spectacular.utils import OpenApiTypes, extend_schema
 from rest_framework.decorators import api_view
 from rest_framework.response import Response
@@ -10,6 +11,7 @@ from rest_framework.reverse import reverse
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def entry_points(request):
     e = {
         "analysis": reverse("analysis:result-list", request=request),

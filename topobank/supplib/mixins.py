@@ -124,3 +124,42 @@ class UserUpdateMixin:
         # Set the field on the instance then call super() to maintain MRO chain
         serializer.instance.updated_by = self.request.user
         return super().perform_update(serializer)
+
+
+class FilterDistinctMixin:
+    """
+    Mixin for viewsets that need to apply .distinct() when certain filters are used.
+
+    When filters create JOINs through ManyToMany relationships, duplicate rows
+    can appear if a model has multiple related objects matching the filter. This mixin detects
+    when such filters are present and applies .distinct() to deduplicate results.
+
+    Usage:
+        class MyViewSet(FilterDistinctMixin, viewsets.ModelViewSet):
+            distinct_filter_params = ['tag', 'tag_startswith']
+    """
+    # Subclasses should define which query params trigger distinct()
+    distinct_filter_params = []
+
+    def filter_queryset(self, queryset):
+        """
+        Apply filters and conditionally add .distinct() for specified filters.
+
+        When filters are present in query params, they can create ManyToMany JOINs
+        that can produce duplicate rows. We apply .distinct() to deduplicate these
+        results only when necessary to maintain performance.
+        """
+        # Let the parent class and filter backends apply filters
+        queryset = super().filter_queryset(queryset)
+
+        # Check if any specified filters are present in query params
+        filters_present = any(
+            param in self.request.query_params
+            for param in self.distinct_filter_params
+        )
+
+        if filters_present:
+            # Apply distinct to remove duplicates from ManyToMany JOINs
+            queryset = queryset.distinct()
+
+        return queryset
