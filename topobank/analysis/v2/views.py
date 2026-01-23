@@ -107,15 +107,9 @@ class ResultView(
     filterset_class = ResultViewFilterSet
 
     def get_queryset(self):
-        # First, get IDs of accessible results (with deduplication)
-        # This avoids expensive DISTINCT on all WorkflowResult columns
-        accessible_ids = WorkflowResult.objects.for_user(self.request.user).values_list('id', flat=True).distinct()
-
-        # Then fetch full result objects for those IDs, ordered by task_start_time
-        # This query is faster because it doesn't need JOINs with permission tables
-        qs = WorkflowResult.objects.filter(
-            id__in=accessible_ids
-        ).select_related(
+        # PermissionFilterBackend handles permission filtering with two-step optimization
+        # We just apply business logic filters and optimizations here
+        qs = WorkflowResult.objects.select_related(
             "function",
             "subject_dispatch__tag",
             "subject_dispatch__topography",

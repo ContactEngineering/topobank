@@ -14,7 +14,7 @@ from rest_framework.request import Request
 from rest_framework.response import Response
 
 from topobank.manager.v2.filters import SurfaceViewFilterSet, TopographyViewFilterSet
-from topobank.supplib.mixins import FilterDistinctMixin, UserUpdateMixin
+from topobank.supplib.mixins import UserUpdateMixin
 from topobank.supplib.pagination import TopobankPaginator
 
 from ...authorization.models import PermissionSet
@@ -30,13 +30,12 @@ from .serializers import (
 )
 
 
-class SurfaceViewSet(FilterDistinctMixin, UserUpdateMixin, viewsets.ModelViewSet):
+class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
     serializer_class = SurfaceV2Serializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
     pagination_class = TopobankPaginator
     filter_backends = [PermissionFilterBackend, backends.DjangoFilterBackend]
     filterset_class = SurfaceViewFilterSet
-    distinct_filter_params = ['tag', 'tag_startswith', 'tag_contains', 'has_tags']
 
     def _notify(self, instance, verb):
         user = self.request.user
@@ -50,16 +49,10 @@ class SurfaceViewSet(FilterDistinctMixin, UserUpdateMixin, viewsets.ModelViewSet
             )
 
     def get_queryset(self):
-        # First, get IDs of accessible surfaces (with deduplication)
-        # This avoids expensive DISTINCT on all ~30 columns
-        accessible_ids = Surface.objects.for_user(self.request.user).filter(
-            deletion_time__isnull=True
-        ).values_list('id', flat=True).distinct()
-
-        # Then fetch full surface objects for those IDs, ordered by name
-        # This query is faster because it doesn't need JOINs with permission tables
+        # PermissionFilterBackend handles permission filtering with two-step optimization
+        # We just apply business logic filters and optimizations here
         return Surface.objects.filter(
-            id__in=accessible_ids
+            deletion_time__isnull=True
         ).select_related(
             'permissions',
             'created_by',
@@ -121,25 +114,18 @@ class SurfaceViewSet(FilterDistinctMixin, UserUpdateMixin, viewsets.ModelViewSet
         responses={200: TopographyV2Serializer},
     )
 )
-class TopographyViewSet(FilterDistinctMixin, UserUpdateMixin, viewsets.ModelViewSet):
+class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
     serializer_class = TopographyV2Serializer
     permission_classes = [IsAuthenticatedOrReadOnly, ObjectPermission]
     pagination_class = TopobankPaginator
     filter_backends = [PermissionFilterBackend, backends.DjangoFilterBackend]
     filterset_class = TopographyViewFilterSet
-    distinct_filter_params = ['tag', 'tag_startswith']
 
     def get_queryset(self):
-        # First, get IDs of accessible topographies (with deduplication)
-        # This avoids expensive DISTINCT on all 50+ columns
-        accessible_ids = Topography.objects.for_user(self.request.user).filter(
-            Q(deletion_time__isnull=True) & Q(surface__deletion_time__isnull=True)
-        ).values_list('id', flat=True).distinct()
-
-        # Then fetch full topography objects for those IDs, ordered by name
-        # This query is faster because it doesn't need JOINs with permission tables
+        # PermissionFilterBackend handles permission filtering with two-step optimization
+        # We just apply business logic filters and optimizations here
         return Topography.objects.filter(
-            id__in=accessible_ids
+            Q(deletion_time__isnull=True) & Q(surface__deletion_time__isnull=True)
         ).select_related(
             'surface',
             'permissions',
@@ -148,7 +134,9 @@ class TopographyViewSet(FilterDistinctMixin, UserUpdateMixin, viewsets.ModelView
             'owned_by',
             'attachments',
             'thumbnail',
+            'datafile',
             'deepzoom',
+            'squeezed_datafile',
         ).prefetch_related(
             'tags',
             'permissions__user_permissions',
@@ -171,7 +159,30 @@ class TopographyViewSet(FilterDistinctMixin, UserUpdateMixin, viewsets.ModelView
                 request.user._cached_group_ids = list(
                     request.user.groups.values_list('id', flat=True)
                 )
-        return super().list(request, *args, **kwargs)
+
+        # Get the filtered queryset and paginate it
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+
+        # Build permission cache for the objects we'll serialize to avoid repeated get_for_user() calls
+        # This is the critical optimization: compute permissions once per unique PermissionSet
+        permission_cache = {}
+        if request.user.is_authenticated:
+            # Use the page if available, otherwise the full queryset
+            objects_to_cache = page if page is not None else queryset
+            for obj in objects_to_cache:
+                # Only compute if we haven't seen this PermissionSet before
+                if obj.permissions_id not in permission_cache:
+                    permission_cache[obj.permissions_id] = obj.permissions.get_for_user(request.user)
+
+        # Serialize with the permission cache in context
+        context = {'permission_cache': permission_cache, 'request': request}
+        if page is not None:
+            serializer = self.get_serializer(page, many=True, context=context)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True, context=context)
+        return Response(serializer.data)
 
     @transaction.atomic
     def perform_destroy(self, instance):

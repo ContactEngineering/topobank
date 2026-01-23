@@ -49,6 +49,84 @@ def levels_with_access(perm: ViewEditFull) -> set:
     return retval
 
 
+def _filter_for_user(
+    queryset: QuerySet,
+    user: User,
+    permission: ViewEditFull,
+    prefix: str = ""
+) -> QuerySet:
+    """
+    Shared implementation for filtering querysets by user permission.
+
+    Args:
+        queryset: The queryset to filter
+        user: The user to check permissions for
+        permission: The permission level to check
+        prefix: Field prefix for permission lookups (e.g., "permissions__" or "")
+
+    Note: This implementation uses UNION queries to optimize performance
+    when filtering permissions, avoiding expensive OR conditions.
+    Union queries come with some limitations (e.g., no further filtering after union),
+    so we materialize IDs and return a regular filtered queryset at the end.
+    """
+    # Cache user groups to prevent query re-evaluation and improve query plan stability
+    if not hasattr(user, '_cached_group_ids'):
+        user._cached_group_ids = list(user.groups.values_list('id', flat=True))
+    user_group_ids = user._cached_group_ids
+
+    # Build field names with prefix
+    user_perm_user = f"{prefix}user_permissions__user"
+    user_perm_allow = f"{prefix}user_permissions__allow__in"
+    org_perm_group = f"{prefix}organization_permissions__organization__group_id__in"
+    org_perm_allow = f"{prefix}organization_permissions__allow__in"
+
+    if permission == "view":
+        # Use UNION instead of OR for better query performance
+        # Each branch can use its own optimal index
+
+        # Branch 1: Anonymous user can view
+        qs_anonymous = queryset.filter(**{user_perm_user: get_anonymous_user()})
+
+        # Branch 2: Direct user permission
+        qs_user = queryset.filter(**{user_perm_user: user})
+
+        # Branch 3: Organization permission (only if user belongs to groups)
+        if user_group_ids:
+            qs_org = queryset.filter(**{org_perm_group: user_group_ids})
+            # UNION all three branches
+            union_qs = qs_anonymous.union(qs_user, qs_org)
+        else:
+            # User not in any groups - skip org branch
+            union_qs = qs_anonymous.union(qs_user)
+
+        # Materialize IDs from UNION and return a regular filtered queryset
+        # This allows further filtering/chaining while keeping UNION performance benefits
+        accessible_ids = list(union_qs.values_list('id', flat=True))
+        return queryset.filter(id__in=accessible_ids)
+    else:
+        # For edit/full permissions, check permission levels
+        # No anonymous access for these permission levels
+        allowed_levels = levels_with_access(permission)
+
+        # Branch 1: Direct user permission with level check
+        qs_user = queryset.filter(**{user_perm_user: user, user_perm_allow: allowed_levels})
+
+        # Branch 2: Organization permission with level check (only if user belongs to groups)
+        if user_group_ids:
+            qs_org = queryset.filter(
+                **{org_perm_group: user_group_ids, org_perm_allow: allowed_levels}
+            )
+            # UNION both branches
+            union_qs = qs_user.union(qs_org)
+        else:
+            # User not in any groups - return only user branch (already filterable)
+            return qs_user
+
+        # Materialize IDs from UNION and return a regular filtered queryset
+        accessible_ids = list(union_qs.values_list('id', flat=True))
+        return queryset.filter(id__in=accessible_ids)
+
+
 class PermissionSetManager(models.Manager):
     def create(self, user: User = None, allow: ViewEditFullNone = None, **kwargs):
         if user is not None or allow is not None:
@@ -68,36 +146,7 @@ class PermissionSetManager(models.Manager):
 
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
         """Return all PermissionSets where user has at least the given permission level"""
-        # Cache user groups to prevent query re-evaluation and improve query plan stability
-        # Check if already cached (e.g., by viewset list() method)
-        if not hasattr(user, '_cached_group_ids'):
-            user._cached_group_ids = list(user.groups.values_list('id', flat=True))
-        user_group_ids = user._cached_group_ids
-
-        if permission == "view":
-            # We do not need to filter on permission level, just check that there
-            # is some permission for the user
-            return self.filter(
-                # If anonymous has access, anybody can access
-                Q(user_permissions__user=get_anonymous_user())
-                # Direct user access
-                | Q(user_permissions__user=user)
-                # User access through an organization (using group IDs for stable query plans)
-                | Q(organization_permissions__organization__group_id__in=user_group_ids)
-            )
-        else:
-            return self.filter(
-                # Direct user access
-                (
-                    Q(user_permissions__user=user)
-                    & Q(user_permissions__allow__in=levels_with_access(permission))
-                )
-                # User access through an organization (using group IDs for stable query plans)
-                | (
-                    Q(organization_permissions__organization__group_id__in=user_group_ids)
-                    & Q(organization_permissions__allow__in=levels_with_access(permission))
-                )
-            )
+        return _filter_for_user(self, user, permission, prefix="")
 
 
 class PermissionSet(models.Model):
@@ -331,48 +380,7 @@ class OrganizationPermission(models.Model):
 class AuthorizedQuerySet(QuerySet):
     """QuerySet with permission filtering capabilities."""
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
-        # Cache user groups to prevent query re-evaluation and improve query plan stability
-        # Check if already cached (e.g., by viewset list() method)
-        if not hasattr(user, '_cached_group_ids'):
-            user._cached_group_ids = list(user.groups.values_list('id', flat=True))
-        user_group_ids = user._cached_group_ids
-
-        if permission == "view":
-            # We do not need to filter on permission, just check that there
-            # is some permission for the user
-            return self.filter(
-                # If anonymous has access, anybody can access
-                Q(permissions__user_permissions__user=get_anonymous_user())
-                # Direct user access
-                | Q(permissions__user_permissions__user=user)
-                # User access through an organization (using group IDs for stable query plans)
-                | Q(
-                    permissions__organization_permissions__organization__group_id__in=user_group_ids
-                )
-            )
-        else:
-            return self.filter(
-                # Direct user access
-                (
-                    Q(permissions__user_permissions__user=user)
-                    & Q(
-                        permissions__user_permissions__allow__in=levels_with_access(
-                            permission
-                        )
-                    )
-                )
-                # User access through an organization (using group IDs for stable query plans)
-                | (
-                    Q(
-                        permissions__organization_permissions__organization__group_id__in=user_group_ids
-                    )
-                    & Q(
-                        permissions__organization_permissions__allow__in=levels_with_access(
-                            permission
-                        )
-                    )
-                )
-            )
+        return _filter_for_user(self, user, permission, prefix="permissions__")
 
 
 class AuthorizedManager(models.Manager):

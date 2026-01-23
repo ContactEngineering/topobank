@@ -6,6 +6,7 @@ from decimal import Decimal
 import celery.states
 import django.db.models as models
 import pydantic
+from django.core.cache import cache
 from django.utils import timezone
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
@@ -137,6 +138,60 @@ class TaskStateModel(models.Model):
 
         return task_results
 
+    def _get_result_state(self, async_result):
+        """
+        Get state from AsyncResult with Redis caching to avoid repeated Celery queries.
+
+        Args:
+            async_result: Celery AsyncResult object
+
+        Returns:
+            str: Task state from Celery
+        """
+        if async_result is None:
+            return None
+
+        task_id = str(async_result.id)
+        cache_key = f'celery_state:{task_id}'
+
+        # Try to get from cache
+        cached_state = cache.get(cache_key)
+        if cached_state is not None:
+            return cached_state
+
+        # Query Celery and cache for 30 seconds
+        state = async_result.state
+        cache.set(cache_key, state, 30)
+
+        return state
+
+    def _get_result_info(self, async_result):
+        """
+        Get info from AsyncResult with Redis caching to avoid repeated Celery queries.
+
+        Args:
+            async_result: Celery AsyncResult object
+
+        Returns:
+            Task info/result from Celery
+        """
+        if async_result is None:
+            return None
+
+        task_id = str(async_result.id)
+        cache_key = f'celery_info:{task_id}'
+
+        # Try to get from cache
+        cached_info = cache.get(cache_key)
+        if cached_info is not None:
+            return cached_info
+
+        # Query Celery and cache for 30 seconds
+        info = async_result.info
+        cache.set(cache_key, info, 30)
+
+        return info
+
     def get_celery_state(self):
         """Return the state of the task as reported by Celery"""
         # Optimization: If task is in terminal state, return DB value without querying Celery
@@ -145,7 +200,8 @@ class TaskStateModel(models.Model):
 
         # Check if any of the dependent tasks failed
         for r in self.get_async_results():
-            if r.state in celery.states.EXCEPTION_STATES:
+            state = self._get_result_state(r)
+            if state in celery.states.EXCEPTION_STATES:
                 return TaskStateModel.FAILURE
 
         # Check state of current task
@@ -154,8 +210,9 @@ class TaskStateModel(models.Model):
             return TaskStateModel.NOTRUN
         else:
             r = self.get_async_result()
+            state = self._get_result_state(r)
             try:
-                state = self._CELERY_STATE_MAP[r.state]
+                state = self._CELERY_STATE_MAP[state]
             except KeyError:
                 # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted
                 # as a running task
@@ -246,22 +303,24 @@ class TaskStateModel(models.Model):
         total = 0
         current = 0
         for r in task_results:
+            # Use cached state and info to avoid repeated Celery queries
+            state = self._get_result_state(r)
+            info = self._get_result_info(r)
+
             # First check for errors
-            if r.state in celery.states.EXCEPTION_STATES or isinstance(
-                r.info, Exception
-            ):
+            if state in celery.states.EXCEPTION_STATES or isinstance(info, Exception):
                 # Some of the tasks failed, we return no progress
                 return None
-            elif r.state == celery.states.SUCCESS:
+            elif state == celery.states.SUCCESS:
                 total += 1
                 current += 1
-            elif r.state == celery.states.PENDING:
+            elif state == celery.states.PENDING:
                 total += 1
-            elif r.info:
+            elif info:
                 # We assume that the state is 'PROGRESS' and we can just extract the
                 # progress dictionary.
                 try:
-                    task_progress = ProgressRecorder.Model(**r.info)
+                    task_progress = ProgressRecorder.Model(**info)
                 except pydantic.ValidationError:
                     _log.info(
                         f"Validation of progress dictionary for task {r} of analysis "
@@ -297,20 +356,22 @@ class TaskStateModel(models.Model):
 
         messages = []
         for r in task_results:
+            # Use cached state and info to avoid repeated Celery queries
+            state = self._get_result_state(r)
+            info = self._get_result_info(r)
+
             # First check for errors
-            if r.state in celery.states.EXCEPTION_STATES or isinstance(
-                r.info, Exception
-            ):
+            if state in celery.states.EXCEPTION_STATES or isinstance(info, Exception):
                 # Some of the tasks failed, we return no progress message
                 return None
-            elif r.state == celery.states.SUCCESS or r.state == celery.states.PENDING:
+            elif state == celery.states.SUCCESS or state == celery.states.PENDING:
                 # Task finished or is pending, no progress message
                 pass
-            elif r.info:
+            elif info:
                 # We assume that the state is 'PROGRESS' and we can just extract the
                 # progress dictionary.
                 try:
-                    task_progress = ProgressRecorder.Model(**r.info)
+                    task_progress = ProgressRecorder.Model(**info)
                 except pydantic.ValidationError:
                     _log.info(
                         f"Validation of progress dictionary for task {r} of analysis "
@@ -353,11 +414,13 @@ class TaskStateModel(models.Model):
 
         # If there is none, check Celery
         for r in self.get_async_results():
+            # Use cached info to avoid repeated Celery queries
+            info = self._get_result_info(r)
             # We simply fail with the first error we encounter
-            if r and isinstance(r.info, Exception):
+            if r and isinstance(info, Exception):
                 # Generate error string
                 self.task_state = self.FAILURE
-                self.task_error = str(r.info).replace('\x00', '')
+                self.task_error = str(info).replace('\x00', '')
                 # There seems to be an error, store for future reference
                 self.save(update_fields=["task_state", "task_error"])
                 return self.task_error

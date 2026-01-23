@@ -106,6 +106,71 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
                 self.fields.pop(field_name)
 
 
+class CachedUrlRelatedField(serializers.RelatedField):
+    """
+    Base class for RelatedField subclasses that need cached URL template generation.
+
+    Provides URL template caching to avoid repeated expensive reverse() calls.
+    Subclasses should set `view_name` and `lookup_field` attributes, then can use
+    `_get_url_template()` to efficiently generate URLs for multiple objects.
+
+    Class Attributes
+    ----------------
+    _url_template_cache : dict
+        Class-level cache for URL templates, keyed by (view_name, host, lookup_field).
+        This avoids calling reverse() for every object - just once per unique combination.
+    """
+
+    _url_template_cache = {}  # Class-level cache keyed by (view_name, host, lookup_field)
+
+    def __init__(self, view_name=None, lookup_field="pk", **kwargs):
+        self.view_name = view_name
+        self.lookup_field = lookup_field
+        super().__init__(**kwargs)
+
+    def _get_url_template(self, request):
+        """
+        Get cached URL template for this view_name.
+
+        Builds the URL template once using reverse() with a placeholder,
+        then caches it at the class level keyed by (view_name, host).
+        This dramatically reduces the number of reverse() calls from 200+
+        to just a handful per request.
+
+        Parameters
+        ----------
+        request : Request
+            The DRF request object
+
+        Returns
+        -------
+        str or None
+            URL template string with placeholder, or None if caching failed
+        """
+        # Build cache key including host to support multi-domain setups
+        host = request.get_host() if request else 'default'
+        cache_key = (self.view_name, host, self.lookup_field)
+
+        # Check if template is already cached
+        if cache_key not in self._url_template_cache:
+            try:
+                # Use reverse once with a placeholder ID to get the URL pattern
+                placeholder_value = 999999
+                sample_url = reverse(
+                    self.view_name,
+                    kwargs={self.lookup_field: placeholder_value},
+                    request=request,
+                )
+                # Replace placeholder with Python format placeholder
+                template = sample_url.replace(str(placeholder_value), '{%s}' % self.lookup_field)
+                self._url_template_cache[cache_key] = template
+            except Exception:
+                # If template building fails, cache None to avoid retrying
+                self._url_template_cache[cache_key] = None
+
+        return self._url_template_cache[cache_key]
+
+
 @extend_schema_field(
     {
         "type": "object",
@@ -117,7 +182,7 @@ class DynamicFieldsModelSerializer(serializers.ModelSerializer):
         "required": ["id", "url", "allow"],
     }
 )
-class PermissionsField(serializers.RelatedField):
+class PermissionsField(CachedUrlRelatedField):
     """
     A specialized Django REST Framework field for serializing permission sets.
 
@@ -175,6 +240,7 @@ class PermissionsField(serializers.RelatedField):
       the permission level for the given user
     - This field requires a request context to determine the current user
     - This field is typically read-only as permissions are managed separately
+    - URL templates are cached at the class level for performance
     """
 
     def __init__(
@@ -183,14 +249,14 @@ class PermissionsField(serializers.RelatedField):
         lookup_field="pk",
         **kwargs,
     ):
-        self.view_name = view_name
-        self.lookup_field = lookup_field
-        super().__init__(**kwargs)
+        super().__init__(view_name=view_name, lookup_field=lookup_field, **kwargs)
 
     def to_representation(self, obj):
         """
-        Convert the model instance into a dictionary containing
-        both the object's ID and its hyperlinked URL.
+        Convert the model instance into a dictionary (performance optimized).
+
+        Uses cached URL templates to avoid expensive reverse() calls for each object.
+        Uses cached permission results to avoid expensive get_for_user() calls.
 
         Parameters
         ----------
@@ -212,13 +278,27 @@ class PermissionsField(serializers.RelatedField):
 
         url = None
         if lookup_value is not None and self.view_name:
-            url = reverse(
-                self.view_name,
-                kwargs={self.lookup_field: lookup_value},
-                request=request,
-            )
+            # Try to use cached URL template for performance
+            url_template = self._get_url_template(request)
+            if url_template:
+                url = url_template.format(**{self.lookup_field: lookup_value})
+            else:
+                # Fallback to reverse() if caching failed
+                url = reverse(
+                    self.view_name,
+                    kwargs={self.lookup_field: lookup_value},
+                    request=request,
+                )
 
-        return {"id": lookup_value, "url": url, "allow": obj.get_for_user(request.user)}
+        # Try to use cached permission results for performance
+        permission_cache = self.context.get('permission_cache', {})
+        if obj.id in permission_cache:
+            allow = permission_cache[obj.id]
+        else:
+            # Fallback to computing permissions if not cached
+            allow = obj.get_for_user(request.user)
+
+        return {"id": lookup_value, "url": url, "allow": allow}
 
 
 @extend_schema_field(
@@ -230,7 +310,7 @@ class PermissionsField(serializers.RelatedField):
         },
     }
 )
-class ModelRelatedField(serializers.RelatedField):
+class ModelRelatedField(CachedUrlRelatedField):
     """
     A versatile Django REST Framework field for serializing related model instances.
 
@@ -334,6 +414,7 @@ class ModelRelatedField(serializers.RelatedField):
     - Additional fields specified in the 'fields' parameter are only used for
       serialization (output), not deserialization (input)
     - This field requires a request context to generate URLs
+    - URL templates are cached at the class level for performance (avoids 200+ reverse() calls per request)
     """
 
     default_error_messages = {
@@ -350,14 +431,16 @@ class ModelRelatedField(serializers.RelatedField):
         fields=None,
         **kwargs,
     ):
-        self.view_name = view_name
-        self.lookup_field = lookup_field
         self.fields = fields
-        super().__init__(**kwargs)
+        super().__init__(view_name=view_name, lookup_field=lookup_field, **kwargs)
 
     def to_representation(self, obj):
         """
-        Convert the model instance into a dictionary.
+        Convert the model instance into a dictionary (performance optimized).
+
+        Uses cached URL templates to avoid expensive reverse() calls for each object.
+        For a typical list view with 25 objects and 9 related fields, this reduces
+        225 reverse() calls down to just 9 (one per unique view_name).
 
         Parameters
         ----------
@@ -376,14 +459,23 @@ class ModelRelatedField(serializers.RelatedField):
                 ...
             }
         """
-        data = {
-            "id": obj.pk,
-            "url": reverse(
+        lookup_value = getattr(obj, self.lookup_field)
+        request = self.context.get("request", None)
+
+        # Try to use cached URL template for performance
+        url_template = self._get_url_template(request)
+        if url_template:
+            # Fast path: use string formatting instead of reverse()
+            url = url_template.format(**{self.lookup_field: lookup_value})
+        else:
+            # Fallback: use reverse() if template caching failed
+            url = reverse(
                 self.view_name,
-                kwargs={self.lookup_field: getattr(obj, self.lookup_field)},
-                request=self.context.get("request", None),
+                kwargs={self.lookup_field: lookup_value},
+                request=request,
             )
-        }
+
+        data = {"id": obj.pk, "url": url}
         if self.fields:
             # Include additional specified fields
             for field in self.fields:
