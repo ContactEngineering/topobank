@@ -2,9 +2,12 @@ import json
 from typing import Dict
 
 import numpy as np
+import pydantic
 from django.core.files.base import ContentFile
 
 from ..analysis.models import Workflow
+from ..analysis.outputs import OutputFile
+from ..analysis.registry import register_implementation
 from ..analysis.workflows import VIZ_SERIES, WorkflowDefinition, WorkflowImplementation
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.json import ExtendedJSONEncoder
@@ -256,3 +259,60 @@ class TestImplementationWithErrorInDependency(WorkflowImplementation):
         progress_recorder=None,
     ):
         return
+
+
+class TestResultSchema(pydantic.BaseModel):
+    """Result schema for TestImplementationWithOutputs."""
+
+    predicted_value: float
+    predicted_error: float
+    confidence: float = 0.95
+
+
+class TestMetadataSchema(pydantic.BaseModel):
+    """Metadata schema for TestImplementationWithOutputs."""
+
+    model_name: str
+    version: int
+
+
+@register_implementation
+class TestImplementationWithOutputs(WorkflowImplementation):
+    """
+    Test implementation that declares output schemas.
+    Used for testing the Outputs class functionality.
+    """
+
+    class Meta:
+        name = "topobank.testing.test_with_outputs"
+        display_name = "Test implementation with outputs"
+        visualization_type = VIZ_SERIES
+
+        implementations = {
+            Topography: "topography_implementation",
+        }
+
+    class Parameters(WorkflowImplementation.Parameters):
+        model_id: int = 0
+
+    class Outputs:
+        result = TestResultSchema
+        files = {
+            "model.nc": OutputFile(
+                file_type="netcdf",
+                description="Trained model in NetCDF format",
+            ),
+            "metadata.json": OutputFile(
+                file_type="json",
+                description="Model metadata",
+                schema=TestMetadataSchema,
+                optional=True,
+            ),
+        }
+
+    def topography_implementation(self, analysis, progress_recorder=None):
+        return {
+            "predicted_value": 1.5,
+            "predicted_error": 0.1,
+            "confidence": 0.95,
+        }

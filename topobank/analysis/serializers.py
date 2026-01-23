@@ -45,6 +45,7 @@ class WorkflowSerializer(
             "display_name",
             "visualization_type",
             "kwargs_schema",
+            "outputs_schema",
         ]
 
     url = serializers.HyperlinkedIdentityField(
@@ -55,6 +56,8 @@ class WorkflowSerializer(
 
     kwargs_schema = serializers.SerializerMethodField()
 
+    outputs_schema = serializers.SerializerMethodField()
+
     @extend_schema_field(serializers.CharField())
     def get_visualization_type(self, obj):
         return get_visualization_type(name=obj.name)
@@ -62,6 +65,10 @@ class WorkflowSerializer(
     @extend_schema_field(serializers.DictField())
     def get_kwargs_schema(self, obj):
         return obj.get_kwargs_schema()
+
+    @extend_schema_field(serializers.DictField())
+    def get_outputs_schema(self, obj):
+        return obj.get_outputs_schema()
 
 
 class SubjectSerializer(

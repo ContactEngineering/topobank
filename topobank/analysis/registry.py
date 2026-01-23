@@ -112,9 +112,15 @@ def register_implementation(klass):
     klass: AnalysisImplementation
         Runner class that has the Python function which implements the analysis, and
         additional metadata
+
+    Returns
+    -------
+    klass
+        The registered class (to support use as a decorator)
     """
     _implementation_classes_by_display_name[klass.Meta.display_name] = klass
     _implementation_classes_by_name[klass.Meta.name] = klass
+    return klass
 
 
 def get_implementation(display_name=None, name=None):

@@ -16,6 +16,7 @@ from django.conf import settings
 from ..manager.models import Surface, Topography
 from ..supplib.dict import SplitDictionaryHere
 from .models import Workflow
+from .outputs import get_outputs_schema
 from .registry import WorkflowNotImplementedException
 
 _log = logging.getLogger(__name__)
@@ -143,6 +144,9 @@ class WorkflowImplementation:
     class Parameters(pydantic.BaseModel):
         model_config = pydantic.ConfigDict(extra="forbid")
 
+    # Optional outputs declaration - subclasses can define an Outputs class
+    Outputs = None
+
     def __init__(self, **kwargs):
         self._kwargs = self.Parameters(**kwargs)
 
@@ -177,6 +181,20 @@ class WorkflowImplementation:
                 return {}
         else:
             return cls.Parameters(**kwargs).model_dump(exclude_unset=not fill_missing)
+
+    @classmethod
+    def get_outputs_schema(cls) -> dict:
+        """
+        Get JSON schema for declared outputs.
+
+        Returns
+        -------
+        dict
+            A dictionary with keys:
+            - "result_schema": JSON schema for the main result (or None)
+            - "files": List of file descriptors with their schemas
+        """
+        return get_outputs_schema(getattr(cls, "Outputs", None))
 
     def get_implementation(self, model_class):
         """Returns the implementation function for a specific subject model"""

@@ -640,6 +640,22 @@ class Workflow(models.Model):
         """
         return self.implementation.Parameters().model_json_schema()
 
+    def get_outputs_schema(self) -> dict:
+        """
+        JSON schema describing workflow outputs.
+
+        Returns
+        -------
+        dict
+            A dictionary with keys:
+            - "result_schema": JSON schema for the main result (or None)
+            - "files": List of file descriptors with their schemas
+        """
+        impl = self.implementation
+        if impl is not None and hasattr(impl, "get_outputs_schema"):
+            return impl.get_outputs_schema()
+        return {"result_schema": None, "files": []}
+
     def clean_kwargs(self, kwargs: Union[dict, None], fill_missing: bool = True):
         """
         Validate keyword arguments (parameters) and return validated dictionary
