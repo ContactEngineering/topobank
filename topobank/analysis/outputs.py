@@ -3,9 +3,7 @@ Output schema infrastructure for workflow implementations.
 
 This module provides the `OutputFile` descriptor and `get_outputs_schema()` function
 to declare and document workflow outputs a-priori. Workflows can use an inner `Outputs`
-class to specify:
-1. A main result schema (Pydantic model for result.json)
-2. Additional output files with their types and optional schemas
+class to specify output files with their types and optional schemas.
 """
 
 from dataclasses import dataclass
@@ -37,7 +35,7 @@ class OutputFile:
     optional: bool = False
 
 
-def get_outputs_schema(outputs_class) -> dict:
+def get_outputs_schema(outputs_class) -> list:
     """
     Generate JSON schema from an Outputs class.
 
@@ -48,19 +46,13 @@ def get_outputs_schema(outputs_class) -> dict:
 
     Returns
     -------
-    dict
-        A dictionary with keys:
-        - "result_schema": JSON schema for the main result (or None)
-        - "files": List of file descriptors with their schemas
+    list
+        List of file descriptors with their schemas
     """
-    schema = {"result_schema": None, "files": []}
+    schema = []
 
     if outputs_class is None:
         return schema
-
-    # Result schema (main result.json structure)
-    if hasattr(outputs_class, "result") and outputs_class.result is not None:
-        schema["result_schema"] = outputs_class.result.model_json_schema()
 
     # File descriptors for additional output files
     if hasattr(outputs_class, "files") and outputs_class.files:
@@ -74,6 +66,6 @@ def get_outputs_schema(outputs_class) -> dict:
             }
             if descriptor.schema is not None:
                 file_info["schema"] = descriptor.schema.model_json_schema()
-            schema["files"].append(file_info)
+            schema.append(file_info)
 
     return schema

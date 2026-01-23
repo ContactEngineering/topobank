@@ -6,6 +6,7 @@ The first argument is either a Topography or Surface instance (model).
 
 import collections
 import logging
+import warnings
 from dataclasses import dataclass
 from typing import Union
 
@@ -156,7 +157,14 @@ class WorkflowImplementation:
 
     def eval(self, analysis, **auxiliary_kwargs):
         implementation = self.get_implementation(analysis.subject.__class__)
-        return implementation(analysis, **auxiliary_kwargs)
+        result = implementation(analysis, **auxiliary_kwargs)
+        if result is not None:
+            warnings.warn(
+                f"Workflow implementation '{self.Meta.name}' returned a result of type {type(result)}. "
+                f"Returning results from workflows is deprecated. Please store results as files instead.",
+                DeprecationWarning,
+            )
+        return result
 
     @classmethod
     def clean_kwargs(cls, kwargs: Union[dict, None], fill_missing: bool = True):
@@ -183,16 +191,14 @@ class WorkflowImplementation:
             return cls.Parameters(**kwargs).model_dump(exclude_unset=not fill_missing)
 
     @classmethod
-    def get_outputs_schema(cls) -> dict:
+    def get_outputs_schema(cls) -> list:
         """
         Get JSON schema for declared outputs.
 
         Returns
         -------
-        dict
-            A dictionary with keys:
-            - "result_schema": JSON schema for the main result (or None)
-            - "files": List of file descriptors with their schemas
+        list
+            List of file descriptors with their schemas
         """
         return get_outputs_schema(getattr(cls, "Outputs", None))
 
