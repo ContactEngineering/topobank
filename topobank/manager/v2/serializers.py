@@ -103,7 +103,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
 
     # Everything else
     tags = TagRelatedManagerField(required=False)
-    is_metadata_complete = serializers.SerializerMethodField()
+    is_metadata_complete = serializers.BooleanField(read_only=True)
 
     def validate(self, data):
         # Map fields to their editability checks
@@ -147,9 +147,6 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
                 request=self.context["request"],
             ),
         }
-
-    def get_is_metadata_complete(self, obj: Topography) -> bool:
-        return obj.is_metadata_complete
 
     def update(self, instance, validated_data):
         try:

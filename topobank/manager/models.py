@@ -21,7 +21,7 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
 from rest_framework.exceptions import PermissionDenied
@@ -1631,5 +1631,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def ensure_task_started(self):
         """Ensures that the task has started running"""
         if self.task_state == "no" and self.datafile is not None:
-            run_task(self)
-            self.save()
+            # Need a transaction here to allow run_task to properly use on_commit hooks.
+            # Note: This should be reworked in the future since this is called via a GET request.
+            with transaction.atomic():
+                run_task(self)
+                self.save()

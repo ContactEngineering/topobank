@@ -75,6 +75,13 @@ CACHES = {
         ),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # Gracefully degrade if Redis is unavailable (prevents request failures)
+            "IGNORE_EXCEPTIONS": True,
+            # Connection timeouts to prevent hanging requests
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5,
+            # Connection pooling for better performance
+            "CONNECTION_POOL_KWARGS": {"max_connections": 50},
         },
     }
     # 'default': {
