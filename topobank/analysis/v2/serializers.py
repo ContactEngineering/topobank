@@ -424,6 +424,12 @@ class DependencyV2ListSerializer(serializers.BaseSerializer):
         workflow_result_ids = list(data.values())
         workflow_results = WorkflowResult.objects.filter(
             id__in=workflow_result_ids
+        ).select_related(
+            'function',
+            'subject_dispatch',
+            'subject_dispatch__tag',
+            'subject_dispatch__topography',
+            'subject_dispatch__surface'
         ).in_bulk()
 
         dependencies_list = []

@@ -88,7 +88,7 @@ if env.bool("USE_PGBOUNCER", default=False):
     # Disable server-side cursors for PgBouncer transaction pooling compatibility
     DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
 
-DATABASES["default"]["ATOMIC_REQUESTS"] = True
+DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
 # CACHES
 # ------------------------------------------------------------------------------

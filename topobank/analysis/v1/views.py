@@ -3,6 +3,7 @@ from collections import defaultdict
 
 import pydantic
 from django.conf import settings
+from django.db import transaction
 from django.db.models import Case, F, Max, Sum, Value, When
 from django.http import HttpResponseBadRequest, HttpResponseForbidden
 from drf_spectacular.utils import (
@@ -107,6 +108,7 @@ class ResultView(
     serializer_class = ResultSerializer
     pagination_class = LimitOffsetPagination
 
+    @transaction.non_atomic_requests
     def list(self, request, *args, **kwargs):
         try:
             controller = AnalysisController.from_request(request, **kwargs)
@@ -129,6 +131,7 @@ class ResultView(
 
         return Response(context)
 
+    @transaction.atomic
     def update(self, request, *args, **kwargs):
         """Renew existing analysis (PUT)."""
         analysis = self.get_object()
@@ -142,6 +145,10 @@ class ResultView(
                 {"message": "Cannot renew named analysis"},
                 status=status.HTTP_403_FORBIDDEN,
             )
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        return super().perform_destroy(instance)
 
 
 @extend_schema(
@@ -158,6 +165,7 @@ class ResultView(
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def dependencies(request, workflow_id):
     analysis = get_object_or_404(WorkflowResult, pk=workflow_id)
     analysis.authorize_user(request.user)
@@ -176,6 +184,7 @@ def dependencies(request, workflow_id):
     responses=ResultSerializer(many=True),
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def pending(request):
     queryset = WorkflowResult.objects.for_user(request.user).filter(
         task_state__in=[WorkflowResult.PENDING, WorkflowResult.STARTED]
@@ -207,6 +216,7 @@ def pending(request):
     responses=ResultSerializer(many=True),
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def named_result(request):
     queryset = WorkflowResult.objects.for_user(request.user)
     name = request.query_params.get("name", None)
@@ -229,6 +239,7 @@ def named_result(request):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def series_card_view(request, **kwargs):
     controller = AnalysisController.from_request(request, **kwargs)
 
@@ -551,6 +562,7 @@ def series_card_view(request, **kwargs):
     responses={200: OpenApiTypes.NONE},
 )
 @api_view(["POST"])
+@transaction.atomic
 def set_name(request, workflow_id: int):
     name = request.data.get("name")
     description = request.data.get("description")
@@ -565,6 +577,7 @@ def set_name(request, workflow_id: int):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def statistics(request):
     stats = {
         "nb_analyses": WorkflowResult.objects.count(),
@@ -583,6 +596,7 @@ def statistics(request):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def memory_usage(request):
     m = defaultdict(list)
     for function_id, function_name in Workflow.objects.values_list(
@@ -675,6 +689,7 @@ def memory_usage(request):
     responses={200: OpenApiTypes.NONE, 204: OpenApiTypes.NONE, 405: OpenApiTypes.OBJECT},
 )
 @api_view(["PATCH"])
+@transaction.atomic
 def set_result_permissions(request, workflow_id=None):
     analysis_obj = WorkflowResult.objects.get(pk=workflow_id)
     user = request.user
