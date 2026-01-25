@@ -1,5 +1,4 @@
 import logging
-import sys
 
 from django.db.models import Q
 from django.db.models.signals import post_delete, pre_delete, pre_save
@@ -11,12 +10,6 @@ from ..manager.models import Topography, post_refresh_cache
 from .models import WorkflowResult
 
 _log = logging.getLogger(__name__)
-
-# Detect whether we are running within a Celery worker. This solution was suggested here:
-# https://stackoverflow.com/questions/39003282/how-can-i-detect-whether-im-running-in-a-celery-worker
-_IN_CELERY_WORKER_PROCESS = (
-    sys.argv and sys.argv[0].endswith("celery") and "worker" in sys.argv
-)
 
 
 @receiver(post_delete, sender=WorkflowResult)

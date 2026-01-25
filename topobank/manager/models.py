@@ -6,7 +6,6 @@ import io
 import itertools
 import logging
 import os.path
-import sys
 import tempfile
 from collections import defaultdict
 from typing import List
@@ -37,7 +36,7 @@ from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFul
 from ..files.models import Folder, Manifest
 from ..organizations.models import Organization
 from ..taskapp.models import TaskStateModel
-from ..taskapp.utils import run_task
+from ..taskapp.utils import in_celery_worker_process, run_task
 from ..users.models import User
 from .utils import get_topography_reader, render_deepzoom
 
@@ -50,12 +49,6 @@ MAX_LENGTH_DATAFILE_FORMAT = (
     15  # some more characters than currently needed, we may have sub formats in future
 )
 SQUEEZED_DATAFILE_FORMAT = "nc"
-
-# Detect whether we are running within a Celery worker. This solution was suggested here:
-# https://stackoverflow.com/questions/39003282/how-can-i-detect-whether-im-running-in-a-celery-worker
-_IN_CELERY_WORKER_PROCESS = (
-    sys.argv and sys.argv[0].endswith("celery") and "worker" in sys.argv
-)
 
 
 def _get_unit(channel):
@@ -980,7 +973,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             missing artifacts according to the saved parameters.
             (Default: True)
         """
-        if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+        if not in_celery_worker_process() and self.size_y is not None:
             _log.warning(
                 "You are requesting to load a (2D) topography and you are not within in a Celery worker "
                 "process. This operation is potentially slow and may require a lot of memory - do not use "
@@ -1072,7 +1065,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         toporeader = None
         topo = None
         if allow_squeezed and self.squeezed_datafile and apply_filters:
-            if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+            if not in_celery_worker_process() and self.size_y is not None:
                 _log.warning(
                     "You are requesting to load a (2D) topography and you are not within in a Celery worker "
                     "process. This operation is potentially slow and may require a lot of memory - do not use "
