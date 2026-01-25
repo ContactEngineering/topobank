@@ -50,13 +50,11 @@ def delete_all_related_analyses(sender, instance, **kwargs):
         f"Cache of measurement {instance} was renewed: Marking all affected "
         "analyses as invalid..."
     )
-    analyses = WorkflowResult.objects.filter(
+    # Use update() directly for better performance
+    WorkflowResult.objects.filter(
         Q(subject_dispatch__topography=instance)
         | Q(subject_dispatch__surface=instance.surface)
-    )
-    for analysis in analyses:
-        analysis.deprecation_time = timezone.now()
-    WorkflowResult.objects.bulk_update(analyses, ["deprecation_time"])
+    ).update(deprecation_time=timezone.now())
 
 
 @receiver(pre_save, sender=Topography)
@@ -66,9 +64,9 @@ def pre_measurement_save(sender, instance, **kwargs):
         # Measurement was created and added to a dataset: We need to delete the
         # corresponding dataset analysis
         analyses = WorkflowResult.objects.filter(subject_dispatch__surface=instance.surface)
-        if analyses.count() > 0:
+        if analyses.exists():  # More efficient than count() > 0
             ids = ", ".join(
-                [str(i) for i in WorkflowResult.objects.values_list("id", flat=True)]
+                [str(i) for i in analyses.values_list("id", flat=True)]
             )
             _log.debug(
                 "INVALIDATE WORKFLOWS: A measurement was added to dataset "

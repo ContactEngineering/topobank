@@ -1,3 +1,4 @@
+from django.db import transaction
 from django.http import HttpResponseForbidden
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
@@ -40,6 +41,18 @@ class OrganizationViewSet(viewsets.ModelViewSet):
         # Return query set
         return qs.distinct()
 
+    @transaction.atomic
+    def perform_create(self, serializer):
+        serializer.save()
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        serializer.save()
+
+    @transaction.atomic
+    def perform_destroy(self, instance):
+        instance.delete()
+
 
 def get_user_and_organization(request, pk):
     organization = get_object_or_404(Organization, pk=pk)
@@ -63,6 +76,7 @@ def get_user_and_organization(request, pk):
 )
 @api_view(["POST"])
 @permission_classes([OrganizationPermission])
+@transaction.atomic
 def add_user(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
 
@@ -90,6 +104,7 @@ def add_user(request, pk: int):
 )
 @api_view(["POST"])
 @permission_classes([OrganizationPermission])
+@transaction.atomic
 def remove_user(request, pk: int):
     user, organization = get_user_and_organization(request, pk)
 
