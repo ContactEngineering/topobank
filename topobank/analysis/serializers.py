@@ -66,7 +66,7 @@ class WorkflowSerializer(
     def get_kwargs_schema(self, obj):
         return obj.get_kwargs_schema()
 
-    @extend_schema_field(serializers.DictField())
+    @extend_schema_field(serializers.ListField())
     def get_outputs_schema(self, obj):
         return obj.get_outputs_schema()
 
