@@ -2,6 +2,7 @@ import json
 
 import numpy as np
 import xarray
+from pydantic import BaseModel
 
 try:
     import jax.numpy as jnp
@@ -9,6 +10,16 @@ except ModuleNotFoundError:
     jnp = np
 
 from topobank.supplib.json import ExtendedJSONEncoder
+
+
+class SampleModel(BaseModel):
+    name: str
+    value: int
+
+
+class NestedModel(BaseModel):
+    inner: SampleModel
+    items: list[int]
 
 
 def test_json_encoder():
@@ -41,3 +52,31 @@ def test_used_json_encoder_with_nan():
     data = {"x": np.array([np.nan, np.nan])}
     encoded_data = json.dumps(data, cls=ExtendedJSONEncoder)
     assert "null" in encoded_data
+
+
+def test_json_encoder_pydantic_model():
+    """Test that Pydantic models are serialized via model_dump()."""
+    model = SampleModel(name="test", value=42)
+    result = json.dumps(model, cls=ExtendedJSONEncoder)
+    assert result == '{"name": "test", "value": 42}'
+
+
+def test_json_encoder_nested_pydantic_model():
+    """Test that nested Pydantic models are serialized correctly."""
+    model = NestedModel(inner=SampleModel(name="inner", value=1), items=[1, 2, 3])
+    result = json.dumps(model, cls=ExtendedJSONEncoder)
+    assert result == '{"inner": {"name": "inner", "value": 1}, "items": [1, 2, 3]}'
+
+
+def test_json_encoder_pydantic_model_in_list():
+    """Test that Pydantic models inside lists are serialized."""
+    models = [SampleModel(name="a", value=1), SampleModel(name="b", value=2)]
+    result = json.dumps(models, cls=ExtendedJSONEncoder)
+    assert result == '[{"name": "a", "value": 1}, {"name": "b", "value": 2}]'
+
+
+def test_json_encoder_pydantic_model_in_dict():
+    """Test that Pydantic models inside dicts are serialized."""
+    data = {"model": SampleModel(name="test", value=42), "other": "value"}
+    result = json.dumps(data, cls=ExtendedJSONEncoder)
+    assert result == '{"model": {"name": "test", "value": 42}, "other": "value"}'
