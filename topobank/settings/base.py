@@ -66,28 +66,6 @@ else:
         }
     }
 
-# Check if we should use pgbouncer
-if env.bool("USE_PGBOUNCER", default=False):
-    # PgBouncer configuration - use pgbouncer for connection pooling
-    DATABASES["default"]["HOST"] = env("PGBOUNCER_HOST", default="pgbouncer")
-    DATABASES["default"]["PORT"] = env.int("PGBOUNCER_PORT", default=6432)
-
-    # Disable persistent connections - pgbouncer handles connection pooling
-    DATABASES["default"]["CONN_MAX_AGE"] = 0
-
-    # Connection options for pgbouncer compatibility
-    DATABASES["default"]["OPTIONS"] = DATABASES["default"].get("OPTIONS", {})
-    DATABASES["default"]["OPTIONS"].update(
-        {
-            "connect_timeout": 5,
-            # Disable prepared statements for transaction pooling mode
-            "prepare_threshold": 0,
-        }
-    )
-
-    # Disable server-side cursors for PgBouncer transaction pooling compatibility
-    DATABASES["default"]["DISABLE_SERVER_SIDE_CURSORS"] = True
-
 DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
 # CACHES

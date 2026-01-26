@@ -2,38 +2,10 @@
 With these settings, supplib run faster.
 """
 
-# Override USE_PGBOUNCER to False for testing to circumvent pgbouncer
-import os
-
 from .base import *  # noqa
 from .base import env
 
-os.environ["USE_PGBOUNCER"] = "False"
-
-# We must re-evaluate the DATABASES setting because it was already set in base.py.
-# Since we want to circumvent pgbouncer, we just need to make sure DATABASES is
-# correctly pointed to the direct postgres instance.
-
-# Reset DATABASES to the direct connection
-postgres_db = env("POSTGRES_DB", default=None)
-if postgres_db is None:
-    DATABASES = {
-        "default": env.db(
-            "DATABASE_URL", default="postgres://postgres@localhost/topobank-test"
-        )
-    }
-else:
-    DATABASES = {
-        "default": {
-            "ENGINE": "django.db.backends.postgresql",
-            "NAME": postgres_db,
-            "USER": env("POSTGRES_USER"),
-            "PASSWORD": env("POSTGRES_PASSWORD"),
-            "HOST": env("POSTGRES_HOST"),
-            "PORT": env("POSTGRES_PORT"),
-        }
-    }
-DATABASES["default"]["ATOMIC_REQUESTS"] = True
+DATABASES["default"]["ATOMIC_REQUESTS"] = True  # noqa: F405
 
 # GENERAL
 # ------------------------------------------------------------------------------
