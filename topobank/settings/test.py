@@ -5,8 +5,6 @@ With these settings, supplib run faster.
 from .base import *  # noqa
 from .base import env
 
-DATABASES["default"]["ATOMIC_REQUESTS"] = True  # noqa: F405
-
 # GENERAL
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#debug
