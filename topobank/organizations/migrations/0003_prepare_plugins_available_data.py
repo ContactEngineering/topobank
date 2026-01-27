@@ -8,12 +8,12 @@ def clean_plugins_data(_apps, _schema_editor):  # noqa: ARG001
     Extract valid plugin names from potentially corrupted data.
 
     Handles various corrupted formats:
-    - Character-by-character arrays: ["{", "s", "d", "s", ...}]
+    - Character-by-character arrays: ["{", "t", "o", "p", ...}]
     - Escaped quotes: "\"{}\"", "\"\\\"{}\\\"\""
-    - Normal CSV: "sds_ml,other_plugin"
-    - PostgreSQL array literals: "{sds_ml}"
+    - Normal CSV: "first_plugin,other_plugin"
+    - PostgreSQL array literals: "{first_plugin}"
 
-    Uses regex to extract valid identifiers (e.g., sds_ml, topobank_statistics).
+    Uses regex to extract valid identifiers (e.g., first_plugin, topobank_statistics).
     """
     from django.db import connection
 
