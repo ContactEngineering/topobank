@@ -6,6 +6,7 @@ The first argument is either a Topography or Surface instance (model).
 
 import collections
 import logging
+import warnings
 from dataclasses import dataclass
 from typing import Union
 
@@ -16,6 +17,7 @@ from django.conf import settings
 from ..manager.models import Surface, Topography
 from ..supplib.dict import SplitDictionaryHere
 from .models import Workflow
+from .outputs import get_outputs_schema
 from .registry import WorkflowNotImplementedException
 
 _log = logging.getLogger(__name__)
@@ -141,8 +143,10 @@ class WorkflowImplementation:
         dependencies = {}
 
     class Parameters(pydantic.BaseModel):
-        class Config:
-            extra = "forbid"
+        model_config = pydantic.ConfigDict(extra="forbid")
+
+    # Optional outputs declaration - subclasses can define an Outputs class
+    Outputs = None
 
     def __init__(self, **kwargs):
         self._kwargs = self.Parameters(**kwargs)
@@ -153,7 +157,14 @@ class WorkflowImplementation:
 
     def eval(self, analysis, **auxiliary_kwargs):
         implementation = self.get_implementation(analysis.subject.__class__)
-        return implementation(analysis, **auxiliary_kwargs)
+        result = implementation(analysis, **auxiliary_kwargs)
+        if result is not None:
+            warnings.warn(
+                f"Workflow implementation '{self.Meta.name}' returned a result of type {type(result)}. "
+                f"Returning results from workflows is deprecated. Please store results as files instead.",
+                DeprecationWarning,
+            )
+        return result
 
     @classmethod
     def clean_kwargs(cls, kwargs: Union[dict, None], fill_missing: bool = True):
@@ -178,6 +189,18 @@ class WorkflowImplementation:
                 return {}
         else:
             return cls.Parameters(**kwargs).model_dump(exclude_unset=not fill_missing)
+
+    @classmethod
+    def get_outputs_schema(cls) -> list:
+        """
+        Get JSON schema for declared outputs.
+
+        Returns
+        -------
+        list
+            List of file descriptors with their schemas
+        """
+        return get_outputs_schema(getattr(cls, "Outputs", None))
 
     def get_implementation(self, model_class):
         """Returns the implementation function for a specific subject model"""

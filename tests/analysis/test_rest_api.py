@@ -164,6 +164,7 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
                     "b": {"default": "foo", "title": "B", "type": "string"},
                 },
             },
+            "outputs_schema": [],
         },
     )
 

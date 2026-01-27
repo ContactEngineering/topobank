@@ -85,6 +85,7 @@ class UserPermissionFactory(factory.django.DjangoModelFactory):
 class PermissionSetFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "authorization.PermissionSet"
+        skip_postgeneration_save = True
         exclude = (
             "user",
             "allow",
