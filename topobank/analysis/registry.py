@@ -138,9 +138,15 @@ def get_implementation(display_name=None, name=None):
         The analysis function
     """
     if display_name is not None:
-        return _implementation_classes_by_display_name[display_name]
+        try:
+            return _implementation_classes_by_display_name[display_name]
+        except KeyError:
+            return None
     elif name is not None:
-        return _implementation_classes_by_name[name]
+        try:
+            return _implementation_classes_by_name[name]
+        except KeyError:
+            return None
     else:
         raise RuntimeError("Please specify either `name` or `display_name`.")
 
