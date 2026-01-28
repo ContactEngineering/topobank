@@ -8,7 +8,7 @@ from django.core.files.base import ContentFile
 from ..analysis.models import Workflow
 from ..analysis.outputs import OutputFile
 from ..analysis.registry import register_implementation
-from ..analysis.workflows import VIZ_SERIES, WorkflowDefinition, WorkflowImplementation
+from ..analysis.workflows import WorkflowDefinition, WorkflowImplementation
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.json import ExtendedJSONEncoder
 
@@ -22,7 +22,6 @@ class TestImplementation(WorkflowImplementation):
     class Meta:
         name = "topobank.testing.test"
         display_name = "Test implementation"
-        visualization_type = VIZ_SERIES
 
         implementations = {
             Topography: "topography_implementation",
@@ -135,7 +134,6 @@ class TopographyOnlyTestImplementation(TestImplementation):
     class Meta:
         name = "topobank.testing.topography_only_test"
         display_name = "Topography-only test implementation"
-        visualization_type = VIZ_SERIES
 
         implementations = {
             Topography: "topography_implementation",
@@ -151,7 +149,6 @@ class SecondTestImplementation(WorkflowImplementation):
     class Meta:
         name = "topobank.testing.test2"
         display_name = "Second test implementation"
-        visualization_type = VIZ_SERIES
 
         implementations = {
             Topography: "topography_implementation",
@@ -200,7 +197,6 @@ class TestImplementationWithError(WorkflowImplementation):
     class Meta:
         name = "topobank.testing.test_error"
         display_name = "Test implementation with error"
-        visualization_type = VIZ_SERIES
 
         implementations = {
             Topography: "topography_implementation",
@@ -228,7 +224,6 @@ class TestImplementationWithErrorInDependency(WorkflowImplementation):
     class Meta:
         name = "topobank.testing.test_error_in_dependency"
         display_name = "Test implementation with error in dependency"
-        visualization_type = VIZ_SERIES
 
         implementations = {
             Topography: "topography_implementation",
@@ -286,7 +281,6 @@ class TestImplementationWithOutputs(WorkflowImplementation):
     class Meta:
         name = "topobank.testing.test_with_outputs"
         display_name = "Test implementation with outputs"
-        visualization_type = VIZ_SERIES
 
         implementations = {
             Topography: "topography_implementation",
