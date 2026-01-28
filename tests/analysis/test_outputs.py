@@ -4,8 +4,11 @@ Tests for workflow output schema infrastructure.
 
 import pydantic
 import pytest
+from rest_framework.request import Request
 
+from topobank.analysis.models import Workflow
 from topobank.analysis.outputs import OutputFile, get_outputs_schema
+from topobank.analysis.serializers import WorkflowDetailSerializer
 from topobank.analysis.workflows import WorkflowImplementation
 
 
@@ -240,16 +243,11 @@ class TestWorkflowSerializerOutputsSchema:
 
     def test_serializer_includes_outputs_schema(self, api_rf):
         """Test that WorkflowSerializer includes outputs_schema field."""
-        from rest_framework.request import Request
-
-        from topobank.analysis.models import Workflow
-        from topobank.analysis.serializers import WorkflowSerializer
-
         workflow = Workflow.objects.get(name="topobank.testing.test_with_outputs")
 
         # Create a mock request
         request = api_rf.get("/")
-        serializer = WorkflowSerializer(workflow, context={"request": Request(request)})
+        serializer = WorkflowDetailSerializer(workflow, context={"request": Request(request)})
         data = serializer.data
 
         assert "outputs_schema" in data
@@ -258,12 +256,8 @@ class TestWorkflowSerializerOutputsSchema:
 
     def test_serializer_empty_outputs_schema(self, api_rf, test_analysis_function):
         """Test that WorkflowSerializer returns empty schema for legacy workflows."""
-        from rest_framework.request import Request
-
-        from topobank.analysis.serializers import WorkflowSerializer
-
         request = api_rf.get("/")
-        serializer = WorkflowSerializer(
+        serializer = WorkflowDetailSerializer(
             test_analysis_function, context={"request": Request(request)}
         )
         data = serializer.data
