@@ -1,4 +1,4 @@
-# Generated manually for plugins_available field type change - Part 2: Schema change with choices
+# Generated manually for plugins_available field type change - Part 2: Schema change
 
 from django.contrib.postgres.fields import ArrayField
 from django.db import migrations, models
@@ -13,6 +13,24 @@ class Migration(migrations.Migration):
     ]
 
     operations = [
+        # Convert clean CSV text to PostgreSQL array
+        migrations.RunSQL(
+            sql="""
+                ALTER TABLE organizations_organization
+                ALTER COLUMN plugins_available TYPE text[]
+                USING CASE
+                    WHEN plugins_available IS NULL OR plugins_available = ''
+                    THEN '{}'::text[]
+                    ELSE string_to_array(plugins_available, ',')
+                END;
+            """,
+            reverse_sql="""
+                ALTER TABLE organizations_organization
+                ALTER COLUMN plugins_available TYPE varchar(255)
+                USING COALESCE(array_to_string(plugins_available, ','), '');
+            """,
+        ),
+        # Update Django's state to reflect the new field type
         migrations.AlterField(
             model_name="organization",
             name="plugins_available",
