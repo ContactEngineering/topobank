@@ -31,7 +31,8 @@ from ..permissions import WorkflowPermissions
 from ..serializers import (
     ConfigurationSerializer,
     ResultSerializer,
-    WorkflowSerializer,
+    WorkflowDetailSerializer,
+    WorkflowListSerializer,
     WorkflowTemplateSerializer,
 )
 from ..utils import filter_and_order_analyses, filter_workflow_templates
@@ -53,17 +54,20 @@ class ConfigurationView(viewsets.GenericViewSet, mixins.RetrieveModelMixin):
 class WorkflowView(viewsets.ReadOnlyModelViewSet):
     lookup_field = "name"
     lookup_value_regex = "[a-z0-9._-]+"
-    serializer_class = WorkflowSerializer
+    serializer_class = WorkflowDetailSerializer
     permission_classes = [WorkflowPermissions]
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return WorkflowListSerializer
+        return super().get_serializer_class()
 
     def get_queryset(self):
         # We need to filter the queryset to exclude functions in the list view
         user = self.request.user
         subject_type = self.request.query_params.get("subject_type", None)
         if subject_type is None:
-            ids = [
-                f.id for f in Workflow.objects.all() if f.has_permission(user)
-            ]
+            ids = [f.id for f in Workflow.objects.all() if f.has_permission(user)]
         else:
             subject_class = demangle_content_type(subject_type)
             ids = [
@@ -172,7 +176,9 @@ def dependencies(request, workflow_id):
     dependencies = {}
     for name, id in analysis.dependencies.items():
         try:
-            dependencies[name] = WorkflowResult.objects.get(pk=id).get_absolute_url(request)
+            dependencies[name] = WorkflowResult.objects.get(pk=id).get_absolute_url(
+                request
+            )
         except WorkflowResult.DoesNotExist:
             dependencies[name] = None
     return Response(dependencies)
@@ -193,7 +199,10 @@ def pending(request):
     for analysis in queryset:
         # We need to get actually state from `get_task_state`, which combines self
         # reported states and states from Celery.
-        if analysis.get_task_state() in {WorkflowResult.PENDING, WorkflowResult.STARTED}:
+        if analysis.get_task_state() in {
+            WorkflowResult.PENDING,
+            WorkflowResult.STARTED,
+        }:
             pending_workflows += [analysis]
     return Response(
         ResultSerializer(
@@ -585,7 +594,9 @@ def statistics(request):
     if not request.user.is_anonymous:
         stats = {
             **stats,
-            "nb_analyses_of_user": WorkflowResult.objects.for_user(request.user).count(),
+            "nb_analyses_of_user": WorkflowResult.objects.for_user(
+                request.user
+            ).count(),
         }
     return Response(stats)
 
@@ -599,9 +610,7 @@ def statistics(request):
 @transaction.non_atomic_requests
 def memory_usage(request):
     m = defaultdict(list)
-    for function_id, function_name in Workflow.objects.values_list(
-        "id", "name"
-    ):
+    for function_id, function_name in Workflow.objects.values_list("id", "name"):
         max_nb_data_pts = Case(
             When(
                 subject_dispatch__surface__isnull=False,
@@ -686,7 +695,11 @@ def memory_usage(request):
         ),
     ],
     request=OpenApiTypes.OBJECT,
-    responses={200: OpenApiTypes.NONE, 204: OpenApiTypes.NONE, 405: OpenApiTypes.OBJECT},
+    responses={
+        200: OpenApiTypes.NONE,
+        204: OpenApiTypes.NONE,
+        405: OpenApiTypes.OBJECT,
+    },
 )
 @api_view(["PATCH"])
 @transaction.atomic

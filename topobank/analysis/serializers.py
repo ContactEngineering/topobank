@@ -32,18 +32,33 @@ class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeri
         return versions
 
 
-class WorkflowSerializer(
+class WorkflowListSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     """Serializer for Workflow model."""
     class Meta:
         model = Workflow
         fields = [
-            "id",
             "url",
             "name",
             "display_name",
-            "visualization_type",
+        ]
+
+    url = serializers.HyperlinkedIdentityField(
+        view_name="analysis:workflow-detail", lookup_field="name", read_only=True
+    )
+
+
+class WorkflowDetailSerializer(
+    StrictFieldMixin, serializers.HyperlinkedModelSerializer
+):
+    """Serializer for Workflow model."""
+    class Meta:
+        model = Workflow
+        fields = [
+            "url",
+            "name",
+            "display_name",
             "kwargs_schema",
             "outputs_schema",
         ]
@@ -51,8 +66,6 @@ class WorkflowSerializer(
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:workflow-detail", lookup_field="name", read_only=True
     )
-
-    visualization_type = serializers.SerializerMethodField()
 
     kwargs_schema = serializers.SerializerMethodField()
 
