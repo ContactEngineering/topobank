@@ -1,20 +1,5 @@
 """
 Registry for collection analysis functions.
-
-Each function has an `visualization_type`, determines the type of standardized
-results an analysis function produces. This standardization applies to
-which files are placed in the S3 under the `data` route of the analysis.
-
-The frontend selects a visualization ui app based on the vizui type, that
-expects certain files to be present. This means the same vizui type is
-visualized by the same frontend app, but it may be produced by a different
-analysis function.
-
-As an example, analyses producing simply x-y plots (height distribution,
-autocorrelationm, power spectrum) have the same visualization type and are
-visualized using the same frontend app.
-
-Frontend apps are implemented as Vue.js components.
 """
 
 import logging
@@ -98,10 +83,6 @@ _app_name = {}
 # key: visualization_type: str, visualization type
 # value: Name of Django app/plugin where the visualization resides
 
-_visualization_type_by_function_name = {}
-# key: name: str, Unique function name,
-# value: visualization_type: str, visualization type
-
 
 def register_implementation(klass):
     """
@@ -170,15 +151,6 @@ def get_analysis_function_names(user=None):
     return list(runner_classes.keys())
 
 
-def get_visualization_type(display_name=None, name=None):
-    """Return visualization type for given function name."""
-    runner_class = get_implementation(display_name=display_name, name=name)
-    try:
-        return runner_class.Meta.visualization_type
-    except AttributeError:
-        return "generic"
-
-
 def sync_implementation_classes(cleanup=False):
     """
     Make sure all analysis functions are represented in database.
@@ -240,94 +212,3 @@ def sync_implementation_classes(cleanup=False):
                 counts["funcs_deleted"] += 1
 
     return counts
-
-
-#
-# Handling of download functions
-#
-
-_download_functions = {}
-# key: (visualization_type, spec, file_format) where
-#
-#      visualization_type: str, visualization type
-#      spec: str, short name for what should be downloaded, e.g. 'results'
-#      file_format: str, e.g. 'txt' or 'xlsx'
-# value: reference to implementation of download function
-
-
-def add_download_function(visualization_type, spec, file_format, func):
-    """Register implementation of a download function.
-
-    You can use the @register_download_function decorator in order to
-    add an implementation to the registry.
-
-    Parameters
-    ----------
-    visualization_type: str
-        visualization type
-    spec: str
-        Short name for what should be downloaded, e.g. 'results'
-    file_format: str
-        File format provided by the iven function
-    func: function
-        Python function which implements the download function
-    """
-
-    key = (visualization_type, spec, file_format)
-
-    # Each implementation should only be defined once
-    if key in _download_functions:
-        raise AlreadyRegisteredException(key)
-
-    _download_functions[key] = func
-
-
-def get_download_function(visualization_type, spec, file_format):
-    """Return Python function for given parameters.
-
-    Parameters
-    ----------
-    visualization_type: str
-        visualization type
-    spec: str
-        Short name for what should be downloaded, e.g. 'results'
-    file_format: str
-        File format provided by the iven function
-
-    Returns
-    -------
-    Reference to Python function of form
-
-       download_func(request, analyses)
-
-    where request: HttpRequest, analyses: sequence of Analysis objects
-
-    The referenced function returns a HttpResponse with a file download.
-    """
-    key = (visualization_type, spec, file_format)
-
-    try:
-        return _download_functions[key]
-    except KeyError as exc:
-        raise UnknownKeyException(key) from exc
-
-
-def register_download_function(visualization_type, spec, file_format):
-    """
-    Decorator for marking a function as a download function.
-
-    Parameters
-    ----------
-    visualization_type: str
-        visualization type.
-    spec: str
-            Short name for what should be downloaded, e.g. 'results'
-    file_format: str
-        File format provided by the given function
-    """
-
-    def register_decorator(func):
-        add_download_function(visualization_type, spec, file_format, func)
-        return func
-
-    return register_decorator

@@ -14,7 +14,6 @@ from .models import (
     WorkflowSubject,
     WorkflowTemplate,
 )
-from .registry import get_visualization_type
 
 
 class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
@@ -74,10 +73,6 @@ class WorkflowDetailSerializer(
     kwargs_schema = serializers.SerializerMethodField()
 
     outputs_schema = serializers.SerializerMethodField()
-
-    @extend_schema_field(serializers.CharField())
-    def get_visualization_type(self, obj):
-        return get_visualization_type(name=obj.name)
 
     @extend_schema_field(serializers.ListField(child=serializers.CharField()))
     def get_subject_types(self, obj):

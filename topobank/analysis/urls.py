@@ -1,11 +1,11 @@
 from django.conf import settings
-from django.urls import path, re_path
+from django.urls import path
 from rest_framework.routers import DefaultRouter, SimpleRouter
 
 import topobank.analysis.v1.views as v1
 import topobank.analysis.v2.views as v2
 
-from . import downloads, workflows
+from . import workflows
 
 router = DefaultRouter() if settings.DEBUG else SimpleRouter()
 router.register(r"api/configuration", v1.ConfigurationView, basename="configuration")
@@ -65,20 +65,6 @@ urlpatterns += [
     # GET
     # * Return memory usage of individual analyses
     path("api/memory-usage/", view=v1.memory_usage, name="memory-usage"),
-    #
-    # Data routes (returned data type is unspecified)
-    #
-    # GET
-    # * Returns a redirect to the actual data file in the storage (S3) system
-    # The files that can be returned depend on the analysis. This route simply
-    # redirects to the storage. It is up to the visualization application to
-    # request the correct files.
-    re_path(
-        r"download/(?P<ids>[\d,]+)/(?P<file_format>\w+)$",
-        view=downloads.download_analyses,
-        name="download",
-    ),
-
     #
     # v2 API routes
     #
