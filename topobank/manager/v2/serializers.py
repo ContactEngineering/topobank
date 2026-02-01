@@ -45,6 +45,7 @@ class TopographyV2Serializer(StrictFieldMixin, TaskStateModelSerializer):
             "task_error",
             "task_progress",
             "task_state",
+            "task_timer",
             "size_editable",
             "unit_editable",
             "height_scale_editable",

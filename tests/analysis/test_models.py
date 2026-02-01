@@ -74,8 +74,9 @@ def test_analysis_function(test_analysis_function):
         kwargs=dict(a=2, b="bar"),
     )
     analysis.folder.remove_files()  # Make sure there are no files
-    result = test_analysis_function.eval(analysis)
-    assert result["comment"] == "Arguments: a is 2 and b is bar"
+    test_analysis_function.eval(analysis)
+    # Results are now stored as files, access via analysis.result
+    assert analysis.result["comment"] == "Arguments: a is 2 and b is bar"
 
 
 @pytest.mark.django_db

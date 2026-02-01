@@ -8,6 +8,7 @@ import django.db.models as models
 import pydantic
 from django.core.cache import cache
 from django.utils import timezone
+from muGrid.Timer import Timer
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
 from .celeryapp import app
@@ -81,6 +82,7 @@ class TaskStateModel(models.Model):
     task_submission_time = models.DateTimeField(null=True)
     task_start_time = models.DateTimeField(null=True)
     task_end_time = models.DateTimeField(null=True)
+    task_timer = models.JSONField(null=True)
 
     @property
     def task_duration(self):
@@ -465,12 +467,14 @@ class TaskStateModel(models.Model):
         try:
             tracemalloc.start()
             tracemalloc.reset_peak()
-            self.task_worker(*args, **kwargs)
+            timer = Timer(str(self.task_id))
+            self.task_worker(*args, timer=timer, **kwargs)
             size, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
             self.task_state = TaskStateModel.SUCCESS
             self.task_memory = peak
             self.task_error = ""
+            self.task_timer = timer.to_dict()
         except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
             self.task_error = "The data file is of an unknown or unsupported format."

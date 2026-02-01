@@ -9,6 +9,7 @@ from django.conf import settings
 from django.db import transaction
 from django.db.models import F
 from django.utils import timezone
+from muGrid.Timer import Timer
 from SurfaceTopography.Support import doi
 from trackstats.models import Period, StatisticByDate, StatisticByDateAndObject
 
@@ -193,12 +194,17 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
     # Save analysis
     analysis.save()
 
-    def save_result(result, task_state, peak_memory=None, dois=set()):
+    def save_result(result, task_state, peak_memory=None, dois=set(), timer=None):
         analysis.task_state = task_state
-        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
+        # Only store result if the implementation returned one; implementations may
+        # store results directly to files instead of returning them
+        if result is not None:
+            store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
         analysis.end_time = timezone.now()  # with timezone
         analysis.task_memory = peak_memory
         analysis.dois = list(dois)  # dois is a set, we need to convert it
+        if timer is not None:
+            analysis.task_timer = timer.to_dict()
         analysis.save()
 
         if peak_memory is not None:
@@ -214,15 +220,17 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
             )
 
     @doi()
-    def evaluate_function(progress_recorder, finished_analyses):
+    def evaluate_function(progress_recorder, timer, finished_analyses):
         if len(finished_analyses) > 0:
             return analysis.eval_self(
                 dependencies=finished_analyses,
                 progress_recorder=progress_recorder,
+                timer=timer,
             )
         else:
             return analysis.eval_self(
                 progress_recorder=progress_recorder,
+                timer=timer,
             )
 
     #
@@ -238,15 +246,17 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
         tracemalloc.start()
         tracemalloc.reset_peak()
         # run actual function
+        timer = Timer(str(self.request.id))
         result = evaluate_function(
             dois=dois,
             progress_recorder=ProgressRecorder(self),
+            timer=timer,
             finished_analyses=finished_dependencies,
         )
         # collect memory usage
         size, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        save_result(result, WorkflowResult.SUCCESS, peak_memory=peak, dois=dois)
+        save_result(result, WorkflowResult.SUCCESS, peak_memory=peak, dois=dois, timer=timer)
     except Exception as exc:
         _log.warning(
             f"{analysis_id}/{self.request.id}: Exception during evaluation: {exc}"

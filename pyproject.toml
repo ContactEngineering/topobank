@@ -163,6 +163,9 @@ dependencies = [
 
     # merging dictionaries
     'mergedeep',
+
+    # Timer
+    'muGrid>=0.105.1',
 ]
 
 [project.optional-dependencies]

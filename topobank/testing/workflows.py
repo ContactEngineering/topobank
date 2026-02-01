@@ -4,12 +4,14 @@ from typing import Dict
 import numpy as np
 import pydantic
 from django.core.files.base import ContentFile
+from muGrid.Timer import Timer
 
-from ..analysis.models import Workflow
+from ..analysis.models import RESULT_FILE_BASENAME, Workflow
 from ..analysis.outputs import OutputFile
 from ..analysis.registry import register_implementation
 from ..analysis.workflows import WorkflowDefinition, WorkflowImplementation
 from ..manager.models import Surface, Tag, Topography
+from ..supplib.dict import store_split_dict
 from ..supplib.json import ExtendedJSONEncoder
 
 
@@ -33,11 +35,14 @@ class TestImplementation(WorkflowImplementation):
         a: int = 1
         b: str = "foo"
 
-    def topography_implementation(self, analysis, progress_recorder=None):
+    def topography_implementation(self, analysis, progress_recorder=None, timer=None):
         topography = analysis.subject
+        if timer is None:
+            timer = Timer("test_implementation")
         if progress_recorder:
             progress_recorder.set_progress(1, 2, "Hello from the test topography workflow!")
-        analysis.folder.save_file("test.txt", "der", ContentFile("Test!!!"))
+        with timer("save_file1"):
+            analysis.folder.save_file("test.txt", "der", ContentFile("Test!!!"))
         fib = dict(
             name="Fibonacci series",
             x=np.array((1, 2, 3, 4, 5, 6, 7, 8)),
@@ -50,17 +55,18 @@ class TestImplementation(WorkflowImplementation):
             y=0.5 ** np.array((1, 2, 3, 4, 5, 6, 7, 8)),
             std_err_y=np.zeros(8),
         )
-        analysis.folder.save_file(
-            "series-0.json",
-            "der",
-            ContentFile(json.dumps(fib, cls=ExtendedJSONEncoder)),
-        )
-        analysis.folder.save_file(
-            "series-1.json",
-            "der",
-            ContentFile(json.dumps(geo, cls=ExtendedJSONEncoder)),
-        )
-        return {
+        with timer("save_file2"):
+            analysis.folder.save_file(
+                "series-0.json",
+                "der",
+                ContentFile(json.dumps(fib, cls=ExtendedJSONEncoder)),
+            )
+            analysis.folder.save_file(
+                "series-1.json",
+                "der",
+                ContentFile(json.dumps(geo, cls=ExtendedJSONEncoder)),
+            )
+        result = {
             "name": "Test result for test function called for topography "
             f"{topography}.",
             "xunit": "m",
@@ -77,12 +83,13 @@ class TestImplementation(WorkflowImplementation):
             "comment": f"Arguments: a is {self._kwargs.a} and b is "
             f"{self._kwargs.b}",
         }
+        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
 
-    def surface_implementation(self, analysis, progress_recorder=None):
+    def surface_implementation(self, analysis, progress_recorder=None, timer=None):
         surface = analysis.subject
         if progress_recorder:
             progress_recorder.set_progress(1, 2, "Hello from the test surface workflow!")
-        return {
+        result = {
             "name": "Test result for test function called for surface {}.".format(
                 surface
             ),
@@ -99,8 +106,9 @@ class TestImplementation(WorkflowImplementation):
             ],
             "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
         }
+        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
 
-    def tag_implementation(self, analysis, progress_recorder=None):
+    def tag_implementation(self, analysis, progress_recorder=None, timer=None):
         tag = analysis.subject
         tag.authorize_user(permissions=analysis.permissions)
         name = (
@@ -110,7 +118,7 @@ class TestImplementation(WorkflowImplementation):
             )
         )
 
-        return {
+        result = {
             "name": name,
             "xunit": "m",
             "yunit": "m",
@@ -123,6 +131,7 @@ class TestImplementation(WorkflowImplementation):
             "surfaces": [surface.name for surface in tag.get_related_surfaces()],
             "comment": f"a is {self._kwargs.a} and b is {self._kwargs.b}",
         }
+        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
 
 
 class TopographyOnlyTestImplementation(TestImplementation):
@@ -180,12 +189,14 @@ class SecondTestImplementation(WorkflowImplementation):
         analysis,
         dependencies: Dict = {},
         progress_recorder=None,
+        timer=None,
     ):
         dep1 = dependencies["dep1"]
-        return {
+        result = {
             "name": "Test with dependencies",
             "result_from_dep": dep1.result["xunit"],
         }
+        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
 
 
 class TestImplementationWithError(WorkflowImplementation):
@@ -211,6 +222,7 @@ class TestImplementationWithError(WorkflowImplementation):
         analysis,
         dependencies: Dict = {},
         progress_recorder=None,
+        timer=None,
     ):
         raise RuntimeError("An error occurred!")
 
@@ -252,6 +264,7 @@ class TestImplementationWithErrorInDependency(WorkflowImplementation):
         analysis,
         dependencies: Dict = {},
         progress_recorder=None,
+        timer=None,
     ):
         return
 
@@ -304,9 +317,10 @@ class TestImplementationWithOutputs(WorkflowImplementation):
             ),
         }
 
-    def topography_implementation(self, analysis, progress_recorder=None):
-        return {
+    def topography_implementation(self, analysis, progress_recorder=None, timer=None):
+        result = {
             "predicted_value": 1.5,
             "predicted_error": 0.1,
             "confidence": 0.95,
         }
+        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
