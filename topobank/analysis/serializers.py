@@ -4,6 +4,7 @@ from rest_framework.reverse import reverse
 
 import topobank.taskapp.serializers
 
+from ..manager.models import Surface, Tag, Topography
 from ..supplib.mixins import StrictFieldMixin
 from ..supplib.serializers import UserField
 from .models import (
@@ -59,6 +60,7 @@ class WorkflowDetailSerializer(
             "url",
             "name",
             "display_name",
+            "subject_types",
             "kwargs_schema",
             "outputs_schema",
         ]
@@ -67,6 +69,8 @@ class WorkflowDetailSerializer(
         view_name="analysis:workflow-detail", lookup_field="name", read_only=True
     )
 
+    subject_types = serializers.SerializerMethodField()
+
     kwargs_schema = serializers.SerializerMethodField()
 
     outputs_schema = serializers.SerializerMethodField()
@@ -74,6 +78,17 @@ class WorkflowDetailSerializer(
     @extend_schema_field(serializers.CharField())
     def get_visualization_type(self, obj):
         return get_visualization_type(name=obj.name)
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_subject_types(self, obj):
+        subject_types = []
+        if obj.has_implementation(Surface):
+            subject_types.append("surface")
+        if obj.has_implementation(Topography):
+            subject_types.append("topography")
+        if obj.has_implementation(Tag):
+            subject_types.append("tag")
+        return subject_types
 
     @extend_schema_field(serializers.DictField())
     def get_kwargs_schema(self, obj):

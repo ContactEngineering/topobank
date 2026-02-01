@@ -5,16 +5,10 @@ from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 
 import topobank.taskapp.serializers as taskapp_serializers
-from topobank.analysis.models import (
-    Configuration,
-    Workflow,
-    WorkflowResult,
-    WorkflowSubject,
-    resolve_workflow,
-)
-from topobank.manager.models import Surface, Tag, Topography
-from topobank.supplib.mixins import StrictFieldMixin
-from topobank.supplib.serializers import (
+
+from ...manager.models import Surface, Tag, Topography
+from ...supplib.mixins import StrictFieldMixin
+from ...supplib.serializers import (
     ModelRelatedField,
     OrganizationField,
     PermissionsField,
@@ -22,6 +16,8 @@ from topobank.supplib.serializers import (
     SubjectField,
     UserField,
 )
+from ..models import Configuration, WorkflowResult, WorkflowSubject, resolve_workflow
+from ..serializers import WorkflowListSerializer
 
 
 class ConfigurationV2Serializer(
@@ -48,24 +44,6 @@ class ConfigurationV2Serializer(
         for version in obj.versions.all():
             versions[str(version.dependency)] = version.number_as_string()
         return versions
-
-
-class WorkflowV2Serializer(serializers.ModelSerializer):
-    """v2 Serializer for Workflow model."""
-
-    class Meta:
-        model = Workflow
-        fields = [
-            "id",
-            "url",
-            "name",
-            "display_name",
-        ]
-        read_only_fields = fields
-
-    url = serializers.HyperlinkedIdentityField(
-        view_name="analysis:workflow-v2-detail", read_only=True
-    )
 
 
 class ResultV2CreateSerializer(serializers.ModelSerializer):
@@ -275,7 +253,7 @@ class ResultV2ListSerializer(
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:result-v2-detail", read_only=True
     )
-    function = WorkflowV2Serializer(read_only=True)
+    function = WorkflowListSerializer(read_only=True)
     created_by = UserField(read_only=True)
     updated_by = UserField(read_only=True)
     permissions = PermissionsField(read_only=True)
@@ -358,7 +336,7 @@ class ResultV2DetailSerializer(
         view_name="analysis:result-v2-detail", read_only=True
     )
     # Related fields
-    function = WorkflowV2Serializer(read_only=True)
+    function = WorkflowListSerializer(read_only=True)
 
     created_by = UserField(read_only=True)
     updated_by = UserField(read_only=True)
