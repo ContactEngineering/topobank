@@ -2,13 +2,13 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from topobank.analysis.models import WorkflowResult
+from topobank.analysis.serializers import WorkflowListSerializer
 from topobank.analysis.v2.serializers import (
     ConfigurationV2Serializer,
     DependencyV2ListSerializer,
     ResultV2CreateSerializer,
     ResultV2DetailSerializer,
     ResultV2ListSerializer,
-    WorkflowV2Serializer,
 )
 from topobank.manager.models import Tag
 from topobank.taskapp.models import Configuration, Dependency, Version
@@ -58,11 +58,11 @@ def test_configuration_v2_serializer_empty_versions(api_rf):
 
 @pytest.mark.django_db
 def test_workflow_v2_serializer(api_rf, test_analysis_function):
-    """Test WorkflowV2Serializer serializes workflow correctly"""
+    """Test WorkflowListSerializer serializes workflow correctly"""
     request = api_rf.get("/")
     workflow = test_analysis_function
 
-    serializer = WorkflowV2Serializer(workflow, context={"request": request})
+    serializer = WorkflowListSerializer(workflow, context={"request": request})
     data = serializer.data
 
     assert data["id"] == workflow.id
