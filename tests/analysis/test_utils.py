@@ -116,13 +116,14 @@ def test_latest_analyses(two_topos, test_analysis_function):
         user, subjects=[topo2], workflow=test_analysis_function
     ).get()
 
-    import pytz
+    from zoneinfo import ZoneInfo
+
     from django.conf import settings
 
-    tz = pytz.timezone(settings.TIME_ZONE)
+    tz = ZoneInfo(settings.TIME_ZONE)
 
-    assert at1.task_start_time == tz.localize(datetime.datetime(2018, 1, 2, 12))
-    assert at2.task_start_time == tz.localize(datetime.datetime(2018, 1, 5, 12))
+    assert at1.task_start_time == datetime.datetime(2018, 1, 2, 12, tzinfo=tz)
+    assert at2.task_start_time == datetime.datetime(2018, 1, 5, 12, tzinfo=tz)
 
 
 @pytest.mark.django_db
