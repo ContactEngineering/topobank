@@ -1085,12 +1085,18 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 f"Using squeezed datafile instead of original datafile for topography id {self.id}."
             )
 
+        # Need to call exists to finish upload if file is None
         if topo is None:
-            # Read raw file if squeezed file is unavailable
-            toporeader = get_topography_reader(
-                self.datafile.file, format=self.datafile_format
-            )
-            topo = self._read(toporeader, apply_filters=apply_filters)
+            if self.datafile.exists():
+                # Read raw file if squeezed file is unavailable
+                toporeader = get_topography_reader(
+                    self.datafile.file, format=self.datafile_format
+                )
+                topo = self._read(toporeader, apply_filters=apply_filters)
+            else:
+                raise RuntimeError(
+                    f"Topography {self.id} does not appear to have a data file."
+                )
 
         if return_reader:
             return topo, toporeader
