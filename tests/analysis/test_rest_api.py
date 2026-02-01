@@ -150,10 +150,10 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
     assert_dict_equal(
         response.data,
         {
-            "id": ASSERT_EQUAL_IGNORE_VALUE,
             "url": f"http://testserver/analysis/api/workflow/{name}/",
             "name": name,
             "display_name": "Test implementation",
+            "subject_types": ["surface", "topography", "tag"],
             "kwargs_schema": {
                 "title": ASSERT_EQUAL_IGNORE_VALUE,
                 "additionalProperties": False,
