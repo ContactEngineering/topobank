@@ -130,7 +130,6 @@ THIRD_PARTY_APPS = [
     "guardian",  # needed for migrations only
     "notifications",
     "tagulous",  # tag-model with hierarchies
-    "trackstats",
     "watchman",  # system status report
     "request_profiler",  # keep track of response times for selected routes
     "drf_spectacular",  # API documentation
@@ -142,7 +141,6 @@ LOCAL_APPS = [
     "topobank.files.apps.FilesAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
-    "topobank.usage_stats.apps.UsageStatsAppConfig",
     "topobank.organizations.apps.OrganizationsAppConfig",
     "topobank.properties.apps.PropertiesAppConfig",
 ]
@@ -253,11 +251,6 @@ MIDDLEWARE += [
     "django.contrib.messages.middleware.MessageMiddleware",
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
-
-#
-# Usage statistics
-#
-ENABLE_USAGE_STATS = env("TOPOBANK_ENABLE_USAGE_STATS", default=False)
 
 # TEMPLATES
 # ------------------------------------------------------------------------------

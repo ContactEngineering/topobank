@@ -1,17 +1,14 @@
 import traceback
 import tracemalloc
-from datetime import date
 from typing import Any, Dict
 
 import celery
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import transaction
-from django.db.models import F
 from django.utils import timezone
 from muGrid.Timer import Timer
 from SurfaceTopography.Support import doi
-from trackstats.models import Period, StatisticByDate, StatisticByDateAndObject
 
 from ..manager.models import Surface, Topography
 from ..supplib.dict import store_split_dict
@@ -353,25 +350,6 @@ def execute_workflow(self: celery.Task, analysis_id: int):
         else:
             analysis.task_end_time = timezone.now()
             analysis.save(update_fields=["task_end_time"])
-
-            from trackstats.models import Metric
-
-            td = analysis.task_duration
-            if td is not None:
-                increase_statistics_by_date(
-                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                    increment=1000 * td.total_seconds(),
-                )
-                increase_statistics_by_date_and_object(
-                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                    obj=analysis.function,
-                    increment=1000 * td.total_seconds(),
-                )
-            else:
-                _log.warning(
-                    f"{analysis_id}/{self.request.id}: Duration of task could not be "
-                    "computed."
-                )
     _log.debug(f"{analysis_id}/{self.request.id}: Workflow finished normally.")
 
 
@@ -393,104 +371,6 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
     """
     # Delegate to schedule_workflow
     return schedule_workflow.apply(args=(analysis_id, force))
-
-
-@transaction.atomic
-def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
-    """Increase statistics by date in database using the current date.
-
-    Initializes statistics by date to given increment, if it does not
-    exist.
-
-    Parameters
-    ----------
-    metric: trackstats.models.Metric object
-
-    period: trackstats.models.Period object, optional
-        Examples: Period.LIFETIME, Period.DAY
-        Defaults to Period.DAY, i.e. store
-        incremental values on a daily basis.
-
-    increment: int, optional
-        How big the the increment, default to 1.
-
-
-    Returns
-    -------
-        None
-    """
-    if not settings.ENABLE_USAGE_STATS:
-        return
-
-    today = date.today()
-
-    if StatisticByDate.objects.filter(
-        metric=metric, period=period, date=today
-    ).exists():
-        # we need this if-clause, because F() expressions
-        # only works on updates but not on inserts
-        StatisticByDate.objects.record(
-            date=today, metric=metric, value=F("value") + increment, period=period
-        )
-    else:
-        StatisticByDate.objects.record(
-            date=today, metric=metric, value=increment, period=period
-        )
-
-
-@transaction.atomic
-def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, increment=1):
-    """Increase statistics by date in database using the current date.
-
-    Initializes statistics by date to given increment, if it does not
-    exist.
-
-    Parameters
-    ----------
-    metric: trackstats.models.Metric object
-
-    obj: any class for which a contenttype exists, e.g. Topography
-        Some object for which this metric should be increased.
-    period: trackstats.models.Period object, optional
-        Examples: Period.LIFETIME, Period.DAY
-        Defaults to Period.DAY, i.e. store
-        incremental values on a daily basis.
-
-    increment: int, optional
-        How big the the increment, default to 1.
-
-
-    Returns
-    -------
-        None
-    """
-    if not settings.ENABLE_USAGE_STATS:
-        return
-
-    today = date.today()
-
-    from django.contrib.contenttypes.models import ContentType
-
-    ct = ContentType.objects.get_for_model(obj)
-
-    at_least_one_entry_exists = StatisticByDateAndObject.objects.filter(
-        metric=metric, period=period, date=today, object_id=obj.id, object_type_id=ct.id
-    ).exists()
-
-    if at_least_one_entry_exists:
-        # we need this if-clause, because F() expressions
-        # only works on updates but not on inserts
-        StatisticByDateAndObject.objects.record(
-            date=today,
-            metric=metric,
-            object=obj,
-            value=F("value") + increment,
-            period=period,
-        )
-    else:
-        StatisticByDateAndObject.objects.record(
-            date=today, metric=metric, object=obj, value=increment, period=period
-        )
 
 
 def current_statistics(user=None):

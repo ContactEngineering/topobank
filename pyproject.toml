@@ -64,10 +64,6 @@ dependencies = [
     # tagging support
     'django-tagulous @ git+https://github.com/stephendwolff/django-tagulous.git@d80ef84',
 
-    # statistics
-    # django-statsy  # cannot be used currently because of fixed version in requirements
-    'django-trackstats',
-
     #
     # Storage
     #

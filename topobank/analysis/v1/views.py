@@ -18,14 +18,12 @@ from rest_framework.decorators import api_view
 from rest_framework.generics import get_object_or_404
 from rest_framework.pagination import LimitOffsetPagination
 from rest_framework.response import Response
-from trackstats.models import Metric
 
 from topobank.users.models import resolve_user
 
 from ...files.serializers import ManifestSerializer
 from ...manager.models import Surface
 from ...manager.utils import demangle_content_type
-from ...usage_stats.utils import increase_statistics_by_date_and_object
 from ..models import Configuration, Workflow, WorkflowResult, WorkflowTemplate
 from ..permissions import WorkflowPermissions
 from ..serializers import (
@@ -251,13 +249,6 @@ def named_result(request):
 @transaction.non_atomic_requests
 def series_card_view(request, **kwargs):
     controller = AnalysisController.from_request(request, **kwargs)
-
-    #
-    # for statistics, count views per function
-    #
-    increase_statistics_by_date_and_object(
-        Metric.objects.ANALYSES_RESULTS_VIEW_COUNT, obj=controller.workflow
-    )
 
     #
     # Trigger missing analyses
