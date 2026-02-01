@@ -1,3 +1,4 @@
+import inspect
 import logging
 import traceback
 import tracemalloc
@@ -469,14 +470,19 @@ class TaskStateModel(models.Model):
         try:
             tracemalloc.start()
             tracemalloc.reset_peak()
-            timer = Timer(str(self.task_id))
-            self.task_worker(*args, timer=timer, **kwargs)
+            # Check if task_worker accepts timer argument
+            sig = inspect.signature(self.task_worker)
+            if 'timer' in sig.parameters:
+                timer = Timer(str(self.task_id))
+                self.task_worker(*args, timer=timer, **kwargs)
+                self.task_timer = timer.to_dict()
+            else:
+                self.task_worker(*args, **kwargs)
             size, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
             self.task_state = TaskStateModel.SUCCESS
             self.task_memory = peak
             self.task_error = ""
-            self.task_timer = timer.to_dict()
         except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
             self.task_error = "The data file is of an unknown or unsupported format."
