@@ -4,7 +4,7 @@ from django.test import override_settings
 from rest_framework.reverse import reverse
 
 from topobank.analysis.models import Workflow, WorkflowResult
-from topobank.analysis.tasks import perform_analysis
+from topobank.analysis.tasks import schedule_workflow
 from topobank.manager.utils import dict_to_base64, subjects_to_base64
 from topobank.testing.factories import SurfaceFactory, Topography1DFactory, UserFactory
 
@@ -70,8 +70,8 @@ def test_dependency_status():
 
     kwargs = {"c": 33, "d": 7.5}
     analysis = func.submit(user, topo1, kwargs)
-    # `perform_analysis` is not executed because it is run on commit
-    task = perform_analysis.apply(args=(analysis.id, False))
+    # `schedule_workflow` is not executed because it is run on commit
+    task = schedule_workflow.apply(args=(analysis.id, False))
     assert task.state == celery.states.SUCCESS
 
     #
@@ -82,7 +82,7 @@ def test_dependency_status():
     assert test2_ana.function.name == "topobank.testing.test2"
     assert test_ana1.function.name == "topobank.testing.test"
     assert test_ana2.function.name == "topobank.testing.test"
-    assert test2_ana.get_task_state() == WorkflowResult.STARTED
+    assert test2_ana.get_task_state() == WorkflowResult.PENDING_DEPENDENCIES
     assert test_ana1.task_state == WorkflowResult.PENDING
     assert test_ana2.task_state == WorkflowResult.PENDING
     assert test_ana1.kwargs == {"a": 1, "b": 33 * "A"} or test_ana1.kwargs == {
@@ -120,8 +120,8 @@ def test_error_propagation(
     with django_capture_on_commit_callbacks(execute=True) as callbacks:
         analysis = func.submit(user, topo1, kwargs)
     assert len(callbacks) == 1
-    # `perform_analysis` is not executed because it is run on commit
-    task = perform_analysis.apply(args=(analysis.id, False))
+    # `schedule_workflow` is not executed because it is run on commit
+    task = schedule_workflow.apply(args=(analysis.id, False))
     assert task.state == celery.states.SUCCESS
 
     #

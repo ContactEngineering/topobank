@@ -26,6 +26,7 @@ class TaskStateModel(models.Model):
     COMMIT_EXPIRATION = 30  # seconds
 
     PENDING = "pe"
+    PENDING_DEPENDENCIES = "pd"
     STARTED = "st"
     RETRY = "re"
     FAILURE = "fa"
@@ -34,6 +35,7 @@ class TaskStateModel(models.Model):
 
     TASK_STATE_CHOICES = (
         (PENDING, "pending"),
+        (PENDING_DEPENDENCIES, "pending dependencies"),
         (STARTED, "started"),
         (RETRY, "retry"),
         (FAILURE, "failure"),
