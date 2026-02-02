@@ -21,7 +21,6 @@ from rest_framework.permissions import (
     IsAuthenticatedOrReadOnly,
 )
 from rest_framework.response import Response
-from trackstats.models import Metric, Period
 
 from ...authorization.permissions import ObjectPermission
 from ...files.models import Manifest
@@ -29,7 +28,6 @@ from ...organizations.models import resolve_organization
 from ...supplib.mixins import UserUpdateMixin
 from ...supplib.versions import get_versions
 from ...taskapp.utils import run_task
-from ...usage_stats.utils import increase_statistics_by_date_and_object
 from ...users.models import User, resolve_user
 from ..export_zip import export_container_zip
 from ..filters import filter_surfaces
@@ -296,11 +294,6 @@ def download_surfaces(request, surfaces, container_filename=None):
     response["Content-Disposition"] = 'attachment; filename="{}"'.format(
         container_filename
     )
-
-    for surface in surfaces:
-        increase_statistics_by_date_and_object(
-            Metric.objects.SURFACE_DOWNLOAD_COUNT, period=Period.DAY, obj=surface
-        )
 
     return response
 

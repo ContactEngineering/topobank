@@ -307,6 +307,7 @@ class ResultV2DetailSerializer(
             "task_start_time",
             "task_end_time",
             "task_duration",
+            "task_timer",
             "task_id",
             "launcher_task_id",
         ]

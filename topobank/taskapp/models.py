@@ -1,3 +1,4 @@
+import inspect
 import logging
 import traceback
 import tracemalloc
@@ -8,6 +9,7 @@ import django.db.models as models
 import pydantic
 from django.core.cache import cache
 from django.utils import timezone
+from muGrid.Timer import Timer
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
 from .celeryapp import app
@@ -25,6 +27,7 @@ class TaskStateModel(models.Model):
     COMMIT_EXPIRATION = 30  # seconds
 
     PENDING = "pe"
+    PENDING_DEPENDENCIES = "pd"
     STARTED = "st"
     RETRY = "re"
     FAILURE = "fa"
@@ -33,6 +36,7 @@ class TaskStateModel(models.Model):
 
     TASK_STATE_CHOICES = (
         (PENDING, "pending"),
+        (PENDING_DEPENDENCIES, "pending dependencies"),
         (STARTED, "started"),
         (RETRY, "retry"),
         (FAILURE, "failure"),
@@ -81,6 +85,7 @@ class TaskStateModel(models.Model):
     task_submission_time = models.DateTimeField(null=True)
     task_start_time = models.DateTimeField(null=True)
     task_end_time = models.DateTimeField(null=True)
+    task_timer = models.JSONField(null=True)
 
     @property
     def task_duration(self):
@@ -465,7 +470,14 @@ class TaskStateModel(models.Model):
         try:
             tracemalloc.start()
             tracemalloc.reset_peak()
-            self.task_worker(*args, **kwargs)
+            # Check if task_worker accepts timer argument
+            sig = inspect.signature(self.task_worker)
+            if 'timer' in sig.parameters:
+                timer = Timer(str(self.task_id))
+                self.task_worker(*args, timer=timer, **kwargs)
+                self.task_timer = timer.to_dict()
+            else:
+                self.task_worker(*args, **kwargs)
             size, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
             self.task_state = TaskStateModel.SUCCESS

@@ -23,6 +23,7 @@ from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
+from muGrid.Timer import Timer
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
@@ -1084,12 +1085,18 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 f"Using squeezed datafile instead of original datafile for topography id {self.id}."
             )
 
+        # Need to call exists to finish upload if file is None
         if topo is None:
-            # Read raw file if squeezed file is unavailable
-            toporeader = get_topography_reader(
-                self.datafile.file, format=self.datafile_format
-            )
-            topo = self._read(toporeader, apply_filters=apply_filters)
+            if self.datafile.exists():
+                # Read raw file if squeezed file is unavailable
+                toporeader = get_topography_reader(
+                    self.datafile.file, format=self.datafile_format
+                )
+                topo = self._read(toporeader, apply_filters=apply_filters)
+            else:
+                raise RuntimeError(
+                    f"Topography {self.id} does not appear to have a data file."
+                )
 
         if return_reader:
             return topo, toporeader
@@ -1422,21 +1429,25 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def notify_users(self, sender, verb, description):
         self.permissions.notify_users(sender, verb, description)
 
-    def refresh_cache(self):
+    def refresh_cache(self, timer=None):
         """
         Inspect datafile and renew cached properties, in particular database entries on
         resolution, size etc. and the squeezed NetCDF representation of the data.
         """
+        if timer is None:
+            timer = Timer("refresh_cache")
+
         # Send signal
         _log.debug(f"Sending `pre_refresh_cache` signal from {self}...")
         pre_refresh_cache.send(sender=Topography, instance=self)
 
-        # First check if we have a datafile
-        if not self.datafile.exists():
-            raise RuntimeError(
-                f"Topography {self.id} does not appear to have a data file. Cannot "
-                f"refresh cached data."
-            )
+        with timer("exists"):
+            # First check if we have a datafile
+            if not self.datafile.exists():
+                raise RuntimeError(
+                    f"Topography {self.id} does not appear to have a data file. Cannot "
+                    f"refresh cached data."
+                )
 
         # Check if this is the first time we are opening this file...
         populate_initial_metadata = self.data_source is None
@@ -1448,8 +1459,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         _log.info(f"Caching properties of topography {self.id}...")
 
         # Open topography file
-        reader = get_topography_reader(self.datafile.file)
-        self.datafile_format = reader.format()
+        with timer("get_topography_reader"):
+            reader = get_topography_reader(self.datafile.file)
+            self.datafile_format = reader.format()
 
         # Update channel names
         self.channel_names = [
@@ -1579,19 +1591,25 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:
-            _log.info(f"Metadata of {self} is complete. Generating images.")
-            st_topo = self._read(reader)
+            with timer("metadata is complete"):
+                _log.info(f"Metadata of {self} is complete. Generating images.")
+                with timer("_read"):
+                    st_topo = self._read(reader)
 
-            # Check whether original data file has undefined data point and update
-            # database accordingly. (`has_undefined_data` can be undefined if
-            # undetermined.)
-            self.has_undefined_data = bool(st_topo.has_undefined_data)
+                # Check whether original data file has undefined data point and update
+                # database accordingly. (`has_undefined_data` can be undefined if
+                # undetermined.)
+                self.has_undefined_data = bool(st_topo.has_undefined_data)
 
-            # Refresh other cached quantities
-            self.refresh_bandwidth_cache(st_topo=st_topo)
-            self.make_thumbnail(st_topo=st_topo)
-            self.make_deepzoom(st_topo=st_topo)
-            self.make_squeezed(st_topo=st_topo)
+                # Refresh other cached quantities
+                with timer("refresh_bandwidth_cache"):
+                    self.refresh_bandwidth_cache(st_topo=st_topo)
+                with timer("make_thumbnail"):
+                    self.make_thumbnail(st_topo=st_topo)
+                with timer("make_deepzoom"):
+                    self.make_deepzoom(st_topo=st_topo)
+                with timer("make_squeezed"):
+                    self.make_squeezed(st_topo=st_topo)
 
         # Save dataset
         self.save()
@@ -1618,8 +1636,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             )
         return s
 
-    def task_worker(self):
-        self.refresh_cache()
+    def task_worker(self, timer=None):
+        self.refresh_cache(timer=timer)
 
     def ensure_task_started(self):
         """Ensures that the task has started running"""

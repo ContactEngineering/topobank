@@ -1,16 +1,14 @@
 import traceback
 import tracemalloc
-from datetime import date
 from typing import Any, Dict
 
 import celery
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import transaction
-from django.db.models import F
 from django.utils import timezone
+from muGrid.Timer import Timer
 from SurfaceTopography.Support import doi
-from trackstats.models import Period, StatisticByDate, StatisticByDateAndObject
 
 from ..manager.models import Surface, Topography
 from ..supplib.dict import store_split_dict
@@ -61,29 +59,26 @@ def get_current_configuration():
         return make_config_from_versions()
 
 
-@app.task(bind=True)
-def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
-    """Perform an analysis which is already present in the database.
+@app.task(bind=True, soft_time_limit=3600, time_limit=3700)
+def schedule_workflow(self: celery.Task, analysis_id: int, force: bool):
+    """Schedule a workflow, checking and setting up dependencies first.
+
+    This task handles the dependency resolution phase:
+    1. Loads the analysis from database
+    2. Checks if dependencies exist and their states
+    3. If dependencies need scheduling: creates chord with execute_workflow as callback
+    4. If no dependencies or all complete: directly calls execute_workflow
 
     Parameters
     ----------
     self : celery.app.task.Task
         Celery task on execution (because of bind=True).
     analysis_id : int
-        ID of `topobank.analysis.Analysis` instance.
+        ID of `topobank.analysis.WorkflowResult` instance.
     force : bool
         Submission was forced, which means we need to renew dependencies.
-
-    Also alters analysis instance in database saving
-
-    - result (wanted or exception)
-    - start time on start
-    - end time on finish
-    - task_id
-    - task_state
-    - current configuration (link to versions of installed dependencies)
     """
-    from .models import RESULT_FILE_BASENAME, WorkflowResult
+    from .models import WorkflowResult
 
     #
     # Get analysis instance from database
@@ -92,6 +87,7 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
         celery_queue = self.request.delivery_info['routing_key']
     except TypeError:
         celery_queue = None
+
     # Optimize query with select_related to reduce DB round trips
     analysis = WorkflowResult.objects.select_related(
         'function',
@@ -101,104 +97,191 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
         'owned_by'
     ).prefetch_related('permissions').get(id=analysis_id)
     _log.info(
-        f"{analysis_id}/{self.request.id}: Task starting -- "
+        f"{analysis_id}/{self.request.id}: Scheduling workflow -- "
         f"Queue: {celery_queue}, force recalculation: {force} -- "
         f"Workflow: '{analysis.function.name}', subject: '{analysis.subject}', "
         f"kwargs: {analysis.kwargs}, task_state: '{analysis.task_state}'"
     )
 
     #
-    # Check state
+    # Check state - don't reschedule completed/failed tasks
     #
     if analysis.task_state in [WorkflowResult.FAILURE, WorkflowResult.SUCCESS] and not force:
-        # Do not rerun this task as it is self-reporting to either have completed
-        # successfully or to have failed.
         s = (
             "completed successfully"
             if analysis.task_state == WorkflowResult.SUCCESS
             else "failed"
         )
         _log.debug(
-            f"{self.request.id}: Terminating analysis task because this analysis has "
+            f"{self.request.id}: Terminating schedule_workflow because this analysis has "
             f"{s} in a previous run."
         )
         return
 
     #
-    # Update entry in Analysis table to indicate we started processing it
+    # Update entry to indicate we started scheduling
     #
-    analysis.task_state = WorkflowResult.STARTED
     analysis.task_id = self.request.id
-    analysis.task_start_time = timezone.now()  # with timezone
+    analysis.task_start_time = timezone.now()
     analysis.configuration = get_current_configuration()
 
     #
     # Check and run dependencies
     #
     dependencies = analysis.function.get_dependencies(analysis)  # This is a dict!
-    finished_dependencies = {}  # Will contain dependencies that finished
+
     if len(dependencies) > 0:
-        # Okay, we have dependencies so let us check what their states are
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
         finished_dependencies, scheduled_dependencies = prepare_dependency_tasks(
             dependencies, force, analysis.created_by, analysis
         )
+
         if len(scheduled_dependencies) > 0:
-            # We just created new `Analysis` instances or decided that an existing
-            # analysis needs to be scheduled. Submit Celery tasks for all
-            # dependencies and request that this task is rerun once all dependencies
-            # have finished.
+            # Dependencies need to be scheduled first
             for dep in scheduled_dependencies.values():
                 dep.set_pending_state()
-            # Store dependencies
-            analysis.dependencies = {
-                key: dep.id for key, dep in scheduled_dependencies.items()
-            }
-            # We are about to launch a chord, store id as launcher id
+
+            # Store all dependencies (both finished and scheduled)
+            all_deps = {**finished_dependencies, **scheduled_dependencies}
+            analysis.dependencies = {key: dep.id for key, dep in all_deps.items()}
+
+            # Set state to PENDING_DEPENDENCIES - we're waiting for deps to complete
+            analysis.task_state = WorkflowResult.PENDING_DEPENDENCIES
             analysis.launcher_task_id = self.request.id
-            # Save because apply_async never returns in test when a dependency fails
             analysis.save()
+
+            # Create chord: run all dependencies, then execute this workflow
             task = celery.chord(
                 (
-                    perform_analysis.si(dep.id, False).set(queue=celery_queue)
+                    schedule_workflow.si(dep.id, False).set(queue=celery_queue)
                     for dep in scheduled_dependencies.values()
                 ),
-                perform_analysis.si(analysis.id, False).set(queue=celery_queue),
+                execute_workflow.si(analysis.id).set(queue=celery_queue),
             ).apply_async()
-            # Store task id so it is reported as pending
+
+            # Store chord task id
             analysis.task_id = task.id
             analysis.save(update_fields=["task_id"])
+
             _log.debug(
                 f"{analysis_id}/{self.request.id}: Submitted "
-                f"{len(scheduled_dependencies)} dependencies; finishing the current "
-                "task until dependencies are resolved."
+                f"{len(scheduled_dependencies)} dependencies; waiting for resolution."
             )
             return
+
+        # All dependencies are already finished
+        analysis.dependencies = {key: dep.id for key, dep in finished_dependencies.items()}
+        analysis.save()
+
+        # Check if any dependency failed
+        if any(dep.task_state != WorkflowResult.SUCCESS for dep in finished_dependencies.values()):
+            analysis.task_state = WorkflowResult.FAILURE
+            analysis.task_error = "A dependent analysis failed."
+            analysis.save()
+            _log.debug(f"{analysis_id}/{self.request.id}: A dependency failed.")
+            return
+
     else:
         _log.debug(f"{analysis_id}/{self.request.id}: Analysis has no dependencies.")
-
-    # Store dependencies
-    analysis.dependencies = {key: dep.id for key, dep in finished_dependencies.items()}
-
-    # Check if any dependency failed
-    if any(
-            dep.task_state != WorkflowResult.SUCCESS for dep in finished_dependencies.values()
-    ):
-        analysis.task_state = WorkflowResult.FAILURE
-        analysis.task_error = "A dependent analysis failed."
+        analysis.dependencies = {}
         analysis.save()
-        # We return here because a dependency failed
+
+    # No dependencies or all dependencies finished successfully - execute directly
+    _log.debug(f"{analysis_id}/{self.request.id}: Calling execute_workflow directly.")
+    execute_workflow.apply(args=(analysis.id,))
+
+
+@app.task(bind=True, soft_time_limit=3600, time_limit=3700)
+def execute_workflow(self: celery.Task, analysis_id: int):
+    """Execute the actual workflow after dependencies are resolved.
+
+    This task assumes all dependencies are already complete and handles:
+    1. Loading finished dependencies
+    2. Running the actual workflow via analysis.eval_self()
+    3. Storing results and statistics
+
+    Parameters
+    ----------
+    self : celery.app.task.Task
+        Celery task on execution (because of bind=True).
+    analysis_id : int
+        ID of `topobank.analysis.WorkflowResult` instance.
+    """
+    from .models import RESULT_FILE_BASENAME, WorkflowResult
+
+    #
+    # Get analysis instance from database
+    #
+    analysis = WorkflowResult.objects.select_related(
+        'function',
+        'subject_dispatch',
+        'configuration',
+        'created_by',
+        'owned_by'
+    ).prefetch_related('permissions').get(id=analysis_id)
+
+    _log.info(
+        f"{analysis_id}/{self.request.id}: Executing workflow -- "
+        f"Workflow: '{analysis.function.name}', subject: '{analysis.subject}', "
+        f"kwargs: {analysis.kwargs}"
+    )
+
+    #
+    # Check state - don't re-execute completed/failed tasks
+    #
+    if analysis.task_state in [WorkflowResult.FAILURE, WorkflowResult.SUCCESS]:
+        s = (
+            "completed successfully"
+            if analysis.task_state == WorkflowResult.SUCCESS
+            else "failed"
+        )
+        _log.debug(
+            f"{self.request.id}: Terminating execute_workflow because this analysis has "
+            f"{s} in a previous run."
+        )
         return
 
-    # Save analysis
+    #
+    # Update state to STARTED - we're now actually running the workflow
+    #
+    analysis.task_state = WorkflowResult.STARTED
+    analysis.task_id = self.request.id
+    # Only set start time if not already set (e.g., from schedule_workflow)
+    if analysis.task_start_time is None:
+        analysis.task_start_time = timezone.now()
+    analysis.configuration = get_current_configuration()
     analysis.save()
 
-    def save_result(result, task_state, peak_memory=None, dois=set()):
+    #
+    # Load finished dependencies
+    #
+    finished_dependencies = {}
+    if analysis.dependencies:
+        for key, dep_id in analysis.dependencies.items():
+            dep = WorkflowResult.objects.get(id=dep_id)
+            if dep.task_state != WorkflowResult.SUCCESS:
+                # A dependency failed - we cannot proceed
+                # Copy error and traceback from the failed dependency
+                analysis.task_state = WorkflowResult.FAILURE
+                analysis.task_error = dep.task_error or f"Dependency '{key}' failed."
+                analysis.task_traceback = dep.task_traceback
+                analysis.save()
+                _log.warning(
+                    f"{analysis_id}/{self.request.id}: Dependency '{key}' (id={dep_id}) "
+                    f"is in state '{dep.task_state}', cannot execute workflow."
+                )
+                return
+            finished_dependencies[key] = dep
+
+    def save_result(result, task_state, peak_memory=None, dois=set(), timer=None):
         analysis.task_state = task_state
-        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
-        analysis.end_time = timezone.now()  # with timezone
+        # Only store result if the implementation returned one
+        if result is not None:
+            store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
         analysis.task_memory = peak_memory
-        analysis.dois = list(dois)  # dois is a set, we need to convert it
+        analysis.dois = list(dois)
+        if timer is not None:
+            analysis.task_timer = timer.to_dict()
         analysis.save()
 
         if peak_memory is not None:
@@ -214,189 +297,80 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
             )
 
     @doi()
-    def evaluate_function(progress_recorder, finished_analyses):
+    def evaluate_function(progress_recorder, timer, finished_analyses):
         if len(finished_analyses) > 0:
             return analysis.eval_self(
                 dependencies=finished_analyses,
                 progress_recorder=progress_recorder,
+                timer=timer,
             )
         else:
             return analysis.eval_self(
                 progress_recorder=progress_recorder,
+                timer=timer,
             )
 
     #
-    # We are good: Actually perform the analysis
+    # Actually perform the workflow
     #
     _log.debug(
         f"{analysis_id}/{self.request.id}: Starting evaluation of analysis function..."
     )
     try:
-        # also request citation information
         dois = set()
-        # start tracing of memory usage
         tracemalloc.start()
         tracemalloc.reset_peak()
-        # run actual function
+        timer = Timer(str(self.request.id))
         result = evaluate_function(
             dois=dois,
             progress_recorder=ProgressRecorder(self),
+            timer=timer,
             finished_analyses=finished_dependencies,
         )
-        # collect memory usage
         size, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        save_result(result, WorkflowResult.SUCCESS, peak_memory=peak, dois=dois)
+        save_result(result, WorkflowResult.SUCCESS, peak_memory=peak, dois=dois, timer=timer)
     except Exception as exc:
         _log.warning(
             f"{analysis_id}/{self.request.id}: Exception during evaluation: {exc}"
         )
         analysis.task_state = WorkflowResult.FAILURE
         analysis.task_traceback = traceback.format_exc().replace('\x00', '')
-        # Store string representation of exception as user-reported error string
         analysis.task_error = str(exc).replace('\x00', '')
         analysis.save()
-        # We want a real exception here so celery's flower can show the task as failure
         raise
     finally:
         try:
-            #
-            # First check whether analysis is still there
-            #
             analysis = WorkflowResult.objects.get(id=analysis_id)
         except WorkflowResult.DoesNotExist:
             _log.debug(
                 f"{analysis_id}/{self.request.id}: Analysis {analysis_id} does not exist."
             )
-            # Analysis was deleted, e.g. because topography or surface was missing, we
-            # simply ignore this case.
             pass
         else:
-            #
-            # Analysis exists, record end time
-            #
-            analysis.task_end_time = timezone.now()  # with timezone
+            analysis.task_end_time = timezone.now()
             analysis.save(update_fields=["task_end_time"])
-            #
-            # Add up number of seconds for CPU time
-            #
-            from trackstats.models import Metric
-
-            td = analysis.task_duration
-            if td is not None:
-                increase_statistics_by_date(
-                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                    increment=1000 * td.total_seconds(),
-                )
-                increase_statistics_by_date_and_object(
-                    metric=Metric.objects.TOTAL_ANALYSIS_CPU_MS,
-                    obj=analysis.function,
-                    increment=1000 * td.total_seconds(),
-                )
-            else:
-                _log.warning(
-                    f"{analysis_id}/{self.request.id}: Duration of task could not be "
-                    "computed."
-                )
-    _log.debug(f"{analysis_id}/{self.request.id}: Task finished normally.")
+    _log.debug(f"{analysis_id}/{self.request.id}: Workflow finished normally.")
 
 
-@transaction.atomic
-def increase_statistics_by_date(metric, period=Period.DAY, increment=1):
-    """Increase statistics by date in database using the current date.
+# Keep perform_analysis as an alias for backward compatibility
+@app.task(bind=True, soft_time_limit=3600, time_limit=3700)
+def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
+    """Perform an analysis which is already present in the database.
 
-    Initializes statistics by date to given increment, if it does not
-    exist.
+    This is a backward-compatible wrapper that calls schedule_workflow.
 
     Parameters
     ----------
-    metric: trackstats.models.Metric object
-
-    period: trackstats.models.Period object, optional
-        Examples: Period.LIFETIME, Period.DAY
-        Defaults to Period.DAY, i.e. store
-        incremental values on a daily basis.
-
-    increment: int, optional
-        How big the the increment, default to 1.
-
-
-    Returns
-    -------
-        None
+    self : celery.app.task.Task
+        Celery task on execution (because of bind=True).
+    analysis_id : int
+        ID of `topobank.analysis.WorkflowResult` instance.
+    force : bool
+        Submission was forced, which means we need to renew dependencies.
     """
-    if not settings.ENABLE_USAGE_STATS:
-        return
-
-    today = date.today()
-
-    if StatisticByDate.objects.filter(
-        metric=metric, period=period, date=today
-    ).exists():
-        # we need this if-clause, because F() expressions
-        # only works on updates but not on inserts
-        StatisticByDate.objects.record(
-            date=today, metric=metric, value=F("value") + increment, period=period
-        )
-    else:
-        StatisticByDate.objects.record(
-            date=today, metric=metric, value=increment, period=period
-        )
-
-
-@transaction.atomic
-def increase_statistics_by_date_and_object(metric, obj, period=Period.DAY, increment=1):
-    """Increase statistics by date in database using the current date.
-
-    Initializes statistics by date to given increment, if it does not
-    exist.
-
-    Parameters
-    ----------
-    metric: trackstats.models.Metric object
-
-    obj: any class for which a contenttype exists, e.g. Topography
-        Some object for which this metric should be increased.
-    period: trackstats.models.Period object, optional
-        Examples: Period.LIFETIME, Period.DAY
-        Defaults to Period.DAY, i.e. store
-        incremental values on a daily basis.
-
-    increment: int, optional
-        How big the the increment, default to 1.
-
-
-    Returns
-    -------
-        None
-    """
-    if not settings.ENABLE_USAGE_STATS:
-        return
-
-    today = date.today()
-
-    from django.contrib.contenttypes.models import ContentType
-
-    ct = ContentType.objects.get_for_model(obj)
-
-    at_least_one_entry_exists = StatisticByDateAndObject.objects.filter(
-        metric=metric, period=period, date=today, object_id=obj.id, object_type_id=ct.id
-    ).exists()
-
-    if at_least_one_entry_exists:
-        # we need this if-clause, because F() expressions
-        # only works on updates but not on inserts
-        StatisticByDateAndObject.objects.record(
-            date=today,
-            metric=metric,
-            object=obj,
-            value=F("value") + increment,
-            period=period,
-        )
-    else:
-        StatisticByDateAndObject.objects.record(
-            date=today, metric=metric, object=obj, value=increment, period=period
-        )
+    # Delegate to schedule_workflow
+    return schedule_workflow.apply(args=(analysis_id, force))
 
 
 def current_statistics(user=None):

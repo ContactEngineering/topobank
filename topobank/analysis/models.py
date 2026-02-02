@@ -571,11 +571,11 @@ def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool)
     in an on_commit hook. Note: on_commit will not execute in tests, unless
     transaction=True is added to pytest.mark.django_db
     """
-    from .tasks import perform_analysis
+    from .tasks import schedule_workflow
 
     # TODO: force_submit is currently hardcoded to True everywhere this is called.
     _log.debug(f"Submitting task for WorkflowResult {analysis.id}...")
-    analysis.task_id = perform_analysis.apply_async(
+    analysis.task_id = schedule_workflow.apply_async(
         args=[analysis.id, force_submit], queue=analysis.get_celery_queue()
     ).id
     analysis.save(update_fields=["task_id"])
@@ -736,6 +736,7 @@ class Workflow(models.Model):
         successful_or_running_analyses = existing_analyses.filter(
             task_state__in=[
                 WorkflowResult.PENDING,
+                WorkflowResult.PENDING_DEPENDENCIES,
                 WorkflowResult.RETRY,
                 WorkflowResult.STARTED,
                 WorkflowResult.SUCCESS,

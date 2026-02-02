@@ -12,7 +12,6 @@ from django.core.management import call_command
 from pytest_django.lazy_django import skip_if_no_django
 from SurfaceTopography import NonuniformLineScan as STNonuniformLineScan
 from SurfaceTopography import Topography as STTopography
-from trackstats.models import Domain, Metric
 
 from ..manager.models import Surface
 from .factories import (
@@ -33,23 +32,8 @@ PASSWORD = "secret"
 
 @pytest.fixture
 def handle_usage_statistics():
-    """This fixture is needed in the supplib which affect usage statistics.
-    Otherwise, you get a foreign key error because entries remain
-    without a corresponding foreign key in the metric table.
-
-    Returns
-    -------
-        None
-    """
-    from ..usage_stats.utils import register_metrics
-
-    register_metrics()
+    """This fixture is a no-op placeholder for backward compatibility."""
     yield
-    #
-    # Teardown code which is run after the test function
-    #
-    Domain.objects.clear_cache()
-    Metric.objects.clear_cache()
 
 
 @pytest.fixture(scope="function")
