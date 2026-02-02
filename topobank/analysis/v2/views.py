@@ -17,7 +17,6 @@ from topobank.analysis.v2.serializers import (
     ResultV2CreateSerializer,
     ResultV2DetailSerializer,
     ResultV2ListSerializer,
-    WorkflowV2Serializer,
 )
 from topobank.authorization.permissions import ObjectPermission, PermissionFilterBackend
 from topobank.authorization.utils import get_user_available_plugins
@@ -27,6 +26,7 @@ from topobank.supplib.pagination import TopobankPaginator
 
 from ..models import Configuration, Workflow, WorkflowResult
 from ..permissions import WorkflowPermissions
+from ..serializers import WorkflowDetailSerializer, WorkflowListSerializer
 from .filters import ResultViewFilterSet, WorkflowViewFilterSet
 
 
@@ -36,11 +36,16 @@ class ConfigurationView(v1.ConfigurationView):
 
 
 class WorkflowView(viewsets.GenericViewSet, mixins.RetrieveModelMixin, mixins.ListModelMixin):
-    serializer_class = WorkflowV2Serializer
+    serializer_class = WorkflowDetailSerializer
     permission_classes = [IsAuthenticated, WorkflowPermissions]
     pagination_class = TopobankPaginator
     filter_backends = [backends.DjangoFilterBackend]
     filterset_class = WorkflowViewFilterSet
+
+    def get_serializer_class(self):
+        if self.action == "list":
+            return WorkflowListSerializer
+        return super().get_serializer_class()
 
     def get_queryset(self):
         queryset = Workflow.objects.all().order_by('name')

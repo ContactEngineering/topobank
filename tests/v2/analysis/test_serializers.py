@@ -2,13 +2,13 @@ import pytest
 from rest_framework.exceptions import ValidationError
 
 from topobank.analysis.models import WorkflowResult
+from topobank.analysis.serializers import WorkflowListSerializer
 from topobank.analysis.v2.serializers import (
     ConfigurationV2Serializer,
     DependencyV2ListSerializer,
     ResultV2CreateSerializer,
     ResultV2DetailSerializer,
     ResultV2ListSerializer,
-    WorkflowV2Serializer,
 )
 from topobank.manager.models import Tag
 from topobank.taskapp.models import Configuration, Dependency, Version
@@ -58,18 +58,17 @@ def test_configuration_v2_serializer_empty_versions(api_rf):
 
 @pytest.mark.django_db
 def test_workflow_v2_serializer(api_rf, test_analysis_function):
-    """Test WorkflowV2Serializer serializes workflow correctly"""
+    """Test WorkflowListSerializer serializes workflow correctly"""
     request = api_rf.get("/")
     workflow = test_analysis_function
 
-    serializer = WorkflowV2Serializer(workflow, context={"request": request})
+    serializer = WorkflowListSerializer(workflow, context={"request": request})
     data = serializer.data
 
-    assert data["id"] == workflow.id
     assert data["name"] == workflow.name
     assert data["display_name"] == workflow.display_name
     assert "url" in data
-    assert data["url"] == f"http://testserver/analysis/v2/workflows/{workflow.id}/"
+    assert data["url"] == f"http://testserver/analysis/api/workflow/{workflow.name}/"
 
 
 @pytest.mark.django_db
@@ -476,7 +475,7 @@ def test_result_v2_list_serializer(api_rf, one_line_scan, test_analysis_function
     assert "url" in data
     assert data["url"] == f"http://testserver/analysis/v2/results/{analysis.id}/"
     assert "function" in data
-    assert data["function"]["id"] == test_analysis_function.id
+    assert data["function"]["name"] == test_analysis_function.name
     assert "subject" in data
     assert "created_at" in data
     assert "updated_at" in data
