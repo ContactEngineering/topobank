@@ -325,6 +325,21 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            # Index on name for ordering in list views
+            models.Index(fields=['name'], name='surface_name_idx'),
+            # Composite index for filtering and ordering
+            # Used in: list queries with deletion_time filter
+            models.Index(fields=['deletion_time', 'name'], name='surface_list_idx'),
+            # Partial index for active (non-deleted) surfaces
+            # Most common query: only show surfaces where deletion_time IS NULL
+            # More efficient than full index since it excludes soft-deleted rows
+            models.Index(
+                fields=['name'],
+                name='surface_active_name_idx',
+                condition=Q(deletion_time__isnull=True)
+            ),
+        ]
 
     #
     # Manager
@@ -624,6 +639,22 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         unique_together = (("surface", "name"),)
         verbose_name = "measurement"
         verbose_name_plural = "measurements"
+        indexes = [
+            # Index on surface foreign key for JOIN optimization
+            # Used in: surface.topography_set.all() and filtering by surface__deletion_time
+            models.Index(fields=['surface'], name='topography_surface_idx'),
+            # Composite index for filtering and ordering
+            # Used in: list queries with deletion_time filter
+            models.Index(fields=['deletion_time', 'name'], name='topography_list_idx'),
+            # Partial index for active (non-deleted) topographies
+            # Most common query: only show topographies where deletion_time IS NULL
+            # More efficient than full index since it excludes soft-deleted rows
+            models.Index(
+                fields=['name'],
+                name='topography_active_name_idx',
+                condition=Q(deletion_time__isnull=True)
+            ),
+        ]
 
     #
     # Manager
