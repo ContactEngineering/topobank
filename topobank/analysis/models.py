@@ -271,6 +271,26 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # Invalid is True if the subject was changed after the WorkflowResult was computed
     deprecation_time = models.DateTimeField(null=True)
 
+    class Meta:
+        indexes = [
+            # Index on task_start_time for ordering recent results
+            models.Index(fields=['-task_start_time'], name='result_task_start_idx'),
+            # Composite index for filtering by state and ordering by time
+            # Used in: WHERE task_state = x ORDER BY task_start_time
+            models.Index(fields=['task_state', '-task_start_time'], name='result_state_time_idx'),
+            # Composite index for filtering by function and ordering by time
+            # Used in: WHERE function = x ORDER BY task_start_time
+            models.Index(fields=['function', '-task_start_time'], name='result_workflow_time_idx'),
+            # Partial index for active (non-deprecated) results
+            # Most common query pattern: active results ordered by time
+            # Smaller than full index since it only includes non-deprecated rows
+            models.Index(
+                fields=['-task_start_time'],
+                name='result_active_time_idx',
+                condition=Q(deprecation_time__isnull=True)
+            ),
+        ]
+
     def __init__(self, *args, result=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._result = result  # temporary storage

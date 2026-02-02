@@ -345,6 +345,14 @@ class UserPermission(models.Model):
     class Meta:
         # There can only be one permission per user
         unique_together = ("parent", "user")
+        indexes = [
+            # Composite index for permission lookups by user and parent
+            # Used in: get_for_user() queries
+            models.Index(fields=['user', 'parent'], name='userperm_user_parent_idx'),
+            # Index on parent for reverse lookups from PermissionSet
+            # Used in: permission_set.user_permissions.all()
+            models.Index(fields=['parent'], name='userperm_parent_idx'),
+        ]
 
     # The set this permission belongs to
     parent = models.ForeignKey(
@@ -364,6 +372,14 @@ class OrganizationPermission(models.Model):
     class Meta:
         # There can only be one permission per organization
         unique_together = ("parent", "organization")
+        indexes = [
+            # Composite index for permission lookups by organization and parent
+            # Used in: get_for_user() organization permission queries
+            models.Index(fields=['organization', 'parent'], name='orgperm_org_parent_idx'),
+            # Index on parent for reverse lookups from PermissionSet
+            # Used in: permission_set.organization_permissions.all()
+            models.Index(fields=['parent'], name='orgperm_parent_idx'),
+        ]
 
     # The set this permission belongs to
     parent = models.ForeignKey(
