@@ -8,7 +8,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ('analysis', '0049_add_workflowresult_performance_indexes'),
+        ('analysis', '0051_alter_task_state'),
         ('authorization', '0003_add_permission_performance_indexes'),
         ('files', '0009_rename_upload_confirmed_manifest_confirmed_at'),
         ('organizations', '0005_fix_plugins_available_data'),
