@@ -10,7 +10,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ('authorization', '0003_add_permission_performance_indexes'),
         ('files', '0009_rename_upload_confirmed_manifest_confirmed_at'),
-        ('manager', '0075_add_tag_path_index'),
+        ('manager', '0077_alter_task_state'),
         ('organizations', '0005_fix_plugins_available_data'),
         migrations.swappable_dependency(settings.AUTH_USER_MODEL),
     ]
