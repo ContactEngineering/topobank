@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.66.2 (2026-02-05)
+
+- BUG: Check whether file exists (which will confirm finished uploads) before reading it
+
 # 1.66.1 (2025-12-12)
 
 - BUG: Fixed logic flaw in shared permissions (#1263)
