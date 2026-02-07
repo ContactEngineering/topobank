@@ -231,11 +231,14 @@ class ResultView(
                 status=status.HTTP_403_FORBIDDEN
             )
 
-        if not analysis.subject_dispatch.is_ready():
-            return Response(
-                {"message": f"{analysis.subject_dispatch.get_type().__name__} subject(s) not ready."},
-                status=status.HTTP_400_BAD_REQUEST
-            )
+        # TO DISCUSS: `is_ready` means the topography has been processed and metadata extracted and stored
+        # to the database, but the workflows can run before this has happened by directly opening the raw
+        # data file. If a file is not readable, the workflows will fail.
+        # if not analysis.subject_dispatch.is_ready():
+        #     return Response(
+        #         {"message": f"{analysis.subject_dispatch.get_type().__name__} subject(s) not ready."},
+        #         status=status.HTTP_400_BAD_REQUEST
+        #     )
 
         # If already running or completed, reject unless force is set
         if analysis.task_state != WorkflowResult.NOTRUN and not force_submit:
