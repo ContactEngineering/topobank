@@ -766,9 +766,10 @@ def test_result_run_action_subject_not_ready(
     api_client,
     user_alice,
     test_analysis_function,
+    django_capture_on_commit_callbacks,
     handle_usage_statistics
 ):
-    """Test running an analysis when subject is not ready"""
+    """Test running an analysis when subject is not ready (should succeed)"""
 
     topo = Topography1DFactory(
         created_by=user_alice,
@@ -786,10 +787,13 @@ def test_result_run_action_subject_not_ready(
 
     api_client.force_login(user_alice)
     url = reverse("analysis:result-v2-run", kwargs={"pk": analysis.pk})
-    response = api_client.post(url)
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.post(url)
 
-    assert response.status_code == status.HTTP_400_BAD_REQUEST
-    assert "not ready" in response.data["message"]
+    assert response.status_code == status.HTTP_202_ACCEPTED
+    assert response.data['updated_by']['id'] == user_alice.id
+    # Verify callback was registered (task was submitted)
+    assert len(callbacks) > 0
 
 
 # ResultView Tests - Dependencies Action
