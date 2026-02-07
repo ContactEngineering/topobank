@@ -989,7 +989,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         reader_kwargs = dict(channel_index=self.data_source, periodic=self.is_periodic)
 
-        channel = reader.channels[self.data_source]
+        channel = reader.channels[reader.default_channel.index if self.data_source is None else self.data_source]
 
         # Set size if physical size was not given in datafile
         # (see also  TopographyCreateWizard.get_form_initial)
@@ -1071,7 +1071,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         #
         toporeader = None
         topo = None
-        if allow_squeezed and self.squeezed_datafile and apply_filters:
+        if allow_squeezed and self.squeezed_datafile_id and apply_filters:
             if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
                 _log.warning(
                     "You are requesting to load a (2D) topography and you are not within in a Celery worker "
@@ -1119,7 +1119,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             "datafile": {
                 "original": self.datafile.filename,
                 "squeezed-netcdf": (
-                    self.squeezed_datafile.filename if self.squeezed_datafile else None
+                    self.squeezed_datafile.filename if self.squeezed_datafile_id else None
                 ),
             },
             "data_source": self.data_source,
