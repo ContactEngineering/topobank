@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.66.3 (2026-02-07)
+
+- BUG: Disabled `is_ready` to run workflows directly after upload
+
 # 1.66.2 (2026-02-05)
 
 - BUG: Check whether file exists (which will confirm finished uploads) before reading it
