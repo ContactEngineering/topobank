@@ -3,6 +3,8 @@
 # 1.66.3 (2026-02-07)
 
 - BUG: Disabled `is_ready` to run workflows directly after upload
+- BUG: Check for `squeezed_datafile_id` instead of `data_source` to test whether manifest exists
+- MAINT: Include `task_error` for proper error reporting in list view
 
 # 1.66.2 (2026-02-05)
 
