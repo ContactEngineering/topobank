@@ -13,6 +13,12 @@ class Property(PermissionMixin, models.Model):
     class Meta:
         unique_together = (("surface", "name"),)
         verbose_name_plural = "properties"
+        indexes = [
+            # Index on surface foreign key for reverse lookups (surface.properties.all())
+            models.Index(fields=['surface'], name='property_surface_idx'),
+            # Composite index for property lookups by surface and name
+            models.Index(fields=['surface', 'name'], name='property_lookup_idx'),
+        ]
 
     #
     # Model hierarchy and permissions

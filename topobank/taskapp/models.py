@@ -1,19 +1,21 @@
+import inspect
+import logging
 import traceback
 import tracemalloc
 from decimal import Decimal
 
-import celery.result
 import celery.states
 import django.db.models as models
 import pydantic
-from celery.utils.log import get_task_logger
+from django.core.cache import cache
 from django.utils import timezone
+from muGrid.Timer import Timer
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
 from .celeryapp import app
 from .tasks import ProgressRecorder
 
-_log = get_task_logger(__name__)
+_log = logging.getLogger(__name__)
 
 
 class TaskStateModel(models.Model):
@@ -25,6 +27,7 @@ class TaskStateModel(models.Model):
     COMMIT_EXPIRATION = 30  # seconds
 
     PENDING = "pe"
+    PENDING_DEPENDENCIES = "pd"
     STARTED = "st"
     RETRY = "re"
     FAILURE = "fa"
@@ -33,6 +36,7 @@ class TaskStateModel(models.Model):
 
     TASK_STATE_CHOICES = (
         (PENDING, "pending"),
+        (PENDING_DEPENDENCIES, "pending dependencies"),
         (STARTED, "started"),
         (RETRY, "retry"),
         (FAILURE, "failure"),
@@ -81,6 +85,7 @@ class TaskStateModel(models.Model):
     task_submission_time = models.DateTimeField(null=True)
     task_start_time = models.DateTimeField(null=True)
     task_end_time = models.DateTimeField(null=True)
+    task_timer = models.JSONField(null=True)
 
     @property
     def task_duration(self):
@@ -107,6 +112,10 @@ class TaskStateModel(models.Model):
 
     def get_async_results(self):
         """Return the Celery result objects of current and dependent tasks"""
+        # Check if results are cached (for performance during serialization)
+        if hasattr(self, '_cached_async_results'):
+            return self._cached_async_results
+
         task_result = self.get_async_result()
         launcher_task_result = (
             app.AsyncResult(str(self.launcher_task_id))
@@ -129,13 +138,75 @@ class TaskStateModel(models.Model):
         if task_result:
             task_results += [task_result]
 
+        # Cache the results on the instance to avoid repeated Celery queries
+        self._cached_async_results = task_results
+
         return task_results
+
+    def _get_result_state(self, async_result):
+        """
+        Get state from AsyncResult with Redis caching to avoid repeated Celery queries.
+
+        Args:
+            async_result: Celery AsyncResult object
+
+        Returns:
+            str: Task state from Celery
+        """
+        if async_result is None:
+            return None
+
+        task_id = str(async_result.id)
+        cache_key = f'celery_state:{task_id}'
+
+        # Try to get from cache
+        cached_state = cache.get(cache_key)
+        if cached_state is not None:
+            return cached_state
+
+        # Query Celery and cache for 30 seconds
+        state = async_result.state
+        cache.set(cache_key, state, 30)
+
+        return state
+
+    def _get_result_info(self, async_result):
+        """
+        Get info from AsyncResult with Redis caching to avoid repeated Celery queries.
+
+        Args:
+            async_result: Celery AsyncResult object
+
+        Returns:
+            Task info/result from Celery
+        """
+        if async_result is None:
+            return None
+
+        task_id = str(async_result.id)
+        cache_key = f'celery_info:{task_id}'
+
+        # Try to get from cache
+        cached_info = cache.get(cache_key)
+        if cached_info is not None:
+            return cached_info
+
+        # Query Celery and cache for 30 seconds
+        info = async_result.info
+        cache.set(cache_key, info, 30)
+
+        return info
 
     def get_celery_state(self):
         """Return the state of the task as reported by Celery"""
+        # Optimization: If task is in terminal state, return DB value without querying Celery
+        if self.task_state in (TaskStateModel.SUCCESS, TaskStateModel.FAILURE):
+            return self.task_state
+
         # Check if any of the dependent tasks failed
         for r in self.get_async_results():
-            if r.state in celery.states.EXCEPTION_STATES:
+            state = self._get_result_state(r)
+            if state in celery.states.EXCEPTION_STATES:
                 return TaskStateModel.FAILURE
 
         # Check state of current task
@@ -144,8 +215,9 @@ class TaskStateModel(models.Model):
             return TaskStateModel.NOTRUN
         else:
             r = self.get_async_result()
+            state = self._get_result_state(r)
             try:
-                state = self._CELERY_STATE_MAP[r.state]
+                state = self._CELERY_STATE_MAP[state]
             except KeyError:
                 # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted
                 # as a running task
@@ -159,6 +231,11 @@ class TaskStateModel(models.Model):
         """
         # This is self-reported by the task runner
         self_reported_task_state = self.task_state
+        if self_reported_task_state in (TaskStateModel.SUCCESS, TaskStateModel.FAILURE):
+            # If the task self-reports success or failure, we trust it without further checks
+            return self_reported_task_state
+
+        # Self-reported state is not SUCCESS or FAILURE, check with Celery
         # This is what Celery reports back
         celery_task_state = self.get_celery_state()
 
@@ -166,20 +243,11 @@ class TaskStateModel(models.Model):
             # We're good!
             return self_reported_task_state
         else:
-            if self_reported_task_state == TaskStateModel.SUCCESS:
-                # Something is wrong, but we return success if the task self-reports
-                # success.
-                _log.info(
-                    f"The {self.__class__} instance with id {self.id} self-reported "
-                    f"the state '{self_reported_task_state}', but Celery reported "
-                    f"'{celery_task_state}'. I am returning a success."
-                )
-                return TaskStateModel.SUCCESS
-            elif celery_task_state == TaskStateModel.FAILURE:
+            if celery_task_state == TaskStateModel.FAILURE:
                 # Celery seems to think this task failed, we trust it as the
                 # self-reported state will be unreliable in this case.
-                _log.info(
-                    f"The {self.__class__} instance with id {self.id} self-reported "
+                _log.error(
+                    f"The {self.__class__.__name__} instance with id {self.id} self-reported "
                     f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning a failure."
                 )
@@ -199,8 +267,8 @@ class TaskStateModel(models.Model):
                 if timezone.now() - self.task_submission_time > timezone.timedelta(
                     seconds=self.COMMIT_EXPIRATION
                 ):
-                    _log.info(
-                        f"The {self.__class__} instance with id {self.id} "
+                    _log.error(
+                        f"The {self.__class__.__name__} instance with id {self.id} "
                         f"self-reported the state '{self_reported_task_state}', but "
                         f"Celery reported '{celery_task_state}'. The database object "
                         f"was created more than {self.COMMIT_EXPIRATION} seconds ago. "
@@ -208,8 +276,8 @@ class TaskStateModel(models.Model):
                     )
                     return TaskStateModel.FAILURE
                 else:
-                    _log.info(
-                        f"The {self.__class__} instance with id {self.id} "
+                    _log.debug(
+                        f"The {self.__class__.__name__} instance with id {self.id} "
                         f"self-reported the state '{self_reported_task_state}', but "
                         f"Celery reported '{celery_task_state}'. The database object "
                         f"was created less than {self.COMMIT_EXPIRATION} seconds ago. "
@@ -218,8 +286,8 @@ class TaskStateModel(models.Model):
                     return TaskStateModel.PENDING
             else:
                 # In all other cases, we trust the self-reported state.
-                _log.info(
-                    f"The {self.__class__} instance with id {self.id} self-reported "
+                _log.debug(
+                    f"The {self.__class__.__name__} instance with id {self.id} self-reported "
                     f"the state '{self_reported_task_state}', but Celery reported "
                     f"'{celery_task_state}'. I am returning the self-reported state."
                 )
@@ -227,6 +295,12 @@ class TaskStateModel(models.Model):
 
     def get_task_progress(self):
         """Return progress of task, if running"""
+        # Optimization: If task is in terminal state, return appropriate value without querying Celery
+        if self.task_state == TaskStateModel.SUCCESS:
+            return 100.0
+        elif self.task_state == TaskStateModel.FAILURE:
+            return None
+
         # Get all tasks
         task_results = self.get_async_results()
 
@@ -234,22 +308,24 @@ class TaskStateModel(models.Model):
         total = 0
         current = 0
         for r in task_results:
+            # Use cached state and info to avoid repeated Celery queries
+            state = self._get_result_state(r)
+            info = self._get_result_info(r)
+
             # First check for errors
-            if r.state in celery.states.EXCEPTION_STATES or isinstance(
-                r.info, Exception
-            ):
+            if state in celery.states.EXCEPTION_STATES or isinstance(info, Exception):
                 # Some of the tasks failed, we return no progress
                 return None
-            elif r.state == celery.states.SUCCESS:
+            elif state == celery.states.SUCCESS:
                 total += 1
                 current += 1
-            elif r.state == celery.states.PENDING:
+            elif state == celery.states.PENDING:
                 total += 1
-            elif r.info:
+            elif info:
                 # We assume that the state is 'PROGRESS' and we can just extract the
                 # progress dictionary.
                 try:
-                    task_progress = ProgressRecorder.Model(**r.info)
+                    task_progress = ProgressRecorder.Model(**info)
                 except pydantic.ValidationError:
                     _log.info(
                         f"Validation of progress dictionary for task {r} of analysis "
@@ -276,25 +352,31 @@ class TaskStateModel(models.Model):
 
     def get_task_messages(self):
         """Return progress message(s) of the task, if running"""
+        # Optimization: If task is in terminal state, return empty list without querying Celery
+        if self.task_state in (TaskStateModel.SUCCESS, TaskStateModel.FAILURE):
+            return []
+
         # Get all tasks
         task_results = self.get_async_results()
 
         messages = []
         for r in task_results:
+            # Use cached state and info to avoid repeated Celery queries
+            state = self._get_result_state(r)
+            info = self._get_result_info(r)
+
             # First check for errors
-            if r.state in celery.states.EXCEPTION_STATES or isinstance(
-                r.info, Exception
-            ):
+            if state in celery.states.EXCEPTION_STATES or isinstance(info, Exception):
                 # Some of the tasks failed, we return no progress message
                 return None
-            elif r.state == celery.states.SUCCESS or r.state == celery.states.PENDING:
+            elif state == celery.states.SUCCESS or state == celery.states.PENDING:
                 # Task finished or is pending, no progress message
                 pass
-            elif r.info:
+            elif info:
                 # We assume that the state is 'PROGRESS' and we can just extract the
                 # progress dictionary.
                 try:
-                    task_progress = ProgressRecorder.Model(**r.info)
+                    task_progress = ProgressRecorder.Model(**info)
                 except pydantic.ValidationError:
                     _log.info(
                         f"Validation of progress dictionary for task {r} of analysis "
@@ -337,11 +419,13 @@ class TaskStateModel(models.Model):
 
         # If there is none, check Celery
         for r in self.get_async_results():
+            # Use cached info to avoid repeated Celery queries
+            info = self._get_result_info(r)
             # We simply fail with the first error we encounter
-            if r and isinstance(r.info, Exception):
+            if r and isinstance(info, Exception):
                 # Generate error string
                 self.task_state = self.FAILURE
-                self.task_error = str(r.info).replace('\x00', '')
+                self.task_error = str(info).replace('\x00', '')
                 # There seems to be an error, store for future reference
                 self.save(update_fields=["task_state", "task_error"])
                 return self.task_error
@@ -386,7 +470,14 @@ class TaskStateModel(models.Model):
         try:
             tracemalloc.start()
             tracemalloc.reset_peak()
-            self.task_worker(*args, **kwargs)
+            # Check if task_worker accepts timer argument
+            sig = inspect.signature(self.task_worker)
+            if 'timer' in sig.parameters:
+                timer = Timer(str(self.task_id))
+                self.task_worker(*args, timer=timer, **kwargs)
+                self.task_timer = timer.to_dict()
+            else:
+                self.task_worker(*args, **kwargs)
             size, peak = tracemalloc.get_traced_memory()
             tracemalloc.stop()
             self.task_state = TaskStateModel.SUCCESS

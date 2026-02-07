@@ -58,7 +58,6 @@ def test_workflow_list_view(api_client, user_alice, handle_usage_statistics):
 
     # Check workflow structure
     workflow = workflows[0]
-    assert "id" in workflow
     assert "url" in workflow
     assert "name" in workflow
     assert "display_name" in workflow
@@ -75,7 +74,6 @@ def test_workflow_retrieve_view(
     response = api_client.get(url)
 
     assert response.status_code == status.HTTP_200_OK
-    assert response.data["id"] == test_analysis_function.pk
     assert response.data["name"] == test_analysis_function.name
     assert response.data["display_name"] == test_analysis_function.display_name
     assert "url" in response.data
@@ -189,7 +187,7 @@ def test_result_create_topography(
 
     assert response.status_code == status.HTTP_201_CREATED
     assert "id" in response.data
-    assert response.data["function"]["id"] == test_analysis_function.id
+    assert response.data["function"]["name"] == test_analysis_function.name
     assert response.data["subject"]["id"] == one_line_scan.id
     assert response.data["subject"]["type"] == "topography"
     assert response.data["kwargs"] == {"a": 2, "b": "test"}
@@ -224,7 +222,7 @@ def test_result_create_surface(
     assert response.status_code == status.HTTP_201_CREATED
     assert response.data["subject"]["id"] == surface.id
     assert response.data["subject"]["type"] == "surface"
-    assert response.data["function"]["id"] == test_analysis_function.id
+    assert response.data["function"]["name"] == test_analysis_function.name
     assert response.data["created_by"]["id"] == user_alice.id
     assert response.data["task_state"] == WorkflowResult.NOTRUN
 
@@ -259,7 +257,7 @@ def test_result_create_tag(api_client,
     assert response.status_code == status.HTTP_201_CREATED
     assert response.data["subject"]["id"] == tag.id
     assert response.data["subject"]["type"] == "tag"
-    assert response.data["function"]["id"] == test_analysis_function.id
+    assert response.data["function"]["name"] == test_analysis_function.name
     assert response.data["created_by"]["id"] == user_alice.id
     assert response.data["task_state"] == WorkflowResult.NOTRUN
 
@@ -288,8 +286,7 @@ def test_result_create_with_workflow_name(
     response = api_client.post(url, data, format="json")
 
     assert response.status_code == status.HTTP_201_CREATED
-    assert response.data["function"]["id"] == test_analysis_function.id
-    assert response.data['function']['name'] == test_analysis_function.name
+    assert response.data["function"]["name"] == test_analysis_function.name
     assert response.data["created_by"]["id"] == user_alice.id
     assert response.data["task_state"] == WorkflowResult.NOTRUN
 

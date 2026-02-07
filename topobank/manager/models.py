@@ -6,7 +6,6 @@ import io
 import itertools
 import logging
 import os.path
-import sys
 import tempfile
 from collections import defaultdict
 from typing import List
@@ -21,9 +20,10 @@ from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
+from muGrid.Timer import Timer
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
@@ -37,7 +37,7 @@ from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFul
 from ..files.models import Folder, Manifest
 from ..organizations.models import Organization
 from ..taskapp.models import TaskStateModel
-from ..taskapp.utils import run_task
+from ..taskapp.utils import in_celery_worker_process, run_task
 from ..users.models import User
 from .utils import get_topography_reader, render_deepzoom
 
@@ -50,12 +50,6 @@ MAX_LENGTH_DATAFILE_FORMAT = (
     15  # some more characters than currently needed, we may have sub formats in future
 )
 SQUEEZED_DATAFILE_FORMAT = "nc"
-
-# Detect whether we are running within a Celery worker. This solution was suggested here:
-# https://stackoverflow.com/questions/39003282/how-can-i-detect-whether-im-running-in-a-celery-worker
-_IN_CELERY_WORKER_PROCESS = (
-    sys.argv and sys.argv[0].endswith("celery") and "worker" in sys.argv
-)
 
 
 def _get_unit(channel):
@@ -332,6 +326,21 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
     class Meta:
         ordering = ["name"]
+        indexes = [
+            # Index on name for ordering in list views
+            models.Index(fields=['name'], name='surface_name_idx'),
+            # Composite index for filtering and ordering
+            # Used in: list queries with deletion_time filter
+            models.Index(fields=['deletion_time', 'name'], name='surface_list_idx'),
+            # Partial index for active (non-deleted) surfaces
+            # Most common query: only show surfaces where deletion_time IS NULL
+            # More efficient than full index since it excludes soft-deleted rows
+            models.Index(
+                fields=['name'],
+                name='surface_active_name_idx',
+                condition=Q(deletion_time__isnull=True)
+            ),
+        ]
 
     #
     # Manager
@@ -631,6 +640,22 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         unique_together = (("surface", "name"),)
         verbose_name = "measurement"
         verbose_name_plural = "measurements"
+        indexes = [
+            # Index on surface foreign key for JOIN optimization
+            # Used in: surface.topography_set.all() and filtering by surface__deletion_time
+            models.Index(fields=['surface'], name='topography_surface_idx'),
+            # Composite index for filtering and ordering
+            # Used in: list queries with deletion_time filter
+            models.Index(fields=['deletion_time', 'name'], name='topography_list_idx'),
+            # Partial index for active (non-deleted) topographies
+            # Most common query: only show topographies where deletion_time IS NULL
+            # More efficient than full index since it excludes soft-deleted rows
+            models.Index(
+                fields=['name'],
+                name='topography_active_name_idx',
+                condition=Q(deletion_time__isnull=True)
+            ),
+        ]
 
     #
     # Manager
@@ -980,7 +1005,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             missing artifacts according to the saved parameters.
             (Default: True)
         """
-        if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+        if not in_celery_worker_process() and self.size_y is not None:
             _log.warning(
                 "You are requesting to load a (2D) topography and you are not within in a Celery worker "
                 "process. This operation is potentially slow and may require a lot of memory - do not use "
@@ -1072,7 +1097,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         toporeader = None
         topo = None
         if allow_squeezed and self.squeezed_datafile_id and apply_filters:
-            if not _IN_CELERY_WORKER_PROCESS and self.size_y is not None:
+            if not in_celery_worker_process() and self.size_y is not None:
                 _log.warning(
                     "You are requesting to load a (2D) topography and you are not within in a Celery worker "
                     "process. This operation is potentially slow and may require a lot of memory - do not use "
@@ -1091,6 +1116,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 f"Using squeezed datafile instead of original datafile for topography id {self.id}."
             )
 
+        # Need to call exists to finish upload if file is None
         if topo is None:
             if self.datafile.exists():
                 # Read raw file if squeezed file is unavailable
@@ -1434,21 +1460,25 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def notify_users(self, sender, verb, description):
         self.permissions.notify_users(sender, verb, description)
 
-    def refresh_cache(self):
+    def refresh_cache(self, timer=None):
         """
         Inspect datafile and renew cached properties, in particular database entries on
         resolution, size etc. and the squeezed NetCDF representation of the data.
         """
+        if timer is None:
+            timer = Timer("refresh_cache")
+
         # Send signal
         _log.debug(f"Sending `pre_refresh_cache` signal from {self}...")
         pre_refresh_cache.send(sender=Topography, instance=self)
 
-        # First check if we have a datafile
-        if not self.datafile.exists():
-            raise RuntimeError(
-                f"Topography {self.id} does not appear to have a data file. Cannot "
-                f"refresh cached data."
-            )
+        with timer("exists"):
+            # First check if we have a datafile
+            if not self.datafile.exists():
+                raise RuntimeError(
+                    f"Topography {self.id} does not appear to have a data file. Cannot "
+                    f"refresh cached data."
+                )
 
         # Check if this is the first time we are opening this file...
         populate_initial_metadata = self.data_source is None
@@ -1460,8 +1490,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         _log.info(f"Caching properties of topography {self.id}...")
 
         # Open topography file
-        reader = get_topography_reader(self.datafile.file)
-        self.datafile_format = reader.format()
+        with timer("get_topography_reader"):
+            reader = get_topography_reader(self.datafile.file)
+            self.datafile_format = reader.format()
 
         # Update channel names
         self.channel_names = [
@@ -1591,19 +1622,25 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:
-            _log.info(f"Metadata of {self} is complete. Generating images.")
-            st_topo = self._read(reader)
+            with timer("metadata is complete"):
+                _log.info(f"Metadata of {self} is complete. Generating images.")
+                with timer("_read"):
+                    st_topo = self._read(reader)
 
-            # Check whether original data file has undefined data point and update
-            # database accordingly. (`has_undefined_data` can be undefined if
-            # undetermined.)
-            self.has_undefined_data = bool(st_topo.has_undefined_data)
+                # Check whether original data file has undefined data point and update
+                # database accordingly. (`has_undefined_data` can be undefined if
+                # undetermined.)
+                self.has_undefined_data = bool(st_topo.has_undefined_data)
 
-            # Refresh other cached quantities
-            self.refresh_bandwidth_cache(st_topo=st_topo)
-            self.make_thumbnail(st_topo=st_topo)
-            self.make_deepzoom(st_topo=st_topo)
-            self.make_squeezed(st_topo=st_topo)
+                # Refresh other cached quantities
+                with timer("refresh_bandwidth_cache"):
+                    self.refresh_bandwidth_cache(st_topo=st_topo)
+                with timer("make_thumbnail"):
+                    self.make_thumbnail(st_topo=st_topo)
+                with timer("make_deepzoom"):
+                    self.make_deepzoom(st_topo=st_topo)
+                with timer("make_squeezed"):
+                    self.make_squeezed(st_topo=st_topo)
 
         # Save dataset
         self.save()
@@ -1630,11 +1667,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             )
         return s
 
-    def task_worker(self):
-        self.refresh_cache()
+    def task_worker(self, timer=None):
+        self.refresh_cache(timer=timer)
 
     def ensure_task_started(self):
         """Ensures that the task has started running"""
         if self.task_state == "no" and self.datafile is not None:
-            run_task(self)
-            self.save()
+            # Need a transaction here to allow run_task to properly use on_commit hooks.
+            # Note: This should be reworked in the future since this is called via a GET request.
+            with transaction.atomic():
+                run_task(self)
+                self.save()

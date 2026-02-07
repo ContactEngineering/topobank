@@ -1,5 +1,6 @@
 from collections import defaultdict
 
+from django.db import transaction
 from django.db.models import Q
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
@@ -48,21 +49,50 @@ class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             )
 
     def get_queryset(self):
-        return Surface.objects.for_user(self.request.user).filter(
+        # PermissionFilterBackend handles permission filtering with two-step optimization
+        # We just apply business logic filters and optimizations here
+        return Surface.objects.filter(
             deletion_time__isnull=True
         ).select_related(
             'permissions',
             'created_by',
             'updated_by',
             'owned_by',
+            'attachments',
         ).prefetch_related(
             'topography_set',
-        ).distinct().order_by('name')
+            'properties',
+            'tags',
+            'permissions__user_permissions',
+            'permissions__user_permissions__user',
+            'permissions__organization_permissions',
+            'permissions__organization_permissions__organization',
+        ).order_by('name')
 
+    def list(self, request, *args, **kwargs):
+        """Override list to initialize permission cache for performance"""
+        # Initialize cache on user object to avoid repeated queries during serialization
+        if request.user.is_authenticated:
+            # Cache user groups once per request
+            if not hasattr(request.user, '_cached_group_ids'):
+                request.user._cached_group_ids = list(
+                    request.user.groups.values_list('id', flat=True)
+                )
+        return super().list(request, *args, **kwargs)
+
+    @transaction.atomic
     def perform_destroy(self, instance):
         """Perform soft delete by setting deletion_time instead of hard delete."""
         self._notify(instance, verb="delete")
         instance.lazy_delete()
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        return super().perform_update(serializer)
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        return super().perform_create(serializer)
 
 
 @extend_schema_view(
@@ -92,7 +122,9 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
     filterset_class = TopographyViewFilterSet
 
     def get_queryset(self):
-        return Topography.objects.for_user(self.request.user).filter(
+        # PermissionFilterBackend handles permission filtering with two-step optimization
+        # We just apply business logic filters and optimizations here
+        return Topography.objects.filter(
             Q(deletion_time__isnull=True) & Q(surface__deletion_time__isnull=True)
         ).select_related(
             'surface',
@@ -102,17 +134,68 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             'owned_by',
             'attachments',
             'thumbnail',
+            'datafile',
             'deepzoom',
-        ).distinct().order_by('name')
+            'squeezed_datafile',
+        ).prefetch_related(
+            'tags',
+            'permissions__user_permissions',
+            'permissions__user_permissions__user',
+            'permissions__organization_permissions',
+            'permissions__organization_permissions__organization',
+        ).order_by('name')
 
     def get_serializer_class(self):
         if self.action == 'create':
             return TopographyV2CreateSerializer
         return super().get_serializer_class()
 
+    def list(self, request, *args, **kwargs):
+        """Override list to initialize permission cache for performance"""
+        # Initialize cache on user object to avoid repeated queries during serialization
+        if request.user.is_authenticated:
+            # Cache user groups once per request
+            if not hasattr(request.user, '_cached_group_ids'):
+                request.user._cached_group_ids = list(
+                    request.user.groups.values_list('id', flat=True)
+                )
+
+        # Get the filtered queryset and paginate it
+        queryset = self.filter_queryset(self.get_queryset())
+        page = self.paginate_queryset(queryset)
+
+        # Build permission cache for the objects we'll serialize to avoid repeated get_for_user() calls
+        # This is the critical optimization: compute permissions once per unique PermissionSet
+        permission_cache = {}
+        if request.user.is_authenticated:
+            # Use the page if available, otherwise the full queryset
+            objects_to_cache = page if page is not None else queryset
+            for obj in objects_to_cache:
+                # Only compute if we haven't seen this PermissionSet before
+                if obj.permissions_id not in permission_cache:
+                    permission_cache[obj.permissions_id] = obj.permissions.get_for_user(request.user)
+
+        # Serialize with the permission cache in context
+        context = {'permission_cache': permission_cache, 'request': request}
+        if page is not None:
+            serializer = self.get_serializer(page, many=True, context=context)
+            return self.get_paginated_response(serializer.data)
+
+        serializer = self.get_serializer(queryset, many=True, context=context)
+        return Response(serializer.data)
+
+    @transaction.atomic
     def perform_destroy(self, instance):
         """Perform soft delete by setting deletion_time instead of hard delete."""
         instance.lazy_delete()
+
+    @transaction.atomic
+    def perform_update(self, serializer):
+        return super().perform_update(serializer)
+
+    @transaction.atomic
+    def perform_create(self, serializer):
+        return super().perform_create(serializer)
 
 
 class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
@@ -167,6 +250,7 @@ class ZipContainerViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
 )
 @api_view(["GET"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def tag_tree(request: Request):
     """
     Returns the full hierarchical tag tree structure with surface counts.
@@ -289,6 +373,7 @@ def tag_tree(request: Request):
                responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def download_surface(request: Request, surface_ids: str):
     # `surface_ids` is a comma-separated list of surface IDs as a string,
     # e.g. "1,2,3", we need to parse it
@@ -305,13 +390,14 @@ def download_surface(request: Request, surface_ids: str):
     if surface_qs.count() != len(surface_ids):
         invalid_ids = set(surface_ids) - set(surface_qs.values_list('id', flat=True))
         return HttpResponseBadRequest(f"One or more surfaces do not exist or are inaccessible: {invalid_ids}")
-    # Create a ZIP container object
-    zip_container = ZipContainer.objects.create(
-        permissions=PermissionSet.objects.create(user=request.user, allow="view")
-    )
 
-    # Dispatch task
-    run_task(zip_container, surface_ids=surface_ids)
+    # Create ZIP container and dispatch task within transaction
+    with transaction.atomic():
+        zip_container = ZipContainer.objects.create(
+            permissions=PermissionSet.objects.create(user=request.user, allow="view")
+        )
+        run_task(zip_container, surface_ids=surface_ids)
+        zip_container.save()
 
     # Return status
     return Response(
@@ -322,14 +408,15 @@ def download_surface(request: Request, surface_ids: str):
 @extend_schema(request=None,
                responses=ZipContainerV2Serializer)
 @api_view(["POST"])
+@transaction.non_atomic_requests
 def download_tag(request: Request, name: str):
-    # Create a ZIP container object
-    zip_container = ZipContainer.objects.create(
-        permissions=PermissionSet.objects.create(user=request.user, allow="view")
-    )
-
-    # Dispatch task
-    run_task(zip_container, tag_name=name)
+    # Create ZIP container and dispatch task within transaction
+    with transaction.atomic():
+        zip_container = ZipContainer.objects.create(
+            permissions=PermissionSet.objects.create(user=request.user, allow="view")
+        )
+        run_task(zip_container, tag_name=name)
+        zip_container.save()
 
     # Return status
     return Response(
@@ -341,14 +428,16 @@ def download_tag(request: Request, name: str):
                responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def upload_zip_start(request: Request):
-    # Create a ZIP container object
-    zip_container = ZipContainer.objects.create(
-        permissions=PermissionSet.objects.create(user=request.user, allow="full")
-    )
+    # Create a ZIP container object within transaction
+    with transaction.atomic():
+        zip_container = ZipContainer.objects.create(
+            permissions=PermissionSet.objects.create(user=request.user, allow="full")
+        )
 
-    # Create an empty manifest
-    zip_container.create_empty_manifest()
+        # Create an empty manifest
+        zip_container.create_empty_manifest()
 
     # Return status
     return Response(
@@ -361,14 +450,16 @@ def upload_zip_start(request: Request):
     responses=ZipContainerV2Serializer)
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
+@transaction.non_atomic_requests
 def upload_zip_finish(request: Request, pk: int):
     # Get ZIP container
     zip_container = get_object_or_404(ZipContainer, pk=pk)
     zip_container.authorize_user(request.user)
 
-    # Dispatch task
-    run_task(zip_container)
-    zip_container.save()  # run_task sets the initial task state to 'pe', so we need to save
+    # Dispatch task after transaction commits
+    with transaction.atomic():
+        run_task(zip_container)
+        zip_container.save()
 
     return Response(
         ZipContainerV2Serializer(zip_container, context={"request": request}).data

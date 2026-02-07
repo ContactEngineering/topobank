@@ -1,21 +1,19 @@
+from django.apps import apps
+from django.conf import settings
 from django.db.models import Q
 from django_filters.rest_framework import FilterSet, filters
 from drf_spectacular.utils import OpenApiTypes, extend_schema_field
 
 from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.manager.models import Surface, Tag, Topography
-from topobank.organizations.models import Organization
 from topobank.taskapp.utils import TASK_STATE_CHOICES
 
-ML = "sds_ml"
-CONTACT = "topobank_statistics"
-STATISTICS = "topobank_contact"
-
-APP_CHOICES = (
-    (ML, "SDS ML"),
-    (CONTACT, "Contact"),
-    (STATISTICS, "Statistics")
-)
+APP_CHOICES = [
+    (app_config.name, app_config.verbose_name)
+    for app_config in apps.get_app_configs()
+    if app_config.name in settings.PLUGIN_MODULES
+    and app_config.name not in getattr(settings, 'EXCLUDED_PLUGIN_CHOICES', [])
+]
 
 
 class WorkflowViewFilterSet(FilterSet):
@@ -44,7 +42,6 @@ class WorkflowViewFilterSet(FilterSet):
     def filter_app(self, queryset, name, value):
         """
         Filter workflows by app/plugin name.
-        Only returns workflows if the user has access to the specified plugin.
 
         Args:
             queryset: Initial queryset
@@ -52,20 +49,9 @@ class WorkflowViewFilterSet(FilterSet):
             value: App/plugin name to filter by
 
         Returns:
-            Filtered queryset (empty if user lacks access to plugin)
+            Filtered queryset or empty queryset if app not found
         """
-        user = getattr(self.request, 'user', None)
-
-        if not user:
-            return queryset.none()
-
-        # Check if user has access to this plugin
-        plugins_available = Organization.objects.get_plugins_available(user)
-
-        if value in plugins_available:
-            return queryset.filter(name__icontains=value)
-
-        return queryset.none()
+        return queryset.filter(name__icontains=value)
 
     def filter_subject_type(self, queryset, name, value):
         """
@@ -133,7 +119,7 @@ class ResultViewFilterSet(FilterSet):
     # Filter by workflow name
     workflow_name = filters.CharFilter(
         field_name="function__name",
-        lookup_expr="icontains",
+        lookup_expr="iexact",
         label="Workflow name"
     )
 

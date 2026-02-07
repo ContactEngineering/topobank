@@ -1,5 +1,4 @@
 import logging
-import sys
 
 from django.db.models import Q
 from django.db.models.signals import post_delete, pre_delete, pre_save
@@ -11,12 +10,6 @@ from ..manager.models import Topography, post_refresh_cache
 from .models import WorkflowResult
 
 _log = logging.getLogger(__name__)
-
-# Detect whether we are running within a Celery worker. This solution was suggested here:
-# https://stackoverflow.com/questions/39003282/how-can-i-detect-whether-im-running-in-a-celery-worker
-_IN_CELERY_WORKER_PROCESS = (
-    sys.argv and sys.argv[0].endswith("celery") and "worker" in sys.argv
-)
 
 
 @receiver(post_delete, sender=WorkflowResult)
@@ -57,13 +50,11 @@ def delete_all_related_analyses(sender, instance, **kwargs):
         f"Cache of measurement {instance} was renewed: Marking all affected "
         "analyses as invalid..."
     )
-    analyses = WorkflowResult.objects.filter(
+    # Use update() directly for better performance
+    WorkflowResult.objects.filter(
         Q(subject_dispatch__topography=instance)
         | Q(subject_dispatch__surface=instance.surface)
-    )
-    for analysis in analyses:
-        analysis.deprecation_time = timezone.now()
-    WorkflowResult.objects.bulk_update(analyses, ["deprecation_time"])
+    ).update(deprecation_time=timezone.now())
 
 
 @receiver(pre_save, sender=Topography)
@@ -73,9 +64,9 @@ def pre_measurement_save(sender, instance, **kwargs):
         # Measurement was created and added to a dataset: We need to delete the
         # corresponding dataset analysis
         analyses = WorkflowResult.objects.filter(subject_dispatch__surface=instance.surface)
-        if analyses.count() > 0:
+        if analyses.exists():  # More efficient than count() > 0
             ids = ", ".join(
-                [str(i) for i in WorkflowResult.objects.values_list("id", flat=True)]
+                [str(i) for i in analyses.values_list("id", flat=True)]
             )
             _log.debug(
                 "INVALIDATE WORKFLOWS: A measurement was added to dataset "

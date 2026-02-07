@@ -49,7 +49,11 @@ USE_TZ = True
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 postgres_db = env("POSTGRES_DB", default=None)
 if postgres_db is None:
-    DATABASES = {"default": env.db("DATABASE_URL", default="postgres://postgres@localhost/topobank-test")}
+    DATABASES = {
+        "default": env.db(
+            "DATABASE_URL", default="postgres://postgres@localhost/topobank-test"
+        )
+    }
 else:
     DATABASES = {
         "default": {
@@ -61,7 +65,8 @@ else:
             "PORT": env("POSTGRES_PORT"),
         }
     }
-DATABASES["default"]["ATOMIC_REQUESTS"] = True
+
+DATABASES["default"]["ATOMIC_REQUESTS"] = False
 
 # CACHES
 # ------------------------------------------------------------------------------
@@ -75,6 +80,13 @@ CACHES = {
         ),
         "OPTIONS": {
             "CLIENT_CLASS": "django_redis.client.DefaultClient",
+            # Gracefully degrade if Redis is unavailable (prevents request failures)
+            "IGNORE_EXCEPTIONS": True,
+            # Connection timeouts to prevent hanging requests
+            "SOCKET_CONNECT_TIMEOUT": 5,
+            "SOCKET_TIMEOUT": 5,
+            # Connection pooling for better performance
+            "CONNECTION_POOL_KWARGS": {"max_connections": 50},
         },
     }
     # 'default': {
@@ -118,7 +130,6 @@ THIRD_PARTY_APPS = [
     "guardian",  # needed for migrations only
     "notifications",
     "tagulous",  # tag-model with hierarchies
-    "trackstats",
     "watchman",  # system status report
     "request_profiler",  # keep track of response times for selected routes
     "drf_spectacular",  # API documentation
@@ -130,7 +141,6 @@ LOCAL_APPS = [
     "topobank.files.apps.FilesAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
-    "topobank.usage_stats.apps.UsageStatsAppConfig",
     "topobank.organizations.apps.OrganizationsAppConfig",
     "topobank.properties.apps.PropertiesAppConfig",
 ]
@@ -242,11 +252,6 @@ MIDDLEWARE += [
     "django.middleware.clickjacking.XFrameOptionsMiddleware",
 ]
 
-#
-# Usage statistics
-#
-ENABLE_USAGE_STATS = env("TOPOBANK_ENABLE_USAGE_STATS", default=False)
-
 # TEMPLATES
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#templates
@@ -326,6 +331,7 @@ CELERY_RESULT_BACKEND = env("CELERY_RESULT_BACKEND", default="redis://127.0.0.1:
 # and there is a problem with Python 3.7's keyword 'async' which is used in the celery code
 
 CELERY_RESULT_PERSISTENT = True
+CELERY_RESULT_EXPIRES = 86400  # 1 day
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-accept_content
 CELERY_ACCEPT_CONTENT = ["json"]
 # http://docs.celeryproject.org/en/latest/userguide/configuration.html#std:setting-task_serializer
@@ -510,7 +516,7 @@ TRACKED_DEPENDENCIES += [
         "https://github.com/ContactEngineering/SurfaceTopography",
     ),
     ("NuMPI", "NuMPI.__version__", "MIT", "https://github.com/IMTEK-Simulation/NuMPI"),
-    ("muFFT", "muFFT.__version__", "LGPL-3.0", "https://github.com/muSpectre/muFFT"),
+    ("muGrid", "muGrid.__version__", "LGPL-3.0", "https://github.com/muSpectre/muGrid"),
     ("numpy", "numpy.__version__", "BSD 3-Clause", "https://numpy.org/"),
     ("scipy", "scipy.__version__", "BSD 3-Clause", "https://scipy.org/"),
     ("pandas", "pandas.__version__", "BSD 3-Clause", "https://pandas.pydata.org/"),

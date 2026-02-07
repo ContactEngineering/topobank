@@ -43,7 +43,7 @@ dependencies = [
     'psycopg[binary]', # https://github.com/psycopg/psycopg3
 
     # Django
-    'django==5.2.9',         #  does this work with pyup?  # https://www.djangoproject.com/
+    'django==5.2.11',         #  does this work with pyup?  # https://www.djangoproject.com/
     'django-environ',         # https://github.com/joke2k/django-environ
     'django-allauth>=0.56.0', # https://github.com/pennersr/django-allauth
     'django-filter',          # https://django-filter.readthedocs.io/en/stable/
@@ -63,10 +63,6 @@ dependencies = [
 
     # tagging support
     'django-tagulous @ git+https://github.com/stephendwolff/django-tagulous.git@d80ef84',
-
-    # statistics
-    # django-statsy  # cannot be used currently because of fixed version in requirements
-    'django-trackstats',
 
     #
     # Storage
@@ -94,7 +90,7 @@ dependencies = [
     # tornado>=4.2.0, <6.0.0
 
     # Surface topography I/O and analysis
-    'SurfaceTopography>=1.18.2',
+    'SurfaceTopography>=1.20.0',
 
     # Validation
     'pydantic',
@@ -163,6 +159,9 @@ dependencies = [
 
     # merging dictionaries
     'mergedeep',
+
+    # Timer
+    'muGrid>=0.105.1',
 ]
 
 [project.optional-dependencies]
@@ -176,7 +175,7 @@ dev = [
 
     # Documentation
     # ------------------------------------------------------------------------------
-    'Sphinx<9.0.5',
+    'Sphinx<9.1.1',
     # https://github.com/sphinx-doc/sphinx
     'sphinx_rtd_theme',
 

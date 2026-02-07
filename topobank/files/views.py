@@ -1,5 +1,6 @@
 import logging
 
+from django.db import transaction
 from django.http import HttpResponseBadRequest
 from django.shortcuts import get_object_or_404
 from drf_spectacular.utils import OpenApiParameter, OpenApiTypes, extend_schema
@@ -28,6 +29,7 @@ class FileManifestViewSet(
     serializer_class = ManifestSerializer
     permission_classes = [IsAuthenticatedOrReadOnly, ManifestPermission]
 
+    @transaction.atomic
     def perform_create(self, serializer):
         if "folder" in serializer.validated_data:
             folder = serializer.validated_data["folder"]
@@ -45,6 +47,7 @@ class FileManifestViewSet(
                         "folder.",
             )
 
+    @transaction.atomic
     def perform_update(self, serializer):
         if "folder" in serializer.validated_data:
             folder = serializer.validated_data["folder"]
@@ -63,6 +66,7 @@ class FileManifestViewSet(
         serializer.save()
 
 
+@transaction.non_atomic_requests
 @api_view(["POST"])
 @permission_classes([IsAuthenticated])
 def upload_local(request, manifest_id: int):
@@ -84,7 +88,8 @@ def upload_local(request, manifest_id: int):
         nb_files += 1
         if nb_files > 1:
             return HttpResponseBadRequest("Upload can only accept single files.")
-        manifest.finish_upload(file)
+        with transaction.atomic():
+            manifest.finish_upload(file)
 
     return Response({}, status=204)
 
@@ -103,6 +108,7 @@ def upload_local(request, manifest_id: int):
     responses=OpenApiTypes.OBJECT,
 )
 @api_view(["GET"])
+@transaction.non_atomic_requests
 def list_manifests(request, pk=None):
     """List all manifests in a folder"""
     obj = get_object_or_404(Folder.objects.for_user(request.user, VIEW), pk=pk)

@@ -7,6 +7,11 @@ try:
 except ModuleNotFoundError:
     ArrayImpl = np.ndarray
 
+try:
+    from pydantic import BaseModel as PydanticBaseModel
+except ModuleNotFoundError:
+    PydanticBaseModel = None
+
 
 def nan_to_none(obj):
     if isinstance(obj, dict):
@@ -49,8 +54,10 @@ class ExtendedJSONEncoder(DjangoJSONEncoder):
     * NaNs and Infs, which will be converted to null
     * numpy masked arrays, which will be converted to JSON arrays
       with masked values converted to null
+    * Pydantic models, which will be converted via model_dump()
     """
 
+    # Exact type matching for concrete types (efficient O(1) lookup)
     _TYPE_MAP = {
         np.int_: int,
         np.intc: int,
@@ -74,11 +81,19 @@ class ExtendedJSONEncoder(DjangoJSONEncoder):
     }
 
     def default(self, obj):
+        # First try exact type match (efficient for numpy types)
         try:
             return self._TYPE_MAP[type(obj)](obj)
         except KeyError:
-            # Pass it on the Django encoder
-            return super().default(obj)
+            pass
+
+        # Fallback to isinstance checks for inheritance-based types
+        # Pydantic models: convert via model_dump()
+        if PydanticBaseModel is not None and isinstance(obj, PydanticBaseModel):
+            return obj.model_dump()
+
+        # Pass it on to the Django encoder
+        return super().default(obj)
 
     def encode(self, obj, *args, **kwargs):
         # Solution suggested here:

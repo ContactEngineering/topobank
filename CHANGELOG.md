@@ -1,5 +1,40 @@
 # Changelog for *TopoBank*
 
+# 1.68.0 (not yet released)
+
+- ENH: Allow metadata to be passed on analysis POST
+- ENH: Output schema for workflows
+- ENH: Support for pydantic models in JSON encoder
+- ENH: Timing of tasks
+- MAINT: Added more task state info to list serializer
+- MAINT: Improved performance of celery task_state resolution
+- MAINT: Changed organizations plugins available from string to choice array
+- MAINT: Fixed plugin logic to be handled dynamically
+- MAINT: Fixed permissions for workflows view
+- MAINT: Removed redundant source on serializer field
+- MAINT: Removed `usage_stats` app
+- MAINT: Deprecate results dictionary
+- MAINT: Separated dependency resolution and task execution (#1227)
+- MAINT: Simplified workflow serializers
+- MAINT: Save JSON using the ExtendedJSONEncoder
+- MAINT: Better detection of whether the service is running within a Celery task
+- MAINT: Performance and indexing optimizations
+- MAINT: Improved transaction handling and atomic request settings
+- MAINT: New USE_PGBOUNCER configuration setting
+- MAINT: muFFT no longer exists and has been folded into muGrid
+- MAINT: Updated Django to 5.2.10
+- MAINT: Updated Sphinx dependency
+- BUG: Fixed app filter
+- BUG: Fixed outputs schema
+- BUG: Return none if workflow implementation does not exist
+- BUG: Allow user access to statistics backend and fix landing page
+- TST: Fixed test to reflect tracebacks are now passed up from deps
+- TST: Replaced deprecated `pytz` with Python's built-in `zoneinfo` module in tests
+
+# 1.67.0 (2025-12-16)
+
+- ENH: Generate NetCDF tile pyramid
+
 # 1.66.3 (2026-02-07)
 
 - BUG: Disabled `is_ready` to run workflows directly after upload

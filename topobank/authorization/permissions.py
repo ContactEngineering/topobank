@@ -63,6 +63,13 @@ class PermissionFilterBackend(BaseFilterBackend):
     ) -> QuerySet:
         """
         Filter queryset to only include objects the authenticated user can access.
+
+        Uses a two-step optimization:
+        1. First, get accessible object IDs (UNION automatically deduplicates)
+        2. Then, filter the original queryset by those IDs
+
+        This avoids expensive operations on all model columns (50+)
+        while preserving the queryset's select_related/prefetch_related optimizations.
         """
         # Allow view to override permission level
         if hasattr(view, "get_permission_level"):
@@ -72,4 +79,14 @@ class PermissionFilterBackend(BaseFilterBackend):
         else:
             perm = "view"
 
-        return queryset.for_user(request.user, perm)
+        # Step 1: Get accessible IDs (UNION queries auto-deduplicate)
+        # Note: _filter_for_user uses UNION queries internally but returns a regular queryset.
+        # To maintain performance optimizations we need to materialize IDs here. Then we filter
+        # the original queryset in step 2 with those IDs.
+        accessible_ids = queryset.model.objects.for_user(
+            request.user, perm
+        ).values_list('id', flat=True)
+
+        # Step 2: Filter original queryset by accessible IDs
+        # This preserves all select_related/prefetch_related from get_queryset()
+        return queryset.filter(id__in=accessible_ids)

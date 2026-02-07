@@ -49,6 +49,84 @@ def levels_with_access(perm: ViewEditFull) -> set:
     return retval
 
 
+def _filter_for_user(
+    queryset: QuerySet,
+    user: User,
+    permission: ViewEditFull,
+    prefix: str = ""
+) -> QuerySet:
+    """
+    Shared implementation for filtering querysets by user permission.
+
+    Args:
+        queryset: The queryset to filter
+        user: The user to check permissions for
+        permission: The permission level to check
+        prefix: Field prefix for permission lookups (e.g., "permissions__" or "")
+
+    Note: This implementation uses UNION queries to optimize performance
+    when filtering permissions, avoiding expensive OR conditions.
+    Union queries come with some limitations (e.g., no further filtering after union),
+    so we materialize IDs and return a regular filtered queryset at the end.
+    """
+    # Cache user groups to prevent query re-evaluation and improve query plan stability
+    if not hasattr(user, '_cached_group_ids'):
+        user._cached_group_ids = list(user.groups.values_list('id', flat=True))
+    user_group_ids = user._cached_group_ids
+
+    # Build field names with prefix
+    user_perm_user = f"{prefix}user_permissions__user"
+    user_perm_allow = f"{prefix}user_permissions__allow__in"
+    org_perm_group = f"{prefix}organization_permissions__organization__group_id__in"
+    org_perm_allow = f"{prefix}organization_permissions__allow__in"
+
+    if permission == "view":
+        # Use UNION instead of OR for better query performance
+        # Each branch can use its own optimal index
+
+        # Branch 1: Anonymous user can view
+        qs_anonymous = queryset.filter(**{user_perm_user: get_anonymous_user()})
+
+        # Branch 2: Direct user permission
+        qs_user = queryset.filter(**{user_perm_user: user})
+
+        # Branch 3: Organization permission (only if user belongs to groups)
+        if user_group_ids:
+            qs_org = queryset.filter(**{org_perm_group: user_group_ids})
+            # UNION all three branches
+            union_qs = qs_anonymous.union(qs_user, qs_org)
+        else:
+            # User not in any groups - skip org branch
+            union_qs = qs_anonymous.union(qs_user)
+
+        # Materialize IDs from UNION and return a regular filtered queryset
+        # This allows further filtering/chaining while keeping UNION performance benefits
+        accessible_ids = list(union_qs.values_list('id', flat=True))
+        return queryset.filter(id__in=accessible_ids)
+    else:
+        # For edit/full permissions, check permission levels
+        # No anonymous access for these permission levels
+        allowed_levels = levels_with_access(permission)
+
+        # Branch 1: Direct user permission with level check
+        qs_user = queryset.filter(**{user_perm_user: user, user_perm_allow: allowed_levels})
+
+        # Branch 2: Organization permission with level check (only if user belongs to groups)
+        if user_group_ids:
+            qs_org = queryset.filter(
+                **{org_perm_group: user_group_ids, org_perm_allow: allowed_levels}
+            )
+            # UNION both branches
+            union_qs = qs_user.union(qs_org)
+        else:
+            # User not in any groups - return only user branch (already filterable)
+            return qs_user
+
+        # Materialize IDs from UNION and return a regular filtered queryset
+        accessible_ids = list(union_qs.values_list('id', flat=True))
+        return queryset.filter(id__in=accessible_ids)
+
+
 class PermissionSetManager(models.Manager):
     def create(self, user: User = None, allow: ViewEditFullNone = None, **kwargs):
         if user is not None or allow is not None:
@@ -68,30 +146,7 @@ class PermissionSetManager(models.Manager):
 
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
         """Return all PermissionSets where user has at least the given permission level"""
-        if permission == "view":
-            # We do not need to filter on permission level, just check that there
-            # is some permission for the user
-            return self.filter(
-                # If anonymous has access, anybody can access
-                Q(user_permissions__user=get_anonymous_user())
-                # Direct user access
-                | Q(user_permissions__user=user)
-                # User access through an organization
-                | Q(organization_permissions__organization__group__in=user.groups.all())
-            )
-        else:
-            return self.filter(
-                # Direct user access
-                (
-                    Q(user_permissions__user=user)
-                    & Q(user_permissions__allow__in=levels_with_access(permission))
-                )
-                # User access through an organization
-                | (
-                    Q(organization_permissions__organization__group__in=user.groups.all())
-                    & Q(organization_permissions__allow__in=levels_with_access(permission))
-                )
-            )
+        return _filter_for_user(self, user, permission, prefix="")
 
 
 class PermissionSet(models.Model):
@@ -113,17 +168,40 @@ class PermissionSet(models.Model):
         """Return permissions of a specific user"""
         anonymous_user = get_anonymous_user()
 
-        # Get user permissions
-        user_permissions = self.user_permissions.filter(
-            Q(user=user) | Q(user=anonymous_user)
-        )
-        nb_user_permissions = user_permissions.count()
+        # Check if user_permissions data is prefetched
+        if 'user_permissions' in getattr(self, '_prefetched_objects_cache', {}):
+            # Use prefetched data (no query)
+            user_permissions = [
+                p for p in self.user_permissions.all()
+                if p.user == user or p.user == anonymous_user
+            ]
+        else:
+            # Fall back to query
+            user_permissions = list(self.user_permissions.filter(
+                Q(user=user) | Q(user=anonymous_user)
+            ))
 
-        # Get organization permissions
-        organization_permissions = self.organization_permissions.filter(
-            organization__group__in=user.groups.all()
-        )
-        nb_organization_permissions = organization_permissions.count()
+        nb_user_permissions = len(user_permissions)
+
+        # Cache user groups on user object to prevent re-evaluation
+        if not hasattr(user, '_cached_group_ids'):
+            user._cached_group_ids = list(user.groups.values_list('id', flat=True))
+        user_group_ids = user._cached_group_ids
+
+        # Check if organization_permissions data is prefetched
+        if 'organization_permissions' in getattr(self, '_prefetched_objects_cache', {}):
+            # Use prefetched data (no query)
+            organization_permissions = [
+                p for p in self.organization_permissions.all()
+                if p.organization.group_id in user_group_ids
+            ]
+        else:
+            # Fall back to query
+            organization_permissions = list(self.organization_permissions.filter(
+                organization__group_id__in=user_group_ids
+            ))
+
+        nb_organization_permissions = len(organization_permissions)
 
         # Idiot check
         if nb_user_permissions > 1:
@@ -267,6 +345,14 @@ class UserPermission(models.Model):
     class Meta:
         # There can only be one permission per user
         unique_together = ("parent", "user")
+        indexes = [
+            # Composite index for permission lookups by user and parent
+            # Used in: get_for_user() queries
+            models.Index(fields=['user', 'parent'], name='userperm_user_parent_idx'),
+            # Index on parent for reverse lookups from PermissionSet
+            # Used in: permission_set.user_permissions.all()
+            models.Index(fields=['parent'], name='userperm_parent_idx'),
+        ]
 
     # The set this permission belongs to
     parent = models.ForeignKey(
@@ -286,6 +372,14 @@ class OrganizationPermission(models.Model):
     class Meta:
         # There can only be one permission per organization
         unique_together = ("parent", "organization")
+        indexes = [
+            # Composite index for permission lookups by organization and parent
+            # Used in: get_for_user() organization permission queries
+            models.Index(fields=['organization', 'parent'], name='orgperm_org_parent_idx'),
+            # Index on parent for reverse lookups from PermissionSet
+            # Used in: permission_set.organization_permissions.all()
+            models.Index(fields=['parent'], name='orgperm_parent_idx'),
+        ]
 
     # The set this permission belongs to
     parent = models.ForeignKey(
@@ -302,42 +396,7 @@ class OrganizationPermission(models.Model):
 class AuthorizedQuerySet(QuerySet):
     """QuerySet with permission filtering capabilities."""
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
-        if permission == "view":
-            # We do not need to filter on permission, just check that there
-            # is some permission for the user
-            return self.filter(
-                # If anonymous has access, anybody can access
-                Q(permissions__user_permissions__user=get_anonymous_user())
-                # Direct user access
-                | Q(permissions__user_permissions__user=user)
-                # User access through an organization
-                | Q(
-                    permissions__organization_permissions__organization__group__in=user.groups.all()
-                )
-            )
-        else:
-            return self.filter(
-                # Direct user access
-                (
-                    Q(permissions__user_permissions__user=user)
-                    & Q(
-                        permissions__user_permissions__allow__in=levels_with_access(
-                            permission
-                        )
-                    )
-                )
-                # User access through an organization
-                | (
-                    Q(
-                        permissions__organization_permissions__organization__group__in=user.groups.all()
-                    )
-                    & Q(
-                        permissions__organization_permissions__allow__in=levels_with_access(
-                            permission
-                        )
-                    )
-                )
-            )
+        return _filter_for_user(self, user, permission, prefix="permissions__")
 
 
 class AuthorizedManager(models.Manager):

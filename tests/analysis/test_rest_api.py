@@ -150,11 +150,10 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
     assert_dict_equal(
         response.data,
         {
-            "id": ASSERT_EQUAL_IGNORE_VALUE,
             "url": f"http://testserver/analysis/api/workflow/{name}/",
             "name": name,
             "display_name": "Test implementation",
-            "visualization_type": "series",
+            "subject_types": ["surface", "topography", "tag"],
             "kwargs_schema": {
                 "title": ASSERT_EQUAL_IGNORE_VALUE,
                 "additionalProperties": False,
@@ -164,6 +163,7 @@ def test_function_info(api_client, user_alice, handle_usage_statistics):
                     "b": {"default": "foo", "title": "B", "type": "string"},
                 },
             },
+            "outputs_schema": [],
         },
     )
 
@@ -371,8 +371,8 @@ def test_query_with_error_in_dependency(
     assert WorkflowResult.objects.count() == 2
 
     assert response.data["analyses"][0]["task_error"] == "An error occurred!"
-    # We currently do not get a traceback from dependencies
-    assert response.data["analyses"][0]["task_traceback"] is None
+    # Traceback should be passed up from the dependency
+    assert response.data["analyses"][0]["task_traceback"] is not None
 
 
 @pytest.mark.django_db

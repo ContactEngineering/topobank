@@ -74,8 +74,9 @@ def test_analysis_function(test_analysis_function):
         kwargs=dict(a=2, b="bar"),
     )
     analysis.folder.remove_files()  # Make sure there are no files
-    result = test_analysis_function.eval(analysis)
-    assert result["comment"] == "Arguments: a is 2 and b is bar"
+    test_analysis_function.eval(analysis)
+    # Results are now stored as files, access via analysis.result
+    assert analysis.result["comment"] == "Arguments: a is 2 and b is bar"
 
 
 @pytest.mark.django_db
@@ -150,10 +151,10 @@ def test_current_configuration(settings):
             "https://github.com/IMTEK-Simulation/NuMPI",
         ),
         (
-            "muFFT",
-            "muFFT.__version__",
+            "muGrid",
+            "muGrid.__version__",
             "LGPL-3.0",
-            "https://gitlab.com/muSpectre/muFFT",
+            "https://github.com/muSpectre/muGrid",
         ),
         (
             "topobank",
@@ -173,10 +174,10 @@ def test_current_configuration(settings):
 
     v1, v2, v3, v4, v5 = versions
 
-    import muFFT
+    import muGrid
 
-    assert v1.dependency.import_name == "muFFT"
-    assert v1.number_as_string() == muFFT.version.description()
+    assert v1.dependency.import_name == "muGrid"
+    assert v1.number_as_string() == muGrid.__version__
 
     import NuMPI
 

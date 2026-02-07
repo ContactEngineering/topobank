@@ -20,6 +20,7 @@ from storages.utils import clean_name
 
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet
+from ..supplib.json import ExtendedJSONEncoder
 from .utils import file_storage_path
 
 _log = logging.getLogger(__name__)
@@ -84,8 +85,8 @@ class Folder(PermissionMixin, models.Model):
         manifest.confirmed_at = timezone.now()
         manifest.save()
 
-    def save_json(self, filename: str, data: dict):
-        self.save_file(filename, "der", ContentFile(json.dumps(data)))
+    def save_json(self, filename: str, data):
+        self.save_file(filename, "der", ContentFile(json.dumps(data, cls=ExtendedJSONEncoder)))
 
     def save_xarray(self, filename: str, data: xarray.Dataset):
         with NamedTemporaryFile(delete=False) as f:

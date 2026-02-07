@@ -4,6 +4,7 @@ from rest_framework.reverse import reverse
 
 import topobank.taskapp.serializers
 
+from ..manager.models import Surface, Tag, Topography
 from ..supplib.mixins import StrictFieldMixin
 from ..supplib.serializers import UserField
 from .models import (
@@ -13,7 +14,6 @@ from .models import (
     WorkflowSubject,
     WorkflowTemplate,
 )
-from .registry import get_visualization_type
 
 
 class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
@@ -32,36 +32,66 @@ class ConfigurationSerializer(StrictFieldMixin, serializers.HyperlinkedModelSeri
         return versions
 
 
-class WorkflowSerializer(
+class WorkflowListSerializer(
     StrictFieldMixin, serializers.HyperlinkedModelSerializer
 ):
     """Serializer for Workflow model."""
     class Meta:
         model = Workflow
         fields = [
-            "id",
             "url",
             "name",
             "display_name",
-            "visualization_type",
-            "kwargs_schema",
         ]
 
     url = serializers.HyperlinkedIdentityField(
         view_name="analysis:workflow-detail", lookup_field="name", read_only=True
     )
 
-    visualization_type = serializers.SerializerMethodField()
+
+class WorkflowDetailSerializer(
+    StrictFieldMixin, serializers.HyperlinkedModelSerializer
+):
+    """Serializer for Workflow model."""
+    class Meta:
+        model = Workflow
+        fields = [
+            "url",
+            "name",
+            "display_name",
+            "subject_types",
+            "kwargs_schema",
+            "outputs_schema",
+        ]
+
+    url = serializers.HyperlinkedIdentityField(
+        view_name="analysis:workflow-detail", lookup_field="name", read_only=True
+    )
+
+    subject_types = serializers.SerializerMethodField()
 
     kwargs_schema = serializers.SerializerMethodField()
 
-    @extend_schema_field(serializers.CharField())
-    def get_visualization_type(self, obj):
-        return get_visualization_type(name=obj.name)
+    outputs_schema = serializers.SerializerMethodField()
+
+    @extend_schema_field(serializers.ListField(child=serializers.CharField()))
+    def get_subject_types(self, obj):
+        subject_types = []
+        if obj.has_implementation(Surface):
+            subject_types.append("surface")
+        if obj.has_implementation(Topography):
+            subject_types.append("topography")
+        if obj.has_implementation(Tag):
+            subject_types.append("tag")
+        return subject_types
 
     @extend_schema_field(serializers.DictField())
     def get_kwargs_schema(self, obj):
         return obj.get_kwargs_schema()
+
+    @extend_schema_field(serializers.ListField())
+    def get_outputs_schema(self, obj):
+        return obj.get_outputs_schema()
 
 
 class SubjectSerializer(

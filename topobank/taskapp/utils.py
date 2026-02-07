@@ -1,4 +1,7 @@
 import importlib
+import os
+import sys
+from functools import lru_cache
 from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
@@ -7,6 +10,42 @@ from watchman.decorators import check as watchman_check
 
 from .celeryapp import app
 from .models import Dependency, TaskStateModel, Version
+
+
+@lru_cache(maxsize=1)
+def in_celery_worker_process() -> bool:
+    """
+    Detect whether we are running within a Celery worker process.
+
+    Uses SERVICE_NAME environment variable if available (preferred, set by docker-compose),
+    otherwise falls back to sys.argv inspection.
+
+    Returns
+    -------
+    bool
+        True if running in a Celery worker process, False otherwise.
+
+    Notes
+    -----
+    This function is cached after first call since the process type doesn't change
+    during runtime. The SERVICE_NAME approach is more reliable than sys.argv inspection
+    because:
+    - It works regardless of how celery is invoked (direct, via python -m, etc.)
+    - It's explicitly set in the deployment configuration
+    - It's inherited by child processes correctly
+    """
+    # Preferred: Check SERVICE_NAME environment variable (set in docker-compose.yml)
+    service_name = os.environ.get("SERVICE_NAME", "")
+    if service_name:
+        # celery-analysis, celery-quick are workers; celery-beat is not
+        return service_name.startswith("celery-") and "beat" not in service_name
+
+    # Fallback: sys.argv inspection (less reliable)
+    # See: https://stackoverflow.com/questions/39003282/how-can-i-detect-whether-im-running-in-a-celery-worker
+    return bool(
+        sys.argv and sys.argv[0].endswith("celery") and "worker" in sys.argv
+    )
+
 
 PENDING = "pe"
 STARTED = "st"
@@ -122,7 +161,7 @@ def _celery_worker_check():
 
     MIN_NUM_WORKERS_EXPECTED = 1
     d = app.control.broadcast(
-        "ping", reply=True, timeout=0.5, limit=MIN_NUM_WORKERS_EXPECTED
+        "ping", reply=True, timeout=0.1, limit=MIN_NUM_WORKERS_EXPECTED
     )
     return {
         "num_workers_available": len(d),
@@ -137,9 +176,12 @@ def task_dispatch(celery_task, cls_id, obj_id, *args, **kwargs):
     try:
         obj = ct.get_object_for_this_type(id=obj_id)
         obj.run_task(celery_task, *args, **kwargs)
+        # Return True so Celery knows the task completed successfully
+        # This is important for tasks that do not return anything
+        return True
     except ct.model_class().DoesNotExist:
         # Ignore the task if the instance no longer exists
-        pass
+        return None
 
 
 def run_task(

@@ -271,6 +271,26 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # Invalid is True if the subject was changed after the WorkflowResult was computed
     deprecation_time = models.DateTimeField(null=True)
 
+    class Meta:
+        indexes = [
+            # Index on task_start_time for ordering recent results
+            models.Index(fields=['-task_start_time'], name='result_task_start_idx'),
+            # Composite index for filtering by state and ordering by time
+            # Used in: WHERE task_state = x ORDER BY task_start_time
+            models.Index(fields=['task_state', '-task_start_time'], name='result_state_time_idx'),
+            # Composite index for filtering by function and ordering by time
+            # Used in: WHERE function = x ORDER BY task_start_time
+            models.Index(fields=['function', '-task_start_time'], name='result_workflow_time_idx'),
+            # Partial index for active (non-deprecated) results
+            # Most common query pattern: active results ordered by time
+            # Smaller than full index since it only includes non-deprecated rows
+            models.Index(
+                fields=['-task_start_time'],
+                name='result_active_time_idx',
+                condition=Q(deprecation_time__isnull=True)
+            ),
+        ]
+
     def __init__(self, *args, result=None, **kwargs):
         super().__init__(*args, **kwargs)
         self._result = result  # temporary storage
@@ -571,11 +591,11 @@ def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool)
     in an on_commit hook. Note: on_commit will not execute in tests, unless
     transaction=True is added to pytest.mark.django_db
     """
-    from .tasks import perform_analysis
+    from .tasks import schedule_workflow
 
     # TODO: force_submit is currently hardcoded to True everywhere this is called.
     _log.debug(f"Submitting task for WorkflowResult {analysis.id}...")
-    analysis.task_id = perform_analysis.apply_async(
+    analysis.task_id = schedule_workflow.apply_async(
         args=[analysis.id, force_submit], queue=analysis.get_celery_queue()
     ).id
     analysis.save(update_fields=["task_id"])
@@ -639,6 +659,20 @@ class Workflow(models.Model):
         JSON schema describing the keyword arguments.
         """
         return self.implementation.Parameters().model_json_schema()
+
+    def get_outputs_schema(self) -> list:
+        """
+        JSON schema describing workflow outputs.
+
+        Returns
+        -------
+        list
+            List of file descriptors with their schemas
+        """
+        impl = self.implementation
+        if impl is not None and hasattr(impl, "get_outputs_schema"):
+            return impl.get_outputs_schema()
+        return []
 
     def clean_kwargs(self, kwargs: Union[dict, None], fill_missing: bool = True):
         """
@@ -722,6 +756,7 @@ class Workflow(models.Model):
         successful_or_running_analyses = existing_analyses.filter(
             task_state__in=[
                 WorkflowResult.PENDING,
+                WorkflowResult.PENDING_DEPENDENCIES,
                 WorkflowResult.RETRY,
                 WorkflowResult.STARTED,
                 WorkflowResult.SUCCESS,
