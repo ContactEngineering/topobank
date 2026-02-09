@@ -35,6 +35,16 @@
 
 - ENH: Generate NetCDF tile pyramid
 
+# 1.66.3 (2026-02-07)
+
+- BUG: Disabled `is_ready` to run workflows directly after upload
+- BUG: Check for `squeezed_datafile_id` instead of `data_source` to test whether manifest exists
+- MAINT: Include `task_error` for proper error reporting in list view
+
+# 1.66.2 (2026-02-05)
+
+- BUG: Check whether file exists (which will confirm finished uploads) before reading it
+
 # 1.66.1 (2025-12-12)
 
 - BUG: Fixed logic flaw in shared permissions (#1263)
