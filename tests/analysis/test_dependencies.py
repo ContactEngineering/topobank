@@ -153,3 +153,55 @@ def test_error_propagation(
     )
     result = api_client.get(result.data["dependencies_url"])
     assert result.data == {"dep": test_ana1.get_absolute_url(result.wsgi_request)}
+
+
+@pytest.mark.django_db
+def test_integer_key_dependencies(api_client, django_capture_on_commit_callbacks):
+    """Test that dependencies with integer keys work correctly.
+
+    This tests a scenario where workflow implementations use integer keys (like
+    surface.id or topography.id) to index their dependencies. The bug being tested:
+    when dependencies are stored in a JSONField, integer keys get serialized to
+    strings (e.g., 29 becomes "29"). When the implementation tries to access
+    dependencies[topography.id], it fails with a KeyError because the key is an
+    integer but the dict has string keys.
+    """
+
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+    topo1 = Topography1DFactory(surface=surface)
+
+    func = Workflow.objects.get(name="topobank.testing.test_integer_keys")
+
+    api_client.force_login(user)
+
+    kwargs = {"value": 42}
+    subjects_str = subjects_to_base64([topo1])
+    kwargs_str = dict_to_base64(kwargs)
+
+    with django_capture_on_commit_callbacks(execute=True) as callbacks:
+        response = api_client.get(
+            f"{reverse('analysis:result-list')}?"
+            f"subjects={subjects_str}&workflow={func.name}&"
+            f"kwargs={kwargs_str}"
+        )
+        assert response.status_code == 200, response.reason_phrase
+    assert len(callbacks) == 1
+
+    # The main workflow + 1 dependency (the test workflow)
+    assert WorkflowResult.objects.count() == 2
+
+    # Find the main analysis (the one with integer key dependencies)
+    main_ana = WorkflowResult.objects.get(function__name="topobank.testing.test_integer_keys")
+
+    # Verify the workflow completed successfully
+    # If integer keys are not handled correctly, this will fail with:
+    # KeyError: <topography_id> (because the dict has string keys like "29" not integer keys like 29)
+    assert main_ana.task_state == WorkflowResult.SUCCESS, (
+        f"Expected SUCCESS but got {main_ana.task_state}. "
+        f"Error: {main_ana.task_error}. Traceback: {main_ana.task_traceback}"
+    )
+
+    # Verify the result contains the expected data
+    assert main_ana.result["name"] == "Test with integer key dependencies"
+    assert main_ana.result["topography_id"] == topo1.id

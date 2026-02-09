@@ -258,6 +258,14 @@ def execute_workflow(self: celery.Task, analysis_id: int):
     finished_dependencies = {}
     if analysis.dependencies:
         for key, dep_id in analysis.dependencies.items():
+            # Convert JSON string key back to integer if it represents an integer.
+            # JSON only supports string keys, so integer keys (e.g., surface.id)
+            # get serialized as strings. We need to convert them back for workflow
+            # implementations that use integer keys to access dependencies.
+            try:
+                key = int(key)
+            except ValueError:
+                pass  # Keep as string if not a valid integer
             dep = WorkflowResult.objects.get(id=dep_id)
             if dep.task_state != WorkflowResult.SUCCESS:
                 # A dependency failed - we cannot proceed
