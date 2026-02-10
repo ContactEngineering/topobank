@@ -324,3 +324,53 @@ class TestImplementationWithOutputs(WorkflowImplementation):
             "confidence": 0.95,
         }
         store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
+
+
+class TestImplementationWithIntegerKeys(WorkflowImplementation):
+    """
+    Test implementation that uses integer keys in dependencies.
+    This mimics workflows like sds-ml that use surface.id as dependency keys.
+    Used for testing that integer keys survive JSON serialization/deserialization.
+    """
+
+    class Meta:
+        name = "topobank.testing.test_integer_keys"
+        display_name = "Test implementation with integer keys"
+
+        implementations = {
+            Topography: "topography_implementation",
+        }
+
+        dependencies = {Topography: "topography_dependencies"}
+
+    class Parameters(WorkflowImplementation.Parameters):
+        value: int = 42
+
+    def topography_dependencies(self, analysis) -> Dict[int, WorkflowDefinition]:
+        """Return dependencies with integer keys (topography.id)."""
+        topography = analysis.subject
+        return {
+            topography.id: WorkflowDefinition(
+                subject=topography,
+                function=Workflow.objects.get(name="topobank.testing.test"),
+                kwargs=dict(a=self._kwargs.value),
+            ),
+        }
+
+    def topography_implementation(
+        self,
+        analysis,
+        dependencies: Dict = {},
+        progress_recorder=None,
+        timer=None,
+    ):
+        """Access dependency using integer key (topography.id)."""
+        topography = analysis.subject
+        # This will raise KeyError if integer keys were converted to strings
+        dep = dependencies[topography.id]
+        result = {
+            "name": "Test with integer key dependencies",
+            "result_from_dep": dep.result["xunit"],
+            "topography_id": topography.id,
+        }
+        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
