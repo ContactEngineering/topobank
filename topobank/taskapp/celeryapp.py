@@ -3,7 +3,6 @@ import os
 import traceback as tb
 
 from celery import Celery
-from celery.schedules import crontab
 from celery.signals import task_failure, task_revoked, task_success
 from django.apps import AppConfig, apps
 from django.conf import settings
@@ -40,11 +39,6 @@ class CeleryAppConfig(AppConfig):
         # of using the decorator.
         #
         app.conf.beat_schedule = {
-            "save-landing-page-statistics": {
-                "task": "topobank.taskapp.tasks.save_landing_page_statistics",
-                "schedule": crontab(hour="0", minute="0"),
-                "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
-            },
             "manager-periodic-cleanup": {
                 "task": "topobank.manager.custodian.periodic_cleanup",
                 "schedule": 12 * 3600,  # Twice a day
