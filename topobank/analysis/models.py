@@ -64,6 +64,14 @@ class WorkflowSubject(models.Model):
         Surface, null=True, blank=True, on_delete=models.CASCADE
     )
 
+    class Meta:
+        indexes = [
+            models.Index(
+                fields=['topography', 'surface', 'tag'],
+                name='subject_topo_surf_tag_idx',
+            ),
+        ]
+
     @staticmethod
     def Q(subject) -> models.Q:
         if isinstance(subject, Tag):
@@ -288,6 +296,12 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 fields=['-task_start_time'],
                 name='result_active_time_idx',
                 condition=Q(deprecation_time__isnull=True)
+            ),
+            # Composite index for filtering by function + subject and ordering by time
+            # Used in: WHERE function = x AND subject_dispatch = y ORDER BY task_start_time
+            models.Index(
+                fields=['function', 'subject_dispatch', '-task_start_time'],
+                name='result_func_subj_time_idx',
             ),
         ]
 

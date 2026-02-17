@@ -448,8 +448,9 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
         # Clean kwargs for dependency (fill potentially missing values)
         kwargs = function.clean_kwargs(dependency.kwargs)
 
-        # Filter latest result
-        all_results = (
+        # Filter latest result — uses ORDER BY + LIMIT 1 instead of DISTINCT ON
+        # to avoid materializing all historical results in memory
+        existing_analysis = (
             WorkflowResult.objects.filter(
                 function=dependency.function,
                 subject_dispatch__surface=(
@@ -464,23 +465,12 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                 ),
                 kwargs=kwargs,
             )
-            .select_related('function', 'subject_dispatch')  # Optimize DB queries
-            .order_by(
-                "subject_dispatch__topography_id",
-                "subject_dispatch__surface_id",
-                "subject_dispatch__tag_id",
-                "-task_start_time",
-            )
-            .distinct(
-                "subject_dispatch__topography_id",
-                "subject_dispatch__surface_id",
-                "subject_dispatch__tag_id",
-            )
+            .select_related('function', 'subject_dispatch')
+            .order_by("-task_start_time")
+            .first()
         )
 
-        # Cache count to avoid multiple queries
-        results_count = all_results.count()
-        if results_count == 0:
+        if existing_analysis is None:
             with transaction.atomic():
                 # Create new entry in the analysis table
                 new_analysis = WorkflowResult.objects.create(
@@ -493,9 +483,8 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                     owned_by=parent.owned_by,
                 )
             scheduled_dependent_analyses[key] = new_analysis
-        elif results_count == 1:
+        else:
             # An analysis exists. Check whether it is successful or failed.
-            existing_analysis = all_results.first()
             # task_state is the *self reported* state, not the Celery state
             if not force and existing_analysis.task_state in [
                 WorkflowResult.FAILURE,
@@ -507,9 +496,6 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                 # We schedule everything else, possibly again. `perform_analysis` will
                 # automatically terminate if an analysis already completed successfully.
                 scheduled_dependent_analyses[key] = existing_analysis
-        else:
-            # More than one analysis exists. This should not happen.
-            raise RuntimeError("More than one analysis found for dependency.")
 
     return (
         finished_dependent_analyses,
