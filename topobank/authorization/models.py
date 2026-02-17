@@ -229,21 +229,10 @@ class PermissionSet(models.Model):
 
     def grant_for_user(self, user: User, allow: ViewEditFull):
         """Grant permission to user"""
-        existing_permissions = self.user_permissions.filter(user=user)
-        nb_existing_permissions = existing_permissions.count()
-        if nb_existing_permissions == 0:
-            # Create new permission if none exists
-            UserPermission.objects.create(parent=self, user=user, allow=allow)
-        elif nb_existing_permissions == 1:
-            # Update permission if it already exists
-            (permission,) = existing_permissions
-            permission.allow = allow
-            permission.save(update_fields=["allow"])
-        else:
-            raise RuntimeError(
-                f"More than one permission found for user {user}. "
-                "This should not happen."
-            )
+        UserPermission.objects.update_or_create(
+            parent=self, user=user,
+            defaults={"allow": allow},
+        )
 
     def revoke_from_user(self, user: User):
         """Revoke all permissions from user"""
@@ -254,25 +243,10 @@ class PermissionSet(models.Model):
         Grant permission to an organization (which means to all users from
         that organization)
         """
-        existing_permissions = self.organization_permissions.filter(
-            organization=organization
+        OrganizationPermission.objects.update_or_create(
+            parent=self, organization=organization,
+            defaults={"allow": allow},
         )
-        nb_existing_permissions = existing_permissions.count()
-        if nb_existing_permissions == 0:
-            # Create new permission if none exists
-            OrganizationPermission.objects.create(
-                parent=self, organization=organization, allow=allow
-            )
-        elif nb_existing_permissions == 1:
-            # Update permission if it already exists
-            (permission,) = existing_permissions
-            permission.allow = allow
-            permission.save(update_fields=["allow"])
-        else:
-            raise RuntimeError(
-                f"More than one permission found for organization {organization}. "
-                "This should not happen."
-            )
 
     def revoke_from_organization(self, organization: Organization):
         """Revoke all permissions from an organization"""
