@@ -231,6 +231,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         return (
             Surface.objects.for_user(self._user)
             .filter(Q(tags=self) | Q(tags__path__istartswith=f"{self.path}/"))
+            .filter(deletion_time__isnull=True)
             .distinct()
         )
 
@@ -443,6 +444,9 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     def lazy_delete(self):
         self.deletion_time = timezone.now()
         self.save(update_fields=["deletion_time"])
+        self.topography_set.filter(deletion_time__isnull=True).update(
+            deletion_time=self.deletion_time
+        )
 
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml.
