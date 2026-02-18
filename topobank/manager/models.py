@@ -33,7 +33,12 @@ from SurfaceTopography.Metadata import InstrumentParametersModel
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..authorization.mixins import PermissionMixin
-from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFull
+from ..authorization.models import (
+    AuthorizedManager,
+    PermissionSet,
+    SurfaceTopographyManager,
+    ViewEditFull,
+)
 from ..files.models import Folder, Manifest
 from ..organizations.models import Organization
 from ..taskapp.models import TaskStateModel
@@ -231,7 +236,6 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         return (
             Surface.objects.for_user(self._user)
             .filter(Q(tags=self) | Q(tags__path__istartswith=f"{self.path}/"))
-            .filter(deletion_time__isnull=True)
             .distinct()
         )
 
@@ -345,8 +349,15 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
     #
     # Manager
+    # Automatically filter out deleted surfaces in the default manager.
     #
-    objects = AuthorizedManager()
+    objects = SurfaceTopographyManager()
+    #
+    # We need to have a separate manager for all_objects, because the default manager is used for related fields,
+    # and we don't want to include deleted objects there. The all_objects manager can be used for admin views and
+    # for the lazy deletion mechanism.
+    #
+    all_objects = AuthorizedManager()
 
     #
     # Permissions
@@ -664,8 +675,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     # Manager
     #
-    objects = AuthorizedManager()
-
+    # Automatically filter out deleted topographies in the default manager.
+    #
+    objects = SurfaceTopographyManager()
+    #
+    # We need to have a separate manager for all_objects, because the default manager is used for related fields,
+    # and we don't want to include deleted objects there. The all_objects manager can be used for admin views and
+    # for the lazy deletion mechanism.
+    #
+    all_objects = AuthorizedManager()
     #
     # Model hierarchy and permissions
     #

@@ -408,3 +408,10 @@ class AuthorizedManager(models.Manager):
 
     def for_user(self, user: User, permission: ViewEditFull = "view") -> QuerySet:
         return self.get_queryset().for_user(user, permission)
+
+
+class SurfaceTopographyManager(AuthorizedManager):
+    """Default manager for Surface and Topography that excludes soft-deleted records."""
+
+    def get_queryset(self) -> AuthorizedQuerySet:
+        return super().get_queryset().filter(deletion_time__isnull=True)

@@ -51,9 +51,7 @@ class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         # PermissionFilterBackend handles permission filtering with two-step optimization
         # We just apply business logic filters and optimizations here
-        return Surface.objects.filter(
-            deletion_time__isnull=True
-        ).select_related(
+        return Surface.objects.select_related(
             'permissions',
             'created_by',
             'updated_by',
@@ -124,9 +122,7 @@ class TopographyViewSet(UserUpdateMixin, viewsets.ModelViewSet):
     def get_queryset(self):
         # PermissionFilterBackend handles permission filtering with two-step optimization
         # We just apply business logic filters and optimizations here
-        return Topography.objects.filter(
-            Q(deletion_time__isnull=True) & Q(surface__deletion_time__isnull=True)
-        ).select_related(
+        return Topography.objects.select_related(
             'surface',
             'permissions',
             'created_by',
@@ -288,7 +284,7 @@ def tag_tree(request: Request):
     # We only consider surfaces accessible to the user and not deleted
     query = (
         Surface.objects.for_user(request.user)
-        .filter(deletion_time__isnull=True, tags__name__isnull=False)
+        .filter(tags__name__isnull=False)
         .values_list("id", "tags__name")
     )
 
@@ -384,8 +380,7 @@ def download_surface(request: Request, surface_ids: str):
 
     # We need to check that the user has access to the requested surfaces
     surface_qs = Surface.objects.for_user(request.user).filter(
-        id__in=surface_ids,
-        deletion_time__isnull=True
+        id__in=surface_ids
     )
     if surface_qs.count() != len(surface_ids):
         invalid_ids = set(surface_ids) - set(surface_qs.values_list('id', flat=True))

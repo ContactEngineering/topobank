@@ -15,7 +15,7 @@ _log = logging.getLogger(__name__)
 @app.task
 def periodic_cleanup():
     # Delete all topographies that were marked for deletion
-    q = Topography.objects.filter(
+    q = Topography.all_objects.filter(
         deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
     )
     if q.count() > 0:
@@ -25,7 +25,7 @@ def periodic_cleanup():
         q.delete()
 
     # Delete all surfaces that were marked for deletion
-    q = Surface.objects.filter(
+    q = Surface.all_objects.filter(
         deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
     )
     if q.count() > 0:
@@ -35,7 +35,7 @@ def periodic_cleanup():
         q.delete()
 
     # Delete all surfaces without created_by and owned_by
-    q = Surface.objects.filter(created_by__isnull=True, owned_by__isnull=True)
+    q = Surface.all_objects.filter(created_by__isnull=True, owned_by__isnull=True)
     if q.count() > 0:
         _log.info(
             f"Custodian: Deleting {q.count()} datasets because they have neither a created_by nor an owned_by."
