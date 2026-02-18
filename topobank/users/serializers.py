@@ -25,6 +25,7 @@ class UserSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerializer):
             "date_joined",
             # Auth fields
             "is_verified",
+            "is_staff",
         ]
         read_only_fields = ["id", "date_joined", "is_verified"]
 
