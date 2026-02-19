@@ -48,6 +48,7 @@ USE_TZ = True
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#databases
 postgres_db = env("POSTGRES_DB", default=None)
+
 if postgres_db is None:
     DATABASES = {
         "default": env.db(
@@ -60,7 +61,7 @@ else:
             "ENGINE": "django.db.backends.postgresql",
             "NAME": postgres_db,
             "USER": env("POSTGRES_USER"),
-            "PASSWORD": env("POSTGRES_PASSWORD"),
+            "PASSWORD": env.str("POSTGRES_PASSWORD", default=""),
             "HOST": env("POSTGRES_HOST"),
             "PORT": env("POSTGRES_PORT"),
         }
