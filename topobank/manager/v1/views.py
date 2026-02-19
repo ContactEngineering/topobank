@@ -51,8 +51,7 @@ class TagViewSet(mixins.RetrieveModelMixin, viewsets.GenericViewSet):
         all_tags = set(
             "" if tag_name is None else tag_name
             for tag_name in itertools.chain.from_iterable(
-                # Need to ensure we only get tags of non-deleted surfaces
-                Surface.objects.for_user(request.user).filter(deletion_time__isnull=True).values_list("tags__name")
+                Surface.objects.for_user(request.user).values_list("tags__name")
             )
         )
 
@@ -77,9 +76,7 @@ class SurfaceViewSet(UserUpdateMixin, viewsets.ModelViewSet):
             )
 
     def get_queryset(self):
-        qs = Surface.objects.for_user(self.request.user).filter(
-            deletion_time__isnull=True
-        )
+        qs = Surface.objects.for_user(self.request.user)
         return filter_surfaces(self.request, qs)
 
     @transaction.atomic
@@ -131,9 +128,7 @@ class TopographyViewSet(
         if getattr(self, "swagger_fake_view", False):
             return Topography.objects.none()
 
-        qs = Topography.objects.for_user(self.request.user).filter(
-            deletion_time__isnull=True
-        )
+        qs = Topography.objects.for_user(self.request.user)
         surfaces = self.request.query_params.getlist("surface")
         tags = self.request.query_params.getlist("tag")
         tags_startswith = self.request.query_params.getlist("tag_startswith")

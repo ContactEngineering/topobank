@@ -406,21 +406,19 @@ def current_statistics(user=None):
     if hasattr(Surface, "publication"):
         if user:
             unpublished_surfaces = Surface.objects.filter(
-                created_by=user, publication__isnull=True, deletion_time__isnull=True
+                created_by=user, publication__isnull=True
             )
         else:
             unpublished_surfaces = Surface.objects.filter(
-                publication__isnull=True, deletion_time__isnull=True
+                publication__isnull=True
             )
     else:
         if user:
-            unpublished_surfaces = Surface.objects.filter(
-                created_by=user, deletion_time__isnull=True
-            )
+            unpublished_surfaces = Surface.objects.filter(created_by=user)
         else:
-            unpublished_surfaces = Surface.objects.filter(deletion_time__isnull=True)
+            unpublished_surfaces = Surface.objects.all()
     unpublished_topographies = Topography.objects.filter(
-        surface__in=unpublished_surfaces, deletion_time__isnull=True
+        surface__in=unpublished_surfaces
     )
     unpublished_analyses = WorkflowResult.objects.filter(
         subject_dispatch__topography__in=unpublished_topographies

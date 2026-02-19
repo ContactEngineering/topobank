@@ -80,9 +80,12 @@ class TagFieldAdminMixin:
 
 @admin.register(Surface)
 class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
-    list_display = ("id", "name", "tags_display", "created_at")
+    list_display = ("id", "name", "tags_display", "deletion_time", "created_at")
     ordering = ["-created_at"]
     search_fields = ("name", "id", "tags__name")
+
+    def get_queryset(self, request):
+        return Surface.all_objects.all()
 
     @admin.display(description="Tags")
     def tags_display(self, obj):
@@ -92,10 +95,13 @@ class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
 
 @admin.register(Topography)
 class TopographyAdmin(TagFieldAdminMixin, admin.ModelAdmin):
-    list_display = ("id", "name", "created_at", "task_state", "task_id")
+    list_display = ("id", "name", "deletion_time", "created_at", "task_state", "task_id")
     list_filter = ("task_state",)
     ordering = ["-created_at"]
     search_fields = ("name", "id", "task_id")
+
+    def get_queryset(self, request):
+        return Topography.all_objects.all()
 
 
 @admin.register(Tag)
