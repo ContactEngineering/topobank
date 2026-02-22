@@ -192,32 +192,24 @@ class ResultViewFilterSet(FilterSet):
         """
         Filter by subject type, optionally combined with subject_id.
 
-        Business rule: Named analyses (saved results) should not be returned when
-        filtering by subject_type because they are considered decoupled from a
-        specific subject in list views. Therefore, we exclude results with a
-        non-null name here.
-
         If both subject_id and subject_type are provided, filters by that specific combination.
         If only subject_type is provided, filters by type only.
         """
         subject_id = getattr(self, "_subject_id", None)
 
-        # Always exclude named analyses from subject_type filtering
-        base_q = Q(name__isnull=True)
-
         match value.lower():
             case "tag":
-                q = base_q & Q(subject_dispatch__tag__isnull=False)
+                q = Q(subject_dispatch__tag__isnull=False)
                 if subject_id:
                     q &= Q(subject_dispatch__tag_id=subject_id)
                 return queryset.filter(q)
             case "surface":
-                q = base_q & Q(subject_dispatch__surface__isnull=False)
+                q = Q(subject_dispatch__surface__isnull=False)
                 if subject_id:
                     q &= Q(subject_dispatch__surface_id=subject_id)
                 return queryset.filter(q)
             case "topography":
-                q = base_q & Q(subject_dispatch__topography__isnull=False)
+                q = Q(subject_dispatch__topography__isnull=False)
                 if subject_id:
                     q &= Q(subject_dispatch__topography_id=subject_id)
                 return queryset.filter(q)

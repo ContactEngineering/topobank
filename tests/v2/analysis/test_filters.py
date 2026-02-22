@@ -158,12 +158,20 @@ def test_result_list_filtered(api_client, user_alice,
     response = api_client.get(url, {"subject_type": "topography"})
     assert response.status_code == status.HTTP_200_OK
     results = response.data["results"]
-    # topo_analysis_success is a named analysis, so it no longer has a subject
-    # and won't be returned by the subject_type filter
-    assert response.data["count"] == 2
+    # All topography analyses are returned, including named and pending ones
+    assert response.data["count"] == 4
     for result in results:
-        assert result["id"] in [topo_analysis_failure.id, another_topo_analysis.id]
-        assert result["subject"]["type"] == "topography"
+        assert result["id"] in [
+            topo_analysis_success.id,
+            topo_analysis_failure.id,
+            topo_analysis_pd.id,
+            another_topo_analysis.id
+        ]
+        if result["id"] == topo_analysis_success.id:
+            # Named analyses have no subject serialized in list view (as per model.save)
+            assert result["subject"] is None
+        else:
+            assert result["subject"]["type"] == "topography"
 
     # Filter by workflow (function) name
     response = api_client.get(url, {"workflow_name": test_analysis_function.name})
@@ -210,10 +218,12 @@ def test_result_list_filtered(api_client, user_alice,
     response = api_client.get(url, {"subject_id": one_line_scan.id, "subject_type": "topography"})
     assert response.status_code == status.HTTP_200_OK
     results = response.data["results"]
-    # Note: topo_analysis_success is named so has no subject
-    assert response.data["count"] == 1
-    assert results[0]["subject"]["type"] == "topography"
-    assert results[0]["id"] == topo_analysis_failure.id
+    # topo_analysis_success is named so has no subject anymore (null subject_dispatch)
+    # but topo_analysis_pd and topo_analysis_failure are still there
+    assert response.data["count"] == 2
+    for result in results:
+        assert result["id"] in [topo_analysis_failure.id, topo_analysis_pd.id]
+        assert result["subject"]["type"] == "topography"
 
     # Filter by subject_id + subject_type for surface
     # Since a topography and a surface can have the same ID, this tests that filtering works correctly
