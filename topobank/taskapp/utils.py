@@ -48,6 +48,7 @@ def in_celery_worker_process() -> bool:
 
 
 PENDING = "pe"
+PENDING_DEPENDENCIES = "pd"
 STARTED = "st"
 RETRY = "re"
 FAILURE = "fa"
@@ -56,6 +57,7 @@ NOTRUN = "no"
 
 TASK_STATE_CHOICES = (
     (PENDING, "pending"),
+    (PENDING_DEPENDENCIES, "pending dependencies"),
     (STARTED, "started"),
     (RETRY, "retry"),
     (FAILURE, "failure"),

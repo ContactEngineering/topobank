@@ -67,6 +67,12 @@ def test_result_list_filtered(api_client, user_alice,
         task_state=WorkflowResult.FAILURE,
         # No name - unnamed analysis for named filter test
     )
+    topo_analysis_pd = AnalysisFactory(
+        subject_topography=one_line_scan,
+        function=test_analysis_function,
+        created_by=user_alice,
+        task_state=WorkflowResult.PENDING_DEPENDENCIES,
+    )
     another_topo_analysis = AnalysisFactory(
         subject_topography=another_topo,
         function=test_analysis_function,
@@ -105,6 +111,7 @@ def test_result_list_filtered(api_client, user_alice,
     topo_analysis_success.permissions.grant_for_user(user_alice, "view")
     topo_analysis_failure.permissions.grant_for_user(user_alice, "view")
     last_week_analysis.permissions.grant_for_user(user_alice, "view")
+    topo_analysis_pd.permissions.grant_for_user(user_alice, "view")
     another_topo_analysis.permissions.grant_for_user(user_alice, "view")
     another_surface_analysis.permissions.grant_for_user(user_alice, "view")
     tag_analysis.permissions.grant_for_user(user_alice, "view")
@@ -118,9 +125,9 @@ def test_result_list_filtered(api_client, user_alice,
 
     assert response.status_code == status.HTTP_200_OK
     results = response.data["results"]
-    assert response.data["count"] == 6
+    assert response.data["count"] == 7
 
-    # Filter by task_state
+    # Filter by task_state (SUCCESS)
     url = reverse("analysis:result-v2-list")
 
     response = api_client.get(url, {"task_state": WorkflowResult.SUCCESS})
@@ -138,6 +145,15 @@ def test_result_list_filtered(api_client, user_alice,
             tag_analysis.id,
         ]
 
+    # Filter by task_state (PENDING_DEPENDENCIES)
+    response = api_client.get(url, {"task_state": WorkflowResult.PENDING_DEPENDENCIES})
+
+    assert response.status_code == status.HTTP_200_OK
+    results = response.data["results"]
+    assert response.data["count"] == 1
+    assert results[0]["id"] == topo_analysis_pd.id
+    assert results[0]["task_state"] == WorkflowResult.PENDING_DEPENDENCIES
+
     # Filter by subject_type
     response = api_client.get(url, {"subject_type": "topography"})
     assert response.status_code == status.HTTP_200_OK
@@ -153,8 +169,8 @@ def test_result_list_filtered(api_client, user_alice,
     response = api_client.get(url, {"workflow_name": test_analysis_function.name})
     assert response.status_code == status.HTTP_200_OK
     results = response.data["results"]
-    # All six analyses use the same workflow
-    assert response.data["count"] == 6
+    # All seven analyses use the same workflow
+    assert response.data["count"] == 7
 
     # Get time yesterday (any time between now and a week ago would work)
     time_yesterday = timezone.now() - timedelta(days=1)
@@ -163,10 +179,11 @@ def test_result_list_filtered(api_client, user_alice,
     response = api_client.get(url, {"created_gte": time_yesterday.isoformat()})
     assert response.status_code == status.HTTP_200_OK
     results = response.data["results"]
-    assert response.data["count"] == 5
+    assert response.data["count"] == 6
     assert {
         topo_analysis_failure.id,
         topo_analysis_success.id,
+        topo_analysis_pd.id,
         another_topo_analysis.id,
         another_surface_analysis.id,
         tag_analysis.id,
@@ -243,9 +260,10 @@ def test_result_list_filtered(api_client, user_alice,
     response = api_client.get(url, {"named": "false"})
     assert response.status_code == status.HTTP_200_OK
     results = response.data["results"]
-    assert response.data["count"] == 5
+    assert response.data["count"] == 6
     assert {
         topo_analysis_failure.id,
+        topo_analysis_pd.id,
         last_week_analysis.id,
         another_topo_analysis.id,
         another_surface_analysis.id,
