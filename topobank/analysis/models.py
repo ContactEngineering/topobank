@@ -332,15 +332,16 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         Save the WorkflowResult instance to the database.
 
         This method performs the following steps:
-        1. If the WorkflowResult has a name and a subject_dispatch, it removes the
-           subject_dispatch to prevent cascade deletion when the subject is deleted.
+        1. Ensures permissions and folder are set, creating them if necessary.
         2. Calls the superclass's save method to persist the changes to the database and create
            the WorkflowResult instance if it is new.
         3. If a result dictionary was provided during initialization, it stores the result
            in the storage backend using the store_split_dict function and clears the
            temporary result storage.
-        4. If a subject_dispatch was removed in step 1, it deletes the orphaned subject_dispatch
-           instance from the database in a transaction-safe manner.
+
+        Note: Named results retain their subject_dispatch. The custom cascade_or_set_null
+        handler on subject_dispatch ensures named results survive subject deletion by
+        setting the field to NULL instead of cascading.
 
         Parameters
         ----------

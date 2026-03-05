@@ -465,8 +465,8 @@ def test_result_update_name(
     assert response.data["id"] == analysis.pk
     # Verify updated_by field
     assert response.data["updated_by"]["id"] == user_alice.id
-    # Verify subject was set to None when analysis is named
-    assert response.data['subject'] is None
+    # Verify subject remains
+    assert response.data['subject'] is not None
 
     # Verify in database
     analysis.refresh_from_db()
