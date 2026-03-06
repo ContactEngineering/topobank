@@ -35,7 +35,7 @@ def periodic_cleanup():
         )
         q.delete()
 
-    # Delete WorkflowResults stuck in pending state with no Celery task assigned
+    # Update WorkflowResults stuck in pending state with no Celery task assigned
     q = WorkflowResult.objects.filter(
         task_state=WorkflowResult.PENDING,
         task_id__isnull=True,
@@ -43,7 +43,7 @@ def periodic_cleanup():
     )
     if q.count() > 0:
         _log.info(
-            f"Custodian: Deleting {q.count()} workflow results because they are stuck in pending state"
+            f"Custodian: Updating {q.count()} workflow results because they are stuck in pending state"
             " with no task assigned."
         )
         q.update(task_state=WorkflowResult.FAILED, error_message="Analysis failed to launch.")
