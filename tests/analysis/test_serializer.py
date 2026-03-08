@@ -1,4 +1,5 @@
 import pytest
+from django.utils import timezone
 from django.utils.duration import duration_string
 
 from topobank.analysis.serializers import ResultSerializer
@@ -34,10 +35,10 @@ def test_serializer_subject_topography(api_rf, one_line_scan, test_analysis_func
             "task_state": "su",
             "task_messages": ASSERT_EQUAL_IGNORE_VALUE,
             "task_memory": None,
-            "creation_time": analysis.created_at.astimezone().isoformat(),
-            "task_submission_time": analysis.task_submission_time.astimezone().isoformat(),
-            "task_start_time": analysis.task_start_time.astimezone().isoformat(),
-            "task_end_time": analysis.task_end_time.astimezone().isoformat(),
+            "creation_time": timezone.localtime(analysis.created_at).isoformat(),
+            "task_submission_time": timezone.localtime(analysis.task_submission_time).isoformat(),
+            "task_start_time": timezone.localtime(analysis.task_start_time).isoformat(),
+            "task_end_time": timezone.localtime(analysis.task_end_time).isoformat(),
             "dois": [],
             "configuration": None,
             "task_duration": duration_string(analysis.task_duration),
@@ -84,10 +85,10 @@ def test_serializer_subject_tag(api_rf, one_line_scan, test_analysis_function):
             "task_state": "su",
             "task_messages": ASSERT_EQUAL_IGNORE_VALUE,
             "task_memory": None,
-            "creation_time": analysis.created_at.astimezone().isoformat(),
-            "task_submission_time": analysis.task_submission_time.astimezone().isoformat(),
-            "task_start_time": analysis.task_start_time.astimezone().isoformat(),
-            "task_end_time": analysis.task_end_time.astimezone().isoformat(),
+            "creation_time": timezone.localtime(analysis.created_at).isoformat(),
+            "task_submission_time": timezone.localtime(analysis.task_submission_time).isoformat(),
+            "task_start_time": timezone.localtime(analysis.task_start_time).isoformat(),
+            "task_end_time": timezone.localtime(analysis.task_end_time).isoformat(),
             "dois": [],
             "configuration": None,
             "task_duration": duration_string(analysis.task_duration),
