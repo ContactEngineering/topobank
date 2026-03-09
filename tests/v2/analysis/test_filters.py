@@ -158,15 +158,14 @@ def test_result_list_filtered(api_client, user_alice,
     response = api_client.get(url, {"subject_type": "topography"})
     assert response.status_code == status.HTTP_200_OK
     results = response.data["results"]
-    # topo_analysis_success is a named analysis, so it no longer has a subject
-    # and won't be returned by the subject_type filter.
-    # The others (failure, pd, another) should be returned.
-    assert response.data["count"] == 3
+
+    assert response.data["count"] == 4
     for result in results:
         assert result["id"] in [
             topo_analysis_failure.id,
             topo_analysis_pd.id,
-            another_topo_analysis.id
+            another_topo_analysis.id,
+            topo_analysis_success.id
         ]
         assert result["subject"]["type"] == "topography"
 
