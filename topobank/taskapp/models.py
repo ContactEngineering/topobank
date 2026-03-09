@@ -534,6 +534,8 @@ class Version(models.Model):
     # valid = models.BooleanField(default=True)
 
     def number_as_string(self):
+        if self.major == 0 and self.minor == 0 and self.micro is None and self.extra is not None:
+            return self.extra
         x = f"{self.major}.{self.minor}"
         if self.micro is not None:
             x += f".{self.micro}"

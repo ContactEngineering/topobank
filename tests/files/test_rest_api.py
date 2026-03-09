@@ -1,6 +1,7 @@
 from pathlib import Path
 
 import pytest
+from django.utils import timezone
 from django.core.files import File
 from rest_framework.reverse import reverse
 
@@ -282,10 +283,10 @@ def test_list_folder(api_client, user_alice):
                 "filename": manifest1.filename,
                 "folder": f"http://testserver/files/folder/{folder.id}/",
                 "kind": "N/A",
-                "created": manifest1.created_at.astimezone().isoformat(),
-                "updated": manifest1.updated_at.astimezone().isoformat(),
+                "created": timezone.localtime(manifest1.created_at).isoformat(),
+                "updated": timezone.localtime(manifest1.updated_at).isoformat(),
                 "uploaded_by": None,
-                "upload_confirmed": manifest1.confirmed_at.astimezone().isoformat(),
+                "upload_confirmed": timezone.localtime(manifest1.confirmed_at).isoformat(),
                 "upload_instructions": None,
             },
             manifest2.filename: {
@@ -294,10 +295,10 @@ def test_list_folder(api_client, user_alice):
                 "filename": manifest2.filename,
                 "folder": f"http://testserver/files/folder/{folder.id}/",
                 "kind": "N/A",
-                "created": manifest2.created_at.astimezone().isoformat(),
-                "updated": manifest2.updated_at.astimezone().isoformat(),
+                "created": timezone.localtime(manifest2.created_at).isoformat(),
+                "updated": timezone.localtime(manifest2.updated_at).isoformat(),
                 "uploaded_by": None,
-                "upload_confirmed": manifest2.confirmed_at.astimezone().isoformat(),
+                "upload_confirmed": timezone.localtime(manifest2.confirmed_at).isoformat(),
                 "upload_instructions": None,
             },
         },

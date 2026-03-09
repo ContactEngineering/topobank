@@ -172,7 +172,7 @@ class ResultView(
                 required=False,
                 explode=True,
                 style='form',
-                enum=['pe', 'st', 're', 'fa', 'su', 'no']
+                enum=['pe', 'pd', 'st', 're', 'fa', 'su', 'no']
             ),
         ]
     )

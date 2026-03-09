@@ -92,6 +92,34 @@ class TestTaskFailureSignal:
         assert analysis.task_error == exception_msg
         assert analysis.task_traceback == traceback_msg
 
+    def test_records_traceback_object(self, app_config, mock_now, test_analysis_function):
+        """Test that traceback objects are properly formatted as strings."""
+        import traceback as tb
+        task_id = str(uuid.uuid4())
+        analysis = TopographyAnalysisFactory(
+            task_state=WorkflowResult.STARTED,
+            task_id=task_id,
+            function=test_analysis_function,
+        )
+
+        try:
+            raise ValueError("Test error")
+        except ValueError:
+            _, _, traceback_obj = tb.sys.exc_info()
+
+        task_failure.send(
+            sender=None,
+            task_id=task_id,
+            exception=Exception("Test error"),
+            traceback=traceback_obj,
+        )
+
+        analysis.refresh_from_db()
+        assert ("ValueError: Test error" in analysis.task_traceback
+                or "test_records_traceback_object" in analysis.task_traceback)
+        assert isinstance(analysis.task_traceback, str)
+        assert "<traceback object" not in analysis.task_traceback
+
     def test_sets_task_end_time(self, app_config, mock_now, test_analysis_function):
         """Test that task_end_time is set when task fails."""
         task_id = str(uuid.uuid4())
