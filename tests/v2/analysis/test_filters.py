@@ -214,11 +214,10 @@ def test_result_list_filtered(api_client, user_alice,
     response = api_client.get(url, {"subject_id": one_line_scan.id, "subject_type": "topography"})
     assert response.status_code == status.HTTP_200_OK
     results = response.data["results"]
-    # topo_analysis_success is named so has no subject anymore (null subject_dispatch)
-    # but topo_analysis_pd and topo_analysis_failure are still there
-    assert response.data["count"] == 2
+    # Named analyses now keep their subject_dispatch, so all 3 topography analyses are returned
+    assert response.data["count"] == 3
     for result in results:
-        assert result["id"] in [topo_analysis_failure.id, topo_analysis_pd.id]
+        assert result["id"] in [topo_analysis_success.id, topo_analysis_failure.id, topo_analysis_pd.id]
         assert result["subject"]["type"] == "topography"
 
     # Filter by subject_id + subject_type for surface
