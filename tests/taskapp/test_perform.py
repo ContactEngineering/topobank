@@ -8,7 +8,7 @@ from topobank.testing.factories import TopographyAnalysisFactory
 
 @pytest.mark.django_db
 def test_perform_analysis(
-    two_topos, test_analysis_function, settings, handle_usage_statistics
+    two_topos, test_analysis_function, settings
 ):
     topo = Topography.objects.first()  # doesn't matter
 

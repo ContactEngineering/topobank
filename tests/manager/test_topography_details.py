@@ -9,7 +9,7 @@ from topobank.testing.utils import assert_in_content
 )
 @pytest.mark.django_db
 def test_error_message_when_topography_file_cannot_be_loaded(
-    client, topography_loaded_from_broken_file, handle_usage_statistics
+    client, topography_loaded_from_broken_file
 ):
     client.force_login(user=topography_loaded_from_broken_file.surface.created_by)
 

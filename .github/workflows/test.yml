@@ -94,7 +94,11 @@ jobs:
     - name: Install
       run: |
         pip install .[dev]
+        pip install ../topobank-contact ../topobank-statistics ../topobank-publication ../topobank-rest-api
         python manage.py collectstatic
 
     - name: Test
-      run: pytest -v
+      run: |
+        pytest -v
+        pytest -v ../topobank-contact
+        pytest -v ../topobank-statistics

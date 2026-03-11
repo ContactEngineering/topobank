@@ -23,7 +23,7 @@ from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
-from muGrid.Timer import Timer
+from ..utils.timer import Timer
 from rest_framework.exceptions import PermissionDenied
 from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer

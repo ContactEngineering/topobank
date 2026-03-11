@@ -10,7 +10,7 @@ from topobank.testing.factories import SurfaceFactory, Topography1DFactory, User
 
 
 @pytest.mark.django_db
-def test_anonymous_user_cannot_change(client, handle_usage_statistics):
+def test_anonymous_user_cannot_change(client):
     bob = UserFactory(name="Bob")
     surface_name = "Diamond Structure"
     surface = SurfaceFactory(created_by=bob, name=surface_name)

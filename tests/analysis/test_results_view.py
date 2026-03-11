@@ -22,7 +22,7 @@ from topobank.testing.factories import (
 
 @pytest.mark.django_db
 def test_analysis_times(
-    api_client, two_topos, test_analysis_function, handle_usage_statistics
+    api_client, two_topos, test_analysis_function
 ):
     topo = Topography.objects.first()
 
