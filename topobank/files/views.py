@@ -11,7 +11,7 @@ from rest_framework.response import Response
 
 from topobank.authorization.permissions import EDIT, VIEW
 
-from .models import Folder, Manifest
+from .models import ManifestList, Manifest
 from .permissions import ManifestPermission
 from .serializers import ManifestSerializer
 
@@ -111,7 +111,7 @@ def upload_local(request, manifest_id: int):
 @transaction.non_atomic_requests
 def list_manifests(request, pk=None):
     """List all manifests in a folder"""
-    obj = get_object_or_404(Folder.objects.for_user(request.user, VIEW), pk=pk)
+    obj = get_object_or_404(ManifestList.objects.for_user(request.user, VIEW), pk=pk)
     return Response({
         manifest.filename: ManifestSerializer(manifest,
                                               context={"request": request}).data

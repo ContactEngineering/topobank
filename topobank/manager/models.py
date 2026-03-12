@@ -39,7 +39,7 @@ from ..authorization.models import (
     SurfaceTopographyManager,
     ViewEditFull,
 )
-from ..files.models import Folder, Manifest
+from ..files.models import ManifestList, Manifest
 from ..organizations.models import Organization
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import in_celery_worker_process, run_task
@@ -403,7 +403,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     #
     # Attachments
     #
-    attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
+    attachments = models.ForeignKey(ManifestList, on_delete=models.SET_NULL, null=True)
 
     def __str__(self):
         s = f"Dataset '{self.name}'"
@@ -447,7 +447,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
                 "ATTACHMENTS MISSING: Creating an empty folder for attachments to "
                 f"{self}."
             )
-            self.attachments = Folder.objects.create(
+            self.attachments = ManifestList.objects.create(
                 permissions=self.permissions, read_only=False
             )
         super().save(*args, **kwargs)
@@ -715,7 +715,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
     tags = tm.TagField(to=Tag)
-    attachments = models.ForeignKey(Folder, on_delete=models.SET_NULL, null=True)
+    attachments = models.ForeignKey(ManifestList, on_delete=models.SET_NULL, null=True)
 
     #
     # Time stamps
@@ -819,7 +819,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         related_name="topography_thumbnails",
     )
     deepzoom = models.ForeignKey(
-        Folder,
+        ManifestList,
         null=True,
         on_delete=models.SET_NULL,
         related_name="topography_deepzooms",
@@ -860,7 +860,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 "ATTACHMENTS MISSING: Creating an empty folder for attachments to "
                 f"{self}."
             )
-            self.attachments = Folder.objects.create(
+            self.attachments = ManifestList.objects.create(
                 permissions=self.permissions, read_only=False
             )
             if update_fields is not None and 'attachments' not in update_fields:
@@ -956,7 +956,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         delete("datafile")
         delete("squeezed_datafile")
         delete("thumbnail")
-        delete("deepzoom", Folder.DoesNotExist)
+        delete("deepzoom", ManifestList.DoesNotExist)
 
     def __str__(self):
         return "Measurement '{0}'".format(self.name)
@@ -1336,7 +1336,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             # This is a topography (map), we need to create a Deep Zoom Image
             if self.deepzoom is not None:
                 self.deepzoom.delete()
-            self.deepzoom = Folder.objects.create(permissions=self.permissions)
+            self.deepzoom = ManifestList.objects.create(permissions=self.permissions)
             render_deepzoom(st_topo, self.deepzoom)
 
     def _make_squeezed(self, st_topo=None, save=False):

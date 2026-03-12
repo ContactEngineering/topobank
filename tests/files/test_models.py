@@ -1,5 +1,5 @@
 from topobank.authorization.models import PermissionSet
-from topobank.files.models import Folder, Manifest
+from topobank.files.models import ManifestList, Manifest
 from topobank.files.utils import file_storage_path
 from topobank.testing.factories import ManifestFactory
 
@@ -7,7 +7,7 @@ from topobank.testing.factories import ManifestFactory
 def test_direct_file_delete(user_alice, mocker):
     m = mocker.patch("django.db.models.fields.files.FieldFile.delete")
     permissions = PermissionSet.objects.create()
-    folder = Folder.objects.create(permissions=permissions)
+    folder = ManifestList.objects.create(permissions=permissions)
     file = Manifest.objects.create(
         permissions=permissions, folder=folder, created_by=user_alice
     )
@@ -18,7 +18,7 @@ def test_direct_file_delete(user_alice, mocker):
 def test_file_delete_via_folder(user_alice, mocker):
     m = mocker.patch("django.db.models.fields.files.FieldFile.delete")
     permissions = PermissionSet.objects.create()
-    folder = Folder.objects.create(permissions=permissions)
+    folder = ManifestList.objects.create(permissions=permissions)
     Manifest.objects.create(
         permissions=permissions,
         folder=folder,

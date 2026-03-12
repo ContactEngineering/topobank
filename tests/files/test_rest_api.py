@@ -6,10 +6,10 @@ from django.core.files import File
 from rest_framework.reverse import reverse
 
 from topobank.authorization.models import PermissionSet, UserPermission
-from topobank.files.models import Folder, Manifest
+from topobank.files.models import ManifestList, Manifest
 from topobank.files.utils import file_storage_path
 from topobank.testing.data import FIXTURE_DATA_DIR
-from topobank.testing.factories import FolderFactory, ManifestFactory
+from topobank.testing.factories import ManifestListFactory, ManifestFactory
 from topobank.testing.utils import assert_dict_equal, upload_file
 
 
@@ -20,7 +20,7 @@ def test_upload_file(api_client, user_alice, user_bob):
 
     permissions = PermissionSet.objects.create()
     UserPermission.objects.create(parent=permissions, user=user_alice, allow="full")
-    folder = Folder.objects.create(permissions=permissions)
+    folder = ManifestList.objects.create(permissions=permissions)
     manifest = Manifest.objects.create(
         filename=name,
         permissions=permissions,
@@ -71,7 +71,7 @@ def test_upload_file(api_client, user_alice, user_bob):
 def test_delete_file(api_client, user_alice, read_only, handle_usage_statistics):
     permissions = PermissionSet.objects.create()
     permissions.grant_for_user(user_alice, "view")
-    folder = Folder.objects.create(permissions=permissions, read_only=read_only)
+    folder = ManifestList.objects.create(permissions=permissions, read_only=read_only)
     manifest1 = Manifest.objects.create(
         permissions=permissions,
         folder=folder,
@@ -120,7 +120,7 @@ def test_modify_file(
 ):
     permissions = PermissionSet.objects.create()
     permissions.grant_for_user(user_alice, "view")
-    folder = Folder.objects.create(permissions=permissions, read_only=read_only)
+    folder = ManifestList.objects.create(permissions=permissions, read_only=read_only)
     manifest1 = Manifest.objects.create(
         permissions=permissions,
         folder=folder,
@@ -183,7 +183,7 @@ def test_modify_file(
     # We make a new folder for which alice has "view" access
     permissions = PermissionSet.objects.create()
     permissions.grant_for_user(user_alice, "view")
-    folder2 = Folder.objects.create(permissions=permissions, read_only=read_only2)
+    folder2 = ManifestList.objects.create(permissions=permissions, read_only=read_only2)
 
     # Alice should not be able to move the file to that folder
     response = api_client.patch(
@@ -210,7 +210,7 @@ def test_modify_file(
 def test_create_file(api_client, user_alice, read_only, handle_usage_statistics):
     permissions = PermissionSet.objects.create()
     permissions.grant_for_user(user_alice, "view")
-    folder = Folder.objects.create(permissions=permissions, read_only=read_only)
+    folder = ManifestList.objects.create(permissions=permissions, read_only=read_only)
 
     filename = "my_created_file.testing"
 
@@ -260,7 +260,7 @@ def test_create_file(api_client, user_alice, read_only, handle_usage_statistics)
 
 
 def test_list_folder(api_client, user_alice):
-    folder = FolderFactory(user=user_alice)
+    folder = ManifestListFactory(user=user_alice)
     manifest1 = ManifestFactory(folder=folder)
     manifest2 = ManifestFactory(folder=folder)
 

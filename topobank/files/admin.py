@@ -1,6 +1,6 @@
 from django.contrib import admin
 
-from .models import Folder, Manifest
+from .models import ManifestList, Manifest
 
 
 @admin.register(Manifest)
@@ -10,6 +10,6 @@ class FileManifestAdmin(admin.ModelAdmin):
     ordering = ["-created_at"]
 
 
-@admin.register(Folder)
+@admin.register(ManifestList)
 class FileParentAdmin(admin.ModelAdmin):
     list_display = ("id",)

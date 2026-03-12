@@ -4,7 +4,7 @@ from drf_spectacular.utils import extend_schema_field
 from rest_framework import serializers
 
 from ..supplib.mixins import StrictFieldMixin
-from .models import Folder, Manifest
+from .models import ManifestList, Manifest
 
 _log = logging.getLogger(__name__)
 
@@ -41,7 +41,7 @@ class ManifestSerializer(StrictFieldMixin, serializers.HyperlinkedModelSerialize
     # Hyperlinked resources
     #
     folder = serializers.HyperlinkedRelatedField(
-        view_name="files:folder-api-detail", queryset=Folder.objects.all()
+        view_name="files:folder-api-detail", queryset=ManifestList.objects.all()
     )
     uploaded_by = serializers.HyperlinkedRelatedField(
         source="created_by", view_name="users:user-v1-detail", read_only=True

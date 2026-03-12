@@ -9,7 +9,7 @@ from django.utils.text import slugify
 from pytest import approx
 
 from topobank.authorization.models import PermissionSet
-from topobank.files.models import Folder, Manifest
+from topobank.files.models import ManifestList, Manifest
 from topobank.manager.models import MAX_LENGTH_DATAFILE_FORMAT, Surface, Topography
 from topobank.testing.factories import (
     FIXTURE_DATA_DIR,
@@ -1252,7 +1252,7 @@ def test_delete_surface(api_client, one_topography, handle_usage_statistics):
 
     assert Surface.objects.count() == 1
     assert PermissionSet.objects.count() == 1
-    assert Folder.objects.count() == 3  # 1x deepzoom, 2x attachments
+    assert ManifestList.objects.count() == 3  # 1x deepzoom, 2x attachments
     assert Manifest.objects.count() > 0
 
     response = api_client.delete(
@@ -1262,7 +1262,7 @@ def test_delete_surface(api_client, one_topography, handle_usage_statistics):
 
     assert Surface.objects.all().count() == 0
     assert PermissionSet.objects.count() == 0
-    assert Folder.objects.count() == 0
+    assert ManifestList.objects.count() == 0
     assert Manifest.objects.count() == 0
 
 

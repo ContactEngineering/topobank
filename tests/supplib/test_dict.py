@@ -5,11 +5,11 @@ import json
 import numpy as np
 
 from topobank.supplib.dict import SplitDictionaryHere, load_split_dict, store_split_dict
-from topobank.testing.factories import FolderFactory
+from topobank.testing.factories import ManifestListFactory
 
 
 def test_store_split_dict_with_supplementary():
-    folder = FolderFactory()
+    folder = ManifestListFactory()
 
     series_0 = SplitDictionaryHere(
         "series-0",
@@ -38,7 +38,7 @@ def test_store_split_dict_with_supplementary():
 
 
 def test_store_split_dict_with_nan():
-    folder = FolderFactory()
+    folder = ManifestListFactory()
 
     series_0 = SplitDictionaryHere(
         "series-0",
