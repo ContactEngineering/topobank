@@ -6,7 +6,6 @@ from django.conf import settings
 from django.db import models
 from django.utils.text import slugify
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.reverse import reverse
 
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, PermissionSet

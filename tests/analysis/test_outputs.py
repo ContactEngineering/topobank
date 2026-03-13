@@ -4,7 +4,6 @@ Tests for workflow output schema infrastructure.
 
 import pydantic
 import pytest
-from rest_framework.request import Request
 
 from topobank.analysis.models import Workflow
 from topobank.analysis.outputs import OutputFile, get_outputs_schema

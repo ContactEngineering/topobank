@@ -1,13 +1,12 @@
 import logging
-from collections import defaultdict
 
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
 from topobank.manager.utils import subjects_from_dict, subjects_to_dict
-from topobank.analysis.models import Workflow, WorkflowResult, WorkflowSubject, WorkflowTemplate
+from topobank.analysis.models import Workflow, WorkflowResult, WorkflowSubject
 from topobank.analysis.registry import WorkflowNotImplementedException
-from topobank.analysis.utils import find_children, merge_dicts
+from topobank.analysis.utils import find_children
 
 _log = logging.getLogger(__name__)
 

@@ -16,7 +16,6 @@ from django.db.models import Q
 from django.urls import resolve
 from django.urls.exceptions import Resolver404
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.reverse import reverse
 
 from topobank.authorization.permissions import EDIT, FULL
 from topobank.organizations.models import Organization

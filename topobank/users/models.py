@@ -5,7 +5,6 @@ from django.db import models
 from django.db.utils import ProgrammingError
 from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
-from rest_framework.reverse import reverse
 
 from .anonymous import get_anonymous_user
 

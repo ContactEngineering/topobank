@@ -4,7 +4,6 @@ import json
 import logging
 import os
 import tempfile
-import traceback
 from typing import Optional
 
 import markdown2
@@ -12,7 +11,6 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
 from django.db import models
-from rest_framework.reverse import reverse
 from SurfaceTopography import open_topography
 from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.IO import readers as surface_topography_readers
@@ -307,8 +305,6 @@ def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback) -> str
     # change characters to we can use this in a link
     body = body.replace("\n", "%0D%0A")
     return body
-
-
 
 
 def render_deepzoom(

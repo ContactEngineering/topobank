@@ -1,9 +1,10 @@
 import time
 from contextlib import contextmanager
 
+
 class Timer:
     """
-    A simple timer class that can be used as a context manager and 
+    A simple timer class that can be used as a context manager and
     records durations of named blocks.
     """
     def __init__(self, name=None):

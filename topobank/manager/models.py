@@ -25,7 +25,6 @@ from django.db.models import Q
 from django.utils import timezone
 from ..utils.timer import Timer
 from rest_framework.exceptions import PermissionDenied
-from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.IO import ReaderBase

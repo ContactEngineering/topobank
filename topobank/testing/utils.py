@@ -12,11 +12,8 @@ from operator import itemgetter
 from typing import Union
 
 import numpy as np
-import requests
-from django.conf import settings
 from django.test import SimpleTestCase
 from django.utils import formats
-from rest_framework.reverse import reverse
 
 from topobank.files.models import Folder
 from topobank.manager.models import Surface, Tag, Topography
@@ -127,8 +124,6 @@ def assert_form_error(response, error_msg_fragment, field_name=None):
 
 # abbreviation for use with pytest
 assert_redirects = SimpleTestCase().assertRedirects
-
-
 
 
 def export_response_as_html(response, fname="/tmp/response.html"):  # pragma: no cover
@@ -242,8 +237,6 @@ class DummyProgressRecorder:
     def set_progress(self, a, nsteps):
         """Do nothing."""
         pass  # dummy
-
-
 
 
 def copy_folder(folder: Folder, filepath: str):

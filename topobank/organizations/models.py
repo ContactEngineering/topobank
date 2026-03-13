@@ -9,7 +9,6 @@ from django.contrib.postgres.fields import ArrayField
 from django.db import models
 from django.urls import resolve
 from django.utils.translation import gettext_lazy as _
-from rest_framework.reverse import reverse
 
 _log = logging.getLogger(__name__)
 
