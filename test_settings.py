@@ -65,7 +65,6 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-ROOT_URLCONF = "topobank.test_urls"
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = tempfile.mkdtemp()
