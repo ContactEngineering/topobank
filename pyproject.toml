@@ -10,9 +10,10 @@ dynamic = ['version']
 readme = 'README.rst'
 license = { file = 'LICENSE' }
 authors = [
-    { name = "Michael Röttger", email = "info@michael-roettger.de" },
-    { name = "Lars Pastewka", email = "lars.pastewka@imtek.uni-freiburg.de" },
+    { name = "Gunner Clary", email = "gunner.clary@surface.design" },
     { name = "Ioannis Nezis", email = "ioannis@nezis.de" },
+    { name = "Lars Pastewka", email = "lars.pastewka@imtek.uni-freiburg.de" },
+    { name = "Michael Röttger", email = "info@michael-roettger.de" },
 ]
 classifiers = [
     'Development Status :: 5 - Production/Stable',
