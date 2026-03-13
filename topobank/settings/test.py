@@ -130,6 +130,10 @@ STORAGE_BACKEND = env.str("STORAGE_BACKEND", default="inmemorystorage.InMemorySt
 
 USE_S3_STORAGE = STORAGE_BACKEND.endswith("s3boto3.S3Boto3Storage")
 
+# Upload method
+# UPLOAD_METHOD = env("TOPOBANK_UPLOAD_METHOD", default="POST" if not USE_S3_STORAGE else "PUT")
+UPLOAD_METHOD = "POST" if not USE_S3_STORAGE else "PUT"
+
 STORAGES = {
     "default": {"BACKEND": STORAGE_BACKEND},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},

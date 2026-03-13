@@ -84,30 +84,37 @@ def _get_package_version_tuple(pkg_name, version_expr):
     try:
         major: int = int(version_tuple[0])
     except:  # noqa: E722
-        raise ConfigurationException(
-            f"Cannot determine major version of package '{pkg_name}'. "
-            f"Full version string: {version}"
-        )
+        # Use entire string as extra if it doesn't start with a number
+        # We must return -1 for major/minor because of non-null constraint
+        return -1, -1, None, version
 
     try:
         minor: int = int(version_tuple[1])
     except:  # noqa: E722
-        raise ConfigurationException(
-            "Cannot determine minor version of package '{}'. Full version string: {}",
-            format(pkg_name, version),
-        )
+        return -1, -1, None, version
 
     try:
         # because of version strings like '0.51.0+0.g2c488bd.dirty'
         micro: int = int(version_tuple[2].split("+")[0])
-        s = f"{version_tuple[0]}.{version_tuple[1]}.{micro}"
+        s = f"{version_tuple[0]}.{version_tuple[1]}.{version_tuple[2].split('+')[0]}"
     except:  # noqa: E722
         micro = None
         s = f"{version_tuple[0]}.{version_tuple[1]}"
 
     try:
         extra: str = version[len(s) :]  # the rest of the version string
+        # Don't strip leading dot if it's followed by dev or other indicators
+        # only if it was part of the s string.
+        # Actually, let's look at the failing case:
+        # version = '1.66.3.dev96+g53c1c0d2.dirty'
+        # s = '1.66.3'
+        # extra = '.dev96+g53c1c0d2.dirty'
+        # result = '1.66.3.dev96+g53c1c0d2.dirty'
+        pass
     except:  # noqa: E722
+        extra = None
+
+    if extra == "":
         extra = None
 
     return major, minor, micro, extra

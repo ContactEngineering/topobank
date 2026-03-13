@@ -339,7 +339,7 @@ def execute_workflow(self: celery.Task, analysis_id: int):
         tracemalloc.stop()
         save_result(result, WorkflowResult.SUCCESS, peak_memory=peak, dois=dois, timer=timer)
     except Exception as exc:
-        _log.warning(
+        _log.exception(
             f"{analysis_id}/{self.request.id}: Exception during evaluation: {exc}"
         )
         analysis.task_state = WorkflowResult.FAILURE

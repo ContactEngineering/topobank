@@ -105,9 +105,10 @@ CACHES = {
 # URLS
 # ------------------------------------------------------------------------------
 # https://docs.djangoproject.com/en/dev/ref/settings/#root-urlconf
-ROOT_URLCONF = "topobank.urls"
+ROOT_URLCONF = "ce_ui.urls"
 # https://docs.djangoproject.com/en/dev/ref/settings/#wsgi-application
-WSGI_APPLICATION = "topobank.wsgi.application"
+WSGI_APPLICATION = "ce_ui.wsgi.application"
+ASGI_APPLICATION = "ce_ui.asgi.application"
 
 # APPS
 # ------------------------------------------------------------------------------
@@ -144,6 +145,10 @@ LOCAL_APPS = [
     "topobank.analysis.apps.AnalysisAppConfig",
     "topobank.organizations.apps.OrganizationsAppConfig",
     "topobank.properties.apps.PropertiesAppConfig",
+    # Former plugins now integrated manually
+    "topobank_contact.apps.ContactPluginConfig",
+    "topobank_statistics.apps.StatisticsPluginConfig",
+    "topobank_publication.apps.PublicationPluginConfig",
 ]
 
 PLUGIN_MODULES = [
