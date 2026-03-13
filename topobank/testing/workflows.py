@@ -15,6 +15,7 @@ from ..supplib.dict import store_split_dict
 from ..supplib.json import ExtendedJSONEncoder
 
 
+@register_implementation
 class TestImplementation(WorkflowImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
@@ -134,6 +135,7 @@ class TestImplementation(WorkflowImplementation):
         store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
 
 
+@register_implementation
 class TopographyOnlyTestImplementation(TestImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
@@ -149,6 +151,7 @@ class TopographyOnlyTestImplementation(TestImplementation):
         }
 
 
+@register_implementation
 class SecondTestImplementation(WorkflowImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
@@ -199,6 +202,7 @@ class SecondTestImplementation(WorkflowImplementation):
         store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
 
 
+@register_implementation
 class TestImplementationWithError(WorkflowImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
@@ -227,6 +231,7 @@ class TestImplementationWithError(WorkflowImplementation):
         raise RuntimeError("An error occurred!")
 
 
+@register_implementation
 class TestImplementationWithErrorInDependency(WorkflowImplementation):
     """
     This function will be registered in conftest.py by a fixture. The arguments have no
@@ -326,6 +331,7 @@ class TestImplementationWithOutputs(WorkflowImplementation):
         store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
 
 
+@register_implementation
 class TestImplementationWithIntegerKeys(WorkflowImplementation):
     """
     Test implementation that uses integer keys in dependencies.
