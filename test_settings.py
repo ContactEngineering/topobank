@@ -17,13 +17,10 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "rest_framework",
-    "django_filters",
     "storages",
     "guardian",
     "notifications",
     "tagulous",
-    "request_profiler",
-    "drf_spectacular",
     "django_celery_results",
     "topobank.users.apps.UsersAppConfig",
     "topobank.authorization.apps.AuthorizationAppConfig",
@@ -32,9 +29,6 @@ INSTALLED_APPS = [
     "topobank.analysis.apps.AnalysisAppConfig",
     "topobank.organizations.apps.OrganizationsAppConfig",
     "topobank.properties.apps.PropertiesAppConfig",
-    "topobank_contact.apps.ContactPluginConfig",
-    "topobank_statistics.apps.StatisticsPluginConfig",
-    "topobank_publication.apps.PublicationPluginConfig",
     "topobank.taskapp.celeryapp.CeleryAppConfig",
 ]
 
@@ -89,9 +83,7 @@ REST_FRAMEWORK = {
     "DEFAULT_PERMISSION_CLASSES": (
         "rest_framework.permissions.IsAuthenticatedOrReadOnly",
     ),
-    "DEFAULT_SCHEMA_CLASS": "drf_spectacular.openapi.AutoSchema",
     "TEST_REQUEST_DEFAULT_FORMAT": "json",
-    'DEFAULT_FILTER_BACKENDS': ['django_filters.rest_framework.DjangoFilterBackend'],
 }
 
 CC_LICENSE_INFOS = {
