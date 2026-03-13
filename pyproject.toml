@@ -1,12 +1,12 @@
 [build-system]
-requires = ["flit_core>=3.2", "DiscoverVersion"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
+dynamic = ["version"]
 name = 'topobank'
 description = 'A surface metrology cloud database'
-requires-python = '>=3.9.0'
-dynamic = ['version']
+requires-python = ">=3.10.0"
 readme = 'README.rst'
 license = { file = 'LICENSE' }
 authors = [
@@ -19,7 +19,6 @@ classifiers = [
     'Development Status :: 5 - Production/Stable',
     'Environment :: Web Environment',
     'Framework :: Django',
-    'Framework :: Django :: 3.2',
     'Framework :: Celery',
     'Intended Audience :: Developers',
     'License :: OSI Approved :: MIT License',
@@ -27,7 +26,6 @@ classifiers = [
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3 :: Only',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
@@ -36,7 +34,6 @@ classifiers = [
     'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
 ]
 dependencies = [
-    'DiscoverVersion',                   # Version information from git
     'backports.entry-points-selectable', # Plugin handling
 
     # Django
@@ -222,3 +219,7 @@ profile = "black"
 
 [tool.pytest.ini_options]
 env = ["DJANGO_SETTINGS_MODULE=ce_ui.settings.test"]
+
+
+[tool.hatch.version]
+source = "vcs"
