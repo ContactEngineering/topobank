@@ -73,6 +73,9 @@ dependencies = [
     # Validation
     'pydantic',
 
+    # Permissions
+    'django-guardian',
+
     # pandas is currently needed for downloading xlsx files from analyses
     'pandas',
 
