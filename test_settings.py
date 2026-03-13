@@ -27,7 +27,6 @@ INSTALLED_APPS = [
     "watchman",
     "request_profiler",
     "drf_spectacular",
-    "termsandconditions",
     "django_celery_results",
     "topobank.users.apps.UsersAppConfig",
     "topobank.authorization.apps.AuthorizationAppConfig",
@@ -75,7 +74,7 @@ MIDDLEWARE = [
     "allauth.account.middleware.AccountMiddleware",
 ]
 
-ROOT_URLCONF = "ce_ui.urls"
+ROOT_URLCONF = "topobank.test_urls"
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
 MEDIA_ROOT = tempfile.mkdtemp()

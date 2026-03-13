@@ -3,7 +3,6 @@ import sys
 
 from django.core.management.base import BaseCommand
 from guardian.shortcuts import get_user_perms, remove_perm
-from termsandconditions.models import UserTermsAndConditions
 
 from topobank.analysis.models import WorkflowResult
 from topobank.manager.models import Surface, Topography
@@ -31,7 +30,6 @@ class Command(BaseCommand):
         surfaces = Surface.objects.filter(created_by=user)
         topographies = Topography.objects.filter(surface__in=surfaces)
         analyses = WorkflowResult.objects.filter(topography__in=topographies)
-        userterms = UserTermsAndConditions.objects.filter(user=user)
 
         _log.info("Removing surface related permissions..")
         for s in surfaces:
@@ -47,9 +45,6 @@ class Command(BaseCommand):
 
         _log.info("Removing surfaces created by user '{}'..".format(user.name))
         surfaces.delete()
-
-        _log.info("Removing terms and conditions seen or accepted by user '{}'..".format(user.name))
-        userterms.delete()
 
         _log.info("Deleting user object..")
         user.delete()
