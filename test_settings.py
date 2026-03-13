@@ -2,6 +2,10 @@ import os
 import tempfile
 from datetime import timedelta
 
+import environ
+
+env = environ.Env()
+
 SECRET_KEY = 'dummy'
 
 INSTALLED_APPS = [
@@ -33,14 +37,7 @@ INSTALLED_APPS = [
 ]
 
 DATABASES = {
-    "default": {
-        "ENGINE": "django.db.backends.postgresql",
-        "NAME": "topobank-test",
-        "USER": "postgres",
-        "PASSWORD": "",
-        "HOST": "localhost",
-        "PORT": "",
-    }
+    "default": env.db("DATABASE_URL", default="postgres://postgres@localhost/topobank-test")
 }
 
 AUTH_USER_MODEL = "users.User"
