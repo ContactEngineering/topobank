@@ -6,7 +6,6 @@ from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
-from watchman.decorators import check as watchman_check
 
 from .celeryapp import app
 from .models import Dependency, TaskStateModel, Version
@@ -152,29 +151,6 @@ def get_package_version(pkg_name, version_expr):
     )
 
     return version
-
-
-def celery_worker_check():
-    return {
-        "celery": _celery_worker_check(),
-    }
-
-
-@watchman_check
-def _celery_worker_check():
-    """Used with watchman in order to check whether celery workers are available."""
-    # See https://github.com/mwarkentin/django-watchman/issues/8
-    from .celeryapp import app
-
-    MIN_NUM_WORKERS_EXPECTED = 1
-    d = app.control.broadcast(
-        "ping", reply=True, timeout=0.1, limit=MIN_NUM_WORKERS_EXPECTED
-    )
-    return {
-        "num_workers_available": len(d),
-        "min_num_workers_expected": MIN_NUM_WORKERS_EXPECTED,
-        "ok": len(d) >= MIN_NUM_WORKERS_EXPECTED,
-    }
 
 
 @app.task(bind=True)

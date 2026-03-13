@@ -29,10 +29,6 @@ urlpatterns = [
                     "analysis/",
                     include("topobank_rest_api.analysis.urls", namespace="analysis"),
                 ),
-                path(
-                    "watchman/",
-                    include(("watchman.urls", "watchman"), namespace="watchman"),
-                ),
             ]
         ),
     ),

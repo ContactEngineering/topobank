@@ -2,8 +2,6 @@ import os
 import tempfile
 from datetime import timedelta
 
-from watchman import constants as watchman_constants
-
 SECRET_KEY = 'dummy'
 
 INSTALLED_APPS = [
@@ -24,7 +22,6 @@ INSTALLED_APPS = [
     "guardian",
     "notifications",
     "tagulous",
-    "watchman",
     "request_profiler",
     "drf_spectacular",
     "django_celery_results",
@@ -84,10 +81,6 @@ STORAGES = {
     "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
-
-WATCHMAN_CHECKS = watchman_constants.DEFAULT_CHECKS + (
-    "topobank.taskapp.utils.celery_worker_check",
-)
 
 REST_FRAMEWORK = {
     "DEFAULT_AUTHENTICATION_CLASSES": [
