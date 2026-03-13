@@ -131,6 +131,9 @@ dependencies = [
 
     # Timer
     'muGrid>=0.105.1',
+
+    # Database
+    'psycopg[binary]',
 ]
 
 [project.optional-dependencies]
