@@ -148,12 +148,6 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     _user = None
 
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this tag"""
-        return reverse(
-            "manager:tag-api-detail", kwargs=dict(name=self.name), request=request
-        )
-
     # TODO: Make this work with permission mixin
     def authorize_user(
         self,
@@ -420,12 +414,6 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
 
     def get_related_surfaces(self):
         return [self]
-
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this surface"""
-        return reverse(
-            "manager:surface-api-detail", kwargs=dict(pk=self.pk), request=request
-        )
 
     def num_topographies(self):
         return self.topography_set.count()
@@ -986,12 +974,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         :return: True or False
         """
         return [self.surface]
-
-    def get_absolute_url(self, request=None, version="api"):
-        """URL of API endpoint for this topography."""
-        return reverse(
-            f"manager:topography-{version}-detail", kwargs=dict(pk=self.pk), request=request
-        )
 
     def is_shared(self, user: User) -> bool:
         """Returns True, if this topography is shared with a given user.

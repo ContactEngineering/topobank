@@ -130,10 +130,6 @@ class Organization(models.Model):
         """Add user to this organization."""
         user.groups.add(self.group)
 
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this organization"""
-        return reverse("organizations:organization-v1-detail", kwargs={"pk": self.pk}, request=request)
-
 
 def resolve_organization(url):
     try:

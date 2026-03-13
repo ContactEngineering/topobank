@@ -116,12 +116,6 @@ class Folder(PermissionMixin, models.Model):
     def find_file(self, filename: str) -> models.QuerySet["Manifest"]:
         return Manifest.objects.get(folder=self, filename=filename)
 
-    def get_absolute_url(self, request=None) -> str:
-        """URL of API endpoint for this folder"""
-        return reverse(
-            "files:folder-api-detail", kwargs=dict(pk=self.pk), request=request
-        )
-
     def remove_files(self):
         """Clear this folder by removing all files"""
         self.files.all().delete()
@@ -332,12 +326,6 @@ class Manifest(PermissionMixin, models.Model):
         copy.save()
 
         return copy
-
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this manifest"""
-        return reverse(
-            "manifest:folder-api-detail", kwargs=dict(pk=self.pk), request=request
-        )
 
     def generate_storage_path(self):
         """Full path of the file on the storage backend"""

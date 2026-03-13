@@ -40,10 +40,6 @@ class User(AbstractUser):
             self.anonymous_user = get_anonymous_user()
         return self.anonymous_user
 
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this user"""
-        return reverse("users:user-v1-detail", kwargs={"pk": self.pk}, request=request)
-
     def _orcid_info(self):  # TODO use local cache
         try:
             from allauth.socialaccount.models import SocialAccount

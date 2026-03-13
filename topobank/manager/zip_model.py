@@ -140,9 +140,3 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         else:
             # Nothing to do? Maybe we are still waiting for a file upload?
             _log.info("Nothing to do.")
-
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this tag"""
-        return reverse(
-            "manager:zip-container-v2-detail", kwargs=dict(pk=self.id), request=request
-        )

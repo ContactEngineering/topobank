@@ -454,12 +454,6 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         self.fix_folder()
         return self.folder.exists(self.result_file_name)
 
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this tag"""
-        return reverse(
-            "analysis:result-detail", kwargs=dict(pk=self.id), request=request
-        )
-
     @property
     def storage_prefix(self):
         """Return prefix used for storage.

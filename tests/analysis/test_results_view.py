@@ -5,6 +5,7 @@ Test for results view.
 import datetime
 
 import pytest
+from topobank_rest_api.utils import get_api_url
 from django.urls import reverse
 
 from topobank.analysis.models import Workflow, WorkflowResult
@@ -439,7 +440,7 @@ def test_set_result_permissions(
         f"{reverse('analysis:set-result-permissions', kwargs=dict(workflow_id=analysis1.id))}",
         [
             {
-                "user": user2.get_absolute_url(),
+                "user": get_api_url(user2),
                 "permission": "full",
             }
         ],
@@ -458,7 +459,7 @@ def test_set_result_permissions(
         f"{reverse('analysis:set-result-permissions', kwargs=dict(workflow_id=analysis1.id))}",
         [
             {
-                "user": user.get_absolute_url(),
+                "user": get_api_url(user),
                 "permission": "no-access",
             }
         ],

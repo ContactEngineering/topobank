@@ -1,5 +1,6 @@
 import celery.states
 import pytest
+from topobank_rest_api.utils import get_api_url
 from django.test import override_settings
 from rest_framework.reverse import reverse
 
@@ -152,7 +153,7 @@ def test_error_propagation(
         "analysis:dependencies", args=[test_ana2.id], request=result.wsgi_request
     )
     result = api_client.get(result.data["dependencies_url"])
-    assert result.data == {"dep": test_ana1.get_absolute_url(result.wsgi_request)}
+    assert result.data == {"dep": get_api_url(test_ana1, result.wsgi_request)}
 
 
 @pytest.mark.django_db

@@ -1,3 +1,4 @@
+from topobank_rest_api.utils import get_api_url
 import pytest
 
 from topobank.testing.factories import OrcidSocialAccountFactory, UserFactory
@@ -6,7 +7,7 @@ from topobank.testing.factories import OrcidSocialAccountFactory, UserFactory
 @pytest.mark.django_db
 def test_absolute_url():
     user = UserFactory(username="testuser")
-    assert user.get_absolute_url() == f"/users/v1/user/{user.id}/"
+    assert get_api_url(user) == f"/users/v1/user/{user.id}/"
 
 
 @pytest.mark.django_db
