@@ -416,7 +416,7 @@ def test_set_result_permissions(
     obj.save()
 
     obj = WorkflowResult.objects.get(id=analysis1.id)
-    assert obj.subject is None  # After being named, subject is removed
+    assert obj.subject == surf1  # After being named, subject is maintained
 
     # # check user2 cannot view model
     api_client.force_login(user2)
