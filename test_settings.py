@@ -1,3 +1,9 @@
+import os
+import tempfile
+from datetime import timedelta
+
+from watchman import constants as watchman_constants
+
 SECRET_KEY = 'dummy'
 
 INSTALLED_APPS = [
@@ -72,10 +78,6 @@ MIDDLEWARE = [
 ROOT_URLCONF = "ce_ui.urls"
 STATIC_URL = '/static/'
 MEDIA_URL = '/media/'
-import os
-import tempfile
-from watchman import constants as watchman_constants
-
 MEDIA_ROOT = tempfile.mkdtemp()
 os.makedirs(os.path.join(MEDIA_ROOT, 'analyses'), exist_ok=True)
 
@@ -124,7 +126,6 @@ CC_LICENSE_INFOS = {
     },
 }
 
-from datetime import timedelta
 TOPOBANK_MANAGER_QUEUE = "manager"
 TOPOBANK_ANALYSIS_QUEUE = "analysis"
 TOPOBANK_THUMBNAIL_FORMAT = "jpeg"
