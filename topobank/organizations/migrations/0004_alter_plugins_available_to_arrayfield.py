@@ -3,7 +3,9 @@
 from django.contrib.postgres.fields import ArrayField
 from django.db import migrations, models
 
-from topobank.organizations.models import get_plugin_choices
+
+def get_plugin_choices():
+    return []
 
 
 class Migration(migrations.Migration):

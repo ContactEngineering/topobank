@@ -265,20 +265,4 @@ class WorkflowImplementation:
     @classmethod
     def has_permission(cls, user: settings.AUTH_USER_MODEL):
         """Return whether this implementation is available for the given user."""
-        if cls.__module__.startswith("topobank.testing."):
-            return True
-
-        app = cls._get_app_config_for_obj(cls)
-
-        if app is None:
-            return False
-        elif (
-            hasattr(app, "TopobankPluginMeta") and not app.TopobankPluginMeta.restricted
-        ):
-            # This plugin is marked as being available to everyone
-            return True
-
-        from ..organizations.models import Organization
-
-        plugins_available = Organization.objects.get_plugins_available(user)
-        return app.name in plugins_available
+        return True
