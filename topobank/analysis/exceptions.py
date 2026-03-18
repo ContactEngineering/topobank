@@ -1,7 +1,4 @@
-from rest_framework.exceptions import APIException
-
-
-class SubjectNotReadyException(APIException):
+class SubjectNotReadyException(Exception):
     """Subject is not in SUCCESS state when triggering a workflow result."""
 
     def __init__(self, subject):

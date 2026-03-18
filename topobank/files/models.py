@@ -18,7 +18,7 @@ from django.utils import timezone
 from storages.utils import clean_name
 
 from ..authorization.mixins import PermissionMixin
-from ..authorization.models import AuthorizedManager, PermissionSet
+from ..authorization.models import AuthorizedManager
 from ..supplib.json import ExtendedJSONEncoder
 from .utils import file_storage_path
 
@@ -34,7 +34,10 @@ class Folder(PermissionMixin, models.Model):
     #
     # Permissions
     #
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    permissions = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
+        on_delete=models.CASCADE, null=True
+    )
 
     #
     # Folder parameters
@@ -148,7 +151,10 @@ class Manifest(PermissionMixin, models.Model):
     #
     # Permissions
     #
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    permissions = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
+        on_delete=models.CASCADE, null=True
+    )
 
     #
     # Model data

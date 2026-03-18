@@ -4,7 +4,7 @@ import yaml
 from django.core.files import File
 from django.utils.timezone import now
 
-from ..authorization.models import PermissionSet
+from ..authorization import get_permission_model
 from ..files.models import Manifest
 from .models import Surface, Topography
 
@@ -166,7 +166,7 @@ def import_container_zip(
                 category=surface_dict["category"],
                 description=surface_description,
                 tags=tags,
-                permissions=PermissionSet.objects.create(),
+                permissions=get_permission_model().objects.create(),
             )
             surface.save()
             surface.permissions.grant_for_user(user, "full")

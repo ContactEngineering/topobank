@@ -3,12 +3,12 @@ import logging
 import zipfile
 
 from django.conf import settings
+from django.core.exceptions import PermissionDenied
 from django.db import models
 from django.utils.text import slugify
-from rest_framework.exceptions import PermissionDenied
 
 from ..authorization.mixins import PermissionMixin
-from ..authorization.models import AuthorizedManager, PermissionSet
+from ..authorization.models import AuthorizedManager
 from ..files.models import Manifest
 from ..taskapp.models import TaskStateModel
 from .export_zip import export_container_zip
@@ -32,7 +32,10 @@ class ZipContainer(PermissionMixin, TaskStateModel):
     #
     # Model hierarchy and permissions
     #
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    permissions = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
+        on_delete=models.CASCADE, null=True
+    )
 
     # The file itself
     manifest = models.ForeignKey(

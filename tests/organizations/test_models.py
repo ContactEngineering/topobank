@@ -1,7 +1,10 @@
 import pytest
 from django.contrib.auth.models import Group
+from topobank_orcid.organizations.models import (
+    DEFAULT_GROUP_NAME,
+    DEFAULT_ORGANIZATION_NAME,
+)
 
-from topobank.organizations.models import DEFAULT_GROUP_NAME, DEFAULT_ORGANIZATION_NAME
 from topobank.testing.factories import OrganizationFactory
 
 

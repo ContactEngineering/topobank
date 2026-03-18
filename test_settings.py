@@ -26,12 +26,12 @@ INSTALLED_APPS = [
     "notifications",
     "tagulous",
     "django_celery_results",
-    "topobank.users.apps.UsersAppConfig",
-    "topobank.authorization.apps.AuthorizationAppConfig",
+    "topobank_orcid.users.apps.UsersAppConfig",
+    "topobank_orcid.authorization.apps.AuthorizationAppConfig",
     "topobank.files.apps.FilesAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
-    "topobank.organizations.apps.OrganizationsAppConfig",
+    "topobank_orcid.organizations.apps.OrganizationsAppConfig",
     "topobank.properties.apps.PropertiesAppConfig",
     "topobank.taskapp.celeryapp.CeleryAppConfig",
 ]
@@ -41,6 +41,8 @@ DATABASES = {
 }
 
 AUTH_USER_MODEL = "users.User"
+TOPOBANK_PERMISSION_MODEL = "authorization.PermissionSet"
+TOPOBANK_ORGANIZATION_MODEL = "organizations.Organization"
 SITE_ID = 1
 USE_TZ = True
 TIME_ZONE = "CET"

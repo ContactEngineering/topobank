@@ -1,9 +1,9 @@
 import pint
+from django.conf import settings
 from django.core.exceptions import ValidationError
 from django.db import models
 
 from ..authorization.mixins import PermissionMixin
-from ..authorization.models import PermissionSet
 from ..manager.models import Surface
 
 _ureg = pint.UnitRegistry()
@@ -26,7 +26,10 @@ class Property(PermissionMixin, models.Model):
     surface = models.ForeignKey(
         Surface, on_delete=models.CASCADE, related_name="properties"
     )
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    permissions = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
+        on_delete=models.CASCADE, null=True
+    )
 
     #
     # Model data

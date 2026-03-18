@@ -4,8 +4,6 @@ Registry for collection analysis functions.
 
 import logging
 
-from rest_framework.exceptions import APIException
-
 _log = logging.getLogger(__name__)
 
 
@@ -14,11 +12,8 @@ _log = logging.getLogger(__name__)
 #
 
 
-class WorkflowRegistryException(APIException):
+class WorkflowRegistryException(Exception):
     """Generic exception for problems while handling analysis functions."""
-
-    status_code = 400
-    default_detail = "Bad workflow request."
 
 
 class AlreadyRegisteredException(WorkflowRegistryException):

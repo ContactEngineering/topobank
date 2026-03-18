@@ -9,19 +9,18 @@ from typing import Union
 from urllib.parse import urlparse
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
 from django.urls import resolve
 from django.urls.exceptions import Resolver404
-from rest_framework.exceptions import PermissionDenied
 
-from topobank.authorization.permissions import EDIT, FULL
-from topobank.organizations.models import Organization
+from topobank.authorization.models import EDIT, FULL
 
+from ..authorization import get_permission_model
 from ..authorization.mixins import PermissionMixin
-from ..authorization.models import AuthorizedManager, PermissionSet, ViewEditFull
+from ..authorization.models import AuthorizedManager, ViewEditFull
 from ..files.models import Folder, Manifest
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
@@ -210,7 +209,10 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     #
     # Permissions
     #
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    permissions = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
+        on_delete=models.CASCADE, null=True
+    )
 
     #
     # Workflow result parameters
@@ -272,7 +274,8 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     # Organization owning this WorkflowResult
     owned_by = models.ForeignKey(
-        Organization, null=True, on_delete=models.CASCADE
+        getattr(settings, 'TOPOBANK_ORGANIZATION_MODEL', 'organizations.Organization'),
+        null=True, on_delete=models.CASCADE
     )
 
     # Invalid is True if the subject was changed after the WorkflowResult was computed
@@ -343,7 +346,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             _log.debug(
                 "WorkflowResult has no permissions. Attempting to create new permission set.")
             if self.created_by:
-                self.permissions = PermissionSet.objects.create()
+                self.permissions = get_permission_model().objects.create()
                 self.permissions.grant(self.created_by, FULL)
             else:
                 raise RuntimeError(
@@ -903,7 +906,10 @@ class WorkflowTemplate(PermissionMixin, models.Model):
     #
     # Permissions
     #
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    permissions = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
+        on_delete=models.CASCADE, null=True
+    )
 
     #
     # Name of stored parameters
@@ -938,7 +944,7 @@ class WorkflowTemplate(PermissionMixin, models.Model):
                 f"Creating an empty permission set for template {self.id} which was "
                 f"just created."
             )
-            self.permissions = PermissionSet.objects.create()
+            self.permissions = get_permission_model().objects.create()
 
         super().save(*args, **kwargs)
         if created:
