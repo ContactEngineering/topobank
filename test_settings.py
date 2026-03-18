@@ -21,7 +21,6 @@ INSTALLED_APPS = [
     "allauth.account",
     "allauth.socialaccount",
     "storages",
-    "guardian",
     "notifications",
     "tagulous",
     "django_celery_results",
