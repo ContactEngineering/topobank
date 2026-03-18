@@ -41,10 +41,6 @@ dependencies = [
     'django-allauth>=0.56.0', # https://github.com/pennersr/django-allauth
     'fido2',                  # required by django-allauth
 
-    # Django REST Framework
-    'djangorestframework',
-    # https://github.com/encode/django-rest-framework
-
     # tagging support
     'django-tagulous @ git+https://github.com/stephendwolff/django-tagulous.git@d80ef84',
 
@@ -72,9 +68,6 @@ dependencies = [
 
     # Validation
     'pydantic',
-
-    # Permissions
-    'django-guardian',
 
     # pandas is currently needed for downloading xlsx files from analyses
     'pandas',

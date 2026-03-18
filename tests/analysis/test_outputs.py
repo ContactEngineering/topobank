@@ -239,7 +239,7 @@ class TestWorkflowModelOutputsSchema:
 class TestWorkflowSerializerOutputsSchema:
     """Tests for WorkflowSerializer outputs_schema field."""
 
-    def test_serializer_includes_outputs_schema(self, api_rf):
+    def test_serializer_includes_outputs_schema(self):
         """Test that WorkflowSerializer includes outputs_schema field."""
         workflow = Workflow.objects.get(name="topobank.testing.test_with_outputs")
 
@@ -254,7 +254,7 @@ class TestWorkflowSerializerOutputsSchema:
         schema = workflow.get_outputs_schema()
         assert len(schema) == 2
 
-    def test_serializer_empty_outputs_schema(self, api_rf, test_analysis_function):
+    def test_serializer_empty_outputs_schema(self, test_analysis_function):
         """Test that WorkflowSerializer returns empty schema for legacy workflows."""
         # request = api_rf.get("/")
         # serializer = WorkflowDetailSerializer(
