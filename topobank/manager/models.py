@@ -691,7 +691,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Organization owning this topography. (Cleanup only happens if the surface is deleted)
     #
     owned_by = models.ForeignKey(
-        settings.TOPOBANK_ORGANIZATION_MODEL, null=True, on_delete=models.SET_NULL
+        getattr(settings, "TOPOBANK_ORGANIZATION_MODEL", "organizations.Organization"),
+        null=True,
+        on_delete=models.SET_NULL,
     )
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
