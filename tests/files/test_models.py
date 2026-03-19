@@ -1,4 +1,5 @@
-from topobank.authorization.models import PermissionSet
+from topobank_orcid.authorization.models import PermissionSet
+
 from topobank.files.models import Folder, Manifest
 from topobank.files.utils import file_storage_path
 from topobank.testing.factories import ManifestFactory

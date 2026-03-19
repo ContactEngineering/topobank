@@ -1,24 +1,24 @@
 [build-system]
-requires = ["flit_core>=3.2", "DiscoverVersion"]
-build-backend = "flit_core.buildapi"
+requires = ["hatchling", "hatch-vcs"]
+build-backend = "hatchling.build"
 
 [project]
+dynamic = ["version"]
 name = 'topobank'
 description = 'A surface metrology cloud database'
-requires-python = '>=3.9.0'
-dynamic = ['version']
+requires-python = ">=3.10.0"
 readme = 'README.rst'
 license = { file = 'LICENSE' }
 authors = [
-    { name = "Michael Röttger", email = "info@michael-roettger.de" },
-    { name = "Lars Pastewka", email = "lars.pastewka@imtek.uni-freiburg.de" },
+    { name = "Gunner Clary", email = "gunner.clary@surface.design" },
     { name = "Ioannis Nezis", email = "ioannis@nezis.de" },
+    { name = "Lars Pastewka", email = "lars.pastewka@imtek.uni-freiburg.de" },
+    { name = "Michael Röttger", email = "info@michael-roettger.de" },
 ]
 classifiers = [
     'Development Status :: 5 - Production/Stable',
     'Environment :: Web Environment',
     'Framework :: Django',
-    'Framework :: Django :: 3.2',
     'Framework :: Celery',
     'Intended Audience :: Developers',
     'License :: OSI Approved :: MIT License',
@@ -26,7 +26,6 @@ classifiers = [
     'Programming Language :: Python',
     'Programming Language :: Python :: 3',
     'Programming Language :: Python :: 3 :: Only',
-    'Programming Language :: Python :: 3.9',
     'Programming Language :: Python :: 3.10',
     'Programming Language :: Python :: 3.11',
     'Programming Language :: Python :: 3.12',
@@ -35,31 +34,12 @@ classifiers = [
     'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
 ]
 dependencies = [
-    'DiscoverVersion',                   # Version information from git
     'backports.entry-points-selectable', # Plugin handling
 
-    'argon2-cffi',     # https://github.com/hynek/argon2_cffi
-    'servestatic',     # https://github.com/Archmonger/ServeStatic
-    'psycopg[binary]', # https://github.com/psycopg/psycopg3
-
     # Django
-    'django==5.2.12',         #  does this work with pyup?  # https://www.djangoproject.com/
-    'django-environ',         # https://github.com/joke2k/django-environ
+    'django==5.2.11',         #  does this work with pyup?  # https://www.djangoproject.com/
     'django-allauth>=0.56.0', # https://github.com/pennersr/django-allauth
-    'django-filter',          # https://django-filter.readthedocs.io/en/stable/
     'fido2',                  # required by django-allauth
-    'django-crispy-forms',    # https://github.com/django-crispy-forms/django-crispy-forms
-    'crispy-bootstrap5',      # https://stackoverflow.com/questions/75495403/django-returns-templatedoesnotexist-when-using-crispy-forms
-
-    # Redis for caching
-    'django-redis',
-
-    # Django REST Framework
-    'djangorestframework',
-    # https://github.com/encode/django-rest-framework
-
-    # OpenApi Support
-    'drf-spectacular>=0.27.2',
 
     # tagging support
     'django-tagulous @ git+https://github.com/stephendwolff/django-tagulous.git@d80ef84',
@@ -69,12 +49,6 @@ dependencies = [
     #
     'boto3',           # S3
     'django-storages',
-
-    # Endpoint status
-    'django-watchman',
-
-    # Profiling
-    'django-request-profiler',
 
     # Celery
     # django-kombu # is this still needed? See https://pypi.org/project/django-kombu/
@@ -145,23 +119,22 @@ dependencies = [
     'pyjwt>=2.4.0',
     #  https://github.com/ContactEngineering/TopoBank/security/dependabot/61
 
-    'gunicorn[gevent]>=20.1.0', # https://github.com/benoitc/gunicorn
-    'uvicorn[standard]',
-    # gunicorn[eventlet]>=20.0.4
-    #
-    # Got problems with eventlet, see issue #415
-
     # because of problem with AttributeError for 'X509_V_FLAG_CB_ISSUER_CHECK'
     'pyopenssl>=23.0.0',
-
-    # deprecated, only needed for historic migrations
-    'django-guardian',
 
     # merging dictionaries
     'mergedeep',
 
+    # Environment variables
+    'django-environ',
+
     # Timer
     'muGrid>=0.105.1',
+
+    # Database
+    'psycopg[binary]',
+
+    # API Documentation
 ]
 
 [project.optional-dependencies]
@@ -249,4 +222,10 @@ target-version = ["py310", "py311", "py312", "py313"]
 profile = "black"
 
 [tool.pytest.ini_options]
-env = ["DJANGO_SETTINGS_MODULE=topobank.settings.test"]
+env = ["DJANGO_SETTINGS_MODULE=test_settings"]
+
+[tool.hatch.metadata]
+allow-direct-references = true
+
+[tool.hatch.version]
+source = "vcs"

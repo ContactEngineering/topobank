@@ -13,7 +13,7 @@ _log = logging.getLogger(__name__)
 if not settings.configured:
     # set the default Django settings module for the 'celery' program.
     os.environ.setdefault(
-        "DJANGO_SETTINGS_MODULE", "topobank.settings.local"
+        "DJANGO_SETTINGS_MODULE", "ce_ui.settings.local"
     )  # pragma: no cover
     _log.info("No configured. Using DJANGO_SETTINGS_MODULE='{}'".format(os.environ["DJANGO_SETTINGS_MODULE"]))
 

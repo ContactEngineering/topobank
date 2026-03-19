@@ -9,12 +9,14 @@ import logging
 import zipfile
 
 import yaml
+from django.contrib.auth import get_user_model as _get_user_model
 from django.core.management.base import BaseCommand, CommandError
 from django.utils.timezone import now
 
 from topobank.manager.models import Surface, Topography
 from topobank.properties.models import Property
-from topobank.users.models import User
+
+User = _get_user_model()
 
 _log = logging.getLogger(__name__)
 

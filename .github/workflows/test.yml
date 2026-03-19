@@ -94,7 +94,8 @@ jobs:
     - name: Install
       run: |
         pip install .[dev]
-        python manage.py collectstatic
+        pip install git+https://github.com/ContactEngineering/topobank-orcid.git
 
     - name: Test
-      run: pytest -v
+      run: |
+        pytest -v

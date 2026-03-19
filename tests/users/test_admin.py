@@ -1,6 +1,5 @@
 from test_plus.test import TestCase
-
-from topobank.users.admin import MyUserCreationForm
+from topobank_orcid.users.admin import MyUserCreationForm
 
 
 class TestMyUserCreationForm(TestCase):

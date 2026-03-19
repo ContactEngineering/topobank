@@ -2,11 +2,13 @@ import io
 import zipfile
 
 import requests
+from django.contrib.auth import get_user_model
 from notifications.signals import notify
 
 from ..taskapp.celeryapp import app
-from ..users.models import User
 from .import_zip import import_container_zip
+
+User = get_user_model()
 
 
 @app.task

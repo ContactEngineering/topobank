@@ -17,33 +17,30 @@ import PIL
 import tagulous.models as tm
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q
 from django.utils import timezone
-from muGrid.Timer import Timer
-from rest_framework.exceptions import PermissionDenied
-from rest_framework.reverse import reverse
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.Metadata import InstrumentParametersModel
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
+from ..authorization import get_permission_model
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import (
     AuthorizedManager,
-    PermissionSet,
     SurfaceTopographyManager,
     ViewEditFull,
 )
 from ..files.models import Folder, Manifest
-from ..organizations.models import Organization
 from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import in_celery_worker_process, run_task
-from ..users.models import User
+from ..utils.timer import Timer
 from .utils import get_topography_reader, render_deepzoom
 
 _log = logging.getLogger(__name__)
@@ -119,13 +116,12 @@ class SubjectMixin:
         """Returns a human readable name for this subject type."""
         return cls._meta.model_name
 
-    def is_shared(self, user: User) -> bool:
+    def is_shared(self, user) -> bool:
         """Returns True, if this subject is shared with a given user.
 
         Always returns True if user is the creator of the related surface.
 
-        :param with_user: User to test
-        :param allow_change: If True, only return True if surface can be changed by given user
+        :param user: User to test
         :return: True or False
         """
         raise NotImplementedError()
@@ -148,18 +144,12 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     _user = None
 
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this tag"""
-        return reverse(
-            "manager:tag-api-detail", kwargs=dict(name=self.name), request=request
-        )
-
     # TODO: Make this work with permission mixin
     def authorize_user(
         self,
-        user: User = None,
+        user=None,
         access_level: ViewEditFull = "view",
-        permissions: PermissionSet = None,
+        permissions=None,
     ):
         if access_level != "view":
             raise PermissionDenied(
@@ -186,10 +176,10 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         else:
             raise RuntimeError("Need user name or permission set to authorize.")
 
-    def is_shared(self, user: User) -> bool:
+    def is_shared(self, user) -> bool:
         return True  # Tags are generally shared, but the surfaces may not
 
-    def get_authorized_user(self) -> User:
+    def get_authorized_user(self):
         return self._user
 
     def get_related_surfaces(self):
@@ -204,7 +194,7 @@ class Tag(tm.TagTreeModel, SubjectMixin):
 
     def get_children(self) -> List[str]:
         def make_child(tag_name):
-            tag_suffix = tag_name[len(self.name) + 1 :]
+            tag_suffix = tag_name[len(self.name) + 1:]
             name, rest = (tag_suffix + "/").split("/", maxsplit=1)
             return f"{self.name}/{name}"
 
@@ -362,7 +352,10 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     #
     # Permissions
     #
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    permissions = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
+        on_delete=models.CASCADE, null=True
+    )
 
     #
     # Ownership
@@ -371,16 +364,19 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     # `created_by` is only NULL if user is deleted after dataset has been created.
     # Custodian should NOT remove datasets with NULL created_by
     created_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True
     )
     updated_by = models.ForeignKey(
-        User, on_delete=models.SET_NULL, null=True, related_name="+"
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
     )
 
     # `owned_by` is always an organization. The field is only NULL if
     # organization is deleted after dataset has been created.
     # Custodian should remove all datasets with NULL organization.
-    owned_by = models.ForeignKey(Organization, on_delete=models.SET_NULL, null=True)
+    owned_by = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_ORGANIZATION_MODEL', 'organizations.Organization'),
+        on_delete=models.SET_NULL, null=True
+    )
 
     #
     # Dataset metadata
@@ -421,12 +417,6 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     def get_related_surfaces(self):
         return [self]
 
-    def get_absolute_url(self, request=None):
-        """URL of API endpoint for this surface"""
-        return reverse(
-            "manager:surface-api-detail", kwargs=dict(pk=self.pk), request=request
-        )
-
     def num_topographies(self):
         return self.topography_set.count()
 
@@ -438,7 +428,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
                 _log.debug(
                     f"NEW DATASET: Creating an empty permission set for dataset {self}."
                 )
-                self.permissions = PermissionSet.objects.create()
+                self.permissions = get_permission_model().objects.create()
             # Grant permissions to created_by
             self.permissions.grant_for_user(self.created_by, "full")
         if self.attachments is None:
@@ -497,43 +487,31 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             d["properties"] = [p.to_dict() for p in self.properties.all()]
         return d
 
-    def is_shared(self, user: User) -> bool:
+    def is_shared(self, user) -> bool:
         """
         Returns True if this surface is shared with a given user.
 
         Always returns True if the user is the creator of the surface.
-
-        Parameters
-        ----------
-        user : User
-            The user to check for sharing status.
-
-        Returns
-        -------
-        bool
-            True if the surface is shared with the given user, False otherwise.
         """
         return self.get_permission(user) is not None
 
-    def grant_permission(
-        self, user: User | Organization, allow: ViewEditFull = "view"
-    ):
+    def grant_permission(self, principal, allow: ViewEditFull = "view"):
         # This is an additional guard: Published datasets have empty permission sets
         if self.is_published:
             raise PermissionDenied(
                 "Permissions of a published dataset cannot be changed."
             )
 
-        super().grant_permission(user, allow)
+        super().grant_permission(principal, allow)
 
-    def revoke_permission(self, user: User | Organization):
+    def revoke_permission(self, principal):
         # This is an additional guard: Published datasets have empty permission sets
         if self.is_published:
             raise PermissionDenied(
                 "Permissions of a published dataset cannot be changed."
             )
 
-        super().revoke_permission(user)
+        super().revoke_permission(principal)
 
     def deepcopy(self):
         """Creates a copy of this surface with all topographies and meta data.
@@ -687,7 +665,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     # Model hierarchy and permissions
     #
-    permissions = models.ForeignKey(PermissionSet, on_delete=models.CASCADE, null=True)
+    permissions = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
+        on_delete=models.CASCADE, null=True
+    )
     surface = models.ForeignKey(Surface, on_delete=models.CASCADE)
 
     #
@@ -698,19 +679,21 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # User who created this topography
     #
     created_by = models.ForeignKey(
-        User, null=True, on_delete=models.SET_NULL
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
     )
     #
     # User who last updated this topography (no reverse lookup needed)
     #
     updated_by = models.ForeignKey(
-        User, null=True, on_delete=models.SET_NULL, related_name="+"
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
     #
     # Organization owning this topography. (Cleanup only happens if the surface is deleted)
     #
     owned_by = models.ForeignKey(
-        Organization, null=True, on_delete=models.SET_NULL
+        getattr(settings, "TOPOBANK_ORGANIZATION_MODEL", "organizations.Organization"),
+        null=True,
+        on_delete=models.SET_NULL,
     )
     measurement_date = models.DateField(null=True, blank=True)
     description = models.TextField(blank=True)
@@ -866,7 +849,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             if update_fields is not None and 'attachments' not in update_fields:
                 update_fields.append('attachments')
         if self.datafile is None:
-            _log.debug(f"DATAFILE MISSING: Creating datafile manifest for Topography: {self}")
+            _log.debug(
+                f"DATAFILE MISSING: Creating datafile manifest for Topography: {self}")
             self.datafile = Manifest.objects.create(
                 permissions=self.permissions,
                 filename=self.name,
@@ -987,22 +971,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         """
         return [self.surface]
 
-    def get_absolute_url(self, request=None, version="api"):
-        """URL of API endpoint for this topography."""
-        return reverse(
-            f"manager:topography-{version}-detail", kwargs=dict(pk=self.pk), request=request
-        )
-
-    def is_shared(self, user: User) -> bool:
-        """Returns True, if this topography is shared with a given user.
-
-        Just returns whether the related surface is shared with the user
-        or not.
-
-        :param user: User to test
-        :param allow_change: If True, only return True if topography can be changed by given user
-        :return: True or False
-        """
+    def is_shared(self, user) -> bool:
+        """Returns True, if this topography is shared with a given user."""
         return self.permissions.get_for_user(user) is not None
 
     @property
@@ -1036,7 +1006,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         reader_kwargs = dict(channel_index=self.data_source, periodic=self.is_periodic)
 
-        channel = reader.channels[reader.default_channel.index if self.data_source is None else self.data_source]
+        channel = reader.channels[
+            reader.default_channel.index if self.data_source is None else self.data_source]
 
         # Set size if physical size was not given in datafile
         # (see also  TopographyCreateWizard.get_form_initial)
@@ -1175,7 +1146,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             "fill_undefined_data_mode": self.fill_undefined_data_mode,
             "detrend_mode": self.detrend_mode,
             "is_periodic": self.is_periodic,
-            "created_by": {"name": self.created_by.name, "orcid": self.created_by.orcid_id},
+            "created_by": {"name": self.created_by.name,
+                           "orcid": self.created_by.orcid_id},
             "measurement_date": self.measurement_date,
             "description": self.description,
             "unit": self.unit,

@@ -5,7 +5,7 @@ from django.db.models.signals import post_delete, pre_delete, pre_save
 from django.dispatch import receiver
 from django.utils import timezone
 
-from ..authorization.models import PermissionSet
+from ..authorization import get_permission_model
 from ..manager.models import Topography, post_refresh_cache
 from .models import WorkflowResult
 
@@ -35,7 +35,7 @@ def post_delete_analysis(sender, instance, **kwargs):
     # Needs to be in post_delete to avoid recursion.
     try:
         instance.permissions.delete()
-    except PermissionSet.DoesNotExist:
+    except get_permission_model().DoesNotExist:
         # This permissions set may have been deleted when analysis was deleted in
         # pre_delete_topography. This happens when a surface is deleted, which
         # trigger pre_delete_topography and this triggers pre_delete_analysis twice

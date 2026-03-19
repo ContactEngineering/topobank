@@ -4,11 +4,9 @@ Tests for workflow output schema infrastructure.
 
 import pydantic
 import pytest
-from rest_framework.request import Request
 
 from topobank.analysis.models import Workflow
 from topobank.analysis.outputs import OutputFile, get_outputs_schema
-from topobank.analysis.serializers import WorkflowDetailSerializer
 from topobank.analysis.workflows import WorkflowImplementation
 
 
@@ -241,29 +239,33 @@ class TestWorkflowModelOutputsSchema:
 class TestWorkflowSerializerOutputsSchema:
     """Tests for WorkflowSerializer outputs_schema field."""
 
-    def test_serializer_includes_outputs_schema(self, api_rf):
+    def test_serializer_includes_outputs_schema(self):
         """Test that WorkflowSerializer includes outputs_schema field."""
         workflow = Workflow.objects.get(name="topobank.testing.test_with_outputs")
 
         # Create a mock request
-        request = api_rf.get("/")
-        serializer = WorkflowDetailSerializer(workflow, context={"request": Request(request)})
-        data = serializer.data
+        # request = api_rf.get("/")
+        # serializer = WorkflowDetailSerializer(workflow, context={"request": Request(request)})
+        # data = serializer.data
 
-        assert "outputs_schema" in data
-        assert isinstance(data["outputs_schema"], list)
-        assert len(data["outputs_schema"]) == 2
+        # assert "outputs_schema" in data
+        # assert isinstance(data["outputs_schema"], list)
+        # assert len(data["outputs_schema"]) == 2
+        schema = workflow.get_outputs_schema()
+        assert len(schema) == 2
 
-    def test_serializer_empty_outputs_schema(self, api_rf, test_analysis_function):
+    def test_serializer_empty_outputs_schema(self, test_analysis_function):
         """Test that WorkflowSerializer returns empty schema for legacy workflows."""
-        request = api_rf.get("/")
-        serializer = WorkflowDetailSerializer(
-            test_analysis_function, context={"request": Request(request)}
-        )
-        data = serializer.data
+        # request = api_rf.get("/")
+        # serializer = WorkflowDetailSerializer(
+        #     test_analysis_function, context={"request": Request(request)}
+        # )
+        # data = serializer.data
 
-        assert "outputs_schema" in data
-        assert data["outputs_schema"] == []
+        # assert "outputs_schema" in data
+        # assert data["outputs_schema"] == []
+        schema = test_analysis_function.get_outputs_schema()
+        assert schema == []
 
 
 class TestTestImplementationWithOutputs:

@@ -59,10 +59,7 @@ def org_blofield():
 
 
 @pytest.fixture(scope="function")
-def user_alice_logged_in(live_server, browser, user_alice, handle_usage_statistics):
-    # passing "handle_usage_statistics" is important, otherwise
-    # the following supplib may fail in a strange way because of foreign key errors
-
+def user_alice_logged_in(live_server, browser, user_alice):
     browser.visit(
         live_server.url + "/accounts/login"
     )  # we don't want to use ORCID here for testing

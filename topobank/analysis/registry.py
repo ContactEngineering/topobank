@@ -4,8 +4,6 @@ Registry for collection analysis functions.
 
 import logging
 
-from rest_framework.exceptions import APIException
-
 _log = logging.getLogger(__name__)
 
 
@@ -14,11 +12,8 @@ _log = logging.getLogger(__name__)
 #
 
 
-class WorkflowRegistryException(APIException):
+class WorkflowRegistryException(Exception):
     """Generic exception for problems while handling analysis functions."""
-
-    status_code = 400
-    default_detail = "Bad workflow request."
 
 
 class AlreadyRegisteredException(WorkflowRegistryException):
@@ -136,19 +131,9 @@ def get_analysis_function_names(user=None):
     """
     Returns function names as list.
 
-    If given a user, only the functions are returned
-    which have at least one implementation for the given user.
+    The `user` parameter is deprecated and ignored.
     """
-    runner_classes = _implementation_classes_by_name
-    if user is not None:
-        # filter for user
-        runner_classes = {
-            k: runner_class
-            for k, runner_class in runner_classes.items()
-            if runner_class.has_permission(user)
-        }
-
-    return list(runner_classes.keys())
+    return list(_implementation_classes_by_name.keys())
 
 
 def sync_implementation_classes(cleanup=False):
