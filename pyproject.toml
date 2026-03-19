@@ -222,7 +222,7 @@ target-version = ["py310", "py311", "py312", "py313"]
 profile = "black"
 
 [tool.pytest.ini_options]
-env = ["DJANGO_SETTINGS_MODULE=topobank.test_settings"]
+env = ["DJANGO_SETTINGS_MODULE=test_settings"]
 
 [tool.hatch.metadata]
 allow-direct-references = true
