@@ -1,4 +1,5 @@
 import logging
+from datetime import timedelta
 
 from django.conf import settings
 from django.utils import timezone
@@ -33,3 +34,16 @@ def periodic_cleanup():
             f"Custodian: Deleting {q.count()} workflow subjects because they are not linked to any analysis result."
         )
         q.delete()
+
+    # Update WorkflowResults stuck in pending state with no Celery task assigned
+    q = WorkflowResult.objects.filter(
+        task_state=WorkflowResult.PENDING,
+        task_id__isnull=True,
+        created_at__lt=timezone.now() - timedelta(days=1),
+    )
+    if q.count() > 0:
+        _log.info(
+            f"Custodian: Updating {q.count()} workflow results because they are stuck in pending state"
+            " with no task assigned."
+        )
+        q.update(task_state=WorkflowResult.FAILED, error_message="Analysis failed to launch.")

@@ -84,7 +84,14 @@ class CeleryAppConfig(AppConfig):
                     )
                     instance.task_state = 'fa'  # FAILURE
                     instance.task_error = str(exception) if exception else "Task failed"
-                    instance.task_traceback = traceback if traceback else ""
+                    if traceback:
+                        # Ensure traceback is a formatted string
+                        if isinstance(traceback, str):
+                            instance.task_traceback = traceback
+                        else:
+                            instance.task_traceback = "".join(tb.format_tb(traceback))
+                    else:
+                        instance.task_traceback = ""
                     instance.task_end_time = timezone.now()
                     instance.save(update_fields=[
                         'task_state', 'task_error', 'task_traceback', 'task_end_time'

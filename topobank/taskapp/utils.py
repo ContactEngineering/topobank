@@ -47,6 +47,7 @@ def in_celery_worker_process() -> bool:
 
 
 PENDING = "pe"
+PENDING_DEPENDENCIES = "pd"
 STARTED = "st"
 RETRY = "re"
 FAILURE = "fa"
@@ -55,6 +56,7 @@ NOTRUN = "no"
 
 TASK_STATE_CHOICES = (
     (PENDING, "pending"),
+    (PENDING_DEPENDENCIES, "pending dependencies"),
     (STARTED, "started"),
     (RETRY, "retry"),
     (FAILURE, "failure"),
@@ -83,19 +85,27 @@ def _get_package_version_tuple(pkg_name, version_expr):
     try:
         major: int = int(version_tuple[0])
     except:  # noqa: E722
-        # Use entire string as extra if it doesn't start with a number
-        # We must return -1 for major/minor because of non-null constraint
-        return -1, -1, None, version
+        # If the first part is not an integer, we treat the whole string as "extra"
+        # and set major/minor/micro to 0. This is to handle cases like NuMPI's
+        # git hashes (e.g. f0feec2+dirty).
+        return 0, 0, None, version
 
     try:
         minor: int = int(version_tuple[1])
     except:  # noqa: E722
-        return -1, -1, None, version
+        minor = 0
+        micro = None
+        s = f"{version_tuple[0]}"
+        try:
+            extra: str = version[len(s):]
+        except:  # noqa: E722
+            extra = None
+        return major, minor, micro, extra
 
     try:
         # because of version strings like '0.51.0+0.g2c488bd.dirty'
         micro: int = int(version_tuple[2].split("+")[0])
-        s = f"{version_tuple[0]}.{version_tuple[1]}.{version_tuple[2].split('+')[0]}"
+        s = f"{version_tuple[0]}.{version_tuple[1]}.{micro}"
     except:  # noqa: E722
         micro = None
         s = f"{version_tuple[0]}.{version_tuple[1]}"

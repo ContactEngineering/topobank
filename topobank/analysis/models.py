@@ -192,6 +192,17 @@ class WorkflowSubject(models.Model):
         super().save(*args, **kwargs)
 
 
+def cascade_or_set_null(collector, field, sub_objs, using):
+    """Cascade delete unless the WorkflowResult has a name, in which case set null."""
+    from django.db.models import CASCADE, SET_NULL
+    named = [obj for obj in sub_objs if obj.name]
+    unnamed = [obj for obj in sub_objs if not obj.name]
+    if named:
+        SET_NULL(collector, field, named, using)
+    if unnamed:
+        CASCADE(collector, field, unnamed, using)
+
+
 class WorkflowResult(PermissionMixin, TaskStateModel):
     """
     This class represents the result of a Workflow. It refers to the actual
@@ -225,7 +236,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     # Definition of the subject
     subject_dispatch = models.OneToOneField(
-        WorkflowSubject, on_delete=models.CASCADE, null=True
+        WorkflowSubject, on_delete=cascade_or_set_null, null=True,
     )
 
     # Unique, user-specified name
@@ -323,15 +334,16 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         Save the WorkflowResult instance to the database.
 
         This method performs the following steps:
-        1. If the WorkflowResult has a name and a subject_dispatch, it removes the
-           subject_dispatch to prevent cascade deletion when the subject is deleted.
+        1. Ensures permissions and folder are set, creating them if necessary.
         2. Calls the superclass's save method to persist the changes to the database and create
            the WorkflowResult instance if it is new.
         3. If a result dictionary was provided during initialization, it stores the result
            in the storage backend using the store_split_dict function and clears the
            temporary result storage.
-        4. If a subject_dispatch was removed in step 1, it deletes the orphaned subject_dispatch
-           instance from the database in a transaction-safe manner.
+
+        Note: Named results retain their subject_dispatch. The custom cascade_or_set_null
+        handler on subject_dispatch ensures named results survive subject deletion by
+        setting the field to NULL instead of cascading.
 
         Parameters
         ----------
@@ -367,16 +379,6 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             else:
                 # This should be an error, but v1 does not enforce it like v2 does
                 _log.warning("WorkflowResult saved without created_by user set.")
-
-        # If the analysis has a name, we remove the subject dispatch to prevent CASCADE deletion
-        # when the subject (Tag/Topography/Surface) is deleted
-        if self.name and self.subject_dispatch:
-            self.subject_dispatch = None
-            if 'update_fields' in kwargs:
-                # If explicitly set to None, leave it (means update all fields in Django)
-                if kwargs['update_fields'] is not None:
-                    if 'subject_dispatch' not in kwargs['update_fields']:
-                        kwargs['update_fields'].append('subject_dispatch')
 
         # If a result dict is given on input, we store it. However, we can only do
         # this once we have an id. This happens during testing.
@@ -545,16 +547,22 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     @property
     def is_topography_related(self) -> bool:
         """Returns True, if the WorkflowResult subject is a topography, else False."""
+        if self.subject_dispatch is None:
+            return False
         return self.subject_dispatch.topography is not None
 
     @property
     def is_surface_related(self) -> bool:
         """Returns True, if the WorkflowResult subject is a surface, else False."""
+        if self.subject_dispatch is None:
+            return False
         return self.subject_dispatch.surface is not None
 
     @property
     def is_tag_related(self) -> bool:
         """Returns True, if the WorkflowResult subject is a tag, else False."""
+        if self.subject_dispatch is None:
+            return False
         return self.subject_dispatch.tag is not None
 
     def eval_self(self, **auxiliary_kwargs):
@@ -586,6 +594,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # v1 only
     def set_name(self, name: str, description: str = None):
         """
+        DEPRECATED: v1 use only. Name is now set via normal field update and save.
         Setting a name essentially saves the WorkflowResult, i.e. it is no longer deleted
         when the WorkflowResult subject is deleted.
         """
