@@ -1,5 +1,6 @@
 import logging
 
+from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.shortcuts import get_object_or_404
 
@@ -76,15 +77,23 @@ class AnalysisController:
             # Check permissions
             self._subjects = []
             for subject in subjects:
-                if hasattr(subject, "has_permission"):
-                    if subject.has_permission(self._user, "view"):
-                        self._subjects.append(subject)
-                else:
-                    if hasattr(subject, "authorize_user"):
-                        subject.authorize_user(self._user, "view")
-                    related_surfaces = subject.get_related_surfaces()
-                    if all(s.has_permission(self._user, "view") for s in related_surfaces):
-                        self._subjects.append(subject)
+                try:
+                    if hasattr(subject, "has_permission"):
+                        if subject.has_permission(self._user, "view"):
+                            self._subjects.append(subject)
+                    else:
+                        if hasattr(subject, "authorize_user"):
+                            subject.authorize_user(self._user, "view")
+                        related_surfaces = subject.get_related_surfaces()
+                        if all(
+                            s.has_permission(self._user, "view")
+                            for s in related_surfaces
+                        ):
+                            self._subjects.append(subject)
+                except (PermissionDenied, TypeError):
+                    # Skip subjects that the user is not allowed to view or where
+                    # permission method signatures are incompatible.
+                    continue
 
             # Surface permissions are checked in `subjects_from_dict`. Since children
             # (topographies) inherit the permission from their parents, we do not need to
