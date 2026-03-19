@@ -9,7 +9,7 @@ from typing import Union
 from urllib.parse import urlparse
 
 from django.conf import settings
-from django.core.exceptions import PermissionDenied, ValidationError
+from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
@@ -527,12 +527,6 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         """
         Returns an exception if given user should not be able to see this WorkflowResult.
         """
-        # Check availability of workflow result function
-        if not self.implementation.has_permission(user):
-            raise PermissionDenied(
-                f"User {user} is not allowed to use this WorkflowResult function."
-            )
-
         super().authorize_user(user, access_level)
 
         # Disabling automatic permission granting to avoid unintended access
@@ -654,17 +648,6 @@ class Workflow(models.Model):
         impl = self.implementation
         if impl is not None:
             return impl.has_implementation(model_class)
-        return False
-
-    def has_permission(self, user: settings.AUTH_USER_MODEL):
-        """
-        Check if this Workflow function is available to the user. The function
-        is available to `user` if it is available for any of the `models`
-        specified.
-        """
-        impl = self.implementation
-        if impl is not None:
-            return impl.has_permission(user)
         return False
 
     def get_default_kwargs(self):

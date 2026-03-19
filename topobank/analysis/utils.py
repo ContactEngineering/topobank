@@ -134,7 +134,6 @@ def filter_workflow_templates(request, qs):
     -------
         Filtered queryset of workflow templates
     """
-    user = request.user
     implementation_name = request.GET.get("implementation", None)
     implementation = None
     if implementation_name is not None:
@@ -149,8 +148,7 @@ def filter_workflow_templates(request, qs):
             )
             implementation = None
 
-    if implementation is not None and \
-            implementation.has_permission(user):
+    if implementation is not None:
         qs = qs.filter(implementation=implementation.id)
 
     return qs

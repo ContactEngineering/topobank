@@ -12,7 +12,6 @@ from typing import Union
 
 import numpy as np
 import pydantic
-from django.conf import settings
 
 from ..manager.models import Surface, Topography
 from ..supplib.dict import SplitDictionaryHere
@@ -261,8 +260,3 @@ class WorkflowImplementation:
         #    raise RuntimeError(f'Could not find app config for {obj.__module__}. Is the Django app installed and '
         #                       f'registered? This is likely a misconfigured Django installation.')
         return app
-
-    @classmethod
-    def has_permission(cls, user: settings.AUTH_USER_MODEL):
-        """Return whether this implementation is available for the given user."""
-        return True

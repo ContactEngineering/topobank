@@ -131,19 +131,9 @@ def get_analysis_function_names(user=None):
     """
     Returns function names as list.
 
-    If given a user, only the functions are returned
-    which have at least one implementation for the given user.
+    The `user` parameter is deprecated and ignored.
     """
-    runner_classes = _implementation_classes_by_name
-    if user is not None:
-        # filter for user
-        runner_classes = {
-            k: runner_class
-            for k, runner_class in runner_classes.items()
-            if runner_class.has_permission(user)
-        }
-
-    return list(runner_classes.keys())
+    return list(_implementation_classes_by_name.keys())
 
 
 def sync_implementation_classes(cleanup=False):
