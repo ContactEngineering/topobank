@@ -1,4 +1,4 @@
-from importlib.metadata import PackageNotFoundError, version
+from importlib.metadata import version, PackageNotFoundError
 
 try:
     __version__ = version("topobank")
