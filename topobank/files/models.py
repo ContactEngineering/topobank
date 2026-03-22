@@ -44,6 +44,12 @@ class ManifestSet(PermissionMixin, models.Model):
     #
     read_only = models.BooleanField("read_only", default=True)
 
+    # Content-addressed storage prefix for this manifest set.
+    # If set, files are stored at {storage_prefix}/{filename}.
+    # If null, falls back to legacy path derivation from Manifest.pk.
+    # Example: "data-lake/results/sds_ml.v3.gpr.training/a1b2c3d4"
+    storage_prefix = models.CharField(max_length=512, null=True, blank=True, db_index=True)
+
     def __str__(self) -> str:
         return "ManifestSet"
 
@@ -206,6 +212,11 @@ class Manifest(PermissionMixin, models.Model):
 
     def __str__(self):
         return f"Manifest <{self.filename}>"
+
+    @property
+    def is_confirmed(self) -> bool:
+        """Check if this manifest has been confirmed (file exists)."""
+        return self.confirmed_at is not None
 
     @property
     def url(self):
