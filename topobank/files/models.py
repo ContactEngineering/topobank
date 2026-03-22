@@ -307,7 +307,7 @@ class Manifest(PermissionMixin, models.Model):
                 )
                 return
             if default_storage.exists(storage_path):
-                if settings.DELETE_EXISTING_FILES:
+                if getattr(settings, "DELETE_EXISTING_FILES", False):
                     default_storage.delete(storage_path)
                 else:
                     raise RuntimeError(

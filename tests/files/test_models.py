@@ -40,7 +40,8 @@ def test_file_delete_via_folder(user_alice, mocker):
     assert m.call_count == 2
 
 
-def test_deepcopy():
+def test_deepcopy(settings):
+    settings.DELETE_EXISTING_FILES = True
     manifest = ManifestFactory(permissions=get_permission_model().objects.create())
     assert manifest.exists()
     assert manifest.file.name == file_storage_path(manifest, manifest.filename)
@@ -68,6 +69,10 @@ def test_deepcopy():
 @pytest.mark.django_db
 class TestManifestSetUniqueness:
     """Tests that ManifestSet enforces unique filenames."""
+
+    @pytest.fixture(autouse=True)
+    def setup_settings(self, settings):
+        settings.DELETE_EXISTING_FILES = True
 
     def test_unique_constraint_enforced_without_storage_prefix(self, user_alice):
         """Direct creation of duplicate filename should raise IntegrityError."""
