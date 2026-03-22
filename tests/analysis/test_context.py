@@ -27,7 +27,7 @@ def permissions(db):
 
 
 @pytest.fixture
-def analysis_with_folder(settings, user, permissions):
+def analysis_with_folder(settings, user, permissions, sync_analysis_functions):
     """Create an analysis with a folder for testing."""
     settings.DELETE_EXISTING_FILES = True
 
@@ -43,7 +43,7 @@ def analysis_with_folder(settings, user, permissions):
     analysis = TopographyAnalysisFactory(
         subject_topography=topo,
         function=func,
-        kwargs={"test_param": "test_value"},
+        kwargs={"a": 42, "b": "test_value"},
     )
     analysis.folder = folder
     analysis.save()
@@ -67,7 +67,7 @@ class TestDjangoWorkflowContext:
         ctx = DjangoWorkflowContext(analysis_with_folder)
         assert ctx.storage_prefix == "data-lake/test/context"
 
-    def test_storage_prefix_empty_when_none(self, settings, user, permissions):
+    def test_storage_prefix_empty_when_none(self, settings, user, permissions, sync_analysis_functions):
         """Test storage_prefix returns empty string when folder has no prefix."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -92,7 +92,7 @@ class TestDjangoWorkflowContext:
     def test_kwargs_property(self, analysis_with_folder):
         """Test kwargs property."""
         ctx = DjangoWorkflowContext(analysis_with_folder)
-        assert ctx.kwargs == {"test_param": "test_value"}
+        assert ctx.kwargs == {"a": 42, "b": "test_value"}
 
     def test_save_and_read_json(self, analysis_with_folder):
         """Test saving and reading JSON data."""
@@ -154,7 +154,7 @@ class TestDjangoWorkflowContext:
         assert "temperature" in loaded
         xr.testing.assert_equal(loaded, ds)
 
-    def test_dependency_access(self, settings, user, permissions):
+    def test_dependency_access(self, settings, user, permissions, sync_analysis_functions):
         """Test accessing dependency context."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -169,7 +169,7 @@ class TestDjangoWorkflowContext:
         dep_analysis = TopographyAnalysisFactory(
             subject_topography=topo,
             function=func,
-            kwargs={"role": "dependency"},
+            kwargs={"a": 1, "b": "dependency"},
         )
         dep_analysis.folder = dep_folder
         dep_analysis.save()
@@ -182,7 +182,7 @@ class TestDjangoWorkflowContext:
         main_analysis = TopographyAnalysisFactory(
             subject_topography=topo,
             function=func,
-            kwargs={"role": "main"},
+            kwargs={"a": 2, "b": "main"},
         )
         main_analysis.folder = main_folder
         main_analysis.save()
@@ -195,7 +195,7 @@ class TestDjangoWorkflowContext:
 
         # Access dependency
         dep_ctx = ctx.dependency("my_dep")
-        assert dep_ctx.kwargs == {"role": "dependency"}
+        assert dep_ctx.kwargs == {"a": 1, "b": "dependency"}
         assert dep_ctx.storage_prefix == "data-lake/test/dependency"
 
     def test_dependency_not_found_raises(self, analysis_with_folder):
@@ -205,7 +205,7 @@ class TestDjangoWorkflowContext:
         with pytest.raises(KeyError, match="Unknown dependency"):
             ctx.dependency("nonexistent")
 
-    def test_has_dependency(self, settings, user, permissions):
+    def test_has_dependency(self, settings, user, permissions, sync_analysis_functions):
         """Test has_dependency method."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -230,7 +230,7 @@ class TestDjangoWorkflowContext:
         assert ctx.has_dependency("exists")
         assert not ctx.has_dependency("not_exists")
 
-    def test_dependency_keys(self, settings, user, permissions):
+    def test_dependency_keys(self, settings, user, permissions, sync_analysis_functions):
         """Test dependency_keys method."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -285,7 +285,7 @@ class TestCreateWorkflowContext:
         assert hasattr(ctx, "read_json")
         assert hasattr(ctx, "dependency")
 
-    def test_create_workflow_context_with_dependencies(self, settings, user, permissions):
+    def test_create_workflow_context_with_dependencies(self, settings, user, permissions, sync_analysis_functions):
         """Test factory function with dependencies."""
         settings.DELETE_EXISTING_FILES = True
 

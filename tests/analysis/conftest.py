@@ -1,5 +1,6 @@
 from topobank.testing.fixtures import (  # noqa: F401
     one_line_scan,
+    sync_analysis_functions,
     test_analysis_function,
     two_topos,
     two_users,

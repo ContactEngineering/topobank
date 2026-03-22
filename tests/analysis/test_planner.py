@@ -22,8 +22,9 @@ def user(db):
 class TestGetSubjectKey:
     """Tests for get_subject_key function."""
 
-    def test_topography_subject_key(self):
+    def test_topography_subject_key(self, settings):
         """Test subject key for Topography."""
+        settings.DELETE_EXISTING_FILES = True
         topo = Topography1DFactory()
         key = get_subject_key(topo)
         assert key == f"topography:{topo.id}"
@@ -50,7 +51,7 @@ class TestGetSubjectKey:
 class TestWorkflowPlanner:
     """Tests for WorkflowPlanner class."""
 
-    def test_build_plan_simple_workflow(self, settings, user):
+    def test_build_plan_simple_workflow(self, settings, user, sync_analysis_functions):
         """Test building a plan for a simple workflow with no dependencies."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -75,9 +76,9 @@ class TestWorkflowPlanner:
         assert node.kwargs == {}
         assert node.depends_on == []
         assert node.cached is False
-        assert "data-lake/results" in node.storage_prefix
+        assert "muflows/" in node.storage_prefix
 
-    def test_build_plan_with_kwargs(self, settings, user):
+    def test_build_plan_with_kwargs(self, settings, user, sync_analysis_functions):
         """Test that kwargs affect the storage prefix."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -101,7 +102,7 @@ class TestWorkflowPlanner:
         # Different kwargs should produce different storage prefixes
         assert plan1.root_key != plan2.root_key
 
-    def test_build_plan_same_inputs_same_key(self, settings, user):
+    def test_build_plan_same_inputs_same_key(self, settings, user, sync_analysis_functions):
         """Test that same inputs produce same storage prefix (content-addressed)."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -125,7 +126,7 @@ class TestWorkflowPlanner:
         # Same inputs should produce same key
         assert plan1.root_key == plan2.root_key
 
-    def test_build_plan_detects_cached_result(self, settings, user):
+    def test_build_plan_detects_cached_result(self, settings, user, sync_analysis_functions):
         """Test that planner detects cached (existing successful) results."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -156,7 +157,7 @@ class TestWorkflowPlanner:
         assert node.cached is True
         assert node.analysis_id == existing.id
 
-    def test_build_plan_ignores_failed_results(self, settings, user):
+    def test_build_plan_ignores_failed_results(self, settings, user, sync_analysis_functions):
         """Test that planner ignores failed results when checking cache."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -185,7 +186,7 @@ class TestWorkflowPlanner:
         node = plan.nodes[plan.root_key]
         assert node.cached is False
 
-    def test_build_plan_different_subjects(self, settings, user):
+    def test_build_plan_different_subjects(self, settings, user, sync_analysis_functions):
         """Test building plans for different subject types."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -218,7 +219,7 @@ class TestWorkflowPlanner:
         assert topo_node.subject_key == f"topography:{topo.id}"
         assert surface_node.subject_key == f"surface:{surface.id}"
 
-    def test_build_plan_unknown_workflow_raises(self, settings, user):
+    def test_build_plan_unknown_workflow_raises(self, settings, user, sync_analysis_functions):
         """Test that unknown workflow name raises ValueError."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -233,7 +234,7 @@ class TestWorkflowPlanner:
                 user=user,
             )
 
-    def test_plan_ready_nodes(self, settings, user):
+    def test_plan_ready_nodes(self, settings, user, sync_analysis_functions):
         """Test WorkflowPlan.ready_nodes() method."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -256,7 +257,7 @@ class TestWorkflowPlanner:
         ready = plan.ready_nodes(completed={plan.root_key})
         assert len(ready) == 0
 
-    def test_plan_leaf_nodes(self, settings, user):
+    def test_plan_leaf_nodes(self, settings, user, sync_analysis_functions):
         """Test WorkflowPlan.leaf_nodes() method."""
         settings.DELETE_EXISTING_FILES = True
 

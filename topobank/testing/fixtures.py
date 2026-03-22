@@ -14,6 +14,7 @@ from SurfaceTopography import NonuniformLineScan as STNonuniformLineScan
 from SurfaceTopography import Topography as STTopography
 
 from ..manager.models import Surface
+from . import workflows  # noqa: F401 - registers test workflow implementations
 from .factories import (
     ManifestFactory,
     OrganizationFactory,

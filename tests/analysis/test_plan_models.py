@@ -119,7 +119,7 @@ class TestPlanRecordModel:
         plan.state = PlanRecord.SUCCESS
         assert not plan.is_running
 
-    def test_get_completed_node_keys(self, settings, user, permissions, sample_plan_json):
+    def test_get_completed_node_keys(self, settings, user, permissions, sample_plan_json, sync_analysis_functions):
         """Test get_completed_node_keys returns successful node keys."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -166,7 +166,7 @@ class TestPlanRecordModel:
         completed = plan.get_completed_node_keys()
         assert completed == {"node-1"}
 
-    def test_get_failed_node_keys(self, settings, user, permissions, sample_plan_json):
+    def test_get_failed_node_keys(self, settings, user, permissions, sample_plan_json, sync_analysis_functions):
         """Test get_failed_node_keys returns failed node keys."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -211,7 +211,7 @@ class TestPlanRecordModel:
 class TestWorkflowResultPlanFields:
     """Tests for plan and node_key fields on WorkflowResult."""
 
-    def test_workflow_result_with_plan(self, settings, user, permissions, sample_plan_json):
+    def test_workflow_result_with_plan(self, settings, user, permissions, sample_plan_json, sync_analysis_functions):
         """Test WorkflowResult can be linked to a PlanRecord."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -237,7 +237,7 @@ class TestWorkflowResultPlanFields:
         assert result.plan == plan
         assert result.node_key == "test-node-key"
 
-    def test_workflow_result_without_plan(self, settings):
+    def test_workflow_result_without_plan(self, settings, sync_analysis_functions):
         """Test WorkflowResult works without plan (backward compatibility)."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -252,7 +252,7 @@ class TestWorkflowResultPlanFields:
         assert result.plan is None
         assert result.node_key is None
 
-    def test_plan_results_relation(self, settings, user, permissions, sample_plan_json):
+    def test_plan_results_relation(self, settings, user, permissions, sample_plan_json, sync_analysis_functions):
         """Test PlanRecord.results reverse relation."""
         settings.DELETE_EXISTING_FILES = True
 

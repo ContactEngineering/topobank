@@ -7,12 +7,8 @@ ExecutionBackend protocol from muflows.
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
 
 from django.conf import settings
-
-if TYPE_CHECKING:
-    pass
 
 _log = logging.getLogger(__name__)
 

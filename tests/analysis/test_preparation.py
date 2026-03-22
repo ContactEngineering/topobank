@@ -59,8 +59,9 @@ def create_simple_plan(subject_key: str, output_files: list = None):
 class TestGetSubjectFromKey:
     """Tests for get_subject_from_key function."""
 
-    def test_topography_key(self):
+    def test_topography_key(self, settings):
         """Test resolving topography from key."""
+        settings.DELETE_EXISTING_FILES = True
         topo = Topography1DFactory()
         resolved = get_subject_from_key(f"topography:{topo.id}")
         assert resolved == topo
@@ -99,7 +100,7 @@ class TestGetSubjectFromKey:
 class TestPrepareplanRecords:
     """Tests for prepare_plan_records function."""
 
-    def test_creates_plan_record(self, settings, user):
+    def test_creates_plan_record(self, settings, user, sync_analysis_functions):
         """Test that prepare_plan_records creates a PlanRecord."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -114,7 +115,7 @@ class TestPrepareplanRecords:
         assert plan_record.root_function.name == "topobank.testing.test"
         assert plan_record.root_kwargs == {"param": "value"}
 
-    def test_creates_workflow_results(self, settings, user):
+    def test_creates_workflow_results(self, settings, user, sync_analysis_functions):
         """Test that prepare_plan_records creates WorkflowResults for each node."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -133,7 +134,7 @@ class TestPrepareplanRecords:
         assert result.task_state == WorkflowResult.PENDING
         assert result.subject == topo
 
-    def test_creates_manifest_set_with_prefix(self, settings, user):
+    def test_creates_manifest_set_with_prefix(self, settings, user, sync_analysis_functions):
         """Test that ManifestSet is created with storage_prefix."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -146,7 +147,7 @@ class TestPrepareplanRecords:
         assert result.folder is not None
         assert result.folder.storage_prefix == "data-lake/results/test/abc123"
 
-    def test_creates_write_ahead_manifests(self, settings, user):
+    def test_creates_write_ahead_manifests(self, settings, user, sync_analysis_functions):
         """Test that write-ahead manifests are created (confirmed_at=None)."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -171,7 +172,7 @@ class TestPrepareplanRecords:
             assert manifest.confirmed_at is None
             assert manifest.kind == "der"
 
-    def test_updates_plan_json_with_analysis_ids(self, settings, user):
+    def test_updates_plan_json_with_analysis_ids(self, settings, user, sync_analysis_functions):
         """Test that plan_json is updated with analysis IDs."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -186,7 +187,7 @@ class TestPrepareplanRecords:
         assert node["analysis_id"] is not None
         assert node["analysis_id"] == plan_record.results.first().id
 
-    def test_skips_cached_nodes(self, settings, user):
+    def test_skips_cached_nodes(self, settings, user, sync_analysis_functions):
         """Test that cached nodes don't get new WorkflowResults."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -202,7 +203,7 @@ class TestPrepareplanRecords:
         # No results should be created (node is cached)
         assert plan_record.results.count() == 0
 
-    def test_unknown_workflow_raises(self, settings, user):
+    def test_unknown_workflow_raises(self, settings, user, sync_analysis_functions):
         """Test that unknown workflow raises ValueError."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -231,7 +232,7 @@ class TestPrepareplanRecords:
 class TestReconcileManifestSet:
     """Tests for reconcile_manifest_set function."""
 
-    def test_confirms_existing_files(self, settings, user, permissions):
+    def test_confirms_existing_files(self, settings, user, permissions, sync_analysis_functions):
         """Test that existing files are confirmed."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -278,7 +279,7 @@ class TestReconcileManifestSet:
         assert manifest.confirmed_at is not None
         assert manifest.file.name == "data-lake/results/test/reconcile/result.json"
 
-    def test_raises_on_missing_required_file(self, settings, user, permissions):
+    def test_raises_on_missing_required_file(self, settings, user, permissions, sync_analysis_functions):
         """Test that missing required file raises RuntimeError."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -313,7 +314,7 @@ class TestReconcileManifestSet:
             with pytest.raises(RuntimeError, match="Required file.*missing"):
                 reconcile_manifest_set(result)
 
-    def test_skips_legacy_storage(self, settings, user, permissions):
+    def test_skips_legacy_storage(self, settings, user, permissions, sync_analysis_functions):
         """Test that reconciliation skips results without storage_prefix."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -339,7 +340,7 @@ class TestReconcileManifestSet:
             # Storage should not be queried
             mock_storage.exists.assert_not_called()
 
-    def test_skips_no_folder(self, settings, user, permissions):
+    def test_skips_no_folder(self, settings, user, permissions, sync_analysis_functions):
         """Test that reconciliation handles results without folder."""
         settings.DELETE_EXISTING_FILES = True
 

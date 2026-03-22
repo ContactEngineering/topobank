@@ -29,8 +29,9 @@ def permissions(db):
 @pytest.fixture
 def mock_backend():
     """Create a mock CeleryBackend."""
+    import uuid
     backend = MagicMock(spec=CeleryBackend)
-    backend.submit.return_value = "mock-task-id-123"
+    backend.submit.return_value = str(uuid.uuid4())  # Valid UUID
     return backend
 
 
@@ -92,7 +93,7 @@ class TestPlanExecutor:
         executor = PlanExecutor(mock_backend)
         assert executor.backend == mock_backend
 
-    def test_start_submits_leaf_nodes(self, settings, user, permissions, mock_backend):
+    def test_start_submits_leaf_nodes(self, settings, user, permissions, mock_backend, sync_analysis_functions):
         """Test that start() submits leaf nodes."""
         settings.DELETE_EXISTING_FILES = True
 
@@ -155,7 +156,7 @@ class TestPlanExecutor:
         mock_backend.submit.assert_not_called()
 
     def test_on_node_complete_submits_dependents(
-        self, settings, user, permissions, mock_backend
+        self, settings, user, permissions, mock_backend, sync_analysis_functions
     ):
         """Test that on_node_complete() submits newly-ready dependent nodes."""
         settings.DELETE_EXISTING_FILES = True
@@ -204,7 +205,7 @@ class TestPlanExecutor:
         assert call_args[0][0] == root_result.id
 
     def test_on_node_complete_marks_plan_success(
-        self, settings, user, permissions, mock_backend
+        self, settings, user, permissions, mock_backend, sync_analysis_functions
     ):
         """Test that completing root node marks plan as successful."""
         settings.DELETE_EXISTING_FILES = True
@@ -264,7 +265,7 @@ class TestPlanExecutor:
         assert "Something went wrong" in plan_record.error_message
 
     def test_on_node_complete_skips_already_running(
-        self, settings, user, permissions, mock_backend
+        self, settings, user, permissions, mock_backend, sync_analysis_functions
     ):
         """Test that on_node_complete() doesn't resubmit running nodes."""
         settings.DELETE_EXISTING_FILES = True
@@ -319,7 +320,7 @@ class TestCeleryBackend:
         """Test that submit() calls Celery apply_async."""
         settings.DELETE_EXISTING_FILES = True
 
-        with patch("topobank.analysis.backends.execute_workflow_node") as mock_task:
+        with patch("topobank.analysis.tasks.execute_workflow_node") as mock_task:
             mock_result = MagicMock()
             mock_result.id = "celery-task-id"
             mock_task.apply_async.return_value = mock_result
@@ -335,7 +336,7 @@ class TestCeleryBackend:
 
     def test_cancel_calls_revoke(self):
         """Test that cancel() calls Celery revoke."""
-        with patch("topobank.analysis.backends.app") as mock_app:
+        with patch("topobank.taskapp.celeryapp.app") as mock_app:
             backend = CeleryBackend()
             backend.cancel("task-123")
 
@@ -343,7 +344,7 @@ class TestCeleryBackend:
 
     def test_get_state_returns_async_result_state(self):
         """Test that get_state() returns AsyncResult state."""
-        with patch("topobank.analysis.backends.AsyncResult") as mock_async_result:
+        with patch("celery.result.AsyncResult") as mock_async_result:
             mock_instance = MagicMock()
             mock_instance.state = "SUCCESS"
             mock_async_result.return_value = mock_instance

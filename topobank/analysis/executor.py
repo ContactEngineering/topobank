@@ -16,7 +16,7 @@ from muflows import WorkflowPlan
 
 if TYPE_CHECKING:
     from topobank.analysis.backends import CeleryBackend
-    from topobank.analysis.models import PlanRecord, WorkflowResult
+    from topobank.analysis.models import PlanRecord
 
 _log = logging.getLogger(__name__)
 
@@ -96,6 +96,8 @@ class PlanExecutor:
         completed_key : str
             Key of the node that just completed.
         """
+        from topobank.analysis.models import WorkflowResult
+
         _log.debug(f"Plan {plan_record.id}: node {completed_key} completed")
 
         # Get all completed nodes
@@ -124,7 +126,6 @@ class PlanExecutor:
             ).first()
 
             if existing and existing.task_state in [
-                WorkflowResult.PENDING,
                 WorkflowResult.STARTED,
                 WorkflowResult.SUCCESS,
             ]:
