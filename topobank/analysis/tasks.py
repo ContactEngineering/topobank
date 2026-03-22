@@ -7,7 +7,6 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from ..utils.timer import Timer
 from SurfaceTopography.Support import doi
 
 from ..manager.models import Surface, Topography
@@ -16,6 +15,8 @@ from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
+from ..utils.timer import Timer
+from .models import WorkflowResult
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)
@@ -78,8 +79,6 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool):
     force : bool
         Submission was forced, which means we need to renew dependencies.
     """
-    from .models import WorkflowResult
-
     #
     # Get analysis instance from database
     #
@@ -431,8 +430,270 @@ def current_statistics(user=None):
     )
 
 
+# -----------------------------------------------------------------------------
+# Plan-based execution tasks (Phase 4-6)
+# -----------------------------------------------------------------------------
+
+
+@app.task(bind=True, soft_time_limit=300, time_limit=360)
+def plan_workflow(
+    self: celery.Task,
+    function_name: str,
+    subject_id: int,
+    subject_type: str,
+    kwargs: dict,
+    user_id: int,
+):
+    """Build a workflow plan and start execution.
+
+    This task:
+    1. Resolves the subject from ID and type
+    2. Builds a WorkflowPlan using WorkflowPlanner
+    3. Creates all database records (PlanRecord, WorkflowResults, ManifestSets)
+    4. Starts execution by submitting leaf nodes
+
+    Parameters
+    ----------
+    self : celery.Task
+        Celery task instance.
+    function_name : str
+        Name of the root workflow function.
+    subject_id : int
+        ID of the subject (Topography, Surface, or Tag).
+    subject_type : str
+        Type of subject: "topography", "surface", or "tag".
+    kwargs : dict
+        Keyword arguments for the root workflow.
+    user_id : int
+        ID of the user requesting the workflow.
+    """
+    from django.contrib.auth import get_user_model
+
+    from topobank.analysis.backends import get_configured_backend
+    from topobank.analysis.executor import PlanExecutor
+    from topobank.analysis.planner import WorkflowPlanner
+    from topobank.analysis.preparation import get_subject_from_key, prepare_plan_records
+
+    User = get_user_model()
+
+    _log.info(
+        f"plan_workflow: Building plan for {function_name} on {subject_type}:{subject_id}"
+    )
+
+    # Resolve subject
+    subject_key = f"{subject_type}:{subject_id}"
+    subject = get_subject_from_key(subject_key)
+
+    # Get user
+    user = User.objects.get(id=user_id)
+
+    # Build the plan
+    planner = WorkflowPlanner(check_cache=True)
+    plan = planner.build_plan(function_name, subject, kwargs, user)
+
+    _log.info(
+        f"plan_workflow: Plan has {len(plan.nodes)} nodes, "
+        f"{sum(1 for n in plan.nodes.values() if n.cached)} cached"
+    )
+
+    # If all nodes are cached, we're done
+    if all(n.cached for n in plan.nodes.values()):
+        _log.info("plan_workflow: All nodes cached, nothing to execute")
+        return {"status": "cached", "root_analysis_id": plan.nodes[plan.root_key].analysis_id}
+
+    # Create database records
+    plan_record = prepare_plan_records(plan, user)
+
+    # Start execution
+    backend = get_configured_backend()
+    executor = PlanExecutor(backend)
+    executor.start(plan, plan_record)
+
+    return {"status": "started", "plan_id": plan_record.id}
+
+
+@app.task(bind=True, soft_time_limit=3600, time_limit=3700)
+def execute_workflow_node(self: celery.Task, analysis_id: int):
+    """Execute a single workflow node using DjangoWorkflowContext.
+
+    This task is called by the PlanExecutor for each node in the plan.
+    It uses the new context-based execution model.
+
+    Parameters
+    ----------
+    self : celery.Task
+        Celery task instance.
+    analysis_id : int
+        ID of the WorkflowResult to execute.
+    """
+    from topobank.analysis.context import DjangoWorkflowContext
+    from topobank.analysis.preparation import reconcile_manifest_set
+
+    analysis = WorkflowResult.objects.select_related(
+        'function', 'subject_dispatch', 'plan', 'folder'
+    ).get(id=analysis_id)
+
+    _log.info(
+        f"execute_workflow_node: Executing {analysis.function.name} "
+        f"(node_key={analysis.node_key})"
+    )
+
+    # Check if already complete
+    if analysis.task_state == WorkflowResult.SUCCESS:
+        _log.info(f"execute_workflow_node: Analysis {analysis_id} already complete")
+        return
+
+    # Update state
+    analysis.task_state = WorkflowResult.STARTED
+    analysis.task_id = self.request.id
+    analysis.task_start_time = timezone.now()
+    analysis.configuration = get_current_configuration()
+    analysis.save()
+
+    # Load dependencies from plan
+    dependencies = {}
+    if analysis.dependencies:
+        for key, dep_id in analysis.dependencies.items():
+            try:
+                key = int(key)
+            except ValueError:
+                pass
+            dep = WorkflowResult.objects.get(id=dep_id)
+            if dep.task_state != WorkflowResult.SUCCESS:
+                analysis.task_state = WorkflowResult.FAILURE
+                analysis.task_error = f"Dependency '{key}' not successful"
+                analysis.save()
+                _handle_node_failure(analysis)
+                return
+            dependencies[key] = dep
+
+    # Create context
+    ctx = DjangoWorkflowContext(
+        analysis,
+        dependencies=dependencies,
+        progress_recorder=ProgressRecorder(self),
+    )
+
+    try:
+        # Execute using context-aware interface if available
+        impl = analysis.function.implementation
+        runner = impl(**analysis.kwargs)
+
+        if hasattr(runner, 'run'):
+            # New context-based execution
+            runner.run(ctx)
+        else:
+            # Fall back to legacy eval
+            result = analysis.eval_self(
+                dependencies=dependencies,
+                progress_recorder=ProgressRecorder(self),
+            )
+            if result is not None:
+                from topobank.analysis.models import RESULT_FILE_BASENAME
+                from topobank.supplib.dict import store_split_dict
+                store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
+
+        # Reconcile manifests (verify files exist)
+        reconcile_manifest_set(analysis)
+
+        # Success
+        analysis.task_state = WorkflowResult.SUCCESS
+        analysis.task_end_time = timezone.now()
+        analysis.save()
+
+        _log.info(f"execute_workflow_node: Analysis {analysis_id} completed successfully")
+
+        # Trigger plan progress check
+        if analysis.plan_id and analysis.node_key:
+            check_plan_progress.delay(analysis.plan_id, analysis.node_key)
+
+    except Exception as exc:
+        _log.exception(f"execute_workflow_node: Analysis {analysis_id} failed: {exc}")
+        analysis.task_state = WorkflowResult.FAILURE
+        analysis.task_error = str(exc).replace('\x00', '')
+        analysis.task_traceback = traceback.format_exc().replace('\x00', '')
+        analysis.task_end_time = timezone.now()
+        analysis.save()
+
+        _handle_node_failure(analysis)
+        raise
+
+
+def _handle_node_failure(analysis: "WorkflowResult"):
+    """Handle failure of a workflow node in a plan."""
+    from muflows import WorkflowPlan
+
+    from topobank.analysis.backends import get_configured_backend
+    from topobank.analysis.executor import PlanExecutor
+    from topobank.analysis.models import PlanRecord
+
+    if not analysis.plan_id:
+        return
+
+    try:
+        plan_record = PlanRecord.objects.get(id=analysis.plan_id)
+        plan = WorkflowPlan.from_dict(plan_record.plan_json)
+
+        backend = get_configured_backend()
+        executor = PlanExecutor(backend)
+        executor.on_node_failure(
+            plan, plan_record, analysis.node_key, analysis.task_error or "Unknown error"
+        )
+    except Exception as e:
+        _log.exception(f"Failed to handle node failure for plan {analysis.plan_id}: {e}")
+
+
+@app.task(bind=True, soft_time_limit=60, time_limit=120)
+def check_plan_progress(self: celery.Task, plan_id: int, completed_node_key: str):
+    """Unified callback after any workflow node completes.
+
+    This task checks if dependent nodes can now be submitted and
+    whether the entire plan is complete.
+
+    Parameters
+    ----------
+    self : celery.Task
+        Celery task instance.
+    plan_id : int
+        ID of the PlanRecord.
+    completed_node_key : str
+        Key of the node that just completed.
+    """
+    from muflows import WorkflowPlan
+
+    from topobank.analysis.backends import get_configured_backend
+    from topobank.analysis.executor import PlanExecutor
+    from topobank.analysis.models import PlanRecord
+
+    _log.debug(f"check_plan_progress: Plan {plan_id}, node {completed_node_key} completed")
+
+    try:
+        plan_record = PlanRecord.objects.get(id=plan_id)
+    except PlanRecord.DoesNotExist:
+        _log.error(f"check_plan_progress: Plan {plan_id} not found")
+        return
+
+    # Check if plan is already complete
+    if plan_record.is_complete:
+        _log.debug(f"check_plan_progress: Plan {plan_id} already complete")
+        return
+
+    # Load plan
+    plan = WorkflowPlan.from_dict(plan_record.plan_json)
+
+    # Continue execution
+    backend = get_configured_backend()
+    executor = PlanExecutor(backend)
+    executor.on_node_complete(plan, plan_record, completed_node_key)
+
+
+# -----------------------------------------------------------------------------
+# Legacy task helpers
+# -----------------------------------------------------------------------------
+
+
 def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None, parent=None):
-    from .models import WorkflowResult, WorkflowSubject
+    from .models import WorkflowSubject
 
     finished_dependent_analyses = {}  # Everything that finished or failed
     scheduled_dependent_analyses = {}  # Everything that needs to be scheduled
