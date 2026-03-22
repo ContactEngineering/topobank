@@ -119,9 +119,9 @@ class ManifestFactory(factory.django.DjangoModelFactory):
         obj.save_file(File(open(f"{FIXTURE_DATA_DIR}/{obj.filename}", "rb")))
 
 
-class FolderFactory(factory.django.DjangoModelFactory):
+class ManifestSetFactory(factory.django.DjangoModelFactory):
     class Meta:
-        model = "files.Folder"
+        model = "files.ManifestSet"
         exclude = ("user",)
 
     read_only = True
@@ -339,7 +339,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     )
 
     folder = factory.SubFactory(
-        FolderFactory,
+        ManifestSetFactory,
         permissions=factory.SelfAttribute("..permissions"),
         read_only=True,
     )

@@ -25,7 +25,7 @@ from .utils import file_storage_path
 _log = logging.getLogger(__name__)
 
 
-class Folder(PermissionMixin, models.Model):
+class ManifestSet(PermissionMixin, models.Model):
     #
     # Manager
     #
@@ -40,12 +40,12 @@ class Folder(PermissionMixin, models.Model):
     )
 
     #
-    # Folder parameters
+    # ManifestSet parameters
     #
     read_only = models.BooleanField("read_only", default=True)
 
     def __str__(self) -> str:
-        return "Folder"
+        return "ManifestSet"
 
     def __len__(self) -> int:
         return self.files.count()
@@ -123,7 +123,7 @@ class Folder(PermissionMixin, models.Model):
         self.files.all().delete()
 
     def deepcopy(self, permissions=None):
-        copy = Folder.objects.get(pk=self.pk)
+        copy = ManifestSet.objects.get(pk=self.pk)
         copy.pk = None
         if permissions is not None:
             copy.permissions = permissions
@@ -183,10 +183,10 @@ class Manifest(PermissionMixin, models.Model):
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
 
-    # Folder can be null, in which case this is a single file that belongs to some
+    # ManifestSet can be null, in which case this is a single file that belongs to some
     # model (e.g. a raw data file or a thumbnail of a measurement)
     folder = models.ForeignKey(
-        Folder, related_name="files", on_delete=models.CASCADE, null=True
+        ManifestSet, related_name="files", on_delete=models.CASCADE, null=True
     )
 
     # File kind, indicating where the file came from
