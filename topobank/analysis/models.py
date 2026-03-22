@@ -32,6 +32,122 @@ _log = logging.getLogger(__name__)
 RESULT_FILE_BASENAME = "result"
 
 
+# -----------------------------------------------------------------------------
+# PlanRecord: Stores a serialized WorkflowPlan DAG
+# -----------------------------------------------------------------------------
+
+
+class PlanRecord(models.Model):
+    """Stores a serialized WorkflowPlan DAG and tracks its execution state.
+
+    A PlanRecord represents a complete execution plan that may contain multiple
+    workflow nodes (WorkflowResults). The plan is computed once upfront and stored
+    as JSON, then executed by walking the DAG.
+
+    The plan_json field contains a serialized muflows.WorkflowPlan with structure:
+    {
+        "root_key": "node-key-string",
+        "nodes": {
+            "node-key": {
+                "key": "node-key",
+                "function": "workflow.function.name",
+                "subject_key": "topography:123",
+                "kwargs": {...},
+                "storage_prefix": "data-lake/results/...",
+                "depends_on": ["other-node-key"],
+                "depended_on_by": ["dependent-node-key"],
+                "output_files": ["result.json", "model.nc"],
+                "cached": false,
+                "analysis_id": 456
+            },
+            ...
+        }
+    }
+    """
+
+    # Plan state
+    PENDING = "pe"
+    RUNNING = "ru"
+    SUCCESS = "su"
+    FAILURE = "fa"
+    STATE_CHOICES = [
+        (PENDING, "pending"),
+        (RUNNING, "running"),
+        (SUCCESS, "success"),
+        (FAILURE, "failure"),
+    ]
+
+    state = models.CharField(max_length=2, choices=STATE_CHOICES, default=PENDING)
+
+    # The serialized DAG (muflows.WorkflowPlan as JSON)
+    plan_json = models.JSONField()
+
+    # Root node info (denormalized for quick access)
+    root_function = models.ForeignKey(
+        "analysis.Workflow", on_delete=models.SET_NULL, null=True,
+        related_name="plans_as_root",
+        help_text="The root workflow function of this plan"
+    )
+    root_kwargs = models.JSONField(
+        default=dict,
+        help_text="Kwargs for the root workflow node"
+    )
+
+    # Timestamps
+    created_at = models.DateTimeField(auto_now_add=True)
+    started_at = models.DateTimeField(null=True, blank=True)
+    completed_at = models.DateTimeField(null=True, blank=True)
+
+    # Creator
+    created_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
+    )
+
+    # Permissions
+    permissions = models.ForeignKey(
+        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
+        on_delete=models.CASCADE, null=True
+    )
+
+    # Error message if plan failed
+    error_message = models.TextField(null=True, blank=True)
+
+    class Meta:
+        indexes = [
+            models.Index(fields=['state', '-created_at'], name='plan_state_created_idx'),
+            models.Index(fields=['-created_at'], name='plan_created_idx'),
+        ]
+
+    def __str__(self):
+        return f"PlanRecord {self.id} ({self.get_state_display()})"
+
+    @property
+    def is_complete(self) -> bool:
+        """Check if the plan has finished (success or failure)."""
+        return self.state in (self.SUCCESS, self.FAILURE)
+
+    @property
+    def is_running(self) -> bool:
+        """Check if the plan is currently executing."""
+        return self.state == self.RUNNING
+
+    def get_completed_node_keys(self) -> set:
+        """Get keys of all completed nodes in this plan."""
+        return set(
+            self.results.filter(
+                task_state=WorkflowResult.SUCCESS
+            ).values_list('node_key', flat=True)
+        )
+
+    def get_failed_node_keys(self) -> set:
+        """Get keys of all failed nodes in this plan."""
+        return set(
+            self.results.filter(
+                task_state=WorkflowResult.FAILURE
+            ).values_list('node_key', flat=True)
+        )
+
+
 class AnalysisSubjectManager(models.Manager):
     def create(self, subject=None, *args, **kwargs):
         if subject:
@@ -255,6 +371,19 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     # Dependencies
     dependencies = models.JSONField(default=dict)
+
+    # Plan-based execution: link to the plan this result belongs to
+    plan = models.ForeignKey(
+        PlanRecord, null=True, blank=True, on_delete=models.SET_NULL,
+        related_name="results",
+        help_text="The execution plan this result is part of (if plan-based execution)"
+    )
+
+    # Unique key identifying this node within the plan's DAG
+    node_key = models.CharField(
+        max_length=512, null=True, blank=True, db_index=True,
+        help_text="Node key within the plan DAG (e.g., 'workflow.function:subject:kwargshash')"
+    )
 
     # Results
     folder = models.ForeignKey(ManifestSet, on_delete=models.CASCADE, null=True)
