@@ -11,12 +11,11 @@ from dataclasses import dataclass
 from typing import Union
 
 import numpy as np
-import pydantic
+from muflows import WorkflowImplementation as MuflowsWorkflowImplementation
 
 from ..manager.models import Surface, Topography
 from ..supplib.dict import SplitDictionaryHere
 from .models import Workflow
-from .outputs import get_outputs_schema
 from .registry import WorkflowNotImplementedException
 
 _log = logging.getLogger(__name__)
@@ -133,28 +132,34 @@ class WorkflowDefinition:
     kwargs: dict = None
 
 
-class WorkflowImplementation:
-    """Class that holds the actual implementation of a workflow"""
+class WorkflowImplementation(MuflowsWorkflowImplementation):
+    """Class that holds the actual implementation of a workflow.
 
-    class Meta:
-        celery_queue = None
+    Extends muflows.WorkflowImplementation with Django/topobank-specific features:
+    - implementations: Maps Django model classes to method names
+    - eval(): Dispatches to the appropriate implementation method
+    - get_dependencies(): Returns workflow dependencies
+
+    Queue Routing
+    -------------
+    Use Meta.queue to specify which execution backend to use:
+
+        class Meta:
+            queue = "prediction"  # Routes via WORKFLOW_QUEUES config
+
+    For backward compatibility, Meta.celery_queue is also supported but
+    deprecated. New workflows should use Meta.queue instead.
+    """
+
+    class Meta(MuflowsWorkflowImplementation.Meta):
+        # Django-specific: maps model classes to method names
         implementations = {}
-        dependencies = {}
-
-    class Parameters(pydantic.BaseModel):
-        model_config = pydantic.ConfigDict(extra="forbid")
-
-    # Optional outputs declaration - subclasses can define an Outputs class
-    Outputs = None
-
-    def __init__(self, **kwargs):
-        self._kwargs = self.Parameters(**kwargs)
-
-    @property
-    def kwargs(self):
-        return self._kwargs
 
     def eval(self, analysis, **auxiliary_kwargs):
+        """Dispatch to the appropriate implementation method.
+
+        DEPRECATED: Use execute() with context instead.
+        """
         implementation = self.get_implementation(analysis.subject.__class__)
         result = implementation(analysis, **auxiliary_kwargs)
         if result is not None:
@@ -166,40 +171,28 @@ class WorkflowImplementation:
         return result
 
     @classmethod
-    def clean_kwargs(cls, kwargs: Union[dict, None], fill_missing: bool = True):
-        """
-        Validate keyword arguments (parameters) and return validated dictionary
+    def get_queue(cls) -> str:
+        """Get the queue name for this workflow.
 
-        Parameters
-        ----------
-        kwargs: Union[dict, None]
-            Keyword arguments
-        fill_missing: bool, optional
-            Fill missing keys with default values. (Default: True)
-
-        Raises
-        ------
-        pydantic.ValidationError if validation fails
-        """
-        if kwargs is None:
-            if fill_missing:
-                return cls.Parameters().model_dump()
-            else:
-                return {}
-        else:
-            return cls.Parameters(**kwargs).model_dump(exclude_unset=not fill_missing)
-
-    @classmethod
-    def get_outputs_schema(cls) -> list:
-        """
-        Get JSON schema for declared outputs.
+        Returns Meta.queue if set, otherwise falls back to Meta.celery_queue
+        for backward compatibility, or "default" if neither is set.
 
         Returns
         -------
-        list
-            List of file descriptors with their schemas
+        str
+            Queue name for routing.
         """
-        return get_outputs_schema(getattr(cls, "Outputs", None))
+        # New style: Meta.queue
+        queue = getattr(cls.Meta, "queue", None)
+        if queue and queue != "default":
+            return queue
+
+        # Legacy: Meta.celery_queue
+        celery_queue = getattr(cls.Meta, "celery_queue", None)
+        if celery_queue:
+            return celery_queue
+
+        return "default"
 
     def get_implementation(self, model_class):
         """Returns the implementation function for a specific subject model"""

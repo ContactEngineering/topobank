@@ -640,14 +640,28 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     def implementation(self):
         return self.function.implementation
 
-    def get_celery_queue(self) -> str:
+    def get_queue(self) -> str:
+        """Get the queue name for this workflow.
+
+        Uses the workflow's get_queue() method which handles both new-style
+        Meta.queue and legacy Meta.celery_queue.
+
+        Returns
+        -------
+        str
+            Queue name for routing to execution backend.
+        """
         impl = self.implementation
-        if hasattr(impl.Meta, "celery_queue") and impl.Meta.celery_queue is not None:
-            # Implementation-specific queue
-            return impl.Meta.celery_queue
-        else:
-            # Default queue for workflow result tasks
-            return settings.TOPOBANK_ANALYSIS_QUEUE
+        if impl is not None and hasattr(impl, "get_queue"):
+            return impl.get_queue()
+        return "default"
+
+    def get_celery_queue(self) -> str:
+        """Get the Celery queue name for this workflow.
+
+        DEPRECATED: Use get_queue() instead.
+        """
+        return self.get_queue()
 
     # FIXME: discuss whether to remove this method and use the generic one from PermissionMixin
     # overrides PermissionMixin.authorize_user <- this one returns nothing, raises exception on failure

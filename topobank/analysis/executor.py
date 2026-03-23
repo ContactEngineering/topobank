@@ -4,18 +4,24 @@ The PlanExecutor coordinates execution of a WorkflowPlan by:
 1. Starting leaf nodes (those with no dependencies)
 2. Submitting dependent nodes as their dependencies complete
 3. Tracking plan completion and failure states
+
+Queue Routing
+-------------
+Each workflow can specify a queue in Meta.queue. The PlanExecutor uses the
+BackendRouter to dispatch workflows to the appropriate backend based on
+the queue configuration in settings.WORKFLOW_QUEUES.
 """
 
 from __future__ import annotations
 
 import logging
-from typing import TYPE_CHECKING
+from typing import TYPE_CHECKING, Union
 
 from django.utils import timezone
 from muflows import WorkflowPlan
 
 if TYPE_CHECKING:
-    from topobank.analysis.backends import CeleryBackend
+    from topobank.analysis.backends import BackendRouter, CeleryBackend
     from topobank.analysis.models import PlanRecord
 
 _log = logging.getLogger(__name__)
@@ -30,19 +36,21 @@ class PlanExecutor:
 
     Example
     -------
-    >>> executor = PlanExecutor(backend)
+    >>> from topobank.analysis.backends import get_router
+    >>> executor = PlanExecutor(get_router())
     >>> executor.start(plan, plan_record)  # Submits leaf nodes
     >>> # ... later, when a node completes ...
     >>> executor.on_node_complete(plan, plan_record, "completed-node-key")
     """
 
-    def __init__(self, backend: "CeleryBackend"):
+    def __init__(self, backend: Union["CeleryBackend", "BackendRouter"]):
         """Initialize the executor.
 
         Parameters
         ----------
-        backend : CeleryBackend
-            Backend for submitting tasks.
+        backend : CeleryBackend or BackendRouter
+            Backend or router for submitting tasks. If a BackendRouter,
+            workflows are routed to backends based on their queue.
         """
         self.backend = backend
 
@@ -169,6 +177,7 @@ class PlanExecutor:
         plan_record : PlanRecord
             Database record for this plan.
         """
+        from topobank.analysis.backends import BackendRouter
         from topobank.analysis.models import WorkflowResult
 
         # Get the WorkflowResult for this node
@@ -181,15 +190,22 @@ class PlanExecutor:
             _log.error(f"No WorkflowResult found for node {node.key} in plan {plan_record.id}")
             return
 
-        # Submit to backend
-        payload = {"queue": analysis.get_celery_queue()}
-        task_id = self.backend.submit(analysis.id, payload)
+        # Get queue name
+        queue_name = analysis.get_queue()
+
+        # Submit to backend (router or direct backend)
+        if isinstance(self.backend, BackendRouter):
+            task_id = self.backend.submit(analysis.id, queue_name)
+        else:
+            # Legacy: direct backend with payload
+            payload = {"celery_queue": queue_name}
+            task_id = self.backend.submit(analysis.id, payload)
 
         # Update task ID
         analysis.task_id = task_id
         analysis.save(update_fields=["task_id"])
 
-        _log.debug(f"Submitted node {node.key} as task {task_id}")
+        _log.debug(f"Submitted node {node.key} to queue '{queue_name}' as task {task_id}")
 
     def _mark_plan_success(self, plan_record: "PlanRecord") -> None:
         """Mark a plan as successfully completed."""

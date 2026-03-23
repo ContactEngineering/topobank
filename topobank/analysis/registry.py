@@ -1,8 +1,13 @@
 """
-Registry for collection analysis functions.
+Registry for workflow implementations.
+
+This module provides the Django-aware workflow registry that extends the
+muflows registry with database synchronization.
 """
 
 import logging
+
+from muflows import registry as muflows_registry
 
 _log = logging.getLogger(__name__)
 
@@ -81,21 +86,32 @@ _app_name = {}
 
 def register_implementation(klass):
     """
-    Register implementation of an analysis function.
+    Register implementation of a workflow.
+
+    Registers the workflow class in both the local Django-aware registry
+    and the muflows registry.
 
     Parameters
     ----------
-    klass: AnalysisImplementation
-        Runner class that has the Python function which implements the analysis, and
-        additional metadata
+    klass : WorkflowImplementation
+        Workflow class with Meta.name and Meta.display_name defined.
 
     Returns
     -------
     klass
-        The registered class (to support use as a decorator)
+        The registered class (to support use as a decorator).
     """
+    # Register locally (for Django database sync)
     _implementation_classes_by_display_name[klass.Meta.display_name] = klass
     _implementation_classes_by_name[klass.Meta.name] = klass
+
+    # Also register with muflows registry (for backend-agnostic access)
+    # Use try/except to handle already-registered cases gracefully
+    try:
+        muflows_registry.register(klass)
+    except muflows_registry.AlreadyRegisteredException:
+        pass  # Already registered, that's fine
+
     return klass
 
 
