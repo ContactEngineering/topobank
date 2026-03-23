@@ -25,6 +25,14 @@ class TopobankWorkflowContext(WorkflowContext, Protocol):
     Extends WorkflowContext with subject access for topography data.
     This allows workflows to access the SurfaceTopography object being
     analyzed without depending on Django models.
+
+    Output Guards
+    -------------
+    The `allowed_outputs` property (inherited from WorkflowContext) controls
+    which files a workflow can write:
+    - None: No restriction (backward compatibility mode)
+    - set(): Read-only context (used for dependency access)
+    - set(["file1.json", "file2.nc"]): Only these files can be written
     """
 
     @property
@@ -60,6 +68,10 @@ class DjangoWorkflowContext:
         Mapping from dependency key to completed WorkflowResult.
     progress_recorder : ProgressRecorder, optional
         For reporting task progress to Celery.
+    allowed_outputs : set[str] | None, optional
+        Set of filenames this context is allowed to write.
+        None means all writes allowed (default for backward compatibility).
+        Empty set means read-only (used for dependency contexts).
 
     Example
     -------
@@ -74,12 +86,14 @@ class DjangoWorkflowContext:
         analysis: WorkflowResult,
         dependencies: Optional[dict[str, WorkflowResult]] = None,
         progress_recorder: Optional[ProgressRecorder] = None,
+        allowed_outputs: Optional[set[str]] = None,
     ):
         self._analysis = analysis
         self._folder = analysis.folder
         self._kwargs = analysis.kwargs
         self._dependencies = dependencies or {}
         self._progress_recorder = progress_recorder
+        self._allowed_outputs = allowed_outputs
 
         # Subject resolution - convert Django model to native object
         self._subject = resolve_subject(analysis.subject)
@@ -98,6 +112,30 @@ class DjangoWorkflowContext:
     def kwargs(self) -> dict:
         """Return the workflow parameters."""
         return self._kwargs
+
+    @property
+    def allowed_outputs(self) -> set[str] | None:
+        """Return set of allowed output filenames.
+
+        Returns None if all writes are allowed (backward compatibility).
+        Returns empty set if context is read-only (dependency contexts).
+        Returns set of filenames if writes are restricted to declared outputs.
+        """
+        return self._allowed_outputs
+
+    def _validate_write(self, filename: str) -> None:
+        """Raise if filename is not in allowed_outputs."""
+        if self._allowed_outputs is None:
+            return  # No restriction
+        if filename not in self._allowed_outputs:
+            if not self._allowed_outputs:
+                raise PermissionError(
+                    f"Attempted to write '{filename}' to a read-only context"
+                )
+            raise PermissionError(
+                f"Workflow attempted to write '{filename}' but only "
+                f"{sorted(self._allowed_outputs)} are declared in Outputs"
+            )
 
     # -------------------------------------------------------------------------
     # Subject access (implements TopobankWorkflowContext protocol)
@@ -158,6 +196,7 @@ class DjangoWorkflowContext:
         data : bytes
             Raw bytes to write.
         """
+        self._validate_write(filename)
         from django.core.files.base import ContentFile
         self._folder.save_file(filename, "der", ContentFile(data))
 
@@ -171,6 +210,7 @@ class DjangoWorkflowContext:
         data : Any
             Data to serialize to JSON.
         """
+        self._validate_write(filename)
         self._folder.save_json(filename, data)
 
     def save_xarray(self, filename: str, dataset: xr.Dataset) -> None:
@@ -183,6 +223,7 @@ class DjangoWorkflowContext:
         dataset : xr.Dataset
             Dataset to save.
         """
+        self._validate_write(filename)
         self._folder.save_xarray(filename, dataset)
 
     def open_file(self, filename: str, mode: str = "r") -> IO:
@@ -268,7 +309,7 @@ class DjangoWorkflowContext:
     # -------------------------------------------------------------------------
 
     def dependency(self, key: str) -> "DjangoWorkflowContext":
-        """Get a context for accessing a completed dependency's outputs.
+        """Get a read-only context for accessing a completed dependency's outputs.
 
         Parameters
         ----------
@@ -291,8 +332,12 @@ class DjangoWorkflowContext:
                 f"Available dependencies: {list(self._dependencies.keys())}"
             )
         dep_analysis = self._dependencies[key]
-        # Dependencies are read-only - no progress recorder
-        return DjangoWorkflowContext(dep_analysis, dependencies={})
+        # Dependencies are read-only - no progress recorder, empty allowed_outputs
+        return DjangoWorkflowContext(
+            dep_analysis,
+            dependencies={},
+            allowed_outputs=set(),  # Read-only
+        )
 
     def has_dependency(self, key: str) -> bool:
         """Check if a dependency exists.
@@ -346,6 +391,7 @@ def create_workflow_context(
     analysis: WorkflowResult,
     dependencies: Optional[dict[str, WorkflowResult]] = None,
     progress_recorder: Optional[ProgressRecorder] = None,
+    allowed_outputs: Optional[set[str]] = None,
 ) -> TopobankWorkflowContext:
     """Create a workflow context for the given analysis.
 
@@ -361,10 +407,16 @@ def create_workflow_context(
         Mapping from dependency key to completed WorkflowResult.
     progress_recorder : ProgressRecorder, optional
         For reporting task progress to Celery.
+    allowed_outputs : set[str] | None, optional
+        Set of filenames this context is allowed to write.
+        None means all writes allowed (default for backward compatibility).
+        Empty set means read-only.
 
     Returns
     -------
     TopobankWorkflowContext
         A context implementing the TopobankWorkflowContext protocol.
     """
-    return DjangoWorkflowContext(analysis, dependencies, progress_recorder)
+    return DjangoWorkflowContext(
+        analysis, dependencies, progress_recorder, allowed_outputs
+    )
