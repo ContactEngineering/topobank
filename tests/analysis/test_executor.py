@@ -3,7 +3,7 @@
 from unittest.mock import MagicMock, patch
 
 import pytest
-from muflows import WorkflowNode, WorkflowPlan
+from muflow import WorkflowNode, WorkflowPlan
 
 from topobank.analysis.backends import CeleryBackend
 from topobank.analysis.executor import PlanExecutor

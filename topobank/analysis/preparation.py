@@ -16,7 +16,7 @@ from typing import TYPE_CHECKING
 from django.core.files.storage import default_storage
 from django.db import transaction
 from django.utils import timezone
-from muflows import WorkflowPlan
+from muflow import WorkflowPlan
 
 from topobank.analysis.models import (
     PlanRecord,

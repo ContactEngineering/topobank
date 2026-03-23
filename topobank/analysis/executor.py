@@ -18,7 +18,7 @@ import logging
 from typing import TYPE_CHECKING, Union
 
 from django.utils import timezone
-from muflows import WorkflowPlan
+from muflow import WorkflowPlan
 
 if TYPE_CHECKING:
     from topobank.analysis.backends import BackendRouter, CeleryBackend

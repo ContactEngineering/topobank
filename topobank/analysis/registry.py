@@ -2,12 +2,12 @@
 Registry for workflow implementations.
 
 This module provides the Django-aware workflow registry that extends the
-muflows registry with database synchronization.
+muflow registry with database synchronization.
 """
 
 import logging
 
-from muflows import registry as muflows_registry
+from muflow import registry as muflow_registry
 
 _log = logging.getLogger(__name__)
 
@@ -89,7 +89,7 @@ def register_implementation(klass):
     Register implementation of a workflow.
 
     Registers the workflow class in both the local Django-aware registry
-    and the muflows registry.
+    and the muflow registry.
 
     Parameters
     ----------
@@ -105,11 +105,11 @@ def register_implementation(klass):
     _implementation_classes_by_display_name[klass.Meta.display_name] = klass
     _implementation_classes_by_name[klass.Meta.name] = klass
 
-    # Also register with muflows registry (for backend-agnostic access)
+    # Also register with muflow registry (for backend-agnostic access)
     # Use try/except to handle already-registered cases gracefully
     try:
-        muflows_registry.register(klass)
-    except muflows_registry.AlreadyRegisteredException:
+        muflow_registry.register(klass)
+    except muflow_registry.AlreadyRegisteredException:
         pass  # Already registered, that's fine
 
     return klass

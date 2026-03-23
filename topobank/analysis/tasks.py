@@ -625,7 +625,7 @@ def execute_workflow_node(self: celery.Task, analysis_id: int):
 
 def _handle_node_failure(analysis: "WorkflowResult"):
     """Handle failure of a workflow node in a plan."""
-    from muflows import WorkflowPlan
+    from muflow import WorkflowPlan
 
     from topobank.analysis.backends import get_configured_backend
     from topobank.analysis.executor import PlanExecutor
@@ -663,7 +663,7 @@ def check_plan_progress(self: celery.Task, plan_id: int, completed_node_key: str
     completed_node_key : str
         Key of the node that just completed.
     """
-    from muflows import WorkflowPlan
+    from muflow import WorkflowPlan
 
     from topobank.analysis.backends import get_configured_backend
     from topobank.analysis.executor import PlanExecutor

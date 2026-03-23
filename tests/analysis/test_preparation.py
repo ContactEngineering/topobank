@@ -3,7 +3,7 @@
 from unittest.mock import patch
 
 import pytest
-from muflows import WorkflowNode, WorkflowPlan
+from muflow import WorkflowNode, WorkflowPlan
 
 from topobank.analysis.models import PlanRecord, Workflow, WorkflowResult
 from topobank.analysis.preparation import (

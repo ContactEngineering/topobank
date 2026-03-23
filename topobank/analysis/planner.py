@@ -11,7 +11,7 @@ import logging
 from typing import Union
 
 from django.db.models import Q
-from muflows import WorkflowNode, WorkflowPlan, compute_storage_prefix
+from muflow import WorkflowNode, WorkflowPlan, compute_storage_prefix
 
 from topobank.analysis.models import Workflow, WorkflowResult, WorkflowSubject
 from topobank.manager.models import Surface, Tag, Topography

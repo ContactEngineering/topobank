@@ -2,7 +2,7 @@
 
 DjangoWorkflowContext wraps a WorkflowResult and its ManifestSet to provide
 file I/O that works with Django's storage backend. It implements the
-TopobankWorkflowContext protocol (which extends muflows.WorkflowContext),
+TopobankWorkflowContext protocol (which extends muflow.WorkflowContext),
 allowing the same workflow code to run on both Django/Celery and serverless
 backends.
 """
@@ -10,7 +10,7 @@ backends.
 from typing import IO, Any, Optional, Protocol, runtime_checkable
 
 import xarray as xr
-from muflows import WorkflowContext
+from muflow import WorkflowContext
 
 from topobank.analysis.models import WorkflowResult
 from topobank.analysis.subjects import get_subject_metadata, resolve_subject

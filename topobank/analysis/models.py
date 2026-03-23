@@ -44,7 +44,7 @@ class PlanRecord(models.Model):
     workflow nodes (WorkflowResults). The plan is computed once upfront and stored
     as JSON, then executed by walking the DAG.
 
-    The plan_json field contains a serialized muflows.WorkflowPlan with structure:
+    The plan_json field contains a serialized muflow.WorkflowPlan with structure:
     {
         "root_key": "node-key-string",
         "nodes": {
@@ -79,7 +79,7 @@ class PlanRecord(models.Model):
 
     state = models.CharField(max_length=2, choices=STATE_CHOICES, default=PENDING)
 
-    # The serialized DAG (muflows.WorkflowPlan as JSON)
+    # The serialized DAG (muflow.WorkflowPlan as JSON)
     plan_json = models.JSONField()
 
     # Root node info (denormalized for quick access)

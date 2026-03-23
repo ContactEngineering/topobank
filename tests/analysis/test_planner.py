@@ -76,7 +76,7 @@ class TestWorkflowPlanner:
         assert node.kwargs == {}
         assert node.depends_on == []
         assert node.cached is False
-        assert "muflows/" in node.storage_prefix
+        assert "muflow/" in node.storage_prefix
 
     def test_build_plan_with_kwargs(self, settings, user, sync_analysis_functions):
         """Test that kwargs affect the storage prefix."""

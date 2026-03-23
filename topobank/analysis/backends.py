@@ -1,7 +1,7 @@
 """Execution backends for dispatching workflow nodes.
 
 This module provides Django/Celery-specific backends that implement the
-ExecutionBackend protocol from muflows, plus a BackendRouter for routing
+ExecutionBackend protocol from muflow, plus a BackendRouter for routing
 workflows to appropriate backends based on queue configuration.
 
 Queue Configuration
@@ -199,14 +199,14 @@ class BackendRouter:
         if backend_type == "celery":
             return CeleryBackend()
         elif backend_type == "lambda":
-            from muflows import LambdaBackend
+            from muflow import LambdaBackend
 
             return LambdaBackend(
                 function_name=config.get("function_name"),
                 region=config.get("region"),
             )
         elif backend_type == "local":
-            from muflows import LocalBackend
+            from muflow import LocalBackend
 
             return LocalBackend()
         else:

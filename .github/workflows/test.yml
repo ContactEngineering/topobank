@@ -94,7 +94,7 @@ jobs:
     - name: Install
       run: |
         pip install \
-          git+https://github.com/ContactEngineering/muFlows.git \
+          git+https://github.com/ContactEngineering/muFlow.git \
           git+https://github.com/ContactEngineering/topobank-orcid.git \
           .[dev]
 
