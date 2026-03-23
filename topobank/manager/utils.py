@@ -331,8 +331,8 @@ def render_deepzoom(
     ----------
     data : :obj:SurfaceTopography.Topogaphy or :obj:numpy.ndarray
         Data container holding the 2D data set.
-    folder : topobank.files.models.Folder
-        Folder containing the Deep Zoom Image files.
+    folder : topobank.files.models.ManifestSet
+        ManifestSet containing the Deep Zoom Image files.
     physical_sizes : tuple of float, optional
         Physical sizes of the two-dimensional map, if not specified by `data`.
         (Default: None)

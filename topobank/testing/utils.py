@@ -15,7 +15,7 @@ import numpy as np
 from django.test import SimpleTestCase
 from django.utils import formats
 
-from topobank.files.models import Folder
+from topobank.files.models import ManifestSet
 from topobank.manager.models import Surface, Tag, Topography
 
 _log = logging.getLogger(__name__)
@@ -224,13 +224,13 @@ class FakeTopographyModel:
 
 class AnalysisResultMock:
     subject: Union[Tag, Surface, Topography] = None
-    folder: Folder = None
+    folder: ManifestSet = None
 
-    def __init__(self, subject: Union[Tag, Surface, Topography], folder: Folder = None):
+    def __init__(self, subject: Union[Tag, Surface, Topography], folder: ManifestSet = None):
         self.subject = subject
         self.folder = folder
         if self.folder is None and hasattr(self.subject, "permissions"):
-            self.folder = Folder.objects.create(permissions=self.subject.permissions)
+            self.folder = ManifestSet.objects.create(permissions=self.subject.permissions)
 
 
 class DummyProgressRecorder:
@@ -239,14 +239,14 @@ class DummyProgressRecorder:
         pass  # dummy
 
 
-def copy_folder(folder: Folder, filepath: str):
+def copy_folder(folder: ManifestSet, filepath: str):
     """Copy the folder to disk."""
     os.makedirs(filepath, exist_ok=True)
     for file in folder.get_files():
         open(f"{filepath}/{file.filename}", "wb").write(file.file.read())
 
 
-def assert_file_equal(folder: Folder, filepath: str, filename: str):
+def assert_file_equal(folder: ManifestSet, filepath: str, filename: str):
     data1 = folder.find_file(filename).read()
     data2 = open(f"{filepath}/{filename}", "rb").read()
     assert data1 == data2

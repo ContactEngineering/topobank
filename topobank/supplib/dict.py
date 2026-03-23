@@ -60,8 +60,8 @@ def store_split_dict(folder, name, src_dict):
 
     Parameters
     ----------
-    folder : topobank.files.models.Folder
-        Folder that contains the dictionary files
+    folder : topobank.files.models.ManifestSet
+        ManifestSet that contains the dictionary files
     name : str
         Determines the files name under which the dict is stored, the extension '.json'
         is appended automatically.
@@ -124,8 +124,8 @@ def load_split_dict(folder, name):
 
     Parameters
     ----------
-    folder : topobank.files.models.Folder
-        Folder that contains the dictionary files written by `store_split_dict`.
+    folder : topobank.files.models.ManifestSet
+        ManifestSet that contains the dictionary files written by `store_split_dict`.
     name: str
         Name used as parameter of `store_split_dict`.
 

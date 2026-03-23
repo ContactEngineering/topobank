@@ -21,7 +21,7 @@ from topobank.authorization.models import EDIT, FULL
 from ..authorization import get_permission_model
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, ViewEditFull
-from ..files.models import Folder, Manifest
+from ..files.models import Manifest, ManifestSet
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
@@ -257,7 +257,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     dependencies = models.JSONField(default=dict)
 
     # Results
-    folder = models.ForeignKey(Folder, on_delete=models.CASCADE, null=True)
+    folder = models.ForeignKey(ManifestSet, on_delete=models.CASCADE, null=True)
 
     # Bibliography
     dois = models.JSONField(default=list)
@@ -365,7 +365,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                     "WorkflowResult is missing permission set and created_by. Cannot create permissions."
                 )
         if self.folder is None:
-            self.folder = Folder.objects.create(
+            self.folder = ManifestSet.objects.create(
                 permissions=self.permissions, read_only=True
             )
             if 'update_fields' in kwargs:
@@ -488,7 +488,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 "This `WorkflowResult` does not have an id yet; the storage file names is "
                 "not yet known."
             )
-        self.folder = Folder.objects.create(
+        self.folder = ManifestSet.objects.create(
             permissions=self.permissions, read_only=True
         )
         self.save(update_fields=["folder"])
