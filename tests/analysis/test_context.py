@@ -269,6 +269,40 @@ class TestDjangoWorkflowContext:
         # Should not raise
         ctx.report_progress(50, 100, "Test")
 
+    def test_subject_property(self, analysis_with_folder):
+        """Test subject property returns resolved SurfaceTopography."""
+        ctx = DjangoWorkflowContext(analysis_with_folder)
+
+        # Subject should be resolved to native SurfaceTopography
+        subject = ctx.subject
+        assert subject is not None
+        # SurfaceTopography objects have heights() method
+        assert hasattr(subject, 'heights')
+
+    def test_subject_name_property(self, analysis_with_folder):
+        """Test subject_name property returns the subject's name."""
+        ctx = DjangoWorkflowContext(analysis_with_folder)
+
+        # Subject name should match the Django model's name
+        expected_name = analysis_with_folder.subject.name
+        assert ctx.subject_name == expected_name
+
+    def test_subject_url_property(self, analysis_with_folder):
+        """Test subject_url property."""
+        ctx = DjangoWorkflowContext(analysis_with_folder)
+
+        # subject_url should be a string (may be empty if get_absolute_url not available)
+        assert isinstance(ctx.subject_url, str)
+
+    def test_implements_topobank_workflow_context(self, analysis_with_folder):
+        """Test that DjangoWorkflowContext implements TopobankWorkflowContext."""
+        from topobank.analysis.context import TopobankWorkflowContext
+
+        ctx = DjangoWorkflowContext(analysis_with_folder)
+
+        # Check it's recognized as implementing the protocol
+        assert isinstance(ctx, TopobankWorkflowContext)
+
 
 @pytest.mark.django_db
 class TestCreateWorkflowContext:

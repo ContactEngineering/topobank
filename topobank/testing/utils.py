@@ -225,10 +225,17 @@ class FakeTopographyModel:
 class AnalysisResultMock:
     subject: Union[Tag, Surface, Topography] = None
     folder: ManifestSet = None
+    kwargs: dict = None
 
-    def __init__(self, subject: Union[Tag, Surface, Topography], folder: ManifestSet = None):
+    def __init__(
+        self,
+        subject: Union[Tag, Surface, Topography],
+        folder: ManifestSet = None,
+        kwargs: dict = None,
+    ):
         self.subject = subject
         self.folder = folder
+        self.kwargs = kwargs if kwargs is not None else {}
         if self.folder is None and hasattr(self.subject, "permissions"):
             self.folder = ManifestSet.objects.create(permissions=self.subject.permissions)
 

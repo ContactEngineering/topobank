@@ -2,21 +2,45 @@
 
 DjangoWorkflowContext wraps a WorkflowResult and its ManifestSet to provide
 file I/O that works with Django's storage backend. It implements the
-muflows.WorkflowContext protocol, allowing the same workflow code to run
-on both Django/Celery and serverless backends.
+TopobankWorkflowContext protocol (which extends muflows.WorkflowContext),
+allowing the same workflow code to run on both Django/Celery and serverless
+backends.
 """
 
-from __future__ import annotations
-
-from typing import IO, TYPE_CHECKING, Any, Optional
+from typing import IO, Any, Optional, Protocol, runtime_checkable
 
 import xarray as xr
 from muflows import WorkflowContext
 
-if TYPE_CHECKING:
-    from topobank.analysis.models import WorkflowResult
-    from topobank.files.models import ManifestSet
-    from topobank.taskapp.tasks import ProgressRecorder
+from topobank.analysis.models import WorkflowResult
+from topobank.analysis.subjects import get_subject_metadata, resolve_subject
+from topobank.files.models import ManifestSet
+from topobank.taskapp.tasks import ProgressRecorder
+
+
+@runtime_checkable
+class TopobankWorkflowContext(WorkflowContext, Protocol):
+    """Protocol for topobank workflow contexts.
+
+    Extends WorkflowContext with subject access for topography data.
+    This allows workflows to access the SurfaceTopography object being
+    analyzed without depending on Django models.
+    """
+
+    @property
+    def subject(self) -> Any:
+        """Return the subject data (SurfaceTopography or container)."""
+        ...
+
+    @property
+    def subject_name(self) -> str:
+        """Return the display name of the subject."""
+        ...
+
+    @property
+    def subject_url(self) -> str:
+        """Return the URL of the subject (may be empty)."""
+        ...
 
 
 class DjangoWorkflowContext:
@@ -24,6 +48,9 @@ class DjangoWorkflowContext:
 
     This context wraps a WorkflowResult and uses its ManifestSet for file I/O.
     It is used when running workflows inside Celery workers with full Django access.
+
+    Implements TopobankWorkflowContext protocol, which extends WorkflowContext
+    with subject access (subject, subject_name, subject_url).
 
     Parameters
     ----------
@@ -38,20 +65,25 @@ class DjangoWorkflowContext:
     -------
     >>> ctx = DjangoWorkflowContext(analysis, dependencies)
     >>> ctx.save_json("result.json", {"accuracy": 0.95})
+    >>> topography = ctx.subject  # Resolved SurfaceTopography
     >>> dep_result = ctx.dependency("feature_vectors").read_json("features.json")
     """
 
     def __init__(
         self,
-        analysis: "WorkflowResult",
-        dependencies: Optional[dict[str, "WorkflowResult"]] = None,
-        progress_recorder: Optional["ProgressRecorder"] = None,
+        analysis: WorkflowResult,
+        dependencies: Optional[dict[str, WorkflowResult]] = None,
+        progress_recorder: Optional[ProgressRecorder] = None,
     ):
         self._analysis = analysis
         self._folder = analysis.folder
         self._kwargs = analysis.kwargs
         self._dependencies = dependencies or {}
         self._progress_recorder = progress_recorder
+
+        # Subject resolution - convert Django model to native object
+        self._subject = resolve_subject(analysis.subject)
+        self._subject_name, self._subject_url = get_subject_metadata(analysis.subject)
 
     @property
     def storage_prefix(self) -> str:
@@ -67,17 +99,44 @@ class DjangoWorkflowContext:
         """Return the workflow parameters."""
         return self._kwargs
 
+    # -------------------------------------------------------------------------
+    # Subject access (implements TopobankWorkflowContext protocol)
+    # -------------------------------------------------------------------------
+
     @property
-    def analysis(self) -> "WorkflowResult":
+    def subject(self) -> Any:
+        """Return the resolved subject data.
+
+        For topography workflows: SurfaceTopography object
+        For surface workflows: ContainerProxy of SurfaceTopography objects
+        """
+        return self._subject
+
+    @property
+    def subject_name(self) -> str:
+        """Return the display name of the subject."""
+        return self._subject_name
+
+    @property
+    def subject_url(self) -> str:
+        """Return the URL of the subject."""
+        return self._subject_url
+
+    # -------------------------------------------------------------------------
+    # Django-specific access (use sparingly for portability)
+    # -------------------------------------------------------------------------
+
+    @property
+    def analysis(self) -> WorkflowResult:
         """Return the underlying WorkflowResult.
 
-        This provides access to Django-specific functionality like the subject.
+        This provides access to Django-specific functionality.
         Use sparingly - prefer the context methods for portability.
         """
         return self._analysis
 
     @property
-    def folder(self) -> "ManifestSet":
+    def folder(self) -> ManifestSet:
         """Return the underlying ManifestSet.
 
         This provides access to Django-specific functionality.
@@ -280,19 +339,19 @@ class DjangoWorkflowContext:
             self._progress_recorder.set_progress(current, total, message)
 
 
-# Factory function that returns WorkflowContext type.
+# Factory function that returns TopobankWorkflowContext type.
 # This allows static type checkers to verify DjangoWorkflowContext implements
-# the WorkflowContext protocol (the return type annotation enforces this).
+# the TopobankWorkflowContext protocol (the return type annotation enforces this).
 def create_workflow_context(
-    analysis: "WorkflowResult",
-    dependencies: Optional[dict[str, "WorkflowResult"]] = None,
-    progress_recorder: Optional["ProgressRecorder"] = None,
-) -> WorkflowContext:
+    analysis: WorkflowResult,
+    dependencies: Optional[dict[str, WorkflowResult]] = None,
+    progress_recorder: Optional[ProgressRecorder] = None,
+) -> TopobankWorkflowContext:
     """Create a workflow context for the given analysis.
 
-    This factory function returns a WorkflowContext, which allows static type
-    checkers to verify that DjangoWorkflowContext correctly implements the
-    protocol defined in muflows.
+    This factory function returns a TopobankWorkflowContext, which allows static
+    type checkers to verify that DjangoWorkflowContext correctly implements the
+    protocol defined in topobank_statistics.
 
     Parameters
     ----------
@@ -305,7 +364,7 @@ def create_workflow_context(
 
     Returns
     -------
-    WorkflowContext
-        A context implementing the WorkflowContext protocol.
+    TopobankWorkflowContext
+        A context implementing the TopobankWorkflowContext protocol.
     """
     return DjangoWorkflowContext(analysis, dependencies, progress_recorder)

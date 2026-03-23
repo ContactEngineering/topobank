@@ -579,9 +579,13 @@ def execute_workflow_node(self: celery.Task, analysis_id: int):
         impl = analysis.function.implementation
         runner = impl(**analysis.kwargs)
 
-        if hasattr(runner, 'run'):
+        if hasattr(runner, 'execute'):
             # New context-based execution
-            runner.run(ctx)
+            from topobank.analysis.models import RESULT_FILE_BASENAME
+            from topobank.supplib.dict import store_split_dict
+            result = runner.execute(ctx)
+            if result is not None:
+                store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
         else:
             # Fall back to legacy eval
             result = analysis.eval_self(
