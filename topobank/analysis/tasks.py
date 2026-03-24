@@ -692,6 +692,78 @@ def check_plan_progress(self: celery.Task, plan_id: int, completed_node_key: str
 
 
 # -----------------------------------------------------------------------------
+# Database-agnostic Celery callback
+# -----------------------------------------------------------------------------
+
+
+@app.task(bind=True, soft_time_limit=60, time_limit=120)
+def on_workflow_complete(self: celery.Task, analysis_id: int, result_dict: dict):
+    """Handle workflow completion from database-agnostic Celery workers.
+
+    This callback is triggered by muFlow's CeleryBackend after a workflow
+    completes. It updates the Django database with the execution result
+    and triggers plan progress checking if needed.
+
+    Parameters
+    ----------
+    self : celery.Task
+        Celery task instance.
+    analysis_id : int
+        ID of the WorkflowResult that completed.
+    result_dict : dict
+        Serialized ExecutionResult from muFlow.
+    """
+    from muflow import ExecutionResult
+
+    from topobank.analysis.preparation import reconcile_manifest_set
+
+    _log.info(
+        f"on_workflow_complete: Processing completion for analysis {analysis_id}"
+    )
+
+    try:
+        analysis = WorkflowResult.objects.select_related(
+            'function', 'folder'
+        ).get(id=analysis_id)
+    except WorkflowResult.DoesNotExist:
+        _log.error(f"on_workflow_complete: Analysis {analysis_id} not found")
+        return
+
+    # Parse the execution result
+    result = ExecutionResult.from_dict(result_dict)
+
+    if result.success:
+        # Reconcile manifests to verify files exist in storage
+        try:
+            reconcile_manifest_set(analysis)
+        except Exception as e:
+            _log.warning(
+                f"on_workflow_complete: Failed to reconcile manifests for "
+                f"analysis {analysis_id}: {e}"
+            )
+
+        analysis.task_state = WorkflowResult.SUCCESS
+        _log.info(
+            f"on_workflow_complete: Analysis {analysis_id} completed successfully"
+        )
+    else:
+        analysis.task_state = WorkflowResult.FAILURE
+        analysis.task_error = result.error_message
+        analysis.task_traceback = result.error_traceback
+        _log.error(
+            f"on_workflow_complete: Analysis {analysis_id} failed: "
+            f"{result.error_message}"
+        )
+
+    analysis.task_end_time = timezone.now()
+    analysis.save()
+
+    # Trigger plan progress check if this node is part of a plan
+    if analysis.plan_id and analysis.node_key:
+        check_plan_progress.delay(analysis.plan_id, analysis.node_key)
+
+
+# -----------------------------------------------------------------------------
 # Legacy task helpers
 # -----------------------------------------------------------------------------
 

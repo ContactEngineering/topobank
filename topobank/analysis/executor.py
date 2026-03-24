@@ -82,7 +82,7 @@ class PlanExecutor:
         _log.debug(f"Plan {plan_record.id}: {len(ready_nodes)} nodes ready to start")
 
         for node in ready_nodes:
-            self._submit_node(node, plan_record)
+            self._submit_node(node, plan, plan_record)
 
     def on_node_complete(
         self,
@@ -140,7 +140,7 @@ class PlanExecutor:
                 _log.debug(f"Skipping node {node.key} - already {existing.task_state}")
                 continue
 
-            self._submit_node(node, plan_record)
+            self._submit_node(node, plan, plan_record)
 
     def on_node_failure(
         self,
@@ -167,17 +167,22 @@ class PlanExecutor:
         _log.error(f"Plan {plan_record.id}: node {failed_key} failed: {error_message}")
         self._mark_plan_failure(plan_record, f"Node {failed_key} failed: {error_message}")
 
-    def _submit_node(self, node, plan_record: "PlanRecord") -> None:
+    def _submit_node(
+        self, node, plan: WorkflowPlan, plan_record: "PlanRecord"
+    ) -> None:
         """Submit a single node for execution.
 
         Parameters
         ----------
         node : WorkflowNode
             The node to submit.
+        plan : WorkflowPlan
+            The execution plan (needed for dependency storage prefixes).
         plan_record : PlanRecord
             Database record for this plan.
         """
-        from topobank.analysis.backends import BackendRouter
+        from muflow.executor import ExecutionPayload
+
         from topobank.analysis.models import WorkflowResult
 
         # Get the WorkflowResult for this node
@@ -190,22 +195,31 @@ class PlanExecutor:
             _log.error(f"No WorkflowResult found for node {node.key} in plan {plan_record.id}")
             return
 
-        # Get queue name
-        queue_name = analysis.get_queue()
+        # Build dependency prefixes from plan
+        dependency_prefixes = {
+            dep_key: plan.nodes[dep_key].storage_prefix
+            for dep_key in node.depends_on
+            if dep_key in plan.nodes
+        }
 
-        # Submit to backend (router or direct backend)
-        if isinstance(self.backend, BackendRouter):
-            task_id = self.backend.submit(analysis.id, queue_name)
-        else:
-            # Legacy: direct backend with payload
-            payload = {"celery_queue": queue_name}
-            task_id = self.backend.submit(analysis.id, payload)
+        # Build ExecutionPayload from WorkflowResult
+        payload = ExecutionPayload(
+            workflow_name=node.function,
+            kwargs=node.kwargs,
+            storage_prefix=node.storage_prefix,
+            dependency_prefixes=dependency_prefixes,
+            allowed_outputs=set(node.output_files),
+            queue=analysis.get_queue(),
+        )
+
+        # Submit to backend
+        task_id = self.backend.submit(analysis.id, payload)
 
         # Update task ID
         analysis.task_id = task_id
         analysis.save(update_fields=["task_id"])
 
-        _log.debug(f"Submitted node {node.key} to queue '{queue_name}' as task {task_id}")
+        _log.debug(f"Submitted node {node.key} to queue '{payload.queue}' as task {task_id}")
 
     def _mark_plan_success(self, plan_record: "PlanRecord") -> None:
         """Mark a plan as successfully completed."""
