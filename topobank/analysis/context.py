@@ -22,9 +22,11 @@ from topobank.taskapp.tasks import ProgressRecorder
 class TopobankWorkflowContext(WorkflowContext, Protocol):
     """Protocol for topobank workflow contexts.
 
-    Extends WorkflowContext with subject access for topography data.
-    This allows workflows to access the SurfaceTopography object being
-    analyzed without depending on Django models.
+    Extends WorkflowContext with topography access.  The three properties
+    below (``topography``, ``topography_name``, ``topography_url``) are the
+    contract that sds-workflows' ``execute(context)`` methods depend on.
+    Every execution environment (Django/Celery, local runner, test harness)
+    must provide a context that satisfies this protocol.
 
     Output Guards
     -------------
@@ -36,18 +38,18 @@ class TopobankWorkflowContext(WorkflowContext, Protocol):
     """
 
     @property
-    def subject(self) -> Any:
-        """Return the subject data (SurfaceTopography or container)."""
+    def topography(self) -> Any:
+        """Return the topography data (SurfaceTopography or container)."""
         ...
 
     @property
-    def subject_name(self) -> str:
-        """Return the display name of the subject."""
+    def topography_name(self) -> str:
+        """Return the display name of the topography."""
         ...
 
     @property
-    def subject_url(self) -> str:
-        """Return the URL of the subject (may be empty)."""
+    def topography_url(self) -> str:
+        """Return the URL of the topography (may be empty)."""
         ...
 
 
@@ -77,7 +79,7 @@ class DjangoWorkflowContext:
     -------
     >>> ctx = DjangoWorkflowContext(analysis, dependencies)
     >>> ctx.save_json("result.json", {"accuracy": 0.95})
-    >>> topography = ctx.subject  # Resolved SurfaceTopography
+    >>> topography = ctx.topography  # Resolved SurfaceTopography
     >>> dep_result = ctx.dependency("feature_vectors").read_json("features.json")
     """
 
@@ -138,12 +140,12 @@ class DjangoWorkflowContext:
             )
 
     # -------------------------------------------------------------------------
-    # Subject access (implements TopobankWorkflowContext protocol)
+    # Topography access (implements TopobankWorkflowContext protocol)
     # -------------------------------------------------------------------------
 
     @property
-    def subject(self) -> Any:
-        """Return the resolved subject data.
+    def topography(self) -> Any:
+        """Return the resolved topography data.
 
         For topography workflows: SurfaceTopography object
         For surface workflows: ContainerProxy of SurfaceTopography objects
@@ -151,13 +153,13 @@ class DjangoWorkflowContext:
         return self._subject
 
     @property
-    def subject_name(self) -> str:
-        """Return the display name of the subject."""
+    def topography_name(self) -> str:
+        """Return the display name of the topography."""
         return self._subject_name
 
     @property
-    def subject_url(self) -> str:
-        """Return the URL of the subject."""
+    def topography_url(self) -> str:
+        """Return the URL of the topography."""
         return self._subject_url
 
     # -------------------------------------------------------------------------

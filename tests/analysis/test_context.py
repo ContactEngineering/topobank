@@ -269,30 +269,30 @@ class TestDjangoWorkflowContext:
         # Should not raise
         ctx.report_progress(50, 100, "Test")
 
-    def test_subject_property(self, analysis_with_folder):
-        """Test subject property returns resolved SurfaceTopography."""
+    def test_topography_property(self, analysis_with_folder):
+        """Test topography property returns resolved SurfaceTopography."""
         ctx = DjangoWorkflowContext(analysis_with_folder)
 
-        # Subject should be resolved to native SurfaceTopography
-        subject = ctx.subject
-        assert subject is not None
+        # Topography should be resolved to native SurfaceTopography
+        topography = ctx.topography
+        assert topography is not None
         # SurfaceTopography objects have heights() method
-        assert hasattr(subject, 'heights')
+        assert hasattr(topography, 'heights')
 
-    def test_subject_name_property(self, analysis_with_folder):
-        """Test subject_name property returns the subject's name."""
+    def test_topography_name_property(self, analysis_with_folder):
+        """Test topography_name property returns the subject's name."""
         ctx = DjangoWorkflowContext(analysis_with_folder)
 
-        # Subject name should match the Django model's name
+        # Topography name should match the Django model's name
         expected_name = analysis_with_folder.subject.name
-        assert ctx.subject_name == expected_name
+        assert ctx.topography_name == expected_name
 
-    def test_subject_url_property(self, analysis_with_folder):
-        """Test subject_url property."""
+    def test_topography_url_property(self, analysis_with_folder):
+        """Test topography_url property."""
         ctx = DjangoWorkflowContext(analysis_with_folder)
 
-        # subject_url should be a string (may be empty if get_absolute_url not available)
-        assert isinstance(ctx.subject_url, str)
+        # topography_url should be a string (may be empty if get_absolute_url not available)
+        assert isinstance(ctx.topography_url, str)
 
     def test_implements_topobank_workflow_context(self, analysis_with_folder):
         """Test that DjangoWorkflowContext implements TopobankWorkflowContext."""
