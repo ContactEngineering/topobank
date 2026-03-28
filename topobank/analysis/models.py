@@ -797,13 +797,22 @@ class Workflow(models.Model):
         """
         Return default keyword arguments as a dictionary.
         """
-        return self.implementation.Parameters().model_dump()
+        impl = self.implementation
+        # Support both WorkflowEntry (.parameters) and legacy classes (.Parameters)
+        params_cls = getattr(impl, "parameters", None) or getattr(impl, "Parameters", None)
+        if params_cls is not None:
+            return params_cls().model_dump()
+        return {}
 
     def get_kwargs_schema(self):
         """
         JSON schema describing the keyword arguments.
         """
-        return self.implementation.Parameters().model_json_schema()
+        impl = self.implementation
+        params_cls = getattr(impl, "parameters", None) or getattr(impl, "Parameters", None)
+        if params_cls is not None:
+            return params_cls().model_json_schema()
+        return {}
 
     def get_outputs_schema(self) -> list:
         """

@@ -187,7 +187,12 @@ def sync_implementation_classes(cleanup=False):
 
     for name in names_used:
         func, created = Workflow.objects.update_or_create(name=name)
-        func.display_name = _implementation_classes_by_name[name].Meta.display_name
+        impl = _implementation_classes_by_name[name]
+        # Support both WorkflowEntry (.display_name) and legacy classes (.Meta.display_name)
+        if hasattr(impl, "display_name"):
+            func.display_name = impl.display_name
+        else:
+            func.display_name = impl.Meta.display_name
         func.save(update_fields=["display_name"])
         if created:
             counts["funcs_created"] += 1
