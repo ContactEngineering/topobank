@@ -11,7 +11,7 @@ import logging
 from typing import Union
 
 from django.db.models import Q
-from muflow import WorkflowNode, WorkflowPlan, compute_storage_prefix
+from muflow import WorkflowNode, WorkflowPlan, compute_prefix
 
 from topobank.analysis.models import Workflow, WorkflowResult, WorkflowSubject
 from topobank.manager.models import Surface, Tag, Topography
@@ -136,7 +136,12 @@ class WorkflowPlanner:
             The node key for this workflow.
         """
         subject_key = get_subject_key(subject)
-        storage_prefix = compute_storage_prefix(function_name, subject_key, kwargs)
+        hash_dict = {
+            "workflow": function_name,
+            "subject": subject_key,
+            **kwargs,
+        }
+        storage_prefix = compute_prefix(hash_dict)
 
         # Node key is derived from storage prefix (content-addressed)
         node_key = storage_prefix
