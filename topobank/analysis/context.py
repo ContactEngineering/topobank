@@ -10,7 +10,8 @@ backends.
 from typing import IO, Any, Optional, Protocol, runtime_checkable
 
 import xarray as xr
-from muflow import WorkflowContext
+from muflow.context import WorkflowContext, WorkflowContextProtocol
+from muflow.storage import StorageBackend
 
 from topobank.analysis.models import WorkflowResult
 from topobank.analysis.subjects import get_subject_metadata, resolve_subject
@@ -19,7 +20,7 @@ from topobank.taskapp.tasks import ProgressRecorder
 
 
 @runtime_checkable
-class TopobankWorkflowContext(WorkflowContext, Protocol):
+class TopobankWorkflowContext(WorkflowContextProtocol, Protocol):
     """Protocol for topobank workflow contexts.
 
     Extends WorkflowContext with topography access.  The three properties
@@ -53,7 +54,7 @@ class TopobankWorkflowContext(WorkflowContext, Protocol):
         ...
 
 
-class DjangoWorkflowContext:
+class DjangoWorkflowContext(WorkflowContext):
     """WorkflowContext backed by Django ORM.
 
     This context wraps a WorkflowResult and uses its ManifestSet for file I/O.
@@ -92,14 +93,31 @@ class DjangoWorkflowContext:
     ):
         self._analysis = analysis
         self._folder = analysis.folder
-        self._kwargs = analysis.kwargs
+        self._raw_kwargs = analysis.kwargs or {}
         self._dependencies = dependencies or {}
         self._progress_recorder = progress_recorder
         self._allowed_outputs = allowed_outputs
 
+        # Set by executor for function-based workflows
+        # Defaults to raw_kwargs for backward compatibility/non-validated workflows
+        self._kwargs = self._raw_kwargs
+
         # Subject resolution - convert Django model to native object
         self._subject = resolve_subject(analysis.subject)
         self._subject_name, self._subject_url = get_subject_metadata(analysis.subject)
+
+    @property
+    def storage(self) -> StorageBackend:
+        """Return a StorageBackend wrapper for this context's folder.
+
+        This allows passing the context to functions that expect a
+        StorageBackend interface.
+        """
+        # We don't have a concrete StorageBackend implementation for Django
+        # in muFlow (it's handled by ManifestSet), so we'd need a wrapper
+        # if this is strictly required. For now, we return the folder
+        # which implements many of the same methods.
+        return self._folder
 
     @property
     def storage_prefix(self) -> str:
@@ -111,8 +129,8 @@ class DjangoWorkflowContext:
         return self._folder.storage_prefix or ""
 
     @property
-    def kwargs(self) -> dict:
-        """Return the workflow parameters."""
+    def kwargs(self) -> Any:
+        """Return the validated workflow parameters (pydantic model)."""
         return self._kwargs
 
     @property

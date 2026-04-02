@@ -11,7 +11,7 @@ from dataclasses import dataclass
 from typing import Union
 
 import numpy as np
-from muflow import WorkflowImplementation as MuflowsWorkflowImplementation
+import pydantic
 
 from ..manager.models import Surface, Topography
 from ..supplib.dict import SplitDictionaryHere
@@ -132,10 +132,10 @@ class WorkflowDefinition:
     kwargs: dict = None
 
 
-class WorkflowImplementation(MuflowsWorkflowImplementation):
+class WorkflowImplementation():
     """Class that holds the actual implementation of a workflow.
 
-    Extends muflow.WorkflowImplementation with Django/topobank-specific features:
+    Django/topobank-specific features:
     - implementations: Maps Django model classes to method names
     - eval(): Dispatches to the appropriate implementation method
     - get_dependencies(): Returns workflow dependencies
@@ -151,9 +151,26 @@ class WorkflowImplementation(MuflowsWorkflowImplementation):
     deprecated. New workflows should use Meta.queue instead.
     """
 
-    class Meta(MuflowsWorkflowImplementation.Meta):
+    class Parameters(pydantic.BaseModel):
+        """Workflow parameters schema. Override in subclasses."""
+        model_config = pydantic.ConfigDict(extra="forbid")
+
+    def __init__(self, **kwargs):
+        """Initialize with validated parameters."""
+        self._kwargs = self.Parameters(**kwargs)
+
+    @property
+    def kwargs(self):
+        """Return the validated parameters object."""
+        return self._kwargs
+
+    class Meta:
         # Django-specific: maps model classes to method names
         implementations = {}
+        name = ""
+        display_name = ""
+        queue = "default"
+        dependencies = {}
 
     def eval(self, analysis, **auxiliary_kwargs):
         """Dispatch to the appropriate implementation method.

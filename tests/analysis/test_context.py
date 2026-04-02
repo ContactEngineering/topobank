@@ -90,9 +90,10 @@ class TestDjangoWorkflowContext:
         assert ctx.storage_prefix == ""
 
     def test_kwargs_property(self, analysis_with_folder):
-        """Test kwargs property."""
+        """Test kwargs property (returns raw dict until validated)."""
         ctx = DjangoWorkflowContext(analysis_with_folder)
         assert ctx.kwargs == {"a": 42, "b": "test_value"}
+        assert ctx._raw_kwargs == {"a": 42, "b": "test_value"}
 
     def test_save_and_read_json(self, analysis_with_folder):
         """Test saving and reading JSON data."""
