@@ -620,7 +620,7 @@ class Workflow(models.Model):
     the SQL database.
     """
 
-    name = models.TextField(help_text="Internal unique identifier")
+    name = models.TextField(help_text="Internal unique identifier", unique=True)
     display_name = models.TextField(help_text="Human-readable name")
 
     def __str__(self):
