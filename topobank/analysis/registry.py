@@ -103,16 +103,42 @@ def get_implementation(display_name=None, name=None):
     """
     Return WorkflowImplementation for given analysis function and subject type.
 
+    This function first checks the muFlow registry for matching workflows,
+    then falls back to the legacy topobank registry.
+
     Parameters
     ----------
-    name : str
-        Name of analysis function.
+    display_name : str, optional
+        Display name of analysis function.
+    name : str, optional
+        Internal name of analysis function.
 
     Returns
     -------
-    runner : AnalysisImplementation
-        The analysis function
+    runner : AnalysisImplementation or MuFlowWorkflowAdapter
+        The analysis function implementation.
     """
+    # Try muFlow registry first
+    try:
+        from muflow import registry as muflow_registry
+
+        from .muflow_bridge.adapter import MuFlowWorkflowAdapter
+
+        entry = None
+        if name:
+            entry = muflow_registry.get(name)
+        if not entry and display_name:
+            entry = muflow_registry.get_by_display_name(display_name)
+        if entry:
+            _log.debug(f"Found muFlow workflow for '{name or display_name}'")
+            return MuFlowWorkflowAdapter(entry)
+    except ImportError:
+        # muFlow not installed
+        pass
+    except Exception as e:
+        _log.warning(f"Error checking muFlow registry: {e}")
+
+    # Fall back to legacy registry
     if display_name is not None:
         try:
             return _implementation_classes_by_display_name[display_name]

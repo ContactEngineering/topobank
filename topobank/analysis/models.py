@@ -496,10 +496,10 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         for filename in dir_tuple[1]:
             manifest = Manifest.objects.create(
                 permissions=self.permissions,
-                folder=self.folder,
                 filename=filename,
                 kind="der",
             )
+            manifest.folders.add(self.folder)
             manifest.file.name = f"{self.storage_prefix}/{filename}"
             manifest.save(update_fields=["file"])
 

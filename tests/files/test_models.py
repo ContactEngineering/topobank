@@ -10,8 +10,9 @@ def test_direct_file_delete(user_alice, mocker):
     permissions = PermissionSet.objects.create()
     folder = ManifestSet.objects.create(permissions=permissions)
     file = Manifest.objects.create(
-        permissions=permissions, folder=folder, created_by=user_alice
+        permissions=permissions, created_by=user_alice
     )
+    file.folders.add(folder)
     file.delete()
     assert m.call_count == 1
 
@@ -20,19 +21,20 @@ def test_file_delete_via_folder(user_alice, mocker):
     m = mocker.patch("django.db.models.fields.files.FieldFile.delete")
     permissions = PermissionSet.objects.create()
     folder = ManifestSet.objects.create(permissions=permissions)
-    Manifest.objects.create(
+    file1 = Manifest.objects.create(
         permissions=permissions,
-        folder=folder,
         created_by=user_alice,
         filename="file1.txt",
     )
-    Manifest.objects.create(
+    file1.folders.add(folder)
+    file2 = Manifest.objects.create(
         permissions=permissions,
-        folder=folder,
         created_by=user_alice,
         filename="file2.txt",
     )
+    file2.folders.add(folder)
     assert Manifest.objects.count() == 2
+    folder.remove_files()
     folder.delete()
     assert Manifest.objects.count() == 0
     assert m.call_count == 2
