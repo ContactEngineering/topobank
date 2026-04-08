@@ -175,7 +175,7 @@ def one_topography():
     surface = Surface(name="Line Scans", created_by=user)
     surface.save()
 
-    datafile = ManifestFactory(filename="example.opd", folder=None)
+    datafile = ManifestFactory(filename="example.opd")
 
     topo = Topography1DFactory(
         surface=surface,

@@ -44,6 +44,11 @@ DATABASES = {
     )
 }
 
+MIGRATION_MODULES = {
+    "mock_authorization": "topobank.testing.mock_auth.authorization.migrations",
+    "mock_users": "topobank.testing.mock_auth.users.migrations",
+}
+
 AUTH_USER_MODEL = "users.User"
 TOPOBANK_PERMISSION_MODEL = "authorization.PermissionSet"
 TOPOBANK_ORGANIZATION_MODEL = "organizations.Organization"

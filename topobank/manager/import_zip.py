@@ -90,7 +90,7 @@ def import_measurement(topo_dict, topo_file, surface, ignore_missing=False):
 
     topography = Topography(**topo_kwargs)
     topography.datafile = Manifest.objects.create(
-        permissions=surface.permissions, filename=topo_name, created_by=user, folder=None
+        permissions=surface.permissions, filename=topo_name, created_by=user
     )
     topography.datafile.save_file(File(topo_file))
     # We need to save again to store the new file name

@@ -855,8 +855,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 permissions=self.permissions,
                 filename=self.name,
                 kind="raw",
-                created_by=self.created_by,
-                folder=None
+                created_by=self.created_by
             )
             if update_fields is not None and 'datafile' not in update_fields:
                 update_fields.append('datafile')
@@ -919,7 +918,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def save_datafile(self, fobj):
         self.datafile = Manifest.objects.create(
             permissions=self.permissions,
-            folder=None,
             filename=self.name,
             kind="raw",
             file=File(fobj),
@@ -1291,7 +1289,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.thumbnail.delete()
         filename = f"thumbnail.{settings.TOPOBANK_THUMBNAIL_FORMAT}"
         self.thumbnail = Manifest.objects.create(
-            permissions=self.permissions, filename=filename, kind="der", folder=None
+            permissions=self.permissions, filename=filename, kind="der"
         )
         self.thumbnail.save_file(ContentFile(image_file.getvalue()))
 
@@ -1326,7 +1324,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             squeezed_name = f"{orig_stem}-squeezed.nc"
             self.squeezed_datafile = Manifest.objects.create(
                 permissions=self.permissions,
-                folder=None,
                 filename=squeezed_name,
                 kind="der",
                 file=File(open(tmp.name, mode="rb")),
