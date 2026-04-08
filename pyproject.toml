@@ -37,7 +37,7 @@ dependencies = [
     'backports.entry-points-selectable', # Plugin handling
 
     # Django
-    'django==5.2.13',         #  does this work with pyup?  # https://www.djangoproject.com/
+    'django==6.0.4',         #  does this work with pyup?  # https://www.djangoproject.com/
     'django-allauth>=0.56.0', # https://github.com/pennersr/django-allauth
     'fido2',                  # required by django-allauth
 
