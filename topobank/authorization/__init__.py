@@ -33,7 +33,7 @@ def get_anonymous_user():
     if getter is None:
         raise ImproperlyConfigured(
             "TOPOBANK_ANONYMOUS_USER_GETTER must be configured to use anonymous users. "
-            "Set it to 'topobank_orcid.users.anonymous.get_anonymous_user' when using "
-            "the topobank-orcid plugin."
+            "Set it to 'topobank.testing.mock_auth.users.anonymous.get_anonymous_user' when using "
+            "the mock authentication system for testing."
         )
     return import_string(getter)()

@@ -78,7 +78,7 @@ def filter_and_order_analyses(analyses):
             sorted_analyses = (
                 sorted_analyses[: surface_analysis_index + 1]
                 + topography_analyses
-                + sorted_analyses[surface_analysis_index + 1 :]
+                + sorted_analyses[surface_analysis_index + 1:]
             )
 
     #

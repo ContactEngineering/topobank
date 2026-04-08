@@ -248,7 +248,7 @@ class TestTaskFailureSignal:
 
         # Test ZipContainer
         task_id_3 = str(uuid.uuid4())
-        from topobank_orcid.authorization.models import PermissionSet
+        from topobank.testing.mock_auth.authorization.models import PermissionSet
         permissions = PermissionSet.objects.create()
         permissions.grant(user, "edit")
         zip_container = ZipContainer.objects.create(
@@ -606,7 +606,7 @@ class TestFindTaskInstance:
         """Test that ZipContainer can be found by task_id."""
         task_id = str(uuid.uuid4())
         user = UserFactory()
-        from topobank_orcid.authorization.models import PermissionSet
+        from topobank.testing.mock_auth.authorization.models import PermissionSet
         permissions = PermissionSet.objects.create()
         permissions.grant(user, "edit")
         zip_container = ZipContainer.objects.create(

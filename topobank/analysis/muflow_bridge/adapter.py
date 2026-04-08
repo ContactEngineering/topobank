@@ -63,7 +63,7 @@ class MuFlowWorkflowAdapter:
     4. Handles result synchronization via completion callbacks
     """
 
-    def __init__(self, entry):
+    def __init__(self, entry, kwargs=None):
         """
         Initialize the adapter with a muFlow TaskEntry.
 
@@ -71,9 +71,22 @@ class MuFlowWorkflowAdapter:
         ----------
         entry : TaskEntry
             The muFlow TaskEntry to wrap.
+        kwargs : dict, optional
+            Keyword arguments for the workflow. (Default: None)
         """
         self._entry = entry
         self._meta = MuFlowWorkflowMeta(entry)
+        self.kwargs = kwargs or {}
+
+    def __call__(self, **kwargs):
+        """
+        Make the adapter callable to mimic legacy workflow classes.
+
+        In legacy TopoBank workflows, the class was instantiated with
+        the kwargs of the analysis. This adapter mimics that behavior
+        by returning a NEW instance with the updated kwargs.
+        """
+        return MuFlowWorkflowAdapter(self._entry, kwargs=kwargs)
 
     @property
     def Meta(self):
@@ -129,7 +142,10 @@ class MuFlowWorkflowAdapter:
 
         if kwargs is None:
             if fill_missing:
-                return self._entry.parameters().model_dump()
+                try:
+                    return self._entry.parameters().model_dump()
+                except Exception:
+                    return {}
             else:
                 return {}
         else:

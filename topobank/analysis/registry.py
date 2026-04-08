@@ -4,6 +4,10 @@ Registry for collection analysis functions.
 
 import logging
 
+from muflow import registry as muflow_registry
+
+from .muflow_bridge.adapter import MuFlowWorkflowAdapter
+
 _log = logging.getLogger(__name__)
 
 
@@ -120,10 +124,6 @@ def get_implementation(display_name=None, name=None):
     """
     # Try muFlow registry first
     try:
-        from muflow import registry as muflow_registry
-
-        from .muflow_bridge.adapter import MuFlowWorkflowAdapter
-
         entry = None
         if name:
             entry = muflow_registry.get(name)
@@ -159,7 +159,14 @@ def get_analysis_function_names(user=None):
 
     The `user` parameter is deprecated and ignored.
     """
-    return list(_implementation_classes_by_name.keys())
+    names = list(_implementation_classes_by_name.keys())
+    try:
+        for name in muflow_registry.get_all():
+            if name not in names:
+                names.append(name)
+    except Exception as e:
+        _log.warning(f"Error fetching muFlow workflows: {e}")
+    return names
 
 
 def sync_implementation_classes(cleanup=False):
@@ -186,6 +193,12 @@ def sync_implementation_classes(cleanup=False):
     )
 
     names_used = list(_implementation_classes_by_name.keys())
+    try:
+        for name in muflow_registry.get_all():
+            if name not in names_used:
+                names_used.append(name)
+    except Exception as e:
+        _log.warning(f"Error fetching muFlow workflows: {e}")
 
     #
     # Ensure all analysis functions needed to exist in database
@@ -197,7 +210,12 @@ def sync_implementation_classes(cleanup=False):
 
     for name in names_used:
         func, created = Workflow.objects.update_or_create(name=name)
-        func.display_name = _implementation_classes_by_name[name].Meta.display_name
+        if name in _implementation_classes_by_name:
+            func.display_name = _implementation_classes_by_name[name].Meta.display_name
+        else:
+            entry = muflow_registry.get(name)
+            if entry:
+                func.display_name = getattr(entry, "display_name", entry.name)
         func.save(update_fields=["display_name"])
         if created:
             counts["funcs_created"] += 1

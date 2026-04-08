@@ -654,13 +654,28 @@ class Workflow(models.Model):
         """
         Return default keyword arguments as a dictionary.
         """
-        return self.implementation.Parameters().model_dump()
+        impl = self.implementation
+        if impl is None:
+            return {}
+        try:
+            params = impl.Parameters
+            if params is None:
+                return {}
+            return params().model_dump()
+        except Exception:
+            return {}
 
     def get_kwargs_schema(self):
         """
         JSON schema describing the keyword arguments.
         """
-        return self.implementation.Parameters().model_json_schema()
+        impl = self.implementation
+        if impl is None:
+            return {}
+        params = impl.Parameters
+        if params is not None:
+            return params.model_json_schema()
+        return {}
 
     def get_outputs_schema(self) -> list:
         """
@@ -691,16 +706,27 @@ class Workflow(models.Model):
         ------
         pydantic.ValidationError if validation fails
         """
-        return self.implementation.clean_kwargs(kwargs, fill_missing=fill_missing)
+        impl = self.implementation
+        if impl is None:
+            return kwargs or {}
+        if hasattr(impl, "instance_clean_kwargs"):
+            return impl.instance_clean_kwargs(kwargs, fill_missing=fill_missing)
+        return impl.clean_kwargs(kwargs, fill_missing=fill_missing)
 
     def get_dependencies(self, analysis):
-        return self.implementation(**analysis.kwargs).get_dependencies(analysis)
+        impl = self.implementation
+        if impl is None:
+            return {}
+        return impl(**analysis.kwargs).get_dependencies(analysis)
 
     def eval(self, analysis, **auxiliary_kwargs):
         """
         First argument is the subject of the WorkflowResult (`Surface`, `Topography` or `Tag`).
         """
-        runner = self.implementation(**analysis.kwargs)
+        impl = self.implementation
+        if impl is None:
+            raise WorkflowNotImplementedException(self.name, type(analysis.subject))
+        runner = impl(**analysis.kwargs)
         return runner.eval(analysis, **auxiliary_kwargs)
 
     def submit(
