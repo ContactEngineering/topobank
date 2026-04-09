@@ -928,8 +928,12 @@ class Workflow(models.Model):
     ):
         """Create and submit a new WorkflowResult for a surface set."""
         _log.info(
-            f"Submitting new surface-set WorkflowResult for user {user}, "
-            f"surfaces {[s.id for s in surfaces]}, function {self}, kwargs: {kwargs}"
+            "Submitting new surface-set WorkflowResult for user %s, "
+            "surfaces %s, function %s, kwargs: %s",
+            user,
+            [s.id for s in surfaces],
+            self,
+            kwargs
         )
 
         if not owned_by_id:
