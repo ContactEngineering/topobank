@@ -463,8 +463,9 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             dict
         """
         created_by = {"name": self.created_by.name}
-        if self.created_by.orcid_id is not None:
-            created_by["orcid"] = self.created_by.orcid_id
+        orcid = getattr(self.created_by, 'orcid_id', None)
+        if orcid is not None:
+            created_by["orcid"] = orcid
         d = {
             "name": self.name,
             "category": self.category,
@@ -1145,7 +1146,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             "detrend_mode": self.detrend_mode,
             "is_periodic": self.is_periodic,
             "created_by": {"name": self.created_by.name,
-                           "orcid": self.created_by.orcid_id},
+                           "orcid": getattr(self.created_by, 'orcid_id', None)},
             "measurement_date": self.measurement_date,
             "description": self.description,
             "unit": self.unit,

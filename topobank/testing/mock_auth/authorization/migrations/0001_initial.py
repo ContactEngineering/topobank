@@ -42,10 +42,15 @@ class Migration(migrations.Migration):
                     ),
                 ),
                 (
-                    "permission_set",
+                    "allow",
+                    models.CharField(default="view", max_length=10),
+                ),
+                (
+                    "parent",
                     models.ForeignKey(
                         on_delete=django.db.models.deletion.CASCADE,
-                        to="mock_authorization.permissionset",
+                        related_name="permissions",
+                        to="authorization.permissionset",
                     ),
                 ),
                 (

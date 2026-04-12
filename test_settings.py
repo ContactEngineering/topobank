@@ -26,13 +26,10 @@ INSTALLED_APPS = [
     "django_celery_results",
     "topobank.testing.mock_auth.users.apps.UsersAppConfig",
     "topobank.testing.mock_auth.authorization.apps.AuthorizationAppConfig",
-    "sds_api.users.apps.UsersAppConfig",
-    "sds_api.authorization.apps.AuthorizationAppConfig",
     "topobank.files.apps.FilesAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
     "topobank.testing.mock_auth.organizations.apps.OrganizationsAppConfig",
-    "sds_api.organizations.apps.OrganizationsAppConfig",
     "topobank.properties.apps.PropertiesAppConfig",
     "topobank.taskapp.celeryapp.CeleryAppConfig",
 ]
@@ -45,8 +42,9 @@ DATABASES = {
 }
 
 MIGRATION_MODULES = {
-    "mock_authorization": "topobank.testing.mock_auth.authorization.migrations",
-    "mock_users": "topobank.testing.mock_auth.users.migrations",
+    "authorization": "topobank.testing.mock_auth.authorization.migrations",
+    "organizations": "topobank.testing.mock_auth.organizations.migrations",
+    "users": "topobank.testing.mock_auth.users.migrations",
 }
 
 AUTH_USER_MODEL = "users.User"

@@ -7,4 +7,4 @@ class User(AbstractUser):
     name = models.CharField("Name of User", blank=True, max_length=255, default="")
 
     class Meta:
-        app_label = 'mock_users'
+        app_label = 'users'
