@@ -28,11 +28,11 @@ APP_NAME = "analysis"
 VIZ_SERIES = "series"
 
 
-def compute_surfaces_hash(surface_ids):
-    """Compute a deterministic hash for a set of surface IDs."""
-    sorted_ids = sorted(set(surface_ids))
+def compute_subject_hash(subject_type: str, subject_ids):
+    """Compute a deterministic hash for a set of subject IDs, prefixed by type."""
+    sorted_ids = sorted(set(subject_ids))
     key = ",".join(str(sid) for sid in sorted_ids)
-    return hashlib.sha256(key.encode()).hexdigest()
+    return f"{subject_type}:{hashlib.sha256(key.encode()).hexdigest()}"
 
 
 class SurfaceSet(pydantic.BaseModel):
@@ -48,8 +48,8 @@ class SurfaceSet(pydantic.BaseModel):
         return sorted(set(v))
 
     @property
-    def surfaces_hash(self) -> str:
-        return compute_surfaces_hash(self.surfaces)
+    def subject_hash(self) -> str:
+        return compute_subject_hash("surfaces", self.surfaces)
 
 
 class WorkflowError(Exception):

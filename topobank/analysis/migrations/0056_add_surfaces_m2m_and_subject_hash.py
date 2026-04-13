@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
         ),
         migrations.AddField(
             model_name='workflowresult',
-            name='surfaces_hash',
-            field=models.CharField(blank=True, db_index=True, max_length=64, null=True),
+            name='subject_hash',
+            field=models.CharField(blank=True, db_index=True, max_length=128, null=True),
         ),
     ]

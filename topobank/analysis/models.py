@@ -243,9 +243,9 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     surfaces = models.ManyToManyField(
         Surface, blank=True, related_name="workflow_results",
     )
-    # Hash of surface IDs for quick lookup of existing results with the same surface set.
-    # Used in submit_for_surfaces to find existing results with the same surface set, kwargs, and function.
-    surfaces_hash = models.CharField(max_length=64, null=True, blank=True, db_index=True)
+    # Hash of subject IDs for quick lookup of existing results with the same subject set.
+    # Prefixed with subject type, e.g. "surfaces:<sha256>".
+    subject_hash = models.CharField(max_length=128, null=True, blank=True, db_index=True)
 
     # Unique, user-specified name
     name = models.TextField(null=True)
@@ -574,16 +574,16 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         return self.subject_dispatch.tag is not None
 
     @staticmethod
-    def compute_surfaces_hash(surface_ids):
-        """Compute a deterministic hash for a set of surface IDs."""
-        from .workflows import compute_surfaces_hash
-        return compute_surfaces_hash(surface_ids)
+    def compute_subject_hash(subject_type, subject_ids):
+        """Compute a deterministic hash for a set of subject IDs, prefixed by type."""
+        from .workflows import compute_subject_hash
+        return compute_subject_hash(subject_type, subject_ids)
 
-    def update_surfaces_hash(self):
-        """Recompute and save surfaces_hash from the current M2M relationship."""
+    def update_subject_hash(self):
+        """Recompute and save subject_hash from the current M2M relationship."""
         ids = list(self.surfaces.values_list("id", flat=True))
-        self.surfaces_hash = self.compute_surfaces_hash(ids) if ids else None
-        self.save(update_fields=["surfaces_hash"])
+        self.subject_hash = self.compute_subject_hash("surfaces", ids) if ids else None
+        self.save(update_fields=["subject_hash"])
 
     def eval_self(self, **auxiliary_kwargs):
         if self.surfaces.exists():
@@ -895,10 +895,10 @@ class Workflow(models.Model):
 
         kwargs = self.clean_kwargs(kwargs)
 
-        # Dedup check using surfaces_hash
+        # Dedup check using subject_hash
         existing = WorkflowResult.objects.filter(
             function=self,
-            surfaces_hash=surface_set.surfaces_hash,
+            subject_hash=surface_set.subject_hash,
             kwargs=kwargs,
         )
 
@@ -943,7 +943,7 @@ class Workflow(models.Model):
             analysis = WorkflowResult.objects.create(
                 function=self,
                 kwargs=kwargs,
-                surfaces_hash=surface_set.surfaces_hash,
+                subject_hash=surface_set.subject_hash,
                 created_by=user,
                 updated_by=user,
                 owned_by_id=owned_by_id,

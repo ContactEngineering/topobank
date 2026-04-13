@@ -475,11 +475,11 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
 
         # Query for existing analysis — use surfaces path if parent does
         if use_surfaces_path and isinstance(dependency.subject, Surface):
-            surfaces_hash = WorkflowResult.compute_surfaces_hash([dependency.subject.id])
+            subject_hash = WorkflowResult.compute_subject_hash("surfaces", [dependency.subject.id])
             existing_analysis = (
                 WorkflowResult.objects.filter(
                     function=dependency.function,
-                    surfaces_hash=surfaces_hash,
+                    subject_hash=subject_hash,
                     kwargs=kwargs,
                 )
                 .select_related('function')
@@ -521,8 +521,9 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                     metadata={"parent_workflow_result_id": parent.id},
                 )
                 if use_surfaces_path and isinstance(dependency.subject, Surface):
-                    # New surface set path: store surface in M2M and use surfaces_hash for lookup
-                    create_kwargs["surfaces_hash"] = WorkflowResult.compute_surfaces_hash([dependency.subject.id])
+                    # New surface set path: store surface in M2M and use subject_hash for lookup
+                    create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("surfaces",
+                                                                                        [dependency.subject.id])
                 else:
                     # Old path: store subject in subject_dispatch for compatibility with existing workflows
                     create_kwargs["subject_dispatch"] = WorkflowSubject.objects.create(dependency.subject)
