@@ -59,7 +59,8 @@ class UserFactory(factory.django.DjangoModelFactory):
 
     @factory.post_generation
     def create_orcid_account(self, create, value, **kwargs):
-        OrcidSocialAccountFactory(user_id=self.id)
+        social_account = OrcidSocialAccountFactory(user_id=self.id)
+        self.orcid_id = social_account.uid
         # NOTE: tests break without this save
         models.Model.save(self)
 

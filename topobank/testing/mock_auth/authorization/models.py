@@ -75,12 +75,29 @@ class PermissionSet(AbstractPermissionSet):
         """Revoke all permissions from user"""
         self.user_permissions.filter(user=user).delete()
 
+    def grant_for_organization(self, organization, allow: ViewEditFull):
+        """Grant permission to an organization"""
+        OrganizationPermission.objects.update_or_create(
+            parent=self, organization=organization,
+            defaults={"allow": allow},
+        )
+
+    def revoke_from_organization(self, organization):
+        """Revoke all permissions from an organization"""
+        self.organization_permissions.filter(organization=organization).delete()
+
     def grant(self, principal, allow: ViewEditFull):
         """Grant permission"""
+        from topobank.testing.mock_auth.organizations.models import Organization
+        if isinstance(principal, Organization):
+            return self.grant_for_organization(principal, allow)
         return self.grant_for_user(principal, allow)
 
     def revoke(self, principal):
         """Revoke permission"""
+        from topobank.testing.mock_auth.organizations.models import Organization
+        if isinstance(principal, Organization):
+            return self.revoke_from_organization(principal)
         return self.revoke_from_user(principal)
 
     def user_has_permission(self, user, access_level: ViewEditFull) -> bool:
@@ -126,3 +143,21 @@ class UserPermission(models.Model):
     class Meta:
         app_label = 'authorization'
         unique_together = ("parent", "user")
+
+
+class OrganizationPermission(models.Model):
+    """Permission applying to all members of an organization"""
+    parent = models.ForeignKey(
+        PermissionSet,
+        on_delete=models.CASCADE,
+        related_name="organization_permissions"
+    )
+    organization = models.ForeignKey(
+        'organizations.Organization',
+        on_delete=models.CASCADE
+    )
+    allow = models.CharField(max_length=4, choices=PERMISSION_CHOICES)
+
+    class Meta:
+        app_label = 'authorization'
+        unique_together = ("parent", "organization")

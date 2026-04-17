@@ -6,6 +6,8 @@ from django.db import migrations, models
 
 class Migration(migrations.Migration):
 
+    replaces = [("organizations", "0006_remove_organization_plugins_available")]
+
     dependencies = [
         ('auth', '0012_alter_user_first_name_max_length'),
         ('organizations', '0005_fix_plugins_available_data'),
