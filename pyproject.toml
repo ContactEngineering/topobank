@@ -134,6 +134,9 @@ dependencies = [
     # Database
     'psycopg[binary]',
 
+    # Workflow management
+    'muflow',
+
     # API Documentation
 ]
 
