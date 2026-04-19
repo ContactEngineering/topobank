@@ -15,7 +15,7 @@ def test_sync_and_retrieve_legacy_and_muflow_workflows():
 
     assert TestImplementation.Meta.name in names, "Legacy workflow not synced to DB!"
 
-    # We should also check for muFlow workflows, e.g., 'sds_workflows.gpr' or whatever is in muflow registry
+    # We should also check for muFlow workflows
     try:
         from muflow import registry as muflow_registry
         muflow_names = list(muflow_registry.get_all())
