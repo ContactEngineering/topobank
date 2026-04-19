@@ -183,6 +183,12 @@ def assert_equal(a, b, key=None, ignore_keys=set(), rtol=1e-07, atol=0):
         assert a == b, f"The values key '{key}' differ: {a} != {b}"
 
 
+def drf_isoformat(dt):
+    """Format a datetime the same way DRF does (Z for UTC instead of +00:00)."""
+    s = dt.astimezone(datetime.timezone.utc).isoformat()
+    return s.replace('+00:00', 'Z')
+
+
 def assert_dict_equal(a, b, ignore_keys=set(), rtol=1e-07, atol=0):
     keys_a = set(a.keys()) - set(ignore_keys)
     keys_b = set(b.keys()) - set(ignore_keys)
