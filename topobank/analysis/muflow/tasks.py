@@ -19,7 +19,7 @@ from ..models import WorkflowResult
 _log = logging.getLogger(__name__)
 
 
-@shared_task(name="topobank.analysis.muflow_bridge.on_muflow_complete")
+@shared_task(name="topobank.analysis.muflow.on_muflow_complete")
 def on_muflow_complete(
     plan_id: str,
     success: bool,

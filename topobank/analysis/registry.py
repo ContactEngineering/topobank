@@ -1,106 +1,28 @@
 """
-Registry for collection analysis functions.
+Registry for analysis functions.
+
+Legacy WorkflowImplementation registration lives in topobank.analysis.legacy.registry.
+This module re-exports legacy symbols for backwards compatibility and provides
+the muFlow-aware lookup functions used by the rest of the analysis system.
 """
 
 import logging
 
 from muflow import registry as muflow_registry
 
-from .muflow_bridge.adapter import MuFlowWorkflowAdapter
+from .legacy.registry import (  # noqa: F401
+    AlreadyRegisteredException,
+    UnknownKeyException,
+    WorkflowNotImplementedException,
+    WorkflowRegistryException,
+    _app_name,
+    _implementation_classes_by_display_name,
+    _implementation_classes_by_name,
+    register_implementation,
+)
+from .muflow.adapter import MuFlowWorkflowAdapter
 
 _log = logging.getLogger(__name__)
-
-
-#
-# Exceptions
-#
-
-
-class WorkflowRegistryException(Exception):
-    """Generic exception for problems while handling analysis functions."""
-
-
-class AlreadyRegisteredException(WorkflowRegistryException):
-    """A function has already been registered for the given key."""
-
-    def __init__(self, key):
-        self._key = key
-
-    def __str__(self):
-        return f"An implementation for key '{self._key}' has already been defined."
-
-
-class WorkflowNotImplementedException(WorkflowRegistryException):
-    """An analysis function implementation was not found for given subject type."""
-
-    def __init__(self, name, subject_model):
-        self._name = name
-        self._subject_model = subject_model
-
-    def __str__(self):
-        return (
-            f"Workflow '{self._name}' has no implementation for subject "
-            f"'{self._subject_model}'."
-        )
-
-
-class UnknownKeyException(WorkflowRegistryException):
-    """A key was requested which is not known."""
-
-    def __init__(self, key):
-        self._key = key
-
-    def __str__(self):
-        return f"Key '{self._key}' is unknown."
-
-
-#
-# Handling of analysis function implementations
-#
-
-_implementation_classes_by_display_name = {}
-# key: (name, subject_app_name, subject_model)
-#      where
-#      name: str, Unique function name,
-#      subject_app_name: str, application name for subject_model
-#      subject_model: str, e.g. "topography" or "surface",
-#                     should correspond to first argument of analysis function implementations
-#                     and to model class name
-# value: reference to implementation of analysis function
-
-_implementation_classes_by_name = {}
-# key: (name, subject_app_name, subject_model)
-#      where
-#      name: str, Unique function name,
-#      subject_app_name: str, application name for subject_model
-#      subject_model: str, e.g. "topography" or "surface",
-#                     should correspond to first argument of analysis function implementations
-#                     and to model class name
-# value: reference to implementation of analysis function
-
-_app_name = {}
-# key: visualization_type: str, visualization type
-# value: Name of Django app/plugin where the visualization resides
-
-
-def register_implementation(klass):
-    """
-    Register implementation of an analysis function.
-
-    Parameters
-    ----------
-    klass: AnalysisImplementation
-        Runner class that has the Python function which implements the analysis, and
-        additional metadata
-
-    Returns
-    -------
-    klass
-        The registered class (to support use as a decorator)
-    """
-    _implementation_classes_by_display_name[klass.Meta.display_name] = klass
-    _implementation_classes_by_name[klass.Meta.name] = klass
-    return klass
 
 
 def get_implementation(display_name=None, name=None):
@@ -119,7 +41,7 @@ def get_implementation(display_name=None, name=None):
 
     Returns
     -------
-    runner : AnalysisImplementation or MuFlowWorkflowAdapter
+    runner : WorkflowImplementation or MuFlowWorkflowAdapter
         The analysis function implementation.
     """
     # Try muFlow registry first
@@ -133,7 +55,6 @@ def get_implementation(display_name=None, name=None):
             _log.debug(f"Found muFlow workflow for '{name or display_name}'")
             return MuFlowWorkflowAdapter(entry)
     except ImportError:
-        # muFlow not installed
         pass
     except Exception as e:
         _log.warning(f"Error checking muFlow registry: {e}")
@@ -161,7 +82,7 @@ def get_analysis_function_names(user=None):
     """
     names = list(_implementation_classes_by_name.keys())
     try:
-        for name in muflow_registry.get_all():
+        for name in muflow_registry.get_all().keys():
             if name not in names:
                 names.append(name)
     except Exception as e:
@@ -178,7 +99,6 @@ def sync_implementation_classes(cleanup=False):
 
     Parameters
     ----------
-
     cleanup: bool
         If True, delete all analysis functions for which no implementations exist
         and also delete all analyses related to those functions.
@@ -194,7 +114,7 @@ def sync_implementation_classes(cleanup=False):
 
     names_used = list(_implementation_classes_by_name.keys())
     try:
-        for name in muflow_registry.get_all():
+        for name, entry in muflow_registry.get_all().items():
             if name not in names_used:
                 names_used.append(name)
     except Exception as e:

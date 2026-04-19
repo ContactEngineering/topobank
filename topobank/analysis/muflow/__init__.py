@@ -1,5 +1,5 @@
 """
-muFlow Bridge - Integrates muFlow workflows with topobank's analysis system.
+muFlow integration for topobank's analysis system.
 
 This package provides the bridge layer that:
 1. Wraps muFlow TaskEntry objects as WorkflowImplementation-like adapters

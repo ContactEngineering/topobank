@@ -375,7 +375,7 @@ class MuFlowWorkflowAdapter:
 
         # Create completion callback
         callback = CeleryCompletionCallback(
-            task_name="topobank.analysis.muflow_bridge.on_muflow_complete",
+            task_name="topobank.analysis.muflow.on_muflow_complete",
             task_kwargs={"analysis_id": analysis.id},
         )
 
