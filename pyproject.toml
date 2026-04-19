@@ -135,7 +135,7 @@ dependencies = [
     'psycopg[binary]',
 
     # Workflow management
-    'muflow',
+    'muflow>=0.3.0',
 
     # Timer
     'muTimer',

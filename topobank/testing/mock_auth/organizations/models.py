@@ -1,7 +1,9 @@
 import logging
+from urllib.parse import urlparse
 
 from django.contrib.auth.models import Group
 from django.db import models
+from django.urls import resolve as django_resolve
 
 _log = logging.getLogger(__name__)
 
@@ -63,3 +65,15 @@ class Organization(models.Model):
         """Add user to this organization."""
         if self.group:
             user.groups.add(self.group)
+
+    @classmethod
+    def resolve(cls, url):
+        """Resolve an organization from a URL or integer ID."""
+        try:
+            pk = int(url)
+            return cls.objects.get(pk=pk)
+        except ValueError:
+            match = django_resolve(urlparse(url).path)
+            if match.view_name != "organizations:organization-v1-detail":
+                raise ValueError("URL does not resolve to an Organization instance")
+            return cls.objects.get(**match.kwargs)
