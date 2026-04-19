@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 import pydantic
 from django.core.files.base import ContentFile
-from muGrid.Timer import Timer
+from muTimer import Timer
 
 from ..analysis.models import RESULT_FILE_BASENAME, Workflow
 from ..analysis.outputs import OutputFile

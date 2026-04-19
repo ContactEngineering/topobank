@@ -137,6 +137,9 @@ dependencies = [
     # Workflow management
     'muflow',
 
+    # Timer
+    'muTimer',
+
     # API Documentation
 ]
 
