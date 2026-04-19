@@ -106,30 +106,24 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     class Meta:
         model = "files.Manifest"
         skip_postgeneration_save = True
-        exclude = ("folder",)
 
     filename = factory.Iterator(
         ["10x10.txt", "dektak-1.csv", "example.opd", "example3.di", "plux-1.plux"]
     )
-    # folder is excluded from model creation but used for permissions and M2M
-    folder = None
-    permissions = factory.LazyAttribute(
-        lambda obj: obj.folder.permissions if obj.folder is not None else None
-    )
+    permissions = None
     confirmed_at = factory.LazyFunction(timezone.now)
+
+    @factory.post_generation
+    def folder(obj, create, extracted, **kwargs):
+        if extracted is not None and create:
+            obj.folders.add(extracted)
+            if obj.permissions is None:
+                obj.permissions = extracted.permissions
+                obj.save(update_fields=["permissions"])
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):
         obj.save_file(File(open(f"{FIXTURE_DATA_DIR}/{obj.filename}", "rb")))
-
-    @classmethod
-    def _create(cls, model_class, *args, **kwargs):
-        """Override _create to handle M2M folder relationship."""
-        folder = kwargs.pop("folder", None)
-        obj = super()._create(model_class, *args, **kwargs)
-        if folder is not None:
-            obj.folders.add(folder)
-        return obj
 
 
 class ManifestSetFactory(factory.django.DjangoModelFactory):
