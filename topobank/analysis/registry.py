@@ -88,17 +88,3 @@ def get_analysis_function_names(user=None):
     except Exception as e:
         _log.warning(f"Error fetching muFlow workflows: {e}")
     return names
-
-
-def sync_implementation_classes(cleanup=False):
-    """
-    No-op kept for backwards compatibility.
-
-    The Workflow database model has been removed. Workflow metadata is now
-    derived from the registry at runtime. This function previously synced the
-    registry to the database but is now a no-op.
-    """
-    _log.debug(
-        "sync_implementation_classes called — no-op since Workflow DB model was removed."
-    )
-    return dict(funcs_updated=0, funcs_created=0, funcs_deleted=0)

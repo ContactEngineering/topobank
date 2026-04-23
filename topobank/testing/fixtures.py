@@ -99,8 +99,6 @@ def user_alice_logged_in(live_server, browser, user_alice):
 #
 @pytest.fixture
 def two_topos(settings):
-    call_command("register_analysis_functions")
-
     user = UserFactory(username="testuser", password="abcd$1234")
     surface1 = SurfaceFactory(name="Surface 1", created_by=user)
     surface2 = SurfaceFactory(name="Surface 2", created_by=user)

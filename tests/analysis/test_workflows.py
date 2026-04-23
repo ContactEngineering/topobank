@@ -1,23 +1,16 @@
 import pytest
 
 from topobank.analysis.models import Workflow
-from topobank.analysis.registry import (
-    get_analysis_function_names,
-    sync_implementation_classes,
-)
+from topobank.analysis.registry import get_analysis_function_names
 from topobank.testing.workflows import TestImplementation
 
 
 @pytest.mark.django_db
-def test_sync_and_retrieve_legacy_and_muflow_workflows():
-    # sync_implementation_classes is now a no-op; verify the registry directly
-    sync_implementation_classes()
-
+def test_retrieve_registry_workflows():
     names = get_analysis_function_names()
 
     assert TestImplementation.Meta.name in names, "Legacy workflow not in registry!"
 
-    # We should also check for muFlow workflows
     try:
         from muflow import registry as muflow_registry
         muflow_names = list(muflow_registry.get_all())
