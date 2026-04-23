@@ -92,72 +92,13 @@ def get_analysis_function_names(user=None):
 
 def sync_implementation_classes(cleanup=False):
     """
-    Make sure all analysis functions are represented in database.
+    No-op kept for backwards compatibility.
 
-    It's recommended to run this with cleanup=True if an analysis
-    function should be removed.
-
-    Parameters
-    ----------
-    cleanup: bool
-        If True, delete all analysis functions for which no implementations exist
-        and also delete all analyses related to those functions.
-        Be careful, might delete existing analyses.
+    The Workflow database model has been removed. Workflow metadata is now
+    derived from the registry at runtime. This function previously synced the
+    registry to the database but is now a no-op.
     """
-    from .models import Workflow, WorkflowResult
-
-    counts = dict(
-        funcs_updated=0,
-        funcs_created=0,
-        funcs_deleted=0,
+    _log.debug(
+        "sync_implementation_classes called — no-op since Workflow DB model was removed."
     )
-
-    names_used = list(_implementation_classes_by_name.keys())
-    try:
-        for name, entry in muflow_registry.get_all().items():
-            if name not in names_used:
-                names_used.append(name)
-    except Exception as e:
-        _log.warning(f"Error fetching muFlow workflows: {e}")
-
-    #
-    # Ensure all analysis functions needed to exist in database
-    #
-    _log.info(
-        f"Syncing analysis functions with database - {len(names_used)} "
-        "functions used - .."
-    )
-
-    for name in names_used:
-        func, created = Workflow.objects.update_or_create(name=name)
-        if name in _implementation_classes_by_name:
-            func.display_name = _implementation_classes_by_name[name].Meta.display_name
-        else:
-            entry = muflow_registry.get(name)
-            if entry:
-                func.display_name = getattr(entry, "display_name", entry.name)
-        func.save(update_fields=["display_name"])
-        if created:
-            counts["funcs_created"] += 1
-        else:
-            counts["funcs_updated"] += 1
-
-    #
-    # Optionally delete all analysis functions which are no longer needed
-    #
-    for func in Workflow.objects.all():
-        if func.name not in names_used:
-            _log.info(f"Function '{func.name}' is no longer used in the code.")
-            dangling_analyses = WorkflowResult.objects.filter(function=func)
-            num_analyses = dangling_analyses.filter(function=func).count()
-            _log.info(f"There are still {num_analyses} analyses for this function.")
-            if cleanup:
-                _log.info("Deleting those...")
-                dangling_analyses.delete()
-                func.delete()
-                _log.info(
-                    f"Deleted function '{func.name}' and all its analyses."
-                )
-                counts["funcs_deleted"] += 1
-
-    return counts
+    return dict(funcs_updated=0, funcs_created=0, funcs_deleted=0)

@@ -51,7 +51,7 @@ class TestTaskFailureSignal:
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         # Send task_failure signal
@@ -75,7 +75,7 @@ class TestTaskFailureSignal:
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         exception_msg = "Out of memory error"
@@ -99,7 +99,7 @@ class TestTaskFailureSignal:
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         try:
@@ -127,7 +127,7 @@ class TestTaskFailureSignal:
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             task_end_time=None,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         task_failure.send(
@@ -146,7 +146,7 @@ class TestTaskFailureSignal:
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         # Mock save to verify it's not called
@@ -172,7 +172,7 @@ class TestTaskFailureSignal:
             task_state=WorkflowResult.FAILURE,
             task_id=task_id,
             task_error=original_error,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         # Mock save to verify it's not called
@@ -213,7 +213,7 @@ class TestTaskFailureSignal:
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id_1,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         task_failure.send(
@@ -273,7 +273,7 @@ class TestTaskFailureSignal:
         TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         # Mock save to raise an exception
@@ -302,7 +302,7 @@ class TestTaskRevokedSignal:
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         # Create mock request object
@@ -328,7 +328,7 @@ class TestTaskRevokedSignal:
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         mock_request = Mock()
@@ -352,7 +352,7 @@ class TestTaskRevokedSignal:
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         mock_request = Mock()
@@ -377,7 +377,7 @@ class TestTaskRevokedSignal:
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             task_end_time=None,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         mock_request = Mock()
@@ -400,7 +400,7 @@ class TestTaskRevokedSignal:
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         save_spy = mocker.spy(WorkflowResult, "save")
@@ -445,7 +445,7 @@ class TestTaskRevokedSignal:
         TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
@@ -477,7 +477,7 @@ class TestTaskSuccessSignal:
         TopographyAnalysisFactory(
             task_state=WorkflowResult.FAILURE,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
@@ -503,7 +503,7 @@ class TestTaskSuccessSignal:
         TopographyAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
@@ -542,7 +542,7 @@ class TestTaskSuccessSignal:
         TopographyAnalysisFactory(
             task_state=WorkflowResult.FAILURE,
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
@@ -577,7 +577,7 @@ class TestFindTaskInstance:
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         found = app_config._find_task_instance(task_id)
@@ -632,7 +632,7 @@ class TestFindTaskInstance:
         # Create WorkflowResult with this task_id
         analysis = TopographyAnalysisFactory(
             task_id=task_id,
-            function=test_analysis_function,
+            workflow_name=test_analysis_function.name,
         )
 
         # The helper searches in order: WorkflowResult, Topography, ZipContainer

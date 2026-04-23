@@ -10,12 +10,7 @@ from django.db.models.signals import post_save
 from django.utils import timezone
 from factory import post_generation
 
-from ..analysis.models import (
-    Workflow,
-    WorkflowResult,
-    WorkflowSubject,
-    WorkflowTemplate,
-)
+from ..analysis.models import Workflow, WorkflowResult, WorkflowSubject
 from ..manager.models import Surface, Tag, Topography
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
@@ -261,17 +256,9 @@ class Topography2DFactory(Topography1DFactory):
 #
 # Define factories for creating test objects
 #
-class WorkflowFactory(factory.django.DjangoModelFactory):
-    # noinspection PyMissingOrEmptyDocstring
-    class Meta:
-        model = Workflow
-
-    name = factory.Sequence(lambda n: "Test Function no. {}".format(n))
-
-
 def _analysis_result(analysis):
     if analysis.folder is not None:
-        return analysis.function.eval(analysis)
+        return Workflow(name=analysis.workflow_name).eval(analysis)
     else:
         return {"test_result": 1.23}
 
@@ -281,7 +268,7 @@ def _failed_analysis_result(analysis):
 
 
 def _analysis_default_kwargs(analysis):
-    return analysis.function.get_default_kwargs()
+    return Workflow(name=analysis.workflow_name).get_default_kwargs()
 
 
 class AnalysisSubjectFactory(factory.django.DjangoModelFactory):
@@ -330,7 +317,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     permissions = factory.SubFactory(
         PermissionSetFactory, user=factory.SelfAttribute("..user"), allow="view"
     )
-    function = factory.SubFactory(WorkflowFactory)
+    workflow_name = "topobank.testing.test"
     subject_dispatch = factory.SubFactory(
         AnalysisSubjectFactory,
         topography=factory.SelfAttribute("..subject_topography"),
@@ -423,20 +410,3 @@ class TagAnalysisFactory(AnalysisFactory):
         model = WorkflowResult
 
     subject_tag = factory.SubFactory(TagFactory)
-
-
-class WorkflowTemplateFactory(factory.django.DjangoModelFactory):
-    """
-    Factory for generating WorkflowTemplate instances.
-    """
-
-    class Meta:
-        model = WorkflowTemplate
-
-    name = factory.Sequence(lambda n: f"Workflow Template {n}")
-    kwargs = {"param1": "value1", "param2": "value2"}  # Example JSON field
-    implementation = factory.SubFactory(WorkflowFactory)
-    created_by = factory.SubFactory(UserFactory)
-    permissions = factory.SubFactory(
-        PermissionSetFactory, user=factory.SelfAttribute("..created_by")
-    )

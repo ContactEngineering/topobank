@@ -1,38 +1,23 @@
-"""Management command for registering all analysis functions in database.
+"""Management command for listing all registered analysis functions.
 
-Making the functions available in the database.
+The Workflow database model has been removed. Workflow metadata is now
+derived from the implementation registry at runtime; there is nothing to
+register. This command is kept for backwards compatibility and now just
+lists the currently registered functions.
 """
 from django.core.management.base import BaseCommand
 
-from topobank.analysis.registry import (
-    get_analysis_function_names,
-    sync_implementation_classes,
-)
+from topobank.analysis.registry import get_analysis_function_names
 
 
 class Command(BaseCommand):
-    help = "Registers all analysis functions in the database."
-
-    def add_arguments(self, parser):
-        # Named (optional) arguments
-        parser.add_argument(
-            '-c',
-            '--cleanup',
-            action='store_true',
-            dest='cleanup',
-            help='Delete analysis functions no longer used in code together with their analyses.',
-        )
+    help = "Lists all registered analysis functions (no-op since Workflow DB model was removed)."
 
     def handle(self, *args, **options):
-        counts = sync_implementation_classes(cleanup=options['cleanup'])
-
-        func_count = counts['funcs_created'] + counts['funcs_updated']
-
-        self.stdout.write(self.style.SUCCESS("Registered {} analysis functions in total.".format(func_count)))
-        self.stdout.write(self.style.SUCCESS("   created: {}".format(counts['funcs_created'])))
-        self.stdout.write(self.style.SUCCESS("   updated: {}".format(counts['funcs_updated'])))
-        self.stdout.write(self.style.SUCCESS("List of current functions: {}\n".format(
-            ', '.join(get_analysis_function_names()))))
-        self.stdout.write(self.style.SUCCESS("Deleted {} analysis functions. Cleanup flag set? {}".format(
-            counts['funcs_deleted'], options['cleanup'])))
+        names = sorted(get_analysis_function_names())
+        self.stdout.write(self.style.SUCCESS(
+            f"Found {len(names)} registered analysis functions:"
+        ))
+        for name in names:
+            self.stdout.write(f"  {name}")
         self.stdout.write(self.style.SUCCESS("Done."))

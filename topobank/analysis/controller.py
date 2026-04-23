@@ -2,12 +2,15 @@ import logging
 
 from django.core.exceptions import PermissionDenied
 from django.db.models import Q
-from django.shortcuts import get_object_or_404
+from django.http import Http404
 
-from topobank.manager.utils import subjects_from_dict, subjects_to_dict
 from topobank.analysis.models import Workflow, WorkflowResult, WorkflowSubject
-from topobank.analysis.registry import WorkflowNotImplementedException
+from topobank.analysis.registry import (
+    WorkflowNotImplementedException,
+    get_implementation,
+)
 from topobank.analysis.utils import find_children
+from topobank.manager.utils import subjects_from_dict, subjects_to_dict
 
 _log = logging.getLogger(__name__)
 
@@ -16,7 +19,6 @@ class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
     queryset = WorkflowResult.objects.all().select_related(
-        "function",
         "subject_dispatch__tag",
         "subject_dispatch__topography",
         "subject_dispatch__surface",
@@ -55,7 +57,9 @@ class AnalysisController:
         self._workflow = workflow
         if self._workflow is None:
             if workflow_name is not None:
-                self._workflow = get_object_or_404(Workflow, name=workflow_name)
+                if get_implementation(name=workflow_name) is None:
+                    raise Http404(f"Workflow '{workflow_name}' not found in registry.")
+                self._workflow = Workflow(name=workflow_name)
         if self._workflow is None:
             raise ValueError(
                 "Please restrict this analysis controller to a specific workflow."
@@ -215,7 +219,7 @@ class AnalysisController:
 
         # Query for user, function and subjects
         query = Q(permissions__user_permissions__user=self._user) & Q(
-            function=self._workflow
+            workflow_name=self._workflow.name
         )
 
         # Query for subjects

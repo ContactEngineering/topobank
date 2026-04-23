@@ -251,18 +251,16 @@ def two_users(settings):
 
 @pytest.fixture(scope="function", autouse=True)
 def sync_analysis_functions(db):
-    _log.info("Syncing analysis functions in registry with database objects..")
-    from ..analysis.registry import sync_implementation_classes
-
-    sync_implementation_classes(cleanup=True)
-    _log.info("Done synchronizing registry with database.")
+    # No-op: the Workflow database model has been removed. Workflow metadata is
+    # now derived from the registry at runtime.
+    pass
 
 
 @pytest.fixture(scope="function")
 def test_analysis_function():
     from ..analysis.models import Workflow
 
-    return Workflow.objects.get(name="topobank.testing.test")
+    return Workflow(name="topobank.testing.test")
 
 
 @pytest.fixture

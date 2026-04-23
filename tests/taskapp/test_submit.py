@@ -58,13 +58,13 @@ def test_different_kwargs(mocker, test_analysis_function):
 
     a1 = TopographyAnalysisFactory(
         subject_topography=topo,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         kwargs=dict(a=9, b=19),
         user=user,
     )
     a2 = TopographyAnalysisFactory(
         subject_topography=topo,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         kwargs=dict(a=29, b=39),
         user=user,
     )
@@ -76,7 +76,7 @@ def test_different_kwargs(mocker, test_analysis_function):
     #
     assert (
         WorkflowResult.objects.filter(
-            subject_dispatch__topography=topo, function=test_analysis_function
+            subject_dispatch__topography=topo, workflow_name=test_analysis_function.name
         ).count()
         == 3
     )
@@ -86,7 +86,7 @@ def test_different_kwargs(mocker, test_analysis_function):
     #
     analyses = WorkflowResult.objects.filter(
         subject_dispatch__topography=topo,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         permissions__user_permissions__user=user,
     )
 

@@ -16,7 +16,7 @@ def test_perform_analysis(
 
     analysis = TopographyAnalysisFactory.create(
         subject_topography=topo,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         kwargs=func_kwargs,
         result=None,
         task_state=WorkflowResult.PENDING
@@ -50,7 +50,7 @@ def test_perform_analysis(
     topo2 = Topography.objects.last()
     analysis2 = TopographyAnalysisFactory.create(
         subject_topography=topo2,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         kwargs=func_kwargs,
         result=None,
         task_state=WorkflowResult.PENDING
