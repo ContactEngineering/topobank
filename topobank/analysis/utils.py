@@ -78,7 +78,7 @@ def filter_and_order_analyses(analyses):
             sorted_analyses = (
                 sorted_analyses[: surface_analysis_index + 1]
                 + topography_analyses
-                + sorted_analyses[surface_analysis_index + 1 :]
+                + sorted_analyses[surface_analysis_index + 1:]
             )
 
     #
@@ -116,42 +116,6 @@ def find_children(subjects):
         if isinstance(subject, Surface):
             additional_subjects += list(subject.topography_set.all())
     return list(set(subjects + additional_subjects))
-
-
-def filter_workflow_templates(request, qs):
-    from ..analysis.models import Workflow
-    """Return queryset with workflow templates matching all filter criteria.
-
-    Workflow templates should be
-    - filtered by workflow name, if given
-
-    Parameters
-    ----------
-    request
-        Request instance
-
-    Returns
-    -------
-        Filtered queryset of workflow templates
-    """
-    implementation_name = request.GET.get("implementation", None)
-    implementation = None
-    if implementation_name is not None:
-        try:
-            implementation = Workflow.objects.get(
-                name=implementation_name
-            )
-        except Workflow.DoesNotExist:
-            _log.warning(
-                "Workflow template filter: implementation %s not found",
-                implementation_name,
-            )
-            implementation = None
-
-    if implementation is not None:
-        qs = qs.filter(implementation=implementation.id)
-
-    return qs
 
 
 def round_to_significant_digits(x, num_dig_digits):

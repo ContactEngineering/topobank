@@ -386,7 +386,7 @@ def render_deepzoom(
         for filename in filenames:
             # Strip tmp directory
             storage_filename = os.path.join(
-                storage_prefix, filename[len(tmpdirname) + 1 :]
+                storage_prefix, filename[len(tmpdirname) + 1:]
             )
             # Upload to S3
             folder.save_file(storage_filename, "der", File(open(filename, mode="rb")))
@@ -418,7 +418,7 @@ def render_deepzoom(
             for filename in nc_filenames:
                 # Strip tmp directory
                 storage_filename = os.path.join(
-                    storage_prefix, filename[len(tmpdirname) + 1 :]
+                    storage_prefix, filename[len(tmpdirname) + 1:]
                 )
                 # Upload to S3
                 folder.save_file(

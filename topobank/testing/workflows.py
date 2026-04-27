@@ -4,7 +4,7 @@ from typing import Dict
 import numpy as np
 import pydantic
 from django.core.files.base import ContentFile
-from muGrid.Timer import Timer
+from muTimer import Timer
 
 from ..analysis.models import RESULT_FILE_BASENAME, Workflow
 from ..analysis.outputs import OutputFile
@@ -177,12 +177,12 @@ class SecondTestImplementation(WorkflowImplementation):
         return {
             "dep1": WorkflowDefinition(
                 subject=topography,
-                function=Workflow.objects.get(name="topobank.testing.test"),
+                function=Workflow(name="topobank.testing.test"),
                 kwargs=dict(a=self._kwargs.c),
             ),
             "dep2": WorkflowDefinition(
                 subject=topography,
-                function=Workflow.objects.get(name="topobank.testing.test"),
+                function=Workflow(name="topobank.testing.test"),
                 kwargs=dict(b=self._kwargs.c * "A"),
             ),
         }
@@ -257,9 +257,7 @@ class TestImplementationWithErrorInDependency(WorkflowImplementation):
         return {
             "dep": WorkflowDefinition(
                 subject=topography,
-                function=Workflow.objects.get(
-                    name="topobank.testing.test_error"
-                ),
+                function=Workflow(name="topobank.testing.test_error"),
                 kwargs=self._kwargs.model_dump(),
             ),
         }
@@ -358,7 +356,7 @@ class TestImplementationWithIntegerKeys(WorkflowImplementation):
         return {
             topography.id: WorkflowDefinition(
                 subject=topography,
-                function=Workflow.objects.get(name="topobank.testing.test"),
+                function=Workflow(name="topobank.testing.test"),
                 kwargs=dict(a=self._kwargs.value),
             ),
         }

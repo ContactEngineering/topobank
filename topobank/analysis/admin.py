@@ -3,7 +3,7 @@ from django.urls import reverse
 from django.utils.html import format_html
 from django.utils.translation import gettext_lazy as _
 
-from .models import Workflow, WorkflowResult, WorkflowSubject
+from .models import WorkflowResult, WorkflowSubject
 
 
 def create_null_filter(field_name, filter_title):
@@ -83,7 +83,7 @@ class WorkflowResultAdmin(admin.ModelAdmin):
     list_display = (
         "id",
         "task_state",
-        "function__display_name",
+        "workflow_name",
         "task_id",
         "subject_type",
         "subject",
@@ -91,10 +91,10 @@ class WorkflowResultAdmin(admin.ModelAdmin):
         "task_start_time",
         "task_end_time",
     )
-    list_filter = ("task_state", SubjectTypeFilter, "function__display_name")
+    list_filter = ("task_state", SubjectTypeFilter, "workflow_name")
     ordering = ["-task_start_time"]
-    search_fields = ("id", "task_id")
-    search_help_text = "Search by WorkflowResult ID or Task ID"
+    search_fields = ("id", "task_id", "workflow_name")
+    search_help_text = "Search by WorkflowResult ID, Task ID, or workflow name"
     actions = ["resubmit_workflows"]
 
     @admin.display(description='Subject Type')
@@ -113,14 +113,6 @@ class WorkflowResultAdmin(admin.ModelAdmin):
             request,
             f"Successfully resubmitted {count} workflow result(s).",
         )
-
-
-@admin.register(Workflow)
-class WorkflowAdmin(admin.ModelAdmin):
-    list_display = ("id", "name", "display_name")
-    ordering = ["id"]
-    search_fields = ("name", "display_name")
-    search_help_text = "Search by Workflow name or display name"
 
 
 @admin.register(WorkflowSubject)

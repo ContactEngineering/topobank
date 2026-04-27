@@ -3,9 +3,9 @@ import datetime
 import pytest
 from django.contrib.contenttypes.models import ContentType
 
+from topobank.analysis.controller import AnalysisController
 from topobank.analysis.models import WorkflowResult
 from topobank.analysis.utils import find_children, merge_dicts
-from topobank.analysis.controller import AnalysisController
 from topobank.manager.models import Surface, Topography
 from topobank.testing.factories import TopographyAnalysisFactory, UserFactory
 
@@ -47,7 +47,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo1,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 1, 12),
@@ -58,7 +58,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo1,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 2, 12),
@@ -71,7 +71,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo2,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 3, 12),
@@ -82,7 +82,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo2,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 5, 12),
@@ -93,7 +93,7 @@ def test_latest_analyses(two_topos, test_analysis_function):
     TopographyAnalysisFactory.create(
         user=user,
         subject_topography=topo2,
-        function=test_analysis_function,
+        workflow_name=test_analysis_function.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_analysis_function.get_default_kwargs(),
         task_start_time=datetime.datetime(2018, 1, 4, 12),
@@ -131,7 +131,7 @@ def test_latest_analyses_if_no_analyses(test_analysis_function):
     user = UserFactory()
     assert (
         WorkflowResult.objects.filter(
-            permissions__user_permissions__user=user, function=test_analysis_function
+            permissions__user_permissions__user=user, workflow_name=test_analysis_function.name
         ).count()
         == 0
     )

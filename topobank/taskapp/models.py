@@ -9,7 +9,7 @@ import django.db.models as models
 import pydantic
 from django.core.cache import cache
 from django.utils import timezone
-from muGrid.Timer import Timer
+from muTimer import Timer
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
 from .celeryapp import app

@@ -209,7 +209,7 @@ class TestWorkflowModelOutputsSchema:
         """Test Workflow with declared Outputs returns proper schema."""
         from topobank.analysis.models import Workflow
 
-        workflow = Workflow.objects.get(name="topobank.testing.test_with_outputs")
+        workflow = Workflow(name="topobank.testing.test_with_outputs")
         schema = workflow.get_outputs_schema()
 
         # Check files
@@ -241,7 +241,7 @@ class TestWorkflowSerializerOutputsSchema:
 
     def test_serializer_includes_outputs_schema(self):
         """Test that WorkflowSerializer includes outputs_schema field."""
-        workflow = Workflow.objects.get(name="topobank.testing.test_with_outputs")
+        workflow = Workflow(name="topobank.testing.test_with_outputs")
 
         # Create a mock request
         # request = api_rf.get("/")

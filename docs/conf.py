@@ -257,4 +257,3 @@ texinfo_documents = [
 
 # If this is True, todo and todolist produce output, else they produce nothing. The default is False.
 todo_include_todos = True
-

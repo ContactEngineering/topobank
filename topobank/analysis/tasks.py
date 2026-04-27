@@ -7,7 +7,6 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from ..utils.timer import Timer
 from SurfaceTopography.Support import doi
 
 from ..manager.models import Surface, Topography
@@ -16,6 +15,7 @@ from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
+from ..utils.timer import Timer
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)
@@ -90,7 +90,6 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool):
 
     # Optimize query with select_related to reduce DB round trips
     analysis = WorkflowResult.objects.select_related(
-        'function',
         'subject_dispatch',
         'configuration',
         'created_by',
@@ -99,7 +98,7 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool):
     _log.info(
         f"{analysis_id}/{self.request.id}: Scheduling workflow -- "
         f"Queue: {celery_queue}, force recalculation: {force} -- "
-        f"Workflow: '{analysis.function.name}', subject: '{analysis.subject}', "
+        f"Workflow: '{analysis.workflow_name}', subject: '{analysis.subject}', "
         f"kwargs: {analysis.kwargs}, task_state: '{analysis.task_state}'"
     )
 
@@ -213,7 +212,6 @@ def execute_workflow(self: celery.Task, analysis_id: int):
     # Get analysis instance from database
     #
     analysis = WorkflowResult.objects.select_related(
-        'function',
         'subject_dispatch',
         'configuration',
         'created_by',
@@ -222,7 +220,7 @@ def execute_workflow(self: celery.Task, analysis_id: int):
 
     _log.info(
         f"{analysis_id}/{self.request.id}: Executing workflow -- "
-        f"Workflow: '{analysis.function.name}', subject: '{analysis.subject}', "
+        f"Workflow: '{analysis.workflow_name}', subject: '{analysis.subject}', "
         f"kwargs: {analysis.kwargs}"
     )
 
@@ -450,7 +448,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
         # to avoid materializing all historical results in memory
         existing_analysis = (
             WorkflowResult.objects.filter(
-                function=dependency.function,
+                workflow_name=dependency.function.name,
                 subject_dispatch__surface=(
                     dependency.subject
                     if isinstance(dependency.subject, Surface)
@@ -463,7 +461,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                 ),
                 kwargs=kwargs,
             )
-            .select_related('function', 'subject_dispatch')
+            .select_related('subject_dispatch')
             .order_by("-task_start_time")
             .first()
         )
@@ -474,7 +472,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                 new_analysis = WorkflowResult.objects.create(
                     permissions=parent.permissions,
                     subject_dispatch=WorkflowSubject.objects.create(dependency.subject),
-                    function=function,
+                    workflow_name=function.name,
                     task_state=WorkflowResult.PENDING,  # We are submitting this right away
                     kwargs=kwargs,
                     created_by=user,

@@ -229,10 +229,8 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # Workflow result parameters
     #
 
-    # Actual implementation of the workflow result as a Python function
-    function = models.ForeignKey(
-        "analysis.Workflow", related_name="results", on_delete=models.SET_NULL, null=True
-    )
+    # Name of the workflow (replaces the former ForeignKey to the Workflow DB model)
+    workflow_name = models.CharField(max_length=255, null=True, db_index=True)
 
     # Definition of the subject
     subject_dispatch = models.OneToOneField(
@@ -299,9 +297,9 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             # Composite index for filtering by state and ordering by time
             # Used in: WHERE task_state = x ORDER BY task_start_time
             models.Index(fields=['task_state', '-task_start_time'], name='result_state_time_idx'),
-            # Composite index for filtering by function and ordering by time
-            # Used in: WHERE function = x ORDER BY task_start_time
-            models.Index(fields=['function', '-task_start_time'], name='result_workflow_time_idx'),
+            # Composite index for filtering by workflow_name and ordering by time
+            # Used in: WHERE workflow_name = x ORDER BY task_start_time
+            models.Index(fields=['workflow_name', '-task_start_time'], name='result_workflow_time_idx'),
             # Partial index for active (non-deprecated) results
             # Most common query pattern: active results ordered by time
             # Smaller than full index since it only includes non-deprecated rows
@@ -310,10 +308,10 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 name='result_active_time_idx',
                 condition=Q(deprecation_time__isnull=True)
             ),
-            # Composite index for filtering by function + subject and ordering by time
-            # Used in: WHERE function = x AND subject_dispatch = y ORDER BY task_start_time
+            # Composite index for filtering by workflow_name + subject and ordering by time
+            # Used in: WHERE workflow_name = x AND subject_dispatch = y ORDER BY task_start_time
             models.Index(
-                fields=['function', 'subject_dispatch', '-task_start_time'],
+                fields=['workflow_name', 'subject_dispatch', '-task_start_time'],
                 name='result_func_subj_time_idx',
             ),
         ]
@@ -328,6 +326,13 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         return (
             f"WorkflowResult {self.id} on subject {self.subject} with state {self.task_state}"
         )
+
+    @property
+    def function(self):
+        """Return the Workflow for this result, or None if workflow_name is not set."""
+        if self.workflow_name is None:
+            return None
+        return Workflow(name=self.workflow_name)
 
     def save(self, *args, **kwargs):
         """
@@ -496,10 +501,10 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         for filename in dir_tuple[1]:
             manifest = Manifest.objects.create(
                 permissions=self.permissions,
-                folder=self.folder,
                 filename=filename,
                 kind="der",
             )
+            manifest.folders.add(self.folder)
             manifest.file.name = f"{self.storage_prefix}/{filename}"
             manifest.save(update_fields=["file"])
 
@@ -509,7 +514,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     @property
     def implementation(self):
-        return self.function.implementation
+        return Workflow(name=self.workflow_name).implementation
 
     def get_celery_queue(self) -> str:
         impl = self.implementation
@@ -569,7 +574,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 )
             self.subject.authorize_user(users.first().user, "view")
 
-        return self.function.eval(
+        return Workflow(name=self.workflow_name).eval(
             self,
             **auxiliary_kwargs,
         )
@@ -614,16 +619,37 @@ def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool)
     analysis.save(update_fields=["task_id"])
 
 
-class Workflow(models.Model):
+class Workflow:
     """
-    A convenience wrapper around the WorkflowImplementation that has representation in
-    the SQL database.
+    Workflow represents a registered analysis workflow.
+
+    This is a plain Python class — not a Django model. Workflow metadata is
+    derived from the implementation registry at runtime; there is no database
+    table for workflows.
     """
 
-    name = models.TextField(help_text="Internal unique identifier")
-    display_name = models.TextField(help_text="Human-readable name")
+    def __init__(self, name: str):
+        self.name = name
 
     def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"Workflow({self.name!r})"
+
+    def __eq__(self, other):
+        if isinstance(other, Workflow):
+            return self.name == other.name
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.name)
+
+    @property
+    def display_name(self):
+        impl = self.implementation
+        if impl is not None:
+            return impl.Meta.display_name
         return self.name
 
     @property
@@ -654,13 +680,28 @@ class Workflow(models.Model):
         """
         Return default keyword arguments as a dictionary.
         """
-        return self.implementation.Parameters().model_dump()
+        impl = self.implementation
+        if impl is None:
+            return {}
+        try:
+            params = impl.Parameters
+            if params is None:
+                return {}
+            return params().model_dump()
+        except Exception:
+            return {}
 
     def get_kwargs_schema(self):
         """
         JSON schema describing the keyword arguments.
         """
-        return self.implementation.Parameters().model_json_schema()
+        impl = self.implementation
+        if impl is None:
+            return {}
+        params = impl.Parameters
+        if params is not None:
+            return params.model_json_schema()
+        return {}
 
     def get_outputs_schema(self) -> list:
         """
@@ -691,16 +732,27 @@ class Workflow(models.Model):
         ------
         pydantic.ValidationError if validation fails
         """
-        return self.implementation.clean_kwargs(kwargs, fill_missing=fill_missing)
+        impl = self.implementation
+        if impl is None:
+            return kwargs or {}
+        if hasattr(impl, "instance_clean_kwargs"):
+            return impl.instance_clean_kwargs(kwargs, fill_missing=fill_missing)
+        return impl.clean_kwargs(kwargs, fill_missing=fill_missing)
 
     def get_dependencies(self, analysis):
-        return self.implementation(**analysis.kwargs).get_dependencies(analysis)
+        impl = self.implementation
+        if impl is None:
+            return {}
+        return impl(**analysis.kwargs).get_dependencies(analysis)
 
     def eval(self, analysis, **auxiliary_kwargs):
         """
         First argument is the subject of the WorkflowResult (`Surface`, `Topography` or `Tag`).
         """
-        runner = self.implementation(**analysis.kwargs)
+        impl = self.implementation
+        if impl is None:
+            raise WorkflowNotImplementedException(self.name, type(analysis.subject))
+        runner = impl(**analysis.kwargs)
         return runner.eval(analysis, **auxiliary_kwargs)
 
     def submit(
@@ -743,7 +795,7 @@ class Workflow(models.Model):
         kwargs = self.clean_kwargs(kwargs)
 
         # Query for all existing WorkflowResults with the same parameters
-        q = WorkflowSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
+        q = WorkflowSubject.Q(subject) & Q(workflow_name=self.name) & Q(kwargs=kwargs)
 
         # If subject is tag, we need to restrict this to the current user because those
         # WorkflowResults cannot be shared
@@ -811,7 +863,7 @@ class Workflow(models.Model):
             # Create new entry in the WorkflowResult table and grant access to current user
             analysis = WorkflowResult.objects.create(
                 subject_dispatch=WorkflowSubject.objects.create(subject),
-                function=self,
+                workflow_name=self.name,
                 kwargs=kwargs,
                 created_by=user,
                 updated_by=user,
@@ -850,95 +902,27 @@ class Workflow(models.Model):
 
 
 def resolve_workflow(identifier: str | int) -> Workflow:
-    """Resolve workflow from URL, ID, or name."""
-    errors = []
+    """Resolve workflow from name or URL.
 
-    # Try resolving as integer ID
-    try:
-        workflow_id = int(identifier)
-        return Workflow.objects.get(pk=workflow_id)
-    except ValueError:
-        errors.append("not a valid integer ID")
-    except Workflow.DoesNotExist:
-        errors.append(f"no workflow found with ID {workflow_id}")
+    Accepts a plain workflow name string (e.g. 'topobank.testing.test') or a
+    URL pointing to the workflow detail endpoint.  Integer IDs are no longer
+    supported — workflows have no database primary key.
+    """
+    # Try as a plain name string
+    if isinstance(identifier, str):
+        if get_implementation(name=identifier) is not None:
+            return Workflow(name=identifier)
 
-    # Try resolving as name
-    try:
-        return Workflow.objects.get(name=identifier)
-    except Workflow.DoesNotExist:
-        errors.append(f"no workflow found with name '{identifier}'")
-
-    # Try resolving as URL
-    try:
-        match = resolve(urlparse(identifier).path)
-        return Workflow.objects.get(**match.kwargs)
-    except Resolver404:
-        errors.append("invalid URL path")
-    except Workflow.DoesNotExist:
-        errors.append("URL resolved but no workflow found")
-    except Exception as e:
-        errors.append(f"URL resolution failed: {type(e).__name__}")
+        # Try resolving as a URL
+        try:
+            match = resolve(urlparse(identifier).path)
+            name = match.kwargs.get("name")
+            if name and get_implementation(name=name) is not None:
+                return Workflow(name=name)
+        except (Resolver404, Exception):
+            pass
 
     raise ValueError(
         f"Could not resolve Workflow from '{identifier}'. "
-        f"Attempted: ID, name, URL. Errors: {'; '.join(errors)}"
+        f"No workflow with that name or URL found in registry."
     )
-
-
-class WorkflowTemplate(PermissionMixin, models.Model):
-    """
-    Workflow template stores a set of parameters for a workflow.
-    """
-
-    #
-    # Manager
-    #
-    objects = AuthorizedManager()
-
-    #
-    # Permissions
-    #
-    permissions = models.ForeignKey(
-        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
-        on_delete=models.CASCADE, null=True
-    )
-
-    #
-    # Name of stored parameters
-    #
-    name = models.CharField(max_length=255)
-
-    #
-    # Parameters to be passed to workflow
-    #
-    kwargs = models.JSONField(default=dict, blank=True)
-
-    #
-    # Workflow implementation
-    #
-    implementation = models.ForeignKey(
-        Workflow, on_delete=models.CASCADE, null=True
-    )
-
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return (
-            f"Workflow Template {self.id} - {self.name} for"
-            f" implementation {self.implementation.display_name}"
-        )
-
-    def save(self, *args, **kwargs):
-        created = self.pk is None
-        if created and self.permissions is None:
-            # Create a new permission set for this template
-            _log.debug(
-                f"Creating an empty permission set for template {self.id} which was "
-                f"just created."
-            )
-            self.permissions = get_permission_model().objects.create()
-
-        super().save(*args, **kwargs)
-        if created:
-            # Grant permissions to creator
-            self.permissions.grant_for_user(self.creator, "full")
