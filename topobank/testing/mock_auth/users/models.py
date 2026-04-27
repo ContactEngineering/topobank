@@ -50,12 +50,14 @@ class User(AbstractUser):
     @classmethod
     def resolve(cls, url):
         """Resolve user from URL or ID"""
+        from urllib.parse import urlparse
+
         from django.urls import resolve
         try:
             pk = int(url)
             return cls.objects.get(pk=pk)
         except ValueError:
-            match = resolve(url)
+            match = resolve(urlparse(url).path)
             if match.view_name != "users:user-v1-detail":
                 raise ValueError("URL does not resolve to a User instance")
             return cls.objects.get(**match.kwargs)
