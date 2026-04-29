@@ -3,6 +3,7 @@ import datetime
 import pytest
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
+from django.db import IntegrityError, transaction
 from django.db.models.functions import Lower
 from django.utils import timezone
 
@@ -242,3 +243,16 @@ def test_submit_again(test_analysis_function):
     analysis = TopographyAnalysisFactory(function=test_analysis_function)
     new_analysis = analysis.submit_again()
     assert new_analysis.task_state == WorkflowResult.PENDING
+
+
+@pytest.mark.django_db
+def test_workflow_name_is_unique():
+    # The autouse sync fixture has already inserted "topobank.testing.test".
+    # Wrapping in atomic() keeps the surrounding test transaction usable on
+    # PostgreSQL after the IntegrityError.
+    with pytest.raises(IntegrityError):
+        with transaction.atomic():
+            Workflow.objects.create(
+                name="topobank.testing.test",
+                display_name="Duplicate name",
+            )
