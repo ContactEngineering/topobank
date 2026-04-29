@@ -5,6 +5,7 @@ The first argument is either a Topography or Surface instance (model).
 """
 
 import collections
+import hashlib
 import logging
 import warnings
 from dataclasses import dataclass
@@ -12,8 +13,9 @@ from typing import Union
 
 import numpy as np
 import pydantic
+from pydantic import field_validator
 
-from ..manager.models import Surface, Topography
+from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import SplitDictionaryHere
 from .models import Workflow
 from .outputs import get_outputs_schema
@@ -24,6 +26,30 @@ _log = logging.getLogger(__name__)
 # Visualization types
 APP_NAME = "analysis"
 VIZ_SERIES = "series"
+
+
+def compute_subject_hash(subject_type: str, subject_ids):
+    """Compute a deterministic hash for a set of subject IDs, prefixed by type."""
+    sorted_ids = sorted(set(subject_ids))
+    key = ",".join(str(sid) for sid in sorted_ids)
+    return f"{subject_type}:{hashlib.sha256(key.encode()).hexdigest()}"
+
+
+class SurfaceSet(pydantic.BaseModel):
+    """Validates and normalizes a set of surface IDs for workflow submission."""
+
+    surfaces: list[int]
+
+    @field_validator("surfaces")
+    @classmethod
+    def validate_surfaces(cls, v):
+        if not v:
+            raise ValueError("At least one surface required")
+        return sorted(set(v))
+
+    @property
+    def subject_hash(self) -> str:
+        return compute_subject_hash("surfaces", self.surfaces)
 
 
 class WorkflowError(Exception):
@@ -155,8 +181,39 @@ class WorkflowImplementation:
         return self._kwargs
 
     def eval(self, analysis, **auxiliary_kwargs):
+        if analysis.subject is None and analysis.surfaces.exists():
+            return self.eval_surfaces(analysis, **auxiliary_kwargs)
         implementation = self.get_implementation(analysis.subject.__class__)
         result = implementation(analysis, **auxiliary_kwargs)
+        if result is not None:
+            warnings.warn(
+                f"Workflow implementation '{self.Meta.name}' returned a result of type {type(result)}. "
+                f"Returning results from workflows is deprecated. Please store results as files instead.",
+                DeprecationWarning,
+            )
+        return result
+
+    def eval_surfaces(self, analysis, **auxiliary_kwargs):
+        """Evaluate using the surfaces M2M. Routes to existing implementations
+        based on surface set size."""
+        surfaces = list(analysis.surfaces.all())
+        n = len(surfaces)
+
+        if n > 1:
+            if not self.has_implementation(Tag):
+                raise WorkflowNotImplementedException(self.Meta.name, Tag)
+            impl = self.get_implementation(Tag)
+        elif n == 1:
+            if self.has_implementation(Surface):
+                impl = self.get_implementation(Surface)
+            elif self.has_implementation(Topography):
+                impl = self.get_implementation(Topography)
+            else:
+                raise WorkflowNotImplementedException(self.Meta.name, Surface)
+        else:
+            raise ValueError("No surfaces in analysis")
+
+        result = impl(analysis, **auxiliary_kwargs)
         if result is not None:
             warnings.warn(
                 f"Workflow implementation '{self.Meta.name}' returned a result of type {type(result)}. "
@@ -229,6 +286,10 @@ class WorkflowImplementation:
             _log.debug("No dependency definition found.")
             return []
 
+        # Surface set path: route based on surface count
+        if analysis.surfaces.exists():
+            return self._get_dependencies_for_surfaces(analysis, dependencies)
+
         try:
             dependency_func = getattr(self, dependencies[analysis.subject.__class__])
             _log.debug("Dependency function exists.")
@@ -238,6 +299,44 @@ class WorkflowImplementation:
         else:
             dependencies = dependency_func(analysis)
         return dependencies
+
+    def _get_dependencies_for_surfaces(self, analysis, dependencies):
+        """Route dependency resolution based on surface set size.
+
+        Parameters
+        ----------
+        analysis : WorkflowResult
+            The analysis instance for which dependencies are being resolved.
+        dependencies : dict
+            Dictionary mapping subject models to their dependency functions.
+
+        Returns
+        -------
+        list
+            List of dependencies for the given analysis.
+        """
+        surfaces = list(analysis.surfaces.all())
+        n = len(surfaces)
+
+        # If we have more than one surface, we use the Tag-based dependency function if it exists.
+        if n > 1:
+            dep_key = Tag
+        # If we have exactly one surface, we check for a Surface-based dependency function first,
+        # then fall back to a Topography-based one if it doesn't exist.
+        elif n == 1:
+            dep_key = Surface if Surface in dependencies else Topography
+        else:
+            return []
+
+        try:
+            dependency_func = getattr(self, dependencies[dep_key])
+            _log.debug("Dependency function exists for %s.", dep_key)
+        except KeyError:
+            _log.debug("No dependency function for surfaces (key=%s) found.", dep_key)
+            return []
+
+        # Call the dependency function and return its result
+        return dependency_func(analysis)
 
     @staticmethod
     def _get_app_config_for_obj(klass):

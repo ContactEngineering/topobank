@@ -7,7 +7,6 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
-from ..utils.timer import Timer
 from SurfaceTopography.Support import doi
 
 from ..manager.models import Surface, Topography
@@ -16,6 +15,7 @@ from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
+from ..utils.timer import Timer
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)
@@ -60,7 +60,7 @@ def get_current_configuration():
 
 
 @app.task(bind=True, soft_time_limit=3600, time_limit=3700)
-def schedule_workflow(self: celery.Task, analysis_id: int, force: bool):
+def schedule_workflow(self: celery.Task, analysis_id: int, force: bool, is_dependency: bool = False):
     """Schedule a workflow, checking and setting up dependencies first.
 
     This task handles the dependency resolution phase:
@@ -95,7 +95,7 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool):
         'configuration',
         'created_by',
         'owned_by'
-    ).prefetch_related('permissions').get(id=analysis_id)
+    ).prefetch_related('permissions', 'surfaces').get(id=analysis_id)
     _log.info(
         f"{analysis_id}/{self.request.id}: Scheduling workflow -- "
         f"Queue: {celery_queue}, force recalculation: {force} -- "
@@ -153,10 +153,10 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool):
             # Create chord: run all dependencies, then execute this workflow
             task = celery.chord(
                 (
-                    schedule_workflow.si(dep.id, False).set(queue=celery_queue)
+                    schedule_workflow.si(dep.id, False, is_dependency=True).set(queue=celery_queue)
                     for dep in scheduled_dependencies.values()
                 ),
-                execute_workflow.si(analysis.id).set(queue=celery_queue),
+                execute_workflow.si(analysis.id, is_dependency=is_dependency).set(queue=celery_queue),
             ).apply_async()
 
             # Store chord task id
@@ -186,13 +186,17 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool):
         analysis.dependencies = {}
         analysis.save()
 
-    # No dependencies or all dependencies finished successfully - execute directly
+    # No dependencies or all dependencies finished successfully - execute directly.
+    # Use .apply() (synchronous) so that when schedule_workflow is used as a chord
+    # header task, the chord does not fire its callback until the actual work is done.
+    # Using .apply_async() here would cause a race condition: the chord would see
+    # schedule_workflow as "complete" while execute_workflow is still running.
     _log.debug(f"{analysis_id}/{self.request.id}: Calling execute_workflow directly.")
-    execute_workflow.apply(args=(analysis.id,))
+    execute_workflow.apply(args=(analysis.id, is_dependency))
 
 
 @app.task(bind=True, soft_time_limit=3600, time_limit=3700)
-def execute_workflow(self: celery.Task, analysis_id: int):
+def execute_workflow(self: celery.Task, analysis_id: int, is_dependency: bool = False):
     """Execute the actual workflow after dependencies are resolved.
 
     This task assumes all dependencies are already complete and handles:
@@ -218,7 +222,7 @@ def execute_workflow(self: celery.Task, analysis_id: int):
         'configuration',
         'created_by',
         'owned_by'
-    ).prefetch_related('permissions').get(id=analysis_id)
+    ).prefetch_related('permissions', 'surfaces').get(id=analysis_id)
 
     _log.info(
         f"{analysis_id}/{self.request.id}: Executing workflow -- "
@@ -270,15 +274,18 @@ def execute_workflow(self: celery.Task, analysis_id: int):
             if dep.task_state != WorkflowResult.SUCCESS:
                 # A dependency failed - we cannot proceed
                 # Copy error and traceback from the failed dependency
+                error_msg = dep.task_error or f"Dependency '{key}' failed."
                 analysis.task_state = WorkflowResult.FAILURE
-                analysis.task_error = dep.task_error or f"Dependency '{key}' failed."
+                analysis.task_error = error_msg
                 analysis.task_traceback = dep.task_traceback
+                analysis.task_end_time = timezone.now()
                 analysis.save()
                 _log.warning(
-                    f"{analysis_id}/{self.request.id}: Dependency '{key}' (id={dep_id}) "
-                    f"is in state '{dep.task_state}', cannot execute workflow."
+                    "%s/%s: Dependency '%s' (id=%s) is in state '%s', cannot execute workflow.",
+                    analysis_id, self.request.id, key, dep_id, dep.task_state,
                 )
-                return
+                # Raise so Celery reports task_failure (not task_success)
+                raise RuntimeError(error_msg)
             finished_dependencies[key] = dep
 
     def save_result(result, task_state, peak_memory=None, dois=set(), timer=None):
@@ -329,9 +336,26 @@ def execute_workflow(self: celery.Task, analysis_id: int):
         tracemalloc.start()
         tracemalloc.reset_peak()
         timer = Timer(str(self.request.id))
+        on_progress = None
+        # If a callback is configured, create a progress callback.
+        callback_path = getattr(settings, 'WORKFLOW_PROGRESS_CALLBACK', None)
+        if callback_path:
+            from django.utils.module_loading import import_string
+            task_type = "dependency" if is_dependency else "analysis"
+            on_progress = import_string(callback_path)(
+                str(self.request.id),
+                org_id=getattr(analysis, 'owned_by_id', None),
+                task_info={
+                    "type": task_type,
+                    "name": analysis.function.display_name if analysis.function else "Workflow",
+                    "workflow_result_id": analysis.id,
+                    "organization_id": getattr(analysis, 'owned_by_id', None),
+                },
+            )
+
         result = evaluate_function(
             dois=dois,
-            progress_recorder=ProgressRecorder(self),
+            progress_recorder=ProgressRecorder(self, on_progress=on_progress),
             timer=timer,
             finished_analyses=finished_dependencies,
         )
@@ -434,6 +458,9 @@ def current_statistics(user=None):
 def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None, parent=None):
     from .models import WorkflowResult, WorkflowSubject
 
+    # Determine if parent uses the surface set path
+    use_surfaces_path = parent is not None and parent.surfaces.exists()
+
     finished_dependent_analyses = {}  # Everything that finished or failed
     scheduled_dependent_analyses = {}  # Everything that needs to be scheduled
     for key, dependency in dependencies.items():
@@ -446,40 +473,67 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
         # Clean kwargs for dependency (fill potentially missing values)
         kwargs = function.clean_kwargs(dependency.kwargs)
 
-        # Filter latest result — uses ORDER BY + LIMIT 1 instead of DISTINCT ON
-        # to avoid materializing all historical results in memory
-        existing_analysis = (
-            WorkflowResult.objects.filter(
-                function=dependency.function,
-                subject_dispatch__surface=(
-                    dependency.subject
-                    if isinstance(dependency.subject, Surface)
-                    else None
-                ),
-                subject_dispatch__topography=(
-                    dependency.subject
-                    if isinstance(dependency.subject, Topography)
-                    else None
-                ),
-                kwargs=kwargs,
+        # Query for existing analysis — use surfaces path if parent does
+        if use_surfaces_path and isinstance(dependency.subject, Surface):
+            subject_hash = WorkflowResult.compute_subject_hash("surfaces", [dependency.subject.id])
+            existing_analysis = (
+                WorkflowResult.objects.filter(
+                    function=dependency.function,
+                    subject_hash=subject_hash,
+                    kwargs=kwargs,
+                )
+                .select_related('function')
+                .prefetch_related('surfaces')
+                .order_by("-task_start_time")
+                .first()
             )
-            .select_related('function', 'subject_dispatch')
-            .order_by("-task_start_time")
-            .first()
-        )
+        else:
+            # Old path: filter via subject_dispatch
+            existing_analysis = (
+                WorkflowResult.objects.filter(
+                    function=dependency.function,
+                    subject_dispatch__surface=(
+                        dependency.subject
+                        if isinstance(dependency.subject, Surface)
+                        else None
+                    ),
+                    subject_dispatch__topography=(
+                        dependency.subject
+                        if isinstance(dependency.subject, Topography)
+                        else None
+                    ),
+                    kwargs=kwargs,
+                )
+                .select_related('function', 'subject_dispatch')
+                .order_by("-task_start_time")
+                .first()
+            )
 
         if existing_analysis is None:
             with transaction.atomic():
-                # Create new entry in the analysis table
-                new_analysis = WorkflowResult.objects.create(
+                create_kwargs = dict(
                     permissions=parent.permissions,
-                    subject_dispatch=WorkflowSubject.objects.create(dependency.subject),
                     function=function,
-                    task_state=WorkflowResult.PENDING,  # We are submitting this right away
+                    task_state=WorkflowResult.PENDING,
                     kwargs=kwargs,
                     created_by=user,
                     owned_by=parent.owned_by,
+                    metadata={"parent_workflow_result_id": parent.id},
                 )
+                if use_surfaces_path and isinstance(dependency.subject, Surface):
+                    # New surface set path: store surface in M2M and use subject_hash for lookup
+                    create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("surfaces",
+                                                                                        [dependency.subject.id])
+                else:
+                    # Old path: store subject in subject_dispatch for compatibility with existing workflows
+                    create_kwargs["subject_dispatch"] = WorkflowSubject.objects.create(dependency.subject)
+
+                new_analysis = WorkflowResult.objects.create(**create_kwargs)
+
+                if use_surfaces_path and isinstance(dependency.subject, Surface):
+                    # New path
+                    # M2M fields cannot be set until after the instance is created, so set it here.
+                    new_analysis.surfaces.set([dependency.subject])
             scheduled_dependent_analyses[key] = new_analysis
         else:
             # An analysis exists. Check whether it is successful or failed.

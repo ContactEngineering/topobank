@@ -239,6 +239,14 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         WorkflowSubject, on_delete=cascade_or_set_null, null=True,
     )
 
+    # New surface set system (coexists with subject_dispatch during transition)
+    surfaces = models.ManyToManyField(
+        Surface, blank=True, related_name="workflow_results",
+    )
+    # Hash of subject IDs for quick lookup of existing results with the same subject set.
+    # Prefixed with subject type, e.g. "surfaces:<sha256>".
+    subject_hash = models.CharField(max_length=128, null=True, blank=True, db_index=True)
+
     # Unique, user-specified name
     name = models.TextField(null=True)
 
@@ -398,13 +406,19 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
         Returns
         -------
-        Tag, Topography, or Surface
-            The subject of the WorkflowResult.
+        Tag, Topography, Surface, or QuerySet
+            The subject of the WorkflowResult. For surface-set analyses with a single
+            surface, returns that Surface. For multi-surface sets, returns the queryset.
         """
         if self.subject_dispatch:
             return self.subject_dispatch.get()
-        else:
-            return None
+        # Fall back to surfaces M2M for surface-set analyses
+        surfaces = self.surfaces.all()
+        if surfaces.exists():
+            if surfaces.count() == 1:
+                return surfaces.first()
+            return surfaces
+        return None
 
     @property
     def result(self):
@@ -559,7 +573,27 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             return False
         return self.subject_dispatch.tag is not None
 
+    @staticmethod
+    def compute_subject_hash(subject_type, subject_ids):
+        """Compute a deterministic hash for a set of subject IDs, prefixed by type."""
+        from .workflows import compute_subject_hash
+        return compute_subject_hash(subject_type, subject_ids)
+
+    def update_subject_hash(self):
+        """Recompute and save subject_hash from the current M2M relationship."""
+        ids = list(self.surfaces.values_list("id", flat=True))
+        self.subject_hash = self.compute_subject_hash("surfaces", ids) if ids else None
+        self.save(update_fields=["subject_hash"])
+
     def eval_self(self, **auxiliary_kwargs):
+        if self.surfaces.exists():
+            # New path: use surface set routing
+            return self.function.eval_surfaces(
+                self,
+                **auxiliary_kwargs,
+            )
+
+        # Old path: use subject_dispatch
         if self.is_tag_related:
             users = self.permissions.user_permissions.all()
             if users.count() != 1:
@@ -620,7 +654,7 @@ class Workflow(models.Model):
     the SQL database.
     """
 
-    name = models.TextField(help_text="Internal unique identifier")
+    name = models.TextField(help_text="Internal unique identifier", unique=True)
     display_name = models.TextField(help_text="Human-readable name")
 
     def __str__(self):
@@ -702,6 +736,12 @@ class Workflow(models.Model):
         """
         runner = self.implementation(**analysis.kwargs)
         return runner.eval(analysis, **auxiliary_kwargs)
+
+    def eval_surfaces(self, analysis, **auxiliary_kwargs):
+        """Evaluate using the surfaces M2M path. Routes to existing implementations
+        based on surface set size."""
+        runner = self.implementation(**analysis.kwargs)
+        return runner.eval_surfaces(analysis, **auxiliary_kwargs)
 
     def submit(
         self,
@@ -816,6 +856,99 @@ class Workflow(models.Model):
                 created_by=user,
                 updated_by=user,
             )
+            analysis.set_pending_state()
+            analysis.permissions.grant_for_user(user, "edit")
+            transaction.on_commit(
+                partial(submit_analysis_task_to_celery, analysis, True)
+            )
+        return analysis
+
+    def submit_for_surfaces(
+        self,
+        user: settings.AUTH_USER_MODEL,
+        surfaces: list,
+        kwargs: dict = None,
+        owned_by_id=None,
+        force_submit: bool = False,
+    ):
+        """
+        Submit workflow for a set of surfaces (new surface set system).
+
+        Parameters
+        ----------
+        user : User
+            User submitting the workflow.
+        surfaces : list[Surface]
+            List of Surface instances to include in the surface set.
+        kwargs : dict, optional
+            Keyword arguments for the workflow. (Default: None)
+        force_submit : bool, optional
+            Submit even if a matching WorkflowResult already exists. (Default: False)
+        """
+        from .workflows import SurfaceSet
+
+        surface_set = SurfaceSet(surfaces=[s.id for s in surfaces])
+
+        # Permission checks (commented out during initial implementation)
+        # for surface in surfaces:
+        #     surface.authorize_user(user, "view")
+
+        kwargs = self.clean_kwargs(kwargs)
+
+        # Dedup check using subject_hash
+        existing = WorkflowResult.objects.filter(
+            function=self,
+            subject_hash=surface_set.subject_hash,
+            kwargs=kwargs,
+        )
+
+        successful_or_running = existing.filter(
+            task_state__in=[
+                WorkflowResult.PENDING,
+                WorkflowResult.PENDING_DEPENDENCIES,
+                WorkflowResult.RETRY,
+                WorkflowResult.STARTED,
+                WorkflowResult.SUCCESS,
+            ]
+        )
+
+        if force_submit or successful_or_running.count() == 0:
+            existing.filter(name__isnull=True).delete()
+            return self._submit_new_analysis_for_surfaces(user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id)
+        else:
+            return existing.order_by("task_start_time").last()
+
+    def _submit_new_analysis_for_surfaces(
+        self,
+        user: settings.AUTH_USER_MODEL,
+        surfaces: list,
+        surface_set,
+        kwargs: dict,
+        owned_by_id=None,
+    ):
+        """Create and submit a new WorkflowResult for a surface set."""
+        _log.info(
+            "Submitting new surface-set WorkflowResult for user %s, "
+            "surfaces %s, function %s, kwargs: %s",
+            user,
+            [s.id for s in surfaces],
+            self,
+            kwargs
+        )
+
+        if not owned_by_id:
+            owned_by_id = surfaces[0].owned_by_id
+
+        with transaction.atomic():
+            analysis = WorkflowResult.objects.create(
+                function=self,
+                kwargs=kwargs,
+                subject_hash=surface_set.subject_hash,
+                created_by=user,
+                updated_by=user,
+                owned_by_id=owned_by_id,
+            )
+            analysis.surfaces.set(surfaces)
             analysis.set_pending_state()
             analysis.permissions.grant_for_user(user, "edit")
             transaction.on_commit(
