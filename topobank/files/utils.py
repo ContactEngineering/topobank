@@ -3,4 +3,5 @@ def file_storage_path(instance, filename: str) -> str:
         raise RuntimeError(
             f"Cannot construct storage path from unsaved instance {instance}."
         )
-    return f"data-lake/{instance.id}/{filename}"
+    prefix = "uploads" if instance.kind == "raw" else "data-lake"
+    return f"{prefix}/{instance.id}/{filename}"
