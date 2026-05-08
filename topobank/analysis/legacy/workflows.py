@@ -1,7 +1,5 @@
 """
-Legacy WorkflowImplementation base class and helpers.
-
-New workflows should use muFlow's @register_task decorator instead.
+WorkflowImplementation base class and helpers.
 """
 
 import collections

@@ -11,20 +11,12 @@ def test_retrieve_registry_workflows():
 
     assert TestImplementation.Meta.name in names, "Legacy workflow not in registry!"
 
-    try:
-        from muflow import registry as muflow_registry
-        muflow_names = list(muflow_registry.get_all())
-        if muflow_names:
-            assert muflow_names[0] in names, "muFlow workflow not in registry!"
-    except ImportError:
-        pass
-
 
 @pytest.mark.django_db
 def test_workflow_schema_generation():
     """
     Ensure that get_kwargs_schema and get_default_kwargs do not crash for any
-    registered workflows (both legacy and muFlow).
+    registered workflows.
     """
     names = get_analysis_function_names()
     assert len(names) > 0, "No workflows found to test"

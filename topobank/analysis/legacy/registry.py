@@ -1,7 +1,5 @@
 """
-Legacy registry for WorkflowImplementation-based analysis functions.
-
-New workflows should use muFlow's @register_task decorator instead.
+Registry for WorkflowImplementation-based analysis functions.
 """
 
 

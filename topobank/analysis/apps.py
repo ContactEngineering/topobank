@@ -8,6 +8,3 @@ class AnalysisAppConfig(AppConfig):
         from . import custodian  # noqa: F401
         from . import signals  # noqa: F401
         from . import tasks  # noqa: F401
-
-        # Register muFlow Celery tasks
-        from .muflow import tasks as muflow_tasks  # noqa: F401

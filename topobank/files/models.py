@@ -191,7 +191,7 @@ class Manifest(PermissionMixin, models.Model):
     )
 
     # ManifestSets that contain this file. Multiple ManifestSets can reference the same
-    # Manifest, enabling shared files (e.g., muFlow cached results).
+    # Manifest, enabling shared files.
     folders = models.ManyToManyField(
         ManifestSet, related_name="files", blank=True
     )
