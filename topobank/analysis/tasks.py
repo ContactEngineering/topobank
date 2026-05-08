@@ -471,39 +471,15 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
         # Clean kwargs for dependency (fill potentially missing values)
         kwargs = function.clean_kwargs(dependency.kwargs)
 
-<<<<<<< SD-610-2
-        # Filter latest result — uses ORDER BY + LIMIT 1 instead of DISTINCT ON
-        # to avoid materializing all historical results in memory
-        existing_analysis = (
-            WorkflowResult.objects.filter(
-                workflow_name=dependency.function.name,
-                subject_dispatch__surface=(
-                    dependency.subject
-                    if isinstance(dependency.subject, Surface)
-                    else None
-                ),
-                subject_dispatch__topography=(
-                    dependency.subject
-                    if isinstance(dependency.subject, Topography)
-                    else None
-                ),
-                kwargs=kwargs,
-            )
-            .select_related('subject_dispatch')
-            .order_by("-task_start_time")
-            .first()
-        )
-=======
         # Query for existing analysis — use surfaces path if parent does
         if use_surfaces_path and isinstance(dependency.subject, Surface):
             subject_hash = WorkflowResult.compute_subject_hash("surfaces", [dependency.subject.id])
             existing_analysis = (
                 WorkflowResult.objects.filter(
-                    function=dependency.function,
+                    workflow_name=dependency.function.name,
                     subject_hash=subject_hash,
                     kwargs=kwargs,
                 )
-                .select_related('function')
                 .prefetch_related('surfaces')
                 .order_by("-task_start_time")
                 .first()
@@ -512,7 +488,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             # Old path: filter via subject_dispatch
             existing_analysis = (
                 WorkflowResult.objects.filter(
-                    function=dependency.function,
+                    workflow_name=dependency.function.name,
                     subject_dispatch__surface=(
                         dependency.subject
                         if isinstance(dependency.subject, Surface)
@@ -525,24 +501,17 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                     ),
                     kwargs=kwargs,
                 )
-                .select_related('function', 'subject_dispatch')
+                .select_related('subject_dispatch')
                 .order_by("-task_start_time")
                 .first()
             )
->>>>>>> main
 
         if existing_analysis is None:
             with transaction.atomic():
                 create_kwargs = dict(
                     permissions=parent.permissions,
-<<<<<<< SD-610-2
-                    subject_dispatch=WorkflowSubject.objects.create(dependency.subject),
                     workflow_name=function.name,
-                    task_state=WorkflowResult.PENDING,  # We are submitting this right away
-=======
-                    function=function,
                     task_state=WorkflowResult.PENDING,
->>>>>>> main
                     kwargs=kwargs,
                     created_by=user,
                     owned_by=parent.owned_by,

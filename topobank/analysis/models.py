@@ -662,13 +662,8 @@ class Workflow:
     table for workflows.
     """
 
-<<<<<<< SD-610-2
     def __init__(self, name: str):
         self.name = name
-=======
-    name = models.TextField(help_text="Internal unique identifier", unique=True)
-    display_name = models.TextField(help_text="Human-readable name")
->>>>>>> main
 
     def __str__(self):
         return self.name
@@ -954,7 +949,7 @@ class Workflow:
 
         # Dedup check using subject_hash
         existing = WorkflowResult.objects.filter(
-            function=self,
+            workflow_name=self.name,
             subject_hash=surface_set.subject_hash,
             kwargs=kwargs,
         )
@@ -998,7 +993,7 @@ class Workflow:
 
         with transaction.atomic():
             analysis = WorkflowResult.objects.create(
-                function=self,
+                workflow_name=self.name,
                 kwargs=kwargs,
                 subject_hash=surface_set.subject_hash,
                 created_by=user,
