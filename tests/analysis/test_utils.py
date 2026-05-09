@@ -17,7 +17,7 @@ def test_request_analysis(two_topos, test_workflow):
 
     # delete all prior analyses for these two topographies in order to have a clean state
     WorkflowResult.objects.filter(
-        subject_dispatch__topography__in=[topo1, topo2]
+        subject_topography__in=[topo1, topo2]
     ).delete()
 
     user = topo1.created_by
@@ -38,7 +38,7 @@ def test_latest_analyses(two_topos, test_workflow):
 
     # delete all prior analyses for these two topographies in order to have a clean state
     WorkflowResult.objects.filter(
-        subject_dispatch__topography__in=[topo1, topo2]
+        subject_topography__in=[topo1, topo2]
     ).delete()
 
     #

@@ -2,10 +2,11 @@ import logging
 from datetime import timedelta
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 
 from ..taskapp.celeryapp import app
-from .models import WorkflowResult, WorkflowSubject
+from .models import WorkflowResult
 
 _log = logging.getLogger(__name__)
 
@@ -15,23 +16,13 @@ def periodic_cleanup():
     # Delete all analyses that were marked as deprecated and that are not saved
     q = WorkflowResult.objects.filter(
         deprecation_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY,
-        subject_dispatch__isnull=False,
         name__isnull=True
+    ).filter(
+        Q(subject_topography__isnull=False) | Q(subject_surface__isnull=False) | Q(subject_tag__isnull=False)
     )
     if q.count() > 0:
         _log.info(
             f"Custodian: Deleting {q.count()} analysis results because they were marked as deprecated."
-        )
-        q.delete()
-
-    # Delete all WorkflowSubjects that are not linked to any WorkflowResult
-    # This happens when a name is set on a WorkflowResult
-    q = WorkflowSubject.objects.filter(
-        workflowresult__isnull=True
-    )
-    if q.count() > 0:
-        _log.info(
-            f"Custodian: Deleting {q.count()} workflow subjects because they are not linked to any analysis result."
         )
         q.delete()
 

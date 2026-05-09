@@ -52,8 +52,8 @@ def delete_all_related_analyses(sender, instance, **kwargs):
     )
     # Use update() directly for better performance
     WorkflowResult.objects.filter(
-        Q(subject_dispatch__topography=instance)
-        | Q(subject_dispatch__surface=instance.surface)
+        Q(subject_topography=instance)
+        | Q(subject_surface=instance.surface)
     ).update(deprecation_time=timezone.now())
 
 
@@ -63,7 +63,7 @@ def pre_measurement_save(sender, instance, **kwargs):
     if created:
         # Measurement was created and added to a dataset: We need to delete the
         # corresponding dataset analysis
-        analyses = WorkflowResult.objects.filter(subject_dispatch__surface=instance.surface)
+        analyses = WorkflowResult.objects.filter(subject_surface=instance.surface)
         if analyses.exists():  # More efficient than count() > 0
             ids = ", ".join(
                 [str(i) for i in analyses.values_list("id", flat=True)]
@@ -82,4 +82,4 @@ def pre_delete_topography(sender, instance, **kwargs):
     # corresponding surface analysis; we do this after the transaction has finished
     # so we can check whether the surface still exists.
     _log.debug(f"Measurement {instance} was deleted: Deleting all affected analyses...")
-    WorkflowResult.objects.filter(subject_dispatch__surface=instance.surface).delete()
+    WorkflowResult.objects.filter(subject_surface=instance.surface).delete()

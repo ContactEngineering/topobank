@@ -76,7 +76,7 @@ def test_different_kwargs(mocker, test_workflow):
     #
     assert (
         WorkflowResult.objects.filter(
-            subject_dispatch__topography=topo, workflow_name=test_workflow.name
+            subject_topography=topo, workflow_name=test_workflow.name
         ).count()
         == 3
     )
@@ -85,7 +85,7 @@ def test_different_kwargs(mocker, test_workflow):
     # Only one analysis is marked for user 'user'
     #
     analyses = WorkflowResult.objects.filter(
-        subject_dispatch__topography=topo,
+        subject_topography=topo,
         workflow_name=test_workflow.name,
         permissions__user_permissions__user=user,
     )

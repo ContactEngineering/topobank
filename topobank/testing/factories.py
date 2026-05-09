@@ -10,7 +10,7 @@ from django.db.models.signals import post_save
 from django.utils import timezone
 from factory import post_generation
 
-from ..analysis.models import Workflow, WorkflowResult, WorkflowSubject
+from ..analysis.models import Workflow, WorkflowResult
 from ..manager.models import Surface, Tag, Topography
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
@@ -272,11 +272,6 @@ def _analysis_default_kwargs(analysis):
     return Workflow(name=analysis.workflow_name).get_default_kwargs()
 
 
-class AnalysisSubjectFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = WorkflowSubject
-
-
 class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     """Abstract factory class for generating Analysis.
 
@@ -288,17 +283,23 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     class Meta:
         model = WorkflowResult
         exclude = (
-            "subject_topography",
-            "subject_surface",
-            "subject_tag",
-            "subject",
             "user",
+            "subject",  # computed proxy for eval during factory build; not a model field
         )
         skip_postgeneration_save = True
 
     subject_topography = None  # factory.SubFactory(Topography2DFactory)
     subject_surface = None
     subject_tag = None
+
+    # Proxy so that Workflow.eval() can call analysis.subject during factory build
+    subject = factory.LazyAttribute(
+        lambda obj: (
+            obj.subject_surface
+            if obj.subject_surface
+            else (obj.subject_topography if obj.subject_topography else obj.subject_tag)
+        )
+    )
 
     user = factory.LazyAttribute(
         lambda obj: (
@@ -319,19 +320,6 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
         PermissionSetFactory, user=factory.SelfAttribute("..user"), allow="view"
     )
     workflow_name = "topobank.testing.test"
-    subject_dispatch = factory.SubFactory(
-        AnalysisSubjectFactory,
-        topography=factory.SelfAttribute("..subject_topography"),
-        surface=factory.SelfAttribute("..subject_surface"),
-        tag=factory.SelfAttribute("..subject_tag"),
-    )
-    subject = factory.LazyAttribute(
-        lambda obj: (
-            obj.subject_surface
-            if obj.subject_surface
-            else (obj.subject_topography if obj.subject_topography else obj.subject_tag)
-        )
-    )
 
     folder = factory.SubFactory(
         ManifestSetFactory,
@@ -360,11 +348,8 @@ class AnalysisFactory(AnalysisFactoryWithoutResult):
     class Meta:
         model = WorkflowResult
         exclude = (
-            "subject_topography",
-            "subject_surface",
-            "subject_tag",
-            "subject",
             "user",
+            "subject",
             "import_from_folder",
         )
 

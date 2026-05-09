@@ -2,7 +2,6 @@
 Registry for WorkflowImplementation-based analysis functions.
 """
 
-
 #
 # Exceptions
 #

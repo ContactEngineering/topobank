@@ -36,10 +36,10 @@ def filter_and_order_analyses(analyses):
         OrderedDict()
     )  # always the same order of surfaces for same list of subjects
     for topography_analysis in sorted(
-        [a for a in analyses if a.subject_dispatch.topography is not None],
-        key=lambda a: a.subject_dispatch.topography_id,
+        [a for a in analyses if a.subject_topography_id is not None],
+        key=lambda a: a.subject_topography_id,
     ):
-        surface = topography_analysis.subject_dispatch.topography.surface
+        surface = topography_analysis.subject_topography.surface
         if surface not in analysis_groups:
             analysis_groups[surface] = []
         analysis_groups[surface].append(topography_analysis)
@@ -48,11 +48,11 @@ def filter_and_order_analyses(analyses):
     # Process groups and collect analyses which are implicitly sorted
     #
     analyses_of_surfaces = sorted(
-        [a for a in analyses if a.subject_dispatch.surface is not None],
-        key=lambda a: a.subject_dispatch.surface_id,
+        [a for a in analyses if a.subject_surface_id is not None],
+        key=lambda a: a.subject_surface_id,
     )
     surfaces_of_surface_analyses = [
-        a.subject_dispatch.surface for a in analyses_of_surfaces
+        a.subject_surface for a in analyses_of_surfaces
     ]
     for surface, topography_analyses in analysis_groups.items():
         try:
@@ -85,8 +85,8 @@ def filter_and_order_analyses(analyses):
     # Finally add analyses for surface collections, if any
     #
     for tag_analysis in sorted(
-        [a for a in analyses if a.subject_dispatch.tag is not None],
-        key=lambda a: a.subject_dispatch.tag_id,
+        [a for a in analyses if a.subject_tag_id is not None],
+        key=lambda a: a.subject_tag_id,
     ):
         sorted_analyses.append(tag_analysis)
 

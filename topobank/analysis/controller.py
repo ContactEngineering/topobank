@@ -4,7 +4,7 @@ from django.core.exceptions import PermissionDenied
 from django.db.models import Q
 from django.http import Http404
 
-from topobank.analysis.models import Workflow, WorkflowResult, WorkflowSubject
+from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.registry import (
     WorkflowNotImplementedException,
     get_implementation,
@@ -19,9 +19,9 @@ class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
     queryset = WorkflowResult.objects.all().select_related(
-        "subject_dispatch__tag",
-        "subject_dispatch__topography",
-        "subject_dispatch__surface",
+        "subject_topography",
+        "subject_surface",
+        "subject_tag",
     )
 
     def __init__(
@@ -226,7 +226,7 @@ class AnalysisController:
         if self._subjects is not None and len(self._subjects):
             subjects_query = None
             for subject in self._subjects:
-                q = WorkflowSubject.Q(subject)
+                q = WorkflowResult.Q(subject)
                 subjects_query = q if subjects_query is None else subjects_query | q
                 # adjusting this fixes the latest query test
             query = subjects_query & query
@@ -239,15 +239,15 @@ class AnalysisController:
         qs = (
             self.queryset.filter(query)
             .order_by(
-                "subject_dispatch__topography_id",
-                "subject_dispatch__surface_id",
-                "subject_dispatch__tag_id",
+                "subject_topography_id",
+                "subject_surface_id",
+                "subject_tag_id",
                 "-task_start_time",
             )
             .distinct(
-                "subject_dispatch__topography_id",
-                "subject_dispatch__surface_id",
-                "subject_dispatch__tag_id",
+                "subject_topography_id",
+                "subject_surface_id",
+                "subject_tag_id",
             )
         )
 
