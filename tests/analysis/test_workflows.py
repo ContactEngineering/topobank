@@ -1,13 +1,13 @@
 import pytest
 
 from topobank.analysis.models import Workflow
-from topobank.analysis.registry import get_analysis_function_names
+from topobank.analysis.registry import get_workflow_names
 from topobank.testing.workflows import TestImplementation
 
 
 @pytest.mark.django_db
 def test_retrieve_registry_workflows():
-    names = get_analysis_function_names()
+    names = get_workflow_names()
 
     assert TestImplementation.Meta.name in names, "Legacy workflow not in registry!"
 
@@ -18,7 +18,7 @@ def test_workflow_schema_generation():
     Ensure that get_kwargs_schema and get_default_kwargs do not crash for any
     registered workflows.
     """
-    names = get_analysis_function_names()
+    names = get_workflow_names()
     assert len(names) > 0, "No workflows found to test"
 
     for name in names:

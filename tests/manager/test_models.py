@@ -11,6 +11,7 @@ from django.db.utils import IntegrityError
 from notifications.models import Notification
 from notifications.signals import notify
 from numpy.testing import assert_allclose
+from topobank_orcid.authorization.models import PermissionSet
 
 from topobank.manager.models import Surface, Tag, Topography
 from topobank.testing.factories import (
@@ -19,7 +20,6 @@ from topobank.testing.factories import (
     Topography2DFactory,
     UserFactory,
 )
-from topobank.testing.mock_auth.authorization.models import PermissionSet
 
 
 @pytest.mark.django_db

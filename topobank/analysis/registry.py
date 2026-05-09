@@ -24,6 +24,6 @@ def get_implementation(display_name=None, name=None):
         raise RuntimeError("Please specify either `name` or `display_name`.")
 
 
-def get_analysis_function_names(user=None):
+def get_workflow_names(user=None):
     """Returns registered function names. The `user` parameter is deprecated."""
     return list(_implementation_classes_by_name.keys())

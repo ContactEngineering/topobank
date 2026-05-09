@@ -3,14 +3,13 @@ import datetime
 import pytest
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import IntegrityError, transaction
 from django.db.models.functions import Lower
 from django.utils import timezone
 
 from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.registry import (
     WorkflowNotImplementedException,
-    get_analysis_function_names,
+    get_workflow_names,
 )
 from topobank.analysis.tasks import get_current_configuration
 from topobank.files.models import Manifest
@@ -52,7 +51,7 @@ def test_tag_as_analysis_subject():
 
 
 @pytest.mark.django_db
-def test_exception_implementation_missing(test_analysis_function):
+def test_exception_implementation_missing(test_workflow):
     # We create an implementation for surfaces, but not for analyses
     function = Workflow(name="topobank.testing.topography_only_test")
     analysis = TopographyAnalysisFactory(workflow_name=function.name)
@@ -64,8 +63,8 @@ def test_exception_implementation_missing(test_analysis_function):
 
 
 @pytest.mark.django_db
-def test_analysis_function(test_analysis_function):
-    assert test_analysis_function.implementation == TestImplementation
+def test_workflow_eval(test_workflow):
+    assert test_workflow.implementation == TestImplementation
 
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
@@ -74,13 +73,13 @@ def test_analysis_function(test_analysis_function):
         kwargs=dict(a=2, b="bar"),
     )
     analysis.folder.remove_files()  # Make sure there are no files
-    test_analysis_function.eval(analysis)
+    test_workflow.eval(analysis)
     # Results are now stored as files, access via analysis.result
     assert analysis.result["comment"] == "Arguments: a is 2 and b is bar"
 
 
 @pytest.mark.django_db
-def test_analysis_times(two_topos, test_analysis_function):
+def test_analysis_times(two_topos, test_workflow):
     now = timezone.now()
 
     analysis = TopographyAnalysisFactory.create(
@@ -101,15 +100,15 @@ def test_analysis_times(two_topos, test_analysis_function):
 
 
 @pytest.mark.django_db
-def test_autoload_analysis_functions():
+def test_autoload_workflows():
     # At least the functions defined in this app should be available
-    names = get_analysis_function_names()
+    names = get_workflow_names()
 
     # "test" function should be there
     assert "topobank.testing.test" in names
 
     # Registry is populated at import time; calling again returns the same result
-    names2 = get_analysis_function_names()
+    names2 = get_workflow_names()
     assert set(names) == set(names2)
 
 
@@ -186,7 +185,7 @@ def test_current_configuration(settings):
 
 
 @pytest.mark.django_db
-def test_analysis_delete_removes_files(test_analysis_function):
+def test_analysis_delete_removes_files(test_workflow):
     analysis = TopographyAnalysisFactory()
     assert len(analysis.folder) == 4
     file_path = analysis.folder.files.first().file.name
@@ -198,11 +197,11 @@ def test_analysis_delete_removes_files(test_analysis_function):
 
 @pytest.mark.skip(reason="Test is for deprecated functionality")
 @pytest.mark.django_db
-def test_fix_folder(test_analysis_function):
+def test_fix_folder(test_workflow):
     # Old analyses do not have folders
     assert Manifest.objects.count() == 0
     analysis = TopographyAnalysisFactory(
-        workflow_name=test_analysis_function.name,
+        workflow_name=test_workflow.name,
         folder=None,
     )
     print([m for m in Manifest.objects.all()])
@@ -223,20 +222,7 @@ def test_fix_folder(test_analysis_function):
 
 
 @pytest.mark.django_db
-def test_submit_again(test_analysis_function):
+def test_submit_again(test_workflow):
     analysis = TopographyAnalysisFactory()
     new_analysis = analysis.submit_again()
     assert new_analysis.task_state == WorkflowResult.PENDING
-
-
-@pytest.mark.django_db
-def test_workflow_name_is_unique():
-    # The autouse sync fixture has already inserted "topobank.testing.test".
-    # Wrapping in atomic() keeps the surrounding test transaction usable on
-    # PostgreSQL after the IntegrityError.
-    with pytest.raises(IntegrityError):
-        with transaction.atomic():
-            Workflow.objects.create(
-                name="topobank.testing.test",
-                display_name="Duplicate name",
-            )

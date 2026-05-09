@@ -354,9 +354,8 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
            in the storage backend using the store_split_dict function and clears the
            temporary result storage.
 
-        Note: Named results retain their subject_dispatch. The custom cascade_or_set_null
-        handler on subject_dispatch ensures named results survive subject deletion by
-        setting the field to NULL instead of cascading.
+        Note: When a result is given a name, its subject_dispatch is cleared so that
+        named results are not tied to any specific subject and survive subject deletion.
 
         Parameters
         ----------
@@ -365,6 +364,12 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         **kwargs : dict
             Arbitrary keyword arguments.
         """
+
+        # Named results are detached from their subject
+        if self.name and self.subject_dispatch_id is not None:
+            self.subject_dispatch = None
+            if 'update_fields' in kwargs and kwargs['update_fields'] is not None:
+                kwargs['update_fields'] = list(kwargs['update_fields']) + ['subject_dispatch']
 
         # Ensure permissions and folder are set
         if self.permissions is None:
@@ -517,8 +522,8 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 permissions=self.permissions,
                 filename=filename,
                 kind="der",
+                folder=self.folder,
             )
-            manifest.folders.add(self.folder)
             manifest.file.name = f"{self.storage_prefix}/{filename}"
             manifest.save(update_fields=["file"])
 

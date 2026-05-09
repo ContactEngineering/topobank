@@ -199,9 +199,9 @@ class TestWorkflowImplementationOutputs:
 class TestWorkflowModelOutputsSchema:
     """Tests for Workflow.get_outputs_schema() method."""
 
-    def test_workflow_outputs_schema(self, test_analysis_function):
+    def test_workflow_outputs_schema(self, test_workflow):
         """Test that Workflow model returns outputs schema."""
-        schema = test_analysis_function.get_outputs_schema()
+        schema = test_workflow.get_outputs_schema()
         # TestImplementation doesn't have Outputs, so should return empty
         assert schema == []
 
@@ -254,17 +254,17 @@ class TestWorkflowSerializerOutputsSchema:
         schema = workflow.get_outputs_schema()
         assert len(schema) == 2
 
-    def test_serializer_empty_outputs_schema(self, test_analysis_function):
+    def test_serializer_empty_outputs_schema(self, test_workflow):
         """Test that WorkflowSerializer returns empty schema for legacy workflows."""
         # request = api_rf.get("/")
         # serializer = WorkflowDetailSerializer(
-        #     test_analysis_function, context={"request": Request(request)}
+        #     test_workflow, context={"request": Request(request)}
         # )
         # data = serializer.data
 
         # assert "outputs_schema" in data
         # assert data["outputs_schema"] == []
-        schema = test_analysis_function.get_outputs_schema()
+        schema = test_workflow.get_outputs_schema()
         assert schema == []
 
 

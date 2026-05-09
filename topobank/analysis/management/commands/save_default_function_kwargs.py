@@ -6,7 +6,7 @@ from django.core.management.base import BaseCommand
 from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.registry import (
     WorkflowNotImplementedException,
-    get_analysis_function_names,
+    get_workflow_names,
 )
 
 _log = logging.getLogger(__name__)
@@ -34,7 +34,7 @@ class Command(BaseCommand):
         # Build lookup table of default kwargs per workflow name
         #
         default_kwargs = {}  # key: workflow name
-        for name in get_analysis_function_names():
+        for name in get_workflow_names():
             workflow = Workflow(name=name)
             try:
                 dkw = workflow.get_default_kwargs()

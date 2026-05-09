@@ -6,7 +6,7 @@ from topobank.testing.factories import Topography1DFactory, TopographyAnalysisFa
 
 
 @pytest.mark.django_db
-def test_request_analysis(mocker, test_analysis_function):
+def test_request_analysis(mocker, test_workflow):
     """Make sure analysis objects were created with correct parameters"""
 
     mocker.patch(
@@ -23,28 +23,28 @@ def test_request_analysis(mocker, test_analysis_function):
         assert analysis.has_permission(user, "view")  # make sure the user has been set
 
     # test case 1
-    analysis = test_analysis_function.submit(user, topo, dict(a=13, b="24"))
+    analysis = test_workflow.submit(user, topo, dict(a=13, b="24"))
     assert_correct_args(analysis, dict(a=13, b="24"))
 
     # test case 2
-    analysis = test_analysis_function.submit(user, topo, dict(a=1, b="2"))
+    analysis = test_workflow.submit(user, topo, dict(a=1, b="2"))
     assert_correct_args(analysis, dict(a=1, b="2"))
 
     # test case 3
-    analysis = test_analysis_function.submit(user, topo, dict(a=2, b="1"))
+    analysis = test_workflow.submit(user, topo, dict(a=2, b="1"))
     assert_correct_args(analysis, dict(a=2, b="1"))
 
     # test case 4
     with pytest.raises(pydantic.ValidationError):
-        test_analysis_function.submit(user, topo, dict(a=1, c=24))
+        test_workflow.submit(user, topo, dict(a=1, c=24))
 
     # test case 4
     with pytest.raises(pydantic.ValidationError):
-        test_analysis_function.submit(user, topo, dict(a=1, b=2))
+        test_workflow.submit(user, topo, dict(a=1, b=2))
 
 
 @pytest.mark.django_db
-def test_different_kwargs(mocker, test_analysis_function):
+def test_different_kwargs(mocker, test_workflow):
     """
     When requesting an analysis with new arguments, the old analyses should still exist
     (at the moment, maybe delete later analyses without user),
@@ -58,25 +58,25 @@ def test_different_kwargs(mocker, test_analysis_function):
 
     a1 = TopographyAnalysisFactory(
         subject_topography=topo,
-        workflow_name=test_analysis_function.name,
+        workflow_name=test_workflow.name,
         kwargs=dict(a=9, b=19),
         user=user,
     )
     a2 = TopographyAnalysisFactory(
         subject_topography=topo,
-        workflow_name=test_analysis_function.name,
+        workflow_name=test_workflow.name,
         kwargs=dict(a=29, b=39),
         user=user,
     )
 
-    a3 = test_analysis_function.submit(user, topo, {"a": 1, "b": "2"})
+    a3 = test_workflow.submit(user, topo, {"a": 1, "b": "2"})
 
     #
     # Now there are three analyses for af+topo
     #
     assert (
         WorkflowResult.objects.filter(
-            subject_dispatch__topography=topo, workflow_name=test_analysis_function.name
+            subject_dispatch__topography=topo, workflow_name=test_workflow.name
         ).count()
         == 3
     )
@@ -86,7 +86,7 @@ def test_different_kwargs(mocker, test_analysis_function):
     #
     analyses = WorkflowResult.objects.filter(
         subject_dispatch__topography=topo,
-        workflow_name=test_analysis_function.name,
+        workflow_name=test_workflow.name,
         permissions__user_permissions__user=user,
     )
 

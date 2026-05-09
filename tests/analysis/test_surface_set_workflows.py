@@ -87,10 +87,10 @@ def test_workflow_result_compute_subject_hash_static_matches_module_function():
 
 
 @pytest.mark.django_db
-def test_update_subject_hash_reads_m2m_and_clears_when_empty(test_analysis_function):
+def test_update_subject_hash_reads_m2m_and_clears_when_empty(test_workflow):
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
     analysis.surfaces.set([s1, s2])
 
     analysis.update_subject_hash()
@@ -109,9 +109,9 @@ def test_update_subject_hash_reads_m2m_and_clears_when_empty(test_analysis_funct
 
 
 @pytest.mark.django_db
-def test_subject_returns_single_surface_for_one_surface_m2m(test_analysis_function):
+def test_subject_returns_single_surface_for_one_surface_m2m(test_workflow):
     surface = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
     analysis.subject_dispatch = None
     analysis.save()
     analysis.surfaces.set([surface])
@@ -120,10 +120,10 @@ def test_subject_returns_single_surface_for_one_surface_m2m(test_analysis_functi
 
 
 @pytest.mark.django_db
-def test_subject_returns_queryset_for_multi_surface_m2m(test_analysis_function):
+def test_subject_returns_queryset_for_multi_surface_m2m(test_workflow):
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
     analysis.subject_dispatch = None
     analysis.save()
     analysis.surfaces.set([s1, s2])
@@ -135,8 +135,8 @@ def test_subject_returns_queryset_for_multi_surface_m2m(test_analysis_function):
 
 
 @pytest.mark.django_db
-def test_subject_is_none_with_no_dispatch_and_no_surfaces(test_analysis_function):
-    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+def test_subject_is_none_with_no_dispatch_and_no_surfaces(test_workflow):
+    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
     analysis.subject_dispatch = None
     analysis.save()
     assert analysis.subject is None
@@ -149,44 +149,44 @@ def test_subject_is_none_with_no_dispatch_and_no_surfaces(test_analysis_function
 
 @pytest.mark.django_db
 def test_submit_for_surfaces_creates_workflow_result_with_m2m_and_hash(
-    test_analysis_function, user_alice
+    test_workflow, user_alice
 ):
     s1 = SurfaceFactory(created_by=user_alice)
     s2 = SurfaceFactory(created_by=user_alice)
 
-    analysis = test_analysis_function.submit_for_surfaces(
+    analysis = test_workflow.submit_for_surfaces(
         user=user_alice, surfaces=[s1, s2]
     )
 
     assert analysis.task_state == WorkflowResult.PENDING
-    assert analysis.function == test_analysis_function
+    assert analysis.function == test_workflow
     assert analysis.subject_dispatch is None
     assert analysis.surfaces.count() == 2
     assert set(analysis.surfaces.values_list("id", flat=True)) == {s1.id, s2.id}
     assert analysis.subject_hash == SurfaceSet(
         surfaces=[s1.id, s2.id]
     ).subject_hash
-    assert analysis.kwargs == test_analysis_function.get_default_kwargs()
+    assert analysis.kwargs == test_workflow.get_default_kwargs()
     assert analysis.created_by == user_alice
     assert analysis.owned_by_id == s1.owned_by_id
 
 
 @pytest.mark.django_db
 def test_submit_for_surfaces_dedups_and_force_resubmits(
-    test_analysis_function, user_alice
+    test_workflow, user_alice
 ):
     s1 = SurfaceFactory(created_by=user_alice)
     s2 = SurfaceFactory(created_by=user_alice)
 
-    first = test_analysis_function.submit_for_surfaces(
+    first = test_workflow.submit_for_surfaces(
         user=user_alice, surfaces=[s1, s2]
     )
-    second = test_analysis_function.submit_for_surfaces(
+    second = test_workflow.submit_for_surfaces(
         user=user_alice, surfaces=[s1, s2]
     )
     assert second.id == first.id
 
-    forced = test_analysis_function.submit_for_surfaces(
+    forced = test_workflow.submit_for_surfaces(
         user=user_alice, surfaces=[s1, s2], force_submit=True
     )
     assert forced.id != first.id
@@ -195,7 +195,7 @@ def test_submit_for_surfaces_dedups_and_force_resubmits(
 
 @pytest.mark.django_db
 def test_submit_for_surfaces_uses_explicit_owned_by_id(
-    test_analysis_function, user_alice
+    test_workflow, user_alice
 ):
     s1 = SurfaceFactory(created_by=user_alice)
     s2 = SurfaceFactory(created_by=user_alice)
@@ -203,7 +203,7 @@ def test_submit_for_surfaces_uses_explicit_owned_by_id(
     other = SurfaceFactory()
     explicit_owner_id = other.owned_by_id
 
-    analysis = test_analysis_function.submit_for_surfaces(
+    analysis = test_workflow.submit_for_surfaces(
         user=user_alice,
         surfaces=[s1, s2],
         owned_by_id=explicit_owner_id,
@@ -218,11 +218,11 @@ def test_submit_for_surfaces_uses_explicit_owned_by_id(
 
 @pytest.mark.django_db
 def test_eval_surfaces_single_surface_uses_surface_implementation(
-    test_analysis_function,
+    test_workflow,
 ):
     surface = SurfaceFactory()
     Topography2DFactory(surface=surface)
-    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
     analysis.subject_dispatch = None
     analysis.save()
     analysis.folder.remove_files()
@@ -237,11 +237,11 @@ def test_eval_surfaces_single_surface_uses_surface_implementation(
 
 @pytest.mark.django_db
 def test_eval_surfaces_multi_surface_routes_to_tag_implementation(
-    test_analysis_function, mocker
+    test_workflow, mocker
 ):
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(function=test_analysis_function)
+    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
     analysis.subject_dispatch = None
     analysis.save()
     analysis.surfaces.set([s1, s2])
@@ -260,10 +260,10 @@ def test_eval_surfaces_multi_surface_routes_to_tag_implementation(
 
 @pytest.mark.django_db
 def test_eval_surfaces_falls_back_to_topography_when_no_surface_impl():
-    function = Workflow.objects.get(name="topobank.testing.topography_only_test")
+    function = Workflow(name="topobank.testing.topography_only_test")
     surface = SurfaceFactory()
     Topography2DFactory(surface=surface)
-    analysis = TopographyAnalysisFactory(function=function)
+    analysis = TopographyAnalysisFactory(workflow_name=function.name)
     analysis.subject_dispatch = None
     analysis.save()
     analysis.folder.remove_files()
@@ -280,10 +280,10 @@ def test_eval_surfaces_falls_back_to_topography_when_no_surface_impl():
 
 @pytest.mark.django_db
 def test_eval_surfaces_raises_when_multi_surface_lacks_tag_impl():
-    function = Workflow.objects.get(name="topobank.testing.topography_only_test")
+    function = Workflow(name="topobank.testing.topography_only_test")
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(function=function)
+    analysis = TopographyAnalysisFactory(workflow_name=function.name)
     analysis.subject_dispatch = None
     analysis.save()
     analysis.surfaces.set([s1, s2])
@@ -293,9 +293,9 @@ def test_eval_surfaces_raises_when_multi_surface_lacks_tag_impl():
 
 
 @pytest.mark.django_db
-def test_eval_surfaces_raises_value_error_when_no_surfaces(test_analysis_function):
-    analysis = TopographyAnalysisFactory(function=test_analysis_function)
-    runner = test_analysis_function.implementation(**analysis.kwargs)
+def test_eval_surfaces_raises_value_error_when_no_surfaces(test_workflow):
+    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
+    runner = test_workflow.implementation(**analysis.kwargs)
     with pytest.raises(ValueError, match="No surfaces in analysis"):
         runner.eval_surfaces(analysis)
 

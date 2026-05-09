@@ -45,13 +45,13 @@ def mock_now(mocker):
 class TestTaskFailureSignal:
     """Tests for handle_task_failure signal handler"""
 
-    def test_updates_state_on_worker_crash(self, app_config, mock_now, test_analysis_function):
+    def test_updates_state_on_worker_crash(self, app_config, mock_now, test_workflow):
         """Test that task failure updates state from STARTED to FAILURE."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         # Send task_failure signal
@@ -69,13 +69,13 @@ class TestTaskFailureSignal:
         assert analysis.task_traceback == "Traceback here"
         assert analysis.task_end_time == mock_now
 
-    def test_records_exception_message_and_traceback(self, app_config, mock_now, test_analysis_function):
+    def test_records_exception_message_and_traceback(self, app_config, mock_now, test_workflow):
         """Test that exception details are properly recorded."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         exception_msg = "Out of memory error"
@@ -92,14 +92,14 @@ class TestTaskFailureSignal:
         assert analysis.task_error == exception_msg
         assert analysis.task_traceback == traceback_msg
 
-    def test_records_traceback_object(self, app_config, mock_now, test_analysis_function):
+    def test_records_traceback_object(self, app_config, mock_now, test_workflow):
         """Test that traceback objects are properly formatted as strings."""
         import traceback as tb
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         try:
@@ -120,14 +120,14 @@ class TestTaskFailureSignal:
         assert isinstance(analysis.task_traceback, str)
         assert "<traceback object" not in analysis.task_traceback
 
-    def test_sets_task_end_time(self, app_config, mock_now, test_analysis_function):
+    def test_sets_task_end_time(self, app_config, mock_now, test_workflow):
         """Test that task_end_time is set when task fails."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             task_end_time=None,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         task_failure.send(
@@ -140,13 +140,13 @@ class TestTaskFailureSignal:
         analysis.refresh_from_db()
         assert analysis.task_end_time == mock_now
 
-    def test_respects_success_terminal_state(self, app_config, mocker, test_analysis_function):
+    def test_respects_success_terminal_state(self, app_config, mocker, test_workflow):
         """Test that SUCCESS state is not overridden by failure signal."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         # Mock save to verify it's not called
@@ -164,7 +164,7 @@ class TestTaskFailureSignal:
         # save should not have been called for this instance
         assert save_spy.call_count == 0
 
-    def test_respects_failure_terminal_state(self, app_config, mocker, test_analysis_function):
+    def test_respects_failure_terminal_state(self, app_config, mocker, test_workflow):
         """Test that FAILURE state is not overridden by another failure signal."""
         task_id = str(uuid.uuid4())
         original_error = "Original error"
@@ -172,7 +172,7 @@ class TestTaskFailureSignal:
             task_state=WorkflowResult.FAILURE,
             task_id=task_id,
             task_error=original_error,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         # Mock save to verify it's not called
@@ -190,7 +190,7 @@ class TestTaskFailureSignal:
         assert analysis.task_error == original_error  # Unchanged
         assert save_spy.call_count == 0
 
-    def test_handles_missing_task_id_gracefully(self, app_config, mocker, test_analysis_function):
+    def test_handles_missing_task_id_gracefully(self, app_config, mocker, test_workflow):
         """Test that signal handler doesn't crash when task_id is not found."""
         # Mock logger to verify debug message
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
@@ -206,14 +206,14 @@ class TestTaskFailureSignal:
         # Should log debug message but not crash
         assert mock_log.debug.called
 
-    def test_handles_all_model_types(self, app_config, mock_now, test_analysis_function):
+    def test_handles_all_model_types(self, app_config, mock_now, test_workflow):
         """Test that signal handler works for WorkflowResult, Topography, and ZipContainer."""
         # Test WorkflowResult
         task_id_1 = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id_1,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         task_failure.send(
@@ -248,7 +248,7 @@ class TestTaskFailureSignal:
 
         # Test ZipContainer
         task_id_3 = str(uuid.uuid4())
-        from topobank.testing.mock_auth.authorization.models import PermissionSet
+        from topobank_orcid.authorization.models import PermissionSet
         permissions = PermissionSet.objects.create()
         permissions.grant(user, "edit")
         zip_container = ZipContainer.objects.create(
@@ -267,13 +267,13 @@ class TestTaskFailureSignal:
         zip_container.refresh_from_db()
         assert zip_container.task_state == ZipContainer.FAILURE
 
-    def test_signal_handler_exception_handling(self, app_config, mocker, test_analysis_function):
+    def test_signal_handler_exception_handling(self, app_config, mocker, test_workflow):
         """Test that signal handler doesn't crash even if internal error occurs."""
         task_id = str(uuid.uuid4())
         TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         # Mock save to raise an exception
@@ -296,13 +296,13 @@ class TestTaskFailureSignal:
 class TestTaskRevokedSignal:
     """Tests for handle_task_revoked signal handler"""
 
-    def test_updates_state_on_cancellation(self, app_config, mock_now, test_analysis_function):
+    def test_updates_state_on_cancellation(self, app_config, mock_now, test_workflow):
         """Test that task revocation updates state to FAILURE."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         # Create mock request object
@@ -322,13 +322,13 @@ class TestTaskRevokedSignal:
         assert "cancelled" in analysis.task_error.lower()
         assert analysis.task_end_time == mock_now
 
-    def test_records_terminated_flag(self, app_config, mock_now, test_analysis_function):
+    def test_records_terminated_flag(self, app_config, mock_now, test_workflow):
         """Test that terminated flag is recorded in error message."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         mock_request = Mock()
@@ -346,13 +346,13 @@ class TestTaskRevokedSignal:
         assert analysis.task_state == WorkflowResult.FAILURE
         assert "terminated" in analysis.task_error.lower()
 
-    def test_records_expired_flag(self, app_config, mock_now, test_analysis_function):
+    def test_records_expired_flag(self, app_config, mock_now, test_workflow):
         """Test that expired flag is recorded in error message."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         mock_request = Mock()
@@ -370,14 +370,14 @@ class TestTaskRevokedSignal:
         assert analysis.task_state == WorkflowResult.FAILURE
         assert "expired" in analysis.task_error.lower()
 
-    def test_sets_task_end_time(self, app_config, mock_now, test_analysis_function):
+    def test_sets_task_end_time(self, app_config, mock_now, test_workflow):
         """Test that task_end_time is set when task is revoked."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             task_end_time=None,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         mock_request = Mock()
@@ -394,13 +394,13 @@ class TestTaskRevokedSignal:
         analysis.refresh_from_db()
         assert analysis.task_end_time == mock_now
 
-    def test_respects_terminal_states(self, app_config, mocker, test_analysis_function):
+    def test_respects_terminal_states(self, app_config, mocker, test_workflow):
         """Test that terminal states are not overridden."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         save_spy = mocker.spy(WorkflowResult, "save")
@@ -420,7 +420,7 @@ class TestTaskRevokedSignal:
         assert analysis.task_state == WorkflowResult.SUCCESS
         assert save_spy.call_count == 0
 
-    def test_handles_missing_task_id_gracefully(self, app_config, mocker, test_analysis_function):
+    def test_handles_missing_task_id_gracefully(self, app_config, mocker, test_workflow):
         """Test that signal handler doesn't crash when task_id is not found."""
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
 
@@ -439,13 +439,13 @@ class TestTaskRevokedSignal:
         # Should log debug message but not crash
         assert mock_log.debug.called
 
-    def test_signal_handler_exception_handling(self, app_config, mocker, test_analysis_function):
+    def test_signal_handler_exception_handling(self, app_config, mocker, test_workflow):
         """Test that signal handler doesn't crash even if internal error occurs."""
         task_id = str(uuid.uuid4())
         TopographyAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
@@ -471,13 +471,13 @@ class TestTaskRevokedSignal:
 class TestTaskSuccessSignal:
     """Tests for handle_task_success signal handler"""
 
-    def test_logs_warning_on_state_mismatch(self, app_config, mocker, test_analysis_function):
+    def test_logs_warning_on_state_mismatch(self, app_config, mocker, test_workflow):
         """Test that warning is logged when Celery reports SUCCESS but DB shows FAILURE."""
         task_id = str(uuid.uuid4())
         TopographyAnalysisFactory(
             task_state=WorkflowResult.FAILURE,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
@@ -497,13 +497,13 @@ class TestTaskSuccessSignal:
         warning_msg = mock_log.warning.call_args[0][0]
         assert "mismatch" in warning_msg.lower()
 
-    def test_no_action_when_states_match(self, app_config, mocker, test_analysis_function):
+    def test_no_action_when_states_match(self, app_config, mocker, test_workflow):
         """Test that no action is taken when states match."""
         task_id = str(uuid.uuid4())
         TopographyAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
@@ -520,7 +520,7 @@ class TestTaskSuccessSignal:
         # Should not log warning when states match
         assert not mock_log.warning.called
 
-    def test_handles_missing_task_id_gracefully(self, app_config, mocker, test_analysis_function):
+    def test_handles_missing_task_id_gracefully(self, app_config, mocker, test_workflow):
         """Test that signal handler doesn't crash when task_id cannot be extracted."""
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
 
@@ -536,13 +536,13 @@ class TestTaskSuccessSignal:
         # Should not log anything since task_id couldn't be extracted
         assert not mock_log.warning.called
 
-    def test_signal_handler_exception_handling(self, app_config, mocker, test_analysis_function):
+    def test_signal_handler_exception_handling(self, app_config, mocker, test_workflow):
         """Test that signal handler doesn't crash even if internal error occurs."""
         task_id = str(uuid.uuid4())
         TopographyAnalysisFactory(
             task_state=WorkflowResult.FAILURE,
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         mock_log = mocker.patch("topobank.taskapp.celeryapp._log")
@@ -572,12 +572,12 @@ class TestTaskSuccessSignal:
 class TestFindTaskInstance:
     """Tests for _find_task_instance helper method"""
 
-    def test_finds_workflow_result(self, app_config, test_analysis_function):
+    def test_finds_workflow_result(self, app_config, test_workflow):
         """Test that WorkflowResult can be found by task_id."""
         task_id = str(uuid.uuid4())
         analysis = TopographyAnalysisFactory(
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         found = app_config._find_task_instance(task_id)
@@ -606,7 +606,7 @@ class TestFindTaskInstance:
         """Test that ZipContainer can be found by task_id."""
         task_id = str(uuid.uuid4())
         user = UserFactory()
-        from topobank.testing.mock_auth.authorization.models import PermissionSet
+        from topobank_orcid.authorization.models import PermissionSet
         permissions = PermissionSet.objects.create()
         permissions.grant(user, "edit")
         zip_container = ZipContainer.objects.create(
@@ -625,14 +625,14 @@ class TestFindTaskInstance:
         result = app_config._find_task_instance("non-existent-task-id")
         assert result is None
 
-    def test_returns_first_match(self, app_config, test_analysis_function):
+    def test_returns_first_match(self, app_config, test_workflow):
         """Test that first matching instance is returned when multiple exist."""
         task_id = str(uuid.uuid4())
 
         # Create WorkflowResult with this task_id
         analysis = TopographyAnalysisFactory(
             task_id=task_id,
-            workflow_name=test_analysis_function.name,
+            workflow_name=test_workflow.name,
         )
 
         # The helper searches in order: WorkflowResult, Topography, ZipContainer

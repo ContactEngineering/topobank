@@ -248,14 +248,14 @@ def two_users(settings):
 
 
 @pytest.fixture(scope="function", autouse=True)
-def sync_analysis_functions(db):
+def sync_workflows(db):
     # No-op: the Workflow database model has been removed. Workflow metadata is
     # now derived from the registry at runtime.
     pass
 
 
 @pytest.fixture(scope="function")
-def test_analysis_function():
+def test_workflow():
     from ..analysis.models import Workflow
 
     return Workflow(name="topobank.testing.test")
@@ -371,7 +371,7 @@ def simple_surface():
 
 
 @pytest.fixture
-def test_instances(db, test_analysis_function):
+def test_instances(db, test_workflow):
     users = [UserFactory(username="user1"), UserFactory(username="user2")]
 
     surfaces = [
@@ -381,6 +381,6 @@ def test_instances(db, test_analysis_function):
 
     topographies = [Topography1DFactory(surface=surfaces[0])]
 
-    test_analysis_function.submit(topographies[0].created_by, topographies[0])
+    test_workflow.submit(topographies[0].created_by, topographies[0])
 
     return users, surfaces, topographies

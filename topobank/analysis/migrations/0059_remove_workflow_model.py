@@ -12,6 +12,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('analysis', '0058_copy_workflow_names'),
+        ('analysis', '0055_workflow_name_unique'),
     ]
 
     operations = [

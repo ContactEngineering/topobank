@@ -54,8 +54,7 @@ class UserFactory(factory.django.DjangoModelFactory):
 
     @factory.post_generation
     def create_orcid_account(self, create, value, **kwargs):
-        social_account = OrcidSocialAccountFactory(user_id=self.id)
-        self.orcid_id = social_account.uid
+        OrcidSocialAccountFactory(user_id=self.id)
         # NOTE: tests break without this save
         models.Model.save(self)
 
@@ -111,10 +110,12 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     @factory.post_generation
     def folder(obj, create, extracted, **kwargs):
         if extracted is not None and create:
-            obj.folders.add(extracted)
+            obj.folder = extracted
+            update_fields = ["folder"]
             if obj.permissions is None:
                 obj.permissions = extracted.permissions
-                obj.save(update_fields=["permissions"])
+                update_fields.append("permissions")
+            obj.save(update_fields=update_fields)
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):

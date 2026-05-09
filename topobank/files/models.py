@@ -82,7 +82,7 @@ class ManifestSet(PermissionMixin, models.Model):
             manifest = Manifest.objects.create(filename=filename)
             created = True
         manifest.permissions = self.permissions
-        manifest.folders.add(self)
+        manifest.folder = self
         manifest.kind = kind
         if not created:
             manifest.file.delete()
@@ -122,15 +122,8 @@ class ManifestSet(PermissionMixin, models.Model):
         return self.files.get(filename=filename)
 
     def remove_files(self):
-        """Clear this folder by removing all files.
-
-        Files are only deleted from storage if no other folders reference them.
-        """
-        for manifest in self.files.all():
-            manifest.folders.remove(self)
-            # If no folders reference this manifest, delete it entirely
-            if manifest.folders.count() == 0:
-                manifest.delete()
+        """Clear this folder by removing all files."""
+        self.files.all().delete()
 
     def deepcopy(self, permissions=None):
         copy = ManifestSet.objects.get(pk=self.pk)
@@ -141,7 +134,7 @@ class ManifestSet(PermissionMixin, models.Model):
 
         for filemanifest in self.get_valid_files():
             filemanifest_copy = filemanifest.deepcopy(permissions=permissions)
-            filemanifest_copy.folders.add(copy)
+            filemanifest_copy.folder = copy
             filemanifest_copy.save()
 
         return copy
@@ -150,6 +143,9 @@ class ManifestSet(PermissionMixin, models.Model):
 # The Flow for "direct file upload" is heavily inspired from here:
 # https://www.hacksoft.io/blog/direct-to-s3-file-upload-with-django
 class Manifest(PermissionMixin, models.Model):
+    class Meta:
+        unique_together = {("folder", "filename")}
+
     #
     # Manager
     #
@@ -190,10 +186,8 @@ class Manifest(PermissionMixin, models.Model):
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
 
-    # ManifestSets that contain this file. Multiple ManifestSets can reference the same
-    # Manifest, enabling shared files.
-    folders = models.ManyToManyField(
-        ManifestSet, related_name="files", blank=True
+    folder = models.ForeignKey(
+        ManifestSet, on_delete=models.CASCADE, related_name="files", null=True
     )
 
     # File kind, indicating where the file came from
@@ -321,7 +315,7 @@ class Manifest(PermissionMixin, models.Model):
         copy = Manifest.objects.get(pk=self.pk)
         copy.pk = None  # This will lead to the creation of a new instance on save
         copy.file = None
-        # M2M relationships are cleared automatically when pk is None
+        copy.folder = None  # Caller is responsible for assigning to a folder
 
         # Set permissions
         if permissions is not None:

@@ -1,7 +1,8 @@
+from topobank_orcid.authorization.models import PermissionSet
+
 from topobank.files.models import Manifest, ManifestSet
 from topobank.files.utils import file_storage_path
 from topobank.testing.factories import ManifestFactory
-from topobank.testing.mock_auth.authorization.models import PermissionSet
 
 
 def test_direct_file_delete(user_alice, mocker):
@@ -9,9 +10,8 @@ def test_direct_file_delete(user_alice, mocker):
     permissions = PermissionSet.objects.create()
     folder = ManifestSet.objects.create(permissions=permissions)
     file = Manifest.objects.create(
-        permissions=permissions, created_by=user_alice
+        permissions=permissions, created_by=user_alice, folder=folder
     )
-    file.folders.add(folder)
     file.delete()
     assert m.call_count == 1
 
@@ -20,18 +20,18 @@ def test_file_delete_via_folder(user_alice, mocker):
     m = mocker.patch("django.db.models.fields.files.FieldFile.delete")
     permissions = PermissionSet.objects.create()
     folder = ManifestSet.objects.create(permissions=permissions)
-    file1 = Manifest.objects.create(
+    Manifest.objects.create(
         permissions=permissions,
         created_by=user_alice,
         filename="file1.txt",
+        folder=folder,
     )
-    file1.folders.add(folder)
-    file2 = Manifest.objects.create(
+    Manifest.objects.create(
         permissions=permissions,
         created_by=user_alice,
         filename="file2.txt",
+        folder=folder,
     )
-    file2.folders.add(folder)
     assert Manifest.objects.count() == 2
     folder.remove_files()
     folder.delete()
