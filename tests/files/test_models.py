@@ -1,8 +1,7 @@
-from topobank_orcid.authorization.models import PermissionSet
-
 from topobank.files.models import Manifest, ManifestSet
 from topobank.files.utils import file_storage_path
 from topobank.testing.factories import ManifestFactory
+from topobank.testing.mock_auth.authorization.models import PermissionSet
 
 
 def test_direct_file_delete(user_alice, mocker):

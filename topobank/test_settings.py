@@ -24,12 +24,12 @@ INSTALLED_APPS = [
     "notifications",
     "tagulous",
     "django_celery_results",
-    "topobank_orcid.users.apps.UsersAppConfig",
-    "topobank_orcid.authorization.apps.AuthorizationAppConfig",
+    "topobank.testing.mock_auth.apps.UsersAppConfig",
+    "topobank.testing.mock_auth.apps.AuthorizationAppConfig",
     "topobank.files.apps.FilesAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
-    "topobank_orcid.organizations.apps.OrganizationsAppConfig",
+    "topobank.testing.mock_auth.apps.OrganizationsAppConfig",
     "topobank.properties.apps.PropertiesAppConfig",
     "topobank.taskapp.celeryapp.CeleryAppConfig",
 ]
@@ -41,7 +41,7 @@ DATABASES = {
 AUTH_USER_MODEL = "users.User"
 TOPOBANK_PERMISSION_MODEL = "authorization.PermissionSet"
 TOPOBANK_ORGANIZATION_MODEL = "organizations.Organization"
-TOPOBANK_ANONYMOUS_USER_GETTER = "topobank_orcid.users.anonymous.get_anonymous_user"
+TOPOBANK_ANONYMOUS_USER_GETTER = "topobank.testing.mock_auth.users.anonymous.get_anonymous_user"
 SITE_ID = 1
 USE_TZ = True
 TIME_ZONE = "CET"
