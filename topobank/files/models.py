@@ -144,7 +144,7 @@ class ManifestSet(PermissionMixin, models.Model):
 # https://www.hacksoft.io/blog/direct-to-s3-file-upload-with-django
 class Manifest(PermissionMixin, models.Model):
     class Meta:
-        unique_together = {("folder", "filename")}
+        unique_together = (("folder", "filename"),)
 
     #
     # Manager
