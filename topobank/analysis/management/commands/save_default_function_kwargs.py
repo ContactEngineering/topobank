@@ -4,10 +4,7 @@ from collections import defaultdict
 from django.core.management.base import BaseCommand
 
 from topobank.analysis.models import Workflow, WorkflowResult
-from topobank.analysis.registry import (
-    WorkflowNotImplementedException,
-    get_workflow_names,
-)
+from topobank.analysis.registry import get_workflow_names
 
 _log = logging.getLogger(__name__)
 
@@ -51,15 +48,6 @@ class Command(BaseCommand):
             analysis_kwargs = a.kwargs
             workflow_name = a.workflow_name
             if workflow_name is None:
-                continue
-
-            try:
-                Workflow(name=workflow_name).get_default_kwargs()
-            except WorkflowNotImplementedException:
-                self.stdout.write(self.style.WARNING(
-                    f"Skipping analysis {a.id} because the implementation "
-                    "no longer exists and we cannot determine default parameters."
-                ))
                 continue
 
             changed = False
