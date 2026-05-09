@@ -5,7 +5,6 @@ The three nullable FKs (topography, surface, tag) that previously lived on the
 WorkflowSubject dispatch table are moved directly onto WorkflowResult.  This
 eliminates the join and simplifies every query that filters by subject.
 """
-import django.db.models.deletion
 from django.db import migrations, models
 
 import topobank.analysis.models
@@ -58,7 +57,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 blank=True,
                 null=True,
-                on_delete=django.db.models.deletion.DO_NOTHING,
+                on_delete=topobank.analysis.models.cascade_or_set_null,
                 related_name="workflow_results",
                 to="manager.topography",
             ),
@@ -69,7 +68,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 blank=True,
                 null=True,
-                on_delete=django.db.models.deletion.DO_NOTHING,
+                on_delete=topobank.analysis.models.cascade_or_set_null,
                 related_name="workflow_results",
                 to="manager.surface",
             ),
@@ -80,7 +79,7 @@ class Migration(migrations.Migration):
             field=models.ForeignKey(
                 blank=True,
                 null=True,
-                on_delete=django.db.models.deletion.DO_NOTHING,
+                on_delete=topobank.analysis.models.cascade_or_set_null,
                 related_name="workflow_results",
                 to="manager.tag",
             ),
