@@ -247,13 +247,6 @@ def two_users(settings):
     return (user1, user2), (surface1, surface2, surface3)
 
 
-@pytest.fixture(scope="function", autouse=True)
-def sync_workflows(db):
-    # No-op: the Workflow database model has been removed. Workflow metadata is
-    # now derived from the registry at runtime.
-    pass
-
-
 @pytest.fixture(scope="function")
 def test_workflow():
     from ..analysis.models import Workflow
