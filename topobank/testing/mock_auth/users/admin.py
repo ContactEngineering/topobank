@@ -1,7 +1,6 @@
 from django import forms
+from django.contrib.auth import get_user_model
 from django.contrib.auth.forms import UserCreationForm
-
-from .models import User
 
 
 class MyUserCreationForm(UserCreationForm):
@@ -11,10 +10,11 @@ class MyUserCreationForm(UserCreationForm):
     )
 
     class Meta(UserCreationForm.Meta):
-        model = User
+        model = get_user_model()
 
     def clean_username(self):
         username = self.cleaned_data["username"]
+        User = get_user_model()
         try:
             User.objects.get(username=username)
         except User.DoesNotExist:

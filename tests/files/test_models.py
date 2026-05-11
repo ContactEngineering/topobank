@@ -1,9 +1,14 @@
+import pytest
+from django.apps import apps
+
 from topobank.files.models import Manifest, ManifestSet
 from topobank.files.utils import file_storage_path
 from topobank.testing.factories import ManifestFactory
-from topobank.testing.mock_auth.authorization.models import PermissionSet
+
+PermissionSet = apps.get_model('authorization', 'PermissionSet')
 
 
+@pytest.mark.django_db
 def test_direct_file_delete(user_alice, mocker):
     m = mocker.patch("django.db.models.fields.files.FieldFile.delete")
     permissions = PermissionSet.objects.create()
@@ -15,6 +20,7 @@ def test_direct_file_delete(user_alice, mocker):
     assert m.call_count == 1
 
 
+@pytest.mark.django_db
 def test_file_delete_via_folder(user_alice, mocker):
     m = mocker.patch("django.db.models.fields.files.FieldFile.delete")
     permissions = PermissionSet.objects.create()
@@ -38,6 +44,7 @@ def test_file_delete_via_folder(user_alice, mocker):
     assert m.call_count == 2
 
 
+@pytest.mark.django_db
 def test_deepcopy():
     manifest = ManifestFactory(permissions=PermissionSet.objects.create())
     assert manifest.exists()

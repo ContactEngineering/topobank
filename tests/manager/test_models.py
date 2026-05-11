@@ -5,6 +5,7 @@ Tests related to the models in topobank.manager app
 import datetime
 
 import pytest
+from django.apps import apps
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.utils import IntegrityError
@@ -19,7 +20,8 @@ from topobank.testing.factories import (
     Topography2DFactory,
     UserFactory,
 )
-from topobank.testing.mock_auth.authorization.models import PermissionSet
+
+PermissionSet = apps.get_model('authorization', 'PermissionSet')
 
 
 @pytest.mark.django_db

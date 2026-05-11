@@ -7,8 +7,7 @@ from django.urls import resolve as django_resolve
 
 _log = logging.getLogger(__name__)
 
-DEFAULT_GROUP_NAME = "all"
-DEFAULT_ORGANIZATION_NAME = "World"
+from .constants import DEFAULT_GROUP_NAME, DEFAULT_ORGANIZATION_NAME  # noqa: E402
 
 
 class OrganizationManager(models.Manager):

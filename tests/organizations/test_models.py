@@ -2,7 +2,7 @@ import pytest
 from django.contrib.auth.models import Group
 
 from topobank.testing.factories import OrganizationFactory
-from topobank.testing.mock_auth.organizations.models import (
+from topobank.testing.mock_auth.organizations.constants import (
     DEFAULT_GROUP_NAME,
     DEFAULT_ORGANIZATION_NAME,
 )

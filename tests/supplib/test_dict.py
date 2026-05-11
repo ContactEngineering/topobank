@@ -3,11 +3,13 @@
 import json
 
 import numpy as np
+import pytest
 
 from topobank.supplib.dict import SplitDictionaryHere, load_split_dict, store_split_dict
 from topobank.testing.factories import ManifestSetFactory
 
 
+@pytest.mark.django_db
 def test_store_split_dict_with_supplementary():
     folder = ManifestSetFactory()
 
@@ -37,6 +39,7 @@ def test_store_split_dict_with_supplementary():
     assert "extra_info" not in result_from_storage
 
 
+@pytest.mark.django_db
 def test_store_split_dict_with_nan():
     folder = ManifestSetFactory()
 
