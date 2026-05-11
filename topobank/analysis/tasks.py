@@ -460,7 +460,7 @@ def current_statistics(user=None):
 def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None, parent=None):
     from .models import WorkflowResult
 
-    # Determine if parent uses the surface set path
+    # Determine if parent uses the surface set (M2M) path
     use_surfaces_path = parent is not None and parent.surfaces.exists()
 
     finished_dependent_analyses = {}  # Everything that finished or failed
@@ -475,40 +475,30 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
         # Clean kwargs for dependency (fill potentially missing values)
         kwargs = function.clean_kwargs(dependency.kwargs)
 
-        # Query for existing analysis — use surfaces path if parent does
-        if use_surfaces_path and isinstance(dependency.subject, Surface):
-            subject_hash = WorkflowResult.compute_subject_hash("surfaces", [dependency.subject.id])
-            existing_analysis = (
-                WorkflowResult.objects.filter(
-                    workflow_name=dependency.function.name,
-                    subject_hash=subject_hash,
-                    kwargs=kwargs,
-                )
-                .prefetch_related('surfaces')
-                .order_by("-task_start_time")
-                .first()
-            )
+        # Compute subject_hash for this dependency
+        subject = dependency.subject
+        if use_surfaces_path and isinstance(subject, Surface):
+            subject_hash = WorkflowResult.compute_subject_hash("surfaces", [subject.id])
+        elif isinstance(subject, Surface):
+            subject_hash = WorkflowResult.compute_subject_hash("surface", [subject.id])
+        elif isinstance(subject, Topography):
+            subject_hash = WorkflowResult.compute_subject_hash("topography", [subject.id])
+        elif isinstance(subject, Tag):
+            subject_hash = WorkflowResult.compute_subject_hash("tag", [subject.id])
         else:
-            # Old path: filter via direct subject FK fields
-            existing_analysis = (
-                WorkflowResult.objects.filter(
-                    workflow_name=dependency.function.name,
-                    subject_surface=(
-                        dependency.subject
-                        if isinstance(dependency.subject, Surface)
-                        else None
-                    ),
-                    subject_topography=(
-                        dependency.subject
-                        if isinstance(dependency.subject, Topography)
-                        else None
-                    ),
-                    kwargs=kwargs,
-                )
-                .select_related('subject_topography', 'subject_surface', 'subject_tag')
-                .order_by("-task_start_time")
-                .first()
+            raise ValueError(f"Unsupported dependency subject type: {type(subject)}")
+
+        existing_analysis = (
+            WorkflowResult.objects.filter(
+                workflow_name=dependency.function.name,
+                subject_hash=subject_hash,
+                kwargs=kwargs,
             )
+            .prefetch_related('surfaces')
+            .select_related('subject_topography', 'subject_surface', 'subject_tag')
+            .order_by("-task_start_time")
+            .first()
+        )
 
         if existing_analysis is None:
             with transaction.atomic():
@@ -520,26 +510,22 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                     created_by=user,
                     owned_by=parent.owned_by,
                     metadata={"parent_workflow_result_id": parent.id},
+                    subject_hash=subject_hash,
                 )
-                if use_surfaces_path and isinstance(dependency.subject, Surface):
-                    # New surface set path: store surface in M2M and use subject_hash for lookup
-                    create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("surfaces",
-                                                                                        [dependency.subject.id])
-                else:
-                    # Assign subject directly to the appropriate FK field
-                    if isinstance(dependency.subject, Surface):
-                        create_kwargs["subject_surface"] = dependency.subject
-                    elif isinstance(dependency.subject, Topography):
-                        create_kwargs["subject_topography"] = dependency.subject
-                    elif isinstance(dependency.subject, Tag):
-                        create_kwargs["subject_tag"] = dependency.subject
+                if use_surfaces_path and isinstance(subject, Surface):
+                    pass  # subject stored in M2M below; no FK field set
+                elif isinstance(subject, Surface):
+                    create_kwargs["subject_surface"] = subject
+                elif isinstance(subject, Topography):
+                    create_kwargs["subject_topography"] = subject
+                elif isinstance(subject, Tag):
+                    create_kwargs["subject_tag"] = subject
 
                 new_analysis = WorkflowResult.objects.create(**create_kwargs)
 
-                if use_surfaces_path and isinstance(dependency.subject, Surface):
-                    # New path
-                    # M2M fields cannot be set until after the instance is created, so set it here.
-                    new_analysis.surfaces.set([dependency.subject])
+                if use_surfaces_path and isinstance(subject, Surface):
+                    # M2M fields cannot be set until after the instance is created.
+                    new_analysis.surfaces.set([subject])
             scheduled_dependent_analyses[key] = new_analysis
         else:
             # An analysis exists. Check whether it is successful or failed.
