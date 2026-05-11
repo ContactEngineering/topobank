@@ -8,7 +8,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ('analysis', '0055_remove_workflowresult_permissions_and_more'),
-        ('authorization', '0004_alter_userpermission_user'),
+        ('authorization', '0003_add_permission_performance_indexes'),
     ]
 
     operations = [
