@@ -528,15 +528,17 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     def update_subject_hash(self):
         """Recompute and save subject_hash from current subject fields."""
-        if self.subject_topography_id is not None:
+        ids = list(self.surfaces.values_list("id", flat=True))
+        if ids:
+            self.subject_hash = self.compute_subject_hash("surfaces", ids)
+        elif self.subject_topography_id is not None:
             self.subject_hash = self.compute_subject_hash("topography", [self.subject_topography_id])
         elif self.subject_surface_id is not None:
             self.subject_hash = self.compute_subject_hash("surface", [self.subject_surface_id])
         elif self.subject_tag_id is not None:
             self.subject_hash = self.compute_subject_hash("tag", [self.subject_tag_id])
         else:
-            ids = list(self.surfaces.values_list("id", flat=True))
-            self.subject_hash = self.compute_subject_hash("surfaces", ids) if ids else None
+            self.subject_hash = None
         self.save(update_fields=["subject_hash"])
 
     def eval_self(self, **auxiliary_kwargs):
