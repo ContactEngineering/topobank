@@ -55,7 +55,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
                 "This ZIP container already has a manifest. Cannot create a new one."
             )
         self.manifest = Manifest.objects.create(
-            permissions=self.permissions, filename="container.zip", kind="raw", folder=None
+            permissions=self.permissions, filename="container.zip", kind="raw"
         )
         self.save(update_fields=["manifest"])
 
@@ -112,7 +112,6 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         self.manifest = Manifest.objects.create(
             permissions=self.permissions,
             filename=container_filename,
-            folder=None,
             kind="der",
         )
         self.manifest.save_file(container_data)

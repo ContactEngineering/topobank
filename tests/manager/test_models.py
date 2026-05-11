@@ -5,13 +5,13 @@ Tests related to the models in topobank.manager app
 import datetime
 
 import pytest
+from django.apps import apps
 from django.core.files.base import ContentFile
 from django.db import transaction
 from django.db.utils import IntegrityError
 from notifications.models import Notification
 from notifications.signals import notify
 from numpy.testing import assert_allclose
-from topobank_orcid.authorization.models import PermissionSet
 
 from topobank.manager.models import Surface, Tag, Topography
 from topobank.testing.factories import (
@@ -20,6 +20,8 @@ from topobank.testing.factories import (
     Topography2DFactory,
     UserFactory,
 )
+
+PermissionSet = apps.get_model('authorization', 'PermissionSet')
 
 
 @pytest.mark.django_db

@@ -5,7 +5,7 @@ from .models import Manifest, ManifestSet
 
 @admin.register(Manifest)
 class FileManifestAdmin(admin.ModelAdmin):
-    list_display = ("id", "file", "folder", "kind", "is_valid", "created_at", "updated_at")
+    list_display = ("id", "file", "kind", "is_valid", "created_at", "updated_at")
     list_filter = ("kind",)
     ordering = ["-created_at"]
 

@@ -1,6 +1,7 @@
+import topobank.testing.workflows  # noqa: F401 - registers testing workflow implementations
 from topobank.testing.fixtures import (  # noqa: F401
     one_line_scan,
-    test_analysis_function,
+    test_workflow,
     two_topos,
     two_users,
     user_three_topographies_three_surfaces_three_tags,

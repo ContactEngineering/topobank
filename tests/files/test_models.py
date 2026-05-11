@@ -1,43 +1,50 @@
-from topobank_orcid.authorization.models import PermissionSet
+import pytest
+from django.apps import apps
 
 from topobank.files.models import Manifest, ManifestSet
 from topobank.files.utils import file_storage_path
 from topobank.testing.factories import ManifestFactory
 
+PermissionSet = apps.get_model('authorization', 'PermissionSet')
 
+
+@pytest.mark.django_db
 def test_direct_file_delete(user_alice, mocker):
     m = mocker.patch("django.db.models.fields.files.FieldFile.delete")
     permissions = PermissionSet.objects.create()
     folder = ManifestSet.objects.create(permissions=permissions)
     file = Manifest.objects.create(
-        permissions=permissions, folder=folder, created_by=user_alice
+        permissions=permissions, created_by=user_alice, folder=folder
     )
     file.delete()
     assert m.call_count == 1
 
 
+@pytest.mark.django_db
 def test_file_delete_via_folder(user_alice, mocker):
     m = mocker.patch("django.db.models.fields.files.FieldFile.delete")
     permissions = PermissionSet.objects.create()
     folder = ManifestSet.objects.create(permissions=permissions)
     Manifest.objects.create(
         permissions=permissions,
-        folder=folder,
         created_by=user_alice,
         filename="file1.txt",
+        folder=folder,
     )
     Manifest.objects.create(
         permissions=permissions,
-        folder=folder,
         created_by=user_alice,
         filename="file2.txt",
+        folder=folder,
     )
     assert Manifest.objects.count() == 2
+    folder.remove_files()
     folder.delete()
     assert Manifest.objects.count() == 0
     assert m.call_count == 2
 
 
+@pytest.mark.django_db
 def test_deepcopy():
     manifest = ManifestFactory(permissions=PermissionSet.objects.create())
     assert manifest.exists()

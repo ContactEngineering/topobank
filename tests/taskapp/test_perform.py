@@ -8,7 +8,7 @@ from topobank.testing.factories import TopographyAnalysisFactory
 
 @pytest.mark.django_db
 def test_perform_analysis(
-    two_topos, test_analysis_function, settings
+    two_topos, test_workflow, settings
 ):
     topo = Topography.objects.first()  # doesn't matter
 
@@ -16,7 +16,7 @@ def test_perform_analysis(
 
     analysis = TopographyAnalysisFactory.create(
         subject_topography=topo,
-        function=test_analysis_function,
+        workflow_name=test_workflow.name,
         kwargs=func_kwargs,
         result=None,
         task_state=WorkflowResult.PENDING
@@ -50,7 +50,7 @@ def test_perform_analysis(
     topo2 = Topography.objects.last()
     analysis2 = TopographyAnalysisFactory.create(
         subject_topography=topo2,
-        function=test_analysis_function,
+        workflow_name=test_workflow.name,
         kwargs=func_kwargs,
         result=None,
         task_state=WorkflowResult.PENDING

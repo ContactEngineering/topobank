@@ -9,7 +9,6 @@ from typing import Union
 from urllib.parse import urlparse
 
 from django.conf import settings
-from django.core.exceptions import ValidationError
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
@@ -32,169 +31,10 @@ _log = logging.getLogger(__name__)
 RESULT_FILE_BASENAME = "result"
 
 
-class AnalysisSubjectManager(models.Manager):
-    def create(self, subject=None, *args, **kwargs):
-        if subject:
-            if isinstance(subject, Tag):
-                kwargs["tag"] = subject
-            elif isinstance(subject, Topography):
-                kwargs["topography"] = subject
-            elif isinstance(subject, Surface):
-                kwargs["surface"] = subject
-            else:
-                raise ValueError(
-                    "`subject` argument must be of type `Tag`, `Topography` or "
-                    "`Surface`."
-                )
-        return super().create(*args, **kwargs)
-
-
-class WorkflowSubject(models.Model):
-    """WorkflowResult subject, which can be either a Tag, a Topography or a Surface"""
-
-    objects = AnalysisSubjectManager()
-
-    tag = models.ForeignKey(Tag, null=True, blank=True, on_delete=models.CASCADE)
-    topography = models.ForeignKey(
-        Topography, null=True, blank=True, on_delete=models.CASCADE
-    )
-    surface = models.ForeignKey(
-        Surface, null=True, blank=True, on_delete=models.CASCADE
-    )
-
-    class Meta:
-        indexes = [
-            models.Index(
-                fields=['topography', 'surface', 'tag'],
-                name='subject_topo_surf_tag_idx',
-            ),
-        ]
-
-    @staticmethod
-    def Q(subject) -> models.Q:
-        if isinstance(subject, Tag):
-            return models.Q(subject_dispatch__tag_id=subject.id)
-        elif isinstance(subject, Topography):
-            return models.Q(subject_dispatch__topography_id=subject.id)
-        elif isinstance(subject, Surface):
-            return models.Q(subject_dispatch__surface_id=subject.id)
-        else:
-            raise ValueError(
-                "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
-                f"not {type(subject)}."
-            )
-
-    @staticmethod
-    def Qs(user, subjects) -> models.Q | None:
-        """
-        Build a Q object to filter WorkflowResults for multiple subjects.
-
-        Parameters
-        ----------
-        user : User
-            The user for permission filtering (applied to tag-based results)
-        subjects : list
-            List of Tag, Topography, or Surface instances
-
-        Returns
-        -------
-        django.db.models.Q or None
-            Combined query object for filtering WorkflowResults
-        """
-        tag_ids = []
-        topography_ids = []
-        surface_ids = []
-
-        for subject in subjects:
-            if isinstance(subject, Tag):
-                tag_ids.append(subject.id)
-            elif isinstance(subject, Topography):
-                topography_ids.append(subject.id)
-            elif isinstance(subject, Surface):
-                surface_ids.append(subject.id)
-            else:
-                raise ValueError(
-                    "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
-                    f"not {type(subject)}."
-                )
-
-        query = None
-
-        # Build query for tags (with user permission filtering)
-        if tag_ids:
-            q = models.Q(subject_dispatch__tag_id__in=tag_ids) & Q(
-                permissions__user_permissions__user=user
-            )
-            query = q
-
-        # Build query for topographies
-        if topography_ids:
-            q = models.Q(subject_dispatch__topography_id__in=topography_ids)
-            query = query | q if query else q
-
-        # Build query for surfaces
-        if surface_ids:
-            q = models.Q(subject_dispatch__surface_id__in=surface_ids)
-            query = query | q if query else q
-
-        return query
-
-    def get(self):
-        if self.tag is not None:
-            return self.tag
-        elif self.topography is not None:
-            return self.topography
-        elif self.surface is not None:
-            return self.surface
-        else:
-            raise RuntimeError(
-                "Database corruption: All subjects appear to be None/null."
-            )
-
-    def get_type(self):
-        return self.get().__class__
-
-    def is_ready(self) -> bool:
-        """Check whether the subject is in SUCCESS state."""
-        subject = self.get()
-
-        if isinstance(subject, Tag):
-            # For tags, check all tagged topographies
-            # (only topographies have task states; surfaces are always ready)
-            topographies = Topography.objects.filter(tags=subject)
-
-            for topo in topographies:
-                if hasattr(topo, "get_task_state"):
-                    if topo.get_task_state() != topo.SUCCESS:
-                        return False
-
-            return True
-
-        elif hasattr(subject, "get_task_state"):
-            # For Topography instances - check their task state
-            return subject.get_task_state() == subject.SUCCESS
-        else:
-            # For Surface instances - no task state means always ready
-            return True
-
-    def save(self, *args, **kwargs):
-        if (
-            sum(
-                [
-                    self.tag is not None,
-                    self.topography is not None,
-                    self.surface is not None,
-                ]
-            )
-            != 1
-        ):
-            raise ValidationError("Only of of tag, topography or tag can be defined.")
-        super().save(*args, **kwargs)
-
-
 def cascade_or_set_null(collector, field, sub_objs, using):
     """Cascade delete unless the WorkflowResult has a name, in which case set null."""
     from django.db.models import CASCADE, SET_NULL
+
     named = [obj for obj in sub_objs if obj.name]
     unnamed = [obj for obj in sub_objs if not obj.name]
     if named:
@@ -221,31 +61,52 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # Permissions
     #
     permissions = models.ForeignKey(
-        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
-        on_delete=models.CASCADE, null=True
+        getattr(settings, "TOPOBANK_PERMISSION_MODEL", "authorization.PermissionSet"),
+        on_delete=models.CASCADE,
+        null=True,
     )
 
     #
     # Workflow result parameters
     #
 
-    # Actual implementation of the workflow result as a Python function
-    function = models.ForeignKey(
-        "analysis.Workflow", related_name="results", on_delete=models.SET_NULL, null=True
-    )
+    # Name of the workflow (replaces the former ForeignKey to the Workflow DB model)
+    workflow_name = models.CharField(max_length=255, null=True, db_index=True)
 
     # Definition of the subject
-    subject_dispatch = models.OneToOneField(
-        WorkflowSubject, on_delete=cascade_or_set_null, null=True,
+    subject_topography = models.ForeignKey(
+        Topography,
+        null=True,
+        blank=True,
+        on_delete=cascade_or_set_null,
+        related_name="workflow_results",
+    )
+    subject_surface = models.ForeignKey(
+        Surface,
+        null=True,
+        blank=True,
+        on_delete=cascade_or_set_null,
+        related_name="workflow_results",
+    )
+    subject_tag = models.ForeignKey(
+        Tag,
+        null=True,
+        blank=True,
+        on_delete=cascade_or_set_null,
+        related_name="workflow_results",
     )
 
-    # New surface set system (coexists with subject_dispatch during transition)
+    # New surface set system (coexists with subject FKs)
     surfaces = models.ManyToManyField(
-        Surface, blank=True, related_name="workflow_results",
+        Surface,
+        blank=True,
+        related_name="workflow_result_sets",
     )
     # Hash of subject IDs for quick lookup of existing results with the same subject set.
     # Prefixed with subject type, e.g. "surfaces:<sha256>".
-    subject_hash = models.CharField(max_length=128, null=True, blank=True, db_index=True)
+    subject_hash = models.CharField(
+        max_length=128, null=True, blank=True, db_index=True
+    )
 
     # Unique, user-specified name
     name = models.TextField(null=True)
@@ -288,13 +149,18 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     # Last user updating this WorkflowResult instance (removed reverse relation)
     updated_by = models.ForeignKey(
-        settings.AUTH_USER_MODEL, null=True, blank=True, on_delete=models.SET_NULL, related_name="+"
+        settings.AUTH_USER_MODEL,
+        null=True,
+        blank=True,
+        on_delete=models.SET_NULL,
+        related_name="+",
     )
 
     # Organization owning this WorkflowResult
     owned_by = models.ForeignKey(
-        getattr(settings, 'TOPOBANK_ORGANIZATION_MODEL', 'organizations.Organization'),
-        null=True, on_delete=models.CASCADE
+        getattr(settings, "TOPOBANK_ORGANIZATION_MODEL", "organizations.Organization"),
+        null=True,
+        on_delete=models.CASCADE,
     )
 
     # Invalid is True if the subject was changed after the WorkflowResult was computed
@@ -303,26 +169,38 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     class Meta:
         indexes = [
             # Index on task_start_time for ordering recent results
-            models.Index(fields=['-task_start_time'], name='result_task_start_idx'),
+            models.Index(fields=["-task_start_time"], name="result_task_start_idx"),
             # Composite index for filtering by state and ordering by time
             # Used in: WHERE task_state = x ORDER BY task_start_time
-            models.Index(fields=['task_state', '-task_start_time'], name='result_state_time_idx'),
-            # Composite index for filtering by function and ordering by time
-            # Used in: WHERE function = x ORDER BY task_start_time
-            models.Index(fields=['function', '-task_start_time'], name='result_workflow_time_idx'),
+            models.Index(
+                fields=["task_state", "-task_start_time"], name="result_state_time_idx"
+            ),
+            # Composite index for filtering by workflow_name and ordering by time
+            # Used in: WHERE workflow_name = x ORDER BY task_start_time
+            models.Index(
+                fields=["workflow_name", "-task_start_time"],
+                name="result_workflow_time_idx",
+            ),
             # Partial index for active (non-deprecated) results
             # Most common query pattern: active results ordered by time
             # Smaller than full index since it only includes non-deprecated rows
             models.Index(
-                fields=['-task_start_time'],
-                name='result_active_time_idx',
-                condition=Q(deprecation_time__isnull=True)
+                fields=["-task_start_time"],
+                name="result_active_time_idx",
+                condition=Q(deprecation_time__isnull=True),
             ),
-            # Composite index for filtering by function + subject and ordering by time
-            # Used in: WHERE function = x AND subject_dispatch = y ORDER BY task_start_time
+            # Composite indexes for filtering by workflow_name + subject and ordering by time
             models.Index(
-                fields=['function', 'subject_dispatch', '-task_start_time'],
-                name='result_func_subj_time_idx',
+                fields=["workflow_name", "subject_topography", "-task_start_time"],
+                name="result_func_topo_time_idx",
+            ),
+            models.Index(
+                fields=["workflow_name", "subject_surface", "-task_start_time"],
+                name="result_func_surf_time_idx",
+            ),
+            models.Index(
+                fields=["workflow_name", "subject_tag", "-task_start_time"],
+                name="result_func_tag_time_idx",
             ),
         ]
 
@@ -333,9 +211,14 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         self._result_metadata_cache = None  # cached toplevel result file
 
     def __str__(self):
-        return (
-            f"WorkflowResult {self.id} on subject {self.subject} with state {self.task_state}"
-        )
+        return f"WorkflowResult {self.id} on subject {self.subject} with state {self.task_state}"
+
+    @property
+    def function(self):
+        """Return the Workflow for this result, or None if workflow_name is not set."""
+        if self.workflow_name is None:
+            return None
+        return Workflow(name=self.workflow_name)
 
     def save(self, *args, **kwargs):
         """
@@ -349,9 +232,8 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
            in the storage backend using the store_split_dict function and clears the
            temporary result storage.
 
-        Note: Named results retain their subject_dispatch. The custom cascade_or_set_null
-        handler on subject_dispatch ensures named results survive subject deletion by
-        setting the field to NULL instead of cascading.
+        Note: When a result is given a name, its subject FKs are cleared so that
+        named results are not tied to any specific subject and survive subject deletion.
 
         Parameters
         ----------
@@ -361,10 +243,27 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             Arbitrary keyword arguments.
         """
 
+        # Named results are detached from their subject
+        if self.name and (
+            self.subject_topography_id is not None
+            or self.subject_surface_id is not None
+            or self.subject_tag_id is not None
+        ):
+            self.subject_topography = None
+            self.subject_surface = None
+            self.subject_tag = None
+            if "update_fields" in kwargs and kwargs["update_fields"] is not None:
+                kwargs["update_fields"] = list(kwargs["update_fields"]) + [
+                    "subject_topography",
+                    "subject_surface",
+                    "subject_tag",
+                ]
+
         # Ensure permissions and folder are set
         if self.permissions is None:
             _log.debug(
-                "WorkflowResult has no permissions. Attempting to create new permission set.")
+                "WorkflowResult has no permissions. Attempting to create new permission set."
+            )
             if self.created_by:
                 self.permissions = get_permission_model().objects.create()
                 self.permissions.grant(self.created_by, FULL)
@@ -376,9 +275,9 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             self.folder = ManifestSet.objects.create(
                 permissions=self.permissions, read_only=True
             )
-            if 'update_fields' in kwargs:
-                if kwargs['update_fields'] is not None:
-                    kwargs['update_fields'].append('folder')
+            if "update_fields" in kwargs:
+                if kwargs["update_fields"] is not None:
+                    kwargs["update_fields"].append("folder")
 
         if not self.pk:
             # New instance - ensure creator has EDIT permission
@@ -410,8 +309,12 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             The subject of the WorkflowResult. For surface-set analyses with a single
             surface, returns that Surface. For multi-surface sets, returns the queryset.
         """
-        if self.subject_dispatch:
-            return self.subject_dispatch.get()
+        if self.subject_topography_id is not None:
+            return self.subject_topography
+        elif self.subject_surface_id is not None:
+            return self.subject_surface
+        elif self.subject_tag_id is not None:
+            return self.subject_tag
         # Fall back to surfaces M2M for surface-set analyses
         surfaces = self.surfaces.all()
         if surfaces.exists():
@@ -510,9 +413,9 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         for filename in dir_tuple[1]:
             manifest = Manifest.objects.create(
                 permissions=self.permissions,
-                folder=self.folder,
                 filename=filename,
                 kind="der",
+                folder=self.folder,
             )
             manifest.file.name = f"{self.storage_prefix}/{filename}"
             manifest.save(update_fields=["file"])
@@ -523,7 +426,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     @property
     def implementation(self):
-        return self.function.implementation
+        return Workflow(name=self.workflow_name).implementation
 
     def get_celery_queue(self) -> str:
         impl = self.implementation
@@ -537,7 +440,9 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # FIXME: discuss whether to remove this method and use the generic one from PermissionMixin
     # overrides PermissionMixin.authorize_user <- this one returns nothing, raises exception on failure
     # v This one grants the user permission to access the WorkflowResult without permission.
-    def authorize_user(self, user: settings.AUTH_USER_MODEL, access_level: ViewEditFull = "view"):
+    def authorize_user(
+        self, user: settings.AUTH_USER_MODEL, access_level: ViewEditFull = "view"
+    ):
         """
         Returns an exception if given user should not be able to see this WorkflowResult.
         """
@@ -555,28 +460,70 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     @property
     def is_topography_related(self) -> bool:
         """Returns True, if the WorkflowResult subject is a topography, else False."""
-        if self.subject_dispatch is None:
-            return False
-        return self.subject_dispatch.topography is not None
+        return self.subject_topography_id is not None
 
     @property
     def is_surface_related(self) -> bool:
         """Returns True, if the WorkflowResult subject is a surface, else False."""
-        if self.subject_dispatch is None:
-            return False
-        return self.subject_dispatch.surface is not None
+        return self.subject_surface_id is not None
 
     @property
     def is_tag_related(self) -> bool:
         """Returns True, if the WorkflowResult subject is a tag, else False."""
-        if self.subject_dispatch is None:
-            return False
-        return self.subject_dispatch.tag is not None
+        return self.subject_tag_id is not None
+
+    @staticmethod
+    def Q(subject) -> models.Q:
+        """Build a Q object to filter WorkflowResults for a single subject."""
+        if isinstance(subject, Tag):
+            return models.Q(subject_tag_id=subject.id)
+        elif isinstance(subject, Topography):
+            return models.Q(subject_topography_id=subject.id)
+        elif isinstance(subject, Surface):
+            return models.Q(subject_surface_id=subject.id)
+        else:
+            raise ValueError(
+                "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
+                f"not {type(subject)}."
+            )
+
+    @staticmethod
+    def Qs(user, subjects) -> models.Q | None:
+        """Build a Q object to filter WorkflowResults for multiple subjects."""
+        tag_ids = []
+        topography_ids = []
+        surface_ids = []
+        for subject in subjects:
+            if isinstance(subject, Tag):
+                tag_ids.append(subject.id)
+            elif isinstance(subject, Topography):
+                topography_ids.append(subject.id)
+            elif isinstance(subject, Surface):
+                surface_ids.append(subject.id)
+            else:
+                raise ValueError(
+                    "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
+                    f"not {type(subject)}."
+                )
+        query = None
+        if tag_ids:
+            q = models.Q(subject_tag_id__in=tag_ids) & Q(
+                permissions__user_permissions__user=user
+            )
+            query = q
+        if topography_ids:
+            q = models.Q(subject_topography_id__in=topography_ids)
+            query = query | q if query else q
+        if surface_ids:
+            q = models.Q(subject_surface_id__in=surface_ids)
+            query = query | q if query else q
+        return query
 
     @staticmethod
     def compute_subject_hash(subject_type, subject_ids):
         """Compute a deterministic hash for a set of subject IDs, prefixed by type."""
         from .workflows import compute_subject_hash
+
         return compute_subject_hash(subject_type, subject_ids)
 
     def update_subject_hash(self):
@@ -593,7 +540,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 **auxiliary_kwargs,
             )
 
-        # Old path: use subject_dispatch
+        # Old path: use subject FK
         if self.is_tag_related:
             users = self.permissions.user_permissions.all()
             if users.count() != 1:
@@ -603,7 +550,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 )
             self.subject.authorize_user(users.first().user, "view")
 
-        return self.function.eval(
+        return Workflow(name=self.workflow_name).eval(
             self,
             **auxiliary_kwargs,
         )
@@ -628,8 +575,18 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         """
         self.name = name
         self.description = description
-        self.subject_dispatch = None
-        self.save(update_fields=["name", "description", "subject_dispatch"])
+        self.subject_topography = None
+        self.subject_surface = None
+        self.subject_tag = None
+        self.save(
+            update_fields=[
+                "name",
+                "description",
+                "subject_topography",
+                "subject_surface",
+                "subject_tag",
+            ]
+        )
 
 
 def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool):
@@ -648,16 +605,37 @@ def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool)
     analysis.save(update_fields=["task_id"])
 
 
-class Workflow(models.Model):
+class Workflow:
     """
-    A convenience wrapper around the WorkflowImplementation that has representation in
-    the SQL database.
+    Workflow represents a registered analysis workflow.
+
+    This is a plain Python class — not a Django model. Workflow metadata is
+    derived from the implementation registry at runtime; there is no database
+    table for workflows.
     """
 
-    name = models.TextField(help_text="Internal unique identifier", unique=True)
-    display_name = models.TextField(help_text="Human-readable name")
+    def __init__(self, name: str):
+        self.name = name
 
     def __str__(self):
+        return self.name
+
+    def __repr__(self):
+        return f"Workflow({self.name!r})"
+
+    def __eq__(self, other):
+        if isinstance(other, Workflow):
+            return self.name == other.name
+        return NotImplemented
+
+    def __hash__(self):
+        return hash(self.name)
+
+    @property
+    def display_name(self):
+        impl = self.implementation
+        if impl is not None:
+            return impl.Meta.display_name
         return self.name
 
     @property
@@ -688,13 +666,28 @@ class Workflow(models.Model):
         """
         Return default keyword arguments as a dictionary.
         """
-        return self.implementation.Parameters().model_dump()
+        impl = self.implementation
+        if impl is None:
+            return {}
+        try:
+            params = impl.Parameters
+            if params is None:
+                return {}
+            return params().model_dump()
+        except Exception:
+            return {}
 
     def get_kwargs_schema(self):
         """
         JSON schema describing the keyword arguments.
         """
-        return self.implementation.Parameters().model_json_schema()
+        impl = self.implementation
+        if impl is None:
+            return {}
+        params = impl.Parameters
+        if params is not None:
+            return params.model_json_schema()
+        return {}
 
     def get_outputs_schema(self) -> list:
         """
@@ -725,16 +718,27 @@ class Workflow(models.Model):
         ------
         pydantic.ValidationError if validation fails
         """
-        return self.implementation.clean_kwargs(kwargs, fill_missing=fill_missing)
+        impl = self.implementation
+        if impl is None:
+            return kwargs or {}
+        if hasattr(impl, "instance_clean_kwargs"):
+            return impl.instance_clean_kwargs(kwargs, fill_missing=fill_missing)
+        return impl.clean_kwargs(kwargs, fill_missing=fill_missing)
 
     def get_dependencies(self, analysis):
-        return self.implementation(**analysis.kwargs).get_dependencies(analysis)
+        impl = self.implementation
+        if impl is None:
+            return {}
+        return impl(**analysis.kwargs).get_dependencies(analysis)
 
     def eval(self, analysis, **auxiliary_kwargs):
         """
         First argument is the subject of the WorkflowResult (`Surface`, `Topography` or `Tag`).
         """
-        runner = self.implementation(**analysis.kwargs)
+        impl = self.implementation
+        if impl is None:
+            raise WorkflowNotImplementedException(self.name, type(analysis.subject))
+        runner = impl(**analysis.kwargs)
         return runner.eval(analysis, **auxiliary_kwargs)
 
     def eval_surfaces(self, analysis, **auxiliary_kwargs):
@@ -783,7 +787,7 @@ class Workflow(models.Model):
         kwargs = self.clean_kwargs(kwargs)
 
         # Query for all existing WorkflowResults with the same parameters
-        q = WorkflowSubject.Q(subject) & Q(function=self) & Q(kwargs=kwargs)
+        q = WorkflowResult.Q(subject) & Q(workflow_name=self.name) & Q(kwargs=kwargs)
 
         # If subject is tag, we need to restrict this to the current user because those
         # WorkflowResults cannot be shared
@@ -824,7 +828,7 @@ class Workflow(models.Model):
         self,
         user: settings.AUTH_USER_MODEL,
         subject: Union[Tag, Topography, Surface],
-        kwargs: dict
+        kwargs: dict,
     ):
         """
         Create and submit a new WorkflowResult analysis.
@@ -849,13 +853,19 @@ class Workflow(models.Model):
 
         with transaction.atomic():
             # Create new entry in the WorkflowResult table and grant access to current user
-            analysis = WorkflowResult.objects.create(
-                subject_dispatch=WorkflowSubject.objects.create(subject),
-                function=self,
+            create_kwargs = dict(
+                workflow_name=self.name,
                 kwargs=kwargs,
                 created_by=user,
                 updated_by=user,
             )
+            if isinstance(subject, Tag):
+                create_kwargs["subject_tag"] = subject
+            elif isinstance(subject, Topography):
+                create_kwargs["subject_topography"] = subject
+            elif isinstance(subject, Surface):
+                create_kwargs["subject_surface"] = subject
+            analysis = WorkflowResult.objects.create(**create_kwargs)
             analysis.set_pending_state()
             analysis.permissions.grant_for_user(user, "edit")
             transaction.on_commit(
@@ -897,7 +907,7 @@ class Workflow(models.Model):
 
         # Dedup check using subject_hash
         existing = WorkflowResult.objects.filter(
-            function=self,
+            workflow_name=self.name,
             subject_hash=surface_set.subject_hash,
             kwargs=kwargs,
         )
@@ -914,7 +924,9 @@ class Workflow(models.Model):
 
         if force_submit or successful_or_running.count() == 0:
             existing.filter(name__isnull=True).delete()
-            return self._submit_new_analysis_for_surfaces(user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id)
+            return self._submit_new_analysis_for_surfaces(
+                user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id
+            )
         else:
             return existing.order_by("task_start_time").last()
 
@@ -933,7 +945,7 @@ class Workflow(models.Model):
             user,
             [s.id for s in surfaces],
             self,
-            kwargs
+            kwargs,
         )
 
         if not owned_by_id:
@@ -941,7 +953,7 @@ class Workflow(models.Model):
 
         with transaction.atomic():
             analysis = WorkflowResult.objects.create(
-                function=self,
+                workflow_name=self.name,
                 kwargs=kwargs,
                 subject_hash=surface_set.subject_hash,
                 created_by=user,
@@ -983,95 +995,27 @@ class Workflow(models.Model):
 
 
 def resolve_workflow(identifier: str | int) -> Workflow:
-    """Resolve workflow from URL, ID, or name."""
-    errors = []
+    """Resolve workflow from name or URL.
 
-    # Try resolving as integer ID
-    try:
-        workflow_id = int(identifier)
-        return Workflow.objects.get(pk=workflow_id)
-    except ValueError:
-        errors.append("not a valid integer ID")
-    except Workflow.DoesNotExist:
-        errors.append(f"no workflow found with ID {workflow_id}")
+    Accepts a plain workflow name string (e.g. 'topobank.testing.test') or a
+    URL pointing to the workflow detail endpoint.  Integer IDs are no longer
+    supported — workflows have no database primary key.
+    """
+    # Try as a plain name string
+    if isinstance(identifier, str):
+        if get_implementation(name=identifier) is not None:
+            return Workflow(name=identifier)
 
-    # Try resolving as name
-    try:
-        return Workflow.objects.get(name=identifier)
-    except Workflow.DoesNotExist:
-        errors.append(f"no workflow found with name '{identifier}'")
-
-    # Try resolving as URL
-    try:
-        match = resolve(urlparse(identifier).path)
-        return Workflow.objects.get(**match.kwargs)
-    except Resolver404:
-        errors.append("invalid URL path")
-    except Workflow.DoesNotExist:
-        errors.append("URL resolved but no workflow found")
-    except Exception as e:
-        errors.append(f"URL resolution failed: {type(e).__name__}")
+        # Try resolving as a URL
+        try:
+            match = resolve(urlparse(identifier).path)
+            name = match.kwargs.get("name")
+            if name and get_implementation(name=name) is not None:
+                return Workflow(name=name)
+        except (Resolver404, Exception):
+            pass
 
     raise ValueError(
         f"Could not resolve Workflow from '{identifier}'. "
-        f"Attempted: ID, name, URL. Errors: {'; '.join(errors)}"
+        f"No workflow with that name or URL found in registry."
     )
-
-
-class WorkflowTemplate(PermissionMixin, models.Model):
-    """
-    Workflow template stores a set of parameters for a workflow.
-    """
-
-    #
-    # Manager
-    #
-    objects = AuthorizedManager()
-
-    #
-    # Permissions
-    #
-    permissions = models.ForeignKey(
-        getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
-        on_delete=models.CASCADE, null=True
-    )
-
-    #
-    # Name of stored parameters
-    #
-    name = models.CharField(max_length=255)
-
-    #
-    # Parameters to be passed to workflow
-    #
-    kwargs = models.JSONField(default=dict, blank=True)
-
-    #
-    # Workflow implementation
-    #
-    implementation = models.ForeignKey(
-        Workflow, on_delete=models.CASCADE, null=True
-    )
-
-    creator = models.ForeignKey(settings.AUTH_USER_MODEL, on_delete=models.CASCADE)
-
-    def __str__(self):
-        return (
-            f"Workflow Template {self.id} - {self.name} for"
-            f" implementation {self.implementation.display_name}"
-        )
-
-    def save(self, *args, **kwargs):
-        created = self.pk is None
-        if created and self.permissions is None:
-            # Create a new permission set for this template
-            _log.debug(
-                f"Creating an empty permission set for template {self.id} which was "
-                f"just created."
-            )
-            self.permissions = get_permission_model().objects.create()
-
-        super().save(*args, **kwargs)
-        if created:
-            # Grant permissions to creator
-            self.permissions.grant_for_user(self.creator, "full")

@@ -55,7 +55,7 @@ class ManifestSet(PermissionMixin, models.Model):
 
     def open_file(self, filename: str, mode: str = "r"):
         try:
-            manifest = self.files.get(folder=self, filename=filename)
+            manifest = self.files.get(filename=filename)
         except Manifest.DoesNotExist:
             raise FileNotFoundError(
                 f"Manifest for file '{filename}' not found in folder"
@@ -73,11 +73,14 @@ class ManifestSet(PermissionMixin, models.Model):
             return xarray.load_dataset(io.BytesIO(f.read()), engine="scipy")
 
     def save_file(self, filename: str, kind: str, fobj):
-        # Check whether file exists, and delete if it does
+        # Check whether file exists in this folder, and delete if it does
         fobj.name = filename  # Make sure the filenames are the same
-        manifest, created = Manifest.objects.get_or_create(
-            folder=self, filename=filename
-        )
+        try:
+            manifest = self.files.get(filename=filename)
+            created = False
+        except Manifest.DoesNotExist:
+            manifest = Manifest.objects.create(filename=filename)
+            created = True
         manifest.permissions = self.permissions
         manifest.folder = self
         manifest.kind = kind
@@ -115,11 +118,11 @@ class ManifestSet(PermissionMixin, models.Model):
         # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
         return self.get_files().filter(confirmed_at__isnull=False)
 
-    def find_file(self, filename: str) -> models.QuerySet["Manifest"]:
-        return Manifest.objects.get(folder=self, filename=filename)
+    def find_file(self, filename: str) -> "Manifest":
+        return self.files.get(filename=filename)
 
     def remove_files(self):
-        """Clear this folder by removing all files"""
+        """Clear this folder by removing all files."""
         self.files.all().delete()
 
     def deepcopy(self, permissions=None):
@@ -141,7 +144,7 @@ class ManifestSet(PermissionMixin, models.Model):
 # https://www.hacksoft.io/blog/direct-to-s3-file-upload-with-django
 class Manifest(PermissionMixin, models.Model):
     class Meta:
-        unique_together = ("folder", "filename")
+        unique_together = (("folder", "filename"),)
 
     #
     # Manager
@@ -183,10 +186,8 @@ class Manifest(PermissionMixin, models.Model):
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
 
-    # ManifestSet can be null, in which case this is a single file that belongs to some
-    # model (e.g. a raw data file or a thumbnail of a measurement)
     folder = models.ForeignKey(
-        ManifestSet, related_name="files", on_delete=models.CASCADE, null=True
+        ManifestSet, on_delete=models.CASCADE, related_name="files", null=True
     )
 
     # File kind, indicating where the file came from
@@ -314,7 +315,7 @@ class Manifest(PermissionMixin, models.Model):
         copy = Manifest.objects.get(pk=self.pk)
         copy.pk = None  # This will lead to the creation of a new instance on save
         copy.file = None
-        copy.folder = None
+        copy.folder = None  # Caller is responsible for assigning to a folder
 
         # Set permissions
         if permissions is not None:

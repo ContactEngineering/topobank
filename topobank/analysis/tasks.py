@@ -9,7 +9,7 @@ from django.db import transaction
 from django.utils import timezone
 from SurfaceTopography.Support import doi
 
-from ..manager.models import Surface, Topography
+from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
@@ -90,8 +90,9 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool, is_depen
 
     # Optimize query with select_related to reduce DB round trips
     analysis = WorkflowResult.objects.select_related(
-        'function',
-        'subject_dispatch',
+        'subject_topography',
+        'subject_surface',
+        'subject_tag',
         'configuration',
         'created_by',
         'owned_by'
@@ -99,7 +100,7 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool, is_depen
     _log.info(
         f"{analysis_id}/{self.request.id}: Scheduling workflow -- "
         f"Queue: {celery_queue}, force recalculation: {force} -- "
-        f"Workflow: '{analysis.function.name}', subject: '{analysis.subject}', "
+        f"Workflow: '{analysis.workflow_name}', subject: '{analysis.subject}', "
         f"kwargs: {analysis.kwargs}, task_state: '{analysis.task_state}'"
     )
 
@@ -217,8 +218,9 @@ def execute_workflow(self: celery.Task, analysis_id: int, is_dependency: bool = 
     # Get analysis instance from database
     #
     analysis = WorkflowResult.objects.select_related(
-        'function',
-        'subject_dispatch',
+        'subject_topography',
+        'subject_surface',
+        'subject_tag',
         'configuration',
         'created_by',
         'owned_by'
@@ -226,7 +228,7 @@ def execute_workflow(self: celery.Task, analysis_id: int, is_dependency: bool = 
 
     _log.info(
         f"{analysis_id}/{self.request.id}: Executing workflow -- "
-        f"Workflow: '{analysis.function.name}', subject: '{analysis.subject}', "
+        f"Workflow: '{analysis.workflow_name}', subject: '{analysis.subject}', "
         f"kwargs: {analysis.kwargs}"
     )
 
@@ -445,7 +447,7 @@ def current_statistics(user=None):
         surface__in=unpublished_surfaces
     )
     unpublished_analyses = WorkflowResult.objects.filter(
-        subject_dispatch__topography__in=unpublished_topographies
+        subject_topography__in=unpublished_topographies
     )
 
     return dict(
@@ -456,7 +458,7 @@ def current_statistics(user=None):
 
 
 def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None, parent=None):
-    from .models import WorkflowResult, WorkflowSubject
+    from .models import WorkflowResult
 
     # Determine if parent uses the surface set path
     use_surfaces_path = parent is not None and parent.surfaces.exists()
@@ -478,33 +480,32 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             subject_hash = WorkflowResult.compute_subject_hash("surfaces", [dependency.subject.id])
             existing_analysis = (
                 WorkflowResult.objects.filter(
-                    function=dependency.function,
+                    workflow_name=dependency.function.name,
                     subject_hash=subject_hash,
                     kwargs=kwargs,
                 )
-                .select_related('function')
                 .prefetch_related('surfaces')
                 .order_by("-task_start_time")
                 .first()
             )
         else:
-            # Old path: filter via subject_dispatch
+            # Old path: filter via direct subject FK fields
             existing_analysis = (
                 WorkflowResult.objects.filter(
-                    function=dependency.function,
-                    subject_dispatch__surface=(
+                    workflow_name=dependency.function.name,
+                    subject_surface=(
                         dependency.subject
                         if isinstance(dependency.subject, Surface)
                         else None
                     ),
-                    subject_dispatch__topography=(
+                    subject_topography=(
                         dependency.subject
                         if isinstance(dependency.subject, Topography)
                         else None
                     ),
                     kwargs=kwargs,
                 )
-                .select_related('function', 'subject_dispatch')
+                .select_related('subject_topography', 'subject_surface', 'subject_tag')
                 .order_by("-task_start_time")
                 .first()
             )
@@ -513,7 +514,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             with transaction.atomic():
                 create_kwargs = dict(
                     permissions=parent.permissions,
-                    function=function,
+                    workflow_name=function.name,
                     task_state=WorkflowResult.PENDING,
                     kwargs=kwargs,
                     created_by=user,
@@ -525,8 +526,13 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
                     create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("surfaces",
                                                                                         [dependency.subject.id])
                 else:
-                    # Old path: store subject in subject_dispatch for compatibility with existing workflows
-                    create_kwargs["subject_dispatch"] = WorkflowSubject.objects.create(dependency.subject)
+                    # Assign subject directly to the appropriate FK field
+                    if isinstance(dependency.subject, Surface):
+                        create_kwargs["subject_surface"] = dependency.subject
+                    elif isinstance(dependency.subject, Topography):
+                        create_kwargs["subject_topography"] = dependency.subject
+                    elif isinstance(dependency.subject, Tag):
+                        create_kwargs["subject_tag"] = dependency.subject
 
                 new_analysis = WorkflowResult.objects.create(**create_kwargs)
 

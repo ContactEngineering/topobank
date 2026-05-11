@@ -10,12 +10,7 @@ from django.db.models.signals import post_save
 from django.utils import timezone
 from factory import post_generation
 
-from ..analysis.models import (
-    Workflow,
-    WorkflowResult,
-    WorkflowSubject,
-    WorkflowTemplate,
-)
+from ..analysis.models import Workflow, WorkflowResult
 from ..manager.models import Surface, Tag, Topography
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
@@ -109,10 +104,18 @@ class ManifestFactory(factory.django.DjangoModelFactory):
     filename = factory.Iterator(
         ["10x10.txt", "dektak-1.csv", "example.opd", "example3.di", "plux-1.plux"]
     )
-    permissions = factory.LazyAttribute(
-        lambda obj: obj.folder.permissions if getattr(obj, "folder", None) is not None else None
-    )
+    permissions = None
     confirmed_at = factory.LazyFunction(timezone.now)
+
+    @factory.post_generation
+    def folder(obj, create, extracted, **kwargs):
+        if extracted is not None and create:
+            obj.folder = extracted
+            update_fields = ["folder"]
+            if obj.permissions is None:
+                obj.permissions = extracted.permissions
+                update_fields.append("permissions")
+            obj.save(update_fields=update_fields)
 
     @post_generation
     def upload_file(obj, create, value, **kwargs):
@@ -254,17 +257,9 @@ class Topography2DFactory(Topography1DFactory):
 #
 # Define factories for creating test objects
 #
-class WorkflowFactory(factory.django.DjangoModelFactory):
-    # noinspection PyMissingOrEmptyDocstring
-    class Meta:
-        model = Workflow
-
-    name = factory.Sequence(lambda n: "Test Function no. {}".format(n))
-
-
 def _analysis_result(analysis):
     if analysis.folder is not None:
-        return analysis.function.eval(analysis)
+        return Workflow(name=analysis.workflow_name).eval(analysis)
     else:
         return {"test_result": 1.23}
 
@@ -274,12 +269,7 @@ def _failed_analysis_result(analysis):
 
 
 def _analysis_default_kwargs(analysis):
-    return analysis.function.get_default_kwargs()
-
-
-class AnalysisSubjectFactory(factory.django.DjangoModelFactory):
-    class Meta:
-        model = WorkflowSubject
+    return Workflow(name=analysis.workflow_name).get_default_kwargs()
 
 
 class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
@@ -293,17 +283,23 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     class Meta:
         model = WorkflowResult
         exclude = (
-            "subject_topography",
-            "subject_surface",
-            "subject_tag",
-            "subject",
             "user",
+            "subject",  # computed proxy for eval during factory build; not a model field
         )
         skip_postgeneration_save = True
 
     subject_topography = None  # factory.SubFactory(Topography2DFactory)
     subject_surface = None
     subject_tag = None
+
+    # Proxy so that Workflow.eval() can call analysis.subject during factory build
+    subject = factory.LazyAttribute(
+        lambda obj: (
+            obj.subject_surface
+            if obj.subject_surface
+            else (obj.subject_topography if obj.subject_topography else obj.subject_tag)
+        )
+    )
 
     user = factory.LazyAttribute(
         lambda obj: (
@@ -323,20 +319,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     permissions = factory.SubFactory(
         PermissionSetFactory, user=factory.SelfAttribute("..user"), allow="view"
     )
-    function = factory.SubFactory(WorkflowFactory)
-    subject_dispatch = factory.SubFactory(
-        AnalysisSubjectFactory,
-        topography=factory.SelfAttribute("..subject_topography"),
-        surface=factory.SelfAttribute("..subject_surface"),
-        tag=factory.SelfAttribute("..subject_tag"),
-    )
-    subject = factory.LazyAttribute(
-        lambda obj: (
-            obj.subject_surface
-            if obj.subject_surface
-            else (obj.subject_topography if obj.subject_topography else obj.subject_tag)
-        )
-    )
+    workflow_name = "topobank.testing.test"
 
     folder = factory.SubFactory(
         ManifestSetFactory,
@@ -365,11 +348,8 @@ class AnalysisFactory(AnalysisFactoryWithoutResult):
     class Meta:
         model = WorkflowResult
         exclude = (
-            "subject_topography",
-            "subject_surface",
-            "subject_tag",
-            "subject",
             "user",
+            "subject",
             "import_from_folder",
         )
 
@@ -416,20 +396,3 @@ class TagAnalysisFactory(AnalysisFactory):
         model = WorkflowResult
 
     subject_tag = factory.SubFactory(TagFactory)
-
-
-class WorkflowTemplateFactory(factory.django.DjangoModelFactory):
-    """
-    Factory for generating WorkflowTemplate instances.
-    """
-
-    class Meta:
-        model = WorkflowTemplate
-
-    name = factory.Sequence(lambda n: f"Workflow Template {n}")
-    kwargs = {"param1": "value1", "param2": "value2"}  # Example JSON field
-    implementation = factory.SubFactory(WorkflowFactory)
-    created_by = factory.SubFactory(UserFactory)
-    permissions = factory.SubFactory(
-        PermissionSetFactory, user=factory.SelfAttribute("..created_by")
-    )

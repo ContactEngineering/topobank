@@ -2,7 +2,7 @@
 Abstract authorization models.
 
 Concrete implementations (PermissionSet, UserPermission, OrganizationPermission)
-live in topobank_orcid.authorization.models.
+live in topobank.testing.mock_auth.
 """
 from enum import Enum
 from typing import Literal

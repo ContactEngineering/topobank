@@ -7,7 +7,7 @@
 - ENH: Support for pydantic models in JSON encoder
 - ENH: Timing of tasks
 - MAINT: Added more task state info to list serializer
-- MAINT: Improved performance of celery task_state resolution
+- MAINT: Improved performance of celery `task_state` resolution
 - MAINT: Changed organizations plugins available from string to choice array
 - MAINT: Fixed plugin logic to be handled dynamically
 - MAINT: Fixed permissions for workflows view
@@ -24,10 +24,14 @@
 - MAINT: muFFT no longer exists and has been folded into muGrid
 - MAINT: Updated Django to 5.2.10
 - MAINT: Updated Sphinx dependency
+- MAINT: Replace Workflow DB model + FK usage with workflow_name string identifiers and a plain-Python Workflow wrapper backed by the workflow registry.
+- MAINT: Collapse WorkflowSubject (subject dispatch table) into direct nullable subject FKs on WorkflowResult + migration + query updates.
+- MAINT: Removed `WorkflowTemplate`
 - BUG: Fixed app filter
 - BUG: Fixed outputs schema
 - BUG: Return none if workflow implementation does not exist
 - BUG: Allow user access to statistics backend and fix landing page
+- TST: Add topobank.testing.mock_auth apps (users/organizations/authorization) and update test settings / CI to remove the topobank-orcid dependency.
 - TST: Fixed test to reflect tracebacks are now passed up from deps
 - TST: Replaced deprecated `pytz` with Python's built-in `zoneinfo` module in tests
 

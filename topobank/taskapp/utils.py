@@ -111,7 +111,7 @@ def _get_package_version_tuple(pkg_name, version_expr):
         s = f"{version_tuple[0]}.{version_tuple[1]}"
 
     try:
-        extra: str = version[len(s) :]  # the rest of the version string
+        extra: str = version[len(s):]  # the rest of the version string
         # Don't strip leading dot if it's followed by dev or other indicators
         # only if it was part of the s string.
         # Actually, let's look at the failing case:

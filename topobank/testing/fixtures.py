@@ -99,8 +99,6 @@ def user_alice_logged_in(live_server, browser, user_alice):
 #
 @pytest.fixture
 def two_topos(settings):
-    call_command("register_analysis_functions")
-
     user = UserFactory(username="testuser", password="abcd$1234")
     surface1 = SurfaceFactory(name="Surface 1", created_by=user)
     surface2 = SurfaceFactory(name="Surface 2", created_by=user)
@@ -175,7 +173,7 @@ def one_topography():
     surface = Surface(name="Line Scans", created_by=user)
     surface.save()
 
-    datafile = ManifestFactory(filename="example.opd", folder=None)
+    datafile = ManifestFactory(filename="example.opd")
 
     topo = Topography1DFactory(
         surface=surface,
@@ -249,20 +247,11 @@ def two_users(settings):
     return (user1, user2), (surface1, surface2, surface3)
 
 
-@pytest.fixture(scope="function", autouse=True)
-def sync_analysis_functions(db):
-    _log.info("Syncing analysis functions in registry with database objects..")
-    from ..analysis.registry import sync_implementation_classes
-
-    sync_implementation_classes(cleanup=True)
-    _log.info("Done synchronizing registry with database.")
-
-
 @pytest.fixture(scope="function")
-def test_analysis_function():
+def test_workflow():
     from ..analysis.models import Workflow
 
-    return Workflow.objects.get(name="topobank.testing.test")
+    return Workflow(name="topobank.testing.test")
 
 
 @pytest.fixture
@@ -375,7 +364,7 @@ def simple_surface():
 
 
 @pytest.fixture
-def test_instances(db, test_analysis_function):
+def test_instances(db, test_workflow):
     users = [UserFactory(username="user1"), UserFactory(username="user2")]
 
     surfaces = [
@@ -385,6 +374,6 @@ def test_instances(db, test_analysis_function):
 
     topographies = [Topography1DFactory(surface=surfaces[0])]
 
-    test_analysis_function.submit(topographies[0].created_by, topographies[0])
+    test_workflow.submit(topographies[0].created_by, topographies[0])
 
     return users, surfaces, topographies
