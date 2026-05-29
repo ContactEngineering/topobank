@@ -1,5 +1,6 @@
 from django.conf import settings
 from django.db import models
+from django.db.models import Q
 
 from topobank.authorization.models import (
     ACCESS_LEVELS,
@@ -26,11 +27,27 @@ class PermissionSetManager(models.Manager):
             return super().create(**kwargs)
 
     def for_user(self, user, permission: ViewEditFull = "view"):
-        """Return all PermissionSets where user has at least the given permission level"""
+        """Return all PermissionSets where user has at least the given permission level.
+
+        For `view`, also matches sets where the anonymous user has the
+        permission — authenticated users inherit anonymous view access
+        when one is configured.
+        """
+        from topobank.authorization import get_anonymous_user
         allowed_levels = levels_with_access(permission)
+        anonymous_user = (
+            get_anonymous_user() if permission == "view" else None
+        )
+        if anonymous_user is not None:
+            return self.get_queryset().filter(
+                Q(user_permissions__user=user,
+                  user_permissions__allow__in=allowed_levels)
+                | Q(user_permissions__user=anonymous_user,
+                    user_permissions__allow__in=allowed_levels)
+            ).distinct()
         return self.get_queryset().filter(
             user_permissions__user=user,
-            user_permissions__allow__in=allowed_levels
+            user_permissions__allow__in=allowed_levels,
         )
 
 
@@ -44,25 +61,52 @@ class PermissionSet(AbstractPermissionSet):
 
     @classmethod
     def filter_queryset(cls, queryset, user, permission):
-        """Filter domain-object queryset to items accessible to user."""
+        """Filter domain-object queryset to items accessible to user.
+
+        For `view`, also includes items where the anonymous user has the
+        permission — authenticated users inherit anonymous view access
+        when one is configured.
+        """
+        from topobank.authorization import get_anonymous_user
         allowed_levels = levels_with_access(permission)
+        anonymous_user = (
+            get_anonymous_user() if permission == "view" else None
+        )
+        if anonymous_user is not None:
+            return queryset.filter(
+                Q(permissions__user_permissions__user=user,
+                  permissions__user_permissions__allow__in=allowed_levels)
+                | Q(permissions__user_permissions__user=anonymous_user,
+                    permissions__user_permissions__allow__in=allowed_levels)
+            ).distinct()
         return queryset.filter(
             permissions__user_permissions__user=user,
-            permissions__user_permissions__allow__in=allowed_levels
+            permissions__user_permissions__allow__in=allowed_levels,
         )
 
     def get_for_user(self, user):
-        """Return permissions of a specific user"""
-        user_permissions = list(self.user_permissions.filter(user=user))
-        nb_user_permissions = len(user_permissions)
-        if nb_user_permissions > 1:
-            raise RuntimeError(
-                f"More than one user permission found for {user}. "
-                "This should not happen."
-            )
-        if nb_user_permissions == 0:
+        """Return the effective permission for a user.
+
+        Falls back to the anonymous user's permission when the user has no
+        explicit row and an anonymous user is configured — authenticated
+        users inherit anonymous access.
+        """
+        from topobank.authorization import get_anonymous_user
+        anonymous_user = get_anonymous_user()
+        if anonymous_user is None:
+            user_permissions = list(self.user_permissions.filter(user=user))
+        else:
+            user_permissions = list(self.user_permissions.filter(
+                Q(user=user) | Q(user=anonymous_user)
+            ))
+        if not user_permissions:
             return None
-        return user_permissions[0].allow
+        max_access_level = max(
+            ACCESS_LEVELS[perm.allow] for perm in user_permissions
+        )
+        if max_access_level == 0:
+            return None
+        return PERMISSION_CHOICES[max_access_level - 1][0]
 
     def grant_for_user(self, user, allow: ViewEditFull):
         """Grant permission to user"""

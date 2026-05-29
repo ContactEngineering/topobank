@@ -26,14 +26,15 @@ def get_user_permission_model():
 
 
 def get_anonymous_user():
+    """Return the configured anonymous user, or ``None`` if not configured.
+
+    Deployments without an anonymous-user concept can leave
+    ``TOPOBANK_ANONYMOUS_USER_GETTER`` unset; callers must then handle
+    ``None`` (typically by skipping anonymous-related logic).
+    """
     from django.conf import settings
-    from django.core.exceptions import ImproperlyConfigured
     from django.utils.module_loading import import_string
     getter = getattr(settings, 'TOPOBANK_ANONYMOUS_USER_GETTER', None)
     if getter is None:
-        raise ImproperlyConfigured(
-            "TOPOBANK_ANONYMOUS_USER_GETTER must be configured to use anonymous users. "
-            "Set it to 'topobank.testing.mock_auth.users.anonymous.get_anonymous_user' when using "
-            "the mock authentication system for testing."
-        )
+        return None
     return import_string(getter)()
