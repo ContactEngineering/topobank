@@ -49,6 +49,10 @@ class CeleryAppConfig(AppConfig):
                 "schedule": 12 * 3600,  # Twice a day
                 "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
             },
+            # Allow downstream projects to register additional scheduled tasks
+            # without forking this module. Entries here override the defaults
+            # above on key collision.
+            **getattr(settings, "CELERY_BEAT_SCHEDULE_EXTRA", {}),
         }
 
         # Register Celery signal handlers for automatic task state synchronization
