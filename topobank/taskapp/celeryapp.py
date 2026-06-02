@@ -1,11 +1,13 @@
 import logging
 import os
 import traceback as tb
+from collections.abc import Mapping
 
 from celery import Celery
 from celery.signals import task_failure, task_revoked, task_success
 from django.apps import AppConfig, apps
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.utils import timezone
 
 _log = logging.getLogger(__name__)
@@ -38,6 +40,17 @@ class CeleryAppConfig(AppConfig):
         # Therefore I'm using an explicit configuration of the schedule instead
         # of using the decorator.
         #
+        # Allow downstream projects to register additional scheduled tasks
+        # without forking this module. Entries here override the defaults
+        # below on key collision.
+        extra_schedule = getattr(settings, "TOPOBANK_CELERY_BEAT_SCHEDULE_EXTRA", {})
+        if not isinstance(extra_schedule, Mapping):
+            raise ImproperlyConfigured(
+                "TOPOBANK_CELERY_BEAT_SCHEDULE_EXTRA must be a mapping of schedule "
+                "names to Celery beat entries, got "
+                f"{type(extra_schedule).__name__!r}."
+            )
+
         app.conf.beat_schedule = {
             "manager-periodic-cleanup": {
                 "task": "topobank.manager.custodian.periodic_cleanup",
@@ -49,6 +62,7 @@ class CeleryAppConfig(AppConfig):
                 "schedule": 12 * 3600,  # Twice a day
                 "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
             },
+            **extra_schedule,
         }
 
         # Register Celery signal handlers for automatic task state synchronization
