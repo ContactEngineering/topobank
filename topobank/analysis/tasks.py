@@ -488,17 +488,16 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
         else:
             raise ValueError(f"Unsupported dependency subject type: {type(subject)}")
 
-        existing_analysis = (
-            WorkflowResult.objects.filter(
-                workflow_name=dependency.function.name,
-                subject_hash=subject_hash,
-                kwargs=kwargs,
-            )
-            .prefetch_related('surfaces')
-            .select_related('subject_topography', 'subject_surface', 'subject_tag')
-            .order_by("-task_start_time")
-            .first()
+        existing_analysis_qs = WorkflowResult.objects.filter(
+            workflow_name=dependency.function.name,
+            subject_hash=subject_hash,
+            kwargs=kwargs,
+        ).select_related(
+            "subject_topography", "subject_surface", "subject_tag"
         )
+        if use_surfaces_path and isinstance(subject, Surface):
+            existing_analysis_qs = existing_analysis_qs.prefetch_related("surfaces")
+        existing_analysis = existing_analysis_qs.order_by("-task_start_time").first()
 
         if existing_analysis is None:
             with transaction.atomic():
