@@ -27,6 +27,7 @@
 - MAINT: Replace Workflow DB model + FK usage with workflow_name string identifiers and a plain-Python Workflow wrapper backed by the workflow registry.
 - MAINT: Collapse WorkflowSubject (subject dispatch table) into direct nullable subject FKs on WorkflowResult + migration + query updates.
 - MAINT: Removed `WorkflowTemplate`
+- MAINT: get_anonymous_user() now returns None when TOPOBANK_ANONYMOUS_USER_GETTER is unset; views fall back to anonymous user if set
 - BUG: Fixed app filter
 - BUG: Fixed outputs schema
 - BUG: Return none if workflow implementation does not exist
