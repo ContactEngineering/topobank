@@ -87,7 +87,7 @@ def test_workflow_result_compute_subject_hash_static_matches_module_function():
 
 
 @pytest.mark.django_db
-def test_update_subject_hash_reads_m2m_and_clears_when_empty(test_workflow):
+def test_update_subject_hash_reads_m2m_and_falls_back_to_fk(test_workflow):
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
     analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
@@ -100,7 +100,9 @@ def test_update_subject_hash_reads_m2m_and_clears_when_empty(test_workflow):
     analysis.surfaces.clear()
     analysis.update_subject_hash()
     analysis.refresh_from_db()
-    assert analysis.subject_hash is None
+    assert analysis.subject_hash == compute_subject_hash(
+        "topography", [analysis.subject_topography_id]
+    )
 
 
 # ---------------------------------------------------------------------------
