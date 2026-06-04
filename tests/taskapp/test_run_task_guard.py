@@ -6,6 +6,7 @@ causing concurrent ``refresh_cache`` executions on the same measurement.
 """
 
 import pytest
+from django.core.management import call_command
 
 from topobank.manager.models import Topography
 from topobank.taskapp.models import TaskStateModel
@@ -93,3 +94,21 @@ def test_factory_path_still_dispatches():
     # transparent there (state is NOTRUN), so derived files are present.
     assert topo.thumbnail is not None
     assert topo.squeezed_datafile is not None
+
+
+@pytest.mark.django_db
+def test_refresh_cache_command_background_persists_pending_state():
+    """`refresh_cache --background` must leave the DB showing the pending state.
+
+    run_task() only sets task_state in memory (autosave=False); without a save
+    the operator would keep seeing the stale prior state (e.g. SUCCESS) until a
+    worker starts. The command wraps run_task + save in a transaction, so the
+    DB reflects PENDING immediately.
+    """
+    topo = Topography1DFactory()
+    _set_state(topo, TaskStateModel.SUCCESS)
+
+    call_command("refresh_cache", "--background")
+
+    topo.refresh_from_db()
+    assert topo.task_state == TaskStateModel.PENDING
