@@ -1355,13 +1355,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             if none_on_error:
                 self.thumbnail = None
                 self.save(update_fields=["thumbnail"])
-                _log.warning(
-                    f"Problems while generating thumbnail for topography {self.id}:"
-                    f" {exc}. Saving <None> instead."
+                _log.error(
+                    "Problems while generating thumbnail for topography %s: %s. "
+                    "Saving <None> instead.",
+                    self.id,
+                    exc,
+                    exc_info=True,
                 )
-                import traceback
-
-                _log.warning(f"Traceback: {traceback.format_exc()}")
             else:
                 raise ThumbnailGenerationException(self, str(exc)) from exc
 
@@ -1388,12 +1388,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             if none_on_error:
                 self.deepzoom = None
                 self.save(update_fields=["deepzoom"])
-                _log.warning(
-                    f"Problems while generating deep zoom images for topography {self.id}: {exc}."
+                _log.error(
+                    "Problems while generating deep zoom images for topography "
+                    "%s: %s. Saving <None> instead.",
+                    self.id,
+                    exc,
+                    exc_info=True,
                 )
-                import traceback
-
-                _log.warning(f"Traceback: {traceback.format_exc()}")
             else:
                 raise DZIGenerationException(self, str(exc)) from exc
 
@@ -1404,13 +1405,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             if none_on_error:
                 self.squeezed_datafile = None
                 self.save(update_fields=["squeezed_datafile"])
-                _log.warning(
+                _log.error(
                     "Problems while generating squeezed datafile for topography "
-                    f"{self.id}: {exc}. Saving <None> instead."
+                    "%s: %s. Saving <None> instead.",
+                    self.id,
+                    exc,
+                    exc_info=True,
                 )
-                import traceback
-
-                _log.warning(f"Traceback: {traceback.format_exc()}")
             else:
                 raise SqueezedDatafileGenerationException(self, str(exc)) from exc
 
@@ -1633,6 +1634,31 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     self.make_deepzoom(st_topo=st_topo)
                 with timer("make_squeezed"):
                     self.make_squeezed(st_topo=st_topo)
+
+                # Verify the derived files actually landed. A measurement with
+                # complete metadata is expected to have these; a missing one is
+                # a silent data-quality failure that would otherwise be masked
+                # by task_state=SUCCESS. We only log (generation stays
+                # non-fatal) so monitoring can catch it.
+                missing = []
+                if self.thumbnail is None or not self.thumbnail.exists():
+                    missing.append("thumbnail")
+                # deepzoom is only generated for 2D maps (size_y is not None)
+                if self.size_y is not None and (
+                    self.deepzoom is None or len(self.deepzoom) == 0
+                ):
+                    missing.append("deepzoom")
+                if self.squeezed_datafile is None or not (
+                    self.squeezed_datafile.exists()
+                ):
+                    missing.append("squeezed_datafile")
+                if missing:
+                    _log.error(
+                        "refresh_cache: topography %s has complete metadata but "
+                        "is missing derived files: %s",
+                        self.id,
+                        ", ".join(missing),
+                    )
 
         # Save dataset
         self.save()

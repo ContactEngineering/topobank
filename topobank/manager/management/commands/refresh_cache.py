@@ -46,7 +46,11 @@ class Command(BaseCommand):
 
             try:
                 if options['background']:
-                    run_task(topo)
+                    # force=True: this is a deliberate operator recompute, so
+                    # re-dispatch even if a (possibly stale/stuck) task is
+                    # already in flight. Keeps parity with the non-background
+                    # branch, which calls refresh_cache() ignoring task state.
+                    run_task(topo, force=True)
                 else:
                     topo.refresh_cache()
                 num_success += 1
