@@ -7,11 +7,15 @@ to be cleared, otherwise task_duration reports garbage and a stale
 task_start_time could be mistaken for an in-flight run.
 """
 import datetime
+import uuid
 
 import pytest
 
 from topobank.analysis.models import WorkflowResult
 from topobank.testing.factories import TopographyAnalysisFactory
+
+START_TIME = datetime.datetime(2018, 1, 1, 12, tzinfo=datetime.timezone.utc)
+END_TIME = datetime.datetime(2018, 1, 1, 13, tzinfo=datetime.timezone.utc)
 
 
 @pytest.mark.django_db
@@ -22,8 +26,8 @@ class TestSetPendingState:
         """Both run timestamps are reset so the re-pended row looks fresh."""
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
-            task_start_time=datetime.datetime(2018, 1, 1, 12),
-            task_end_time=datetime.datetime(2018, 1, 1, 13),
+            task_start_time=START_TIME,
+            task_end_time=END_TIME,
             workflow_name=test_workflow.name,
         )
 
@@ -41,8 +45,8 @@ class TestSetPendingState:
         """duration() must not report a stale value from the previous run."""
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
-            task_start_time=datetime.datetime(2018, 1, 1, 12),
-            task_end_time=datetime.datetime(2018, 1, 1, 13),
+            task_start_time=START_TIME,
+            task_end_time=END_TIME,
             workflow_name=test_workflow.name,
         )
         # Sanity check: the analysis has a duration before re-pending.
@@ -56,7 +60,7 @@ class TestSetPendingState:
         """The remaining bookkeeping fields are reset alongside the timestamps."""
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.FAILURE,
-            task_id="some-stale-celery-id",
+            task_id=str(uuid.uuid4()),
             task_error="boom",
             task_traceback="Traceback (most recent call last): ...",
             workflow_name=test_workflow.name,
@@ -75,8 +79,8 @@ class TestSetPendingState:
         """With autosave=False the in-memory row is reset but the DB is untouched."""
         analysis = TopographyAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
-            task_start_time=datetime.datetime(2018, 1, 1, 12),
-            task_end_time=datetime.datetime(2018, 1, 1, 13),
+            task_start_time=START_TIME,
+            task_end_time=END_TIME,
             workflow_name=test_workflow.name,
         )
 
