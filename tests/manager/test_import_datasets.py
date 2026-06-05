@@ -60,6 +60,22 @@ def test_import_datasets_creates_surface_with_data(container_archive):
 
 
 @pytest.mark.django_db
+def test_import_datasets_dry_run_persists_nothing(container_archive):
+    importer = UserFactory(username="importer-dry")
+
+    call_command(
+        "import_datasets",
+        "importer-dry",
+        container_archive,
+        "--ignore-missing",
+        "--dry-run",
+    )
+
+    # A dry run reads and validates the archive but must not create anything.
+    assert Surface.objects.filter(created_by=importer).count() == 0
+
+
+@pytest.mark.django_db
 def test_import_datasets_unknown_user_raises():
     with pytest.raises(CommandError):
         call_command("import_datasets", "no-such-user", "/nonexistent.zip")

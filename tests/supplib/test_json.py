@@ -12,6 +12,36 @@ except ModuleNotFoundError:
 from topobank.supplib.json import ExtendedJSONEncoder, none_to_nan
 
 
+def test_json_import_fallbacks_without_jax_and_pydantic(monkeypatch):
+    """The module degrades gracefully when jaxlib / pydantic are absent.
+
+    Both are installed in the test environment, so we reload the module with
+    those imports forced to fail to exercise the fallback branches.
+    """
+    import builtins
+    import importlib
+
+    import topobank.supplib.json as json_module
+
+    real_import = builtins.__import__
+
+    def fake_import(name, *args, **kwargs):
+        if name.startswith("jaxlib") or name == "pydantic":
+            raise ModuleNotFoundError(name)
+        return real_import(name, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "__import__", fake_import)
+    try:
+        reloaded = importlib.reload(json_module)
+        # Fallbacks: ArrayImpl -> np.ndarray, PydanticBaseModel -> None
+        assert reloaded.ArrayImpl is reloaded.np.ndarray
+        assert reloaded.PydanticBaseModel is None
+    finally:
+        # Restore the real module so later tests use the genuine imports.
+        monkeypatch.undo()
+        importlib.reload(json_module)
+
+
 def test_none_to_nan():
     out = none_to_nan({"a": None, "b": [None, 1], "c": 2, "d": {None}})
     assert np.isnan(out["a"])

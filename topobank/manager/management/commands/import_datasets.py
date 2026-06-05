@@ -150,6 +150,9 @@ class Command(BaseCommand):
             # applied because of file contents while loading
             pass
 
+        # Constructing the instance validates the metadata. On a dry run we stop
+        # here: nothing is persisted (the surface is not saved either, so saving
+        # the topography would fail on the unsaved foreign key).
         topography = Topography(**topo_kwargs)
 
         if not dry_run:
@@ -160,8 +163,6 @@ class Command(BaseCommand):
             )
             # Renew/generate cache
             topography.refresh_cache()
-        else:
-            topography.save()
 
     def process_dataset_archive(
         self,
@@ -259,7 +260,7 @@ class Command(BaseCommand):
                             f"  Cannot create topography from description {topo_dict}. Reason: {exc}"
                         ) from exc
 
-                if "properties" in surface_dict:
+                if "properties" in surface_dict and not dry_run:
                     num_properties = len(surface_dict["properties"])
                     for prop_idx, prop_dict in enumerate(surface_dict["properties"]):
                         self.stdout.write(
