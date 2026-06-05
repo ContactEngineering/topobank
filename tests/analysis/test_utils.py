@@ -190,3 +190,66 @@ def test_round_to_significant_digits():
 def test_filter_and_order_analyses_empty():
     # No analyses in, no analyses out (exercises the empty-input path).
     assert filter_and_order_analyses([]) == []
+
+
+@pytest.mark.django_db
+def test_filter_and_order_analyses_surface_before_its_topographies(test_workflow):
+    import topobank.testing.workflows  # noqa: F401  (registers the workflow)
+    from topobank.testing.factories import (
+        SurfaceAnalysisFactory,
+        SurfaceFactory,
+        Topography2DFactory,
+    )
+
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+    topo1 = Topography2DFactory(surface=surface)
+    topo2 = Topography2DFactory(surface=surface)
+
+    ta1 = TopographyAnalysisFactory(
+        subject_topography=topo1, workflow_name=test_workflow.name, result=None
+    )
+    ta2 = TopographyAnalysisFactory(
+        subject_topography=topo2, workflow_name=test_workflow.name, result=None
+    )
+    sa = SurfaceAnalysisFactory(
+        subject_surface=surface, workflow_name=test_workflow.name, result=None
+    )
+
+    ordered = filter_and_order_analyses([ta2, sa, ta1])
+
+    # The surface has more than one topography, so its (averaged) analysis is
+    # kept and placed before the corresponding topography analyses.
+    assert set(ordered) == {sa, ta1, ta2}
+    assert ordered.index(sa) < ordered.index(ta1)
+    assert ordered.index(sa) < ordered.index(ta2)
+
+
+@pytest.mark.django_db
+def test_filter_and_order_analyses_drops_surface_analysis_for_single_topography(
+    test_workflow,
+):
+    import topobank.testing.workflows  # noqa: F401
+
+    from topobank.testing.factories import (
+        SurfaceAnalysisFactory,
+        SurfaceFactory,
+        Topography2DFactory,
+    )
+
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+    topo = Topography2DFactory(surface=surface)
+
+    ta = TopographyAnalysisFactory(
+        subject_topography=topo, workflow_name=test_workflow.name, result=None
+    )
+    sa = SurfaceAnalysisFactory(
+        subject_surface=surface, workflow_name=test_workflow.name, result=None
+    )
+
+    ordered = filter_and_order_analyses([ta, sa])
+
+    # With only one topography the surface-level (averaged) analysis is dropped.
+    assert ta in ordered
+    assert sa not in ordered

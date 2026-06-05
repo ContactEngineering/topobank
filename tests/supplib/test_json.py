@@ -9,7 +9,21 @@ try:
 except ModuleNotFoundError:
     jnp = np
 
-from topobank.supplib.json import ExtendedJSONEncoder
+from topobank.supplib.json import ExtendedJSONEncoder, none_to_nan
+
+
+def test_none_to_nan():
+    out = none_to_nan({"a": None, "b": [None, 1], "c": 2, "d": {None}})
+    assert np.isnan(out["a"])
+    assert np.isnan(out["b"][0])
+    assert out["b"][1] == 1
+    assert out["c"] == 2
+    # sets are converted to lists, with None -> NaN
+    assert len(out["d"]) == 1 and np.isnan(out["d"][0])
+
+    # Scalars pass straight through (None -> NaN, others unchanged).
+    assert np.isnan(none_to_nan(None))
+    assert none_to_nan(5) == 5
 
 
 class SampleModel(BaseModel):
