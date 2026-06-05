@@ -13,9 +13,14 @@ cover the success path end-to-end.
 """
 
 import datetime
+import uuid
+from types import SimpleNamespace
 
+import celery.states
 import pytest
+from django.test import override_settings
 from django.utils import timezone
+from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
 from topobank.analysis.models import WorkflowResult
 from topobank.analysis.tasks import perform_analysis
@@ -176,3 +181,301 @@ def test_eager_execution_reaches_success(two_topos, test_workflow):
     assert analysis.get_task_progress() == 100.0
     assert analysis.get_task_error() is None
     assert analysis.task_duration is not None
+
+
+# ---------------------------------------------------------------------------
+# Celery result caching helpers (_get_result_state / _get_result_info)
+#
+# These are tested with a stub AsyncResult and a deterministic local-memory
+# cache, so they do not depend on a running broker. Calling them twice exercises
+# both the cache-miss (query + store) and cache-hit (return stored) paths.
+# ---------------------------------------------------------------------------
+
+
+@override_settings(
+    CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+    }
+)
+@pytest.mark.django_db
+def test_get_result_state_is_cached(test_workflow):
+    from django.core.cache import cache
+
+    cache.clear()
+    a = _make_analysis(test_workflow)
+    r = SimpleNamespace(id=uuid.uuid4(), state="PROGRESS", info={"current": 1})
+
+    assert a._get_result_state(r) == "PROGRESS"  # miss -> query + cache
+    r.state = "SUCCESS"
+    assert a._get_result_state(r) == "PROGRESS"  # hit -> stale cached value
+
+
+@override_settings(
+    CACHES={
+        "default": {"BACKEND": "django.core.cache.backends.locmem.LocMemCache"}
+    }
+)
+@pytest.mark.django_db
+def test_get_result_info_is_cached(test_workflow):
+    from django.core.cache import cache
+
+    cache.clear()
+    a = _make_analysis(test_workflow)
+    r = SimpleNamespace(id=uuid.uuid4(), state="PROGRESS", info={"current": 1})
+
+    assert a._get_result_info(r) == {"current": 1}  # miss -> query + cache
+    r.info = {"current": 99}
+    assert a._get_result_info(r) == {"current": 1}  # hit -> stale cached value
+
+
+@pytest.mark.django_db
+def test_result_helpers_handle_none(test_workflow):
+    a = _make_analysis(test_workflow)
+    assert a._get_result_state(None) is None
+    assert a._get_result_info(None) is None
+
+
+# ---------------------------------------------------------------------------
+# get_celery_state / get_task_state with injected Celery results
+#
+# Eager mode never yields STARTED / PROGRESS / FAILURE AsyncResult states, so we
+# inject them at the seams (get_async_result(s) / _get_result_state) and assert
+# the reconciliation logic on top.
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_celery_state_failure_from_dependent_task(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    mocker.patch.object(a, "get_async_results", return_value=[mocker.Mock()])
+    mocker.patch.object(a, "_get_result_state", return_value=celery.states.FAILURE)
+    assert a.get_celery_state() == WorkflowResult.FAILURE
+
+
+@pytest.mark.django_db
+def test_celery_state_maps_running_task(mocker, test_workflow):
+    a = _make_analysis(
+        test_workflow, task_state=WorkflowResult.STARTED, task_id=uuid.uuid4()
+    )
+    mocker.patch.object(a, "get_async_results", return_value=[])
+    mocker.patch.object(a, "get_async_result", return_value=mocker.Mock())
+    mocker.patch.object(a, "_get_result_state", return_value=celery.states.STARTED)
+    assert a.get_celery_state() == WorkflowResult.STARTED
+
+
+@pytest.mark.django_db
+def test_celery_state_unknown_state_is_started(mocker, test_workflow):
+    a = _make_analysis(
+        test_workflow, task_state=WorkflowResult.STARTED, task_id=uuid.uuid4()
+    )
+    mocker.patch.object(a, "get_async_results", return_value=[])
+    mocker.patch.object(a, "get_async_result", return_value=mocker.Mock())
+    # A custom Celery state (e.g. 'PROGRESS') is not in the state map.
+    mocker.patch.object(a, "_get_result_state", return_value="PROGRESS")
+    assert a.get_celery_state() == WorkflowResult.STARTED
+
+
+@pytest.mark.django_db
+def test_task_state_agrees_with_celery(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    mocker.patch.object(a, "get_celery_state", return_value=WorkflowResult.STARTED)
+    assert a.get_task_state() == WorkflowResult.STARTED
+
+
+@pytest.mark.django_db
+def test_task_state_celery_failure_overrides_self_report(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    mocker.patch.object(a, "get_celery_state", return_value=WorkflowResult.FAILURE)
+    assert a.get_task_state() == WorkflowResult.FAILURE
+
+
+# ---------------------------------------------------------------------------
+# get_task_progress / get_task_messages aggregation
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_task_progress_aggregates_children(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    mocker.patch.object(
+        a, "get_async_results", return_value=[mocker.Mock(), mocker.Mock()]
+    )
+    # One finished child, one half-way child -> (1 + 0.5) / 2 = 75 %.
+    mocker.patch.object(
+        a, "_get_result_state", side_effect=[celery.states.SUCCESS, "PROGRESS"]
+    )
+    mocker.patch.object(
+        a,
+        "_get_result_info",
+        side_effect=[None, {"current": 5.0, "total": 10.0, "message": "half"}],
+    )
+    assert a.get_task_progress() == 75.0
+
+
+@pytest.mark.django_db
+def test_task_progress_counts_pending_and_ignores_invalid(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    mocker.patch.object(
+        a,
+        "get_async_results",
+        return_value=[mocker.Mock(), mocker.Mock(), mocker.Mock()],
+    )
+    # A pending child contributes to the total but not to progress; the two
+    # malformed progress payloads (validation error, then non-mapping) are
+    # ignored entirely.
+    mocker.patch.object(
+        a, "_get_result_state", side_effect=[celery.states.PENDING, "PROGRESS", "PROGRESS"]
+    )
+    mocker.patch.object(
+        a, "_get_result_info", side_effect=[None, {"current": "x"}, "junk"]
+    )
+    assert a.get_task_progress() == 0.0
+
+
+@pytest.mark.django_db
+def test_get_async_results_uses_cache(test_workflow):
+    a = _make_analysis(test_workflow)
+    sentinel = [object()]
+    a._cached_async_results = sentinel
+    assert a.get_async_results() is sentinel
+
+
+@pytest.mark.django_db
+def test_task_progress_returns_none_on_failure(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    mocker.patch.object(a, "get_async_results", return_value=[mocker.Mock()])
+    mocker.patch.object(a, "_get_result_state", side_effect=[celery.states.FAILURE])
+    mocker.patch.object(a, "_get_result_info", side_effect=[None])
+    assert a.get_task_progress() is None
+
+
+@pytest.mark.django_db
+def test_task_messages_collects_progress_messages(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    mocker.patch.object(a, "get_async_results", return_value=[mocker.Mock()])
+    mocker.patch.object(a, "_get_result_state", side_effect=["PROGRESS"])
+    mocker.patch.object(
+        a,
+        "_get_result_info",
+        side_effect=[{"current": 1.0, "total": 2.0, "message": "working"}],
+    )
+    assert a.get_task_messages() == ["working"]
+
+
+@pytest.mark.django_db
+def test_task_messages_ignores_invalid_payloads(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    mocker.patch.object(
+        a, "get_async_results", return_value=[mocker.Mock(), mocker.Mock()]
+    )
+    mocker.patch.object(a, "_get_result_state", side_effect=["PROGRESS", "PROGRESS"])
+    # First payload fails pydantic validation, second is not a mapping (TypeError).
+    mocker.patch.object(
+        a, "_get_result_info", side_effect=[{"current": "not-a-number"}, "junk"]
+    )
+    assert a.get_task_messages() == []
+
+
+@pytest.mark.django_db
+def test_task_messages_returns_none_on_failure(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    mocker.patch.object(a, "get_async_results", return_value=[mocker.Mock()])
+    mocker.patch.object(a, "_get_result_state", side_effect=[celery.states.REVOKED])
+    mocker.patch.object(a, "_get_result_info", side_effect=[None])
+    assert a.get_task_messages() is None
+
+
+# ---------------------------------------------------------------------------
+# get_task_error derived from a Celery exception
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_get_task_error_from_celery_exception(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED, task_id=None)
+    a.task_error = ""
+    a.save(update_fields=["task_error"])
+    mocker.patch.object(a, "get_async_results", return_value=[mocker.Mock()])
+    mocker.patch.object(a, "_get_result_info", return_value=ValueError("kaboom"))
+
+    assert "kaboom" in a.get_task_error()
+
+    # The failure is persisted for future reference.
+    a.refresh_from_db()
+    assert a.task_state == WorkflowResult.FAILURE
+    assert a.task_error == "kaboom"
+
+
+# ---------------------------------------------------------------------------
+# run_task: success-with-timer, CannotDetectFileFormat, and generic failure
+# ---------------------------------------------------------------------------
+
+
+def _fake_celery_task():
+    return SimpleNamespace(request=SimpleNamespace(id=str(uuid.uuid4())))
+
+
+@pytest.mark.django_db
+def test_run_task_success_with_timer(test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.PENDING)
+
+    def worker(*args, timer=None, **kwargs):
+        # A worker that accepts `timer` exercises the timing branch.
+        pass
+
+    a.task_worker = worker
+    a.run_task(_fake_celery_task())
+
+    a.refresh_from_db()
+    assert a.task_state == WorkflowResult.SUCCESS
+    assert a.task_error == ""
+    assert a.task_timer is not None
+
+
+@pytest.mark.django_db
+def test_run_task_cannot_detect_file_format(test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.PENDING)
+
+    def worker(*args, **kwargs):
+        raise CannotDetectFileFormat("unknown format")
+
+    a.task_worker = worker
+    # This failure mode is handled, not re-raised.
+    a.run_task(_fake_celery_task())
+
+    a.refresh_from_db()
+    assert a.task_state == WorkflowResult.FAILURE
+    assert "unknown or unsupported format" in a.task_error
+
+
+@pytest.mark.django_db
+def test_run_task_generic_exception_is_recorded_and_reraised(test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.PENDING)
+
+    def worker(*args, **kwargs):
+        raise ValueError("boom")
+
+    a.task_worker = worker
+    with pytest.raises(ValueError):
+        a.run_task(_fake_celery_task())
+
+    a.refresh_from_db()
+    assert a.task_state == WorkflowResult.FAILURE
+    assert a.task_error == "boom"
+    assert a.task_traceback
+
+
+# ---------------------------------------------------------------------------
+# cancel_task
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_cancel_task_revokes_running_task(mocker, test_workflow):
+    a = _make_analysis(test_workflow, task_state=WorkflowResult.STARTED)
+    result = mocker.Mock()
+    mocker.patch.object(a, "get_async_result", return_value=result)
+
+    a.cancel_task()
+
+    result.revoke.assert_called_once()
