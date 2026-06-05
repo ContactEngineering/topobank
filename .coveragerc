@@ -1,6 +1,11 @@
 [run]
 include = topobank/*
-omit = *migrations*, *static*, *.html
+omit =
+    */migrations/*
+    */static/*
+    */testing/*
+    *.html
+    *.txt
 plugins =
     django_coverage_plugin
 
