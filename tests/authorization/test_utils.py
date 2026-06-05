@@ -1,5 +1,4 @@
 import pytest
-from django.core.exceptions import ImproperlyConfigured
 
 from topobank.authorization import (
     get_anonymous_user,
@@ -36,7 +35,7 @@ def test_get_anonymous_user_returns_user():
     assert get_anonymous_user() is not None
 
 
-def test_get_anonymous_user_requires_configuration(settings):
+def test_get_anonymous_user_returns_none_when_unconfigured(settings):
+    # When no getter is configured, callers receive None (and must handle it).
     settings.TOPOBANK_ANONYMOUS_USER_GETTER = None
-    with pytest.raises(ImproperlyConfigured):
-        get_anonymous_user()
+    assert get_anonymous_user() is None
