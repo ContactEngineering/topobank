@@ -1,6 +1,5 @@
 import pytest
 from django.core.exceptions import ImproperlyConfigured
-from django.test import override_settings
 
 from topobank.authorization import (
     get_anonymous_user,
@@ -24,8 +23,11 @@ def test_get_permission_models_resolve():
     assert get_organization_model() is not None
 
 
-@override_settings(TOPOBANK_ORGANIZATION_MODEL="")
-def test_get_organization_model_returns_none_when_unset():
+def test_get_organization_model_returns_none_when_unset(settings):
+    # Use the pytest-django `settings` fixture rather than Django's
+    # @override_settings decorator: the decorator is only reliably applied to
+    # unittest TestCase methods, not plain pytest functions.
+    settings.TOPOBANK_ORGANIZATION_MODEL = ""
     assert get_organization_model() is None
 
 
@@ -34,7 +36,7 @@ def test_get_anonymous_user_returns_user():
     assert get_anonymous_user() is not None
 
 
-@override_settings(TOPOBANK_ANONYMOUS_USER_GETTER=None)
-def test_get_anonymous_user_requires_configuration():
+def test_get_anonymous_user_requires_configuration(settings):
+    settings.TOPOBANK_ANONYMOUS_USER_GETTER = None
     with pytest.raises(ImproperlyConfigured):
         get_anonymous_user()
