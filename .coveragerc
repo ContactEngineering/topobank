@@ -1,11 +1,14 @@
 [run]
 include = topobank/*
+# Coverage is scoped to core application logic. See COVERAGE.md for the full
+# rationale behind each omission below.
 omit =
     */migrations/*
     */static/*
     */testing/*
     *.html
     *.txt
+    */admin.py
 plugins =
     django_coverage_plugin
 
