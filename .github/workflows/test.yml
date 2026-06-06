@@ -97,4 +97,4 @@ jobs:
 
     - name: Test
       run: |
-        pytest -v --cov=topobank --cov-config=.coveragerc --cov-report=term-missing --cov-report=xml --cov-fail-under=75
+        pytest -v --cov=topobank --cov-config=.coveragerc --cov-report=term-missing --cov-report=xml --cov-fail-under=80

@@ -1,8 +1,8 @@
 # Test coverage
 
 Coverage is measured over `topobank/*` (configured in `.coveragerc`) and
-reported in CI (`.github/workflows/test.yml`) with a `--cov-fail-under=75`
-regression floor.
+reported in CI (`.github/workflows/test.yml`) with a `--cov-fail-under=80`
+gate.
 
 Run locally:
 
@@ -25,21 +25,20 @@ Coverage is scoped to **core application logic** (see `.coveragerc`):
 
 ## Current status
 
-- **Core coverage: ~79%** — the gate is a **75%** regression floor.
-- Targets: **80%** near-term, **90%** longer-term. The gate is intentionally a
-  floor *below* current coverage (it fails CI only on a regression); raise it
-  toward 80→90% as the gaps below are filled.
+- **Core coverage: ~81%** — the gate is set at **80%**.
+- Target: **90%** longer-term. The margin above 80% is small; the gaps below
+  are where to add tests when raising it further.
 
 ## Path to 90%
 
 Reaching 90% means covering roughly the following (largest first). The bulk is
-Celery/analysis orchestration and the data pipeline, which need integration-
-style tests (eager Celery is already enabled; some need real topography data):
+analysis/data-pipeline code that needs integration-style tests (eager Celery is
+already enabled; some need real topography data):
 
 | Module | Coverage | Untested area |
 |---|---|---|
-| `analysis/tasks.py` | 46% | Celery workflow orchestration — `schedule_workflow`, `execute_workflow`, dependency/chord handling |
 | `analysis/models.py` | 70% | `WorkflowResult`/`Workflow` methods (subject dispatch, eval, `submit_again`, `resolve_workflow`) |
+| `analysis/tasks.py` | 76% | remaining: dependency-failure propagation, the progress-callback path, chord edge cases |
 | `manager/models.py` | 80% | data-pipeline branches (deepzoom/squeezed/refresh-cache edge cases) |
 | `analysis/legacy/workflows.py` | 65% | `WorkflowImplementation.eval` / result handling |
 | `manager/utils.py` | 65% | reader / subject-dict helpers |
