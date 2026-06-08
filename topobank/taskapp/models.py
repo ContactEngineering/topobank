@@ -400,6 +400,11 @@ class TaskStateModel(models.Model):
         self.task_error = ""
         self.task_traceback = None
         self.task_id = None  # Need to reset, otherwise Celery reports a failure
+        # Clear timestamps from any prior run so a re-pended row looks freshly
+        # created: otherwise duration() reports garbage and a stale task_start_time
+        # could be mistaken for an in-flight run.
+        self.task_start_time = None
+        self.task_end_time = None
         if autosave:
             self.save(
                 update_fields=[
@@ -408,6 +413,8 @@ class TaskStateModel(models.Model):
                     "task_error",
                     "task_traceback",
                     "task_id",
+                    "task_start_time",
+                    "task_end_time",
                 ]
             )
 
