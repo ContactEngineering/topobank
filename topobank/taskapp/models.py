@@ -44,6 +44,11 @@ class TaskStateModel(models.Model):
         (NOTRUN, "not run"),
     )
 
+    # States indicating a task is dispatched or running. RETRY is deliberately
+    # excluded: a task awaiting retry is not currently running and keeps its
+    # original (now-stale) task_start_time.
+    IN_FLIGHT_STATES = (PENDING, PENDING_DEPENDENCIES, STARTED)
+
     # Mapping Celery states to our state information. Everything not in the
     # list (e.g. custom Celery states) are interpreted as STARTED.
     _CELERY_STATE_MAP = {

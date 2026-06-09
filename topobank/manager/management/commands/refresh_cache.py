@@ -2,6 +2,7 @@ import logging
 import traceback
 
 from django.core.management.base import BaseCommand
+from django.db import transaction
 
 from topobank.manager.models import Topography
 from topobank.taskapp.utils import run_task
@@ -46,7 +47,19 @@ class Command(BaseCommand):
 
             try:
                 if options['background']:
-                    run_task(topo)
+                    # force=True: this is a deliberate operator recompute, so
+                    # re-dispatch even if a (possibly stale/stuck) task is
+                    # already in flight. Keeps parity with the non-background
+                    # branch, which calls refresh_cache() ignoring task state.
+                    #
+                    # The transaction + save() persists the pending state so an
+                    # operator sees 'pending' immediately (run_task only sets it
+                    # in memory via autosave=False) and lets run_task's on_commit
+                    # dispatch fire after the pending state is committed -- the
+                    # same pattern as Topography.ensure_task_started().
+                    with transaction.atomic():
+                        run_task(topo, force=True)
+                        topo.save()
                 else:
                     topo.refresh_cache()
                 num_success += 1

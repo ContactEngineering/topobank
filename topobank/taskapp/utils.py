@@ -1,4 +1,5 @@
 import importlib
+import logging
 import os
 import sys
 from functools import lru_cache
@@ -9,6 +10,8 @@ from django.db import transaction
 
 from .celeryapp import app
 from .models import Dependency, TaskStateModel, Version
+
+_log = logging.getLogger(__name__)
 
 
 @lru_cache(maxsize=1)
@@ -178,8 +181,27 @@ def task_dispatch(celery_task, cls_id, obj_id, *args, **kwargs):
 
 
 def run_task(
-    model_instance: TaskStateModel, celery_queue: Optional[str] = None, *args, **kwargs
+    model_instance: TaskStateModel,
+    celery_queue: Optional[str] = None,
+    *args,
+    force: bool = False,
+    **kwargs,
 ):
+    # Guard against re-dispatching a task that is already in flight. This
+    # prevents the re-entrant dispatch that happens when `refresh_cache` mutates
+    # significant fields and its terminal `save()` re-enters `run_task` (the
+    # outer task has already set state to STARTED at that point), as well as
+    # duplicate dispatches from repeated webhook deliveries. Pass `force=True`
+    # to deliberately re-run an in-flight task (e.g. an operator recompute).
+    if not force and model_instance.task_state in TaskStateModel.IN_FLIGHT_STATES:
+        _log.debug(
+            "run_task: skipping dispatch for %s id=%s; task already in-flight "
+            "(state=%s). Pass force=True to override.",
+            type(model_instance).__name__,
+            model_instance.id,
+            model_instance.task_state,
+        )
+        return
     model_instance.set_pending_state(autosave=False)
     # Only submit this on_commit, once save() has finalized and everything
     # has been flushed to the database (including a possible 'pe'nding state)
