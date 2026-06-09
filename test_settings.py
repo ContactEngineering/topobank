@@ -55,7 +55,7 @@ TOPOBANK_ANONYMOUS_USER_GETTER = (
 )
 SITE_ID = 1
 USE_TZ = True
-TIME_ZONE = "CET"
+TIME_ZONE = "Europe/Berlin"
 
 # Celery test configuration
 CELERY_TASK_ALWAYS_EAGER = True

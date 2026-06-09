@@ -44,7 +44,7 @@ TOPOBANK_ORGANIZATION_MODEL = "organizations.Organization"
 TOPOBANK_ANONYMOUS_USER_GETTER = "topobank.testing.mock_auth.users.anonymous.get_anonymous_user"
 SITE_ID = 1
 USE_TZ = True
-TIME_ZONE = "CET"
+TIME_ZONE = "Europe/Berlin"
 
 # Celery test configuration
 CELERY_TASK_ALWAYS_EAGER = True

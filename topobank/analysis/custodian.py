@@ -37,4 +37,4 @@ def periodic_cleanup():
             f"Custodian: Updating {q.count()} workflow results because they are stuck in pending state"
             " with no task assigned."
         )
-        q.update(task_state=WorkflowResult.FAILED, error_message="Analysis failed to launch.")
+        q.update(task_state=WorkflowResult.FAILURE, task_error="Analysis failed to launch.")

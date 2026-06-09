@@ -5,8 +5,27 @@ import json
 import numpy as np
 import pytest
 
-from topobank.supplib.dict import SplitDictionaryHere, load_split_dict, store_split_dict
+from topobank.supplib.dict import (
+    SplitDictionaryHere,
+    load_split_dict,
+    store_split_dict,
+    unsplit_dict,
+)
 from topobank.testing.factories import ManifestSetFactory
+
+
+def test_unsplit_dict_unwraps_nested_split_dictionaries():
+    d = {
+        "a": SplitDictionaryHere("inner", {"x": 1}),
+        "b": [SplitDictionaryHere("y", {"z": 2}), 3],
+        "c": 4,
+    }
+    assert unsplit_dict(d) == {"a": {"x": 1}, "b": [{"z": 2}, 3], "c": 4}
+
+
+def test_unsplit_dict_passes_through_plain_values():
+    assert unsplit_dict({"a": 1, "b": [1, 2]}) == {"a": 1, "b": [1, 2]}
+    assert unsplit_dict(5) == 5
 
 
 @pytest.mark.django_db
