@@ -50,6 +50,31 @@ I order to copy the file to the local file system, you can do
 
 (before use `docker ps` in order to find out the container's name).
 
+`list_workflow_schemas`
+.......................
+
+List all registered workflows together with the JSON schema and the default
+values of their keyword arguments (parameters). Useful when adjusting clients
+(e.g. the frontend) to changed workflow parameters.
+
+.. code:: bash
+
+    python manage.py list_workflow_schemas
+
+Options:
+
+- ``--name <workflow>`` — only show the workflow with this registry name,
+  e.g. ``--name topobank_statistics.power_spectral_density``.
+- ``--json`` — emit a machine-readable JSON document on stdout.
+- ``--output <file>`` — write the JSON document to a file instead of stdout
+  (implies ``--json``); use this when log handlers write to stdout and would
+  corrupt piped output.
+- ``--indent <n>`` — indentation level for JSON output (default: 2).
+
+Each entry contains ``name``, ``display_name``, ``kwargs_schema`` (the
+Pydantic-generated JSON schema of the parameter model) and ``default_kwargs``
+(the parameter defaults as a dictionary).
+
 
 Monitoring
 ----------
