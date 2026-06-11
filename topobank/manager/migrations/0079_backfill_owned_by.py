@@ -60,9 +60,9 @@ def backfill_owned_by(apps, schema_editor):
         .filter(owned_by__isnull=True, surface__owned_by__isnull=False)
         .update(
             owned_by=Subquery(
-                Surface.objects.filter(pk=OuterRef("surface_id")).values("owned_by")[
-                    :1
-                ]
+                Surface.objects.using(alias)
+                .filter(pk=OuterRef("surface_id"))
+                .values("owned_by")[:1]
             )
         )
     )
@@ -116,9 +116,9 @@ def _backfill_surfaces(connection, alias, Surface, Organization, User):
     if ambiguous:
         _log.warning(
             "Skipping owned_by backfill for surfaces created by %d user(s) "
-            "belonging to more than one organization: %s",
+            "belonging to more than one organization (sample: %s)",
             len(ambiguous),
-            sorted(ambiguous),
+            sorted(ambiguous)[:10],
         )
 
     n_backfilled = 0
