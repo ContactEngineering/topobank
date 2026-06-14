@@ -52,6 +52,7 @@ class Command(BaseCommand):
             try:
                 entry["kwargs_schema"] = workflow.get_kwargs_schema()
                 entry["default_kwargs"] = workflow.get_default_kwargs()
+                entry["outputs"] = workflow.get_outputs_schema()
             except Exception as e:
                 entry["error"] = str(e)
                 self.stderr.write(
