@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# 1.68.0 (not yet released)
+# 1.68.0 (2026-06-15)
 
 - ENH: Allow metadata to be passed on analysis POST
 - ENH: Output schema for workflows
