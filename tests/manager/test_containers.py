@@ -2,12 +2,12 @@
 Tests for writing surface containers
 """
 
+import json
 import os
 import tempfile
 import zipfile
 
 import pytest
-import yaml
 from notifications.models import Notification
 
 import topobank
@@ -52,7 +52,7 @@ def test_surface_container(example_authors):
         surface=surface1, datafile__filename="example4.txt", height_scale_editable=False
     )
     # for topo1b we use a datafile which has an height_scale_factor defined - this is needed in order
-    # to test that this factor is NOT exported to meta.yaml -
+    # to test that this factor is NOT exported to index.json -
     # for the initialisation syntax (datafile__filename) here see:
     # https://factoryboy.readthedocs.io/en/stable/orms.html
 
@@ -85,18 +85,22 @@ def test_surface_container(example_authors):
 
     # reopen and check contents
     with zipfile.ZipFile(outfile.name, mode="r") as zf:
-        meta_file = zf.open("meta.yml")
-        meta = yaml.safe_load(meta_file)
+        # meta.yml is no longer written; index.json is the single source of truth.
+        assert "meta.yml" not in zf.namelist()
+        meta_file = zf.open("index.json")
+        meta = json.load(meta_file)
 
         meta_surfaces = meta["surfaces"]
 
         # check number of surfaces and topographies
         for surf_idx, surf in enumerate(surfaces):
             assert meta_surfaces[surf_idx]["name"] == surf.name
-            assert meta_surfaces[surf_idx]["category"] == surf.category
+            # category is omitted when unset (exclude_none).
+            assert meta_surfaces[surf_idx].get("category") == surf.category
             assert meta_surfaces[surf_idx]["description"] == surf.description
             assert meta_surfaces[surf_idx]["created_by"]["name"] == surf.created_by.name
-            assert meta_surfaces[surf_idx]["created_by"]["orcid"] == surf.created_by.orcid_id
+            # orcid is omitted when the author has none (exclude_none).
+            assert meta_surfaces[surf_idx]["created_by"].get("orcid") == surf.created_by.orcid_id
             assert (
                 len(meta_surfaces[surf_idx]["topographies"])
                 == surf.topography_set.count()
