@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+# Unreleased
+
+- ENH: Surface containers use a single pydantic-validated `index.json` metadata file
+- ENH: `export_container_zip` accepts optional opaque `extra_metadata` (`ContainerMeta.extra`)
+- MAINT: No longer write `meta.yml` to containers (legacy `meta.yml` still read on import)
+
 # 1.68.0 (2026-06-15)
 
 - ENH: Allow metadata to be passed on analysis POST
@@ -1477,4 +1483,3 @@ This release mainly implements a redesign of the user interface.
 - download of analysis results as png, xlsx, or text file
 - ask user for terms and conditions, also optional terms are possible
 - storage of topography files on S3 backend
-
