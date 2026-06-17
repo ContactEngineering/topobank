@@ -22,7 +22,7 @@ from .container_schema import CONTAINER_METADATA_FILENAME, ContainerMeta
 _log = logging.getLogger(__name__)
 
 
-def export_container_zip(file, surfaces):
+def export_container_zip(file, surfaces, extra_metadata=None):
     """
     Write container data to a file.
 
@@ -32,6 +32,12 @@ def export_container_zip(file, surfaces):
         Should be opened in "w" mode.
     surfaces: sequence of Surface instances
         Surface which should be included in container.
+    extra_metadata: dict, optional
+        Opaque, optional container-level metadata that is written verbatim to
+        the ``extra`` key of the metadata file. TopoBank does not interpret it;
+        it lets callers (e.g. the SDS API) attach extra information such as
+        training-group membership. Any surface references therein should use
+        indices into ``surfaces``. (Default: None)
 
     Returns
     -------
@@ -134,6 +140,7 @@ def export_container_zip(file, surfaces):
         versions=dict(topobank=topobank.__version__),
         surfaces=surfaces_dicts,
         created_at=str(now()),
+        extra=extra_metadata,
     )
 
     zf.writestr(

@@ -12,6 +12,7 @@ from notifications.models import Notification
 
 import topobank
 from topobank.manager.export_zip import export_container_zip
+from topobank.manager.import_zip import import_container_zip, load_container_metadata
 from topobank.manager.models import Surface, Topography
 from topobank.manager.tasks import import_container_from_url
 from topobank.testing.factories import (
@@ -177,3 +178,74 @@ def test_import():
         ).count()
         == 1
     )
+
+
+@pytest.mark.django_db
+def test_container_extra_metadata_roundtrip():
+    """Opaque ``extra_metadata`` is written verbatim and read back unchanged."""
+    user = UserFactory()
+    surfaces = [
+        SurfaceFactory(created_by=user, name="S0"),
+        SurfaceFactory(created_by=user, name="S1"),
+    ]
+    # Mimics what the SDS API will attach: training groups referencing surfaces
+    # by their index in the container.
+    extra = {"training_groups": [{"name": "Tiles 2024", "members": [0, 1]}]}
+
+    outfile = tempfile.NamedTemporaryFile(mode="wb", delete=False)
+    export_container_zip(outfile, surfaces, extra_metadata=extra)
+    outfile.close()
+
+    try:
+        with zipfile.ZipFile(outfile.name, mode="r") as zf:
+            meta = json.load(zf.open("index.json"))
+            assert meta["extra"] == extra
+            # ...and round-trips through the pydantic schema unchanged.
+            assert load_container_metadata(zf).extra == extra
+    finally:
+        os.remove(outfile.name)
+
+
+@pytest.mark.django_db
+def test_container_without_extra_metadata_omits_key():
+    """Without ``extra_metadata`` the ``extra`` key is absent (exclude_none)."""
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user, name="S0")
+
+    outfile = tempfile.NamedTemporaryFile(mode="wb", delete=False)
+    export_container_zip(outfile, [surface])
+    outfile.close()
+
+    try:
+        with zipfile.ZipFile(outfile.name, mode="r") as zf:
+            meta = json.load(zf.open("index.json"))
+            assert "extra" not in meta
+            assert load_container_metadata(zf).extra is None
+    finally:
+        os.remove(outfile.name)
+
+
+@pytest.mark.django_db
+def test_import_preserves_surface_order():
+    """import_container_zip returns surfaces in the container's surface order.
+
+    The SDS API relies on this to map ``extra`` member indices back to the
+    freshly-created surfaces, so the contract is pinned here.
+    """
+    user = UserFactory()
+    surfaces = [
+        SurfaceFactory(created_by=user, name=f"Surface {i}") for i in range(3)
+    ]
+
+    outfile = tempfile.NamedTemporaryFile(mode="wb", delete=False)
+    export_container_zip(outfile, surfaces)
+    outfile.close()
+
+    importer = UserFactory()
+    try:
+        with zipfile.ZipFile(outfile.name, mode="r") as zf:
+            imported = import_container_zip(zf, importer)
+    finally:
+        os.remove(outfile.name)
+
+    assert [s.name for s in imported] == [s.name for s in surfaces]

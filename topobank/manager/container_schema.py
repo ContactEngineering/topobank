@@ -138,6 +138,11 @@ class ContainerMeta(BaseModel):
     versions: dict[str, str] = Field(default_factory=dict)
     surfaces: list[SurfaceMeta] = Field(default_factory=list)
     created_at: Optional[str] = None
+    # Opaque, optional metadata that TopoBank carries through verbatim without
+    # interpreting it. It lets plugins (e.g. the SDS API, which owns training
+    # groups) attach extra container-level information; members referenced
+    # therein are expected to be indices into ``surfaces``.
+    extra: Optional[dict] = None
 
     @field_validator("created_at", mode="before")
     @classmethod
