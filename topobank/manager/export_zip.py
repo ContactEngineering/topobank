@@ -10,7 +10,6 @@ import textwrap
 import zipfile
 
 import SurfaceTopography
-import yaml
 from django.conf import settings
 from django.utils.text import slugify
 from django.utils.timezone import now
@@ -18,10 +17,12 @@ from django.utils.timezone import now
 import topobank
 from topobank.supplib.json import ExtendedJSONEncoder
 
+from .container_schema import CONTAINER_METADATA_FILENAME, ContainerMeta
+
 _log = logging.getLogger(__name__)
 
 
-def export_container_zip(file, surfaces):
+def export_container_zip(file, surfaces, extra_metadata=None):
     """
     Write container data to a file.
 
@@ -31,6 +32,12 @@ def export_container_zip(file, surfaces):
         Should be opened in "w" mode.
     surfaces: sequence of Surface instances
         Surface which should be included in container.
+    extra_metadata: dict, optional
+        Opaque, optional container-level metadata that is written verbatim to
+        the ``extra`` key of the metadata file. TopoBank does not interpret it;
+        it lets callers (e.g. the SDS API) attach extra information such as
+        training-group membership. Any surface references therein should use
+        indices into ``surfaces``. (Default: None)
 
     Returns
     -------
@@ -125,14 +132,25 @@ def export_container_zip(file, surfaces):
     #
     # Add metadata file
     #
-    metadata = dict(
+    # ``index.json`` is the single source of truth for container metadata. We
+    # build it through the pydantic schema, which validates the structure and
+    # normalizes the layout (``exclude_none`` drops absent optional fields such
+    # as an author's ``orcid`` or a missing squeezed data file).
+    metadata = ContainerMeta(
         versions=dict(topobank=topobank.__version__),
         surfaces=surfaces_dicts,
         created_at=str(now()),
+        extra=extra_metadata,
     )
 
-    zf.writestr("index.json", json.dumps(metadata, indent=4, cls=ExtendedJSONEncoder))
-    zf.writestr("meta.yml", yaml.dump(metadata))
+    zf.writestr(
+        CONTAINER_METADATA_FILENAME,
+        json.dumps(
+            metadata.model_dump(by_alias=True, exclude_none=True),
+            indent=4,
+            cls=ExtendedJSONEncoder,
+        ),
+    )
 
     #
     # Add a Readme file and license files
@@ -154,8 +172,8 @@ def export_container_zip(file, surfaces):
       missing data points were filled in (if selected).
 
     The metadata for the digital twins and the individual measurements can be
-    found in the auxiliary file 'meta.yml'. It is formatted as
-    [YAML](https://yaml.org/) file.
+    found in the auxiliary file 'index.json'. It is formatted as
+    [JSON](https://www.json.org/) file.
 
     Version information
     ===================
