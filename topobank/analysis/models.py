@@ -432,10 +432,14 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         impl = self.implementation
         if hasattr(impl.Meta, "celery_queue") and impl.Meta.celery_queue is not None:
             # Implementation-specific queue
-            return impl.Meta.celery_queue
+            queue = impl.Meta.celery_queue
         else:
             # Default queue for workflow result tasks
-            return settings.TOPOBANK_ANALYSIS_QUEUE
+            queue = settings.TOPOBANK_ANALYSIS_QUEUE
+        # Implementations may emit bare logical queue names (e.g. "analysis");
+        # translate them to the configured queue so the task routes to a
+        # predefined queue. Unknown/already-configured names pass through.
+        return getattr(settings, "CELERY_LOGICAL_QUEUE_MAP", {}).get(queue, queue)
 
     # FIXME: discuss whether to remove this method and use the generic one from PermissionMixin
     # overrides PermissionMixin.authorize_user <- this one returns nothing, raises exception on failure
