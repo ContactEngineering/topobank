@@ -14,6 +14,12 @@ _log = logging.getLogger(__name__)
 
 @app.task
 def periodic_cleanup():
+    # Transient artifacts (download bundles, abandoned uploads) get a shorter
+    # grace period than user-recoverable soft-deleted datasets.
+    temporary_delay = getattr(
+        settings, "TOPOBANK_TEMPORARY_DELAY", settings.TOPOBANK_DELETE_DELAY
+    )
+
     # Delete all topographies that were marked for deletion
     q = Topography.all_objects.filter(
         deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
@@ -43,7 +49,7 @@ def periodic_cleanup():
         q.delete()
 
     # Delete all ZIP containers (that are just temporary anyway)
-    q = ZipContainer.objects.filter(updated_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY)
+    q = ZipContainer.objects.filter(updated_at__lt=timezone.now() - temporary_delay)
     if q.count() > 0:
         _log.info(
             f"Custodian: Deleting {q.count()} temporary ZIP containers."
@@ -52,7 +58,7 @@ def periodic_cleanup():
 
     # Delete all Manifests that are not confirmed, have no file, and too old
     q = Manifest.objects.filter(
-        created_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY,
+        created_at__lt=timezone.now() - temporary_delay,
         confirmed_at__isnull=True,
         file__isnull=True,
     )
