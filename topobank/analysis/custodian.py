@@ -14,8 +14,11 @@ _log = logging.getLogger(__name__)
 @app.task
 def periodic_cleanup():
     # Delete all analyses that were marked as deprecated and that are not saved
+    analysis_delay = getattr(
+        settings, "TOPOBANK_ANALYSIS_DELETE_DELAY", settings.TOPOBANK_DELETE_DELAY
+    )
     q = WorkflowResult.objects.filter(
-        deprecation_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY,
+        deprecation_time__lt=timezone.now() - analysis_delay,
         name__isnull=True
     ).filter(
         Q(subject_topography__isnull=False) | Q(subject_surface__isnull=False) | Q(subject_tag__isnull=False)

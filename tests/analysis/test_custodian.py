@@ -4,7 +4,7 @@ Functional tests for the analysis custodian (``topobank.analysis.custodian``).
 The ``periodic_cleanup`` task does two things:
 
 1. Hard-deletes deprecated, unnamed analysis results that have a subject and
-   whose ``deprecation_time`` is older than ``TOPOBANK_DELETE_DELAY``.
+   whose ``deprecation_time`` is older than ``TOPOBANK_ANALYSIS_DELETE_DELAY``.
 2. Marks analysis results that are stuck in the ``PENDING`` state (no Celery
    task id) for more than a day as ``FAILURE``.
 
@@ -47,7 +47,7 @@ def test_deletes_long_deprecated_unnamed_result_with_subject():
     _set_unmanaged_fields(
         analysis,
         deprecation_time=timezone.now()
-        - settings.TOPOBANK_DELETE_DELAY
+        - settings.TOPOBANK_ANALYSIS_DELETE_DELAY
         - datetime.timedelta(days=1),
     )
 
@@ -63,7 +63,7 @@ def test_keeps_recently_deprecated_result():
     _set_unmanaged_fields(
         analysis,
         deprecation_time=timezone.now()
-        - settings.TOPOBANK_DELETE_DELAY
+        - settings.TOPOBANK_ANALYSIS_DELETE_DELAY
         + datetime.timedelta(days=1),
     )
 
@@ -79,7 +79,7 @@ def test_keeps_named_result_even_if_long_deprecated():
     _set_unmanaged_fields(
         analysis,
         deprecation_time=timezone.now()
-        - settings.TOPOBANK_DELETE_DELAY
+        - settings.TOPOBANK_ANALYSIS_DELETE_DELAY
         - datetime.timedelta(days=1),
     )
 
