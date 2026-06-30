@@ -381,7 +381,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     #
     # Dataset metadata
     #
-    name = models.CharField(max_length=80, blank=True)
+    name = models.CharField(max_length=255, blank=True)
     description = models.TextField(blank=True)
     category = models.CharField(
         max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False
