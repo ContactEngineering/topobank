@@ -528,16 +528,30 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             scheduled_dependent_analyses[key] = new_analysis
         else:
             # An analysis exists. Check whether it is successful or failed.
-            # task_state is the *self reported* state, not the Celery state
-            if not force and existing_analysis.task_state in [
-                WorkflowResult.FAILURE,
-                WorkflowResult.SUCCESS,
-            ]:
+            # task_state is the *self reported* state, not the Celery state.
+            # Successful results are reused unless `force` asks for a
+            # recompute; failed ones are always retried, since the failure may
+            # stem from a transient error or a since-fixed bug.
+            if not force and existing_analysis.task_state == WorkflowResult.SUCCESS:
                 # This one does not need to be scheduled
                 finished_dependent_analyses[key] = existing_analysis
             else:
-                # We schedule everything else, possibly again. `perform_analysis` will
-                # automatically terminate if an analysis already completed successfully.
+                # We schedule everything else, possibly again. Point the
+                # dependency at the parent that is re-running it, so task
+                # events are attributed to the triggering run instead of
+                # whichever parent originally created the row.
+                if (
+                    parent is not None
+                    and (existing_analysis.metadata or {}).get(
+                        "parent_workflow_result_id"
+                    )
+                    != parent.id
+                ):
+                    existing_analysis.metadata = {
+                        **(existing_analysis.metadata or {}),
+                        "parent_workflow_result_id": parent.id,
+                    }
+                    existing_analysis.save(update_fields=["metadata"])
                 scheduled_dependent_analyses[key] = existing_analysis
 
     return (

@@ -226,3 +226,23 @@ def test_submit_again(test_workflow):
     analysis = TopographyAnalysisFactory()
     new_analysis = analysis.submit_again()
     assert new_analysis.task_state == WorkflowResult.PENDING
+
+
+@pytest.mark.django_db
+def test_submit_dispatch_carries_callers_force_flag(
+    test_workflow, mocker, django_capture_on_commit_callbacks
+):
+    topo = Topography1DFactory()
+    user = topo.created_by
+    dispatch = mocker.patch(
+        "topobank.analysis.models.submit_analysis_task_to_celery"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        analysis = test_workflow.submit(user, topo)
+    dispatch.assert_called_once_with(analysis, False)
+
+    dispatch.reset_mock()
+    with django_capture_on_commit_callbacks(execute=True):
+        forced = test_workflow.submit(user, topo, force_submit=True)
+    dispatch.assert_called_once_with(forced, True)

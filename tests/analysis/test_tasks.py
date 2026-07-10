@@ -131,6 +131,95 @@ def test_prepare_dependency_tasks_schedules_new_dependencies(two_topos, test_wor
 
 
 @pytest.mark.django_db
+def test_prepare_dependency_tasks_reuses_successful_dependencies(
+    two_topos, test_workflow
+):
+    topo = Topography.objects.first()
+    old_parent = _pending_analysis(topo, "topobank.testing.test2")
+    dependencies = old_parent.function.get_dependencies(old_parent)
+    _, scheduled = prepare_dependency_tasks(
+        dependencies, force=False, user=old_parent.created_by, parent=old_parent
+    )
+    WorkflowResult.objects.filter(pk__in=[d.pk for d in scheduled.values()]).update(
+        task_state=WorkflowResult.SUCCESS
+    )
+
+    new_parent = _pending_analysis(topo, "topobank.testing.test2")
+    finished, rescheduled = prepare_dependency_tasks(
+        new_parent.function.get_dependencies(new_parent),
+        force=False,
+        user=new_parent.created_by,
+        parent=new_parent,
+    )
+
+    assert len(rescheduled) == 0
+    assert len(finished) == 2
+    for dep in finished.values():
+        # A reused result keeps the attribution of the run that computed it.
+        assert dep.metadata["parent_workflow_result_id"] == old_parent.id
+
+
+@pytest.mark.django_db
+def test_prepare_dependency_tasks_retries_failed_and_restamps_parent(
+    two_topos, test_workflow
+):
+    topo = Topography.objects.first()
+    old_parent = _pending_analysis(topo, "topobank.testing.test2")
+    dependencies = old_parent.function.get_dependencies(old_parent)
+    _, scheduled = prepare_dependency_tasks(
+        dependencies, force=False, user=old_parent.created_by, parent=old_parent
+    )
+    WorkflowResult.objects.filter(pk__in=[d.pk for d in scheduled.values()]).update(
+        task_state=WorkflowResult.FAILURE
+    )
+
+    new_parent = _pending_analysis(topo, "topobank.testing.test2")
+    finished, rescheduled = prepare_dependency_tasks(
+        new_parent.function.get_dependencies(new_parent),
+        force=False,
+        user=new_parent.created_by,
+        parent=new_parent,
+    )
+
+    # Failed dependencies are retried even without force, and their parent
+    # attribution follows the run that triggers the retry.
+    assert len(finished) == 0
+    assert len(rescheduled) == 2
+    for dep in rescheduled.values():
+        dep.refresh_from_db()
+        assert dep.metadata["parent_workflow_result_id"] == new_parent.id
+
+
+@pytest.mark.django_db
+def test_prepare_dependency_tasks_force_recomputes_and_restamps_parent(
+    two_topos, test_workflow
+):
+    topo = Topography.objects.first()
+    old_parent = _pending_analysis(topo, "topobank.testing.test2")
+    dependencies = old_parent.function.get_dependencies(old_parent)
+    _, scheduled = prepare_dependency_tasks(
+        dependencies, force=False, user=old_parent.created_by, parent=old_parent
+    )
+    WorkflowResult.objects.filter(pk__in=[d.pk for d in scheduled.values()]).update(
+        task_state=WorkflowResult.SUCCESS
+    )
+
+    new_parent = _pending_analysis(topo, "topobank.testing.test2")
+    finished, rescheduled = prepare_dependency_tasks(
+        new_parent.function.get_dependencies(new_parent),
+        force=True,
+        user=new_parent.created_by,
+        parent=new_parent,
+    )
+
+    assert len(finished) == 0
+    assert len(rescheduled) == 2
+    for dep in rescheduled.values():
+        dep.refresh_from_db()
+        assert dep.metadata["parent_workflow_result_id"] == new_parent.id
+
+
+@pytest.mark.django_db
 def test_schedule_workflow_runs_dependencies_end_to_end(two_topos, test_workflow):
     topo = Topography.objects.first()
     analysis = _pending_analysis(topo, "topobank.testing.test2")

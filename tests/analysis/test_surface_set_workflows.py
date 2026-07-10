@@ -198,6 +198,27 @@ def test_submit_for_surfaces_dedups_and_force_resubmits(
 
 
 @pytest.mark.django_db
+def test_submit_for_surfaces_dispatch_carries_callers_force_flag(
+    test_workflow, user_alice, mocker, django_capture_on_commit_callbacks
+):
+    s1 = SurfaceFactory(created_by=user_alice)
+    dispatch = mocker.patch(
+        "topobank.analysis.models.submit_analysis_task_to_celery"
+    )
+
+    with django_capture_on_commit_callbacks(execute=True):
+        analysis = test_workflow.submit_for_surfaces(user=user_alice, surfaces=[s1])
+    dispatch.assert_called_once_with(analysis, False)
+
+    dispatch.reset_mock()
+    with django_capture_on_commit_callbacks(execute=True):
+        forced = test_workflow.submit_for_surfaces(
+            user=user_alice, surfaces=[s1], force_submit=True
+        )
+    dispatch.assert_called_once_with(forced, True)
+
+
+@pytest.mark.django_db
 def test_submit_for_surfaces_uses_explicit_owned_by_id(
     test_workflow, user_alice
 ):

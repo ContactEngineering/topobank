@@ -610,7 +610,6 @@ def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool)
     """
     from .tasks import schedule_workflow
 
-    # TODO: force_submit is currently hardcoded to True everywhere this is called.
     _log.debug(f"Submitting task for WorkflowResult {analysis.id}...")
     analysis.task_id = schedule_workflow.apply_async(
         args=[analysis.id, force_submit], queue=analysis.get_celery_queue()
@@ -831,7 +830,9 @@ class Workflow:
             # analyses no longer have subjects)
             existing_analyses.filter(name__isnull=True).delete()
 
-            return self._submit_new_analysis(user, subject, kwargs)
+            return self._submit_new_analysis(
+                user, subject, kwargs, force_submit=force_submit
+            )
         else:
             # There seem to be viable analyses. Fetch the latest one.
             analysis = existing_analyses.order_by("task_start_time").last()
@@ -842,6 +843,7 @@ class Workflow:
         user: settings.AUTH_USER_MODEL,
         subject: Union[Tag, Topography, Surface],
         kwargs: dict,
+        force_submit: bool = False,
     ):
         """
         Create and submit a new WorkflowResult analysis.
@@ -854,6 +856,9 @@ class Workflow:
             Instance which will be subject of the WorkflowResult.
         kwargs: dict
             Keyword arguments for the function which should be saved to database.
+        force_submit: bool, optional
+            Recompute dependencies even if they already completed successfully.
+            (Default: False)
 
         Returns
         -------
@@ -885,7 +890,7 @@ class Workflow:
             analysis.set_pending_state()
             analysis.permissions.grant_for_user(user, "edit")
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, analysis, True)
+                partial(submit_analysis_task_to_celery, analysis, force_submit)
             )
         return analysis
 
@@ -941,7 +946,12 @@ class Workflow:
         if force_submit or successful_or_running.count() == 0:
             existing.filter(name__isnull=True).delete()
             return self._submit_new_analysis_for_surfaces(
-                user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id
+                user,
+                surfaces,
+                surface_set,
+                kwargs,
+                owned_by_id=owned_by_id,
+                force_submit=force_submit,
             )
         else:
             return existing.order_by("task_start_time").last()
@@ -953,6 +963,7 @@ class Workflow:
         surface_set,
         kwargs: dict,
         owned_by_id=None,
+        force_submit: bool = False,
     ):
         """Create and submit a new WorkflowResult for a surface set."""
         _log.info(
@@ -980,7 +991,7 @@ class Workflow:
             analysis.set_pending_state()
             analysis.permissions.grant_for_user(user, "edit")
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, analysis, True)
+                partial(submit_analysis_task_to_celery, analysis, force_submit)
             )
         return analysis
 
