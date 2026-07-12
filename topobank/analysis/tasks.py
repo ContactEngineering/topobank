@@ -60,7 +60,8 @@ def get_current_configuration():
 
 
 @app.task(bind=True, soft_time_limit=3600, time_limit=3700)
-def schedule_workflow(self: celery.Task, analysis_id: int, force: bool, is_dependency: bool = False):
+def schedule_workflow(self: celery.Task, analysis_id: int, force: bool,
+                      is_dependency: bool = False, parent_id: int = None):
     """Schedule a workflow, checking and setting up dependencies first.
 
     This task handles the dependency resolution phase:
@@ -77,6 +78,15 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool, is_depen
         ID of `topobank.analysis.WorkflowResult` instance.
     force : bool
         Submission was forced, which means we need to renew dependencies.
+    is_dependency : bool, optional
+        Whether this workflow was scheduled as a dependency of another
+        workflow. (Default: False)
+    parent_id : int, optional
+        ID of the WorkflowResult whose scheduling triggered this run, when
+        this workflow runs as a dependency. Attribution travels with the
+        Celery task rather than the (shared) WorkflowResult row, so
+        concurrent parents re-running the same dependency each carry their
+        own id. (Default: None)
     """
     from .models import WorkflowResult
 
@@ -154,10 +164,14 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool, is_depen
             # Create chord: run all dependencies, then execute this workflow
             task = celery.chord(
                 (
-                    schedule_workflow.si(dep.id, False, is_dependency=True).set(queue=celery_queue)
+                    schedule_workflow.si(
+                        dep.id, False, is_dependency=True, parent_id=analysis.id
+                    ).set(queue=celery_queue)
                     for dep in scheduled_dependencies.values()
                 ),
-                execute_workflow.si(analysis.id, is_dependency=is_dependency).set(queue=celery_queue),
+                execute_workflow.si(
+                    analysis.id, is_dependency=is_dependency, parent_id=parent_id
+                ).set(queue=celery_queue),
             ).apply_async()
 
             # Store chord task id
@@ -193,11 +207,14 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool, is_depen
     # Using .apply_async() here would cause a race condition: the chord would see
     # schedule_workflow as "complete" while execute_workflow is still running.
     _log.debug(f"{analysis_id}/{self.request.id}: Calling execute_workflow directly.")
-    execute_workflow.apply(args=(analysis.id, is_dependency))
+    execute_workflow.apply(
+        args=(analysis.id, is_dependency), kwargs={"parent_id": parent_id}
+    )
 
 
 @app.task(bind=True, soft_time_limit=3600, time_limit=3700)
-def execute_workflow(self: celery.Task, analysis_id: int, is_dependency: bool = False):
+def execute_workflow(self: celery.Task, analysis_id: int,
+                     is_dependency: bool = False, parent_id: int = None):
     """Execute the actual workflow after dependencies are resolved.
 
     This task assumes all dependencies are already complete and handles:
@@ -211,6 +228,12 @@ def execute_workflow(self: celery.Task, analysis_id: int, is_dependency: bool = 
         Celery task on execution (because of bind=True).
     analysis_id : int
         ID of `topobank.analysis.WorkflowResult` instance.
+    is_dependency : bool, optional
+        Whether this workflow runs as a dependency of another workflow.
+        (Default: False)
+    parent_id : int, optional
+        ID of the WorkflowResult whose scheduling triggered this run, when
+        running as a dependency. (Default: None)
     """
     from .models import RESULT_FILE_BASENAME, WorkflowResult
 
@@ -352,6 +375,7 @@ def execute_workflow(self: celery.Task, analysis_id: int, is_dependency: bool = 
                     "name": analysis.function.display_name if analysis.function else "Workflow",
                     "workflow_result_id": analysis.id,
                     "organization_id": getattr(analysis, 'owned_by_id', None),
+                    "parent_workflow_result_id": parent_id,
                 },
             )
 
