@@ -198,6 +198,30 @@ def test_submit_for_surfaces_dedups_and_force_resubmits(
 
 
 @pytest.mark.django_db
+def test_submit_for_surfaces_ignore_existing_creates_new_and_keeps_previous(
+    test_workflow, user_alice
+):
+    s1 = SurfaceFactory(created_by=user_alice)
+    s2 = SurfaceFactory(created_by=user_alice)
+
+    first = test_workflow.submit_for_surfaces(
+        user=user_alice, surfaces=[s1, s2]
+    )
+    # ignore_existing bypasses the dedup lookup entirely: it always creates a
+    # new result and, unlike force_submit, does not delete the previous one.
+    second = test_workflow.submit_for_surfaces(
+        user=user_alice, surfaces=[s1, s2], ignore_existing=True
+    )
+
+    assert second.id != first.id
+    assert second.subject_hash == first.subject_hash
+    # The prior result is preserved rather than deleted.
+    assert WorkflowResult.objects.filter(
+        id__in=[first.id, second.id]
+    ).count() == 2
+
+
+@pytest.mark.django_db
 def test_submit_for_surfaces_uses_explicit_owned_by_id(
     test_workflow, user_alice
 ):
