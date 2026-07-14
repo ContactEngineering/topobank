@@ -60,8 +60,13 @@ def get_current_configuration():
 
 
 @app.task(bind=True, soft_time_limit=3600, time_limit=3700)
-def schedule_workflow(self: celery.Task, analysis_id: int, force: bool,
-                      is_dependency: bool = False, parent_id: int = None):
+def schedule_workflow(
+    self: celery.Task,
+    analysis_id: int,
+    force: bool,
+    is_dependency: bool = False,
+    parent_id: int = None,
+):
     """Schedule a workflow, checking and setting up dependencies first.
 
     This task handles the dependency resolution phase:
@@ -94,19 +99,23 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool,
     # Get analysis instance from database
     #
     try:
-        celery_queue = self.request.delivery_info['routing_key']
+        celery_queue = self.request.delivery_info["routing_key"]
     except TypeError:
         celery_queue = None
 
     # Optimize query with select_related to reduce DB round trips
-    analysis = WorkflowResult.objects.select_related(
-        'subject_topography',
-        'subject_surface',
-        'subject_tag',
-        'configuration',
-        'created_by',
-        'owned_by'
-    ).prefetch_related('permissions', 'surfaces').get(id=analysis_id)
+    analysis = (
+        WorkflowResult.objects.select_related(
+            "subject_topography",
+            "subject_surface",
+            "subject_tag",
+            "configuration",
+            "created_by",
+            "owned_by",
+        )
+        .prefetch_related("permissions", "surfaces")
+        .get(id=analysis_id)
+    )
     _log.info(
         f"{analysis_id}/{self.request.id}: Scheduling workflow -- "
         f"Queue: {celery_queue}, force recalculation: {force} -- "
@@ -117,7 +126,10 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool,
     #
     # Check state - don't reschedule completed/failed tasks
     #
-    if analysis.task_state in [WorkflowResult.FAILURE, WorkflowResult.SUCCESS] and not force:
+    if (
+        analysis.task_state in [WorkflowResult.FAILURE, WorkflowResult.SUCCESS]
+        and not force
+    ):
         s = (
             "completed successfully"
             if analysis.task_state == WorkflowResult.SUCCESS
@@ -185,11 +197,16 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool,
             return
 
         # All dependencies are already finished
-        analysis.dependencies = {key: dep.id for key, dep in finished_dependencies.items()}
+        analysis.dependencies = {
+            key: dep.id for key, dep in finished_dependencies.items()
+        }
         analysis.save()
 
         # Check if any dependency failed
-        if any(dep.task_state != WorkflowResult.SUCCESS for dep in finished_dependencies.values()):
+        if any(
+            dep.task_state != WorkflowResult.SUCCESS
+            for dep in finished_dependencies.values()
+        ):
             analysis.task_state = WorkflowResult.FAILURE
             analysis.task_error = "A dependent analysis failed."
             analysis.save()
@@ -212,9 +229,51 @@ def schedule_workflow(self: celery.Task, analysis_id: int, force: bool,
     )
 
 
+def _fail_parent_on_dependency_failure(parent_id, dependency, request_id):
+    """Mark a parent workflow FAILURE because one of its dependencies failed.
+
+    Called from the dependency's ``execute_workflow`` when it errors, so the
+    parent does not hang in PENDING_DEPENDENCIES waiting for a chord callback
+    that will never fire (a failed chord header suppresses the callback).
+
+    Uses a filtered ``update()`` so it is atomic and never clobbers a parent
+    that has already reached a terminal state (or was reset/rerun): only rows
+    still waiting are transitioned. The dependency's error/traceback are copied
+    onto the parent so the UI shows why it failed.
+    """
+    from .models import WorkflowResult
+
+    waiting_states = [
+        WorkflowResult.NOTRUN,
+        WorkflowResult.PENDING,
+        WorkflowResult.RETRY,
+        WorkflowResult.STARTED,
+        WorkflowResult.PENDING_DEPENDENCIES,
+    ]
+    updated = WorkflowResult.objects.filter(
+        id=parent_id, task_state__in=waiting_states
+    ).update(
+        task_state=WorkflowResult.FAILURE,
+        task_error=dependency.task_error or "A dependent analysis failed.",
+        task_traceback=dependency.task_traceback,
+        task_end_time=timezone.now(),
+    )
+    if updated:
+        _log.warning(
+            "%s: dependency %s failed; propagated FAILURE to parent %s.",
+            request_id,
+            dependency.id,
+            parent_id,
+        )
+
+
 @app.task(bind=True, soft_time_limit=3600, time_limit=3700)
-def execute_workflow(self: celery.Task, analysis_id: int,
-                     is_dependency: bool = False, parent_id: int = None):
+def execute_workflow(
+    self: celery.Task,
+    analysis_id: int,
+    is_dependency: bool = False,
+    parent_id: int = None,
+):
     """Execute the actual workflow after dependencies are resolved.
 
     This task assumes all dependencies are already complete and handles:
@@ -240,14 +299,18 @@ def execute_workflow(self: celery.Task, analysis_id: int,
     #
     # Get analysis instance from database
     #
-    analysis = WorkflowResult.objects.select_related(
-        'subject_topography',
-        'subject_surface',
-        'subject_tag',
-        'configuration',
-        'created_by',
-        'owned_by'
-    ).prefetch_related('permissions', 'surfaces').get(id=analysis_id)
+    analysis = (
+        WorkflowResult.objects.select_related(
+            "subject_topography",
+            "subject_surface",
+            "subject_tag",
+            "configuration",
+            "created_by",
+            "owned_by",
+        )
+        .prefetch_related("permissions", "surfaces")
+        .get(id=analysis_id)
+    )
 
     _log.info(
         f"{analysis_id}/{self.request.id}: Executing workflow -- "
@@ -307,7 +370,11 @@ def execute_workflow(self: celery.Task, analysis_id: int,
                 analysis.save()
                 _log.warning(
                     "%s/%s: Dependency '%s' (id=%s) is in state '%s', cannot execute workflow.",
-                    analysis_id, self.request.id, key, dep_id, dep.task_state,
+                    analysis_id,
+                    self.request.id,
+                    key,
+                    dep_id,
+                    dep.task_state,
                 )
                 # Raise so Celery reports task_failure (not task_success)
                 raise RuntimeError(error_msg)
@@ -363,18 +430,23 @@ def execute_workflow(self: celery.Task, analysis_id: int,
         timer = Timer(str(self.request.id))
         on_progress = None
         # If a callback is configured, create a progress callback.
-        callback_path = getattr(settings, 'WORKFLOW_PROGRESS_CALLBACK', None)
+        callback_path = getattr(settings, "WORKFLOW_PROGRESS_CALLBACK", None)
         if callback_path:
             from django.utils.module_loading import import_string
+
             task_type = "dependency" if is_dependency else "analysis"
             on_progress = import_string(callback_path)(
                 str(self.request.id),
-                org_id=getattr(analysis, 'owned_by_id', None),
+                org_id=getattr(analysis, "owned_by_id", None),
                 task_info={
                     "type": task_type,
-                    "name": analysis.function.display_name if analysis.function else "Workflow",
+                    "name": (
+                        analysis.function.display_name
+                        if analysis.function
+                        else "Workflow"
+                    ),
                     "workflow_result_id": analysis.id,
-                    "organization_id": getattr(analysis, 'owned_by_id', None),
+                    "organization_id": getattr(analysis, "owned_by_id", None),
                     "parent_workflow_result_id": parent_id,
                 },
             )
@@ -387,15 +459,29 @@ def execute_workflow(self: celery.Task, analysis_id: int,
         )
         size, peak = tracemalloc.get_traced_memory()
         tracemalloc.stop()
-        save_result(result, WorkflowResult.SUCCESS, peak_memory=peak, dois=dois, timer=timer)
+        save_result(
+            result, WorkflowResult.SUCCESS, peak_memory=peak, dois=dois, timer=timer
+        )
     except Exception as exc:
         _log.exception(
             f"{analysis_id}/{self.request.id}: Exception during evaluation: {exc}"
         )
         analysis.task_state = WorkflowResult.FAILURE
-        analysis.task_traceback = traceback.format_exc().replace('\x00', '')
-        analysis.task_error = str(exc).replace('\x00', '')
+        analysis.task_traceback = traceback.format_exc().replace("\x00", "")
+        analysis.task_error = str(exc).replace("\x00", "")
         analysis.save()
+        # Propagate the failure to the parent when this ran as a dependency.
+        #
+        # The parent waits for its dependencies via a Celery chord whose callback
+        # is the parent's own execute_workflow. But a failed chord *header* means
+        # Celery never fires that callback, so the parent would be stranded in
+        # PENDING_DEPENDENCIES until it is declared lost (28800 s) — surfacing in
+        # the UI as an indefinite "Queued". Failing the parent here, at the point
+        # the dependency actually fails, is deterministic and does not depend on
+        # the chord callback ever running. (If the callback does run later, it
+        # early-returns on seeing the parent already in a terminal state.)
+        if is_dependency and parent_id is not None:
+            _fail_parent_on_dependency_failure(parent_id, analysis, self.request.id)
         raise
     finally:
         try:
@@ -459,9 +545,7 @@ def current_statistics(user=None):
                 created_by=user, publication__isnull=True
             )
         else:
-            unpublished_surfaces = Surface.objects.filter(
-                publication__isnull=True
-            )
+            unpublished_surfaces = Surface.objects.filter(publication__isnull=True)
     else:
         if user:
             unpublished_surfaces = Surface.objects.filter(created_by=user)
@@ -481,7 +565,9 @@ def current_statistics(user=None):
     )
 
 
-def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None, parent=None):
+def prepare_dependency_tasks(
+    dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None, parent=None
+):
     from .models import WorkflowResult
 
     # Determine if parent uses the surface set (M2M) path
@@ -506,7 +592,9 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
         elif isinstance(subject, Surface):
             subject_hash = WorkflowResult.compute_subject_hash("surface", [subject.id])
         elif isinstance(subject, Topography):
-            subject_hash = WorkflowResult.compute_subject_hash("topography", [subject.id])
+            subject_hash = WorkflowResult.compute_subject_hash(
+                "topography", [subject.id]
+            )
         elif isinstance(subject, Tag):
             subject_hash = WorkflowResult.compute_subject_hash("tag", [subject.id])
         else:
@@ -516,9 +604,7 @@ def prepare_dependency_tasks(dependencies: Dict[Any, WorkflowDefinition], force:
             workflow_name=dependency.function.name,
             subject_hash=subject_hash,
             kwargs=kwargs,
-        ).select_related(
-            "subject_topography", "subject_surface", "subject_tag"
-        )
+        ).select_related("subject_topography", "subject_surface", "subject_tag")
         if use_surfaces_path and isinstance(subject, Surface):
             existing_analysis_qs = existing_analysis_qs.prefetch_related("surfaces")
         existing_analysis = existing_analysis_qs.order_by("-task_start_time").first()
