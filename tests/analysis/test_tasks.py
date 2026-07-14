@@ -69,9 +69,7 @@ def test_current_statistics_for_user(two_topos):
     from topobank.testing.factories import UserFactory
 
     assert (
-        current_statistics(user=UserFactory())[
-            "num_surfaces_excluding_publications"
-        ]
+        current_statistics(user=UserFactory())["num_surfaces_excluding_publications"]
         == 0
     )
 
@@ -147,6 +145,63 @@ def test_schedule_workflow_runs_dependencies_end_to_end(two_topos, test_workflow
     deps = WorkflowResult.objects.filter(workflow_name="topobank.testing.test")
     assert deps.count() >= 2
     assert all(d.task_state == WorkflowResult.SUCCESS for d in deps)
+
+
+# ---------------------------------------------------------------------------
+# Dependency FAILURE propagation (regression: parent must not hang)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_dependency_failure_marks_parent_failed(two_topos, test_workflow):
+    """A failed dependency must fail its *parent*, not leave it stuck.
+
+    A parent workflow waits for its dependencies via a Celery chord whose
+    callback is the parent's own ``execute_workflow``. When a dependency (a chord
+    *header*) fails, Celery never fires that callback, so without explicit
+    propagation the parent stays in PENDING_DEPENDENCIES until it is declared
+    lost (28800 s) — the UI shows an indefinite "Queued".
+
+    This drives the exact task the chord header runs: the dependency's
+    ``schedule_workflow`` with ``is_dependency=True`` and the parent's id. Its
+    workflow (``topobank.testing.test_error``) raises, and the failure must land
+    on the parent's persisted state (what the UI polls). Exercised directly
+    rather than through ``chord`` so it does not depend on Celery's eager-chord
+    execution.
+    """
+    topo = Topography.objects.first()
+
+    # Parent: waiting on its dependency, exactly as schedule_workflow leaves it.
+    parent = _pending_analysis(topo, "topobank.testing.test_error_in_dependency")
+    WorkflowResult.objects.filter(pk=parent.pk).update(
+        task_state=WorkflowResult.PENDING_DEPENDENCIES
+    )
+
+    # Dependency: the failing workflow, run as a dependency of `parent`. Whether
+    # the dependency's exception propagates out of schedule_workflow.apply()
+    # depends on Celery's task_eager_propagates setting (it does in some
+    # environments, not others); that is exactly what breaks the chord header in
+    # production. Either way the failure must land on the persisted state, which
+    # is what we assert.
+    dep = _pending_analysis(topo, "topobank.testing.test_error")
+    try:
+        schedule_workflow.apply(
+            args=(dep.id, False),
+            kwargs={"is_dependency": True, "parent_id": parent.id},
+        )
+    except RuntimeError:
+        pass
+
+    dep.refresh_from_db()
+    parent.refresh_from_db()
+
+    assert dep.task_state == WorkflowResult.FAILURE
+    assert parent.task_state == WorkflowResult.FAILURE, (
+        f"parent left in '{parent.task_state}' after its dependency failed "
+        "(expected FAILURE; PENDING_DEPENDENCIES means it would hang until the "
+        "lost-task timeout)"
+    )
+    assert parent.task_error, "parent FAILURE should carry an error message"
 
 
 # ---------------------------------------------------------------------------
