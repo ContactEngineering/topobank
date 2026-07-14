@@ -177,15 +177,20 @@ def test_dependency_failure_marks_parent_failed(two_topos, test_workflow):
         task_state=WorkflowResult.PENDING_DEPENDENCIES
     )
 
-    # Dependency: the failing workflow, run as a dependency of `parent`. The
-    # error propagates out (this is precisely what fails the chord header in
-    # production); we assert on the persisted state, which is what matters.
+    # Dependency: the failing workflow, run as a dependency of `parent`. Whether
+    # the dependency's exception propagates out of schedule_workflow.apply()
+    # depends on Celery's task_eager_propagates setting (it does in some
+    # environments, not others); that is exactly what breaks the chord header in
+    # production. Either way the failure must land on the persisted state, which
+    # is what we assert.
     dep = _pending_analysis(topo, "topobank.testing.test_error")
-    with pytest.raises(RuntimeError):
+    try:
         schedule_workflow.apply(
             args=(dep.id, False),
             kwargs={"is_dependency": True, "parent_id": parent.id},
         )
+    except RuntimeError:
+        pass
 
     dep.refresh_from_db()
     parent.refresh_from_db()
