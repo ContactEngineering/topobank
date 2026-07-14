@@ -896,6 +896,7 @@ class Workflow:
         kwargs: dict = None,
         owned_by_id=None,
         force_submit: bool = False,
+        ignore_existing: bool = False,
     ):
         """
         Submit workflow for a set of surfaces (new surface set system).
@@ -910,6 +911,10 @@ class Workflow:
             Keyword arguments for the workflow. (Default: None)
         force_submit : bool, optional
             Submit even if a matching WorkflowResult already exists. (Default: False)
+        ignore_existing : bool, optional
+            Skip the dedup/existing lookup entirely and always submit a new
+            WorkflowResult, without deleting any previous matching result.
+            (Default: False)
         """
         from .workflows import SurfaceSet
 
@@ -920,6 +925,11 @@ class Workflow:
         #     surface.authorize_user(user, "view")
 
         kwargs = self.clean_kwargs(kwargs)
+
+        if ignore_existing:
+            return self._submit_new_analysis_for_surfaces(
+                user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id
+            )
 
         # Dedup check using subject_hash
         existing = WorkflowResult.objects.filter(
