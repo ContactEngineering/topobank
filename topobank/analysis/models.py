@@ -22,6 +22,7 @@ from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, ViewEditFull
 from ..files.models import Manifest, ManifestSet
 from ..manager.models import Surface, Tag, Topography
+from ..supplib.db import advisory_lock
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
 from .registry import WorkflowNotImplementedException, get_implementation
@@ -807,35 +808,53 @@ class Workflow:
         if isinstance(subject, Tag):
             q &= Q(permissions__user_permissions__user=user)
 
-        # All existing WorkflowResults for this subject and parameter set
-        existing_analyses = WorkflowResult.objects.for_user(user).filter(q)
+        # Serialize the check-then-create against concurrent identical
+        # submissions. Without this, two requests for the same
+        # subject/workflow/kwargs can both observe "no viable result", both
+        # delete the failed set and both create+dispatch a new WorkflowResult,
+        # producing duplicate rows and duplicate compute. The advisory lock is
+        # released when the surrounding transaction commits.
+        with transaction.atomic(), advisory_lock(
+            "workflow-submit",
+            self.name,
+            f"{type(subject).__name__}:{subject.id}",
+            json.dumps(kwargs, sort_keys=True, default=str),
+        ):
+            # All existing WorkflowResults for this subject and parameter set
+            existing_analyses = WorkflowResult.objects.for_user(user).filter(q)
 
-        # WorkflowResults, excluding those that have failed or that have not been submitted
-        # to the task queue for some reason (state "no"t run)
-        successful_or_running_analyses = existing_analyses.filter(
-            task_state__in=[
-                WorkflowResult.PENDING,
-                WorkflowResult.PENDING_DEPENDENCIES,
-                WorkflowResult.RETRY,
-                WorkflowResult.STARTED,
-                WorkflowResult.SUCCESS,
-            ]
-        )
+            # WorkflowResults, excluding those that have failed or that have not
+            # been submitted to the task queue for some reason (state "no"t run)
+            successful_or_running_analyses = existing_analyses.filter(
+                task_state__in=[
+                    WorkflowResult.PENDING,
+                    WorkflowResult.PENDING_DEPENDENCIES,
+                    WorkflowResult.RETRY,
+                    WorkflowResult.STARTED,
+                    WorkflowResult.SUCCESS,
+                ]
+            )
 
-        # We submit a new WorkflowResult only if we are either forced to do so or if there is
-        # no WorkflowResult with the same parameter pending, running or successfully completed.
-        if force_submit or successful_or_running_analyses.count() == 0:
-            # Delete *all* existing WorkflowResults with this subject/parameter set
-            # (which now may only contain failed ones),
-            # excluding saved/named ones (name__isnull is a redundant since all saved
-            # analyses no longer have subjects)
-            existing_analyses.filter(name__isnull=True).delete()
+            # We submit a new WorkflowResult only if we are either forced to do
+            # so or if there is no WorkflowResult with the same parameter
+            # pending, running or successfully completed.
+            if force_submit or successful_or_running_analyses.count() == 0:
+                # Delete *all* existing WorkflowResults with this subject/parameter
+                # set (which now may only contain failed ones), excluding
+                # saved/named ones (name__isnull is redundant since all saved
+                # analyses no longer have subjects)
+                existing_analyses.filter(name__isnull=True).delete()
 
-            return self._submit_new_analysis(user, subject, kwargs)
-        else:
-            # There seem to be viable analyses. Fetch the latest one.
-            analysis = existing_analyses.order_by("task_start_time").last()
-            return analysis
+                return self._submit_new_analysis(user, subject, kwargs)
+            else:
+                # There seem to be viable analyses. Fetch the latest one. Select
+                # from the successful/running set, not from all existing analyses:
+                # NULL task_start_time (never-run rows) sort last in PostgreSQL,
+                # so .last() over the full set could return a NOTRUN row instead
+                # of an available SUCCESS one.
+                return successful_or_running_analyses.order_by(
+                    "task_start_time"
+                ).last()
 
     def _submit_new_analysis(
         self,
@@ -931,30 +950,40 @@ class Workflow:
                 user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id
             )
 
-        # Dedup check using subject_hash
-        existing = WorkflowResult.objects.filter(
-            workflow_name=self.name,
-            subject_hash=surface_set.subject_hash,
-            kwargs=kwargs,
-        )
-
-        successful_or_running = existing.filter(
-            task_state__in=[
-                WorkflowResult.PENDING,
-                WorkflowResult.PENDING_DEPENDENCIES,
-                WorkflowResult.RETRY,
-                WorkflowResult.STARTED,
-                WorkflowResult.SUCCESS,
-            ]
-        )
-
-        if force_submit or successful_or_running.count() == 0:
-            existing.filter(name__isnull=True).delete()
-            return self._submit_new_analysis_for_surfaces(
-                user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id
+        # Serialize the check-then-create against concurrent identical
+        # submissions (see Workflow.submit for the rationale). The advisory lock
+        # is released when the surrounding transaction commits.
+        with transaction.atomic(), advisory_lock(
+            "workflow-submit-surfaces",
+            self.name,
+            surface_set.subject_hash,
+            json.dumps(kwargs, sort_keys=True, default=str),
+        ):
+            # Dedup check using subject_hash
+            existing = WorkflowResult.objects.filter(
+                workflow_name=self.name,
+                subject_hash=surface_set.subject_hash,
+                kwargs=kwargs,
             )
-        else:
-            return existing.order_by("task_start_time").last()
+
+            successful_or_running = existing.filter(
+                task_state__in=[
+                    WorkflowResult.PENDING,
+                    WorkflowResult.PENDING_DEPENDENCIES,
+                    WorkflowResult.RETRY,
+                    WorkflowResult.STARTED,
+                    WorkflowResult.SUCCESS,
+                ]
+            )
+
+            if force_submit or successful_or_running.count() == 0:
+                existing.filter(name__isnull=True).delete()
+                return self._submit_new_analysis_for_surfaces(
+                    user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id
+                )
+            else:
+                # Select from the successful/running set (see Workflow.submit).
+                return successful_or_running.order_by("task_start_time").last()
 
     def _submit_new_analysis_for_surfaces(
         self,
