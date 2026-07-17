@@ -833,8 +833,12 @@ class Workflow:
 
             return self._submit_new_analysis(user, subject, kwargs)
         else:
-            # There seem to be viable analyses. Fetch the latest one.
-            analysis = existing_analyses.order_by("task_start_time").last()
+            # There seem to be viable analyses. Fetch the latest one. Select from
+            # the successful/running set, not from all existing analyses: ordering
+            # the full set by task_start_time sorts never-run rows (NULL) last in
+            # PostgreSQL, so .last() would return a NOTRUN/PENDING row in
+            # preference to an available SUCCESS one.
+            analysis = successful_or_running_analyses.order_by("task_start_time").last()
             return analysis
 
     def _submit_new_analysis(
@@ -954,7 +958,11 @@ class Workflow:
                 user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id
             )
         else:
-            return existing.order_by("task_start_time").last()
+            # Select from the successful/running set, not from all existing
+            # analyses: NULL task_start_time (never-run rows) sort last in
+            # PostgreSQL, so .last() over `existing` could return a NOTRUN row
+            # instead of an available SUCCESS one.
+            return successful_or_running.order_by("task_start_time").last()
 
     def _submit_new_analysis_for_surfaces(
         self,
