@@ -279,22 +279,26 @@ class AnalysisController:
 
     def _get_unique_kwargs(self):
         """
-        Collect all keyword arguments and check whether they are equal.
-        Returns a dictionary with unique keyword arguments.
+        Collect all keyword arguments and return only those that are common to
+        every analysis with an identical value.
+
+        A key is kept only if it is present in *all* analyses with the same
+        value; a key that is missing from, or differs in, any analysis is
+        dropped. The returned dict is a fresh copy, so callers may mutate it
+        without touching any analysis's stored ``kwargs``.
         """
         unique_kwargs = None
         has_nonunique_kwargs = False
         for analysis in self._analyses:
             kwargs = analysis.kwargs
             if unique_kwargs is None:
-                unique_kwargs = kwargs
+                unique_kwargs = dict(kwargs)  # copy: never alias analysis.kwargs
             else:
-                for key, value in kwargs.items():
-                    if key in unique_kwargs:
-                        if unique_kwargs[key] != value:
-                            # Delete nonunique key
-                            del unique_kwargs[key]
-                            has_nonunique_kwargs = True
+                for key in list(unique_kwargs):
+                    if key not in kwargs or kwargs[key] != unique_kwargs[key]:
+                        # Drop keys that are absent from or differ in this analysis
+                        del unique_kwargs[key]
+                        has_nonunique_kwargs = True
         return {} if unique_kwargs is None else unique_kwargs, has_nonunique_kwargs
 
     def trigger_missing_analyses(self):
