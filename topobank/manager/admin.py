@@ -83,6 +83,17 @@ class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
     list_display = ("id", "name", "tags_display", "deletion_time", "created_at")
     ordering = ["-created_at"]
     search_fields = ("name", "id", "tags__name")
+    # Render foreign keys as ID inputs with a lookup popup rather than <select>
+    # dropdowns. The default widget enumerates the entire related table (users,
+    # organizations, manifest sets), which makes the change form load slowly and
+    # can time out on large installations.
+    raw_id_fields = (
+        "permissions",
+        "created_by",
+        "updated_by",
+        "owned_by",
+        "attachments",
+    )
 
     def get_queryset(self, request):
         return Surface.all_objects.all()
@@ -99,6 +110,23 @@ class TopographyAdmin(TagFieldAdminMixin, admin.ModelAdmin):
     list_filter = ("task_state",)
     ordering = ["-created_at"]
     search_fields = ("name", "id", "task_id")
+    # Render foreign keys as ID inputs with a lookup popup rather than <select>
+    # dropdowns. The datafile/squeezed_datafile/thumbnail/deepzoom fields all
+    # point at the Manifest table (one row per stored file), so the default
+    # widget enumerates tens of thousands of options per dropdown, making the
+    # change form load in tens of seconds and time out on large installations.
+    raw_id_fields = (
+        "surface",
+        "permissions",
+        "attachments",
+        "datafile",
+        "squeezed_datafile",
+        "thumbnail",
+        "deepzoom",
+        "created_by",
+        "updated_by",
+        "owned_by",
+    )
 
     def get_queryset(self, request):
         return Topography.all_objects.all()
