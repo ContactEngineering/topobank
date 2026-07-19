@@ -17,7 +17,7 @@ class OrganizationManager(models.Manager):
 
 
 class Organization(models.Model):
-    name = models.CharField(max_length=255, default="")
+    name = models.CharField(max_length=255, unique=True)
     group = models.OneToOneField(
         Group,
         on_delete=models.CASCADE,
