@@ -908,6 +908,16 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Check if we need to run the update task
         if refresh_dependent_data:
             run_task(self)
+            # run_task sets the pending task state in memory (autosave=False),
+            # expecting this save() to persist it. When the caller restricted
+            # update_fields (e.g. save(update_fields=["size_x"])) those fields
+            # would otherwise be dropped, leaving task_state stale (reported as
+            # SUCCESS while a recompute is in flight) and defeating the in-flight
+            # re-dispatch guard, which keys off the persisted task_state.
+            if update_fields is not None:
+                for name in TaskStateModel.PENDING_STATE_FIELDS:
+                    if name not in update_fields:
+                        update_fields.append(name)
 
         # Save after run task, because run task may update the task state
         super().save(*args, **kwargs)
