@@ -53,6 +53,7 @@ splinter_tests.*/
 
 # Django stuff:
 staticfiles/
+static/
 
 # Sphinx documentation
 docs/_build/
@@ -324,6 +325,11 @@ tags
 ### VirtualEnv template
 # Virtualenv
 # http://iamzed.com/2009/05/07/a-primer-on-virtualenv/
+[Bb]in
+[Ii]nclude
+[Ll]ib
+[Ll]ib64
+[Ss]cripts
 pyvenv.cfg
 pip-selfcheck.json
 
@@ -350,7 +356,7 @@ topobank.db
 orcid.yaml
 
 # Locally generated pip packages
-docker/local/django/pip-packages/*
+compose/local/django/pip-packages/*
 
 # temporary files from soffice
 .~lock.*#
@@ -362,10 +368,19 @@ docker/local/django/pip-packages/*
 data/
 .envs/.local/.pypi-authfile
 
-# Django media directories
+# *.ttf and *.woff2 files
+static/js/*.ttf
+static/js/*.woff2
 
-topographies
-topobank/analysis/tests/topographies
-data-lake
+# *.js files
+static/js/*.js
 
 .env
+
+# Shared project data paths (homogenized across ContactEngineering repos)
+data-lake
+topographies
+topobank/analysis/tests/topographies
+
+# Legacy docker-based generated pip packages
+docker/local/django/pip-packages/*
