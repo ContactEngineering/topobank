@@ -7,6 +7,7 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+from muTimer import Timer
 from SurfaceTopography.Support import doi
 
 from ..manager.models import Surface, Tag, Topography
@@ -15,7 +16,6 @@ from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
-from ..utils.timer import Timer
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)
