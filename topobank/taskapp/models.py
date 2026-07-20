@@ -49,6 +49,19 @@ class TaskStateModel(models.Model):
     # original (now-stale) task_start_time.
     IN_FLIGHT_STATES = (PENDING, PENDING_DEPENDENCIES, STARTED)
 
+    # Fields mutated by set_pending_state(). Callers that persist with a
+    # restricted update_fields must include these, otherwise the pending
+    # transition is silently dropped.
+    PENDING_STATE_FIELDS = (
+        "task_state",
+        "task_submission_time",
+        "task_error",
+        "task_traceback",
+        "task_id",
+        "task_start_time",
+        "task_end_time",
+    )
+
     # Mapping Celery states to our state information. Everything not in the
     # list (e.g. custom Celery states) are interpreted as STARTED.
     _CELERY_STATE_MAP = {
@@ -411,17 +424,7 @@ class TaskStateModel(models.Model):
         self.task_start_time = None
         self.task_end_time = None
         if autosave:
-            self.save(
-                update_fields=[
-                    "task_state",
-                    "task_submission_time",
-                    "task_error",
-                    "task_traceback",
-                    "task_id",
-                    "task_start_time",
-                    "task_end_time",
-                ]
-            )
+            self.save(update_fields=list(self.PENDING_STATE_FIELDS))
 
     def get_task_error(self):
         """Return a string representation of any error occurred during task execution"""

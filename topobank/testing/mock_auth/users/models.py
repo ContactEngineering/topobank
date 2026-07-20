@@ -6,6 +6,10 @@ from .anonymous import get_anonymous_user
 
 
 class User(AbstractUser):
+    # The author's ORCID identifier. This mirrors the author metadata that the
+    # real user model exposes and that topobank surfaces in its container / DOI
+    # metadata; it is unrelated to the ORCID auth provider (which lives in
+    # topobank-orcid). Kept as a plain field so the mock has no ORCID dependency.
     orcid_id = models.CharField(max_length=19, default="0000-0000-0000-0000")
     name = models.CharField("Name of User", blank=True, max_length=255, default="")
 
@@ -14,6 +18,11 @@ class User(AbstractUser):
 
     class Meta:
         app_label = 'users'
+        # Mirror the permissions declared by the real user model so plugins can
+        # be tested against this mock without pulling in a concrete auth provider.
+        permissions = (
+            ("can_skip_terms", "Can skip all checkings for terms and conditions."),
+        )
 
     def __str__(self):
         if self.orcid_id and self.orcid_id != "0000-0000-0000-0000":

@@ -1,3 +1,4 @@
+import json
 import traceback
 import tracemalloc
 from typing import Any, Dict
@@ -7,15 +8,16 @@ from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.db import transaction
 from django.utils import timezone
+from muTimer import Timer
 from SurfaceTopography.Support import doi
 
 from ..manager.models import Surface, Tag, Topography
+from ..supplib.db import advisory_lock
 from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
-from ..utils.timer import Timer
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)
@@ -42,21 +44,24 @@ def get_current_configuration():
         c.versions.set(versions)
         return c
 
-    if Configuration.objects.count() == 0:
-        return make_config_from_versions()
-
-    #
-    # Find out whether the latest configuration has exactly these versions
-    #
-    latest_config = Configuration.objects.latest("valid_since")
-
+    # Serialize the check-then-create so concurrent workers (e.g. right after a
+    # dependency version bump) do not each create a redundant Configuration for
+    # the same version set. Doing the create and versions.set() inside one
+    # transaction also means a Configuration is never observed with an empty
+    # versions set. The advisory lock is released when the transaction commits.
     current_version_ids = set(v.id for v in versions)
-    latest_version_ids = set(v.id for v in latest_config.versions.all())
+    with transaction.atomic(), advisory_lock("current-configuration"):
+        if Configuration.objects.count() == 0:
+            return make_config_from_versions()
 
-    if current_version_ids == latest_version_ids:
-        return latest_config
-    else:
-        return make_config_from_versions()
+        # Find out whether the latest configuration has exactly these versions
+        latest_config = Configuration.objects.latest("valid_since")
+        latest_version_ids = set(v.id for v in latest_config.versions.all())
+
+        if current_version_ids == latest_version_ids:
+            return latest_config
+        else:
+            return make_config_from_versions()
 
 
 @app.task(bind=True, soft_time_limit=3600, time_limit=3700)
@@ -203,12 +208,19 @@ def schedule_workflow(
         analysis.save()
 
         # Check if any dependency failed
-        if any(
-            dep.task_state != WorkflowResult.SUCCESS
+        failed_dependencies = [
+            dep
             for dep in finished_dependencies.values()
-        ):
+            if dep.task_state != WorkflowResult.SUCCESS
+        ]
+        if failed_dependencies:
+            # Surface the failed dependency's real error/traceback on the parent
+            # rather than a generic message, so the UI shows why it failed
+            # (mirrors execute_workflow and _fail_parent_on_dependency_failure).
+            failed_dep = failed_dependencies[0]
             analysis.task_state = WorkflowResult.FAILURE
-            analysis.task_error = "A dependent analysis failed."
+            analysis.task_error = failed_dep.task_error or "A dependent analysis failed."
+            analysis.task_traceback = failed_dep.task_traceback
             analysis.save()
             _log.debug(f"{analysis_id}/{self.request.id}: A dependency failed.")
             return
@@ -607,10 +619,22 @@ def prepare_dependency_tasks(
         ).select_related("subject_topography", "subject_surface", "subject_tag")
         if use_surfaces_path and isinstance(subject, Surface):
             existing_analysis_qs = existing_analysis_qs.prefetch_related("surfaces")
-        existing_analysis = existing_analysis_qs.order_by("-task_start_time").first()
+        # Serialize the existence check and creation of this dependency against
+        # concurrent parents needing the same dependency. Without this, two
+        # parents can both observe "no existing dependency" and each create a
+        # separate dependency analysis, doubling the work. The advisory lock is
+        # released when the surrounding transaction commits.
+        with transaction.atomic(), advisory_lock(
+            "dependency",
+            function.name,
+            subject_hash,
+            json.dumps(kwargs, sort_keys=True, default=str),
+        ):
+            existing_analysis = existing_analysis_qs.order_by(
+                "-task_start_time"
+            ).first()
 
-        if existing_analysis is None:
-            with transaction.atomic():
+            if existing_analysis is None:
                 create_kwargs = dict(
                     permissions=parent.permissions,
                     workflow_name=function.name,
@@ -635,20 +659,21 @@ def prepare_dependency_tasks(
                 if use_surfaces_path and isinstance(subject, Surface):
                     # M2M fields cannot be set until after the instance is created.
                     new_analysis.surfaces.set([subject])
-            scheduled_dependent_analyses[key] = new_analysis
-        else:
-            # An analysis exists. Check whether it is successful or failed.
-            # task_state is the *self reported* state, not the Celery state
-            if not force and existing_analysis.task_state in [
-                WorkflowResult.FAILURE,
-                WorkflowResult.SUCCESS,
-            ]:
-                # This one does not need to be scheduled
-                finished_dependent_analyses[key] = existing_analysis
+                scheduled_dependent_analyses[key] = new_analysis
             else:
-                # We schedule everything else, possibly again. `perform_analysis` will
-                # automatically terminate if an analysis already completed successfully.
-                scheduled_dependent_analyses[key] = existing_analysis
+                # An analysis exists. Check whether it is successful or failed.
+                # task_state is the *self reported* state, not the Celery state
+                if not force and existing_analysis.task_state in [
+                    WorkflowResult.FAILURE,
+                    WorkflowResult.SUCCESS,
+                ]:
+                    # This one does not need to be scheduled
+                    finished_dependent_analyses[key] = existing_analysis
+                else:
+                    # We schedule everything else, possibly again.
+                    # `perform_analysis` will automatically terminate if an
+                    # analysis already completed successfully.
+                    scheduled_dependent_analyses[key] = existing_analysis
 
     return (
         finished_dependent_analyses,
