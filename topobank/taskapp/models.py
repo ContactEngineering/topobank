@@ -18,6 +18,17 @@ from .tasks import ProgressRecorder
 _log = logging.getLogger(__name__)
 
 
+class IncompleteMetadataError(Exception):
+    """
+    Raised when a data file is of a supported format and can be read, but does
+    not contain the complete metadata (physical size, unit) required to process
+    it, and the instance is configured (via `TOPOBANK_REJECT_INCOMPLETE_METADATA`)
+    to reject such files instead of prompting the user to fill in the metadata.
+    """
+
+    pass
+
+
 class TaskStateModel(models.Model):
     class Meta:
         abstract = True
@@ -473,6 +484,10 @@ class TaskStateModel(models.Model):
         ------
         CannotDetectFileFormat
             If the data file is of an unknown or unsupported format.
+        IncompleteMetadataError
+            If the data file is of a supported format but lacks required metadata
+            and this instance is configured to reject such files. Caught and stored
+            as a task error; not propagated.
         Exception
             For any other exceptions that occur during task execution.
         """
@@ -501,6 +516,13 @@ class TaskStateModel(models.Model):
         except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
             self.task_error = "The data file is of an unknown or unsupported format."
+            self.task_traceback = traceback.format_exc().replace('\x00', '')
+        except IncompleteMetadataError as exc:
+            # The file is of a supported format but lacks required metadata, and
+            # this instance is configured to reject such files. This is an expected
+            # user-input rejection (not a system fault), so we do not re-raise.
+            self.task_state = TaskStateModel.FAILURE
+            self.task_error = str(exc).replace('\x00', '')
             self.task_traceback = traceback.format_exc().replace('\x00', '')
         except Exception as exc:
             self.task_state = TaskStateModel.FAILURE
