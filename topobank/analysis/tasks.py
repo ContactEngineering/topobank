@@ -203,12 +203,19 @@ def schedule_workflow(
         analysis.save()
 
         # Check if any dependency failed
-        if any(
-            dep.task_state != WorkflowResult.SUCCESS
+        failed_dependencies = [
+            dep
             for dep in finished_dependencies.values()
-        ):
+            if dep.task_state != WorkflowResult.SUCCESS
+        ]
+        if failed_dependencies:
+            # Surface the failed dependency's real error/traceback on the parent
+            # rather than a generic message, so the UI shows why it failed
+            # (mirrors execute_workflow and _fail_parent_on_dependency_failure).
+            failed_dep = failed_dependencies[0]
             analysis.task_state = WorkflowResult.FAILURE
-            analysis.task_error = "A dependent analysis failed."
+            analysis.task_error = failed_dep.task_error or "A dependent analysis failed."
+            analysis.task_traceback = failed_dep.task_traceback
             analysis.save()
             _log.debug(f"{analysis_id}/{self.request.id}: A dependency failed.")
             return
