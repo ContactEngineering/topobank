@@ -1,3 +1,4 @@
+import json
 import traceback
 import tracemalloc
 from typing import Any, Dict
@@ -618,10 +619,22 @@ def prepare_dependency_tasks(
         ).select_related("subject_topography", "subject_surface", "subject_tag")
         if use_surfaces_path and isinstance(subject, Surface):
             existing_analysis_qs = existing_analysis_qs.prefetch_related("surfaces")
-        existing_analysis = existing_analysis_qs.order_by("-task_start_time").first()
+        # Serialize the existence check and creation of this dependency against
+        # concurrent parents needing the same dependency. Without this, two
+        # parents can both observe "no existing dependency" and each create a
+        # separate dependency analysis, doubling the work. The advisory lock is
+        # released when the surrounding transaction commits.
+        with transaction.atomic(), advisory_lock(
+            "dependency",
+            function.name,
+            subject_hash,
+            json.dumps(kwargs, sort_keys=True, default=str),
+        ):
+            existing_analysis = existing_analysis_qs.order_by(
+                "-task_start_time"
+            ).first()
 
-        if existing_analysis is None:
-            with transaction.atomic():
+            if existing_analysis is None:
                 create_kwargs = dict(
                     permissions=parent.permissions,
                     workflow_name=function.name,
@@ -646,20 +659,21 @@ def prepare_dependency_tasks(
                 if use_surfaces_path and isinstance(subject, Surface):
                     # M2M fields cannot be set until after the instance is created.
                     new_analysis.surfaces.set([subject])
-            scheduled_dependent_analyses[key] = new_analysis
-        else:
-            # An analysis exists. Check whether it is successful or failed.
-            # task_state is the *self reported* state, not the Celery state
-            if not force and existing_analysis.task_state in [
-                WorkflowResult.FAILURE,
-                WorkflowResult.SUCCESS,
-            ]:
-                # This one does not need to be scheduled
-                finished_dependent_analyses[key] = existing_analysis
+                scheduled_dependent_analyses[key] = new_analysis
             else:
-                # We schedule everything else, possibly again. `perform_analysis` will
-                # automatically terminate if an analysis already completed successfully.
-                scheduled_dependent_analyses[key] = existing_analysis
+                # An analysis exists. Check whether it is successful or failed.
+                # task_state is the *self reported* state, not the Celery state
+                if not force and existing_analysis.task_state in [
+                    WorkflowResult.FAILURE,
+                    WorkflowResult.SUCCESS,
+                ]:
+                    # This one does not need to be scheduled
+                    finished_dependent_analyses[key] = existing_analysis
+                else:
+                    # We schedule everything else, possibly again.
+                    # `perform_analysis` will automatically terminate if an
+                    # analysis already completed successfully.
+                    scheduled_dependent_analyses[key] = existing_analysis
 
     return (
         finished_dependent_analyses,
