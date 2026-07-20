@@ -38,17 +38,18 @@ class PermissionSetManager(models.Manager):
         anonymous_user = (
             get_anonymous_user() if permission == "view" else None
         )
+        q = Q(user_permissions__user=user,
+              user_permissions__allow__in=allowed_levels)
+        group_ids = list(user.groups.values_list("id", flat=True))
+        if group_ids:
+            q |= Q(
+                organization_permissions__organization__group_id__in=group_ids,
+                organization_permissions__allow__in=allowed_levels,
+            )
         if anonymous_user is not None:
-            return self.get_queryset().filter(
-                Q(user_permissions__user=user,
-                  user_permissions__allow__in=allowed_levels)
-                | Q(user_permissions__user=anonymous_user,
-                    user_permissions__allow__in=allowed_levels)
-            ).distinct()
-        return self.get_queryset().filter(
-            user_permissions__user=user,
-            user_permissions__allow__in=allowed_levels,
-        )
+            q |= Q(user_permissions__user=anonymous_user,
+                   user_permissions__allow__in=allowed_levels)
+        return self.get_queryset().filter(q).distinct()
 
 
 class PermissionSet(AbstractPermissionSet):
@@ -72,17 +73,18 @@ class PermissionSet(AbstractPermissionSet):
         anonymous_user = (
             get_anonymous_user() if permission == "view" else None
         )
+        q = Q(permissions__user_permissions__user=user,
+              permissions__user_permissions__allow__in=allowed_levels)
+        group_ids = list(user.groups.values_list("id", flat=True))
+        if group_ids:
+            q |= Q(
+                permissions__organization_permissions__organization__group_id__in=group_ids,  # noqa: E501
+                permissions__organization_permissions__allow__in=allowed_levels,
+            )
         if anonymous_user is not None:
-            return queryset.filter(
-                Q(permissions__user_permissions__user=user,
-                  permissions__user_permissions__allow__in=allowed_levels)
-                | Q(permissions__user_permissions__user=anonymous_user,
-                    permissions__user_permissions__allow__in=allowed_levels)
-            ).distinct()
-        return queryset.filter(
-            permissions__user_permissions__user=user,
-            permissions__user_permissions__allow__in=allowed_levels,
-        )
+            q |= Q(permissions__user_permissions__user=anonymous_user,
+                   permissions__user_permissions__allow__in=allowed_levels)
+        return queryset.filter(q).distinct()
 
     def get_for_user(self, user):
         """Return the effective permission for a user.
@@ -99,11 +101,16 @@ class PermissionSet(AbstractPermissionSet):
             user_permissions = list(self.user_permissions.filter(
                 Q(user=user) | Q(user=anonymous_user)
             ))
-        if not user_permissions:
+        access_levels = [ACCESS_LEVELS[perm.allow] for perm in user_permissions]
+        group_ids = list(user.groups.values_list("id", flat=True))
+        if group_ids:
+            org_permissions = self.organization_permissions.filter(
+                organization__group_id__in=group_ids
+            )
+            access_levels += [ACCESS_LEVELS[perm.allow] for perm in org_permissions]
+        if not access_levels:
             return None
-        max_access_level = max(
-            ACCESS_LEVELS[perm.allow] for perm in user_permissions
-        )
+        max_access_level = max(access_levels)
         if max_access_level == 0:
             return None
         return PERMISSION_CHOICES[max_access_level - 1][0]
