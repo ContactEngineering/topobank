@@ -4,6 +4,7 @@ WorkflowImplementation base class and helpers.
 
 import collections
 import hashlib
+import inspect
 import logging
 import warnings
 from dataclasses import dataclass
@@ -11,6 +12,7 @@ from typing import Union
 
 import numpy as np
 import pydantic
+from muTimer import Timer
 from pydantic import field_validator
 
 from ...manager.models import Surface, Tag, Topography
@@ -177,11 +179,38 @@ class WorkflowImplementation:
     def kwargs(self):
         return self._kwargs
 
+    def _run_implementation(self, implementation, analysis, auxiliary_kwargs):
+        """Invoke an implementation method with timing.
+
+        The caller (the task runner) provides a ``timer`` (a ``muTimer.Timer``
+        instance) via ``auxiliary_kwargs``. It is exposed to implementations as
+        ``self.timer`` (so they can time individual steps, which nest under the
+        workflow node) and is used here to record the total run time of the
+        workflow under its name. Only keyword arguments the implementation
+        actually accepts are forwarded, so the runner can pass extra context
+        (e.g. ``timer``) without every implementation having to declare it.
+        """
+        self.timer = auxiliary_kwargs.get("timer") or Timer()
+        signature = inspect.signature(implementation)
+        accepts_var_keyword = any(
+            p.kind == inspect.Parameter.VAR_KEYWORD
+            for p in signature.parameters.values()
+        )
+        # Forward the same timer instance so any sub-steps an implementation
+        # times nest under the workflow's own timing node.
+        forwarded = {**auxiliary_kwargs, "timer": self.timer}
+        if not accepts_var_keyword:
+            forwarded = {
+                k: v for k, v in forwarded.items() if k in signature.parameters
+            }
+        with self.timer(self.Meta.name):
+            return implementation(analysis, **forwarded)
+
     def eval(self, analysis, **auxiliary_kwargs):
         if analysis.subject is None and analysis.surfaces.exists():
             return self.eval_surfaces(analysis, **auxiliary_kwargs)
         implementation = self.get_implementation(analysis.subject.__class__)
-        result = implementation(analysis, **auxiliary_kwargs)
+        result = self._run_implementation(implementation, analysis, auxiliary_kwargs)
         if result is not None:
             warnings.warn(
                 f"Workflow implementation '{self.Meta.name}' returned a result of type {type(result)}. "
@@ -210,7 +239,7 @@ class WorkflowImplementation:
         else:
             raise ValueError("No surfaces in analysis")
 
-        result = impl(analysis, **auxiliary_kwargs)
+        result = self._run_implementation(impl, analysis, auxiliary_kwargs)
         if result is not None:
             warnings.warn(
                 f"Workflow implementation '{self.Meta.name}' returned a result of type {type(result)}. "

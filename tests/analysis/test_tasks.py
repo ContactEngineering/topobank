@@ -148,6 +148,39 @@ def test_schedule_workflow_runs_dependencies_end_to_end(two_topos, test_workflow
 
 
 # ---------------------------------------------------------------------------
+# Timing (regression: workflows must not crash on the `timer` kwarg, and
+# must produce timing information)
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_workflow_produces_timing_information(two_topos, test_workflow):
+    """Running a workflow records hierarchical timing into ``task_timer``.
+
+    The task runner passes a ``muTimer.Timer`` into the workflow; the base
+    ``eval`` wraps the implementation call so every workflow gets a top-level
+    timing node named after itself, and implementations that opt in (accept a
+    ``timer`` argument) nest their own sub-steps underneath.
+    """
+    topo = Topography.objects.first()
+    analysis = _pending_analysis(topo, "topobank.testing.test")
+
+    perform_analysis.apply(args=(analysis.id, True))
+
+    analysis.refresh_from_db()
+    assert analysis.task_state == WorkflowResult.SUCCESS
+
+    # muTimer.to_dict() -> {"timers": [ {name, ..., children: [...]}, ... ]}
+    assert analysis.task_timer is not None
+    timers = analysis.task_timer["timers"]
+    workflow_node = next(t for t in timers if t["name"] == "topobank.testing.test")
+    assert workflow_node["total_seconds"] >= 0
+    # The test implementation times two sub-steps, which nest under the workflow.
+    child_names = {c["name"] for c in workflow_node.get("children", [])}
+    assert {"save_file1", "save_file2"} <= child_names
+
+
+# ---------------------------------------------------------------------------
 # Dependency FAILURE propagation (regression: parent must not hang)
 # ---------------------------------------------------------------------------
 
