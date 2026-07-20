@@ -38,7 +38,7 @@ from ..authorization.models import (
     ViewEditFull,
 )
 from ..files.models import Manifest, ManifestSet
-from ..taskapp.models import TaskStateModel
+from ..taskapp.models import IncompleteMetadataError, TaskStateModel
 from ..taskapp.utils import in_celery_worker_process, run_task
 from ..utils.timer import Timer
 from .utils import get_topography_reader, render_deepzoom
@@ -1500,16 +1500,47 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             )
 
         # Check whether the user already selected a (valid) channel, if not set to
-        # default channel
+        # default channel. We compute this into a local variable first so we can
+        # reject files with incomplete metadata (below) *before* mutating any
+        # significant field (such as `data_source`); otherwise a rejected inspection
+        # would leave a phantom change that re-dispatches the task on the terminal
+        # save().
+        data_source = self.data_source
         if (
-            self.data_source is None
-            or self.data_source < 0
-            or self.data_source >= len(self.channel_names)
+            data_source is None
+            or data_source < 0
+            or data_source >= len(self.channel_names)
         ):
-            self.data_source = reader.default_channel.index
+            data_source = reader.default_channel.index
 
         # Select channel
-        channel = reader.channels[self.data_source]
+        channel = reader.channels[data_source]
+
+        # Reject files with incomplete metadata if this instance is configured to do
+        # so. The file is of a supported format and could be read, but the metadata
+        # required to process it (physical size, unit) is missing and would normally
+        # have to be entered manually through the UI. A field is considered missing
+        # only if neither the file nor the existing database entry provides it, so
+        # container/zip imports (which populate this metadata from `index.json` before
+        # inspection) are not affected.
+        if getattr(settings, "TOPOBANK_REJECT_INCOMPLETE_METADATA", False):
+            size_missing = channel.physical_sizes is None and self.size_x is None
+            unit_missing = channel.unit is None and self.unit is None
+            if size_missing or unit_missing:
+                missing = []
+                if size_missing:
+                    missing.append("physical size")
+                if unit_missing:
+                    missing.append("unit")
+                raise IncompleteMetadataError(
+                    f"The file format '{self.datafile_format}' is supported, but the "
+                    f"file does not contain complete metadata. The following required "
+                    f"metadata could not be read from the file: {', '.join(missing)}. "
+                    f"This instance is configured to reject files with incomplete "
+                    f"metadata."
+                )
+
+        self.data_source = data_source
 
         #
         # Look for necessary metadata. We override values in the database. This may be

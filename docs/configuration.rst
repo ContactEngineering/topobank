@@ -54,6 +54,27 @@ DOI Generation
       - :code:`20`
       - Maximum number affiliations per author per publication.
 
+Data import
+-----------
+.. list-table:: Data import
+    :widths: 25 10 20 45
+    :header-rows: 1
+
+    * - ENV Variable
+      - Type
+      - Default
+      - Description
+    * - :code:`TOPOBANK_REJECT_INCOMPLETE_METADATA`
+      - bool
+      - :code:`False`
+      - If set to `True`, uploaded files that are of a supported format and can be read, but
+        that do not contain the metadata required to process them (physical size and unit), are
+        rejected. The measurement's task fails with an explicit error stating that the format is
+        supported but the metadata is incomplete, instead of leaving the measurement in a state
+        that requires the user to fill in the missing metadata manually. Container/ZIP imports
+        are not affected, because they carry this metadata in their ``index.json`` and populate
+        it before the file is inspected.
+
 
 
 
