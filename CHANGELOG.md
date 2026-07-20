@@ -1,10 +1,26 @@
 # Changelog for *TopoBank*
 
-# Unreleased
+# 1.69.0 (2026-07-20)
 
+- ENH: Option to reject files with incomplete metadata (`TOPOBANK_REJECT_INCOMPLETE_METADATA`)
 - ENH: Surface containers use a single pydantic-validated `index.json` metadata file
 - ENH: `export_container_zip` accepts optional opaque `extra_metadata` (`ContainerMeta.extra`)
+- ENH: `ignore_existing` flag on `submit_for_surfaces` (#1337)
+- ENH: Optionally remap logical Celery queue names at publish time
 - MAINT: No longer write `meta.yml` to containers (legacy `meta.yml` still read on import)
+- MAINT: New delete delay settings (#1331)
+- MAINT: Increased surface name max length to 255 (#1332)
+- MAINT: Carry dependency parent attribution on the Celery task (#1335)
+- MAINT: Surface/topography admin pages use raw id fields (#1339)
+- MAINT: Updated Django to 5.2.16
+- BUG: Fail parent workflow on dependency failure and preserve its traceback (#1345)
+- BUG: Serialize check-then-create dedup to prevent duplicate results (#1343)
+- BUG: De-duplicate `Configuration` creation under concurrency (#1344)
+- BUG: Persist pending task state when `Topography.save` uses `update_fields` (#1342)
+- BUG: Return the viable analysis on submit, not the latest of all (#1341)
+- BUG: Invalidate and reap surface-set (M2M) analyses (#1340)
+- BUG: Fix workflow crash on `timer` kwarg and record per-workflow timing
+- BUG: Fix `_get_unique_kwargs` aliasing and key-intersection (#1346)
 
 # 1.68.0 (2026-06-15)
 
