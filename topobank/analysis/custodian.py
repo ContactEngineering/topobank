@@ -17,17 +17,29 @@ def periodic_cleanup():
     analysis_delay = getattr(
         settings, "TOPOBANK_ANALYSIS_DELETE_DELAY", settings.TOPOBANK_DELETE_DELAY
     )
-    q = WorkflowResult.objects.filter(
-        deprecation_time__lt=timezone.now() - analysis_delay,
-        name__isnull=True
-    ).filter(
-        Q(subject_topography__isnull=False) | Q(subject_surface__isnull=False) | Q(subject_tag__isnull=False)
-    )
-    if q.count() > 0:
-        _log.info(
-            f"Custodian: Deleting {q.count()} analysis results because they were marked as deprecated."
+    # Resolve distinct PKs first: including the surfaces M2M in the filter
+    # introduces a join that can return a row more than once, and ``.delete()``
+    # cannot follow ``.distinct()``.
+    deprecated_pks = list(
+        WorkflowResult.objects.filter(
+            deprecation_time__lt=timezone.now() - analysis_delay,
+            name__isnull=True,
         )
-        q.delete()
+        .filter(
+            Q(subject_topography__isnull=False)
+            | Q(subject_surface__isnull=False)
+            | Q(subject_tag__isnull=False)
+            | Q(surfaces__isnull=False)
+        )
+        .values_list("pk", flat=True)
+        .distinct()
+    )
+    if deprecated_pks:
+        _log.info(
+            f"Custodian: Deleting {len(deprecated_pks)} analysis results because "
+            "they were marked as deprecated."
+        )
+        WorkflowResult.objects.filter(pk__in=deprecated_pks).delete()
 
     # Update WorkflowResults stuck in pending state with no Celery task assigned
     q = WorkflowResult.objects.filter(
