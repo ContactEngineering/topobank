@@ -11,6 +11,7 @@ from muTimer import Timer
 from SurfaceTopography.Support import doi
 
 from ..manager.models import Surface, Tag, Topography
+from ..supplib.db import advisory_lock
 from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
 from ..taskapp.models import Configuration
@@ -42,21 +43,24 @@ def get_current_configuration():
         c.versions.set(versions)
         return c
 
-    if Configuration.objects.count() == 0:
-        return make_config_from_versions()
-
-    #
-    # Find out whether the latest configuration has exactly these versions
-    #
-    latest_config = Configuration.objects.latest("valid_since")
-
+    # Serialize the check-then-create so concurrent workers (e.g. right after a
+    # dependency version bump) do not each create a redundant Configuration for
+    # the same version set. Doing the create and versions.set() inside one
+    # transaction also means a Configuration is never observed with an empty
+    # versions set. The advisory lock is released when the transaction commits.
     current_version_ids = set(v.id for v in versions)
-    latest_version_ids = set(v.id for v in latest_config.versions.all())
+    with transaction.atomic(), advisory_lock("current-configuration"):
+        if Configuration.objects.count() == 0:
+            return make_config_from_versions()
 
-    if current_version_ids == latest_version_ids:
-        return latest_config
-    else:
-        return make_config_from_versions()
+        # Find out whether the latest configuration has exactly these versions
+        latest_config = Configuration.objects.latest("valid_since")
+        latest_version_ids = set(v.id for v in latest_config.versions.all())
+
+        if current_version_ids == latest_version_ids:
+            return latest_config
+        else:
+            return make_config_from_versions()
 
 
 @app.task(bind=True, soft_time_limit=3600, time_limit=3700)
