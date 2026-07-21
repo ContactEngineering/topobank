@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.69.1 (2026-07-21)
+
+- BUG: Do not build subject URLs in analysis workers; `make_alert_entry` no longer requires a subject URL
+
 # 1.69.0 (2026-07-20)
 
 - ENH: Option to reject files with incomplete metadata (`TOPOBANK_REJECT_INCOMPLETE_METADATA`)

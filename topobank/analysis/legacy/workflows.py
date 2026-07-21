@@ -121,7 +121,9 @@ def wrap_series(series, primary_key="x"):
     return wrapped_series
 
 
-def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_mesg):
+def make_alert_entry(
+    level, subject_name, data_series_name, detail_mesg, subject_url=None
+):
     """Build string with alert message often used in the functions.
 
     Parameters
@@ -130,19 +132,24 @@ def make_alert_entry(level, subject_name, subject_url, data_series_name, detail_
         One of ['info', 'warning', 'danger'], see also alert classes in bootstrap 4
     subject_name: str
         Name of the subject.
-    subject_url: str
-        URL of the subject
     data_series_name: str
         Name of the data series this applies to.
     detail_mesg: str
         Details about the alert.
+    subject_url: str, optional
+        URL of the subject. When given, the subject name is rendered as a link;
+        otherwise the plain name is used. Analysis workers no longer build routed
+        URLs (core is REST/UI-agnostic), so this is left unset there.
 
     Returns
     -------
     str
     """
-    link = f'<a class="alert-link" href="{subject_url}">{subject_name}</a>'
-    message = f"Failure for digital surface twin {link}, data series '{data_series_name}': {detail_mesg}"
+    if subject_url:
+        subject = f'<a class="alert-link" href="{subject_url}">{subject_name}</a>'
+    else:
+        subject = subject_name
+    message = f"Failure for digital surface twin {subject}, data series '{data_series_name}': {detail_mesg}"
     return dict(alert_class=f"alert-{level}", message=message)
 
 
