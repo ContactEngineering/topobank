@@ -224,9 +224,6 @@ class FakeTopographyModel:
         """Return low level topography."""
         return self.t
 
-    def get_absolute_url(self):
-        return "some/url/"
-
 
 class AnalysisResultMock:
     subject: Union[Tag, Surface, Topography] = None
