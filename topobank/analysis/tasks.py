@@ -1,6 +1,5 @@
 import json
 import traceback
-import tracemalloc
 from typing import Any, Dict
 
 import celery
@@ -15,6 +14,7 @@ from ..manager.models import Surface, Tag, Topography
 from ..supplib.db import advisory_lock
 from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
+from ..taskapp.memory import track_memory_usage
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
@@ -437,8 +437,6 @@ def execute_workflow(
     )
     try:
         dois = set()
-        tracemalloc.start()
-        tracemalloc.reset_peak()
         timer = Timer(str(self.request.id))
         on_progress = None
         # If a callback is configured, create a progress callback.
@@ -463,16 +461,22 @@ def execute_workflow(
                 },
             )
 
-        result = evaluate_function(
-            dois=dois,
-            progress_recorder=ProgressRecorder(self, on_progress=on_progress),
-            timer=timer,
-            finished_analyses=finished_dependencies,
-        )
-        size, peak = tracemalloc.get_traced_memory()
-        tracemalloc.stop()
+        # Peak-memory tracking: cheap RSS high-water mark by default;
+        # precise (but ~35x slower on numeric workloads) tracemalloc only
+        # when TOPOBANK_TRACK_MEMORY_USAGE is enabled. See taskapp/memory.py.
+        with track_memory_usage() as memory_usage:
+            result = evaluate_function(
+                dois=dois,
+                progress_recorder=ProgressRecorder(self, on_progress=on_progress),
+                timer=timer,
+                finished_analyses=finished_dependencies,
+            )
         save_result(
-            result, WorkflowResult.SUCCESS, peak_memory=peak, dois=dois, timer=timer
+            result,
+            WorkflowResult.SUCCESS,
+            peak_memory=memory_usage.peak,
+            dois=dois,
+            timer=timer,
         )
     except Exception as exc:
         _log.exception(
