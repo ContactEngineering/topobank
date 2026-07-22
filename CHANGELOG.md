@@ -1,5 +1,12 @@
 # Changelog for *TopoBank*
 
+# 1.69.2 (2026-07-22)
+
+- PERF: `task_memory` now records per-task peak RSS (resettable `VmHWM`) instead of
+  `tracemalloc`, which slowed numpy-heavy tasks ~35x; tracemalloc is opt-in via `TOPOBANK_TRACK_MEMORY_USAGE`
+- BUG: Memory tracing was never stopped when a task raised, leaving `tracemalloc`
+  enabled for all subsequent tasks in the same worker process
+
 # 1.69.1 (2026-07-21)
 
 - BUG: Do not build subject URLs in analysis workers; `make_alert_entry` no longer requires a subject URL

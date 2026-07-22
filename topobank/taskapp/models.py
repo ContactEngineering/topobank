@@ -1,7 +1,6 @@
 import inspect
 import logging
 import traceback
-import tracemalloc
 from decimal import Decimal
 
 import celery.states
@@ -13,6 +12,7 @@ from muTimer import Timer
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
 from .celeryapp import app
+from .memory import track_memory_usage
 from .tasks import ProgressRecorder
 
 _log = logging.getLogger(__name__)
@@ -498,20 +498,20 @@ class TaskStateModel(models.Model):
 
         # actually run the task
         try:
-            tracemalloc.start()
-            tracemalloc.reset_peak()
-            # Check if task_worker accepts timer argument
-            sig = inspect.signature(self.task_worker)
-            if 'timer' in sig.parameters:
-                timer = Timer(str(self.task_id))
-                self.task_worker(*args, timer=timer, **kwargs)
-                self.task_timer = timer.to_dict()
-            else:
-                self.task_worker(*args, **kwargs)
-            size, peak = tracemalloc.get_traced_memory()
-            tracemalloc.stop()
+            # Peak-memory tracking: cheap RSS high-water mark by default;
+            # precise (but ~35x slower on numeric workloads) tracemalloc only
+            # when TOPOBANK_TRACK_MEMORY_USAGE is enabled. See taskapp/memory.py.
+            with track_memory_usage() as memory_usage:
+                # Check if task_worker accepts timer argument
+                sig = inspect.signature(self.task_worker)
+                if 'timer' in sig.parameters:
+                    timer = Timer(str(self.task_id))
+                    self.task_worker(*args, timer=timer, **kwargs)
+                    self.task_timer = timer.to_dict()
+                else:
+                    self.task_worker(*args, **kwargs)
             self.task_state = TaskStateModel.SUCCESS
-            self.task_memory = peak
+            self.task_memory = memory_usage.peak
             self.task_error = ""
         except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
