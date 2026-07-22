@@ -340,7 +340,16 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         """
         self.fix_folder()
         if self._result_cache is None:
-            self._result_cache = load_split_dict(self.folder, RESULT_FILE_BASENAME)
+            try:
+                self._result_cache = load_split_dict(
+                    self.folder, RESULT_FILE_BASENAME
+                )
+            except FileNotFoundError:
+                # Artifact-only workflows (e.g. the v3 map tasks) return None
+                # from their implementation, so no result.json is stored —
+                # honor the documented "None if there is nothing yet" contract
+                # instead of leaking the storage lookup failure.
+                return None
         return self._result_cache
 
     @property
