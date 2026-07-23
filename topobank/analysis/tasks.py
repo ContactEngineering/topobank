@@ -435,9 +435,13 @@ def execute_workflow(
     _log.debug(
         f"{analysis_id}/{self.request.id}: Starting evaluation of analysis function..."
     )
+    # Created outside the try so the failure path below can persist whatever
+    # block durations were recorded before the exception (Timer records in a
+    # finally, so an interrupted block — e.g. a SoftTimeLimitExceeded mid
+    # LOO fold — still leaves its partial duration behind).
+    timer = Timer(str(self.request.id))
     try:
         dois = set()
-        timer = Timer(str(self.request.id))
         on_progress = None
         # If a callback is configured, create a progress callback.
         callback_path = getattr(settings, "WORKFLOW_PROGRESS_CALLBACK", None)
@@ -485,6 +489,13 @@ def execute_workflow(
         analysis.task_state = WorkflowResult.FAILURE
         analysis.task_traceback = traceback.format_exc().replace("\x00", "")
         analysis.task_error = str(exc).replace("\x00", "")
+        # Persist the timings recorded up to the failure: for timeouts this is
+        # what distinguishes "one stage stalled for an hour" from "many stages,
+        # each fast, exceeded the budget together". muTimer records in a
+        # finally, so the interrupted block carries its partial duration.
+        timer_dict = timer.to_dict()
+        if timer_dict.get("timers"):
+            analysis.task_timer = timer_dict
         analysis.save()
         # Propagate the failure to the parent when this ran as a dependency.
         #
