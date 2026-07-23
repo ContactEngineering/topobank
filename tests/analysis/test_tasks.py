@@ -180,6 +180,30 @@ def test_workflow_produces_timing_information(two_topos, test_workflow):
     assert {"save_file1", "save_file2"} <= child_names
 
 
+@pytest.mark.django_db
+def test_failed_workflow_persists_timing_information(two_topos, test_workflow):
+    """Timings recorded before a failure must survive it.
+
+    A timed-out or crashed run previously lost its timer (only ``save_result``
+    persisted it, and that never runs on failure), so a SoftTimeLimitExceeded
+    gave no way to tell "one stage stalled for an hour" from "many stages,
+    each fast, exceeded the budget together". The runner wraps every
+    implementation in a workflow-named timing node (recorded in a ``finally``),
+    so even a workflow failing mid-flight leaves its partial duration behind —
+    and the failure path must persist it.
+    """
+    topo = Topography.objects.first()
+    analysis = _pending_analysis(topo, "topobank.testing.test_error")
+
+    perform_analysis.apply(args=(analysis.id, True))
+
+    analysis.refresh_from_db()
+    assert analysis.task_state == WorkflowResult.FAILURE
+    assert analysis.task_timer is not None
+    names = {t["name"] for t in analysis.task_timer["timers"]}
+    assert "topobank.testing.test_error" in names
+
+
 # ---------------------------------------------------------------------------
 # Dependency FAILURE propagation (regression: parent must not hang)
 # ---------------------------------------------------------------------------

@@ -1,5 +1,11 @@
 # Changelog for *TopoBank*
 
+# 1.69.3 (2026-07-23)
+
+- ENH: Persist per-stage task timing (`task_timer`) when a workflow fails —
+  previously only successful runs recorded it, so timeouts (e.g.
+  `SoftTimeLimitExceeded`) left no way to tell which stage consumed the budget
+
 # 1.69.2 (2026-07-22)
 
 - PERF: `task_memory` now records per-task peak RSS (resettable `VmHWM`) instead of
