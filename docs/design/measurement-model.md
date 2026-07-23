@@ -89,9 +89,14 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     created_at, updated_at, deletion_time
     measurement_date = models.DateField(...)   # stays a column: used in Meta.ordering
 
-    # Files (unchanged, but see §6 on "squeezed")
-    datafile, datafile_format, channel_names, data_source
+    # Files (see §6 on "squeezed")
+    datafile, datafile_format
     squeezed_datafile, thumbnail, deepzoom
+
+    # Channel selection by NAME, not index (see §5, "Channel identity");
+    # replaces data_source; channel_names moves into file_info["channels"]
+    channel_name       = models.TextField(null=True)
+    channel_occurrence = models.PositiveIntegerField(default=0)
 
     # NEW: type dispatch + typed JSON payloads
     kind      = models.CharField(max_length=64, db_index=True)  # registry key
@@ -298,28 +303,96 @@ uninstalled) must degrade gracefully: the record stays visible/downloadable,
 `read()` raises a clear `UnknownMeasurementKind` error, analyses are not
 offered.
 
-### Kind is a property of the *channel*, not the file
+### Channel identity: named channels instead of indices
 
-A single data file can contain multiple channels of different dimensionality
-(one OPD file may hold a 2-D map and 1-D profiles). Therefore:
+**Status quo.** Channel identification is purely positional today:
 
-- The upload/inspection pipeline first opens the file with a **file reader**
-  (today always `SurfaceTopography.IO`; the reader family used is recorded in
-  `datafile_format`), enumerates channels, and derives the kind **per
-  channel** (`dim == 2` → map; `dim == 1 and uniform` → uniform line scan;
-  else nonuniform).
-- `Measurement.kind` is set when a channel is selected (`data_source`), and
-  **changing `data_source` may change `kind`** — inspection must re-derive
-  the kind and re-validate/re-default `metadata` on channel switch. This is a
-  real behavioral subtlety that today is handled implicitly by nullable
-  columns; the plan makes it an explicit step in `refresh_cache`.
-- To keep file opening pluggable too, the sniffing step iterates registered
-  types via a classmethod `MeasurementType.sniff(manifest) ->
-  list[ChannelInfo] | None` (first/best match wins). The three ST-based types
-  share one sniffer in `SurfaceTopographyTypeBase`, so today there is exactly
-  one file-opening code path, as now. If the ecosystem grows many readers,
-  this can later be split into a separate `FileReader` registry without
-  changing the `MeasurementType` API.
+- `Topography.data_source` is a nullable *integer index* into
+  `reader.channels`. Reading passes it verbatim
+  (`reader_kwargs = dict(channel_index=self.data_source, ...)`), and
+  inspection falls back to `reader.default_channel.index` when it is unset
+  or out of range.
+- `Topography.channel_names` is a JSON list of `(name, unit)` pairs rebuilt
+  on every inspection — a display cache for the UI dropdown, never used for
+  selection.
+- The container format (`TopographyMeta.data_source: int = 0`) bakes the
+  index into exported archives and published datasets.
+- Non-height channels (those whose `channel.unit` is a
+  `(lateral_unit, data_unit)` tuple) *are* listed in `channel_names` — the
+  `_get_unit` helper unpacks the tuple — but selecting one makes
+  `refresh_cache` raise `NotImplementedError("... contains information that
+  is not height")`. So they are visible in the UI but not importable.
+
+The positional scheme is fragile: if a reader version changes channel
+ordering (SurfaceTopography bug fixes have done this), an existing
+measurement silently switches to different data. **Decision: the new design
+identifies channels by name, not by index.**
+
+**Target design.**
+
+- `data_source: IntegerField` is replaced by two columns:
+  `channel_name = models.TextField(null=True)` and
+  `channel_occurrence = models.PositiveIntegerField(default=0)`. The
+  occurrence ordinal disambiguates files that contain several channels with
+  the same name (nothing guarantees uniqueness): it counts same-named
+  channels in file order, and is 0 in the overwhelmingly common unique case.
+  Two columns rather than one JSON blob because `channel_name` is
+  user-selected state that belongs at the same level as today's
+  `data_source` (it is also a *significant* field — changing it invalidates
+  analyses).
+- **Resolution algorithm** (name → reader channel), used by both `read()`
+  and `inspect()`: collect channels matching `channel_name`; exactly one
+  match → use it regardless of its position (this is the point — ordering no
+  longer plays a role); several matches → pick by `channel_occurrence`; zero
+  matches → put the measurement into an explicit inspection-error state.
+  Deliberately **no silent re-default to `default_channel`** on a failed
+  match — silently switching data is precisely the failure mode this change
+  eliminates. The default channel is only used when `channel_name` is NULL,
+  i.e. on first inspection after upload.
+- `channel_names` generalizes to a `channels` list inside `file_info`, one
+  object per channel:
+  `{"name", "occurrence", "dim", "unit", "data_unit", "kind"}` — where
+  `kind` is the measurement kind this channel would import as (`null` if no
+  registered type claims it). This single structure powers the UI dropdown,
+  makes the kind-per-channel mapping explicit, and is the basis for
+  importing non-height channels (below).
+- No SurfaceTopography API change is required: the ST base class resolves
+  name → index by scanning `reader.channels` and keeps calling
+  `reader.topography(channel_index=...)`. A name-based lookup could be added
+  upstream in SurfaceTopography later as a convenience, but the adapter is
+  self-sufficient.
+
+**Kind is a property of the channel, not the file.** A single data file can
+contain channels of different dimensionality and quantity (one OPD file may
+hold a 2-D map and 1-D profiles). The inspection pipeline opens the file
+(today always via `SurfaceTopography.IO`; the reader family is recorded in
+`datafile_format`), enumerates channels, and derives the kind **per
+channel**. For the ST base: scalar height unit and `dim == 2` →
+`topography-map`; `dim == 1` and uniform → `uniform-line-scan`; else
+`nonuniform-line-scan`. Selecting a different channel may therefore change
+`Measurement.kind`, and inspection must re-derive the kind and
+re-default/re-validate `metadata` on a channel switch — an explicit step in
+the new `refresh_cache`, where today it is handled implicitly by nullable
+columns.
+
+**Non-height channels become importable.** Under the registry, "is this
+channel importable" stops being hard-coded to height data and becomes "does
+any registered type claim it". Tuple-unit channels (adhesion, current,
+stiffness maps, …) get `kind: null` until a type exists for them — the
+natural first candidate is a generic `scalar-field-map` /
+`scalar-field-line-scan` pair whose metadata schema carries a `data_unit`
+field alongside the lateral unit, and whose data object is the same
+SurfaceTopography class with a tuple unit. Whether these generic kinds ship
+with the initial release or as a fast-follow is an open question (§10); the
+architecture cost of supporting them is already paid.
+
+To keep file opening pluggable too, the sniffing step iterates registered
+types via a classmethod `MeasurementType.sniff(manifest) ->
+list[ChannelInfo] | None` (first/best match wins). The three ST-based types
+share one sniffer in `SurfaceTopographyTypeBase`, so today there is exactly
+one file-opening code path, as now. If the ecosystem grows many readers,
+this can later be split into a separate `FileReader` registry without
+changing the `MeasurementType` API.
 
 ## 6. What moves out of `models.py`
 
@@ -389,10 +462,14 @@ type-specific logic. After the change:
 ## 8. Import/export, publication
 
 - `container_schema.py` (`index.json`) gains `kind` and a `metadata`
-  passthrough per measurement, bumping the container format version. Import
-  must keep accepting legacy containers: absent `kind`, infer it exactly like
-  the DB backfill (§9) and map the legacy flat keys (`size`, `unit`,
-  `height_scale`, `instrument`, …) into the new `metadata` dict.
+  passthrough per measurement, bumping the container format version. New
+  exports write the channel by name (`channel: {"name": ..., "occurrence":
+  0}`) instead of `data_source: int`. Import must keep accepting legacy
+  containers: absent `kind`, infer it exactly like the DB backfill (§9); map
+  the legacy flat keys (`size`, `unit`, `height_scale`, `instrument`, …)
+  into the new `metadata` dict; and resolve a legacy integer `data_source`
+  to a channel name on first inspection (the index is applied once, the name
+  is stored).
 - Published datasets are immutable — publication export/import paths must be
   able to round-trip both formats indefinitely.
 - `to_dict()` on the model (used by export) reduces to mostly
@@ -438,6 +515,12 @@ One release containing, in this order within the migration sequence:
    flags rows whose backfilled kind disagrees with a later inspection, so a
    full re-inspection sweep (one S3 read per measurement) is only ever run
    if that report shows a real problem.
+   The same migration converts channel identity from index to name: set
+   `channel_name = channel_names[data_source][0]` and `channel_occurrence`
+   to the count of identically-named entries *before* that index in the
+   stored list — no file access needed. Rows with an empty `channel_names`
+   cache or an out-of-range index keep `channel_name = NULL` and are
+   resolved on their next inspection.
 3. `RenameModel` migration `Topography → Measurement`, staying in the
    `manager` app (moving apps changes `app_label` and therefore content
    types, permissions and every migration reference; the rename alone is
@@ -511,10 +594,14 @@ The following were discussed and decided (2026-07-23):
   `save()` skips metadata validation when the kind is unregistered and
   `metadata` is not among the changed fields, so unrelated bulk operations
   keep working. Each of these behaviors needs an explicit test.
-- **`channel_names`/`data_source`:** stay as real columns. `data_source` is
-  user-selected state (not file-derived cache), and `kind` is derived from
-  the selected channel. Kinds without a channel notion report a single
-  default channel.
+- **Channel identity:** channels are identified by **name** (plus an
+  occurrence ordinal for duplicate names), not by positional index, so
+  reader-side channel reordering can never silently switch a measurement's
+  data (§5). `channel_name`/`channel_occurrence` stay real columns —
+  user-selected, significant state; the per-channel inventory (including the
+  kind each channel would import as) lives in `file_info["channels"]`.
+  A failed name match is an explicit error state, never a silent re-default.
+  Kinds without a channel notion report a single default channel.
 - **Thumbnails:** expected for every kind, not optional. Core provides a
   generic 1-D curve renderer (the existing matplotlib path) that
   spectrum-like types get nearly for free; the ST base provides the 2-D
@@ -531,6 +618,12 @@ Still open:
   *allow* (the raw file and its self-describing metadata JSON are immutable
   and archivable regardless of installed plugins), but this is a policy call
   to be confirmed before implementation.
+- **Generic scalar-field kinds:** non-height channels (tuple units) become
+  *importable in principle* the moment a type claims them (§5). Should
+  generic `scalar-field-map`/`scalar-field-line-scan` kinds (with a
+  `data_unit` metadata field) ship with the initial release, or as a
+  fast-follow once the height kinds are stable? Fast-follow is lower risk;
+  shipping them immediately delivers visible user value from day one.
 - **Universality of the channel model:** the design assumes every instrument
   file fits "a file contains N named channels". No counterexample known;
   flag during review of the first non-height plugin.
