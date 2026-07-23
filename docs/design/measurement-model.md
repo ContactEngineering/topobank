@@ -358,25 +358,33 @@ type-specific logic. After the change:
   (`Meta.implementations = {Topography: ..., Surface: ...}`). With one
   `Measurement` model for many kinds, that is no longer discriminating: a
   roughness workflow must run on the three height kinds but not on an XPS
-  spectrum. Extend the implementation table to optional per-kind keys, with
-  the model class as wildcard:
+  spectrum. **Decision:** keep one implementation per subject model and add a
+  declarative gate:
 
   ```python
   class Meta:
       implementations = {
-          (Measurement, "topography-map"): "topography_implementation",
-          (Measurement, "uniform-line-scan"): "line_scan_implementation",
-          Surface: "surface_implementation",     # unchanged wildcard form
+          Measurement: "measurement_implementation",
+          Surface: "surface_implementation",
+      }
+      supported_kinds = {
+          "topography-map", "uniform-line-scan", "nonuniform-line-scan",
       }
   ```
 
-  `get_implementation(subject)` resolves `(model, subject.kind)` first, then
-  `(model, None)`. `has_implementation()` powers "which workflows does this
-  measurement offer" in the UI, so unsupported kinds simply show nothing.
-  This is additive and backwards compatible for existing plugin workflows
-  (bare-model keys keep working, meaning "all kinds" — existing height
-  workflows should be migrated to explicit kind keys as part of the rollout
-  so they don't accidentally claim future kinds).
+  This matches current reality — today a single `topography_implementation`
+  already handles maps and both line-scan flavors by branching on the data
+  object's `dim` — and minimizes churn for plugin workflows.
+  `has_implementation(subject)` checks membership of `subject.kind` in
+  `supported_kinds` (and powers "which workflows does this measurement
+  offer" in the UI, so unsupported kinds simply show nothing);
+  `eval()` refuses to run on unsupported kinds with
+  `WorkflowNotImplementedException`. A missing `supported_kinds` on a
+  workflow is an error, not a wildcard — existing workflows must declare the
+  three height kinds explicitly so they don't silently claim future kinds.
+  If a workflow ever genuinely needs different code paths per kind,
+  per-kind implementation keys can be added later as a purely additive
+  extension; we deliberately do not ship that now.
 
 ## 8. Import/export, publication
 
@@ -390,104 +398,139 @@ type-specific logic. After the change:
 - `to_dict()` on the model (used by export) reduces to mostly
   `self.metadata` + generic fields.
 
-## 9. Migration & rollout plan (staged, four PR-sized phases)
+## 9. Migration & rollout plan
 
-The rename and the schema change are independently risky; do **not** combine
-them in one release.
+**Decision:** topobank, the UI/API repository, and the analysis plugins are
+deployed in lockstep as one coordinated release, with **no compatibility
+shims** — no dual-write property shims for the old columns, no
+`Topography = Measurement` import alias, no `topography_set` shim. Anything
+out of tree that imports `Topography` breaks at the coordinated release and
+must be updated with it. This trades deploy risk for a clean cut: no shim
+code to write, test, and later remove, and no release where both data paths
+are live.
 
-**Phase A — extract behavior, no schema change.**
+The work still splits into two steps, but only the second one is a release
+boundary:
+
+**Step 1 — extract behavior, no schema change (independent, revertible PR).**
 Create `topobank/measurements/` (registry, schemas, type classes). The type
 classes initially read/write the *existing columns* through a small adapter,
 so `read()`, thumbnail/deep-zoom/squeezed generation, and the inspection core
 move behind the `MeasurementType` interface while the DB is untouched.
 Pydantic schemas exist and are exercised by tests, but validate data
-assembled from columns. Pure refactor; fully revertible.
+assembled from columns. Pure refactor; deployable on its own; fully
+revertible. Doing this first keeps the breaking release small and mostly
+mechanical.
 
-**Phase B — JSON schema migration.**
-1. Add `kind`, `metadata`, `file_info` (all with defaults) — additive
-   migration.
-2. Data migration backfills every row: kind inference
-   `resolution_y IS NOT NULL or size_y IS NOT NULL` → `topography-map`;
-   else `is_periodic_editable == False` → `nonuniform-line-scan`; else
-   `uniform-line-scan`. The heuristic is sound for rows that have been
-   inspected; uninspected rows (`data_source IS NULL`) get kind assigned on
-   their next `refresh_cache` anyway. Backfill validates each row through the
-   pydantic schema and logs (not fails) on rows that don't validate.
-3. Dual-write window: model property shims keep `size_x` & friends readable
-   and writable (writing updates the JSON), so downstream code and the API
-   keep working unmodified for one release.
-4. Flip all core readers to the JSON path; `_significant_fields` logic moves
-   to pydantic comparison.
+**Step 2 — the coordinated breaking release.**
+One release containing, in this order within the migration sequence:
 
-**Phase C — the rename.**
-`RenameModel` migration `Topography → Measurement` in `manager` (or move to
-the new `measurements` app — recommendation: **keep it in `manager`**, moving
-apps changes `app_label` and therefore content types, permissions and every
-migration reference; the rename alone is enough churn). Details that need
-explicit handling:
-- `related_name="measurements"` on the surface FK, with a deprecated
-  `Surface.topography_set` property shim for one release;
-  `num_topographies()` likewise.
-- `ContentType` rows: Django's `RenameModel` does *not* update the
-  `django_content_type` table; add a small data migration updating
-  `model="topography"` → `"measurement"` so `SubjectMixin.get_content_type()`
-  and any stored generic references stay valid.
-- Analysis app: rename `subject_topography` → `subject_measurement`
-  (`RenameField`), keep the `subject_hash` prefix string stable (§7).
-- Compatibility aliases for one minor release:
-  `Topography = Measurement` in `manager/models.py` (with a
-  `DeprecationWarning` on import via `__getattr__`), since the downstream
-  UI/API repo and analysis plugins import it by name.
+1. Additive migration: add `kind`, `metadata`, `file_info` (with defaults),
+   plus the CHECK constraint `kind = metadata->>'kind'` (§10).
+2. Data migration backfilling every row (**decision: heuristic only, no mass
+   re-inspection**): `resolution_y IS NOT NULL or size_y IS NOT NULL` →
+   `topography-map`; else `is_periodic_editable == False` →
+   `nonuniform-line-scan`; else `uniform-line-scan`. The heuristic is sound
+   for rows that completed inspection; uninspected rows
+   (`data_source IS NULL`) get kind assigned on their next `refresh_cache`
+   anyway. Backfill validates each row through the pydantic schema and logs
+   (not fails) on rows that don't validate. A report-only management command
+   flags rows whose backfilled kind disagrees with a later inspection, so a
+   full re-inspection sweep (one S3 read per measurement) is only ever run
+   if that report shows a real problem.
+3. `RenameModel` migration `Topography → Measurement`, staying in the
+   `manager` app (moving apps changes `app_label` and therefore content
+   types, permissions and every migration reference; the rename alone is
+   enough churn). `related_name="measurements"` on the surface FK;
+   `num_topographies()` → `num_measurements()`.
+4. Data migration updating `django_content_type` rows
+   (`model="topography"` → `"measurement"`) — Django's `RenameModel` does
+   *not* do this, and `SubjectMixin.get_content_type()` and stored generic
+   references depend on it.
+5. Analysis app: `RenameField` `subject_topography` → `subject_measurement`
+   (and the composite index names). The `"topography:"` prefix inside stored
+   `subject_hash` strings stays as an opaque tag forever (§7) — no row
+   rewrite.
+6. Drop the legacy columns (`size_x` … `instrument_parameters`,
+   `resolution_*`, `bandwidth_*`, editability flags) and flip all readers to
+   the JSON path; `_significant_fields` logic moves to pydantic comparison.
+   Existing workflows gain explicit `supported_kinds` declarations.
+
+Operational notes for that release:
 - `db_table` is renamed by `RenameModel` automatically
-  (`manager_topography` → `manager_measurement`); if zero-downtime deploys
-  matter, pin `Meta.db_table = "manager_topography"` in phase C and rename
-  the table in a later, trivial migration once old code is gone.
+  (`manager_topography` → `manager_measurement`). Since the release is not
+  zero-downtime anyway (see next point), let the rename happen; pinning
+  `Meta.db_table` buys nothing under lockstep.
 - Storage prefix `topographies/{id}` for existing files must **not** change
-  (S3 objects live there); new uploads may use `measurements/{id}` if the
-  prefix is made kind-agnostic, or simply keep the old prefix forever —
-  cheapest and safest.
-- Celery deploy sequencing: in-flight task payloads reference model paths;
-  drain queues or deploy workers and web in lockstep for this release.
-
-**Phase D — cleanup.**
-Drop the legacy columns (`size_x` … `instrument_parameters`,
-`resolution_*`, `bandwidth_*`, editability flags), remove the property shims
-and the `Topography` alias, rename `squeezed_datafile` if desired, migrate
-existing workflow `Meta.implementations` to explicit per-kind keys, update
-docs and `CHANGELOG.md`.
+  (S3 objects live there). Keep the old prefix forever — cheapest and
+  safest; making it kind-agnostic for new uploads is optional polish.
+- Celery: drain task queues before the deploy and take the site into
+  maintenance for the migration window. In-flight task payloads reference
+  model paths that will not survive the rename, and there is deliberately no
+  compatibility alias to catch them.
+- Rehearse the full migration sequence against a production DB snapshot; the
+  backfill touches every measurement row.
 
 ### Coordination with downstream repositories
 
 This repo has no serializers/views — the REST API and frontend live in the
 UI repository, and analysis plugins import `Topography` and its fields
-directly. Sequencing: downstream repos can absorb Phase A/B with zero changes
-(shims), must adapt imports and field access during the Phase C release
-window (the alias keeps them running), and must be fully migrated before
-Phase D. API strategy: **v1 endpoints keep the flat field layout** via
-serializer methods mapping into `metadata` (so existing clients and the
-published-dataset ecosystem see no change); **v2 exposes `kind` +
-`metadata`/`file_info` verbatim**, with per-kind JSON schemas
-(`Metadata.model_json_schema()`) served for form generation — the same trick
-`list_workflow_schemas` already uses for workflow parameters.
+directly. Under lockstep, both are updated and released together with
+Step 2. API strategy remains a downstream decision, but note that without
+dual-write in the model, keeping the **v1 endpoints' flat field layout**
+means the v1 serializers map flat fields into `metadata` themselves (entirely
+possible — serializer-level translation, no model support needed); **v2
+exposes `kind` + `metadata`/`file_info` verbatim**, with per-kind JSON
+schemas (`Metadata.model_json_schema()`) served for form generation — the
+same trick `list_workflow_schemas` already uses for workflow parameters.
 
-## 10. Risks and open questions
+## 10. Resolved decisions and remaining open questions
 
-- **Kind inference on backfill** is heuristic for rows never inspected;
-  mitigated by re-inspection on next touch. Consider a management command to
-  re-inspect all rows lacking `file_info` after Phase B.
-- **Losing DB-level typing** on metadata: mitigated by pydantic validation on
-  every write path; optionally a `CHECK (metadata ? 'kind')`-style constraint
-  or GIN index later. Aggregations over metadata (if ever needed) use
-  Postgres JSON operators or `GeneratedField`s.
-- **Unregistered kinds** (plugin removed): rows must stay listable and
-  deletable; only `read()`/analysis is blocked. Needs an explicit test.
-- **`channel_names`/`data_source` generality:** the channel concept is
-  currently assumed universal. It probably is (most instrument formats have
-  channels), but a kind with no channel notion should be able to report a
-  single default channel — keep these columns generic rather than moving them
-  into `file_info`.
-- **Thumbnails for arbitrary kinds:** rendering is a type capability; the
-  grid UI needs a fallback tile for kinds without thumbnails.
-- Should `bandwidth_*` stay queryable columns? The bandwidth plot reads them
-  per surface (small N) — JSON is fine; revisit only if a cross-dataset query
-  appears.
+The following were discussed and decided (2026-07-23):
+
+- **Workflow dispatch:** `Meta.supported_kinds` gate on a single
+  implementation per subject model (§7). Per-kind implementation keys are a
+  possible later additive extension, not shipped now.
+- **Schema home:** the pydantic schemas for the three built-in height kinds
+  live in **topobank**, next to their `MeasurementType` classes. Only
+  `InstrumentParametersModel` keeps coming from `SurfaceTopography.Metadata`.
+  This decouples web-app schema evolution (defaults, editability semantics)
+  from SurfaceTopography releases. Plugin packages are still free to ship
+  data class and schema together — the contract only requires that the
+  registered `MeasurementType` points at *a* schema.
+- **Rollout:** lockstep coordinated release, no compatibility shims (§9).
+- **Backfill:** heuristic only; report-only disagreement command instead of a
+  mass re-inspection sweep (§9).
+- **DB-level typing:** rely on pydantic at every write path. Single
+  kind-agnostic CHECK constraint `kind = metadata->>'kind'` to catch
+  column/JSON drift; no per-kind DB constraints, no GIN index or
+  `GeneratedField` until a real query needs one.
+- **Unregistered kinds** (plugin removed): rows stay listable, downloadable,
+  and deletable; `read()` raises `UnknownMeasurementKind`; analyses are not
+  offered; metadata editing is blocked (no schema to validate against).
+  `save()` skips metadata validation when the kind is unregistered and
+  `metadata` is not among the changed fields, so unrelated bulk operations
+  keep working. Each of these behaviors needs an explicit test.
+- **`channel_names`/`data_source`:** stay as real columns. `data_source` is
+  user-selected state (not file-derived cache), and `kind` is derived from
+  the selected channel. Kinds without a channel notion report a single
+  default channel.
+- **Thumbnails:** expected for every kind, not optional. Core provides a
+  generic 1-D curve renderer (the existing matplotlib path) that
+  spectrum-like types get nearly for free; the ST base provides the 2-D
+  colormap path; a type that truly cannot render gets a static per-kind icon
+  served by the registry, so the grid UI never special-cases. Deep zoom
+  remains a capability only maps implement.
+- **`bandwidth_*`:** move into `file_info`. All known reads are per surface
+  (small N); the fields are meaningless for non-height kinds. Revisit only
+  if a cross-dataset bandwidth query (e.g. search facet) appears.
+
+Still open:
+
+- **Publishing datasets that contain an unknown-kind measurement:** leaning
+  *allow* (the raw file and its self-describing metadata JSON are immutable
+  and archivable regardless of installed plugins), but this is a policy call
+  to be confirmed before implementation.
+- **Universality of the channel model:** the design assumes every instrument
+  file fits "a file contains N named channels". No counterexample known;
+  flag during review of the first non-height plugin.
