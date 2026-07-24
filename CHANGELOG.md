@@ -3,9 +3,7 @@
 # 1.69.3 (2026-07-24)
 
 - ENH: Workflow task time limits are read from the `CELERY_TASK_SOFT_TIME_LIMIT` /
-  `CELERY_TASK_TIME_LIMIT` settings (falling back to a 6-hour hard limit) instead
-  of a hardcoded one hour, so long-running workflows such as model training can
-  complete
+  `CELERY_TASK_TIME_LIMIT` settings (falling back to a 6-hour hard limit)
 - ENH: Persist per-stage task timing (`task_timer`) when a workflow fails —
   previously only successful runs recorded it, so timeouts (e.g.
   `SoftTimeLimitExceeded`) left no way to tell which stage consumed the budget
