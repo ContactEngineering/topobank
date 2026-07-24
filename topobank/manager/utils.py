@@ -15,8 +15,51 @@ from SurfaceTopography import open_topography
 from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
+from SurfaceTopography.Support.UnitConversion import (
+    get_unit_conversion_factor,
+    length_units,
+    suggest_length_unit,
+)
 
 _log = logging.getLogger(__name__)
+
+# Length units offered in the UI (mirrors Topography.LENGTH_UNIT_CHOICES). The
+# natural-unit suggestion is clamped to this set so we never propose a unit the
+# frontend cannot display/select.
+_NATURAL_LENGTH_UNITS = {"km", "m", "mm", "µm", "nm", "Å", "pm"}
+
+
+def to_natural_length_unit(size_x, size_y, unit):
+    """
+    Convert physical sizes to the most "natural" length unit, i.e. the one that
+    represents the extent with the fewest digits (e.g. 9999.999 nm -> ~10 µm,
+    6306280.9 nm -> ~6.31 mm).
+
+    This is the single place where physical-size unit conversion happens for
+    display and editing. Returns ``(size_x, size_y, unit)`` with the sizes
+    rescaled to the suggested unit. If conversion is not possible (missing or
+    unknown unit, zero extent, or a suggestion that is not an offered unit) the
+    inputs are returned unchanged.
+    """
+    if unit is None or unit not in length_units or size_x is None:
+        return size_x, size_y, unit
+
+    to_meters = get_unit_conversion_factor(unit, "m")
+    extent_m = abs(size_x)
+    if size_y is not None:
+        extent_m = max(extent_m, abs(size_y))
+    extent_m *= to_meters
+    if extent_m == 0:
+        return size_x, size_y, unit
+
+    natural = suggest_length_unit("linear", extent_m, extent_m)
+    if natural == unit or natural not in _NATURAL_LENGTH_UNITS:
+        return size_x, size_y, unit
+
+    factor = get_unit_conversion_factor(unit, natural)
+    new_x = size_x * factor
+    new_y = size_y * factor if size_y is not None else None
+    return new_x, new_y, natural
 
 
 class TopographyFileException(Exception):
