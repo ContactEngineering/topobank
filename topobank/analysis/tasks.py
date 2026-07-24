@@ -5,6 +5,7 @@ from typing import Any, Dict
 import celery
 from celery.utils.log import get_task_logger
 from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
 from django.db import transaction
 from django.utils import timezone
 from muTimer import Timer
@@ -21,6 +22,23 @@ from ..taskapp.utils import get_package_version
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)
+
+# Time limits for the workflow tasks below. Long-running workflows (e.g. model
+# training) can exceed a fixed one-hour budget, so the limits are taken from
+# the standard Celery settings where deployments tune them. Falls back to a
+# 6-hour hard limit (soft limit 5 minutes earlier for graceful cleanup) when
+# the settings are absent or Django settings are not configured.
+DEFAULT_TASK_TIME_LIMIT = 21600  # 6 hours
+DEFAULT_TASK_SOFT_TIME_LIMIT = DEFAULT_TASK_TIME_LIMIT - 300
+
+try:
+    TASK_SOFT_TIME_LIMIT = getattr(
+        settings, "CELERY_TASK_SOFT_TIME_LIMIT", DEFAULT_TASK_SOFT_TIME_LIMIT
+    )
+    TASK_TIME_LIMIT = getattr(settings, "CELERY_TASK_TIME_LIMIT", DEFAULT_TASK_TIME_LIMIT)
+except ImproperlyConfigured:
+    TASK_SOFT_TIME_LIMIT = DEFAULT_TASK_SOFT_TIME_LIMIT
+    TASK_TIME_LIMIT = DEFAULT_TASK_TIME_LIMIT
 
 
 def get_current_configuration():
@@ -64,7 +82,7 @@ def get_current_configuration():
             return make_config_from_versions()
 
 
-@app.task(bind=True, soft_time_limit=3600, time_limit=3700)
+@app.task(bind=True, soft_time_limit=TASK_SOFT_TIME_LIMIT, time_limit=TASK_TIME_LIMIT)
 def schedule_workflow(
     self: celery.Task,
     analysis_id: int,
@@ -279,7 +297,7 @@ def _fail_parent_on_dependency_failure(parent_id, dependency, request_id):
         )
 
 
-@app.task(bind=True, soft_time_limit=3600, time_limit=3700)
+@app.task(bind=True, soft_time_limit=TASK_SOFT_TIME_LIMIT, time_limit=TASK_TIME_LIMIT)
 def execute_workflow(
     self: celery.Task,
     analysis_id: int,
@@ -525,7 +543,7 @@ def execute_workflow(
 
 
 # Keep perform_analysis as an alias for backward compatibility
-@app.task(bind=True, soft_time_limit=3600, time_limit=3700)
+@app.task(bind=True, soft_time_limit=TASK_SOFT_TIME_LIMIT, time_limit=TASK_TIME_LIMIT)
 def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
     """Perform an analysis which is already present in the database.
 
