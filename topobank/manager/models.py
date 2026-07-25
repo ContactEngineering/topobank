@@ -11,7 +11,7 @@ from collections import defaultdict
 from typing import List
 
 import django.dispatch
-import matplotlib.pyplot
+import matplotlib
 import numpy as np
 import PIL
 import tagulous.models as tm
@@ -26,6 +26,7 @@ from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q, Value
 from django.utils import timezone
+from matplotlib.figure import Figure
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.IO import ReaderBase
@@ -1308,7 +1309,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         image_file = io.BytesIO()
         if st_topo.dim == 1:
             dpi = 100
-            fig, ax = matplotlib.pyplot.subplots(figsize=[width / dpi, height / dpi])
+            # Use the object-oriented API rather than `pyplot`. `pyplot` resolves
+            # the interactive backend, which on macOS is `macosx`; instantiating
+            # its canvas inside a forked Celery worker initializes AppKit on the
+            # child side of a fork, which the ObjC runtime aborts with SIGABRT.
+            # A bare `Figure` renders through Agg and keeps no global state, so
+            # it also removes the need to close the figure (see issue 898).
+            fig = Figure(figsize=[width / dpi, height / dpi])
+            ax = fig.subplots()
             x, y = st_topo.positions_and_heights()
             ax.plot(x, y, "-")
             ax.set_axis_off()
@@ -1318,7 +1326,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 dpi=100,
                 format=settings.TOPOBANK_THUMBNAIL_FORMAT,
             )
-            matplotlib.pyplot.close(fig)  # probably saves memory, see issue 898
         elif st_topo.dim == 2:
             # Compute thumbnail size (keeping aspect ratio)
             sx, sy = st_topo.physical_sizes
@@ -1333,8 +1340,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             heights = st_topo.heights()
             mx, mn = heights.max(), heights.min()
             heights = (heights - mn) / (mx - mn)
-            # Get color map
-            cmap = matplotlib.pyplot.get_cmap(cmap)
+            # Get color map. `matplotlib.colormaps` is the pyplot-free lookup;
+            # `None` selects the default, as `pyplot.get_cmap` did.
+            if cmap is None:
+                cmap = matplotlib.colormaps[matplotlib.rcParams["image.cmap"]]
+            elif isinstance(cmap, str):
+                cmap = matplotlib.colormaps[cmap]
             # Convert to image
             colors = (cmap(heights.T) * 255).astype(np.uint8)
             # Remove alpha channel before writing
