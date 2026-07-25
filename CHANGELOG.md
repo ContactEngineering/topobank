@@ -1,5 +1,9 @@
 # Changelog for *TopoBank*
 
+# 1.70.0 (2026-08-01)
+
+- ENH: Full text search index
+
 # 1.69.3 (2026-07-24)
 
 - ENH: Workflow task time limits are read from the `CELERY_TASK_SOFT_TIME_LIMIT` /
