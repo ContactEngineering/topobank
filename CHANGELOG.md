@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# 1.70.0 (2026-08-01)
+# 1.70.0 (2026-07-25)
 
 - ENH: Full text search index
 
