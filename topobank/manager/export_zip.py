@@ -63,23 +63,23 @@ def export_container_zip(file, surfaces, extra_metadata=None):
             else f"{surface_index}".zfill(log10_nb_surfaces + 1) + "-"
         )
 
-        topographies = surface.topography_set.all()
+        measurements = surface.measurements.all()
 
-        topography_dicts = []
+        measurement_dicts = []
 
         # create unique file names for the data files
         # using the original file name + a counter, if needed
 
-        nb_topographies = len(topographies)
-        log10_nb_topographies = (
-            int(math.log10(nb_topographies)) if nb_topographies > 0 else 0
+        nb_measurements = len(measurements)
+        log10_nb_measurements = (
+            int(math.log10(nb_measurements)) if nb_measurements > 0 else 0
         )
-        for topography_index, topography in enumerate(topographies):
-            topography_prefix = (
-                f"{topography_index}".zfill(log10_nb_topographies + 1) + "-"
+        for measurement_index, measurement in enumerate(measurements):
+            measurement_prefix = (
+                f"{measurement_index}".zfill(log10_nb_measurements + 1) + "-"
             )
 
-            topo_dict = topography.to_dict()
+            measurement_dict = measurement.to_dict()
             # this dict may be okay, but have to check whether the filename is unique
             # because every filename should only appear once in the archive
 
@@ -88,8 +88,8 @@ def export_container_zip(file, surfaces, extra_metadata=None):
             #
 
             # Split out original extension
-            _, original_extension = os.path.splitext(topo_dict["datafile"]["original"])
-            slugified_name = slugify(topo_dict["name"])
+            _, original_extension = os.path.splitext(measurement_dict["datafile"]["original"])
+            slugified_name = slugify(measurement_dict["name"])
             # `slugified_name` may have an extension since initial `name` is filename
             name, slugified_extension = os.path.splitext(slugified_name)
             if slugified_extension == original_extension:
@@ -99,30 +99,30 @@ def export_container_zip(file, surfaces, extra_metadata=None):
                 # Apparently the `name` was not a filename and we need to add the extension
                 slugified_extension = original_extension
             # Construct filename for use within the container (note: extension contains the leading '.')
-            name_in_container = f"{surface_prefix}{topography_prefix}{slugified_name}{slugified_extension}"
-            topo_dict["datafile"]["original"] = name_in_container
+            name_in_container = f"{surface_prefix}{measurement_prefix}{slugified_name}{slugified_extension}"
+            measurement_dict["datafile"]["original"] = name_in_container
 
             # add topography file to ZIP archive
-            zf.writestr(name_in_container, topography.datafile.read())
+            zf.writestr(name_in_container, measurement.datafile.read())
 
             #
             # Also add squeezed netcdf file, if possible
             #
-            if topography.squeezed_datafile:
+            if measurement.squeezed_datafile:
                 squeezed_name_in_container = (
-                    f"{surface_prefix}{topography_prefix}{slugified_name}-squeezed.nc"
+                    f"{surface_prefix}{measurement_prefix}{slugified_name}-squeezed.nc"
                 )
-                topo_dict["datafile"]["squeezed-netcdf"] = squeezed_name_in_container
+                measurement_dict["datafile"]["squeezed-netcdf"] = squeezed_name_in_container
 
                 # add topography file to ZIP archive
                 zf.writestr(
-                    squeezed_name_in_container, topography.squeezed_datafile.read()
+                    squeezed_name_in_container, measurement.squeezed_datafile.read()
                 )
 
-            topography_dicts.append(topo_dict)
+            measurement_dicts.append(measurement_dict)
 
         surface_dict = surface.to_dict()
-        surface_dict["topographies"] = topography_dicts
+        surface_dict["measurements"] = measurement_dicts
 
         surfaces_dicts.append(surface_dict)
 
@@ -160,8 +160,8 @@ def export_container_zip(file, surfaces, extra_metadata=None):
     Contents of this ZIP archive
     ============================
     This archive contains {len(surfaces)} digital surface twin(s). Each digital surface
-    twin is a collection of individual topography measurements. In total,
-    this archive contains {sum(s.topography_set.count() for s in surfaces)} topography measurements.
+    twin is a collection of individual measurements. In total,
+    this archive contains {sum(s.measurements.count() for s in surfaces)} measurements.
 
     There are two files for each measurement:
     - The original data file which was uploaded by a user,

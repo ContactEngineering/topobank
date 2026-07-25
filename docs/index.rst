@@ -13,6 +13,7 @@ Contents:
 
    development
    configuration
+   measurements
    search
    analyses
    deploy

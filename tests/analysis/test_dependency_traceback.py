@@ -7,7 +7,7 @@ import pytest
 
 from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.tasks import execute_workflow, schedule_workflow
-from topobank.testing.factories import TopographyAnalysisFactory
+from topobank.testing.factories import MeasurementAnalysisFactory
 
 DEP_TRACEBACK = "DEP TRACEBACK: exploded at line 42"
 DEP_ERROR = "boom in dep"
@@ -17,8 +17,8 @@ def _pending(topo, workflow_name="topobank.testing.test", **kwargs):
     from topobank.analysis.models import Workflow
 
     wf = Workflow(name=workflow_name)
-    return TopographyAnalysisFactory.create(
-        subject_topography=topo,
+    return MeasurementAnalysisFactory.create(
+        subject_measurement=topo,
         workflow_name=workflow_name,
         kwargs=wf.get_default_kwargs(),
         result=None,
@@ -65,8 +65,8 @@ def test_schedule_workflow_copies_finished_failed_dependency_traceback(two_topos
     # the (workflow_name, subject_hash, kwargs) that prepare_dependency_tasks
     # looks up, already in a FAILED state.
     for dep_kwargs in [dict(a=1), dict(b="A")]:
-        dep = TopographyAnalysisFactory.create(
-            subject_topography=topo,
+        dep = MeasurementAnalysisFactory.create(
+            subject_measurement=topo,
             workflow_name="topobank.testing.test",
             kwargs=dep_wf.clean_kwargs(dep_kwargs),
             subject_hash=subject_hash,

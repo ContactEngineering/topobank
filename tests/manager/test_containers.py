@@ -13,14 +13,14 @@ from notifications.models import Notification
 import topobank
 from topobank.manager.export_zip import export_container_zip
 from topobank.manager.import_zip import import_container_zip, load_container_metadata
-from topobank.manager.models import Surface, Topography
+from topobank.manager.models import Surface
 from topobank.manager.tasks import import_container_from_url
 from topobank.testing.factories import (
     PropertyFactory,
     SurfaceFactory,
     TagFactory,
-    Topography1DFactory,
-    Topography2DFactory,
+    NonuniformLineScanFactory,
+    TopographyMapFactory,
     UserFactory,
 )
 
@@ -36,7 +36,7 @@ def test_surface_container(example_authors):
         }
     }
     has_undefined_data = False
-    fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+    fill_undefined_data_mode = "do-not-fill"
 
     user = UserFactory()
     tag1 = TagFactory(name="apple")
@@ -48,8 +48,8 @@ def test_surface_container(example_authors):
     PropertyFactory.create(name="categorical", value="abc", surface=surface2)
     PropertyFactory.create(name="numerical", value=1, unit="m", surface=surface2)
 
-    topo1a = Topography1DFactory(surface=surface1)
-    topo1b = Topography2DFactory(
+    topo1a = NonuniformLineScanFactory(surface=surface1)
+    topo1b = TopographyMapFactory(
         surface=surface1, datafile__filename="example4.txt", height_scale_editable=False
     )
     # for topo1b we use a datafile which has an height_scale_factor defined - this is needed in order
@@ -57,7 +57,7 @@ def test_surface_container(example_authors):
     # for the initialisation syntax (datafile__filename) here see:
     # https://factoryboy.readthedocs.io/en/stable/orms.html
 
-    topo2a = Topography2DFactory(
+    topo2a = TopographyMapFactory(
         surface=surface2,
         tags=[tag1, tag2],
         description="Nice measurement",
@@ -103,17 +103,17 @@ def test_surface_container(example_authors):
             # orcid is omitted when the author has none (exclude_none).
             assert meta_surfaces[surf_idx]["created_by"].get("orcid") == surf.created_by.orcid_id
             assert (
-                len(meta_surfaces[surf_idx]["topographies"])
-                == surf.topography_set.count()
+                len(meta_surfaces[surf_idx]["measurements"])
+                == surf.measurements.count()
             )
 
         # check some tags
         assert meta_surfaces[0]["tags"] == ["apple"]
-        assert meta_surfaces[1]["topographies"][0]["tags"] == ["apple", "banana"]
+        assert meta_surfaces[1]["measurements"][0]["tags"] == ["apple", "banana"]
 
         # all data files should be included
         for surf_descr in meta_surfaces:
-            for topo_descr in surf_descr["topographies"]:
+            for topo_descr in surf_descr["measurements"]:
                 datafile_name = topo_descr["datafile"]["original"]
                 assert datafile_name in zf.namelist()
                 squeezed_datafile_name = topo_descr["datafile"]["squeezed-netcdf"]
@@ -130,21 +130,33 @@ def test_surface_container(example_authors):
 
         # topo1a should have an height_scale_factor in meta data because
         # this information is not included in the data file
-        topo1a_meta = meta_surfaces[0]["topographies"][0]
+        topo1a_entry = meta_surfaces[0]["measurements"][0]
+        topo1a_meta = topo1a_entry["metadata"]
+        assert topo1a_entry["kind"] == "nonuniform-line-scan"
         assert "height_scale" in topo1a_meta
 
         #
         # topo1b should have no height_scale_factor included
         # because it's already applied on import, see GH 718
         #
-        topo1b_meta = meta_surfaces[0]["topographies"][1]
-        assert topo1b_meta["name"] == topo1b.name
+        topo1b_entry = meta_surfaces[0]["measurements"][1]
+        topo1b_meta = topo1b_entry["metadata"]
+        assert topo1b_entry["name"] == topo1b.name
         assert "height_scale" not in topo1b_meta
 
-        assert "fill_undefined_data_mode" in topo1a_meta
+        # The exported metadata carries exactly the fields of its kind. A
+        # nonuniform line scan supports neither periodicity nor interpolation of
+        # undefined data, so - unlike the map - it has no such entries at all.
+        assert topo1b_entry["kind"] == "topography-map"
         assert "fill_undefined_data_mode" in topo1b_meta
-        assert "has_undefined_data" in topo1a_meta
-        assert "has_undefined_data" in topo1b_meta
+        assert "is_periodic" in topo1b_meta
+        assert "fill_undefined_data_mode" not in topo1a_meta
+        assert "is_periodic" not in topo1a_meta
+
+        # The data channel is identified by name, and the occurrence ordinal is
+        # absent because these files have no duplicate channel names.
+        assert topo1a_entry["channel"]["name"] == topo1a.channel_name
+        assert "occurrence" not in topo1a_entry["channel"]
 
         # check properties
         assert "properties" in meta_surfaces[1]
@@ -166,7 +178,7 @@ def test_import():
     ).id
     surface = Surface.objects.get(id=surface_id)
     assert surface.name == "Self-affine synthetic surface"
-    assert surface.topography_set.count() == 3
+    assert surface.measurements.count() == 3
     assert surface.description.startswith(
         "This surface contains virtual measurements taken"
     )

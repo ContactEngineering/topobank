@@ -8,21 +8,21 @@ causing concurrent ``refresh_cache`` executions on the same measurement.
 import pytest
 from django.core.management import call_command
 
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 from topobank.taskapp.models import TaskStateModel
 from topobank.taskapp.utils import run_task
-from topobank.testing.factories import Topography1DFactory
+from topobank.testing.factories import NonuniformLineScanFactory
 
 
 def _set_state(topo, state, **extra):
     """Force task_state (and optional extra fields) directly in the DB."""
-    Topography.objects.filter(pk=topo.pk).update(task_state=state, **extra)
+    Measurement.objects.filter(pk=topo.pk).update(task_state=state, **extra)
     topo.refresh_from_db()
 
 
 @pytest.mark.django_db
 def test_run_task_skips_when_in_flight(mocker):
-    topo = Topography1DFactory()
+    topo = NonuniformLineScanFactory()
     _set_state(topo, TaskStateModel.STARTED)
 
     spy = mocker.spy(topo, "set_pending_state")
@@ -35,7 +35,7 @@ def test_run_task_skips_when_in_flight(mocker):
 
 @pytest.mark.django_db
 def test_run_task_force_overrides_in_flight(mocker):
-    topo = Topography1DFactory()
+    topo = NonuniformLineScanFactory()
     _set_state(topo, TaskStateModel.STARTED)
 
     spy = mocker.spy(topo, "set_pending_state")
@@ -48,7 +48,7 @@ def test_run_task_force_overrides_in_flight(mocker):
 
 @pytest.mark.django_db
 def test_run_task_dispatches_when_notrun(mocker):
-    topo = Topography1DFactory()
+    topo = NonuniformLineScanFactory()
     _set_state(topo, TaskStateModel.NOTRUN)
 
     spy = mocker.spy(topo, "set_pending_state")
@@ -69,11 +69,12 @@ def test_refresh_cache_does_not_redispatch_when_started(
     terminal save() in refresh_cache then re-enters run_task. With the guard,
     that re-entry is a no-op (no second celery dispatch, state stays STARTED).
     """
-    topo = Topography1DFactory()
+    topo = NonuniformLineScanFactory()
     # Simulate the running task and clear a significant field so refresh_cache
     # repopulates it -- pre-fix this is exactly what made the terminal save()
-    # re-dispatch a second, concurrent task.
-    _set_state(topo, TaskStateModel.STARTED, data_source=None)
+    # re-dispatch a second, concurrent task. Clearing the channel name is what
+    # clearing `data_source` used to be: the inspection resolves it again.
+    _set_state(topo, TaskStateModel.STARTED, channel_name=None)
 
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
         topo.refresh_cache()
@@ -83,14 +84,14 @@ def test_refresh_cache_does_not_redispatch_when_started(
     topo.refresh_from_db()
     assert topo.task_state == TaskStateModel.STARTED
     # ...but the refresh still did its work (significant field repopulated).
-    assert topo.data_source is not None
+    assert topo.channel_name is not None
 
 
 @pytest.mark.django_db
 def test_factory_path_still_dispatches():
     """The NOTRUN factory path is unchanged: derived files are still produced."""
-    topo = Topography1DFactory()
-    # Topography1DFactory calls refresh_cache() in post_generation; the guard is
+    topo = NonuniformLineScanFactory()
+    # NonuniformLineScanFactory calls refresh_cache() in post_generation; the guard is
     # transparent there (state is NOTRUN), so derived files are present.
     assert topo.thumbnail is not None
     assert topo.squeezed_datafile is not None
@@ -105,7 +106,7 @@ def test_refresh_cache_command_background_persists_pending_state():
     worker starts. The command wraps run_task + save in a transaction, so the
     DB reflects PENDING immediately.
     """
-    topo = Topography1DFactory()
+    topo = NonuniformLineScanFactory()
     _set_state(topo, TaskStateModel.SUCCESS)
 
     call_command("refresh_cache", "--background")

@@ -11,7 +11,7 @@ from django.utils import timezone
 from muTimer import Timer
 from SurfaceTopography.Support import doi
 
-from ..manager.models import Surface, Tag, Topography
+from ..manager.models import Measurement, Surface, Tag
 from ..supplib.db import advisory_lock
 from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
@@ -129,7 +129,7 @@ def schedule_workflow(
     # Optimize query with select_related to reduce DB round trips
     analysis = (
         WorkflowResult.objects.select_related(
-            "subject_topography",
+            "subject_measurement",
             "subject_surface",
             "subject_tag",
             "configuration",
@@ -331,7 +331,7 @@ def execute_workflow(
     #
     analysis = (
         WorkflowResult.objects.select_related(
-            "subject_topography",
+            "subject_measurement",
             "subject_surface",
             "subject_tag",
             "configuration",
@@ -579,7 +579,7 @@ def current_statistics(user=None):
         dict with keys
 
         - num_surfaces_excluding_publications
-        - num_topographies_excluding_publications
+        - num_measurements_excluding_publications
         - num_analyses_excluding_publications
     """
     from .models import WorkflowResult
@@ -596,16 +596,16 @@ def current_statistics(user=None):
             unpublished_surfaces = Surface.objects.filter(created_by=user)
         else:
             unpublished_surfaces = Surface.objects.all()
-    unpublished_topographies = Topography.objects.filter(
+    unpublished_topographies = Measurement.objects.filter(
         surface__in=unpublished_surfaces
     )
     unpublished_analyses = WorkflowResult.objects.filter(
-        subject_topography__in=unpublished_topographies
+        subject_measurement__in=unpublished_topographies
     )
 
     return dict(
         num_surfaces_excluding_publications=unpublished_surfaces.count(),
-        num_topographies_excluding_publications=unpublished_topographies.count(),
+        num_measurements_excluding_publications=unpublished_topographies.count(),
         num_analyses_excluding_publications=unpublished_analyses.count(),
     )
 
@@ -636,9 +636,9 @@ def prepare_dependency_tasks(
             subject_hash = WorkflowResult.compute_subject_hash("surfaces", [subject.id])
         elif isinstance(subject, Surface):
             subject_hash = WorkflowResult.compute_subject_hash("surface", [subject.id])
-        elif isinstance(subject, Topography):
+        elif isinstance(subject, Measurement):
             subject_hash = WorkflowResult.compute_subject_hash(
-                "topography", [subject.id]
+                WorkflowResult.MEASUREMENT_SUBJECT_HASH_PREFIX, [subject.id]
             )
         elif isinstance(subject, Tag):
             subject_hash = WorkflowResult.compute_subject_hash("tag", [subject.id])
@@ -649,7 +649,7 @@ def prepare_dependency_tasks(
             workflow_name=dependency.function.name,
             subject_hash=subject_hash,
             kwargs=kwargs,
-        ).select_related("subject_topography", "subject_surface", "subject_tag")
+        ).select_related("subject_measurement", "subject_surface", "subject_tag")
         if use_surfaces_path and isinstance(subject, Surface):
             existing_analysis_qs = existing_analysis_qs.prefetch_related("surfaces")
         # Serialize the existence check and creation of this dependency against
@@ -682,8 +682,8 @@ def prepare_dependency_tasks(
                     pass  # subject stored in M2M below; no FK field set
                 elif isinstance(subject, Surface):
                     create_kwargs["subject_surface"] = subject
-                elif isinstance(subject, Topography):
-                    create_kwargs["subject_topography"] = subject
+                elif isinstance(subject, Measurement):
+                    create_kwargs["subject_measurement"] = subject
                 elif isinstance(subject, Tag):
                     create_kwargs["subject_tag"] = subject
 

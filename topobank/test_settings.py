@@ -27,6 +27,7 @@ INSTALLED_APPS = [
     "topobank.testing.mock_auth.apps.UsersAppConfig",
     "topobank.testing.mock_auth.apps.AuthorizationAppConfig",
     "topobank.files.apps.FilesAppConfig",
+    "topobank.measurements.apps.MeasurementsAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
     "topobank.testing.mock_auth.apps.OrganizationsAppConfig",

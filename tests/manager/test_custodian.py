@@ -6,8 +6,8 @@ import pytest
 from django.utils import timezone
 
 from topobank.manager.custodian import periodic_cleanup
-from topobank.manager.models import Surface, Topography
-from topobank.testing.factories import SurfaceFactory, Topography2DFactory
+from topobank.manager.models import Measurement, Surface
+from topobank.testing.factories import SurfaceFactory, TopographyMapFactory
 
 
 @pytest.mark.django_db
@@ -56,13 +56,13 @@ def test_periodic_cleanup_deletes_orphaned_surface():
 @pytest.mark.django_db
 def test_periodic_cleanup_deletes_old_marked_topography():
     surface = SurfaceFactory()
-    topo = Topography2DFactory(surface=surface)
+    topo = TopographyMapFactory(surface=surface)
     old = timezone.now() - datetime.timedelta(days=8)
-    Topography.all_objects.filter(pk=topo.pk).update(deletion_time=old)
+    Measurement.all_objects.filter(pk=topo.pk).update(deletion_time=old)
 
     periodic_cleanup()
 
-    assert not Topography.all_objects.filter(pk=topo.pk).exists()
+    assert not Measurement.all_objects.filter(pk=topo.pk).exists()
 
 
 @pytest.mark.django_db

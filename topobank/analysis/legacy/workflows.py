@@ -15,11 +15,14 @@ import pydantic
 from muTimer import Timer
 from pydantic import field_validator
 
-from ...manager.models import Surface, Tag, Topography
+from ...manager.models import Measurement, Surface, Tag
 from ...supplib.dict import SplitDictionaryHere
 from ..models import Workflow
 from ..outputs import get_outputs_schema
-from .registry import WorkflowNotImplementedException
+from .registry import (
+    WorkflowNotImplementedException,
+    WorkflowRegistryException,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -156,7 +159,7 @@ def make_alert_entry(
 @dataclass
 class WorkflowDefinition:
     # We don't allow tags as dependencies
-    subject: Union[Surface, Topography] = None
+    subject: Union[Surface, Measurement] = None
 
     # Analysis function
     function: Workflow = None
@@ -172,6 +175,12 @@ class WorkflowImplementation:
         celery_queue = None
         implementations = {}
         dependencies = {}
+        #: Kinds of measurement this workflow can run on, e.g.
+        #: ``{"topography-map", "uniform-line-scan"}``. Required for any workflow
+        #: that implements `Measurement` as a subject. There is deliberately no
+        #: wildcard: a workflow written for height data must not silently claim a
+        #: kind of measurement added later (a spectrum, say).
+        supported_kinds = None
 
     class Parameters(pydantic.BaseModel):
         model_config = pydantic.ConfigDict(extra="forbid")
@@ -216,7 +225,12 @@ class WorkflowImplementation:
     def eval(self, analysis, **auxiliary_kwargs):
         if analysis.subject is None and analysis.surfaces.exists():
             return self.eval_surfaces(analysis, **auxiliary_kwargs)
-        implementation = self.get_implementation(analysis.subject.__class__)
+        subject = analysis.subject
+        if isinstance(subject, Measurement) and not self.supports_kind(subject.kind):
+            # There is an implementation for measurements, but not for this kind
+            # of measurement.
+            raise WorkflowNotImplementedException(self.Meta.name, subject.kind)
+        implementation = self.get_implementation(subject.__class__)
         result = self._run_implementation(implementation, analysis, auxiliary_kwargs)
         if result is not None:
             warnings.warn(
@@ -239,8 +253,8 @@ class WorkflowImplementation:
         elif n == 1:
             if self.has_implementation(Surface):
                 impl = self.get_implementation(Surface)
-            elif self.has_implementation(Topography):
-                impl = self.get_implementation(Topography)
+            elif self.has_implementation(Measurement):
+                impl = self.get_implementation(Measurement)
             else:
                 raise WorkflowNotImplementedException(self.Meta.name, Surface)
         else:
@@ -303,8 +317,53 @@ class WorkflowImplementation:
     def has_implementation(cls, model_class):
         """
         Returns whether implementation function for a specific subject model exists
+
+        This is a check on the subject *model*. Whether a particular measurement
+        can be analyzed also depends on its kind, so use :meth:`supports_subject`
+        when an instance is at hand.
         """
         return model_class in cls.Meta.implementations
+
+    @classmethod
+    def get_supported_kinds(cls):
+        """
+        Return the kinds of measurement this workflow declares support for.
+
+        Raises
+        ------
+        WorkflowRegistryException
+            If the workflow implements measurements but does not declare
+            ``Meta.supported_kinds``. This is an error rather than a wildcard so
+            that workflows written for one kind of data cannot silently claim
+            kinds that are added later.
+        """
+        kinds = getattr(cls.Meta, "supported_kinds", None)
+        if kinds is None:
+            raise WorkflowRegistryException(
+                f"Workflow '{cls.Meta.name}' has an implementation for measurements "
+                "but does not declare which kinds of measurement it supports. Add "
+                "`supported_kinds` to its `Meta`, listing the kinds it can handle."
+            )
+        return frozenset(kinds)
+
+    @classmethod
+    def supports_kind(cls, kind):
+        """Whether this workflow can run on measurements of `kind`."""
+        return kind in cls.get_supported_kinds()
+
+    @classmethod
+    def supports_subject(cls, subject):
+        """
+        Whether this workflow can run on `subject`.
+
+        Unlike :meth:`has_implementation` this takes the kind of a measurement
+        into account, so it needs an instance rather than a model class.
+        """
+        if not cls.has_implementation(type(subject)):
+            return False
+        if isinstance(subject, Measurement):
+            return cls.supports_kind(subject.kind)
+        return True
 
     def get_dependencies(self, analysis):
         """Return dependencies required for running analysis for `subject`"""
@@ -341,9 +400,9 @@ class WorkflowImplementation:
         # More than one surface → use Tag-based dependency function
         if n > 1:
             dep_key = Tag
-        # Exactly one surface → prefer Surface, fall back to Topography
+        # Exactly one surface → prefer Surface, fall back to Measurement
         elif n == 1:
-            dep_key = Surface if Surface in dependencies else Topography
+            dep_key = Surface if Surface in dependencies else Measurement
         else:
             return []
 

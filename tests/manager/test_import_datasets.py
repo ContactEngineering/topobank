@@ -20,7 +20,7 @@ from topobank.manager.models import Surface
 from topobank.testing.factories import (
     PropertyFactory,
     SurfaceFactory,
-    Topography2DFactory,
+    TopographyMapFactory,
     UserFactory,
 )
 
@@ -30,7 +30,7 @@ def container_archive(db):
     """Build a real surface container ZIP on disk and return its path."""
     author = UserFactory()
     surface = SurfaceFactory(created_by=author, name="Source surface")
-    topo = Topography2DFactory(surface=surface, size_x=10, size_y=5)
+    topo = TopographyMapFactory(surface=surface, size_x=10, size_y=5)
     topo.make_squeezed(save=True)
     PropertyFactory.create(name="material", value="steel", surface=surface)
     PropertyFactory.create(name="thickness", value=2.0, unit="mm", surface=surface)
@@ -51,7 +51,7 @@ def test_import_datasets_creates_surface_with_data(container_archive):
     surfaces = Surface.objects.filter(created_by=importer)
     assert surfaces.count() == 1
     surface = surfaces.get()
-    assert surface.topography_set.count() == 1
+    assert surface.measurements.count() == 1
     # The import records its provenance in the description.
     assert "Imported from file" in surface.description
     # Both the categorical and the numerical property were imported.

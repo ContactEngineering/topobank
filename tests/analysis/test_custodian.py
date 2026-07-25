@@ -21,7 +21,7 @@ from django.utils import timezone
 
 from topobank.analysis.custodian import periodic_cleanup
 from topobank.analysis.models import WorkflowResult
-from topobank.testing.factories import TopographyAnalysisFactory
+from topobank.testing.factories import MeasurementAnalysisFactory
 
 
 def _set_unmanaged_fields(analysis, **fields):
@@ -40,9 +40,9 @@ def _set_unmanaged_fields(analysis, **fields):
 
 @pytest.mark.django_db
 def test_deletes_long_deprecated_unnamed_result_with_subject():
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     assert analysis.name is None
-    assert analysis.subject_topography is not None
+    assert analysis.subject_measurement is not None
 
     _set_unmanaged_fields(
         analysis,
@@ -59,7 +59,7 @@ def test_deletes_long_deprecated_unnamed_result_with_subject():
 @pytest.mark.django_db
 def test_keeps_recently_deprecated_result():
     # Deprecated, but still inside the grace period -> must survive.
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     _set_unmanaged_fields(
         analysis,
         deprecation_time=timezone.now()
@@ -75,7 +75,7 @@ def test_keeps_recently_deprecated_result():
 @pytest.mark.django_db
 def test_keeps_named_result_even_if_long_deprecated():
     # A named result is a saved/user-facing result and must never be auto-deleted.
-    analysis = TopographyAnalysisFactory(name="my-saved-analysis")
+    analysis = MeasurementAnalysisFactory(name="my-saved-analysis")
     _set_unmanaged_fields(
         analysis,
         deprecation_time=timezone.now()
@@ -91,7 +91,7 @@ def test_keeps_named_result_even_if_long_deprecated():
 @pytest.mark.django_db
 def test_keeps_active_non_deprecated_result():
     # deprecation_time is NULL -> active result, never eligible for cleanup.
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     assert analysis.deprecation_time is None
 
     periodic_cleanup()
@@ -106,7 +106,7 @@ def test_keeps_active_non_deprecated_result():
 
 @pytest.mark.django_db
 def test_marks_stuck_pending_result_as_failure():
-    analysis = TopographyAnalysisFactory(
+    analysis = MeasurementAnalysisFactory(
         task_state=WorkflowResult.PENDING, task_id=None
     )
     _set_unmanaged_fields(
@@ -125,7 +125,7 @@ def test_marks_stuck_pending_result_as_failure():
 @pytest.mark.django_db
 def test_keeps_recent_pending_result():
     # Pending for less than a day -> give it more time, leave untouched.
-    analysis = TopographyAnalysisFactory(
+    analysis = MeasurementAnalysisFactory(
         task_state=WorkflowResult.PENDING, task_id=None
     )
 
@@ -138,7 +138,7 @@ def test_keeps_recent_pending_result():
 @pytest.mark.django_db
 def test_keeps_pending_result_that_has_a_task_id():
     # A task id means the task was actually dispatched -> not "stuck".
-    analysis = TopographyAnalysisFactory(
+    analysis = MeasurementAnalysisFactory(
         task_state=WorkflowResult.PENDING, task_id=uuid.uuid4()
     )
     _set_unmanaged_fields(

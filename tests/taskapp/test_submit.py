@@ -2,7 +2,7 @@ import pydantic
 import pytest
 
 from topobank.analysis.models import WorkflowResult
-from topobank.testing.factories import Topography1DFactory, TopographyAnalysisFactory
+from topobank.testing.factories import NonuniformLineScanFactory, MeasurementAnalysisFactory
 
 
 @pytest.mark.django_db
@@ -13,7 +13,7 @@ def test_request_analysis(mocker, test_workflow):
         "topobank.taskapp.utils.run_task"
     )  # we don't want to calculate anything
 
-    topo = Topography1DFactory()
+    topo = NonuniformLineScanFactory()
     user = topo.created_by
 
     # just an abbreviation
@@ -53,17 +53,17 @@ def test_different_kwargs(mocker, test_workflow):
     m = mocker.patch("topobank.analysis.models.Workflow.eval")
     m.return_value = {"result1": 1, "result2": 2}
 
-    topo = Topography1DFactory()
+    topo = NonuniformLineScanFactory()
     user = topo.created_by
 
-    a1 = TopographyAnalysisFactory(
-        subject_topography=topo,
+    a1 = MeasurementAnalysisFactory(
+        subject_measurement=topo,
         workflow_name=test_workflow.name,
         kwargs=dict(a=9, b=19),
         user=user,
     )
-    a2 = TopographyAnalysisFactory(
-        subject_topography=topo,
+    a2 = MeasurementAnalysisFactory(
+        subject_measurement=topo,
         workflow_name=test_workflow.name,
         kwargs=dict(a=29, b=39),
         user=user,
@@ -76,7 +76,7 @@ def test_different_kwargs(mocker, test_workflow):
     #
     assert (
         WorkflowResult.objects.filter(
-            subject_topography=topo, workflow_name=test_workflow.name
+            subject_measurement=topo, workflow_name=test_workflow.name
         ).count()
         == 3
     )
@@ -85,7 +85,7 @@ def test_different_kwargs(mocker, test_workflow):
     # Only one analysis is marked for user 'user'
     #
     analyses = WorkflowResult.objects.filter(
-        subject_topography=topo,
+        subject_measurement=topo,
         workflow_name=test_workflow.name,
         permissions__user_permissions__user=user,
     )

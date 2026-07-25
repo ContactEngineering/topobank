@@ -10,9 +10,24 @@ from ..analysis.models import RESULT_FILE_BASENAME, Workflow
 from ..analysis.outputs import OutputFile
 from ..analysis.registry import register_implementation
 from ..analysis.workflows import WorkflowDefinition, WorkflowImplementation
-from ..manager.models import Surface, Tag, Topography
+from ..manager.models import Measurement, Surface, Tag
+from ..measurements.types import (
+    NonuniformLineScanType,
+    TopographyMapType,
+    UniformLineScanType,
+)
 from ..supplib.dict import store_split_dict
 from ..supplib.json import ExtendedJSONEncoder
+
+
+#: All kinds of height data, which is what these test workflows handle.
+ALL_HEIGHT_KINDS = frozenset(
+    {
+        TopographyMapType.Meta.name,
+        UniformLineScanType.Meta.name,
+        NonuniformLineScanType.Meta.name,
+    }
+)
 
 
 @register_implementation
@@ -27,16 +42,19 @@ class TestImplementation(WorkflowImplementation):
         display_name = "Test implementation"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "measurement_implementation",
             Surface: "surface_implementation",
             Tag: "tag_implementation",
         }
+        # These test workflows operate on height data, so they declare the
+        # three built-in height kinds.
+        supported_kinds = ALL_HEIGHT_KINDS
 
     class Parameters(WorkflowImplementation.Parameters):
         a: int = 1
         b: str = "foo"
 
-    def topography_implementation(self, analysis, progress_recorder=None, timer=None):
+    def measurement_implementation(self, analysis, progress_recorder=None, timer=None):
         topography = analysis.subject
         if timer is None:
             timer = Timer("test_implementation")
@@ -144,11 +162,14 @@ class TopographyOnlyTestImplementation(TestImplementation):
 
     class Meta:
         name = "topobank.testing.topography_only_test"
-        display_name = "Topography-only test implementation"
+        display_name = "Measurement-only test implementation"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "measurement_implementation",
         }
+        # These test workflows operate on height data, so they declare the
+        # three built-in height kinds.
+        supported_kinds = ALL_HEIGHT_KINDS
 
 
 @register_implementation
@@ -163,16 +184,19 @@ class SecondTestImplementation(WorkflowImplementation):
         display_name = "Second test implementation"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "measurement_implementation",
         }
+        # These test workflows operate on height data, so they declare the
+        # three built-in height kinds.
+        supported_kinds = ALL_HEIGHT_KINDS
 
-        dependencies = {Topography: "topography_dependencies"}
+        dependencies = {Measurement: "measurement_dependencies"}
 
     class Parameters(WorkflowImplementation.Parameters):
         c: int = 1
         d: float = 1.3
 
-    def topography_dependencies(self, analysis) -> Dict[str, WorkflowDefinition]:
+    def measurement_dependencies(self, analysis) -> Dict[str, WorkflowDefinition]:
         topography = analysis.subject
         return {
             "dep1": WorkflowDefinition(
@@ -187,7 +211,7 @@ class SecondTestImplementation(WorkflowImplementation):
             ),
         }
 
-    def topography_implementation(
+    def measurement_implementation(
         self,
         analysis,
         dependencies: Dict = {},
@@ -214,14 +238,17 @@ class TestImplementationWithError(WorkflowImplementation):
         display_name = "Test implementation with error"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "measurement_implementation",
         }
+        # These test workflows operate on height data, so they declare the
+        # three built-in height kinds.
+        supported_kinds = ALL_HEIGHT_KINDS
 
     class Parameters(WorkflowImplementation.Parameters):
         c: int = 1
         d: float = 1.3
 
-    def topography_implementation(
+    def measurement_implementation(
         self,
         analysis,
         dependencies: Dict = {},
@@ -243,16 +270,19 @@ class TestImplementationWithErrorInDependency(WorkflowImplementation):
         display_name = "Test implementation with error in dependency"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "measurement_implementation",
         }
+        # These test workflows operate on height data, so they declare the
+        # three built-in height kinds.
+        supported_kinds = ALL_HEIGHT_KINDS
 
-        dependencies = {Topography: "topography_dependencies"}
+        dependencies = {Measurement: "measurement_dependencies"}
 
     class Parameters(WorkflowImplementation.Parameters):
         c: int = 1
         d: float = 1.3
 
-    def topography_dependencies(self, analysis) -> Dict[str, WorkflowDefinition]:
+    def measurement_dependencies(self, analysis) -> Dict[str, WorkflowDefinition]:
         topography = analysis.subject
         return {
             "dep": WorkflowDefinition(
@@ -262,7 +292,7 @@ class TestImplementationWithErrorInDependency(WorkflowImplementation):
             ),
         }
 
-    def topography_implementation(
+    def measurement_implementation(
         self,
         analysis,
         dependencies: Dict = {},
@@ -299,8 +329,11 @@ class TestImplementationWithOutputs(WorkflowImplementation):
         display_name = "Test implementation with outputs"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "measurement_implementation",
         }
+        # These test workflows operate on height data, so they declare the
+        # three built-in height kinds.
+        supported_kinds = ALL_HEIGHT_KINDS
 
     class Parameters(WorkflowImplementation.Parameters):
         model_id: int = 0
@@ -320,7 +353,7 @@ class TestImplementationWithOutputs(WorkflowImplementation):
             ),
         }
 
-    def topography_implementation(self, analysis, progress_recorder=None, timer=None):
+    def measurement_implementation(self, analysis, progress_recorder=None, timer=None):
         result = {
             "predicted_value": 1.5,
             "predicted_error": 0.1,
@@ -342,15 +375,18 @@ class TestImplementationWithIntegerKeys(WorkflowImplementation):
         display_name = "Test implementation with integer keys"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "measurement_implementation",
         }
+        # These test workflows operate on height data, so they declare the
+        # three built-in height kinds.
+        supported_kinds = ALL_HEIGHT_KINDS
 
-        dependencies = {Topography: "topography_dependencies"}
+        dependencies = {Measurement: "measurement_dependencies"}
 
     class Parameters(WorkflowImplementation.Parameters):
         value: int = 42
 
-    def topography_dependencies(self, analysis) -> Dict[int, WorkflowDefinition]:
+    def measurement_dependencies(self, analysis) -> Dict[int, WorkflowDefinition]:
         """Return dependencies with integer keys (topography.id)."""
         topography = analysis.subject
         return {
@@ -361,7 +397,7 @@ class TestImplementationWithIntegerKeys(WorkflowImplementation):
             ),
         }
 
-    def topography_implementation(
+    def measurement_implementation(
         self,
         analysis,
         dependencies: Dict = {},

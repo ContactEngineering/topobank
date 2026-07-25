@@ -17,7 +17,7 @@ import urllib.error
 
 import pytest
 
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 from topobank.manager.tasks import import_container_from_url
 from topobank.testing.factories import UserFactory
 
@@ -38,11 +38,11 @@ def imported_surface(db):
 def test_container_import_and_datafile_read(imported_surface):
     surface = imported_surface
     assert surface.name == "Self-affine synthetic surface"
-    assert surface.topography_set.count() == 3
+    assert surface.measurements.count() == 3
 
     # The raw data file of each measurement can be reconstructed into a real
     # SurfaceTopography object.
-    for topo in surface.topography_set.all():
+    for topo in surface.measurements.all():
         st = topo.read()
         assert len(st.nb_grid_pts) == 2
         assert all(n > 0 for n in st.nb_grid_pts)
@@ -55,11 +55,11 @@ def test_full_inspection_via_task_runner(imported_surface):
 
     from topobank.taskapp.utils import task_dispatch
 
-    topo = imported_surface.topography_set.order_by("name").first()
+    topo = imported_surface.measurements.order_by("name").first()
 
     # Reset cached state so the inspection recomputes everything from the raw
     # data file: metadata, bandwidth, thumbnail, deepzoom and squeezed data.
-    topo.task_state = Topography.NOTRUN
+    topo.task_state = Measurement.NOTRUN
     topo.data_source = None  # forces first-read metadata population
     topo.datafile_format = None
     topo.squeezed_datafile = None
@@ -74,14 +74,14 @@ def test_full_inspection_via_task_runner(imported_surface):
 
     # Drive the task runner synchronously. ``apply()`` runs the task in-process
     # with a real request context, going through TaskStateModel.run_task ->
-    # Topography.task_worker -> refresh_cache (thumbnail / deepzoom / squeezed).
-    ct = ContentType.objects.get_for_model(Topography)
+    # Measurement.task_worker -> refresh_cache (thumbnail / deepzoom / squeezed).
+    ct = ContentType.objects.get_for_model(Measurement)
     task_dispatch.apply(args=[ct.id, topo.id])
 
     topo.refresh_from_db()
 
     # The task runner drove the result to SUCCESS ...
-    assert topo.task_state == Topography.SUCCESS
+    assert topo.task_state == Measurement.SUCCESS
     # ... and refresh_cache repopulated the cached metadata ...
     assert topo.datafile_format is not None
     assert topo.channel_names

@@ -11,7 +11,14 @@ from django.utils import timezone
 from factory import post_generation
 
 from ..analysis.models import Workflow, WorkflowResult
-from ..manager.models import Surface, Tag, Topography
+from ..manager.models import Measurement, Surface, Tag
+from ..measurements.registry import get_measurement_type
+from ..measurements.schemas import dump_metadata
+from ..measurements.types import (
+    NonuniformLineScanType,
+    TopographyMapType,
+    UniformLineScanType,
+)
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
 
@@ -191,67 +198,157 @@ class PropertyFactory(factory.django.DjangoModelFactory):
                 self.properties.add(surface)
 
 
-class Topography1DFactory(factory.django.DjangoModelFactory):
+#: Factory keyword arguments that belong to the file-derived cache
+#: (``Measurement.file_info``) rather than to the user-facing metadata.
+_FILE_INFO_KEYS = frozenset(
+    {
+        "size_editable",
+        "unit_editable",
+        "height_scale_editable",
+        "is_periodic_editable",
+        "resolution_x",
+        "resolution_y",
+        "bandwidth_lower",
+        "bandwidth_upper",
+        "short_reliability_cutoff",
+        "has_undefined_data",
+        "channels",
+    }
+)
+
+#: Convenience aliases for the nested instrument metadata, so tests can keep
+#: passing them flat.
+_INSTRUMENT_KEYS = {
+    "instrument_name": "name",
+    "instrument_type": "type",
+    "instrument_parameters": "parameters",
+}
+
+
+class MeasurementFactory(factory.django.DjangoModelFactory):
     """
-    Generates a 1D Topography.
+    Base factory for measurements.
+
+    Metadata lives in JSON documents on the model, but writing that out in every
+    test would be noise. This factory therefore accepts the metadata fields of its
+    kind as flat keyword arguments (``size_x=512``, ``unit="nm"``, ...) and packs
+    them into ``metadata``; keys belonging to the file-derived cache go into
+    ``file_info``. Everything is validated through the kind's pydantic schemas, so
+    a typo or a field that does not apply to the kind fails here rather than
+    silently ending up in the wrong place.
     """
 
-    # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Topography
+        model = Measurement
         exclude = ("filename",)
         skip_postgeneration_save = True
+        abstract = True
 
     permissions = factory.SelfAttribute("surface.permissions")
     surface = factory.SubFactory(SurfaceFactory)
     # Set created_by explicitly from surface's created_by
     created_by = factory.SelfAttribute("surface.created_by")
-    name = factory.Sequence(lambda n: "topography-{:05d}".format(n))
+    name = factory.Sequence(lambda n: "measurement-{:05d}".format(n))
+    measurement_date = factory.Sequence(
+        lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n)
+    )
+
+    @classmethod
+    def _create(cls, model_class, *args, **kwargs):
+        kind = kwargs.get("kind")
+        measurement_type = get_measurement_type(kind)
+        metadata = dict(kwargs.pop("metadata", None) or {})
+        file_info = dict(kwargs.pop("file_info", None) or {})
+        instrument = dict(metadata.pop("instrument", None) or {})
+
+        for key in list(kwargs):
+            if key in _FILE_INFO_KEYS:
+                file_info[key] = kwargs.pop(key)
+            elif key in _INSTRUMENT_KEYS:
+                instrument[_INSTRUMENT_KEYS[key]] = kwargs.pop(key)
+            elif key != "kind" and key in measurement_type.Metadata.model_fields:
+                metadata[key] = kwargs.pop(key)
+
+        if instrument:
+            metadata["instrument"] = instrument
+        metadata["kind"] = kind
+        file_info["kind"] = kind
+
+        kwargs["metadata"] = dump_metadata(measurement_type.Metadata(**metadata))
+        kwargs["file_info"] = dump_metadata(measurement_type.FileInfo(**file_info))
+        return super()._create(model_class, *args, **kwargs)
+
+    @factory.post_generation
+    def post_generation(self, create, value, **kwargs):
+        self.datafile.permissions = self.permissions
+        self.datafile.save()
+        self.refresh_cache()
+
+
+class NonuniformLineScanFactory(MeasurementFactory):
+    """
+    Generates a line scan with non-uniformly spaced points.
+
+    Note that this kind has neither `is_periodic` nor `fill_undefined_data_mode`:
+    a nonuniform line scan supports neither, so its schema has no such fields and
+    passing them here is an error.
+    """
+
+    class Meta:
+        model = Measurement
+        exclude = ("filename",)
+        skip_postgeneration_save = True
+
+    kind = NonuniformLineScanType.Meta.name
     filename = "line_scan_1.asc"
     datafile = factory.SubFactory(
         ManifestFactory, filename=factory.SelfAttribute("..filename")
     )
-    data_source = 0
-    measurement_date = factory.Sequence(
-        lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n)
-    )
     size_x = 512
-    # if you need size_y, use Topography2DFactory below
+    # if you need size_y, use TopographyMapFactory below
     size_editable = False
     unit_editable = False
     height_scale_editable = True
     unit = "nm"
-    instrument_name = ""
-    instrument_type = Topography.INSTRUMENT_TYPE_UNDEFINED
-    instrument_parameters = {}
-
-    @factory.post_generation
-    def post_generation(self, create, value, **kwargs):
-        self.datafile.permissions = self.permissions
-        self.datafile.save()
-        self.refresh_cache()
 
 
-class Topography2DFactory(Topography1DFactory):
-    """
-    Generates a 2D Topography.
-    """
+class UniformLineScanFactory(MeasurementFactory):
+    """Generates a line scan on a uniform grid."""
 
     class Meta:
-        model = Topography
+        model = Measurement
         exclude = ("filename",)
+        skip_postgeneration_save = True
 
-    size_y = 512
+    kind = UniformLineScanType.Meta.name
+    filename = "example6.txt"
+    datafile = factory.SubFactory(
+        ManifestFactory, filename=factory.SelfAttribute("..filename")
+    )
+    size_editable = False
+    unit_editable = False
+    height_scale_editable = True
+
+
+class TopographyMapFactory(MeasurementFactory):
+    """Generates a two-dimensional map of surface heights."""
+
+    class Meta:
+        model = Measurement
+        exclude = ("filename",)
+        skip_postgeneration_save = True
+
+    kind = TopographyMapType.Meta.name
     filename = "10x10.txt"
     datafile = factory.SubFactory(
         ManifestFactory, filename=factory.SelfAttribute("..filename")
     )
-
-    @factory.post_generation
-    def post_generation(self, create, value, **kwargs):
-        self.datafile.permissions = self.permissions
-        self.datafile.save()
-        self.refresh_cache()
+    size_x = 512
+    size_y = 512
+    size_editable = False
+    unit_editable = False
+    height_scale_editable = True
+    unit = "nm"
 
 
 #
@@ -288,7 +385,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
         )
         skip_postgeneration_save = True
 
-    subject_topography = None  # factory.SubFactory(Topography2DFactory)
+    subject_measurement = None  # factory.SubFactory(TopographyMapFactory)
     subject_surface = None
     subject_tag = None
 
@@ -297,7 +394,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
         lambda obj: (
             obj.subject_surface
             if obj.subject_surface
-            else (obj.subject_topography if obj.subject_topography else obj.subject_tag)
+            else (obj.subject_measurement if obj.subject_measurement else obj.subject_tag)
         )
     )
 
@@ -306,8 +403,8 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
             obj.subject_surface.created_by
             if obj.subject_surface
             else (
-                obj.subject_topography.created_by
-                if obj.subject_topography
+                obj.subject_measurement.created_by
+                if obj.subject_measurement
                 else obj.subject_tag.get_related_surfaces().first().created_by
             )
         )
@@ -357,24 +454,24 @@ class AnalysisFactory(AnalysisFactoryWithoutResult):
     result = factory.LazyAttribute(_analysis_result)
 
 
-class TopographyAnalysisFactory(AnalysisFactory):
+class MeasurementAnalysisFactory(AnalysisFactory):
     """Create an analysis for a topography."""
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = WorkflowResult
 
-    subject_topography = factory.SubFactory(Topography2DFactory)
+    subject_measurement = factory.SubFactory(TopographyMapFactory)
 
 
-class FailedTopographyAnalysisFactory(AnalysisFactory):
+class FailedMeasurementAnalysisFactory(AnalysisFactory):
     """Create an analysis for a topography."""
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = WorkflowResult
 
-    subject_topography = factory.SubFactory(Topography2DFactory)
+    subject_measurement = factory.SubFactory(TopographyMapFactory)
     result = factory.LazyAttribute(_failed_analysis_result)
 
 
