@@ -14,6 +14,7 @@ import pytest
 
 from topobank.manager.container_schema import MeasurementMeta
 from topobank.manager.import_zip import import_container_zip
+from topobank.measurements.registry import MeasurementNotInspectedError
 from topobank.testing.factories import UserFactory
 
 LEGACY_ARCHIVE = {
@@ -148,6 +149,13 @@ def test_import_of_a_legacy_archive():
     assert measurement.metadata["size_x"] == 112.80791
     assert measurement.channel_index_hint == 0
     assert measurement.channel_name is None
+
+    # ...but the kind follows from the selected data channel, which means the
+    # record is not readable until it has been inspected - the same state a
+    # freshly uploaded measurement is in. Importing does not read data files.
+    assert measurement.kind == ""
+    with pytest.raises(MeasurementNotInspectedError):
+        measurement.read()
 
     # ...and the inspection determines the kind and resolves the channel name.
     measurement.refresh_cache()

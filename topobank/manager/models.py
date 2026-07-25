@@ -91,18 +91,40 @@ class TopobankLazySurfaceContainer(SurfaceContainer):
 
     Only measurements whose data is a `SurfaceTopography` object can be part of a
     container, so measurements of other kinds (a spectrum, say) are skipped.
+
+    Measurements that have not been inspected yet are skipped too - their kind is
+    not known, so there is no way to tell whether they belong here. That is a
+    transient state, but it makes the container quietly smaller than the dataset,
+    which would otherwise be indistinguishable from a dataset that really has
+    fewer measurements. It is therefore logged.
     """
 
     def __init__(self, surface, **kwargs):
         self._surface = surface
+        topography_kinds = [
+            kind
+            for kind, measurement_type in get_measurement_types().items()
+            if measurement_type.yields_surface_topography
+        ]
         self._measurements = self._surface.measurements.filter(
-            kind__in=[
-                kind
-                for kind, measurement_type in get_measurement_types().items()
-                if measurement_type.yields_surface_topography
-            ]
+            kind__in=topography_kinds
         )
         self._kwargs = kwargs
+
+        not_inspected = list(
+            self._surface.measurements.filter(kind="").values_list("id", flat=True)
+        )
+        if not_inspected:
+            _log.warning(
+                "Dataset %s contains %s measurement(s) that have not been "
+                "inspected yet (ids: %s); they are not part of this container. "
+                "Anything computed from it covers only the remaining %s "
+                "measurement(s).",
+                surface.id,
+                len(not_inspected),
+                ", ".join(str(pk) for pk in not_inspected),
+                self._measurements.count(),
+            )
 
     def __len__(self):
         return len(self._measurements)
