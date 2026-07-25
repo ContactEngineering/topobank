@@ -5,20 +5,21 @@ from django.db import migrations
 
 
 def copy_workflow_names_forward(apps, schema_editor):
+    Workflow = apps.get_model('analysis', 'Workflow')
     WorkflowResult = apps.get_model('analysis', 'WorkflowResult')
     WorkflowTemplate = apps.get_model('analysis', 'WorkflowTemplate')
 
-    # Copy WorkflowResult.function.name → WorkflowResult.workflow_name
-    for wr in WorkflowResult.objects.select_related('function').all():
-        if wr.function is not None and wr.workflow_name is None:
-            wr.workflow_name = wr.function.name
-            wr.save(update_fields=['workflow_name'])
-
-    # Copy WorkflowTemplate.implementation.name → WorkflowTemplate.implementation_name
-    for wt in WorkflowTemplate.objects.select_related('implementation').all():
-        if wt.implementation is not None and wt.implementation_name is None:
-            wt.implementation_name = wt.implementation.name
-            wt.save(update_fields=['implementation_name'])
+    # There is one Workflow row per registered implementation (a handful), so a
+    # set-based UPDATE per workflow is far cheaper than iterating over results.
+    for pk, name in Workflow.objects.values_list('pk', 'name').iterator():
+        # Copy WorkflowResult.function.name → WorkflowResult.workflow_name
+        WorkflowResult.objects.filter(
+            function_id=pk, workflow_name__isnull=True
+        ).update(workflow_name=name)
+        # Copy WorkflowTemplate.implementation.name → .implementation_name
+        WorkflowTemplate.objects.filter(
+            implementation_id=pk, implementation_name__isnull=True
+        ).update(implementation_name=name)
 
 
 class Migration(migrations.Migration):
