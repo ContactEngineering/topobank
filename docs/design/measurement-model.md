@@ -96,7 +96,8 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     # Channel selection by NAME, not index (see §5, "Channel identity");
     # replaces data_source; channel_names moves into file_info["channels"]
     channel_name       = models.TextField(null=True)
-    channel_occurrence = models.PositiveIntegerField(default=0)
+    # tie-breaker, set only when the name is duplicated within the file
+    channel_occurrence = models.PositiveIntegerField(null=True, default=None)
 
     # NEW: type dispatch + typed JSON payloads
     kind      = models.CharField(max_length=64, db_index=True)  # registry key
@@ -332,30 +333,61 @@ identifies channels by name, not by index.**
 
 - `data_source: IntegerField` is replaced by two columns:
   `channel_name = models.TextField(null=True)` and
-  `channel_occurrence = models.PositiveIntegerField(default=0)`. The
-  occurrence ordinal disambiguates files that contain several channels with
-  the same name (nothing guarantees uniqueness): it counts same-named
-  channels in file order, and is 0 in the overwhelmingly common unique case.
+  `channel_occurrence = models.PositiveIntegerField(null=True, default=None)`.
   Two columns rather than one JSON blob because `channel_name` is
   user-selected state that belongs at the same level as today's
   `data_source` (it is also a *significant* field — changing it invalidates
   analyses).
+- **The occurrence ordinal is written only when the name is ambiguous**, not
+  as a matter of course. Nothing guarantees that channel names within a file
+  are unique, so a tie-breaker is needed — but it is a *disambiguator*, not
+  part of the identity. Inspection records it only if the selected name
+  matches more than one channel in the file, in which case it is that
+  channel's position among the same-named ones (0-based, file order). In the
+  overwhelmingly common unique-name case it stays `NULL`.
+
+  The distinction matters, because a non-null default would quietly
+  reintroduce the very bug this change removes. Suppose a file has one
+  channel named `Height` and a later reader version exposes two. With
+  `occurrence = 0` always recorded, resolution happily takes the first match
+  and the measurement silently changes meaning. With `NULL`, the same
+  situation is *detected*: `NULL` asserts "this name was unambiguous when I
+  selected it", so finding several matches is a contradiction and becomes an
+  explicit ambiguity error requiring deliberate re-selection. It also keeps
+  exported `index.json` clean — the container serialization already omits
+  `None` fields (`model_dump(exclude_none=True)`), so an occurrence appears
+  in an archive only for the rare file that actually needs one.
 - **Resolution algorithm** (name → reader channel), used by both `read()`
-  and `inspect()`: collect channels matching `channel_name`; exactly one
-  match → use it regardless of its position (this is the point — ordering no
-  longer plays a role); several matches → pick by `channel_occurrence`; zero
-  matches → put the measurement into an explicit inspection-error state.
-  Deliberately **no silent re-default to `default_channel`** on a failed
-  match — silently switching data is precisely the failure mode this change
-  eliminates. The default channel is only used when `channel_name` is NULL,
+  and `inspect()`: collect channels matching `channel_name`, then
+
+  | matches | `channel_occurrence` | outcome |
+  |---|---|---|
+  | 1 | `NULL` | use it, regardless of position — the normal case |
+  | 1 | set | use it; clear the now-unnecessary ordinal on next inspection |
+  | >1 | `NULL` | **ambiguity error** — name no longer identifies one channel |
+  | >1 | set | use the match at that ordinal; out of range → error |
+  | 0 | any | **not-found error** |
+
+  Deliberately **no silent re-default to `default_channel`** in any error
+  row — silently switching data is precisely the failure mode this change
+  eliminates. The default channel is only used when `channel_name` is `NULL`,
   i.e. on first inspection after upload.
+- **Optional extra guard.** Because `file_info["channels"]` records each
+  channel's `dim` and units, resolution can compare the resolved channel's
+  attributes against those stored at last inspection and refuse on mismatch.
+  This catches reader-side changes even for unique names (a `Height` channel
+  that changes dimensionality is not the same channel). Cheap, uses data
+  already stored; recommended, but it can be added after the initial
+  release without affecting the schema.
 - `channel_names` generalizes to a `channels` list inside `file_info`, one
   object per channel:
-  `{"name", "occurrence", "dim", "unit", "data_unit", "kind"}` — where
-  `kind` is the measurement kind this channel would import as (`null` if no
-  registered type claims it). This single structure powers the UI dropdown,
-  makes the kind-per-channel mapping explicit, and is the basis for
-  importing non-height channels (below).
+  `{"name", "occurrence", "dim", "unit", "data_unit", "kind"}` — with
+  `occurrence` following the same rule as the column (`null` unless the name
+  is duplicated within the file), and `kind` being the measurement kind this
+  channel would import as (`null` if no registered type claims it). This
+  single structure powers the UI dropdown — which posts back the
+  name/occurrence pair verbatim — makes the kind-per-channel mapping
+  explicit, and is the basis for importing non-height channels (below).
 - No SurfaceTopography API change is required: the ST base class resolves
   name → index by scanning `reader.channels` and keeps calling
   `reader.topography(channel_index=...)`. A name-based lookup could be added
@@ -463,8 +495,10 @@ type-specific logic. After the change:
 
 - `container_schema.py` (`index.json`) gains `kind` and a `metadata`
   passthrough per measurement, bumping the container format version. New
-  exports write the channel by name (`channel: {"name": ..., "occurrence":
-  0}`) instead of `data_source: int`. Import must keep accepting legacy
+  exports write the channel by name — `channel: {"name": "Height"}`, with
+  `occurrence` appearing only for the rare duplicated name, since
+  `exclude_none=True` drops it otherwise — instead of `data_source: int`.
+  Import must keep accepting legacy
   containers: absent `kind`, infer it exactly like the DB backfill (§9); map
   the legacy flat keys (`size`, `unit`, `height_scale`, `instrument`, …)
   into the new `metadata` dict; and resolve a legacy integer `data_source`
@@ -516,11 +550,12 @@ One release containing, in this order within the migration sequence:
    full re-inspection sweep (one S3 read per measurement) is only ever run
    if that report shows a real problem.
    The same migration converts channel identity from index to name: set
-   `channel_name = channel_names[data_source][0]` and `channel_occurrence`
-   to the count of identically-named entries *before* that index in the
-   stored list — no file access needed. Rows with an empty `channel_names`
-   cache or an out-of-range index keep `channel_name = NULL` and are
-   resolved on their next inspection.
+   `channel_name = channel_names[data_source][0]`, and set
+   `channel_occurrence` only if that name occurs more than once in the
+   stored list (then: the count of identically-named entries *before* that
+   index), leaving it `NULL` otherwise — no file access needed. Rows with an
+   empty `channel_names` cache or an out-of-range index keep
+   `channel_name = NULL` and are resolved on their next inspection.
 3. `RenameModel` migration `Topography → Measurement`, staying in the
    `manager` app (moving apps changes `app_label` and therefore content
    types, permissions and every migration reference; the rename alone is
@@ -594,14 +629,17 @@ The following were discussed and decided (2026-07-23):
   `save()` skips metadata validation when the kind is unregistered and
   `metadata` is not among the changed fields, so unrelated bulk operations
   keep working. Each of these behaviors needs an explicit test.
-- **Channel identity:** channels are identified by **name** (plus an
-  occurrence ordinal for duplicate names), not by positional index, so
-  reader-side channel reordering can never silently switch a measurement's
-  data (§5). `channel_name`/`channel_occurrence` stay real columns —
-  user-selected, significant state; the per-channel inventory (including the
-  kind each channel would import as) lives in `file_info["channels"]`.
-  A failed name match is an explicit error state, never a silent re-default.
-  Kinds without a channel notion report a single default channel.
+- **Channel identity:** channels are identified by **name**, not by
+  positional index, so reader-side channel reordering can never silently
+  switch a measurement's data (§5). `channel_name`/`channel_occurrence` stay
+  real columns — user-selected, significant state; the per-channel inventory
+  (including the kind each channel would import as) lives in
+  `file_info["channels"]`. The occurrence ordinal is a disambiguator written
+  **only when a name is duplicated within the file**, and `NULL` otherwise,
+  so that a name which later becomes ambiguous is detected rather than
+  silently resolved to the first match. A failed or ambiguous match is an
+  explicit error state, never a silent re-default. Kinds without a channel
+  notion report a single default channel.
 - **Thumbnails:** expected for every kind, not optional. Core provides a
   generic 1-D curve renderer (the existing matplotlib path) that
   spectrum-like types get nearly for free; the ST base provides the 2-D
