@@ -14,7 +14,6 @@ import topobank
 from topobank.manager.export_zip import export_container_zip
 from topobank.manager.import_zip import import_container_zip, load_container_metadata
 from topobank.manager.models import Surface, Topography
-from topobank.manager.tasks import import_container_from_url
 from topobank.testing.factories import (
     PropertyFactory,
     SurfaceFactory,
@@ -23,6 +22,7 @@ from topobank.testing.factories import (
     Topography2DFactory,
     UserFactory,
 )
+from topobank.testing.utils import import_container_from_url_or_skip
 
 
 @pytest.mark.django_db
@@ -161,7 +161,7 @@ def test_surface_container(example_authors):
 @pytest.mark.django_db
 def test_import():
     user = UserFactory(username="testuser1", password="abcd$1234")
-    surface_id = import_container_from_url(
+    surface_id = import_container_from_url_or_skip(
         user, "https://contact.engineering/go/867nv"
     ).id
     surface = Surface.objects.get(id=surface_id)

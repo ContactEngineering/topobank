@@ -13,13 +13,11 @@ The fixture downloads the container per test, so we keep the number of tests
 small and assert several related things per test.
 """
 
-import urllib.error
-
 import pytest
 
 from topobank.manager.models import Topography
-from topobank.manager.tasks import import_container_from_url
 from topobank.testing.factories import UserFactory
+from topobank.testing.utils import import_container_from_url_or_skip
 
 CONTAINER_URL = "https://contact.engineering/go/867nv"
 
@@ -27,11 +25,7 @@ CONTAINER_URL = "https://contact.engineering/go/867nv"
 @pytest.fixture
 def imported_surface(db):
     """Import the published container, skipping the test if it is unreachable."""
-    user = UserFactory()
-    try:
-        return import_container_from_url(user, CONTAINER_URL)
-    except (urllib.error.URLError, OSError) as exc:  # pragma: no cover - network
-        pytest.skip(f"Could not download container from {CONTAINER_URL}: {exc}")
+    return import_container_from_url_or_skip(UserFactory(), CONTAINER_URL)
 
 
 @pytest.mark.django_db

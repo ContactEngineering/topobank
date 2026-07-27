@@ -61,3 +61,57 @@ def test_export_zip_without_target_raises():
     container = ZipContainer.objects.create(permissions=permissions)
     with pytest.raises(RuntimeError):
         container.export_zip()
+
+
+@pytest.mark.django_db
+def test_deleting_a_container_also_removes_the_archive():
+    """Deleting a container must not leave its archive behind.
+
+    The `manifest` foreign key is SET_NULL, so nothing would ever collect the
+    archive (nor the file in the object store) if deleting the container did not
+    take the manifest with it. Containers are transient download bundles that
+    the custodian removes in bulk, so a leak here accumulates silently.
+    """
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    from topobank.files.models import Manifest
+
+    _, permissions = _single_user_permissions()
+    container = ZipContainer.objects.create(permissions=permissions)
+    container.create_empty_manifest()
+    container.manifest.save_file(ContentFile(b"pretend this is a ZIP archive"))
+
+    manifest_id = container.manifest.id
+    storage_path = container.manifest.file.name
+    assert default_storage.exists(storage_path)
+
+    container.delete()
+
+    assert not Manifest.objects.filter(pk=manifest_id).exists()
+    assert not default_storage.exists(storage_path)
+
+
+@pytest.mark.django_db
+def test_bulk_deleting_containers_also_removes_their_archives():
+    """The custodian deletes containers via a queryset, which skips `delete()`."""
+    from django.core.files.base import ContentFile
+    from django.core.files.storage import default_storage
+
+    from topobank.files.models import Manifest
+
+    storage_paths = []
+    manifest_ids = []
+    for _ in range(2):
+        _, permissions = _single_user_permissions()
+        container = ZipContainer.objects.create(permissions=permissions)
+        container.create_empty_manifest()
+        container.manifest.save_file(ContentFile(b"pretend this is a ZIP archive"))
+        manifest_ids.append(container.manifest.id)
+        storage_paths.append(container.manifest.file.name)
+
+    ZipContainer.objects.all().delete()
+
+    assert not Manifest.objects.filter(pk__in=manifest_ids).exists()
+    for storage_path in storage_paths:
+        assert not default_storage.exists(storage_path)

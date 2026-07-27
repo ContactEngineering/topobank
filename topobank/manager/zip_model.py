@@ -59,7 +59,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         )
         self.save(update_fields=["manifest"])
 
-    def export_zip(self, tag_name=None, surface_ids=None):
+    def export_zip(self, tag_name=None, surface_ids=None, progress_recorder=None):
         #
         # Fetch user
         #
@@ -99,7 +99,9 @@ class ZipContainer(PermissionMixin, TaskStateModel):
             f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
         )
         try:
-            export_container_zip(container_data, surfaces)
+            export_container_zip(
+                container_data, surfaces, progress_recorder=progress_recorder
+            )
         except FileNotFoundError:
             return RuntimeError(
                 "Cannot create ZIP container for download because some data file "
@@ -126,7 +128,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         with zipfile.ZipFile(self.manifest.file, mode='r') as z:
             import_container_zip(z, permission.user, ignore_missing=True)
 
-    def task_worker(self, tag_name=None, surface_ids=None):
+    def task_worker(self, tag_name=None, surface_ids=None, progress_recorder=None):
         if self.permissions.user_permissions.count() != 1:
             raise PermissionDenied(
                 "Internal error: There should only be a single user for ZIP downloads and uploads."
@@ -134,7 +136,11 @@ class ZipContainer(PermissionMixin, TaskStateModel):
 
         if self.manifest is None and (tag_name is not None or surface_ids is not None):
             # There is no file, but we have a tag or a list of datasets
-            self.export_zip(tag_name=tag_name, surface_ids=surface_ids)
+            self.export_zip(
+                tag_name=tag_name,
+                surface_ids=surface_ids,
+                progress_recorder=progress_recorder,
+            )
         elif self.manifest is not None and self.manifest.exists():
             # There is a file, which means we should try to import
             self.import_zip()

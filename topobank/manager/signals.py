@@ -5,7 +5,9 @@ from django.db.models.signals import m2m_changed, post_delete, post_save, pre_de
 from django.dispatch import receiver
 from notifications.models import Notification
 
+from ..authorization import get_permission_model
 from .models import Surface, Topography
+from .zip_model import ZipContainer
 
 _log = logging.getLogger(__name__)
 
@@ -93,3 +95,21 @@ def update_search_vector_on_topography_tags_change(
 ):
     if action in ("post_add", "post_remove", "post_clear") and not reverse:
         _update_parent_search_vector(instance)
+
+
+@receiver(post_delete, sender=ZipContainer)
+def post_delete_zip_container(sender, instance, **kwargs):
+    """
+    Delete the archive of a ZIP container together with the container.
+
+    The `manifest` foreign key is SET_NULL, so deleting the container does not
+    by itself remove the archive. Deleting the permission set the container owns
+    cascades to the manifest, whose own `pre_delete` handler removes the file
+    from storage. Has to happen in `post_delete` to avoid recursing back into
+    the container through its own (cascading) permissions field.
+    """
+    try:
+        instance.permissions.delete()
+    except get_permission_model().DoesNotExist:
+        # Already gone, nothing to do
+        pass

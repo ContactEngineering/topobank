@@ -502,14 +502,21 @@ class TaskStateModel(models.Model):
             # precise (but ~35x slower on numeric workloads) tracemalloc only
             # when TOPOBANK_TRACK_MEMORY_USAGE is enabled. See taskapp/memory.py.
             with track_memory_usage() as memory_usage:
-                # Check if task_worker accepts timer argument
+                # Pass the optional `timer` and `progress_recorder` arguments only
+                # to workers that declare them, so that a worker can opt into
+                # timing and progress reporting without every worker having to
+                # accept both.
                 sig = inspect.signature(self.task_worker)
+                extra_kwargs = {}
+                timer = None
                 if 'timer' in sig.parameters:
                     timer = Timer(str(self.task_id))
-                    self.task_worker(*args, timer=timer, **kwargs)
+                    extra_kwargs['timer'] = timer
+                if 'progress_recorder' in sig.parameters:
+                    extra_kwargs['progress_recorder'] = ProgressRecorder(celery_task)
+                self.task_worker(*args, **extra_kwargs, **kwargs)
+                if timer is not None:
                     self.task_timer = timer.to_dict()
-                else:
-                    self.task_worker(*args, **kwargs)
             self.task_state = TaskStateModel.SUCCESS
             self.task_memory = memory_usage.peak
             self.task_error = ""
