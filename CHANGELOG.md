@@ -5,6 +5,10 @@
 - ENH: Full text search index
 - MAINT: Use matplotlib's OO API for rendering thumbnail of line scans 
 
+# 1.69.4 (2026-07-25)
+
+- MAINT: Fixed performance issue in migrations
+
 # 1.69.3 (2026-07-24)
 
 - ENH: Workflow task time limits are read from the `CELERY_TASK_SOFT_TIME_LIMIT` /
