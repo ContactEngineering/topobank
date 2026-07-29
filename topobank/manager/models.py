@@ -485,7 +485,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             self.created_by.name if self.created_by is not None else "",
         ]
         parts += [flatten_for_search(tag.name) for tag in self.tags.all()]
-        for topography in self.topography_set.all():
+        for topography in self.topography_set.select_related("created_by").prefetch_related("tags").all():
             parts += [
                 flatten_for_search(topography.name),
                 topography.description or "",
