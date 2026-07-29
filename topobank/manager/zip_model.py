@@ -18,7 +18,6 @@ from .models import Surface, Tag
 _log = logging.getLogger(__name__)
 
 
-
 class ZipContainer(PermissionMixin, TaskStateModel):
     #
     # Celery task queue

@@ -245,4 +245,3 @@ def test_manager_container_uses_spooled_temporary_file_with_setting(mocker, sett
     container.export_zip(surface_ids=[surface.id])
 
     spooled_mock.assert_called_once_with(max_size=456789)
-

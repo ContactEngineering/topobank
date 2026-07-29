@@ -370,4 +370,3 @@ def test_analysis_container_uses_spooled_temporary_file_with_setting(mocker, set
     container.task_worker(result_ids=[analysis.id])
 
     spooled_mock.assert_called_once_with(max_size=987654)
-
