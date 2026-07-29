@@ -1,10 +1,13 @@
 """Tests for topobank.manager.zip_model.ZipContainer."""
 
+import json
+import zipfile
+
 import pytest
 from django.core.exceptions import PermissionDenied
 
 from topobank.manager.zip_model import ZipContainer
-from topobank.testing.factories import UserFactory
+from topobank.testing.factories import SurfaceFactory, UserFactory
 from topobank.testing.mock_auth.authorization.models import PermissionSet
 
 
@@ -13,6 +16,11 @@ def _single_user_permissions(allow="full"):
     permissions = PermissionSet.objects.create()
     permissions.grant(user, allow)
     return user, permissions
+
+
+def _container_of(container):
+    """Open the archive a container has built."""
+    return zipfile.ZipFile(container.manifest.file, mode="r")
 
 
 @pytest.mark.django_db
@@ -61,6 +69,115 @@ def test_export_zip_without_target_raises():
     container = ZipContainer.objects.create(permissions=permissions)
     with pytest.raises(RuntimeError):
         container.export_zip()
+
+
+@pytest.mark.django_db
+def test_export_zip_names_the_archive_after_the_dataset():
+    """Without `archive_name` the name is still derived from the datasets."""
+    user, permissions = _single_user_permissions()
+    surface = SurfaceFactory(created_by=user, name="My Nice Surface")
+
+    container = ZipContainer.objects.create(permissions=permissions)
+    container.export_zip(surface_ids=[surface.id])
+
+    assert container.manifest.filename == "my-nice-surface.zip"
+
+
+@pytest.mark.django_db
+def test_export_zip_honors_archive_name():
+    """Deployments that group datasets differently name the download themselves.
+
+    Two datasets would otherwise collapse to the generic
+    'digital-surface-twins.zip', which says nothing about what the user asked
+    to download.
+    """
+    user, permissions = _single_user_permissions()
+    surfaces = [
+        SurfaceFactory(created_by=user, name="S0"),
+        SurfaceFactory(created_by=user, name="S1"),
+    ]
+
+    container = ZipContainer.objects.create(permissions=permissions)
+    container.export_zip(
+        surface_ids=[s.id for s in surfaces], archive_name="Batch 17 / Q3"
+    )
+
+    assert container.manifest.filename == "batch-17-q3.zip"
+
+
+@pytest.mark.django_db
+def test_export_zip_falls_back_when_archive_name_has_no_slug():
+    """A name that slugifies to nothing must not produce a bare '.zip'."""
+    user, permissions = _single_user_permissions()
+    surfaces = [
+        SurfaceFactory(created_by=user, name="S0"),
+        SurfaceFactory(created_by=user, name="S1"),
+    ]
+
+    container = ZipContainer.objects.create(permissions=permissions)
+    container.export_zip(surface_ids=[s.id for s in surfaces], archive_name="///")
+
+    assert container.manifest.filename == "digital-surface-twins.zip"
+
+
+@pytest.mark.django_db
+def test_export_zip_passes_extra_metadata_through():
+    """`extra_metadata` reaches the container metadata unchanged.
+
+    Callers attach grouping information that only they know about (e.g. the SDS
+    API's training groups) so that an import can recreate it.
+    """
+    user, permissions = _single_user_permissions()
+    surfaces = [
+        SurfaceFactory(created_by=user, name="S0"),
+        SurfaceFactory(created_by=user, name="S1"),
+    ]
+    extra = {"training_groups": [{"name": "Tiles 2024", "members": [0, 1]}]}
+
+    container = ZipContainer.objects.create(permissions=permissions)
+    container.export_zip(surface_ids=[s.id for s in surfaces], extra_metadata=extra)
+
+    with _container_of(container) as zf:
+        assert json.load(zf.open("index.json"))["extra"] == extra
+
+
+@pytest.mark.django_db
+def test_task_worker_forwards_archive_name_and_extra_metadata():
+    """The task entry point must not drop the arguments on the floor."""
+    user, permissions = _single_user_permissions()
+    surface = SurfaceFactory(created_by=user, name="S0")
+    extra = {"training_groups": [{"name": "Tiles 2024", "members": [0]}]}
+
+    container = ZipContainer.objects.create(permissions=permissions)
+    container.task_worker(
+        surface_ids=[surface.id], archive_name="Folder A", extra_metadata=extra
+    )
+
+    assert container.manifest.filename == "folder-a.zip"
+    with _container_of(container) as zf:
+        assert json.load(zf.open("index.json"))["extra"] == extra
+
+
+@pytest.mark.django_db
+def test_export_zip_spills_large_archives_to_disk(monkeypatch):
+    """The archive is streamed through a spooled file, not held in memory.
+
+    A multi-GB container built in RAM OOM-kills the worker, and the task is then
+    redelivered and OOMs again. Forcing the spool threshold to zero proves the
+    rollover path is exercised rather than merely available.
+    """
+    import topobank.manager.zip_model as zip_model
+
+    monkeypatch.setattr(zip_model, "_SPOOL_MAX_SIZE", 0)
+
+    user, permissions = _single_user_permissions()
+    surface = SurfaceFactory(created_by=user, name="S0")
+
+    container = ZipContainer.objects.create(permissions=permissions)
+    container.export_zip(surface_ids=[surface.id])
+
+    with _container_of(container) as zf:
+        assert "index.json" in zf.namelist()
 
 
 @pytest.mark.django_db
