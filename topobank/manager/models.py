@@ -11,19 +11,22 @@ from collections import defaultdict
 from typing import List
 
 import django.dispatch
-import matplotlib.pyplot
+import matplotlib
 import numpy as np
 import PIL
 import tagulous.models as tm
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
+from django.contrib.postgres.indexes import GinIndex
+from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
-from django.db.models import Q
+from django.db.models import Q, Value
 from django.utils import timezone
+from matplotlib.figure import Figure
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.IO import ReaderBase
@@ -301,6 +304,17 @@ class Tag(tm.TagTreeModel, SubjectMixin):
         return property_values, property_infos
 
 
+def flatten_for_search(s):
+    """Prepare a name for full-text search.
+
+    Replaces the separators '.' and '/' (common in file names and hierarchical
+    tag names) with spaces so that the tokenizer splits them into words.
+    """
+    if s is None:
+        return ""
+    return s.replace(".", " ").replace("/", " ")
+
+
 class Surface(PermissionMixin, models.Model, SubjectMixin):
     """
     A physical surface of a specimen.
@@ -335,6 +349,8 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
                 name='surface_active_name_idx',
                 condition=Q(deletion_time__isnull=True)
             ),
+            # Full-text search over the precomputed search document
+            GinIndex(fields=['search_vector'], name='surface_search_idx'),
         ]
 
     #
@@ -387,6 +403,13 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         max_length=3, choices=CATEGORY_CHOICES, null=True, blank=False
     )
     tags = tm.TagField(to=Tag)
+
+    #
+    # Full-text search: precomputed search document (see
+    # `update_search_vector`), kept up to date by signal handlers in
+    # `signals.py` and queried through a GIN index.
+    #
+    search_vector = SearchVectorField(null=True, editable=False)
 
     #
     # Time stamps
@@ -447,6 +470,48 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         self.save(update_fields=["deletion_time"])
         self.topography_set.filter(deletion_time__isnull=True).update(
             deletion_time=self.deletion_time
+        )
+
+    def build_search_document(self):
+        """Assemble the plain-text document used for full-text search.
+
+        Combines the dataset's own name, description, creator and tags with
+        those of its measurements. Separators in file and hierarchical tag
+        names are flattened so the tokenizer splits them into words.
+        """
+        parts = [
+            flatten_for_search(self.name),
+            self.description or "",
+            self.created_by.name if self.created_by is not None else "",
+        ]
+        parts += [flatten_for_search(tag.name) for tag in self.tags.all()]
+        for topography in self.topography_set.all():
+            parts += [
+                flatten_for_search(topography.name),
+                topography.description or "",
+                (
+                    topography.created_by.name
+                    if topography.created_by is not None
+                    else ""
+                ),
+            ]
+            parts += [
+                flatten_for_search(tag.name) for tag in topography.tags.all()
+            ]
+        return " ".join(part for part in parts if part)
+
+    def update_search_vector(self):
+        """Recompute and store the full-text search vector for this dataset.
+
+        This is the single place where the search document is written. It uses
+        a queryset update to avoid recursive `save` calls and signals.
+        """
+        if self.pk is None:
+            return
+        Surface.all_objects.filter(pk=self.pk).update(
+            search_vector=SearchVector(
+                Value(self.build_search_document()), config="english"
+            )
         )
 
     def to_dict(self):
@@ -1244,7 +1309,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         image_file = io.BytesIO()
         if st_topo.dim == 1:
             dpi = 100
-            fig, ax = matplotlib.pyplot.subplots(figsize=[width / dpi, height / dpi])
+            # Use the object-oriented API rather than `pyplot`. `pyplot` resolves
+            # the interactive backend, which on macOS is `macosx`; instantiating
+            # its canvas inside a forked Celery worker initializes AppKit on the
+            # child side of a fork, which the ObjC runtime aborts with SIGABRT.
+            # A bare `Figure` renders through Agg and keeps no global state, so
+            # it also removes the need to close the figure (see issue 898).
+            fig = Figure(figsize=[width / dpi, height / dpi])
+            ax = fig.subplots()
             x, y = st_topo.positions_and_heights()
             ax.plot(x, y, "-")
             ax.set_axis_off()
@@ -1254,7 +1326,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 dpi=100,
                 format=settings.TOPOBANK_THUMBNAIL_FORMAT,
             )
-            matplotlib.pyplot.close(fig)  # probably saves memory, see issue 898
         elif st_topo.dim == 2:
             # Compute thumbnail size (keeping aspect ratio)
             sx, sy = st_topo.physical_sizes
@@ -1269,8 +1340,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             heights = st_topo.heights()
             mx, mn = heights.max(), heights.min()
             heights = (heights - mn) / (mx - mn)
-            # Get color map
-            cmap = matplotlib.pyplot.get_cmap(cmap)
+            # Get color map. `matplotlib.colormaps` is the pyplot-free lookup;
+            # `None` selects the default, as `pyplot.get_cmap` did.
+            if cmap is None:
+                cmap = matplotlib.colormaps[matplotlib.rcParams["image.cmap"]]
+            elif isinstance(cmap, str):
+                cmap = matplotlib.colormaps[cmap]
             # Convert to image
             colors = (cmap(heights.T) * 255).astype(np.uint8)
             # Remove alpha channel before writing

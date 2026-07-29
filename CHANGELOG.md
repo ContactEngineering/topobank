@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+# 1.70.0 (2026-07-25)
+
+- ENH: Full text search index
+- MAINT: Use matplotlib's OO API for rendering thumbnail of line scans 
+
 # 1.69.4 (2026-07-25)
 
 - MAINT: Fixed performance issue in migrations
