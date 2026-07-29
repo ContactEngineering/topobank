@@ -18,6 +18,7 @@ import topobank
 from topobank.supplib.json import ExtendedJSONEncoder
 
 from .container_schema import CONTAINER_METADATA_FILENAME, ContainerMeta
+from .models import Topography
 
 _log = logging.getLogger(__name__)
 
@@ -49,8 +50,6 @@ def export_container_zip(file, surfaces, extra_metadata=None, progress_recorder=
     # One step per measurement, plus a final one for the metadata and license
     # files, so that a client can show a meaningful bar rather than an
     # indeterminate spinner.
-    from .models import Topography
-
     nb_steps = 1 + Topography.objects.filter(surface__in=surfaces).count()
     step = 0
     if progress_recorder is not None:
