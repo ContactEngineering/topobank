@@ -50,9 +50,10 @@ def periodic_cleanup():
     q = ResultZipContainer.objects.filter(
         updated_at__lt=timezone.now() - temporary_delay
     )
-    if q.count() > 0:
+    count = q.count()
+    if count:
         _log.info(
-            f"Custodian: Deleting {q.count()} temporary ZIP containers of workflow results."
+            f"Custodian: Deleting {count} temporary ZIP containers of workflow results."
         )
         q.delete()
 
