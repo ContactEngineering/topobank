@@ -49,7 +49,9 @@ def export_container_zip(file, surfaces, extra_metadata=None, progress_recorder=
     # One step per measurement, plus a final one for the metadata and license
     # files, so that a client can show a meaningful bar rather than an
     # indeterminate spinner.
-    nb_steps = 1 + sum(surface.topography_set.count() for surface in surfaces)
+    from .models import Topography
+
+    nb_steps = 1 + Topography.objects.filter(surface__in=surfaces).count()
     step = 0
     if progress_recorder is not None:
         progress_recorder.set_progress(step, nb_steps, message="Preparing container")
