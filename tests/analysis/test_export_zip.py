@@ -357,3 +357,17 @@ def test_deleting_a_container_without_an_archive_is_harmless():
     container.delete()
 
     assert not ResultZipContainer.objects.filter(pk=container.pk).exists()
+
+
+@pytest.mark.django_db
+def test_analysis_container_uses_spooled_temporary_file_with_setting(mocker, settings):
+    import tempfile
+    settings.TOPOBANK_SPOOL_MAX_SIZE = 987654
+    spooled_mock = mocker.patch("tempfile.SpooledTemporaryFile", wraps=tempfile.SpooledTemporaryFile)
+
+    analysis = TopographyAnalysisFactory()
+    container = _container(analysis.permissions.user_permissions.first().user)
+    container.task_worker(result_ids=[analysis.id])
+
+    spooled_mock.assert_called_once_with(max_size=987654)
+

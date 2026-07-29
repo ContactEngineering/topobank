@@ -17,10 +17,6 @@ from .models import Surface, Tag
 
 _log = logging.getLogger(__name__)
 
-# Archives up to this size are assembled in memory; anything larger spills to
-# disk. Building a multi-GB container entirely in RAM OOM-kills the worker,
-# which then redelivers the task and OOMs again on the next attempt.
-_SPOOL_MAX_SIZE = 64 * 1024 * 1024
 
 
 class ZipContainer(PermissionMixin, TaskStateModel):
@@ -143,7 +139,8 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         _log.info(
             f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
         )
-        with tempfile.SpooledTemporaryFile(max_size=_SPOOL_MAX_SIZE) as container_data:
+        max_size = getattr(settings, "TOPOBANK_SPOOL_MAX_SIZE", 64 * 1024 * 1024)
+        with tempfile.SpooledTemporaryFile(max_size=max_size) as container_data:
             try:
                 export_container_zip(
                     container_data,

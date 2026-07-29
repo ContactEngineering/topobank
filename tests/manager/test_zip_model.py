@@ -159,16 +159,14 @@ def test_task_worker_forwards_archive_name_and_extra_metadata():
 
 
 @pytest.mark.django_db
-def test_export_zip_spills_large_archives_to_disk(monkeypatch):
+def test_export_zip_spills_large_archives_to_disk(settings):
     """The archive is streamed through a spooled file, not held in memory.
 
     A multi-GB container built in RAM OOM-kills the worker, and the task is then
     redelivered and OOMs again. Forcing the spool threshold to zero proves the
     rollover path is exercised rather than merely available.
     """
-    import topobank.manager.zip_model as zip_model
-
-    monkeypatch.setattr(zip_model, "_SPOOL_MAX_SIZE", 0)
+    settings.TOPOBANK_SPOOL_MAX_SIZE = 0
 
     user, permissions = _single_user_permissions()
     surface = SurfaceFactory(created_by=user, name="S0")
@@ -232,3 +230,19 @@ def test_bulk_deleting_containers_also_removes_their_archives():
     assert not Manifest.objects.filter(pk__in=manifest_ids).exists()
     for storage_path in storage_paths:
         assert not default_storage.exists(storage_path)
+
+
+@pytest.mark.django_db
+def test_manager_container_uses_spooled_temporary_file_with_setting(mocker, settings):
+    import tempfile
+    settings.TOPOBANK_SPOOL_MAX_SIZE = 456789
+    spooled_mock = mocker.patch("tempfile.SpooledTemporaryFile", wraps=tempfile.SpooledTemporaryFile)
+
+    user, permissions = _single_user_permissions()
+    surface = SurfaceFactory(created_by=user)
+
+    container = ZipContainer.objects.create(permissions=permissions)
+    container.export_zip(surface_ids=[surface.id])
+
+    spooled_mock.assert_called_once_with(max_size=456789)
+

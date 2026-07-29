@@ -101,7 +101,8 @@ class ResultZipContainer(PermissionMixin, TaskStateModel):
             "Preparing ZIP container of workflow results with ids "
             f"{' '.join(str(r.id) for r in results)} for download..."
         )
-        with tempfile.TemporaryFile() as container_data:
+        max_size = getattr(settings, "TOPOBANK_SPOOL_MAX_SIZE", 64 * 1024 * 1024)
+        with tempfile.SpooledTemporaryFile(max_size=max_size) as container_data:
             export_results_zip(
                 container_data, results, progress_recorder=progress_recorder
             )
