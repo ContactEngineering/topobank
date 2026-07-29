@@ -24,6 +24,8 @@ def post_delete_result_zip_container(sender, instance, **kwargs):
     from storage. Has to happen in `post_delete` to avoid recursing back into
     the container through its own (cascading) permissions field.
     """
+    if instance.permissions_id is None:
+        return
     try:
         instance.permissions.delete()
     except get_permission_model().DoesNotExist:
