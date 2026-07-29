@@ -18,11 +18,12 @@ import topobank
 from topobank.supplib.json import ExtendedJSONEncoder
 
 from .container_schema import CONTAINER_METADATA_FILENAME, ContainerMeta
+from .models import Topography
 
 _log = logging.getLogger(__name__)
 
 
-def export_container_zip(file, surfaces, extra_metadata=None):
+def export_container_zip(file, surfaces, extra_metadata=None, progress_recorder=None):
     """
     Write container data to a file.
 
@@ -38,11 +39,22 @@ def export_container_zip(file, surfaces, extra_metadata=None):
         it lets callers (e.g. the SDS API) attach extra information such as
         training-group membership. Any surface references therein should use
         indices into ``surfaces``. (Default: None)
+    progress_recorder: topobank.taskapp.tasks.ProgressRecorder, optional
+        Reports how many measurements have been bundled so far, so that a client
+        waiting for the container can show progress. (Default: None)
 
     Returns
     -------
     None
     """
+    # One step per measurement, plus a final one for the metadata and license
+    # files, so that a client can show a meaningful bar rather than an
+    # indeterminate spinner.
+    nb_steps = 1 + Topography.objects.filter(surface__in=surfaces).count()
+    step = 0
+    if progress_recorder is not None:
+        progress_recorder.set_progress(step, nb_steps, message="Preparing container")
+
     surfaces_dicts = []
 
     publications = (
@@ -78,6 +90,12 @@ def export_container_zip(file, surfaces, extra_metadata=None):
             topography_prefix = (
                 f"{topography_index}".zfill(log10_nb_topographies + 1) + "-"
             )
+
+            step += 1
+            if progress_recorder is not None:
+                progress_recorder.set_progress(
+                    step, nb_steps, message=f"Bundling '{topography.name}'"
+                )
 
             topo_dict = topography.to_dict()
             # this dict may be okay, but have to check whether the filename is unique
@@ -238,3 +256,6 @@ def export_container_zip(file, surfaces, extra_metadata=None):
     zf.writestr("README.txt", textwrap.dedent(readme_txt))
 
     zf.close()
+
+    if progress_recorder is not None:
+        progress_recorder.set_progress(nb_steps, nb_steps, message="Container complete")
