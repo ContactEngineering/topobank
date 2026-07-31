@@ -1,10 +1,16 @@
 # Changelog for *TopoBank*
 
-# 1.70.0 (2026-07-30)
+# 1.70.0 (2026-07-31)
 
 - ENH: Full text search index
 - ENH: Asynchronous creation of ZIP archives for downloads
-- MAINT: Use matplotlib's OO API for rendering thumbnail of line scans 
+- ENH: `ZipContainer.export_zip` accepts an `archive_name` (for naming downloads
+  after a grouping other than tags) and opaque `extra_metadata`
+- ENH: ZIP containers are assembled in a spooled temporary file; the in-memory
+  limit is configurable via `TOPOBANK_SPOOL_MAX_SIZE`
+- MAINT: Use matplotlib's OO API for rendering thumbnail of line scans
+- MAINT: New `to_natural_length_unit` helper that converts physical sizes to the
+  most natural length unit for display and editing
 
 # 1.69.4 (2026-07-25)
 
