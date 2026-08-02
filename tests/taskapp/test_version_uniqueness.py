@@ -41,10 +41,23 @@ def test_duplicate_version_rejected_including_null_columns(micro, extra):
 
 @pytest.mark.django_db
 def test_get_package_version_survives_preexisting_duplicates():
-    # Simulate a database written before the constraint was fixed by inserting
-    # a duplicate behind the ORM's back.
+    if connection.vendor != "postgresql":
+        pytest.skip("needs PostgreSQL to drop and re-create the constraint")
+
     version = get_package_version("numpy", repr("1.70.0"))
     with connection.cursor() as cursor:
+        # Simulate a database that has not run taskapp migration 0003 yet. The
+        # constraint is precisely what makes duplicates impossible, so it has to
+        # come off before the legacy state can be reproduced. PostgreSQL DDL is
+        # transactional, so the test's transaction rolls this back.
+        #
+        # The row created above leaves deferred foreign-key trigger events
+        # queued, and PostgreSQL refuses to ALTER TABLE while they are pending.
+        cursor.execute("SET CONSTRAINTS ALL IMMEDIATE")
+        cursor.execute(
+            "ALTER TABLE taskapp_version "
+            "DROP CONSTRAINT unique_version_per_dependency"
+        )
         cursor.execute(
             "INSERT INTO taskapp_version (dependency_id, major, minor, micro, extra) "
             "VALUES (%s, %s, %s, %s, %s)",
