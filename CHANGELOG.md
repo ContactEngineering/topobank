@@ -4,15 +4,12 @@
 
 - ENH: Full text search index
 - ENH: Asynchronous creation of ZIP archives for downloads
-- ENH: `ZipContainer.export_zip` accepts an `archive_name` (for naming downloads
-  after a grouping other than tags) and opaque `extra_metadata`
-- ENH: ZIP containers are assembled in a spooled temporary file; the in-memory
-  limit is configurable via `TOPOBANK_SPOOL_MAX_SIZE`
-- MAINT: Use matplotlib's OO API for rendering thumbnail of line scans
-- MAINT: New `to_natural_length_unit` helper that converts physical sizes to the
-  most natural length unit for display and editing
-- MAINT: Removed the unused `--changelog` option from the `notify_users` command
-  of the testing mock-auth app; it was accepted but had no effect
+- ENH: `ZipContainer.export_zip` accepts `archive_name` and opaque `extra_metadata`
+- ENH: ZIP containers use a spooled temporary file, sized via `TOPOBANK_SPOOL_MAX_SIZE`
+- BUG: Guard against a missing permission set when deleting ZIP containers
+- MAINT: Use matplotlib's OO API for rendering thumbnails of line scans
+- MAINT: New `to_natural_length_unit` helper for display of physical sizes
+- MAINT: Removed the inert `--changelog` option from `notify_users` (mock-auth app)
 
 # 1.69.4 (2026-07-25)
 
