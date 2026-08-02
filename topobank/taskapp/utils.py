@@ -159,9 +159,35 @@ def get_package_version(pkg_name, version_expr):
     dep, created = Dependency.objects.get_or_create(import_name=pkg_name)
 
     # make sure the current version of the dependency is available in database
-    version, created = Version.objects.get_or_create(
-        dependency=dep, major=major, minor=minor, micro=micro, extra=extra
-    )
+    try:
+        version, created = Version.objects.get_or_create(
+            dependency=dep, major=major, minor=minor, micro=micro, extra=extra
+        )
+    except Version.MultipleObjectsReturned:
+        # Databases written before the unique constraint was fixed can contain
+        # duplicate rows for the same version, because PostgreSQL treated the
+        # NULL `micro`/`extra` of the old `unique_together` as distinct. The
+        # `get()` inside `get_or_create()` then fails and takes every analysis
+        # down with it. Settle on the oldest row so that analyses keep running;
+        # taskapp migration 0003 merges the duplicates away for good.
+        version = (
+            Version.objects.filter(
+                dependency=dep, major=major, minor=minor, micro=micro, extra=extra
+            )
+            .order_by("id")
+            .first()
+        )
+        _log.warning(
+            "Found duplicate Version rows for %s %s.%s (micro=%s, extra=%s); "
+            "using the oldest (id=%s). Run the taskapp migrations to remove the "
+            "duplicates.",
+            pkg_name,
+            major,
+            minor,
+            micro,
+            extra,
+            version.id,
+        )
 
     return version
 
