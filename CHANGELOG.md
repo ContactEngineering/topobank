@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# 1.70.0 (2026-07-31)
+# 1.70.0 (2026-08-02)
 
 - ENH: Full text search index
 - ENH: Asynchronous creation of ZIP archives for downloads
@@ -11,6 +11,8 @@
 - MAINT: Use matplotlib's OO API for rendering thumbnail of line scans
 - MAINT: New `to_natural_length_unit` helper that converts physical sizes to the
   most natural length unit for display and editing
+- MAINT: Removed the unused `--changelog` option from the `notify_users` command
+  of the testing mock-auth app; it was accepted but had no effect
 
 # 1.69.4 (2026-07-25)
 
