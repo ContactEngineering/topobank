@@ -1,5 +1,19 @@
 # Changelog for *TopoBank*
 
+# 1.70.1 (2026-08-02)
+
+- BUG: Every analysis failed with `get() returned more than one Version` once two
+  workers had concurrently registered the same dependency version. `Version` was
+  guarded by a `unique_together` over nullable `micro`/`extra` columns, and
+  PostgreSQL treats NULLs as distinct in a UNIQUE constraint, so the guard never
+  applied to ordinary release numbers (`1.70.0` parses to `extra=None`)
+- MAINT: `Version` uniqueness is now a `UniqueConstraint` with
+  `nulls_distinct=False` (requires PostgreSQL 15+); a data migration merges
+  pre-existing duplicates and repoints `Configuration.versions` at the surviving
+  rows
+- MAINT: `get_package_version` tolerates duplicate `Version` rows left behind by
+  older databases instead of failing the task
+
 # 1.70.0 (2026-08-02)
 
 - ENH: Full text search index

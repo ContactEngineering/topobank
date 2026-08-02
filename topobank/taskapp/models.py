@@ -563,7 +563,22 @@ class Version(models.Model):
     """
 
     class Meta:
-        unique_together = (("dependency", "major", "minor", "micro", "extra"),)
+        constraints = [
+            # `micro` and `extra` are nullable and are NULL for most releases
+            # (a clean "1.70.0" parses to extra=None). A plain `unique_together`
+            # maps to a UNIQUE constraint, and PostgreSQL treats NULLs as
+            # distinct there, so it did *not* prevent duplicate rows for exactly
+            # the common case. Two workers calling `get_or_create()` for a
+            # freshly deployed version could therefore both insert, and every
+            # later `get_or_create()` would raise `MultipleObjectsReturned`,
+            # failing every analysis. `nulls_distinct=False` (PostgreSQL 15+)
+            # makes NULL compare equal so the constraint actually holds.
+            models.UniqueConstraint(
+                fields=["dependency", "major", "minor", "micro", "extra"],
+                name="unique_version_per_dependency",
+                nulls_distinct=False,
+            )
+        ]
 
     dependency = models.ForeignKey(Dependency, on_delete=models.CASCADE)
 
