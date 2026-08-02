@@ -4,6 +4,8 @@
 
 - ENH: Custodian sweep and `reap_lost_tasks` command fail tasks whose worker
   disappeared instead of leaving them "running" forever
+- ENH: Analyses predicted to exceed `TOPOBANK_ANALYSIS_MEMORY_BUDGET` fail with
+  an explanatory message instead of being killed by the OOM killer
 
 # 1.70.1 (2026-08-02)
 
