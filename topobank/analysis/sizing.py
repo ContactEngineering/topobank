@@ -12,15 +12,28 @@ a usable predictor, which is the whole basis of this module.
 
 The coefficient is *learned* from the ``task_memory`` column rather than written
 down here. Every completed task records its own peak RSS (see
-``taskapp/memory.py``), so the estimate calibrates itself: it follows a workflow
-whose implementation changes, and it starts working for workflows that do not
-exist yet without anybody maintaining a table of magic numbers.
+``taskapp/memory.py``), so no table of magic numbers has to be maintained and a
+workflow that does not exist yet is covered the moment it has been run a few
+times.
 
-A high percentile plus a safety factor absorbs the spread. ``autocorrelation``,
-for instance, ranges over 80-241 B/point, most likely because FFT-based
-workflows pad non-power-of-two grids. Coefficients are derived from nominal
-(unpadded) point counts and applied to nominal point counts, so padding ends up
-inside the coefficient rather than having to be guessed per workflow.
+Only runs from the last ``TOPOBANK_ANALYSIS_MEMORY_WINDOW_DAYS`` days count, and
+that window is what lets the coefficient come *down* again. Over an unbounded
+history a high percentile is effectively immovable: with N old runs at the old
+cost, an optimisation halving memory usage only moves a 95th percentile once the
+improved runs outnumber the old ones nineteen to one. The guard would keep
+predicting pre-optimisation memory for years and refuse analyses that now fit -
+a false rejection, which is the direction that actually costs a user something.
+With a window, the old runs age out and the coefficient follows the code. The
+cost is that a workflow nobody has run inside the window has no coefficient at
+all, which means the guard abstains: see below, that is the intended direction.
+
+A high percentile plus a safety factor absorbs the spread within the window.
+``autocorrelation``, for instance, ranges over 80-241 B/point, most likely
+because FFT-based workflows pad non-power-of-two grids, though differing kwargs
+would look the same in this data - runs are pooled per workflow, not per
+argument set. Coefficients are derived from nominal (unpadded) point counts and
+applied to nominal point counts, so padding ends up inside the coefficient
+rather than having to be guessed per workflow.
 
 **Everything here fails open.** No budget configured, no history for this
 workflow, too few samples to trust, a subject whose size cannot be determined -
@@ -32,12 +45,14 @@ false acceptance costs no more than what already happens today.
 import logging
 import math
 from collections import defaultdict
+from datetime import timedelta
 
 from django.conf import settings
 from django.core.cache import cache
 from django.db.models import BigIntegerField, F, Max, Value
 from django.db.models.functions import Cast, Coalesce
 from django.template.defaultfilters import filesizeformat
+from django.utils import timezone
 
 from .exceptions import AnalysisTooLargeError
 
@@ -57,6 +72,11 @@ DEFAULT_SAFETY_FACTOR = 1.2
 
 #: Below this many observations a workflow's coefficient is not trusted at all.
 DEFAULT_MIN_SAMPLES = 5
+
+#: How far back to look for observations. Long enough that ordinary workflows
+#: keep a usable sample count, short enough that an optimisation is reflected
+#: within a release cycle or two rather than never.
+DEFAULT_WINDOW_DAYS = 90
 
 
 def _setting(name, default):
@@ -89,7 +109,14 @@ def observed_bytes_per_point(use_cache=True):
     Learned memory coefficient per workflow, in bytes per grid point.
 
     Derived only from analyses of a single measurement, because that is the one
-    case where the number of grid points involved is unambiguous.
+    case where the number of grid points involved is unambiguous, and only from
+    runs inside the configured window, so that the coefficient can fall again
+    when a workflow is optimised. A workflow with no recent runs is absent from
+    the result, and callers must treat that as "no estimate".
+
+    ``task_end_time`` dates a run rather than ``task_start_time``, because that
+    is when its memory was measured. It is set on both the success and the
+    failure path, so completed runs always carry one.
     """
     if use_cache:
         cached = cache.get(CACHE_KEY)
@@ -98,10 +125,12 @@ def observed_bytes_per_point(use_cache=True):
 
     from .models import WorkflowResult
 
+    window_days = _setting("TOPOBANK_ANALYSIS_MEMORY_WINDOW_DAYS", DEFAULT_WINDOW_DAYS)
     rows = (
         WorkflowResult.objects.filter(
             task_memory__isnull=False,
             task_memory__gt=0,
+            task_end_time__gte=timezone.now() - timedelta(days=window_days),
             subject_topography__isnull=False,
             subject_topography__resolution_x__isnull=False,
         )
