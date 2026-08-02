@@ -1,5 +1,10 @@
 # Changelog for *TopoBank*
 
+# Unreleased
+
+- ENH: Custodian sweep and `reap_lost_tasks` command fail tasks whose worker
+  disappeared instead of leaving them "running" forever
+
 # 1.70.1 (2026-08-02)
 
 - BUG: Every analysis failed with `get() returned more than one Version` once two
