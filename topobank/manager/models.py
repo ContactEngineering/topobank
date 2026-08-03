@@ -44,7 +44,12 @@ from ..files.models import Manifest, ManifestSet
 from ..taskapp.models import IncompleteMetadataError, TaskStateModel
 from ..taskapp.utils import in_celery_worker_process, run_task
 from ..utils.timer import Timer
-from .utils import get_topography_reader, render_deepzoom, undefined_data_fraction
+from .utils import (
+    detrend_parameters,
+    get_topography_reader,
+    render_deepzoom,
+    undefined_data_fraction,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -833,6 +838,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     )
 
     detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default="center")
+    # The trend that was subtracted, as `slope_x`/`slope_y` (dimensionless) and
+    # `radius_x`/`radius_y` (in `unit`); see `utils.detrend_parameters`. Null until
+    # the measurement has been inspected, empty when the mode fits no trend.
+    detrend_parameters = models.JSONField(null=True, default=None, editable=False)
 
     resolution_x = models.IntegerField(
         null=True, editable=False, validators=[MinValueValidator(0)]
@@ -1754,6 +1763,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     if self.undefined_data_fraction is None
                     else self.undefined_data_fraction > 0
                 )
+
+                # What the detrending actually removed. `st_topo` is the
+                # detrended topography, so this reads the fit it performed
+                # rather than repeating it.
+                self.detrend_parameters = detrend_parameters(st_topo)
 
                 # Refresh other cached quantities
                 with timer("refresh_bandwidth_cache"):

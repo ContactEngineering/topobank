@@ -6,7 +6,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("manager", "0081_surface_search_vector_surface_surface_search_idx"),
+        ("manager", "0082_topography_detrend_parameters"),
     ]
 
     operations = [
