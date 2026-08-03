@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# Unreleased
+# 1.71.0 (2026-08-03)
 
 - ENH: A data series records the extent of its data next to the reference to its
   file, so a plot can pick a display unit that suits the data without reading the
