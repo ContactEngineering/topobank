@@ -224,12 +224,28 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     instrument_name = ""
     instrument_type = Topography.INSTRUMENT_TYPE_UNDEFINED
     instrument_parameters = {}
+    # `post_generation` below calls refresh_cache(), which is the body of the
+    # inspection task (see Topography.task_worker). Calling it directly bypasses
+    # the task wrapper that would normally record the outcome, so factory-built
+    # measurements would otherwise look like they were never inspected
+    # successfully despite having a populated cache. Override to build a
+    # measurement in a different state, e.g. task_state=Topography.FAILURE.
+    task_state = Topography.SUCCESS
 
     @factory.post_generation
     def post_generation(self, create, value, **kwargs):
         self.datafile.permissions = self.permissions
         self.datafile.save()
+        requested_task_state = self.task_state
         self.refresh_cache()
+        # Saving the datafile and refreshing the cache re-dispatch the
+        # inspection task, which resets task_state to PENDING. Restore the
+        # requested state, bypassing signals so it is not reset again. Note
+        # that the subclasses differ in whether factory_boy saves the instance
+        # after post_generation (`skip_postgeneration_save`), so writing it
+        # both in memory and in the database keeps them consistent.
+        self.task_state = requested_task_state
+        Topography.objects.filter(pk=self.pk).update(task_state=requested_task_state)
 
 
 class Topography2DFactory(Topography1DFactory):
