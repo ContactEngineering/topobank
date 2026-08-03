@@ -91,6 +91,73 @@ class TopographyFileReadingException(TopographyFileException):
         return self._message
 
 
+#: Curvature below which a fitted paraboloid is treated as flat. The least-squares
+#: fit of a plane leaves quadratic coefficients at the level of numerical noise
+#: (~1e-18 / length²), and inverting those yields radii of order 1e17 length
+#: units. Scaled by the scan size, genuine curvatures sit many orders of magnitude
+#: above this.
+_FLAT_CURVATURE = 1e-9
+
+
+def detrend_parameters(st_topo):
+    """
+    The trend that was subtracted from a measurement, in physical units.
+
+    A detrended topography carries the coefficients of the polynomial it removed,
+    but in units of fractional position (`x = index / nb_grid_pts`), which are not
+    meaningful to report. They are converted here: slopes to the dimensionless
+    ratio of height over lateral distance, curvatures to a radius in the lateral
+    unit of the measurement.
+
+    The mixed term of a fitted paraboloid is left out. It is part of the removed
+    trend, but it does not describe a radius in either lateral direction, which is
+    what a reader is after.
+
+    Parameters
+    ----------
+    st_topo : SurfaceTopography.HeightContainer.AbstractHeightContainer
+        Topography, as returned by `detrend`.
+
+    Returns
+    -------
+    dict
+        Keys `slope_x`, `slope_y`, `radius_x` and `radius_y`, each present only
+        where the fit determines it: a detrend mode that only subtracts the mean
+        yields an empty dict, a line scan has no `y` component, and a direction the
+        fit found to be flat has no radius. Radii are in the lateral unit of the
+        measurement.
+    """
+    coeffs = getattr(st_topo, "coeffs", None)
+    if coeffs is None:
+        # Not a detrended topography; nothing was fitted.
+        return {}
+
+    directions = ["x", "y"][: st_topo.dim]
+    sizes = st_topo.physical_sizes
+    parameters = {}
+
+    # A fit on a uniform grid is parameterized in fractional position
+    # (`x = index / nb_grid_pts`), so its linear coefficients have to be divided
+    # by the extent of the scan; a fit on a nonuniform line scan uses the real
+    # positions and is already per unit length.
+    extents = sizes if st_topo.is_uniform else (1,) * len(directions)
+
+    # coeffs[0] is the offset, followed by one linear coefficient per direction.
+    # A mode that only subtracts the mean stops after the offset.
+    for index, (direction, extent) in enumerate(zip(directions, extents), start=1):
+        if len(coeffs) > index:
+            parameters[f"slope_{direction}"] = float(coeffs[index]) / extent
+
+    # `curvatures` returns 1/R per direction, followed by the mixed term, and
+    # already accounts for the parameterization of the fit.
+    curvatures = getattr(st_topo, "curvatures", ())
+    for direction, size, curvature in zip(directions, sizes, curvatures):
+        if abs(curvature) * size > _FLAT_CURVATURE:
+            parameters[f"radius_{direction}"] = 1 / float(curvature)
+
+    return parameters
+
+
 def mangle_content_type(obj, default_app_label="manager"):
     """Mangle content type into a string that can be used as a Javascript variable name"""
     if not isinstance(obj, ContentType):

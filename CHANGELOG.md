@@ -2,6 +2,9 @@
 
 # Unreleased
 
+- ENH: Measurements record `detrend_parameters`, the trend that detrending
+  subtracted: the slope of the removed tilt and the radius of the removed
+  curvature, in physical units
 - ENH: Custodian sweep and `reap_lost_tasks` command fail tasks whose worker
   disappeared instead of leaving them "running" forever
 - ENH: Analyses predicted to exceed `TOPOBANK_ANALYSIS_MEMORY_BUDGET` fail with
