@@ -34,6 +34,11 @@ class CeleryAppConfig(AppConfig):
         _log.info("Autodiscovering tasks in apps: {}".format(installed_apps))
         app.autodiscover_tasks(lambda: installed_apps, force=True)
 
+        # Autodiscovery only imports each app's `tasks` module, so the tasks
+        # defined in `custodian` below would stay unregistered - and the beat
+        # entry further down schedules one of them by name.
+        from . import custodian  # noqa: F401
+
         #
         # I had problems using the celery signal 'on_after_configure'.
         # Also see here: https://github.com/celery/celery/issues/3589
