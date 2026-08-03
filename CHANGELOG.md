@@ -2,6 +2,10 @@
 
 # Unreleased
 
+- ENH: Custodian sweep and `reap_lost_tasks` command fail tasks whose worker
+  disappeared instead of leaving them "running" forever
+- ENH: Analyses predicted to exceed `TOPOBANK_ANALYSIS_MEMORY_BUDGET` fail with
+  an explanatory message instead of being killed by the OOM killer
 - TST: `Topography1DFactory` and `Topography2DFactory` now build measurements in
   `task_state` SUCCESS, which is what their `refresh_cache()` call actually
   performs. Pass `task_state` to build a measurement in another state. Previously
