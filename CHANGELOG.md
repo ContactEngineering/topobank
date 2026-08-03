@@ -5,10 +5,20 @@
 - ENH: Measurements record `detrend_parameters`, the trend that detrending
   subtracted: the slope of the removed tilt and the radius of the removed
   curvature, in physical units
+- ENH: Measurements record `undefined_data_fraction`, how much of the measured
+  data carries no value
 - ENH: Custodian sweep and `reap_lost_tasks` command fail tasks whose worker
   disappeared instead of leaving them "running" forever
 - ENH: Analyses predicted to exceed `TOPOBANK_ANALYSIS_MEMORY_BUDGET` fail with
   an explanatory message instead of being killed by the OOM killer
+- BUILD: Anchored the `data/` pattern in `.gitignore` to the repository root; it
+  matched `topobank/testing/data/` and kept the test fixtures out of the wheel,
+  which a `force-include` worked around. That workaround is removed, since it now
+  adds every file of that directory a second time and fails the build
+- BUG: `has_undefined_data` describes the measured data again. It was read from
+  the filtered topography, which reports no undefined data by definition once
+  filling is enabled, so enabling filling erased the very information the fill
+  mode was chosen in response to
 - TST: `Topography1DFactory` and `Topography2DFactory` now build measurements in
   `task_state` SUCCESS, which is what their `refresh_cache()` call actually
   performs. Pass `task_state` to build a measurement in another state. Previously

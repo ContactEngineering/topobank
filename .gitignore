@@ -365,7 +365,10 @@ compose/local/django/pip-packages/*
 .ipynb_checkpoints/
 /media/**/*
 !/stuff/usage_statistics.xlsx
-data/
+# Anchored to the repository root: unanchored, this also matched
+# `topobank/testing/data/`, so a new test fixture was silently not added.
+# `data-lake/` is ignored separately below.
+/data/
 .envs/.local/.pypi-authfile
 
 # *.ttf and *.woff2 files

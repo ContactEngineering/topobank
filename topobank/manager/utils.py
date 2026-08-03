@@ -7,6 +7,7 @@ import tempfile
 from typing import Optional
 
 import markdown2
+import numpy as np
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
@@ -156,6 +157,39 @@ def detrend_parameters(st_topo):
             parameters[f"radius_{direction}"] = 1 / float(curvature)
 
     return parameters
+
+
+def undefined_data_fraction(st_topo):
+    """
+    Fraction of the data points of a measurement that carry no value, in [0, 1].
+
+    The number describes the data as it was *measured*, not the filtered
+    instance: a topography with filling enabled reports no undefined data by
+    definition (`interpolate_undefined_data_harmonic` overrides
+    `has_undefined_data` to False and replaces the mask with interpolated
+    values), so asking the instance itself would report zero for exactly those
+    measurements where the answer matters. The mask is therefore read from the
+    bottom of the pipeline, which is the node holding the data as read from the
+    file.
+
+    Parameters
+    ----------
+    st_topo : SurfaceTopography.HeightContainer.AbstractHeightContainer
+        Topography, possibly the result of a chain of filters.
+
+    Returns
+    -------
+    float or None
+        The fraction of undefined data points, or None for an empty topography.
+    """
+    while hasattr(st_topo, "parent_topography"):
+        st_topo = st_topo.parent_topography
+    # Topographies without any undefined data carry a plain array rather than a
+    # masked one; `getmaskarray` returns an all-False mask for those.
+    mask = np.ma.getmaskarray(st_topo.heights())
+    if mask.size == 0:
+        return None
+    return float(mask.sum()) / mask.size
 
 
 def mangle_content_type(obj, default_app_label="manager"):
