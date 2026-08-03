@@ -1,5 +1,14 @@
 # Changelog for *TopoBank*
 
+# Unreleased
+
+- TST: `Topography1DFactory` and `Topography2DFactory` now build measurements in
+  `task_state` SUCCESS, which is what their `refresh_cache()` call actually
+  performs. Pass `task_state` to build a measurement in another state. Previously
+  the resulting state was an artifact of save ordering and the two factories
+  disagreed (`pending` vs `success`), because only one of them sets
+  `skip_postgeneration_save`
+
 # 1.70.1 (2026-08-02)
 
 - BUG: Every analysis failed with `get() returned more than one Version` once two
