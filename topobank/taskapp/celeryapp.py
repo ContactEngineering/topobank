@@ -62,6 +62,16 @@ class CeleryAppConfig(AppConfig):
                 "schedule": 12 * 3600,  # Twice a day
                 "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
             },
+            # Tasks whose worker died leave their row in STARTED forever, and
+            # every hour one sits there is an hour a user waits for a result
+            # that is never coming - hence a much shorter interval than the
+            # housekeeping cleanups above. The sweep needs two passes to fail
+            # anything, so the effective delay is twice this.
+            "taskapp-reap-lost-tasks": {
+                "task": "topobank.taskapp.custodian.reap_lost_tasks",
+                "schedule": 600,  # Every 10 minutes
+                "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
+            },
             **extra_schedule,
         }
 

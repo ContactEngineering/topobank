@@ -19,6 +19,7 @@ from ..taskapp.memory import track_memory_usage
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
+from .sizing import check_memory_budget
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)
@@ -459,6 +460,13 @@ def execute_workflow(
     # LOO fold — still leaves its partial duration behind).
     timer = Timer(str(self.request.id))
     try:
+        # Refuse an analysis that cannot fit before allocating anything. The
+        # alternative is the OOM killer removing this process mid-computation,
+        # which leaves the user with no explanation and (when the whole container
+        # goes) a row stuck in "running". Raising here instead means the handler
+        # below records a FAILURE carrying a message the user can act on.
+        check_memory_budget(analysis)
+
         dois = set()
         on_progress = None
         # If a callback is configured, create a progress callback.
