@@ -92,6 +92,29 @@ def reasonable_bins_argument(topography):
         # return 'auto'
 
 
+def _finite_range(values):
+    """Smallest and largest finite value of a data series.
+
+    Parameters
+    ----------
+    values : array_like
+        The data.
+
+    Returns
+    -------
+    list of float or None
+        `[minimum, maximum]`, or None if nothing in the series is finite. Series
+        can carry NaN (an undefined data point) and infinities (a distribution
+        that diverges), neither of which says anything about the extent of the
+        data.
+    """
+    finite = np.asarray(values, dtype=float)
+    finite = finite[np.isfinite(finite)]
+    if finite.size == 0:
+        return None
+    return [float(finite.min()), float(finite.max())]
+
+
 def wrap_series(series, primary_key="x"):
     """
     Wrap each data series into a `SplitDictionaryHere` with a consecutive name
@@ -115,6 +138,16 @@ def wrap_series(series, primary_key="x"):
         supplementary = {"name": s["name"], "nbDataPoints": len(s[primary_key])}
         if "visible" in s:
             supplementary["visible"] = s["visible"]
+        # The extent of the data, recorded here because this is where the series
+        # is still in memory. A plot that combines several results needs it to
+        # choose a display unit that suits the data, and reading the series back
+        # out of the object store to find out would defeat the purpose of
+        # splitting them off (ContactEngineering/ce-ui#39).
+        for axis, key in (("x", primary_key), ("y", "y")):
+            if key in s:
+                data_range = _finite_range(s[key])
+                if data_range is not None:
+                    supplementary[f"{axis}Range"] = data_range
         wrapped_series.append(
             SplitDictionaryHere(f"series-{i}", s, supplementary=supplementary)
         )
