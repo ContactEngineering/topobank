@@ -2,6 +2,9 @@
 
 # Unreleased
 
+- ENH: Measurements record `detrend_parameters`, the trend that detrending
+  subtracted: the slope of the removed tilt and the radius of the removed
+  curvature, in physical units
 - TST: `Topography1DFactory` and `Topography2DFactory` now build measurements in
   `task_state` SUCCESS, which is what their `refresh_cache()` call actually
   performs. Pass `task_state` to build a measurement in another state. Previously
