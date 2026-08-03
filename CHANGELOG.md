@@ -2,6 +2,10 @@
 
 # Unreleased
 
+- ENH: A data series records the extent of its data next to the reference to its
+  file, so a plot can pick a display unit that suits the data without reading the
+  series back out of the object store
+
 - ENH: Measurements record `detrend_parameters`, the trend that detrending
   subtracted: the slope of the removed tilt and the radius of the removed
   curvature, in physical units
