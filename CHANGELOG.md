@@ -2,6 +2,12 @@
 
 # Unreleased
 
+- ENH: Measurements record `undefined_data_fraction`, how much of the measured
+  data carries no value
+- BUG: `has_undefined_data` describes the measured data again. It was read from
+  the filtered topography, which reports no undefined data by definition once
+  filling is enabled, so enabling filling erased the very information the fill
+  mode was chosen in response to
 - TST: `Topography1DFactory` and `Topography2DFactory` now build measurements in
   `task_state` SUCCESS, which is what their `refresh_cache()` call actually
   performs. Pass `task_state` to build a measurement in another state. Previously

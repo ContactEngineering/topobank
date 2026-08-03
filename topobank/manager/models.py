@@ -44,7 +44,7 @@ from ..files.models import Manifest, ManifestSet
 from ..taskapp.models import IncompleteMetadataError, TaskStateModel
 from ..taskapp.utils import in_celery_worker_process, run_task
 from ..utils.timer import Timer
-from .utils import get_topography_reader, render_deepzoom
+from .utils import get_topography_reader, render_deepzoom, undefined_data_fraction
 
 _log = logging.getLogger(__name__)
 
@@ -822,6 +822,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     has_undefined_data = models.BooleanField(
         null=True, default=None
     )  # default is undefined
+    # Fraction (not percentage) of the data points of the measured data that are
+    # undefined, in [0, 1]. Null until the measurement has been inspected.
+    undefined_data_fraction = models.FloatField(
+        null=True, default=None, editable=False
+    )
     fill_undefined_data_mode = models.TextField(
         choices=FILL_UNDEFINED_DATA_MODE_CHOICES,
         default=FILL_UNDEFINED_DATA_MODE_NOFILLING,
@@ -1217,6 +1222,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             },
             "data_source": self.data_source,
             "has_undefined_data": self.has_undefined_data,
+            "undefined_data_fraction": self.undefined_data_fraction,
             "fill_undefined_data_mode": self.fill_undefined_data_mode,
             "detrend_mode": self.detrend_mode,
             "is_periodic": self.is_periodic,
@@ -1736,10 +1742,18 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 with timer("_read"):
                     st_topo = self._read(reader)
 
-                # Check whether original data file has undefined data point and update
-                # database accordingly. (`has_undefined_data` can be undefined if
-                # undetermined.)
-                self.has_undefined_data = bool(st_topo.has_undefined_data)
+                # How much of the original data file is undefined. Both values
+                # describe the *measured* data, which is why they are taken from
+                # the bottom of the pipeline rather than from `st_topo` itself:
+                # with filling enabled the pipeline reports no undefined data by
+                # definition, which would erase the very information the fill
+                # mode was chosen in response to.
+                self.undefined_data_fraction = undefined_data_fraction(st_topo)
+                self.has_undefined_data = (
+                    None
+                    if self.undefined_data_fraction is None
+                    else self.undefined_data_fraction > 0
+                )
 
                 # Refresh other cached quantities
                 with timer("refresh_bandwidth_cache"):
@@ -1786,6 +1800,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""
         s = self.HAS_UNDEFINED_DATA_DESCRIPTION[self.has_undefined_data]
+        if self.has_undefined_data and self.undefined_data_fraction is not None:
+            percentage = f"{100 * self.undefined_data_fraction:.2g}"
+            s += f" {percentage}% of the data points are undefined."
         if (
             self.fill_undefined_data_mode
             == Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING

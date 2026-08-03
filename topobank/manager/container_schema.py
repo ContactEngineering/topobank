@@ -103,6 +103,10 @@ class TopographyMeta(BaseModel):
     unit: Optional[str] = None
     data_source: int = 0
     has_undefined_data: Optional[bool] = None
+    # Fraction of undefined data points, in [0, 1]. Exported for information;
+    # like `has_undefined_data` it is recomputed on import, when the measurement
+    # is inspected.
+    undefined_data_fraction: Optional[float] = None
     fill_undefined_data_mode: str = DEFAULT_FILL_UNDEFINED_DATA_MODE
     detrend_mode: str = DEFAULT_DETREND_MODE
     is_periodic: bool = False

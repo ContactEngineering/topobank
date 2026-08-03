@@ -146,6 +146,7 @@ def test_topography_to_dict():
         "instrument": instrument,
         "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
         "has_undefined_data": False,
+        "undefined_data_fraction": 0,
     }
 
 
