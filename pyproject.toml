@@ -235,9 +235,11 @@ source = "vcs"
 
 [tool.hatch.build.targets.wheel]
 packages = ["topobank"]
-
-[tool.hatch.build.targets.wheel.force-include]
-"topobank/testing/data" = "topobank/testing/data"
+# No `force-include` for `topobank/testing/data` is needed: hatchling honours VCS
+# ignore files, and the `data/` pattern in `.gitignore` used to match this
+# directory and drop it from the wheel. That pattern is anchored to the repository
+# root now, so the directory is picked up as part of the package — force-including
+# it as well makes hatchling add every file twice and fail the build.
 
 [tool.hatch.build.targets.sdist]
 include = ["topobank"]

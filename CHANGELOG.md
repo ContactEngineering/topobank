@@ -11,6 +11,10 @@
   disappeared instead of leaving them "running" forever
 - ENH: Analyses predicted to exceed `TOPOBANK_ANALYSIS_MEMORY_BUDGET` fail with
   an explanatory message instead of being killed by the OOM killer
+- BUILD: Anchored the `data/` pattern in `.gitignore` to the repository root; it
+  matched `topobank/testing/data/` and kept the test fixtures out of the wheel,
+  which a `force-include` worked around. That workaround is removed, since it now
+  adds every file of that directory a second time and fails the build
 - BUG: `has_undefined_data` describes the measured data again. It was read from
   the filtered topography, which reports no undefined data by definition once
   filling is enabled, so enabling filling erased the very information the fill
