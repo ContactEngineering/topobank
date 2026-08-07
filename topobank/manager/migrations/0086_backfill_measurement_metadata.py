@@ -62,6 +62,8 @@ _COMMON_FILE_INFO = [
     "bandwidth_upper",
     "short_reliability_cutoff",
     "has_undefined_data",
+    "undefined_data_fraction",
+    "detrend_parameters",
     "size_editable",
     "unit_editable",
     "height_scale_editable",
@@ -354,7 +356,7 @@ def restore(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("manager", "0083_measurement_metadata_fields"),
+        ("manager", "0085_measurement_metadata_fields"),
     ]
 
     operations = [

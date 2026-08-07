@@ -76,6 +76,22 @@ Data import
         it before the file is inspected.
 
 
+Container / ZIP export
+----------------------
+.. list-table:: Container / ZIP export
+    :widths: 25 10 20 45
+    :header-rows: 1
+
+    * - ENV Variable
+      - Type
+      - Default
+      - Description
+    * - :code:`TOPOBANK_SPOOL_MAX_SIZE`
+      - int
+      - :code:`67108864` (64 MB)
+      - Maximum archive size in bytes kept in memory before spilling to disk during ZIP file creation.
+
+
 
 
 

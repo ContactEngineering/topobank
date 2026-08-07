@@ -212,6 +212,8 @@ _FILE_INFO_KEYS = frozenset(
         "bandwidth_upper",
         "short_reliability_cutoff",
         "has_undefined_data",
+        "undefined_data_fraction",
+        "detrend_parameters",
         "channels",
     }
 )
@@ -252,6 +254,13 @@ class MeasurementFactory(factory.django.DjangoModelFactory):
     measurement_date = factory.Sequence(
         lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n)
     )
+    # `post_generation` below calls refresh_cache(), which is the body of the
+    # inspection task (see Measurement.task_worker). Calling it directly bypasses
+    # the task wrapper that would normally record the outcome, so factory-built
+    # measurements would otherwise look like they were never inspected
+    # successfully despite having a populated cache. Override to build a
+    # measurement in a different state, e.g. task_state=Measurement.FAILURE.
+    task_state = Measurement.SUCCESS
 
     @classmethod
     def _create(cls, model_class, *args, **kwargs):
@@ -282,7 +291,16 @@ class MeasurementFactory(factory.django.DjangoModelFactory):
     def post_generation(self, create, value, **kwargs):
         self.datafile.permissions = self.permissions
         self.datafile.save()
+        requested_task_state = self.task_state
         self.refresh_cache()
+        # Saving the datafile and refreshing the cache re-dispatch the inspection
+        # task, which resets task_state to PENDING. Restore the requested state,
+        # bypassing signals so it is not reset again. All these factories set
+        # `skip_postgeneration_save`, so the instance is not written again after
+        # this; writing it both in memory and in the database keeps the two
+        # consistent either way.
+        self.task_state = requested_task_state
+        Measurement.objects.filter(pk=self.pk).update(task_state=requested_task_state)
 
 
 class NonuniformLineScanFactory(MeasurementFactory):

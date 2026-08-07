@@ -27,12 +27,6 @@ class Command(BaseCommand):
             dest='recipient',
             help='Username of the user who is the recipient. If not given, send to all users.',
         )
-        parser.add_argument(
-            '--changelog',
-            action='store_true',
-            dest='changelog',
-            help='Clicking the notification links to the current Changelog file. Default is a link to home.',
-        )
 
     def handle(self, *args, **options):
         User = get_user_model()

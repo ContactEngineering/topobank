@@ -253,3 +253,86 @@ def assert_file_equal(folder: ManifestSet, filepath: str, filename: str):
     data1 = folder.find_file(filename).read()
     data2 = open(f"{filepath}/{filename}", "rb").read()
     assert data1 == data2
+
+
+def download_zip_container(client, url, capture_on_commit_callbacks):
+    """
+    Run the asynchronous download flow and return the bytes of the archive.
+
+    ZIP containers are built by a Celery task, so a client POSTs to `url`, waits
+    for the task to finish and then downloads the finished file. In tests,
+    Celery runs eagerly, but the task is dispatched in an on-commit hook, hence
+    the need for `capture_on_commit_callbacks`.
+
+    Parameters
+    ----------
+    client : django.test.Client or rest_framework.test.APIClient
+        Client used for the request.
+    url : str
+        The route that creates the container, e.g. the one reversed from
+        'manager:surface-download-v2'.
+    capture_on_commit_callbacks : callable
+        The `django_capture_on_commit_callbacks` pytest-django fixture.
+
+    Returns
+    -------
+    bytes
+        The archive.
+    """
+    from topobank.manager.zip_model import ZipContainer
+
+    with capture_on_commit_callbacks(execute=True):
+        response = client.post(url)
+    assert response.status_code == 200, response.content
+
+    container = ZipContainer.objects.get(id=response.json()["id"])
+    assert container.get_task_state() == ZipContainer.SUCCESS, container.task_error
+    assert container.manifest is not None
+    return container.manifest.read()
+
+
+def import_container_from_url_or_skip(user, url, tag=None):
+    """
+    Import a container from a remote instance, skipping the test if that is not
+    possible.
+
+    Tests that exercise the cross-instance import run against a live remote, so
+    they are skipped when it cannot be reached. They are also skipped when the
+    remote does not advertise an `async_download_url`: containers are built
+    asynchronously and older deployments still offer only the synchronous
+    `download_url` that this stack no longer speaks.
+
+    Parameters
+    ----------
+    user : `topobank.users.models.User`
+        The user who imports the container.
+    url : str
+        URL of the published dataset on the remote instance.
+    tag : Tag, optional
+        Tag to associate with the imported container.
+
+    Returns
+    -------
+    Surface
+        The imported dataset.
+    """
+    import urllib.error
+
+    import pytest
+    import requests
+
+    from topobank.manager.tasks import import_container_from_url
+
+    try:
+        return import_container_from_url(user, url, tag=tag)
+    except KeyError as exc:
+        pytest.skip(
+            f"The instance at {url} does not offer an asynchronous download "
+            f"({exc}); it is probably running an older version."
+        )
+    except (
+        urllib.error.URLError,
+        OSError,
+        requests.exceptions.RequestException,
+    ) as exc:  # pragma: no cover - network
+        pytest.skip(f"Could not download container from {url}: {exc}")

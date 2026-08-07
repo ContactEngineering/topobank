@@ -153,6 +153,8 @@ def test_topography_to_dict():
         "created_by": dict(name=user.name, orcid=user.orcid_id),
         "measurement_date": measurement_date,
         "tags": tags,
+        # File-derived, exported for information only (see `to_dict`).
+        "undefined_data_fraction": 0,
     }
 
 

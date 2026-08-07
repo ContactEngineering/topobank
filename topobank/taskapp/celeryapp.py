@@ -34,6 +34,11 @@ class CeleryAppConfig(AppConfig):
         _log.info("Autodiscovering tasks in apps: {}".format(installed_apps))
         app.autodiscover_tasks(lambda: installed_apps, force=True)
 
+        # Autodiscovery only imports each app's `tasks` module, so the tasks
+        # defined in `custodian` below would stay unregistered - and the beat
+        # entry further down schedules one of them by name.
+        from . import custodian  # noqa: F401
+
         #
         # I had problems using the celery signal 'on_after_configure'.
         # Also see here: https://github.com/celery/celery/issues/3589
@@ -60,6 +65,16 @@ class CeleryAppConfig(AppConfig):
             "analysis-periodic-cleanup": {
                 "task": "topobank.analysis.custodian.periodic_cleanup",
                 "schedule": 12 * 3600,  # Twice a day
+                "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
+            },
+            # Tasks whose worker died leave their row in STARTED forever, and
+            # every hour one sits there is an hour a user waits for a result
+            # that is never coming - hence a much shorter interval than the
+            # housekeeping cleanups above. The sweep needs two passes to fail
+            # anything, so the effective delay is twice this.
+            "taskapp-reap-lost-tasks": {
+                "task": "topobank.taskapp.custodian.reap_lost_tasks",
+                "schedule": 600,  # Every 10 minutes
                 "options": {"queue": settings.TOPOBANK_MANAGER_QUEUE}
             },
             **extra_schedule,

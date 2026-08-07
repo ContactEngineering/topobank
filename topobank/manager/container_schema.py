@@ -142,6 +142,10 @@ class MeasurementMeta(BaseModel):
     unit: Optional[str] = None
     data_source: Optional[int] = None
     has_undefined_data: Optional[bool] = None
+    # Fraction of undefined data points, in [0, 1]. Accepted for information;
+    # like `has_undefined_data` it is recomputed when the measurement is
+    # inspected, so it is not carried into the metadata.
+    undefined_data_fraction: Optional[float] = None
     fill_undefined_data_mode: str = DEFAULT_FILL_UNDEFINED_DATA_MODE
     detrend_mode: str = DEFAULT_DETREND_MODE
     is_periodic: bool = False

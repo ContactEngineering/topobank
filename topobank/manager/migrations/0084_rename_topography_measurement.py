@@ -50,7 +50,7 @@ class Migration(migrations.Migration):
         # them.
         ("analysis", "0064_backfill_subject_hash"),
         ("contenttypes", "0002_remove_content_type_name"),
-        ("manager", "0081_surface_search_vector_surface_surface_search_idx"),
+        ("manager", "0083_topography_undefined_data_fraction"),
     ]
 
     operations = [

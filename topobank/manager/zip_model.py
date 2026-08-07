@@ -1,5 +1,5 @@
-import io
 import logging
+import tempfile
 import zipfile
 
 from django.conf import settings
@@ -59,7 +59,45 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         )
         self.save(update_fields=["manifest"])
 
-    def export_zip(self, tag_name=None, surface_ids=None):
+    def export_zip(
+        self,
+        tag_name=None,
+        surface_ids=None,
+        archive_name=None,
+        extra_metadata=None,
+        progress_recorder=None,
+    ):
+        """
+        Bundle datasets into a ZIP archive and store it on this container's
+        manifest.
+
+        Parameters
+        ----------
+        tag_name : str, optional
+            Bundle every dataset below this tag. Mutually exclusive with
+            `surface_ids`. (Default: None)
+        surface_ids : list of int, optional
+            Bundle these datasets. Mutually exclusive with `tag_name`.
+            (Default: None)
+        archive_name : str, optional
+            Human-readable name for the archive; it is slugified into the file
+            name. Deployments that group datasets by something other than tags
+            (e.g. folders) use this to name the download after that grouping.
+            Falls back to a name derived from the datasets themselves.
+            (Default: None)
+        extra_metadata : dict, optional
+            Opaque payload written to the container metadata, see
+            `export_container_zip`. Surface references therein should use
+            indices into the container's dataset order, which is the order of
+            `surface_ids`. (Default: None)
+        progress_recorder : topobank.taskapp.tasks.ProgressRecorder, optional
+            Reports how many measurements have been bundled so far.
+            (Default: None)
+
+        Returns
+        -------
+        None
+        """
         #
         # Fetch user
         #
@@ -89,32 +127,45 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         #
         # Guess a filename
         #
-        if len(surfaces) == 1:
+        archive_slug = slugify(archive_name) if archive_name else ""
+        if archive_slug:
+            container_filename = f"{archive_slug}.zip"
+        elif len(surfaces) == 1:
             container_filename = f"{slugify(surfaces[0].name)}.zip"
         else:
             container_filename = "digital-surface-twins.zip"
 
-        container_data = io.BytesIO()
         _log.info(
             f"Preparing container of surface with ids {' '.join([str(s.id) for s in surfaces])} for download..."
         )
-        try:
-            export_container_zip(container_data, surfaces)
-        except FileNotFoundError:
-            return RuntimeError(
-                "Cannot create ZIP container for download because some data file "
-                "could not be accessed. (The file may be missing.)"
-            )
+        max_size = getattr(settings, "TOPOBANK_SPOOL_MAX_SIZE", 64 * 1024 * 1024)
+        with tempfile.SpooledTemporaryFile(max_size=max_size) as container_data:
+            try:
+                export_container_zip(
+                    container_data,
+                    surfaces,
+                    extra_metadata=extra_metadata,
+                    progress_recorder=progress_recorder,
+                )
+            except FileNotFoundError:
+                # Raise, don't return: returning the exception left the task in
+                # SUCCESS with no manifest, so a client would be told its
+                # download was ready and then find nothing to fetch.
+                raise RuntimeError(
+                    "Cannot create ZIP container for download because some data file "
+                    "could not be accessed. (The file may be missing.)"
+                )
+            container_data.seek(0)
 
-        #
-        # Create and write the file to storage
-        #
-        self.manifest = Manifest.objects.create(
-            permissions=self.permissions,
-            filename=container_filename,
-            kind="der",
-        )
-        self.manifest.save_file(container_data)
+            #
+            # Create and write the file to storage
+            #
+            self.manifest = Manifest.objects.create(
+                permissions=self.permissions,
+                filename=container_filename,
+                kind="der",
+            )
+            self.manifest.save_file(container_data)
 
     def import_zip(self):
         _log.info(f"Importing ZIP container '{self.manifest.file.name}'...")
@@ -126,7 +177,14 @@ class ZipContainer(PermissionMixin, TaskStateModel):
         with zipfile.ZipFile(self.manifest.file, mode='r') as z:
             import_container_zip(z, permission.user, ignore_missing=True)
 
-    def task_worker(self, tag_name=None, surface_ids=None):
+    def task_worker(
+        self,
+        tag_name=None,
+        surface_ids=None,
+        archive_name=None,
+        extra_metadata=None,
+        progress_recorder=None,
+    ):
         if self.permissions.user_permissions.count() != 1:
             raise PermissionDenied(
                 "Internal error: There should only be a single user for ZIP downloads and uploads."
@@ -134,7 +192,13 @@ class ZipContainer(PermissionMixin, TaskStateModel):
 
         if self.manifest is None and (tag_name is not None or surface_ids is not None):
             # There is no file, but we have a tag or a list of datasets
-            self.export_zip(tag_name=tag_name, surface_ids=surface_ids)
+            self.export_zip(
+                tag_name=tag_name,
+                surface_ids=surface_ids,
+                archive_name=archive_name,
+                extra_metadata=extra_metadata,
+                progress_recorder=progress_recorder,
+            )
         elif self.manifest is not None and self.manifest.exists():
             # There is a file, which means we should try to import
             self.import_zip()

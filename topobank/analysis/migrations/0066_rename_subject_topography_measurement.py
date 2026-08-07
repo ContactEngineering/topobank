@@ -19,9 +19,9 @@ import topobank.analysis.models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("analysis", "0064_backfill_subject_hash"),
+        ("analysis", "0065_resultzipcontainer"),
         # The target model must have been renamed first.
-        ("manager", "0082_rename_topography_measurement"),
+        ("manager", "0084_rename_topography_measurement"),
     ]
 
     operations = [

@@ -24,12 +24,13 @@ import os.path
 import tempfile
 from typing import Optional
 
-import matplotlib.pyplot
+import matplotlib
 import numpy as np
 import PIL
 from django.conf import settings
 from django.core.files import File
 from django.core.files.base import ContentFile
+from matplotlib.figure import Figure
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
@@ -560,7 +561,24 @@ class SurfaceTopographyType(MeasurementType):
     #
 
     def refresh_derived_cache(self, measurement, data, file_info) -> None:
-        """Cache bandwidth information, converted to meters."""
+        """Cache undefined-data and detrending information plus the bandwidth."""
+        from ..manager.utils import detrend_parameters, undefined_data_fraction
+
+        # How much of the original data file is undefined. Taken from the bottom
+        # of the pipeline rather than from `data` itself: with filling enabled
+        # the pipeline reports no undefined data by definition, which would erase
+        # the very information the fill mode was chosen in response to.
+        file_info.undefined_data_fraction = undefined_data_fraction(data)
+        file_info.has_undefined_data = (
+            None
+            if file_info.undefined_data_fraction is None
+            else file_info.undefined_data_fraction > 0
+        )
+
+        # What the detrending actually removed. `data` is the detrended
+        # topography, so this reads the fit it performed rather than repeating it.
+        file_info.detrend_parameters = detrend_parameters(data)
+
         if data.unit is None:
             return
         bandwidth_lower, bandwidth_upper = data.bandwidth()
@@ -577,8 +595,6 @@ class SurfaceTopographyType(MeasurementType):
             cutoff *= fac
         file_info.short_reliability_cutoff = cutoff
 
-        file_info.has_undefined_data = bool(data.has_undefined_data)
-
     def render_thumbnail(self, measurement, data, width=400, height=400, cmap=None):
         """
         Render a thumbnail image of the data.
@@ -590,20 +606,23 @@ class SurfaceTopographyType(MeasurementType):
         """
         image_file = io.BytesIO()
         dpi = 100
-        fig, ax = matplotlib.pyplot.subplots(figsize=[width / dpi, height / dpi])
-        try:
-            x, y = data.positions_and_heights()
-            ax.plot(x, y, "-")
-            ax.set_axis_off()
-            fig.savefig(
-                image_file,
-                bbox_inches="tight",
-                dpi=dpi,
-                format=settings.TOPOBANK_THUMBNAIL_FORMAT,
-            )
-        finally:
-            # Closing explicitly saves memory, see GH 898.
-            matplotlib.pyplot.close(fig)
+        # Use the object-oriented API rather than `pyplot`. `pyplot` resolves the
+        # interactive backend, which on macOS is `macosx`; instantiating its
+        # canvas inside a forked Celery worker initializes AppKit on the child
+        # side of a fork, which the ObjC runtime aborts with SIGABRT. A bare
+        # `Figure` renders through Agg and keeps no global state, so it also
+        # removes the need to close the figure (see GH 898).
+        fig = Figure(figsize=[width / dpi, height / dpi])
+        ax = fig.subplots()
+        x, y = data.positions_and_heights()
+        ax.plot(x, y, "-")
+        ax.set_axis_off()
+        fig.savefig(
+            image_file,
+            bbox_inches="tight",
+            dpi=dpi,
+            format=settings.TOPOBANK_THUMBNAIL_FORMAT,
+        )
         return image_file
 
     def make_thumbnail(self, measurement, data) -> None:
@@ -684,7 +703,13 @@ class TopographyMapType(SurfaceTopographyType):
         heights = data.heights()
         mx, mn = heights.max(), heights.min()
         heights = (heights - mn) / (mx - mn)
-        colors = (matplotlib.pyplot.get_cmap(cmap)(heights.T) * 255).astype(np.uint8)
+        # `matplotlib.colormaps` is the pyplot-free lookup; `None` selects the
+        # default, as `pyplot.get_cmap` did.
+        if cmap is None:
+            cmap = matplotlib.colormaps[matplotlib.rcParams["image.cmap"]]
+        elif isinstance(cmap, str):
+            cmap = matplotlib.colormaps[cmap]
+        colors = (cmap(heights.T) * 255).astype(np.uint8)
         # Drop the alpha channel before writing.
         PIL.Image.fromarray(colors[:, :, :3]).resize((width, height)).save(
             image_file, format=settings.TOPOBANK_THUMBNAIL_FORMAT

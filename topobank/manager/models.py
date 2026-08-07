@@ -516,7 +516,10 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             self.created_by.name if self.created_by is not None else "",
         ]
         parts += [flatten_for_search(tag.name) for tag in self.tags.all()]
-        for measurement in self.measurements.all():
+        measurements = self.measurements.select_related("created_by").prefetch_related(
+            "tags"
+        )
+        for measurement in measurements.all():
             parts += [
                 flatten_for_search(measurement.name),
                 measurement.description or "",
@@ -1311,6 +1314,14 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
             "description": self.description,
             "tags": [t.name for t in self.tags.order_by("name")],
         }
+
+        # File-derived values are not part of `metadata`, because importing an
+        # archive recomputes them from the data file. This one is exported anyway,
+        # purely so a reader of the archive can see how much of the measurement is
+        # undefined without inspecting every data file.
+        undefined_data_fraction = (self.file_info or {}).get("undefined_data_fraction")
+        if undefined_data_fraction is not None:
+            result["undefined_data_fraction"] = undefined_data_fraction
 
         return result
 

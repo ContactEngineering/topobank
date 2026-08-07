@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# 1.71.0 (2026-07-25)
+# 1.72.0 (unreleased)
 
 - API: `Topography` is now `Measurement`. The model no longer describes only
   topography data; its kind is determined by a registered *measurement type*
@@ -38,9 +38,60 @@
   published datasets) are still imported: their flat metadata keys are mapped into
   `metadata` and their channel index is resolved to a name on first inspection.
 
-# 1.70.0 (2026-07-25)
+# 1.71.0 (2026-08-03)
+
+- ENH: A data series records the extent of its data next to the reference to its
+  file, so a plot can pick a display unit that suits the data without reading the
+  series back out of the object store
+
+- ENH: Measurements record `detrend_parameters`, the trend that detrending
+  subtracted: the slope of the removed tilt and the radius of the removed
+  curvature, in physical units
+- ENH: Measurements record `undefined_data_fraction`, how much of the measured
+  data carries no value
+- ENH: Custodian sweep and `reap_lost_tasks` command fail tasks whose worker
+  disappeared instead of leaving them "running" forever
+- ENH: Analyses predicted to exceed `TOPOBANK_ANALYSIS_MEMORY_BUDGET` fail with
+  an explanatory message instead of being killed by the OOM killer
+- BUILD: Anchored the `data/` pattern in `.gitignore` to the repository root; it
+  matched `topobank/testing/data/` and kept the test fixtures out of the wheel,
+  which a `force-include` worked around. That workaround is removed, since it now
+  adds every file of that directory a second time and fails the build
+- BUG: `has_undefined_data` describes the measured data again. It was read from
+  the filtered topography, which reports no undefined data by definition once
+  filling is enabled, so enabling filling erased the very information the fill
+  mode was chosen in response to
+- TST: `Topography1DFactory` and `Topography2DFactory` now build measurements in
+  `task_state` SUCCESS, which is what their `refresh_cache()` call actually
+  performs. Pass `task_state` to build a measurement in another state. Previously
+  the resulting state was an artifact of save ordering and the two factories
+  disagreed (`pending` vs `success`), because only one of them sets
+  `skip_postgeneration_save`
+
+# 1.70.1 (2026-08-02)
+
+- BUG: Every analysis failed with `get() returned more than one Version` once two
+  workers had concurrently registered the same dependency version. `Version` was
+  guarded by a `unique_together` over nullable `micro`/`extra` columns, and
+  PostgreSQL treats NULLs as distinct in a UNIQUE constraint, so the guard never
+  applied to ordinary release numbers (`1.70.0` parses to `extra=None`)
+- MAINT: `Version` uniqueness is now a `UniqueConstraint` with
+  `nulls_distinct=False` (requires PostgreSQL 15+); a data migration merges
+  pre-existing duplicates and repoints `Configuration.versions` at the surviving
+  rows
+- MAINT: `get_package_version` tolerates duplicate `Version` rows left behind by
+  older databases instead of failing the task
+
+# 1.70.0 (2026-08-02)
 
 - ENH: Full text search index
+- ENH: Asynchronous creation of ZIP archives for downloads
+- ENH: `ZipContainer.export_zip` accepts `archive_name` and opaque `extra_metadata`
+- ENH: ZIP containers use a spooled temporary file, sized via `TOPOBANK_SPOOL_MAX_SIZE`
+- BUG: Guard against a missing permission set when deleting ZIP containers
+- MAINT: Use matplotlib's OO API for rendering thumbnails of line scans
+- MAINT: New `to_natural_length_unit` helper for display of physical sizes
+- MAINT: Removed the inert `--changelog` option from `notify_users` (mock-auth app)
 
 # 1.69.4 (2026-07-25)
 

@@ -7,6 +7,7 @@ from django.utils import timezone
 
 from ..taskapp.celeryapp import app
 from .models import WorkflowResult
+from .zip_model import ResultZipContainer
 
 _log = logging.getLogger(__name__)
 
@@ -40,6 +41,21 @@ def periodic_cleanup():
             "they were marked as deprecated."
         )
         WorkflowResult.objects.filter(pk__in=deprecated_pks).delete()
+
+    # Delete all ZIP containers of workflow results (they are just temporary
+    # download bundles and can be rebuilt at any time)
+    temporary_delay = getattr(
+        settings, "TOPOBANK_TEMPORARY_DELAY", settings.TOPOBANK_DELETE_DELAY
+    )
+    q = ResultZipContainer.objects.filter(
+        updated_at__lt=timezone.now() - temporary_delay
+    )
+    count = q.count()
+    if count:
+        _log.info(
+            f"Custodian: Deleting {count} temporary ZIP containers of workflow results."
+        )
+        q.delete()
 
     # Update WorkflowResults stuck in pending state with no Celery task assigned
     q = WorkflowResult.objects.filter(

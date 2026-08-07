@@ -18,7 +18,7 @@ class Migration(migrations.Migration):
 
     dependencies = [
         ("files", "0010_rename_folder_to_manifestset"),
-        ("manager", "0084_backfill_measurement_metadata"),
+        ("manager", "0086_backfill_measurement_metadata"),
     ]
 
     operations = [
@@ -90,6 +90,10 @@ class Migration(migrations.Migration):
         ),
         migrations.RemoveField(
             model_name="measurement",
+            name="detrend_parameters",
+        ),
+        migrations.RemoveField(
+            model_name="measurement",
             name="fill_undefined_data_mode",
         ),
         migrations.RemoveField(
@@ -151,6 +155,10 @@ class Migration(migrations.Migration):
         migrations.RemoveField(
             model_name="measurement",
             name="unit",
+        ),
+        migrations.RemoveField(
+            model_name="measurement",
+            name="undefined_data_fraction",
         ),
         migrations.RemoveField(
             model_name="measurement",

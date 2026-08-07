@@ -363,6 +363,16 @@ class HeightFileInfo(MeasurementFileInfo):
     short_reliability_cutoff: Optional[float] = None
     #: None while undetermined.
     has_undefined_data: Optional[bool] = None
+    #: Fraction (not percentage) of the data points of the *measured* data that
+    #: are undefined, in [0, 1]. None while undetermined.
+    undefined_data_fraction: Optional[float] = pydantic.Field(
+        default=None, ge=0, le=1
+    )
+    #: The trend that detrending subtracted, as `slope_x`/`slope_y`
+    #: (dimensionless) and `radius_x`/`radius_y` (in the lateral unit); see
+    #: :func:`topobank.manager.utils.detrend_parameters`. None until the
+    #: measurement has been inspected, empty when the mode fits no trend.
+    detrend_parameters: Optional[dict] = None
 
     #
     # Which metadata the file leaves up to the user. These describe what the
@@ -376,6 +386,9 @@ class HeightFileInfo(MeasurementFileInfo):
     def get_undefined_data_status(self, fill_undefined_data_mode=None) -> str:
         """Human-readable description of the undefined-data status."""
         s = HAS_UNDEFINED_DATA_DESCRIPTION[self.has_undefined_data]
+        if self.has_undefined_data and self.undefined_data_fraction is not None:
+            percentage = f"{100 * self.undefined_data_fraction:.2g}"
+            s += f" {percentage}% of the data points are undefined."
         if fill_undefined_data_mode == "do-not-fill":
             s += " No correction of undefined data is performed."
         elif fill_undefined_data_mode == "harmonic":
