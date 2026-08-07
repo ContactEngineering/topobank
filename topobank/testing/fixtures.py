@@ -19,8 +19,8 @@ from .factories import (
     OrganizationFactory,
     SurfaceFactory,
     TagFactory,
-    Topography1DFactory,
-    Topography2DFactory,
+    NonuniformLineScanFactory,
+    TopographyMapFactory,
     UserFactory,
 )
 
@@ -107,11 +107,10 @@ def two_topos(settings):
     datafile1 = ManifestFactory(filename="example3.di")
     datafile2 = ManifestFactory(filename="example4.txt")
 
-    topos1 = Topography2DFactory(
+    topos1 = TopographyMapFactory(
         surface=surface1,
         created_by=user,
         name="Example 3 - ZSensor",
-        data_source=0,
         measurement_date=datetime.date(2018, 1, 1),
         description="description1",
         size_x=10.0,
@@ -127,11 +126,10 @@ def two_topos(settings):
         resolution_y=256,
     )
 
-    topos2 = Topography2DFactory(
+    topos2 = TopographyMapFactory(
         surface=surface2,
         created_by=user,
         name="Example 4 - Default",
-        data_source=0,
         measurement_date=datetime.date(2018, 1, 2),
         description="description2",
         size_x=112.80791,
@@ -155,7 +153,7 @@ def one_line_scan():
 
     datafile = ManifestFactory(filename="line_scan_1.asc")
 
-    return Topography1DFactory(
+    return NonuniformLineScanFactory(
         surface=surface,
         name="Simple Line Scan",
         measurement_date=datetime.date(2018, 1, 1),
@@ -175,7 +173,7 @@ def one_topography():
 
     datafile = ManifestFactory(filename="example.opd")
 
-    topo = Topography1DFactory(
+    topo = NonuniformLineScanFactory(
         surface=surface,
         name="Topography Map",
         description="description1",
@@ -186,7 +184,7 @@ def one_topography():
 
 @pytest.fixture
 def topography_loaded_from_broken_file():
-    topo = Topography1DFactory()
+    topo = NonuniformLineScanFactory()
 
     from django.core.files.base import ContentFile
 
@@ -212,11 +210,11 @@ def user_three_topographies_three_surfaces_three_tags():
     tag3.authorize_user(user, "view")
 
     surface1 = SurfaceFactory(created_by=user, tags=[tag1])
-    topo1a = Topography1DFactory(surface=surface1)
-    topo1b = Topography1DFactory(surface=surface1, tags=[tag2, tag3])
+    topo1a = NonuniformLineScanFactory(surface=surface1)
+    topo1b = NonuniformLineScanFactory(surface=surface1, tags=[tag2, tag3])
 
     surface2 = SurfaceFactory(created_by=user, tags=[tag2])
-    topo2a = Topography1DFactory(surface=surface2, tags=[tag1])
+    topo2a = NonuniformLineScanFactory(surface=surface2, tags=[tag1])
 
     surface3 = SurfaceFactory(created_by=user, tags=[tag3])  # empty
 
@@ -236,13 +234,13 @@ def two_users(settings):
     user2 = UserFactory(username="testuser2", password="abcd$1234")
 
     surface1 = SurfaceFactory(created_by=user1)
-    Topography1DFactory(surface=surface1)
+    NonuniformLineScanFactory(surface=surface1)
 
     surface2 = SurfaceFactory(created_by=user2)
-    Topography1DFactory(surface=surface2)
+    NonuniformLineScanFactory(surface=surface2)
 
     surface3 = SurfaceFactory(created_by=user2)
-    Topography1DFactory(surface=surface3)
+    NonuniformLineScanFactory(surface=surface3)
 
     return (user1, user2), (surface1, surface2, surface3)
 
@@ -339,7 +337,7 @@ def simple_surface():
             self._c = c
 
         @property
-        def topography_set(self):
+        def measurements(self):
             return WrapRequest(self._c)
 
     nx, ny = 113, 123
@@ -372,7 +370,7 @@ def test_instances(db, test_workflow):
         SurfaceFactory(created_by=users[0]),
     ]
 
-    topographies = [Topography1DFactory(surface=surfaces[0])]
+    topographies = [NonuniformLineScanFactory(surface=surfaces[0])]
 
     test_workflow.submit(topographies[0].created_by, topographies[0])
 

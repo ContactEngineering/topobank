@@ -2,7 +2,7 @@ import tagulous.models.fields
 from django.contrib import admin
 from tagulous.admin import TagModelAdmin
 
-from .models import Surface, Tag, Topography
+from .models import Measurement, Surface, Tag
 
 # Monkey-patch FakeQuerySet to display properly in admin
 # This is needed for Django 5.2 compatibility with tagulous
@@ -104,7 +104,7 @@ class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
         return str(obj.tags) if obj.tags else ""
 
 
-@admin.register(Topography)
+@admin.register(Measurement)
 class TopographyAdmin(TagFieldAdminMixin, admin.ModelAdmin):
     list_display = ("id", "name", "deletion_time", "created_at", "task_state", "task_id")
     list_filter = ("task_state",)
@@ -129,7 +129,7 @@ class TopographyAdmin(TagFieldAdminMixin, admin.ModelAdmin):
     )
 
     def get_queryset(self, request):
-        return Topography.all_objects.all()
+        return Measurement.all_objects.all()
 
 
 @admin.register(Tag)

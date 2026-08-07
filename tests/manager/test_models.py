@@ -13,11 +13,11 @@ from notifications.models import Notification
 from notifications.signals import notify
 from numpy.testing import assert_allclose
 
-from topobank.manager.models import Surface, Tag, Topography
+from topobank.manager.models import Measurement, Surface, Tag
 from topobank.testing.factories import (
     SurfaceFactory,
-    Topography1DFactory,
-    Topography2DFactory,
+    NonuniformLineScanFactory,
+    TopographyMapFactory,
     UserFactory,
 )
 
@@ -26,22 +26,22 @@ PermissionSet = apps.get_model('authorization', 'PermissionSet')
 
 @pytest.mark.django_db
 def test_topography_name(two_topos):
-    topos = Topography.objects.all().order_by("name")
+    topos = Measurement.objects.all().order_by("name")
     assert [t.name for t in topos] == ["Example 3 - ZSensor", "Example 4 - Default"]
 
 
 @pytest.mark.django_db
 def test_topography_has_periodic_flag(two_topos):
-    topos = Topography.objects.all().order_by("name")
-    assert not topos[0].is_periodic
-    assert not topos[1].is_periodic
+    topos = Measurement.objects.all().order_by("name")
+    assert not topos[0].meta.is_periodic
+    assert not topos[1].meta.is_periodic
 
 
 @pytest.mark.django_db
 def test_topography_has_unit_set(two_topos):
-    topos = Topography.objects.all().order_by("name")
-    assert topos[0].unit == "nm"
-    assert topos[1].unit == "m"
+    topos = Measurement.objects.all().order_by("name")
+    assert topos[0].meta.unit == "nm"
+    assert topos[1].meta.unit == "m"
 
 
 @pytest.mark.django_db
@@ -55,27 +55,28 @@ def test_topography_instrument_dict():
     instrument_name = "My Profilometer"
     instrument_type = "contact-based"
 
-    topo = Topography2DFactory(
+    topo = TopographyMapFactory(
         instrument_name=instrument_name,
         instrument_type=instrument_type,
         instrument_parameters=instrument_parameters,
     )
 
-    assert topo.instrument_name == instrument_name
-    assert topo.instrument_type == instrument_type
-    assert topo.instrument_parameters == instrument_parameters
+    instrument = topo.meta.instrument
+    assert instrument.name == instrument_name
+    assert instrument.type == instrument_type
+    assert instrument.parameters.model_dump(exclude_none=True) == instrument_parameters
 
 
 @pytest.mark.django_db
 def test_topography_str(two_topos):
     surface = Surface.objects.get(name="Surface 1")
-    topos = Topography.objects.filter(surface=surface).order_by("name")
+    topos = Measurement.objects.filter(surface=surface).order_by("name")
     assert [str(t) for t in topos] == [
         "Measurement 'Example 3 - ZSensor'"
     ]
 
     surface = Surface.objects.get(name="Surface 2")
-    topos = Topography.objects.filter(surface=surface).order_by("name")
+    topos = Measurement.objects.filter(surface=surface).order_by("name")
     assert [str(t) for t in topos] == [
         "Measurement 'Example 4 - Default'"
     ]
@@ -108,7 +109,7 @@ def test_topography_to_dict():
         },
     }
 
-    topo = Topography2DFactory(
+    topo = TopographyMapFactory(
         surface=surface,
         name=name,
         size_x=size_x,
@@ -127,32 +128,39 @@ def test_topography_to_dict():
     )
     topo.refresh_cache()
 
+    # The exported document carries the kind and its metadata, and identifies the
+    # data channel by name rather than by index.
     assert topo.to_dict() == {
         "name": name,
-        "size": [size_x, size_y],
-        "height_scale": height_scale,
-        "detrend_mode": detrend_mode,
+        "kind": "topography-map",
+        "metadata": {
+            "kind": "topography-map",
+            "size_x": size_x,
+            "size_y": size_y,
+            "unit": unit,
+            "height_scale": height_scale,
+            "detrend_mode": detrend_mode,
+            "is_periodic": is_periodic,
+            "fill_undefined_data_mode": "do-not-fill",
+            "instrument": instrument,
+        },
+        "channel": {"name": topo.channel_name, "occurrence": None},
         "datafile": {
             "original": topo.datafile.filename,
             "squeezed-netcdf": topo.squeezed_datafile.filename,
         },
         "description": description,
-        "unit": unit,
-        "data_source": topo.data_source,
         "created_by": dict(name=user.name, orcid=user.orcid_id),
         "measurement_date": measurement_date,
-        "is_periodic": is_periodic,
         "tags": tags,
-        "instrument": instrument,
-        "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
-        "has_undefined_data": False,
+        # File-derived, exported for information only (see `to_dict`).
         "undefined_data_fraction": 0,
     }
 
 
 @pytest.mark.django_db
 def test_call_topography_method_multiple_times(two_topos):
-    topo = Topography.objects.get(name="Example 3 - ZSensor")
+    topo = Measurement.objects.get(name="Example 3 - ZSensor")
 
     #
     # coeffs should not change in between calls
@@ -172,15 +180,15 @@ def test_unique_topography_name_in_same_surface():
     user = UserFactory()
     surface1 = SurfaceFactory(created_by=user)
 
-    Topography1DFactory(surface=surface1, name="TOPO")
+    NonuniformLineScanFactory(surface=surface1, name="TOPO")
 
     with transaction.atomic():  # otherwise we can't proceed in this test
         with pytest.raises(IntegrityError):
-            Topography1DFactory(surface=surface1, name="TOPO")
+            NonuniformLineScanFactory(surface=surface1, name="TOPO")
 
     # no problem with another surface
     surface2 = SurfaceFactory(created_by=user)
-    Topography1DFactory(surface=surface2, name="TOPO")
+    NonuniformLineScanFactory(surface=surface2, name="TOPO")
 
 
 @pytest.mark.django_db
@@ -333,7 +341,7 @@ def test_notifications_are_deleted_when_topography_deleted():
     user = UserFactory(password=password)
     surface = SurfaceFactory(created_by=user)
 
-    topo = Topography1DFactory(surface=surface)
+    topo = NonuniformLineScanFactory(surface=surface)
     topo_id = topo.id
 
     notify.send(
@@ -387,12 +395,12 @@ def test_squeezed_datafile(
     if detrend_mode is not None:
         factory_kwargs["detrend_mode"] = detrend_mode
 
-    topo = Topography2DFactory(**factory_kwargs)
+    topo = TopographyMapFactory(**factory_kwargs)
     # Original heights are modified here. The modified values
     # should be reconstructed when loading squeezed data. This is checked here.
 
-    assert topo.height_scale == height_scale_factor
-    assert topo.detrend_mode == detrend_mode
+    assert topo.meta.height_scale == height_scale_factor
+    assert topo.meta.detrend_mode == detrend_mode
 
     assert topo.squeezed_datafile
     st_topo = topo.topography(allow_squeezed=False)
@@ -409,7 +417,8 @@ def test_squeezed_datafile(
     )  # no context manager, we don't want the file closed
     reader = open_topography(df)
     st_topo = reader.topography(
-        topo.data_source, physical_sizes=(topo.size_x, topo.size_y)
+        topo.resolve_channel_index(reader=reader),
+        physical_sizes=(topo.meta.size_x, topo.meta.size_y),
     )
     if height_scale_factor is not None:
         st_topo = st_topo.scale(height_scale_factor)
@@ -443,28 +452,28 @@ def test_squeezed_datafile(
 @pytest.mark.django_db
 def test_deepcopy_delete_does_not_delete_files(user_bob, handle_usage_statistics):
     surface = SurfaceFactory(created_by=user_bob)
-    topo = Topography2DFactory(surface=surface)
+    topo = TopographyMapFactory(surface=surface)
 
     assert PermissionSet.objects.count() == 1
 
     surface_copy = surface.deepcopy()
-    assert surface.topography_set.all().first().datafile
-    assert surface_copy.topography_set.all().first().datafile
+    assert surface.measurements.all().first().datafile
+    assert surface_copy.measurements.all().first().datafile
 
     assert PermissionSet.objects.count() == 2
 
     topo.delete()
 
     # Not topography left for surface but one left for surface_copy
-    assert surface.topography_set.count() == 0
-    assert surface_copy.topography_set.all().first().datafile
+    assert surface.measurements.count() == 0
+    assert surface_copy.measurements.all().first().datafile
 
     # Both surfaces are still there so we should have two permission sets
     assert PermissionSet.objects.count() == 2
 
     surface.delete()
     assert PermissionSet.objects.count() == 1
-    assert surface_copy.topography_set.all().first().datafile
+    assert surface_copy.measurements.all().first().datafile
 
 
 @pytest.mark.django_db
@@ -507,7 +516,7 @@ def test_descendant_surfaces(user_alice):
 @pytest.mark.django_db
 def test_deepcopy_copies_attachments(user_bob, handle_usage_statistics):
     surface = SurfaceFactory(created_by=user_bob)
-    topo = Topography2DFactory(surface=surface)
+    topo = TopographyMapFactory(surface=surface)
 
     surface.attachments.save_file(
         "surface-attachment.txt", "att", ContentFile("Surface attachment!")
@@ -519,8 +528,8 @@ def test_deepcopy_copies_attachments(user_bob, handle_usage_statistics):
     assert PermissionSet.objects.count() == 1
 
     surface_copy = surface.deepcopy()
-    assert surface.topography_set.all().first().datafile
-    assert surface_copy.topography_set.all().first().datafile
+    assert surface.measurements.all().first().datafile
+    assert surface_copy.measurements.all().first().datafile
 
     assert PermissionSet.objects.count() == 2
 
@@ -532,8 +541,8 @@ def test_deepcopy_copies_attachments(user_bob, handle_usage_statistics):
     assert file.id != file_copy.id
     assert file.file.name != file_copy.file.name
 
-    topo = surface.topography_set.all().first()
-    topo_copy = surface_copy.topography_set.all().first()
+    topo = surface.measurements.all().first()
+    topo_copy = surface_copy.measurements.all().first()
 
     assert topo.id != topo_copy.id
     assert topo.attachments.id != topo_copy.attachments.id

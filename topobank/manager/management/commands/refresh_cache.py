@@ -4,16 +4,16 @@ import traceback
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 from topobank.taskapp.utils import run_task
 
 _log = logging.getLogger(__name__)
 
 
 class Command(BaseCommand):
-    help = """Renew cache for topographies.
+    help = """Renew cache for measurements.
 
-    For each topography, a couple of images, the bandwidth and a short
+    For each measurement, a couple of images, the bandwidth and a short
     reliabililty cutoff are stored in the database. In case the way of
     calculation has changed or some values are missing, this command can
     be used to recalculate these values.
@@ -40,9 +40,9 @@ class Command(BaseCommand):
         num_failed = 0
         num_success = 0
 
-        num_total = Topography.objects.count()
+        num_total = Measurement.objects.count()
 
-        for topo_idx, topo in enumerate(Topography.objects.order_by('name')):
+        for topo_idx, topo in enumerate(Measurement.objects.order_by('name')):
             _log.info(f"Renewing cache file for '{topo.name}', id {topo.id}, {topo_idx + 1}/{num_total}..")
 
             try:
@@ -56,7 +56,7 @@ class Command(BaseCommand):
                     # operator sees 'pending' immediately (run_task only sets it
                     # in memory via autosave=False) and lets run_task's on_commit
                     # dispatch fire after the pending state is committed -- the
-                    # same pattern as Topography.ensure_task_started().
+                    # same pattern as Measurement.ensure_task_started().
                     with transaction.atomic():
                         run_task(topo, force=True)
                         topo.save()
@@ -64,7 +64,7 @@ class Command(BaseCommand):
                     topo.refresh_cache()
                 num_success += 1
             except Exception as exc:
-                _log.error(f"Cannot renew cache for topography {topo.id}, reason: {exc}")
+                _log.error(f"Cannot renew cache for measurement {topo.id}, reason: {exc}")
                 if options['with_traceback']:
                     _log.error(traceback.format_exc())
                 num_failed += 1

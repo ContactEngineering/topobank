@@ -35,14 +35,14 @@ def filter_and_order_analyses(analyses):
     analysis_groups = (
         OrderedDict()
     )  # always the same order of surfaces for same list of subjects
-    for topography_analysis in sorted(
-        [a for a in analyses if a.subject_topography_id is not None],
-        key=lambda a: a.subject_topography_id,
+    for measurement_analysis in sorted(
+        [a for a in analyses if a.subject_measurement_id is not None],
+        key=lambda a: a.subject_measurement_id,
     ):
-        surface = topography_analysis.subject_topography.surface
+        surface = measurement_analysis.subject_measurement.surface
         if surface not in analysis_groups:
             analysis_groups[surface] = []
-        analysis_groups[surface].append(topography_analysis)
+        analysis_groups[surface].append(measurement_analysis)
 
     #
     # Process groups and collect analyses which are implicitly sorted
@@ -54,12 +54,12 @@ def filter_and_order_analyses(analyses):
     surfaces_of_surface_analyses = [
         a.subject_surface for a in analyses_of_surfaces
     ]
-    for surface, topography_analyses in analysis_groups.items():
+    for surface, measurement_analyses in analysis_groups.items():
         try:
             # Is there an analysis for the corresponding surface?
             surface_analysis_index = surfaces_of_surface_analyses.index(surface)
             surface_analysis = analyses_of_surfaces[surface_analysis_index]
-            if surface.num_topographies() > 1:
+            if surface.num_measurements() > 1:
                 # only show average for surface if more than one topography
                 sorted_analyses.append(surface_analysis)
                 surface_analysis_index = len(sorted_analyses) - 1  # last one
@@ -72,12 +72,12 @@ def filter_and_order_analyses(analyses):
         # This will result in same order of topography analysis, no matter whether there was a surface analysis
         #
         if surface_analysis_index is None:
-            sorted_analyses.extend(topography_analyses)
+            sorted_analyses.extend(measurement_analyses)
         else:
             # Insert corresponding topography analyses after surface analyses
             sorted_analyses = (
                 sorted_analyses[: surface_analysis_index + 1]
-                + topography_analyses
+                + measurement_analyses
                 + sorted_analyses[surface_analysis_index + 1:]
             )
 
@@ -95,17 +95,17 @@ def filter_and_order_analyses(analyses):
 
 def find_children(subjects):
     """
-    Find all children for listed subjects. For example, a Topography is a child
+    Find all children for listed subjects. For example, a Measurement is a child
     of a Surface.
 
     Parameters
     ----------
-    subjects : list of Topography or Surface
+    subjects : list of Measurement or Surface
         List of subjects.
 
     Returns
     -------
-    List of Topography or Surface
+    List of Measurement or Surface
         List of subjects, updated with children.
     """
     if subjects is None:
@@ -114,7 +114,7 @@ def find_children(subjects):
     additional_subjects = []
     for subject in subjects:
         if isinstance(subject, Surface):
-            additional_subjects += list(subject.topography_set.all())
+            additional_subjects += list(subject.measurements.all())
     return list(set(subjects + additional_subjects))
 
 

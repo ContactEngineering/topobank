@@ -13,7 +13,7 @@ Note: Submit tests assert DB state only — without ``transaction=True`` the
 ``transaction.on_commit`` hook in ``submit_analysis_task_to_celery`` is
 silently skipped, so no Celery dispatch happens (mirrors ``test_submit_again``).
 Coverage of ``_get_dependencies_for_surfaces`` is deferred; the existing test
-workflow implementations only define ``Topography`` dependencies, so meaningful
+workflow implementations only define ``Measurement`` dependencies, so meaningful
 coverage requires a new registered implementation.
 """
 
@@ -28,8 +28,8 @@ from topobank.analysis.workflows import SurfaceSet, compute_subject_hash
 from topobank.files.utils import file_storage_path
 from topobank.testing.factories import (
     SurfaceFactory,
-    Topography2DFactory,
-    TopographyAnalysisFactory,
+    TopographyMapFactory,
+    MeasurementAnalysisFactory,
 )
 from topobank.testing.workflows import TestImplementation
 
@@ -90,7 +90,7 @@ def test_workflow_result_compute_subject_hash_static_matches_module_function():
 def test_update_subject_hash_reads_m2m_and_falls_back_to_fk(test_workflow):
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
+    analysis = MeasurementAnalysisFactory(workflow_name=test_workflow.name)
     analysis.surfaces.set([s1, s2])
 
     analysis.update_subject_hash()
@@ -101,7 +101,7 @@ def test_update_subject_hash_reads_m2m_and_falls_back_to_fk(test_workflow):
     analysis.update_subject_hash()
     analysis.refresh_from_db()
     assert analysis.subject_hash == compute_subject_hash(
-        "topography", [analysis.subject_topography_id]
+        "topography", [analysis.subject_measurement_id]
     )
 
 
@@ -113,8 +113,8 @@ def test_update_subject_hash_reads_m2m_and_falls_back_to_fk(test_workflow):
 @pytest.mark.django_db
 def test_subject_returns_single_surface_for_one_surface_m2m(test_workflow):
     surface = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
-    analysis.subject_topography = None
+    analysis = MeasurementAnalysisFactory(workflow_name=test_workflow.name)
+    analysis.subject_measurement = None
     analysis.save()
     analysis.surfaces.set([surface])
 
@@ -125,8 +125,8 @@ def test_subject_returns_single_surface_for_one_surface_m2m(test_workflow):
 def test_subject_returns_queryset_for_multi_surface_m2m(test_workflow):
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
-    analysis.subject_topography = None
+    analysis = MeasurementAnalysisFactory(workflow_name=test_workflow.name)
+    analysis.subject_measurement = None
     analysis.save()
     analysis.surfaces.set([s1, s2])
 
@@ -138,8 +138,8 @@ def test_subject_returns_queryset_for_multi_surface_m2m(test_workflow):
 
 @pytest.mark.django_db
 def test_subject_is_none_with_no_dispatch_and_no_surfaces(test_workflow):
-    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
-    analysis.subject_topography = None
+    analysis = MeasurementAnalysisFactory(workflow_name=test_workflow.name)
+    analysis.subject_measurement = None
     analysis.save()
     assert analysis.subject is None
 
@@ -162,7 +162,7 @@ def test_submit_for_surfaces_creates_workflow_result_with_m2m_and_hash(
 
     assert analysis.task_state == WorkflowResult.PENDING
     assert analysis.function == test_workflow
-    assert analysis.subject_topography is None
+    assert analysis.subject_measurement is None
     assert analysis.subject_surface is None
     assert analysis.subject_tag is None
     assert analysis.surfaces.count() == 2
@@ -249,9 +249,9 @@ def test_eval_surfaces_single_surface_uses_surface_implementation(
     test_workflow,
 ):
     surface = SurfaceFactory()
-    Topography2DFactory(surface=surface)
-    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
-    analysis.subject_topography = None
+    TopographyMapFactory(surface=surface)
+    analysis = MeasurementAnalysisFactory(workflow_name=test_workflow.name)
+    analysis.subject_measurement = None
     analysis.save()
     analysis.folder.remove_files()
     analysis.surfaces.set([surface])
@@ -269,8 +269,8 @@ def test_eval_surfaces_multi_surface_routes_to_tag_implementation(
 ):
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
-    analysis.subject_topography = None
+    analysis = MeasurementAnalysisFactory(workflow_name=test_workflow.name)
+    analysis.subject_measurement = None
     analysis.save()
     analysis.surfaces.set([s1, s2])
 
@@ -290,9 +290,9 @@ def test_eval_surfaces_multi_surface_routes_to_tag_implementation(
 def test_eval_surfaces_falls_back_to_topography_when_no_surface_impl():
     function = Workflow(name="topobank.testing.topography_only_test")
     surface = SurfaceFactory()
-    Topography2DFactory(surface=surface)
-    analysis = TopographyAnalysisFactory(workflow_name=function.name)
-    analysis.subject_topography = None
+    TopographyMapFactory(surface=surface)
+    analysis = MeasurementAnalysisFactory(workflow_name=function.name)
+    analysis.subject_measurement = None
     analysis.save()
     analysis.folder.remove_files()
     analysis.surfaces.set([surface])
@@ -311,8 +311,8 @@ def test_eval_surfaces_raises_when_multi_surface_lacks_tag_impl():
     function = Workflow(name="topobank.testing.topography_only_test")
     s1 = SurfaceFactory()
     s2 = SurfaceFactory()
-    analysis = TopographyAnalysisFactory(workflow_name=function.name)
-    analysis.subject_topography = None
+    analysis = MeasurementAnalysisFactory(workflow_name=function.name)
+    analysis.subject_measurement = None
     analysis.save()
     analysis.surfaces.set([s1, s2])
 
@@ -322,7 +322,7 @@ def test_eval_surfaces_raises_when_multi_surface_lacks_tag_impl():
 
 @pytest.mark.django_db
 def test_eval_surfaces_raises_value_error_when_no_surfaces(test_workflow):
-    analysis = TopographyAnalysisFactory(workflow_name=test_workflow.name)
+    analysis = MeasurementAnalysisFactory(workflow_name=test_workflow.name)
     runner = test_workflow.implementation(**analysis.kwargs)
     with pytest.raises(ValueError, match="No surfaces in analysis"):
         runner.eval_surfaces(analysis)

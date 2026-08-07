@@ -24,9 +24,9 @@ from topobank.analysis.models import WorkflowResult
 from topobank.analysis.zip_model import ResultZipContainer
 from topobank.files.models import Manifest
 from topobank.testing.factories import (
-    FailedTopographyAnalysisFactory,
+    FailedMeasurementAnalysisFactory,
+    MeasurementAnalysisFactory,
     PermissionSetFactory,
-    TopographyAnalysisFactory,
 )
 
 
@@ -40,7 +40,7 @@ def _archive(results):
 
 @pytest.mark.django_db
 def test_archive_contains_result_files_and_metadata():
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     directory = analysis.subject.name.lower()
 
     with _archive([analysis]) as zip_file:
@@ -58,7 +58,7 @@ def test_archive_contains_result_files_and_metadata():
 
 @pytest.mark.django_db
 def test_archive_directory_is_named_after_the_subject():
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     with _archive([analysis]) as zip_file:
         directories = {name.split("/")[0] for name in zip_file.namelist()}
         directories.discard("README.txt")
@@ -67,10 +67,10 @@ def test_archive_directory_is_named_after_the_subject():
 
 @pytest.mark.django_db
 def test_archive_disambiguates_subjects_with_the_same_name():
-    first = TopographyAnalysisFactory()
+    first = MeasurementAnalysisFactory()
     # Measurement names are unique only within a dataset, so two results can
     # well have equally named subjects.
-    second = TopographyAnalysisFactory(subject_topography__name=first.subject.name)
+    second = MeasurementAnalysisFactory(subject_measurement__name=first.subject.name)
     assert first.subject.name == second.subject.name
     assert first.subject.surface != second.subject.surface
 
@@ -84,7 +84,7 @@ def test_archive_disambiguates_subjects_with_the_same_name():
 
 @pytest.mark.django_db
 def test_archive_skips_display_only_artifacts():
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     # Deep-zoom tiles are a rendering of data that is archived anyway; they must
     # not be bundled, or an archive would grow by thousands of small files.
     analysis.folder.save_file(
@@ -101,7 +101,7 @@ def test_archive_skips_display_only_artifacts():
 
 @pytest.mark.django_db
 def test_archive_reports_unreadable_files_in_place(mocker):
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     mocker.patch(
         "topobank.files.models.Manifest.open", side_effect=OSError("file is gone")
     )
@@ -118,7 +118,7 @@ def test_archive_reports_unreadable_files_in_place(mocker):
 
 @pytest.mark.django_db
 def test_info_text_describes_the_analysis():
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     info = result_info_text(analysis)
     assert analysis.subject.name in info
     assert "Start time of analysis task" in info
@@ -127,7 +127,7 @@ def test_info_text_describes_the_analysis():
 
 @pytest.mark.django_db
 def test_info_text_asks_for_citation_of_dois():
-    analysis = TopographyAnalysisFactory(dois=["10.1000/xyz"])
+    analysis = MeasurementAnalysisFactory(dois=["10.1000/xyz"])
     info = result_info_text(analysis)
     assert "PLEASE CITE" in info
     assert "10.1000/xyz" in info
@@ -135,13 +135,13 @@ def test_info_text_asks_for_citation_of_dois():
 
 @pytest.mark.django_db
 def test_info_text_without_configuration():
-    analysis = TopographyAnalysisFactory(configuration=None)
+    analysis = MeasurementAnalysisFactory(configuration=None)
     assert "Please recalculate" in result_info_text(analysis)
 
 
 @pytest.mark.django_db
 def test_readme_includes_workflow_specific_documentation(mocker):
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     implementation = analysis.implementation
     mocker.patch.object(
         implementation.Meta, "download_readme", "Contents of a test result", create=True
@@ -163,7 +163,7 @@ class RecordingProgressRecorder:
 
 @pytest.mark.django_db
 def test_bundling_reports_progress():
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     nb_files = analysis.folder.get_valid_files().count()
     assert nb_files > 0
 
@@ -188,7 +188,7 @@ def test_progress_counts_only_the_files_that_are_bundled():
     of them against a handful of data files). Counting those would drive the bar
     to ~99% instantly and then leave it there for the whole real work.
     """
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     nb_files = analysis.folder.get_valid_files().count()
     for i in range(50):
         analysis.folder.save_file(
@@ -208,7 +208,7 @@ def test_progress_counts_only_the_files_that_are_bundled():
 
 @pytest.mark.django_db
 def test_bundling_without_a_progress_recorder_still_works():
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     with _archive([analysis]) as zip_file:
         assert "README.txt" in zip_file.namelist()
 
@@ -216,7 +216,7 @@ def test_bundling_without_a_progress_recorder_still_works():
 @pytest.mark.django_db
 def test_task_worker_passes_the_progress_recorder_through():
     """`run_task` injects a recorder; it has to reach the exporter."""
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     container = _container(analysis.permissions.user_permissions.first().user)
 
     recorder = RecordingProgressRecorder()
@@ -238,7 +238,7 @@ def _container(user):
 
 @pytest.mark.django_db
 def test_container_stores_the_archive():
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     container = _container(analysis.permissions.user_permissions.first().user)
 
     container.task_worker(result_ids=[analysis.id])
@@ -252,7 +252,7 @@ def test_container_stores_the_archive():
 @pytest.mark.django_db
 def test_container_refuses_results_the_user_cannot_see(two_users):
     (user1, user2), (surface1, surface2, surface3) = two_users
-    analysis = TopographyAnalysisFactory(subject_topography__surface=surface1)
+    analysis = MeasurementAnalysisFactory(subject_measurement__surface=surface1)
     container = _container(user2)
 
     with pytest.raises(PermissionDenied):
@@ -261,9 +261,9 @@ def test_container_refuses_results_the_user_cannot_see(two_users):
 
 @pytest.mark.django_db
 def test_container_skips_results_without_data():
-    failed = FailedTopographyAnalysisFactory(task_state=WorkflowResult.FAILURE)
-    successful = TopographyAnalysisFactory(
-        subject_topography__surface=failed.subject.surface
+    failed = FailedMeasurementAnalysisFactory(task_state=WorkflowResult.FAILURE)
+    successful = MeasurementAnalysisFactory(
+        subject_measurement__surface=failed.subject.surface
     )
     container = _container(successful.permissions.user_permissions.first().user)
 
@@ -277,7 +277,7 @@ def test_container_skips_results_without_data():
 
 @pytest.mark.django_db
 def test_container_fails_if_nothing_can_be_bundled():
-    failed = FailedTopographyAnalysisFactory(task_state=WorkflowResult.FAILURE)
+    failed = FailedMeasurementAnalysisFactory(task_state=WorkflowResult.FAILURE)
     container = _container(failed.permissions.user_permissions.first().user)
 
     with pytest.raises(RuntimeError):
@@ -286,7 +286,7 @@ def test_container_fails_if_nothing_can_be_bundled():
 
 @pytest.mark.django_db
 def test_custodian_removes_expired_containers():
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     user = analysis.permissions.user_permissions.first().user
     expired = _container(user)
     fresh = _container(user)
@@ -316,7 +316,7 @@ def test_custodian_also_removes_the_archive_of_an_expired_container():
     archive (nor the file in the object store) if deleting the container did not
     take the manifest with it.
     """
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     container = _container(analysis.permissions.user_permissions.first().user)
     container.task_worker(result_ids=[analysis.id])
 
@@ -334,7 +334,7 @@ def test_custodian_also_removes_the_archive_of_an_expired_container():
 @pytest.mark.django_db
 def test_deleting_a_container_directly_also_removes_the_archive():
     """The same has to hold for a single delete, e.g. from the admin."""
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     container = _container(analysis.permissions.user_permissions.first().user)
     container.task_worker(result_ids=[analysis.id])
 
@@ -350,7 +350,7 @@ def test_deleting_a_container_directly_also_removes_the_archive():
 @pytest.mark.django_db
 def test_deleting_a_container_without_an_archive_is_harmless():
     """A container whose task never ran has no manifest to collect."""
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     container = _container(analysis.permissions.user_permissions.first().user)
     assert container.manifest is None
 
@@ -365,7 +365,7 @@ def test_analysis_container_uses_spooled_temporary_file_with_setting(mocker, set
     settings.TOPOBANK_SPOOL_MAX_SIZE = 987654
     spooled_mock = mocker.patch("tempfile.SpooledTemporaryFile", wraps=tempfile.SpooledTemporaryFile)
 
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     container = _container(analysis.permissions.user_permissions.first().user)
     container.task_worker(result_ids=[analysis.id])
 

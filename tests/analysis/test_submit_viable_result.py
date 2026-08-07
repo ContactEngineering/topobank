@@ -12,19 +12,19 @@ from django.utils import timezone
 
 from topobank.analysis.models import WorkflowResult
 from topobank.analysis.workflows import SurfaceSet
-from topobank.testing.factories import SurfaceFactory, Topography2DFactory
+from topobank.testing.factories import SurfaceFactory, TopographyMapFactory
 
 
 @pytest.mark.django_db
 def test_submit_returns_successful_over_notrun(test_workflow, user_alice):
     surface = SurfaceFactory(created_by=user_alice)
-    topo = Topography2DFactory(surface=surface)
+    topo = TopographyMapFactory(surface=surface)
     kwargs = test_workflow.clean_kwargs(None)
 
     def _make(state, start):
         wr = WorkflowResult.objects.create(
             workflow_name=test_workflow.name,
-            subject_topography=topo,
+            subject_measurement=topo,
             kwargs=kwargs,
             created_by=user_alice,
             task_state=state,

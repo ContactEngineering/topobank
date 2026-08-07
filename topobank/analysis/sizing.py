@@ -49,7 +49,8 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import BigIntegerField, F, Max, Value
+from django.db.models import BigIntegerField, Max, Value
+from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast, Coalesce
 from django.template.defaultfilters import filesizeformat
 from django.utils import timezone
@@ -92,16 +93,23 @@ def _percentile(values, fraction):
 
 def _points_expression(prefix=""):
     """
-    Grid points of a topography: line scans have no second dimension.
+    Grid points of a measurement: line scans have no second dimension.
 
-    The cast is not cosmetic. Both resolutions are 32-bit integers, and
-    PostgreSQL multiplies ``integer * integer`` as an integer, so a map beyond
-    roughly 46000 x 46000 would overflow the product - precisely the size of map
-    this guard exists to catch.
+    The resolutions live in the file-derived cache (``Measurement.file_info``),
+    so they are read out of the JSON document. The cast is not cosmetic: a JSON
+    key yields text, and even once converted, PostgreSQL multiplies
+    ``integer * integer`` as an integer, so a map beyond roughly 46000 x 46000
+    would overflow the product - precisely the size of map this guard exists to
+    catch. A line scan simply has no ``resolution_y`` key, which reads as SQL
+    NULL and is coalesced to 1.
     """
+    file_info = f"{prefix}file_info"
     return Cast(
-        f"{prefix}resolution_x", BigIntegerField()
-    ) * Coalesce(F(f"{prefix}resolution_y"), Value(1))
+        KeyTextTransform("resolution_x", file_info), BigIntegerField()
+    ) * Coalesce(
+        Cast(KeyTextTransform("resolution_y", file_info), BigIntegerField()),
+        Value(1),
+    )
 
 
 def observed_bytes_per_point(use_cache=True):
@@ -131,10 +139,10 @@ def observed_bytes_per_point(use_cache=True):
             task_memory__isnull=False,
             task_memory__gt=0,
             task_end_time__gte=timezone.now() - timedelta(days=window_days),
-            subject_topography__isnull=False,
-            subject_topography__resolution_x__isnull=False,
+            subject_measurement__isnull=False,
+            subject_measurement__file_info__resolution_x__isnull=False,
         )
-        .annotate(points=_points_expression("subject_topography__"))
+        .annotate(points=_points_expression("subject_measurement__"))
         .values_list("workflow_name", "task_memory", "points")
     )
 
@@ -168,26 +176,30 @@ def grid_points(analysis):
     walking the tag tree across both surfaces and measurements, and a guard that
     is wrong is worse than a guard that abstains.
     """
-    from topobank.manager.models import Topography
+    from topobank.manager.models import Measurement
 
-    if analysis.subject_topography_id is not None:
-        topography = analysis.subject_topography
-        if topography.resolution_x is None:
+    if analysis.subject_measurement_id is not None:
+        # Read the raw document rather than the typed `info` view: a measurement
+        # of an unregistered kind has no schema to parse it with, and this module
+        # abstains rather than raising.
+        file_info = analysis.subject_measurement.file_info or {}
+        resolution_x = file_info.get("resolution_x")
+        if resolution_x is None:
             return None
-        return topography.resolution_x * (topography.resolution_y or 1)
+        return resolution_x * (file_info.get("resolution_y") or 1)
 
     if analysis.subject_surface_id is not None:
-        queryset = Topography.objects.filter(surface_id=analysis.subject_surface_id)
+        queryset = Measurement.objects.filter(surface_id=analysis.subject_surface_id)
     elif analysis.subject_tag_id is not None:
         return None
     else:
         surface_ids = list(analysis.surfaces.values_list("id", flat=True))
         if not surface_ids:
             return None
-        queryset = Topography.objects.filter(surface_id__in=surface_ids)
+        queryset = Measurement.objects.filter(surface_id__in=surface_ids)
 
     return (
-        queryset.filter(resolution_x__isnull=False)
+        queryset.filter(file_info__resolution_x__isnull=False)
         .annotate(points=_points_expression())
         .aggregate(largest=Max("points"))["largest"]
     )
