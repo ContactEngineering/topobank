@@ -1,5 +1,14 @@
 # Changelog for *TopoBank*
 
+# 1.72.0 (not yet released)
+
+- ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
+  iD, for testing behaviour that depends on the identity a user signed in with
+- ENH: The mock user model exposes `has_orcid`, mirroring the real one
+- DOC: `docs/orcid.rst` became `docs/authentication.rst` and describes all
+  three ways of signing in -- ORCID, Google, and email with password -- and why
+  publishing requires an ORCID iD
+
 # 1.71.0 (2026-08-03)
 
 - ENH: A data series records the extent of its data next to the reference to its

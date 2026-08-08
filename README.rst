@@ -6,8 +6,10 @@ A surface metrology cloud database.
 User Accounts
 -------------
 
-The application uses `ORCID`_ for user authentication,
-so you need an ORCID account to use it.
+Users authenticate with an `ORCID`_ account, a Google account, or an email
+address and a password. An ORCID account is required to publish a dataset,
+because a publication is a citable record; everything else works with any of
+the three.
 
 If you need a super user or staff user during development, e.g. for acccessing the admin page,
 connect to the database and set the :code:`is_superuser` or :code:`is_staff` flags manually.

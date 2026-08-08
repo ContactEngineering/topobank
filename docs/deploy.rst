@@ -502,6 +502,18 @@ from environment variables:
 
 Here the orcid.yaml file is created outside of containers and imported back using stdin.
 
+Repeat this for every other identity provider you want to offer. Google works
+the same way, reading `GOOGLE_CLIENT_ID` and `GOOGLE_SECRET` from the
+environment:
+
+.. code:: bash
+
+    docker compose -f production.yml run --rm django envsubst < google.yaml.template > google.yaml
+    docker compose -f production.yml run --rm django python manage.py loaddata - --format yaml < google.yaml
+
+Sign-in with an email address and a password needs no such entry. See
+:doc:`authentication` for the settings that govern it.
+
 Then import terms and conditions:
 
 .. code:: bash

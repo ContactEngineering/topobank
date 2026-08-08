@@ -19,7 +19,7 @@ Contents:
    swarm
    maintenance
    install-docker
-   orcid
+   authentication
    pycharm/configuration
    storage-backend
    install
