@@ -8,8 +8,9 @@ from .anonymous import get_anonymous_user
 class User(AbstractUser):
     # The author's ORCID identifier. This mirrors the author metadata that the
     # real user model exposes and that topobank surfaces in its container / DOI
-    # metadata; it is unrelated to the ORCID auth provider (which lives in
-    # topobank-orcid). Kept as a plain field so the mock has no ORCID dependency.
+    # metadata; it is unrelated to the ORCID auth provider (which lives in the
+    # site providing the real user model). Kept as a plain field so the mock has
+    # no ORCID dependency.
     orcid_id = models.CharField(max_length=19, default="0000-0000-0000-0000")
     name = models.CharField("Name of User", blank=True, max_length=255, default="")
 
