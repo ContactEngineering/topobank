@@ -123,18 +123,18 @@ fixture:
 
     $ python manage.py createsuperuser
 
-An account created this way signs in with its username and password. It can
-also connect an ORCID or Google account to itself afterwards, from the
-*Connected identities* page.
+An account created this way signs in with its username and password.
 
 Configuring the identity providers
 ----------------------------------
 
-Each identity provider needs a ``socialaccount.socialapp`` row holding its
-client ID and secret, associated with the current site. Create it either from
-the Django admin or, preferably, by importing the fixture templates shipped
-with the repository. Both routes, and how to obtain the credentials in the
-first place, are described in :doc:`authentication`.
+topobank does not prescribe how users sign in; that is decided by the site
+supplying the user model. If the site offers social sign-in, each identity
+provider needs a ``socialaccount.socialapp`` row holding its client ID and
+secret, associated with the current site. Create it either from the Django
+admin or, preferably, by importing a fixture template. For
+contact.engineering, both routes and how to obtain the credentials in the first
+place are described in ``docs/authentication.rst`` in ce-ui.
 
 Do not write that row with hand-crafted SQL: django-allauth also maintains a
 many-to-many relation to ``django_site``, and a row inserted without it is

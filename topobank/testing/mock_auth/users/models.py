@@ -57,13 +57,6 @@ class User(AbstractUser):
     def orcid_uri(self):
         return f"https://orcid.org/{self.orcid_id}"
 
-    @property
-    def has_orcid(self):
-        # Mirrors the real user model, where an account may be connected to
-        # ORCID, to another identity provider, or to none at all. The mock has
-        # no social accounts, so the placeholder iD stands in for "no ORCID".
-        return bool(self.orcid_id) and self.orcid_id != "0000-0000-0000-0000"
-
     @classmethod
     def resolve(cls, url):
         """Resolve user from URL or ID"""

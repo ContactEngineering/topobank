@@ -4,19 +4,15 @@ Publishing Data
 Publishing is a non-reversible action which gives all users of the application
 read access to a surface.
 
-Publishing requires an ORCID iD
--------------------------------
+Who may publish
+---------------
 
-A publication is a citable record, so the person minting it has to be
-identifiable as a researcher: TopoBank refuses to publish for a user who has no
-ORCID account connected. Users can sign in in other ways — with a Google
-account, or with an email address and a password — and everything else works
-for them; only publishing is gated. An ORCID account can be connected at any
-later time, from the *Connected identities* page. See
-:ref:`orcid-required-for-publication` in :doc:`authentication`.
-
-The check runs on the publication endpoints themselves rather than only in the
-user interface, so it applies to API clients as well.
+topobank does not restrict publishing beyond the permissions on the dataset. A
+site may add its own requirement, because a publication is a citable record and
+its authors have to be identifiable. contact.engineering requires the publisher
+to have a connected ORCID iD and enforces that on the publication endpoints, so
+that it applies to API clients as well; see ``docs/authentication.rst`` in
+ce-ui.
 
 .. note::
 

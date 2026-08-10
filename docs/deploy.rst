@@ -410,19 +410,11 @@ Configures Python part: Django and Celery. You can use this as template:
     CELERY_FLOWER_USER=<a long random string>
     CELERY_FLOWER_PASSWORD=<a very long random string>
 
-    # Authentication, see docs/authentication.rst
+    # Authentication
     # ------------------------------------------------------------------------------
-    ORCID_CLIENT_ID=<from your ORCID configuration>
-    ORCID_SECRET=<from your ORCID configuration>
-
-    # Only needed if you offer Google as an identity provider
-    GOOGLE_CLIENT_ID=<from your Google Cloud OAuth client>
-    GOOGLE_SECRET=<from your Google Cloud OAuth client>
-
-    # Local accounts with an email address and a password. Both are optional;
-    # these are the defaults. Confirming an address needs working outgoing mail.
-    ACCOUNT_ALLOW_SIGNUP=yes
-    ACCOUNT_EMAIL_VERIFICATION=mandatory
+    # Which identity providers exist, and the variables holding their
+    # credentials, are decided by the site rather than by topobank. For
+    # contact.engineering see `docs/authentication.rst` in ce-ui.
 
     # Storage settings
     # ------------------------------------------------------------------------------
@@ -485,8 +477,9 @@ These settings are recognized by the "postgres" service and then used to automat
 Further preparation of first run
 --------------------------------
 
-Make sure the identity providers you want to offer are registered and allow
-topobank to use them for authentication, see :doc:`authentication`.
+Make sure the identity providers you want to offer are registered with their
+operators and allow the site to use them for authentication. topobank does not
+prescribe any; for contact.engineering, see `docs/authentication.rst` in ce-ui.
 
 Update database schema:
 
@@ -500,29 +493,19 @@ Create entries in database for all analysis functions defined in the code:
 
     docker compose -f production.yml run --rm django python manage.py register_analysis_functions
 
-Create YAML file with database entry for the social account provider "ORCID".
-Then import the data and create the database entry. This is needed to enable the ORCID authentication.
-During the creation of `orcid.yaml` the access key and secret needed for ORCID are inserted
-from environment variables:
+If the site offers social sign-in, each identity provider needs a
+``socialaccount.socialapp`` row carrying its client credentials. The site
+provides fixture templates for the providers it supports, and they are imported
+with ``loaddata``; for contact.engineering the templates live in ce-ui and the
+procedure is described in its ``docs/authentication.rst``. Such a file is
+created outside of the containers and imported back using stdin:
 
 .. code:: bash
 
-    docker compose -f production.yml run --rm django envsubst < orcid.yaml.template > orcid.yaml
-    docker compose -f production.yml run --rm django python manage.py loaddata - --format yaml < orcid.yaml
+    docker compose -f production.yml run --rm django envsubst < <provider>.yaml.template > <provider>.yaml
+    docker compose -f production.yml run --rm django python manage.py loaddata - --format yaml < <provider>.yaml
 
-Here the orcid.yaml file is created outside of containers and imported back using stdin.
-
-Repeat this for every other identity provider you want to offer. Google works
-the same way, reading `GOOGLE_CLIENT_ID` and `GOOGLE_SECRET` from the
-environment:
-
-.. code:: bash
-
-    docker compose -f production.yml run --rm django envsubst < google.yaml.template > google.yaml
-    docker compose -f production.yml run --rm django python manage.py loaddata - --format yaml < google.yaml
-
-Sign-in with an email address and a password needs no such entry. See
-:doc:`authentication` for the settings that govern it.
+Sign-in with an email address and a password needs no such entry.
 
 Then import terms and conditions:
 

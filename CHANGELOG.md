@@ -3,11 +3,13 @@
 # 1.72.0 (not yet released)
 
 - ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
-  iD, for testing behaviour that depends on the identity a user signed in with
-- ENH: The mock user model exposes `has_orcid`, mirroring the real one
-- DOC: `docs/orcid.rst` became `docs/authentication.rst` and describes all
-  three ways of signing in -- ORCID, Google, and email with password -- and why
-  publishing requires an ORCID iD
+  iD, for testing behaviour that depends on the identity a user signed in with.
+  The factory previously always attached one
+- DOC: Authentication is documented by the site that implements it, not here.
+  `docs/orcid.rst` and the provider fixture templates moved to ce-ui, and the
+  installation, deployment and publishing documents now describe what topobank
+  requires -- a user model and, for social sign-in, a `socialaccount.socialapp`
+  row -- without naming a provider
 
 # 1.71.0 (2026-08-03)
 

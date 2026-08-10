@@ -1,9 +1,0 @@
-- model: "socialaccount.socialapp"
-  pk: 2
-  fields:
-     provider: google
-     name: Google
-     client_id: ${GOOGLE_CLIENT_ID}
-     secret: ${GOOGLE_SECRET}
-     key: ""
-     sites: [1]
