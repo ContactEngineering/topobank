@@ -2,35 +2,36 @@
 Tests for how much of a measurement is undefined.
 
 A measurement can carry data points that hold no value, because the instrument
-could not resolve them. `Topography.has_undefined_data` records that this is the
-case and `Topography.undefined_data_fraction` how much of the data it affects,
-both describing the data as measured rather than as filtered for display.
+could not resolve them. `has_undefined_data` in the file-derived cache records
+that this is the case and `undefined_data_fraction` how much of the data it
+affects, both describing the data as measured rather than as filtered for
+display.
 """
 
 import pytest
 
-from topobank.manager.models import Topography
-from topobank.testing.factories import ManifestFactory, SurfaceFactory
+from topobank.manager.models import Measurement
+from topobank.testing.factories import (
+    ManifestFactory,
+    SurfaceFactory,
+    TopographyMapFactory,
+)
 
 # A bare 10x10 matrix of numbers with seven of its hundred entries written as
 # `nan`; the text reader turns those into a masked array. Its counterpart without
-# undefined data is the file the 2D factory uses by default.
+# undefined data is the file the map factory uses by default.
 UNDEFINED_DATAFILE = "10x10_undefined.txt"
 DEFINED_DATAFILE = "10x10.txt"
 UNDEFINED_POINTS = 7
 TOTAL_POINTS = 100
 
 
-def _make_topography(surface, filename, **kwargs):
+def _make_measurement(surface, filename, **kwargs):
     """Create and inspect a measurement backed by the given fixture file."""
-    datafile = ManifestFactory(filename=filename, permissions=surface.permissions)
-    topo = Topography(
+    return TopographyMapFactory(
         surface=surface,
-        created_by=surface.created_by,
-        permissions=surface.permissions,
         name=filename,
-        datafile=datafile,
-        data_source=0,
+        filename=filename,
         # The file is a bare matrix, so the metadata it does not carry has to be
         # supplied for the measurement to be processed at all.
         size_x=10,
@@ -39,9 +40,6 @@ def _make_topography(surface, filename, **kwargs):
         height_scale=1,
         **kwargs,
     )
-    topo.save()
-    topo.refresh_cache()
-    return topo
 
 
 @pytest.fixture
@@ -50,61 +48,66 @@ def surface(db):
 
 
 def test_reports_the_fraction_of_undefined_points(surface):
-    topo = _make_topography(surface, UNDEFINED_DATAFILE)
-    assert topo.has_undefined_data is True
-    assert topo.undefined_data_fraction == pytest.approx(UNDEFINED_POINTS / TOTAL_POINTS)
+    topo = _make_measurement(surface, UNDEFINED_DATAFILE)
+    assert topo.info.has_undefined_data is True
+    assert topo.info.undefined_data_fraction == pytest.approx(
+        UNDEFINED_POINTS / TOTAL_POINTS
+    )
 
 
 def test_reports_zero_for_a_complete_measurement(surface):
-    topo = _make_topography(surface, DEFINED_DATAFILE)
-    assert topo.has_undefined_data is False
-    assert topo.undefined_data_fraction == 0
+    topo = _make_measurement(surface, DEFINED_DATAFILE)
+    assert topo.info.has_undefined_data is False
+    assert topo.info.undefined_data_fraction == 0
 
 
 def test_reports_the_measured_data_even_when_filling_is_enabled(surface):
     """Filling replaces the undefined points, and the filtered topography reports
     no undefined data by definition. The stored values describe the measurement,
     so they must not be erased by the user's choice to interpolate."""
-    topo = _make_topography(
+    topo = _make_measurement(
         surface,
         UNDEFINED_DATAFILE,
-        fill_undefined_data_mode=Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC,
+        fill_undefined_data_mode="harmonic",
     )
-    assert topo.has_undefined_data is True
-    assert topo.undefined_data_fraction == pytest.approx(UNDEFINED_POINTS / TOTAL_POINTS)
+    assert topo.info.has_undefined_data is True
+    assert topo.info.undefined_data_fraction == pytest.approx(
+        UNDEFINED_POINTS / TOTAL_POINTS
+    )
 
 
 def test_fraction_is_unknown_before_inspection(surface):
     datafile = ManifestFactory(
         filename=UNDEFINED_DATAFILE, permissions=surface.permissions
     )
-    topo = Topography(
+    topo = Measurement(
         surface=surface,
         created_by=surface.created_by,
         permissions=surface.permissions,
         name=UNDEFINED_DATAFILE,
         datafile=datafile,
-        data_source=None,
     )
     topo.save()
-    assert topo.has_undefined_data is None
-    assert topo.undefined_data_fraction is None
+    # An uninspected measurement has no file-derived cache at all, so there is
+    # nothing to read the values out of yet.
+    assert topo.file_info == {}
 
 
 def test_status_names_the_percentage(surface):
-    topo = _make_topography(surface, UNDEFINED_DATAFILE)
-    status = topo.get_undefined_data_status()
+    topo = _make_measurement(surface, UNDEFINED_DATAFILE)
+    status = topo.info.get_undefined_data_status()
     assert "7% of the data points are undefined" in status
 
 
 def test_status_of_a_complete_measurement_names_no_percentage(surface):
-    topo = _make_topography(surface, DEFINED_DATAFILE)
-    assert "undefined" in topo.get_undefined_data_status()
-    assert "% of the data points" not in topo.get_undefined_data_status()
+    topo = _make_measurement(surface, DEFINED_DATAFILE)
+    status = topo.info.get_undefined_data_status()
+    assert "undefined" in status
+    assert "% of the data points" not in status
 
 
 def test_fraction_is_exported_with_the_metadata(surface):
-    topo = _make_topography(surface, UNDEFINED_DATAFILE)
+    topo = _make_measurement(surface, UNDEFINED_DATAFILE)
     assert topo.to_dict()["undefined_data_fraction"] == pytest.approx(
         UNDEFINED_POINTS / TOTAL_POINTS
     )

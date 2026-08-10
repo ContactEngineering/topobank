@@ -1,9 +1,9 @@
 """
 Tests for the trend that detrending subtracts from a measurement.
 
-`Topography.detrend_parameters` records what was removed — the slope of the tilt,
-the radius of the curvature — so the UI can show which correction is in effect
-rather than only naming the mode.
+`detrend_parameters` in the file-derived cache records what was removed — the
+slope of the tilt, the radius of the curvature — so the UI can show which
+correction is in effect rather than only naming the mode.
 """
 
 import numpy as np
@@ -11,7 +11,7 @@ import pytest
 from SurfaceTopography import NonuniformLineScan, Topography, UniformLineScan
 
 from topobank.manager.utils import detrend_parameters
-from topobank.testing.factories import Topography2DFactory
+from topobank.testing.factories import TopographyMapFactory
 
 # A tilt of 3 in x and 7 in y, and a cylindrical curvature of radius 50, on a
 # scan whose two directions have different extents so that a slope normalized by
@@ -108,15 +108,16 @@ def test_a_topography_that_was_not_detrended_fits_no_trend():
 
 @pytest.mark.django_db
 def test_inspection_stores_the_parameters():
-    topo = Topography2DFactory(detrend_mode="height")
-    assert set(topo.detrend_parameters) == {"slope_x", "slope_y"}
-    assert all(isinstance(v, float) for v in topo.detrend_parameters.values())
+    topo = TopographyMapFactory(detrend_mode="height")
+    parameters = topo.info.detrend_parameters
+    assert set(parameters) == {"slope_x", "slope_y"}
+    assert all(isinstance(v, float) for v in parameters.values())
 
 
 @pytest.mark.django_db
 def test_parameters_are_unknown_before_inspection():
-    topo = Topography2DFactory(task_state="pe")
-    topo.detrend_parameters = None
+    topo = TopographyMapFactory(task_state="pe")
+    topo.file_info = dict(topo.file_info, detrend_parameters=None)
     topo.save()
     topo.refresh_from_db()
-    assert topo.detrend_parameters is None
+    assert topo.info.detrend_parameters is None

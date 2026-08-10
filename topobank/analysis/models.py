@@ -21,7 +21,7 @@ from ..authorization import get_permission_model
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, ViewEditFull
 from ..files.models import Manifest, ManifestSet
-from ..manager.models import Surface, Tag, Topography
+from ..manager.models import Measurement, Surface, Tag
 from ..supplib.db import advisory_lock
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
@@ -75,8 +75,8 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     workflow_name = models.CharField(max_length=255, null=True, db_index=True)
 
     # Definition of the subject
-    subject_topography = models.ForeignKey(
-        Topography,
+    subject_measurement = models.ForeignKey(
+        Measurement,
         null=True,
         blank=True,
         on_delete=cascade_or_set_null,
@@ -192,7 +192,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             ),
             # Composite indexes for filtering by workflow_name + subject and ordering by time
             models.Index(
-                fields=["workflow_name", "subject_topography", "-task_start_time"],
+                fields=["workflow_name", "subject_measurement", "-task_start_time"],
                 name="result_func_topo_time_idx",
             ),
             models.Index(
@@ -246,16 +246,16 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
         # Named results are detached from their subject
         if self.name and (
-            self.subject_topography_id is not None
+            self.subject_measurement_id is not None
             or self.subject_surface_id is not None
             or self.subject_tag_id is not None
         ):
-            self.subject_topography = None
+            self.subject_measurement = None
             self.subject_surface = None
             self.subject_tag = None
             if "update_fields" in kwargs and kwargs["update_fields"] is not None:
                 kwargs["update_fields"] = list(kwargs["update_fields"]) + [
-                    "subject_topography",
+                    "subject_measurement",
                     "subject_surface",
                     "subject_tag",
                 ]
@@ -301,17 +301,17 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     @property
     def subject(self):
         """
-        Return the subject of the WorkflowResult, which can be a Tag, a Topography, or a
+        Return the subject of the WorkflowResult, which can be a Tag, a Measurement, or a
         Surface.
 
         Returns
         -------
-        Tag, Topography, Surface, or QuerySet
+        Tag, Measurement, Surface, or QuerySet
             The subject of the WorkflowResult. For surface-set analyses with a single
             surface, returns that Surface. For multi-surface sets, returns the queryset.
         """
-        if self.subject_topography_id is not None:
-            return self.subject_topography
+        if self.subject_measurement_id is not None:
+            return self.subject_measurement
         elif self.subject_surface_id is not None:
             return self.subject_surface
         elif self.subject_tag_id is not None:
@@ -472,9 +472,9 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         # self.grant_permission(user, access_level)  # Required so files can be accessed
 
     @property
-    def is_topography_related(self) -> bool:
+    def is_measurement_related(self) -> bool:
         """Returns True, if the WorkflowResult subject is a topography, else False."""
-        return self.subject_topography_id is not None
+        return self.subject_measurement_id is not None
 
     @property
     def is_surface_related(self) -> bool:
@@ -491,13 +491,13 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         """Build a Q object to filter WorkflowResults for a single subject."""
         if isinstance(subject, Tag):
             return models.Q(subject_tag_id=subject.id)
-        elif isinstance(subject, Topography):
-            return models.Q(subject_topography_id=subject.id)
+        elif isinstance(subject, Measurement):
+            return models.Q(subject_measurement_id=subject.id)
         elif isinstance(subject, Surface):
             return models.Q(subject_surface_id=subject.id)
         else:
             raise ValueError(
-                "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
+                "`subject` argument must be of type `Tag`, `Measurement` or `Surface`, "
                 f"not {type(subject)}."
             )
 
@@ -505,18 +505,18 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     def Qs(user, subjects) -> models.Q | None:
         """Build a Q object to filter WorkflowResults for multiple subjects."""
         tag_ids = []
-        topography_ids = []
+        measurement_ids = []
         surface_ids = []
         for subject in subjects:
             if isinstance(subject, Tag):
                 tag_ids.append(subject.id)
-            elif isinstance(subject, Topography):
-                topography_ids.append(subject.id)
+            elif isinstance(subject, Measurement):
+                measurement_ids.append(subject.id)
             elif isinstance(subject, Surface):
                 surface_ids.append(subject.id)
             else:
                 raise ValueError(
-                    "`subject` argument must be of type `Tag`, `Topography` or `Surface`, "
+                    "`subject` argument must be of type `Tag`, `Measurement` or `Surface`, "
                     f"not {type(subject)}."
                 )
         query = None
@@ -525,13 +525,20 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 permissions__user_permissions__user=user
             )
             query = q
-        if topography_ids:
-            q = models.Q(subject_topography_id__in=topography_ids)
+        if measurement_ids:
+            q = models.Q(subject_measurement_id__in=measurement_ids)
             query = query | q if query else q
         if surface_ids:
             q = models.Q(subject_surface_id__in=surface_ids)
             query = query | q if query else q
         return query
+
+    #: Prefix used in `subject_hash` for a single measurement subject. This still
+    #: reads "topography" although the model is now called `Measurement`: the
+    #: prefix is an opaque tag inside hashes that are already stored in millions
+    #: of rows, and it never surfaces to users. Keeping it stable avoids
+    #: rewriting every one of those rows.
+    MEASUREMENT_SUBJECT_HASH_PREFIX = "topography"
 
     @staticmethod
     def compute_subject_hash(subject_type, subject_ids):
@@ -545,8 +552,10 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         ids = list(self.surfaces.values_list("id", flat=True))
         if ids:
             self.subject_hash = self.compute_subject_hash("surfaces", ids)
-        elif self.subject_topography_id is not None:
-            self.subject_hash = self.compute_subject_hash("topography", [self.subject_topography_id])
+        elif self.subject_measurement_id is not None:
+            self.subject_hash = self.compute_subject_hash(
+                self.MEASUREMENT_SUBJECT_HASH_PREFIX, [self.subject_measurement_id]
+            )
         elif self.subject_surface_id is not None:
             self.subject_hash = self.compute_subject_hash("surface", [self.subject_surface_id])
         elif self.subject_tag_id is not None:
@@ -598,14 +607,14 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         """
         self.name = name
         self.description = description
-        self.subject_topography = None
+        self.subject_measurement = None
         self.subject_surface = None
         self.subject_tag = None
         self.save(
             update_fields=[
                 "name",
                 "description",
-                "subject_topography",
+                "subject_measurement",
                 "subject_surface",
                 "subject_tag",
             ]
@@ -685,6 +694,18 @@ class Workflow:
             return impl.has_implementation(model_class)
         return False
 
+    def supports_subject(self, subject):
+        """
+        Returns whether this workflow can run on `subject`.
+
+        For a measurement this also takes its kind into account, which
+        `has_implementation` cannot do because it only sees the model class.
+        """
+        impl = self.implementation
+        if impl is not None:
+            return impl.supports_subject(subject)
+        return False
+
     def get_default_kwargs(self):
         """
         Return default keyword arguments as a dictionary.
@@ -756,7 +777,7 @@ class Workflow:
 
     def eval(self, analysis, **auxiliary_kwargs):
         """
-        First argument is the subject of the WorkflowResult (`Surface`, `Topography` or `Tag`).
+        First argument is the subject of the WorkflowResult (`Surface`, `Measurement` or `Tag`).
         """
         impl = self.implementation
         if impl is None:
@@ -773,14 +794,14 @@ class Workflow:
     def submit(
         self,
         user: settings.AUTH_USER_MODEL,
-        subject: Union[Tag, Surface, Topography],
+        subject: Union[Tag, Surface, Measurement],
         kwargs: dict = None,
         force_submit: bool = False,
     ):
         """
         user : topobank.users.models.User
             Users which should see the WorkflowResult.
-        subject : Tag or Topography or Surface
+        subject : Tag or Measurement or Surface
             Instance which will be subject of the WorkflowResult (first argument of WorkflowResult
             function).
         kwargs : dict, optional
@@ -794,9 +815,14 @@ class Workflow:
         # Check if user can actually access the subject
         subject.authorize_user(user, "view")
 
-        # Check whether there is an implementation for this Workflow/subject combination
-        if not self.has_implementation(type(subject)):
-            raise WorkflowNotImplementedException(self.name, type(subject))
+        # Check whether there is an implementation for this Workflow/subject
+        # combination. For a measurement this includes its kind: a workflow for
+        # height data must not be run on, say, a spectrum.
+        if not self.supports_subject(subject):
+            raise WorkflowNotImplementedException(
+                self.name,
+                subject.kind if isinstance(subject, Measurement) else type(subject),
+            )
 
         # FIXME!!! Weird things happen is a workflow is triggered before the dataset
         # is fully analyzed and in a SUCCESS state, but tests fail when this is enabled.
@@ -868,7 +894,7 @@ class Workflow:
     def _submit_new_analysis(
         self,
         user: settings.AUTH_USER_MODEL,
-        subject: Union[Tag, Topography, Surface],
+        subject: Union[Tag, Measurement, Surface],
         kwargs: dict,
     ):
         """
@@ -878,7 +904,7 @@ class Workflow:
         ----------
         user: topobank.users.models.User
             User which should see the WorkflowResult.
-        subject: Tag or Topography or Surface
+        subject: Tag or Measurement or Surface
             Instance which will be subject of the WorkflowResult.
         kwargs: dict
             Keyword arguments for the function which should be saved to database.
@@ -903,9 +929,11 @@ class Workflow:
             if isinstance(subject, Tag):
                 create_kwargs["subject_tag"] = subject
                 create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("tag", [subject.id])
-            elif isinstance(subject, Topography):
-                create_kwargs["subject_topography"] = subject
-                create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("topography", [subject.id])
+            elif isinstance(subject, Measurement):
+                create_kwargs["subject_measurement"] = subject
+                create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash(
+                    WorkflowResult.MEASUREMENT_SUBJECT_HASH_PREFIX, [subject.id]
+                )
             elif isinstance(subject, Surface):
                 create_kwargs["subject_surface"] = subject
                 create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("surface", [subject.id])

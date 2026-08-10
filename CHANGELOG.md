@@ -1,5 +1,43 @@
 # Changelog for *TopoBank*
 
+# 1.72.0 (unreleased)
+
+- API: `Topography` is now `Measurement`. The model no longer describes only
+  topography data; its kind is determined by a registered *measurement type*
+  (`topobank.measurements`). `Surface.topography_set` is now
+  `Surface.measurements`, `num_topographies()` is `num_measurements()`, and
+  `WorkflowResult.subject_topography` is `subject_measurement`. There is no
+  compatibility alias — out-of-tree code has to be updated with this release.
+- ENH: Measurement-specific metadata moved from typed columns into two JSON
+  documents validated by pydantic schemas that the measurement type provides:
+  `metadata` (user-editable) and `file_info` (derived from the data file). Use
+  `measurement.meta` / `measurement.info` for typed access and
+  `update_metadata()` to change metadata.
+- ENH: Measurement types are pluggable. The three built-in kinds
+  (`topography-map`, `uniform-line-scan`, `nonuniform-line-scan`) now have
+  *separate* schemas, so a kind no longer carries fields it does not support — a
+  nonuniform line scan has no `is_periodic` and no `fill_undefined_data_mode` at
+  all. External packages can register further kinds, whose data need not be
+  topography data, through the `topobank.measurement_types` entry-point group.
+  See `docs/measurements.rst`.
+- ENH: Data channels are identified by name (`channel_name`) instead of by index
+  (`data_source`), so a reader that reports its channels in a different order can
+  no longer silently change which data a measurement refers to. A name that no
+  longer identifies exactly one channel is an error rather than a silent fallback.
+  `channel_occurrence` disambiguates duplicate names and is only set when a name
+  is actually ambiguous.
+- ENH: Non-height channels (adhesion, phase, current, ...) are now described in
+  the channel inventory with the kind they would import as; they become importable
+  as soon as a measurement type claims them.
+- ENH: Workflows declare `Meta.supported_kinds`, so a workflow written for height
+  data is not offered for other kinds of measurement. Omitting it is an error.
+- ENH: New `check_measurement_kinds` management command reports measurements whose
+  stored kind disagrees with their data file.
+- MAINT: Container archives store `kind`, a `metadata` document and the channel
+  name, under a `measurements` key. Archives written by earlier versions (all
+  published datasets) are still imported: their flat metadata keys are mapped into
+  `metadata` and their channel index is resolved to a name on first inspection.
+
 # 1.71.0 (2026-08-03)
 
 - ENH: A data series records the extent of its data next to the reference to its

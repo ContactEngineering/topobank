@@ -24,8 +24,8 @@ from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
 from topobank.analysis.models import WorkflowResult
 from topobank.analysis.tasks import perform_analysis
-from topobank.manager.models import Topography
-from topobank.testing.factories import TopographyAnalysisFactory
+from topobank.manager.models import Measurement
+from topobank.testing.factories import MeasurementAnalysisFactory
 
 # Importing this module runs the @register_implementation decorators that make
 # the "topobank.testing.test" workflow available. Without it the end-to-end
@@ -45,7 +45,7 @@ def _make_analysis(test_workflow, **overrides):
         result=None,
     )
     params.update(overrides)
-    return TopographyAnalysisFactory.create(**params)
+    return MeasurementAnalysisFactory.create(**params)
 
 
 # ---------------------------------------------------------------------------
@@ -164,9 +164,9 @@ def test_task_duration(test_workflow):
 
 @pytest.mark.django_db
 def test_eager_execution_reaches_success(two_topos, test_workflow):
-    topo = Topography.objects.first()
-    analysis = TopographyAnalysisFactory.create(
-        subject_topography=topo,
+    topo = Measurement.objects.first()
+    analysis = MeasurementAnalysisFactory.create(
+        subject_measurement=topo,
         workflow_name=test_workflow.name,
         kwargs=dict(a=1, b="hamming"),
         result=None,

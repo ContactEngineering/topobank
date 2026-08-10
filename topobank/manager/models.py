@@ -1,19 +1,15 @@
 """
-Basic models for the web app for handling topography data.
+Basic models for the web app for handling measurement data.
 """
 
-import io
 import itertools
 import logging
-import os.path
-import tempfile
 from collections import defaultdict
 from typing import List
 
 import django.dispatch
-import matplotlib
 import numpy as np
-import PIL
+import pydantic
 import tagulous.models as tm
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
@@ -21,17 +17,11 @@ from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
-from django.core.files.base import ContentFile
-from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q, Value
+from django.db.models.fields.json import KeyTextTransform
 from django.utils import timezone
-from matplotlib.figure import Figure
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
-from SurfaceTopography.Exceptions import UndefinedDataError
-from SurfaceTopography.IO import ReaderBase
-from SurfaceTopography.Metadata import InstrumentParametersModel
-from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..authorization import get_permission_model
 from ..authorization.mixins import PermissionMixin
@@ -41,15 +31,26 @@ from ..authorization.models import (
     ViewEditFull,
 )
 from ..files.models import Manifest, ManifestSet
+from ..measurements.channels import (
+    ChannelError,
+    UnsupportedChannelError,
+    resolve_channel,
+)
+from ..measurements.registry import (
+    MeasurementNotInspectedError,
+    MeasurementRegistryError,
+    get_measurement_type,
+    get_measurement_types,
+    sniff_measurement_file,
+)
+from ..measurements.schemas import (
+    coerce_metadata,
+    dump_metadata,
+    significant_values,
+)
 from ..taskapp.models import IncompleteMetadataError, TaskStateModel
 from ..taskapp.utils import in_celery_worker_process, run_task
 from ..utils.timer import Timer
-from .utils import (
-    detrend_parameters,
-    get_topography_reader,
-    render_deepzoom,
-    undefined_data_fraction,
-)
 
 _log = logging.getLogger(__name__)
 
@@ -59,21 +60,13 @@ post_refresh_cache = django.dispatch.Signal()
 MAX_LENGTH_DATAFILE_FORMAT = (
     15  # some more characters than currently needed, we may have sub formats in future
 )
-SQUEEZED_DATAFILE_FORMAT = "nc"
-
-
-def _get_unit(channel):
-    if isinstance(channel.unit, tuple):
-        lateral_unit, data_unit = channel.unit
-        return data_unit
-    return channel.unit
 
 
 class ThumbnailGenerationException(Exception):
-    """Failure while generating thumbnails for a topography."""
+    """Failure while generating thumbnails for a measurement."""
 
-    def __init__(self, topo, message):
-        self._topo = topo
+    def __init__(self, measurement, message):
+        self._measurement = measurement
         self._message = message
 
     def __str__(self):
@@ -81,30 +74,63 @@ class ThumbnailGenerationException(Exception):
 
 
 class DZIGenerationException(ThumbnailGenerationException):
-    """Failure while generating DZI files for a topography."""
+    """Failure while generating DZI files for a measurement."""
 
     pass
 
 
 class SqueezedDatafileGenerationException(ThumbnailGenerationException):
-    """Failure while generating squeezed data files for a topography."""
+    """Failure while generating squeezed data files for a measurement."""
 
     pass
 
 
 class TopobankLazySurfaceContainer(SurfaceContainer):
-    """Wraps a `Surface` with lazy loading of topography data"""
+    """
+    Wraps a `Surface` with lazy loading of measurement data.
+
+    Only measurements whose data is a `SurfaceTopography` object can be part of a
+    container, so measurements of other kinds (a spectrum, say) are skipped.
+
+    Measurements that have not been inspected yet are skipped too - their kind is
+    not known, so there is no way to tell whether they belong here. That is a
+    transient state, but it makes the container quietly smaller than the dataset,
+    which would otherwise be indistinguishable from a dataset that really has
+    fewer measurements. It is therefore logged.
+    """
 
     def __init__(self, surface, **kwargs):
         self._surface = surface
-        self._topographies = self._surface.topography_set.all()
+        topography_kinds = [
+            kind
+            for kind, measurement_type in get_measurement_types().items()
+            if measurement_type.yields_surface_topography
+        ]
+        self._measurements = self._surface.measurements.filter(
+            kind__in=topography_kinds
+        )
         self._kwargs = kwargs
 
+        not_inspected = list(
+            self._surface.measurements.filter(kind="").values_list("id", flat=True)
+        )
+        if not_inspected:
+            _log.warning(
+                "Dataset %s contains %s measurement(s) that have not been "
+                "inspected yet (ids: %s); they are not part of this container. "
+                "Anything computed from it covers only the remaining %s "
+                "measurement(s).",
+                surface.id,
+                len(not_inspected),
+                ", ".join(str(pk) for pk in not_inspected),
+                self._measurements.count(),
+            )
+
     def __len__(self):
-        return len(self._topographies)
+        return len(self._measurements)
 
     def __getitem__(self, item):
-        return self._topographies[item].read(**self._kwargs)
+        return self._measurements[item].read(**self._kwargs)
 
 
 class SubjectMixin:
@@ -324,7 +350,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     """
     A physical surface of a specimen.
 
-    There can be many topographies (measurements) for one surface.
+    There can be many measurements for one surface.
     """
 
     CATEGORY_CHOICES = [
@@ -445,8 +471,8 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     def get_related_surfaces(self):
         return [self]
 
-    def num_topographies(self):
-        return self.topography_set.count()
+    def num_measurements(self):
+        return self.measurements.count()
 
     def save(self, *args, **kwargs):
         created = self.pk is None
@@ -473,7 +499,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     def lazy_delete(self):
         self.deletion_time = timezone.now()
         self.save(update_fields=["deletion_time"])
-        self.topography_set.filter(deletion_time__isnull=True).update(
+        self.measurements.filter(deletion_time__isnull=True).update(
             deletion_time=self.deletion_time
         )
 
@@ -490,18 +516,21 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             self.created_by.name if self.created_by is not None else "",
         ]
         parts += [flatten_for_search(tag.name) for tag in self.tags.all()]
-        for topography in self.topography_set.select_related("created_by").prefetch_related("tags").all():
+        measurements = self.measurements.select_related("created_by").prefetch_related(
+            "tags"
+        )
+        for measurement in measurements.all():
             parts += [
-                flatten_for_search(topography.name),
-                topography.description or "",
+                flatten_for_search(measurement.name),
+                measurement.description or "",
                 (
-                    topography.created_by.name
-                    if topography.created_by is not None
+                    measurement.created_by.name
+                    if measurement.created_by is not None
                     else ""
                 ),
             ]
             parts += [
-                flatten_for_search(tag.name) for tag in topography.tags.all()
+                flatten_for_search(tag.name) for tag in measurement.tags.all()
             ]
         return " ".join(part for part in parts if part)
 
@@ -525,7 +554,9 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         Does not include topographies. They can be added like this:
 
          surface_dict = surface.to_dict()
-         surface_dict['topographies'] = [t.to_dict() for t in surface.topography_set.order_by('name')]
+         surface_dict['measurements'] = [
+             m.to_dict() for m in surface.measurements.order_by('name')
+         ]
 
         The publication URL will be based on the official contact.engineering URL.
 
@@ -612,11 +643,11 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         surface.attachments = self.attachments.deepcopy(permissions=surface.permissions)
         surface.save(update_fields=["attachments"])
 
-        for topography in self.topography_set.all():
-            topography.deepcopy(surface)
+        for measurement in self.measurements.all():
+            measurement.deepcopy(surface)
             # we pass the surface here because there is a constraint that (surface_id +
-            # topography name) must be unique, i.e. a surface should never have two
-            # topographies of the same name, so we can't set the new surface as the
+            # measurement name) must be unique, i.e. a surface should never have two
+            # measurements of the same name, so we can't set the new surface as the
             # second step
         for property in self.properties.all():
             property.deepcopy(surface)
@@ -640,91 +671,70 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         return TopobankLazySurfaceContainer(self, **kwargs)
 
 
-class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
+class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     """
-    A single topography measurement of a surface of a specimen.
+    A single measurement on a specimen.
+
+    This model is deliberately generic. It owns identity, relations, permissions,
+    files and task state; everything that depends on *what kind* of measurement it
+    is - which metadata it has, how its data file is read, which derived artifacts
+    exist - lives in the measurement type registered for :attr:`kind`. See
+    :mod:`topobank.measurements`.
+
+    Metadata is stored in two JSON documents rather than in typed columns, and
+    validated through pydantic schemas that the measurement type provides:
+
+    :attr:`metadata`
+        User-facing physical metadata (sizes, units, corrections, instrument).
+        Edited through the API, validated on every write.
+    :attr:`file_info`
+        Read-only cache of what was found in the data file (resolution,
+        bandwidths, the channel inventory). Written only by the inspection task.
     """
 
     celery_queue = settings.TOPOBANK_MANAGER_QUEUE
 
-    LENGTH_UNIT_CHOICES = [
-        ("km", "kilometers"),
-        ("m", "meters"),
-        ("mm", "millimeters"),
-        ("µm", "micrometers"),
-        ("nm", "nanometers"),
-        ("Å", "angstrom"),
-        ("pm", "picometers"),  # This is the default unit for VK files so we need it
-    ]
-
-    HAS_UNDEFINED_DATA_DESCRIPTION = {
-        None: "contact.engineering could not (yet) determine if this topography has undefined data points.",
-        True: "The dataset has undefined/missing data points.",
-        False: "No undefined/missing data found.",
-    }
-
-    FILL_UNDEFINED_DATA_MODE_NOFILLING = "do-not-fill"
-    FILL_UNDEFINED_DATA_MODE_HARMONIC = "harmonic"
-
-    FILL_UNDEFINED_DATA_MODE_CHOICES = [
-        (FILL_UNDEFINED_DATA_MODE_NOFILLING, "Do not fill undefined data points"),
-        (
-            FILL_UNDEFINED_DATA_MODE_HARMONIC,
-            "Interpolate undefined data points with harmonic functions",
-        ),
-    ]
-
-    DETREND_MODE_CHOICES = [
-        ("center", "No detrending, but subtract mean height"),
-        ("height", "Remove tilt"),
-        ("curvature", "Remove curvature and tilt"),
-    ]
-
-    INSTRUMENT_TYPE_UNDEFINED = "undefined"
-    INSTRUMENT_TYPE_MICROSCOPE_BASED = "microscope-based"
-    INSTRUMENT_TYPE_CONTACT_BASED = "contact-based"
-
-    INSTRUMENT_TYPE_CHOICES = [
-        (
-            INSTRUMENT_TYPE_UNDEFINED,
-            "Instrument of unknown type - all data considered as reliable",
-        ),
-        (
-            INSTRUMENT_TYPE_MICROSCOPE_BASED,
-            "Microscope-based instrument with known resolution",
-        ),
-        (
-            INSTRUMENT_TYPE_CONTACT_BASED,
-            "Contact-based instrument with known tip radius",
-        ),
-    ]
-
     class Meta:
         ordering = ["measurement_date", "pk"]
         unique_together = (("surface", "name"),)
-        verbose_name = "measurement"
-        verbose_name_plural = "measurements"
         indexes = [
             # Index on surface foreign key for JOIN optimization
-            # Used in: surface.topography_set.all() and filtering by surface__deletion_time
-            models.Index(fields=['surface'], name='topography_surface_idx'),
+            # Used in: surface.measurements.all() and filtering by
+            # surface__deletion_time
+            models.Index(fields=["surface"], name="measurement_surface_idx"),
             # Composite index for filtering and ordering
             # Used in: list queries with deletion_time filter
-            models.Index(fields=['deletion_time', 'name'], name='topography_list_idx'),
-            # Partial index for active (non-deleted) topographies
-            # Most common query: only show topographies where deletion_time IS NULL
+            models.Index(
+                fields=["deletion_time", "name"], name="measurement_list_idx"
+            ),
+            # Partial index for active (non-deleted) measurements
+            # Most common query: only show measurements where deletion_time IS NULL
             # More efficient than full index since it excludes soft-deleted rows
             models.Index(
-                fields=['name'],
-                name='topography_active_name_idx',
-                condition=Q(deletion_time__isnull=True)
+                fields=["name"],
+                name="measurement_active_name_idx",
+                condition=Q(deletion_time__isnull=True),
+            ),
+            # Measurements are routinely filtered by kind, e.g. to restrict a
+            # container to the kinds that yield SurfaceTopography objects.
+            models.Index(fields=["kind"], name="measurement_kind_idx"),
+        ]
+        constraints = [
+            # The `kind` column is the source of truth for queries, while the
+            # copy inside `metadata` makes the stored JSON self-describing. This
+            # guards against the two drifting apart. Rows that have not been
+            # inspected yet have an empty kind and no metadata, in which case the
+            # comparison is NULL and the constraint passes.
+            models.CheckConstraint(
+                condition=Q(kind=KeyTextTransform("kind", "metadata")),
+                name="measurement_kind_matches_metadata",
             ),
         ]
 
     #
     # Manager
     #
-    # Automatically filter out deleted topographies in the default manager.
+    # Automatically filter out deleted measurements in the default manager.
     #
     objects = SurfaceTopographyManager()
     #
@@ -740,26 +750,28 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
         on_delete=models.CASCADE, null=True
     )
-    surface = models.ForeignKey(Surface, on_delete=models.CASCADE)
+    surface = models.ForeignKey(
+        Surface, on_delete=models.CASCADE, related_name="measurements"
+    )
 
     #
     # Descriptive fields
     #
     name = models.TextField()  # This must be identical to the file name on upload
     #
-    # User who created this topography
+    # User who created this measurement
     #
     created_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL
     )
     #
-    # User who last updated this topography (no reverse lookup needed)
+    # User who last updated this measurement (no reverse lookup needed)
     #
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
     #
-    # Organization owning this topography. (Cleanup only happens if the surface is deleted)
+    # Organization owning this measurement. (Cleanup only happens if the surface is deleted)
     #
     owned_by = models.ForeignKey(
         getattr(settings, "TOPOBANK_ORGANIZATION_MODEL", "organizations.Organization"),
@@ -786,13 +798,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         Manifest,
         null=True,
         on_delete=models.SET_NULL,
-        related_name="topography_datafiles",
+        related_name="measurement_datafiles",
     )
     datafile_format = models.CharField(
         max_length=MAX_LENGTH_DATAFILE_FORMAT, null=True, default=None, blank=True
     )
-    channel_names = models.JSONField(default=list)
-    data_source = models.IntegerField(null=True)  # Channel index
     # Django documentation discourages the use of null=True on a CharField. We use it
     # here nevertheless, because we need this values as argument to a function where
     # None has a special meaning (autodetection of format). If we used an empty string
@@ -806,117 +816,249 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         Manifest,
         null=True,
         on_delete=models.SET_NULL,
-        related_name="topography_squeezed_datafiles",
+        related_name="measurement_squeezed_datafiles",
     )
 
     #
-    # Fields with physical meta data
+    # Kind of measurement and its metadata
     #
-    size_editable = models.BooleanField(default=False, editable=False)
-    size_x = models.FloatField(null=True, validators=[MinValueValidator(0.0)])
-    size_y = models.FloatField(
-        null=True, validators=[MinValueValidator(0.0)]
-    )  # null for line scans
+    # `kind` is the key of the registered measurement type; it is deliberately a
+    # plain string rather than a set of choices, because the valid values are
+    # whatever is in the registry at runtime and plugins may extend that set.
+    # Empty until the data file has been inspected.
+    #
+    kind = models.CharField(max_length=64, blank=True, default="", db_index=True)
+    # Validated against the measurement type's `Metadata` schema.
+    metadata = models.JSONField(default=dict)
+    # Validated against the measurement type's `FileInfo` schema. Written only by
+    # the inspection task, never by the user.
+    file_info = models.JSONField(default=dict, editable=False)
 
-    unit_editable = models.BooleanField(default=False, editable=False)
-    unit = models.TextField(choices=LENGTH_UNIT_CHOICES, null=True)
-
-    height_scale_editable = models.BooleanField(default=False, editable=False)
-    height_scale = models.FloatField(default=1)
-
-    has_undefined_data = models.BooleanField(
-        null=True, default=None
-    )  # default is undefined
-    # Fraction (not percentage) of the data points of the measured data that are
-    # undefined, in [0, 1]. Null until the measurement has been inspected.
-    undefined_data_fraction = models.FloatField(
-        null=True, default=None, editable=False
-    )
-    fill_undefined_data_mode = models.TextField(
-        choices=FILL_UNDEFINED_DATA_MODE_CHOICES,
-        default=FILL_UNDEFINED_DATA_MODE_NOFILLING,
-    )
-
-    detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default="center")
-    # The trend that was subtracted, as `slope_x`/`slope_y` (dimensionless) and
-    # `radius_x`/`radius_y` (in `unit`); see `utils.detrend_parameters`. Null until
-    # the measurement has been inspected, empty when the mode fits no trend.
-    detrend_parameters = models.JSONField(null=True, default=None, editable=False)
-
-    resolution_x = models.IntegerField(
-        null=True, editable=False, validators=[MinValueValidator(0)]
-    )  # null for line scans
-    resolution_y = models.IntegerField(
-        null=True, editable=False, validators=[MinValueValidator(0)]
-    )  # null for line scans
-
-    bandwidth_lower = models.FloatField(
-        null=True, default=None, editable=False
-    )  # in meters
-    bandwidth_upper = models.FloatField(
-        null=True, default=None, editable=False
-    )  # in meters
-    short_reliability_cutoff = models.FloatField(
+    #
+    # Selection of the data channel within the data file
+    #
+    # Channels are identified by name, so that a reader which reports its channels
+    # in a different order cannot silently change which data a measurement refers
+    # to. None until the data file has been inspected.
+    #
+    channel_name = models.TextField(null=True, default=None, blank=True)
+    # Tie-breaker for data files that contain several channels of the same name.
+    # Set *only* when the name is ambiguous; a NULL therefore asserts that the
+    # name matched exactly one channel when it was selected, and a name that
+    # later becomes ambiguous is reported rather than silently resolved.
+    channel_occurrence = models.PositiveIntegerField(null=True, default=None)
+    # Transitional: containers written before channels were identified by name
+    # record a channel *index*. Import stores it here, and the first inspection
+    # consumes it to look up the channel name, then clears it. Nothing else
+    # should ever set this.
+    channel_index_hint = models.PositiveIntegerField(
         null=True, default=None, editable=False
     )
 
-    is_periodic_editable = models.BooleanField(default=True, editable=False)
-    is_periodic = models.BooleanField(default=False)
-
     #
-    # Fields about instrument and its parameters
-    #
-    instrument_name = models.CharField(max_length=200, blank=True)
-    instrument_type = models.TextField(
-        choices=INSTRUMENT_TYPE_CHOICES, default=INSTRUMENT_TYPE_UNDEFINED
-    )
-    instrument_parameters = models.JSONField(default=dict)
-
-    #
-    # Thumnbnail and deep zoom files
+    # Thumbnail and deep zoom files
     #
     thumbnail = models.ForeignKey(
         Manifest,
         null=True,
         on_delete=models.SET_NULL,
-        related_name="topography_thumbnails",
+        related_name="measurement_thumbnails",
     )
     deepzoom = models.ForeignKey(
         ManifestSet,
         null=True,
         on_delete=models.SET_NULL,
-        related_name="topography_deepzooms",
+        related_name="measurement_deepzooms",
     )
 
-    # Changes in these fields trigger a refresh of the topography cache and of all analyses
+    #
+    # Changes in these fields trigger a refresh of the cache and of all analyses.
+    # `metadata` is handled separately, because only some of its entries are
+    # significant (see `topobank.measurements.schemas.significant_values`).
+    #
     _significant_fields = {
-        "size_x",
-        "size_y",
-        "unit",
-        "is_periodic",
-        "height_scale",
-        "fill_undefined_data_mode",
-        "detrend_mode",
-        "data_source",
-        "instrument_type",
-    }  # + 'instrument_parameters'
+        "kind",
+        "channel_name",
+        "channel_occurrence",
+    }
 
     #
-    # Methods
+    # Measurement type and metadata access
     #
+
+    def get_type(self):
+        """
+        Return the measurement type for this measurement's kind.
+
+        Raises
+        ------
+        MeasurementNotInspectedError
+            If the data file has not been inspected yet, so the kind is unknown.
+        UnknownMeasurementKindError
+            If no measurement type is registered for this kind, e.g. because the
+            plugin providing it is not installed. The record itself stays usable:
+            it can be listed, downloaded and deleted.
+        """
+        if not self.kind:
+            raise MeasurementNotInspectedError(
+                f"The kind of measurement {self.id} is not known yet because its "
+                "data file has not been inspected."
+            )
+        return get_measurement_type(self.kind)
+
+    @property
+    def meta(self):
+        """
+        Stored metadata, parsed into the measurement type's pydantic schema.
+
+        This is the typed view of :attr:`metadata`. It is parsed on each access,
+        so mutating the returned object does not change what is stored; use
+        :meth:`update_metadata` for that.
+        """
+        return self.get_type().Metadata(**(self.metadata or {}))
+
+    @property
+    def info(self):
+        """
+        File-derived cache, parsed into the measurement type's pydantic schema.
+
+        The typed view of :attr:`file_info`, populated by the inspection task.
+        """
+        return self.get_type().FileInfo(**(self.file_info or {}))
+
+    def metadata_for_kind(self, kind):
+        """
+        Return the stored metadata as an instance of `kind`'s schema.
+
+        Values that the target schema does not have, or does not accept, fall
+        back to its defaults. This is what lets a user's adjustments survive a
+        change of kind, which happens when a different channel of the data file
+        is selected.
+        """
+        return coerce_metadata(get_measurement_type(kind).Metadata, self.metadata)
+
+    def update_metadata(self, save=True, **changes):
+        """
+        Validate and store changes to the metadata.
+
+        Parameters
+        ----------
+        save : bool, optional
+            Whether to save the measurement. (Default: True)
+        **changes
+            Metadata fields to change.
+
+        Returns
+        -------
+        Measurement
+            This measurement.
+
+        Raises
+        ------
+        pydantic.ValidationError
+            If a value is invalid, or a field does not exist for this kind.
+        """
+        metadata = self.meta
+        for name, value in changes.items():
+            setattr(metadata, name, value)
+        self.metadata = dump_metadata(metadata)
+        if save:
+            self.save(update_fields=["metadata"])
+        return self
+
+    @property
+    def is_metadata_complete(self):
+        """Whether we have all metadata needed to actually read the data file."""
+        try:
+            return self.meta.is_complete()
+        except MeasurementRegistryError:
+            return False
+
+    @property
+    def is_first_inspection(self):
+        """
+        Whether no metadata has been established for this measurement yet.
+
+        Optional metadata (acquisition date, instrument) is imported from the data
+        file only on the first inspection; on later ones that would overwrite
+        values the user has adjusted. Measurements created from a container
+        already carry metadata, so their files are not consulted for it either.
+        """
+        return not self.metadata
+
+    def get_undefined_data_status(self):
+        """Human-readable description of the status of undefined data."""
+        return self.info.get_undefined_data_status(
+            getattr(self.meta, "fill_undefined_data_mode", None)
+        )
+
+    #
+    # Channel selection
+    #
+
+    def resolve_channel_index(self, reader=None, channel_names=None):
+        """
+        Return the index of the selected channel.
+
+        Parameters
+        ----------
+        reader : ReaderBase, optional
+            Open reader whose channels are searched.
+        channel_names : sequence of str, optional
+            Channel names to search, instead of taking them from `reader`.
+
+        Returns
+        -------
+        int
+            Index of the channel in file order.
+
+        Raises
+        ------
+        ChannelNotFoundError, AmbiguousChannelError
+            If the recorded name does not identify exactly one channel; see
+            :mod:`topobank.measurements.channels`.
+        """
+        if channel_names is None:
+            channel_names = [channel.name for channel in reader.channels]
+        if self.channel_name is None:
+            raise ChannelError(
+                f"Measurement {self.id} has no channel selected because its data "
+                "file has not been inspected yet."
+            )
+        return resolve_channel(
+            channel_names, self.channel_name, self.channel_occurrence
+        )
+
+    def warn_if_expensive_read(self):
+        """Warn when costly data is loaded outside a Celery worker process."""
+        try:
+            expensive = self.get_type().is_expensive_to_read
+        except MeasurementRegistryError:
+            expensive = False
+        if expensive and not in_celery_worker_process():
+            _log.warning(
+                "You are requesting to load a (2D) measurement and you are not within in a Celery worker "
+                "process. This operation is potentially slow and may require a lot of memory - do not use "
+                "`Measurement.read` within the main Django server!"
+            )
+
+    #
+    # Persistence
+    #
+
     def save(self, *args, **kwargs):
         update_fields: list = kwargs.get("update_fields", None)
         created = self.pk is None
         if created:
             if self.permissions is None:
                 _log.debug(
-                    f"NEW TOPOGRAPHY: Attaching topography to surface permissions {self}."
+                    f"NEW MEASUREMENT: Attaching measurement to surface permissions {self}."
                 )
                 if self.surface.permissions is not None:
                     self.permissions = self.surface.permissions
                 else:
                     raise RuntimeError(
-                        "Cannot create topography because surface has no permissions."
+                        "Cannot create measurement because surface has no permissions."
                     )
         if self.attachments is None:
             _log.debug(
@@ -930,7 +1072,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 update_fields.append('attachments')
         if self.datafile is None:
             _log.debug(
-                f"DATAFILE MISSING: Creating datafile manifest for Topography: {self}")
+                f"DATAFILE MISSING: Creating datafile manifest for measurement: {self}")
             self.datafile = Manifest.objects.create(
                 permissions=self.permissions,
                 filename=self.name,
@@ -947,37 +1089,30 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # https://stackoverflow.com/questions/1355150/when-saving-how-can-you-check-if-a-field-has-changed
         try:
             # Do not check for None in self.id as this breaks should we switch to UUIDs
-            old_obj = Topography.objects.get(pk=self.pk)
+            old_obj = Measurement.objects.get(pk=self.pk)
         except self.DoesNotExist:
-            pass  # Do nothing, we have just created a new topography
+            pass  # Do nothing, we have just created a new measurement
         else:
-            # Check which fields actually changed
-            changed_fields = [
-                (update_fields is None or name in update_fields)
-                and getattr(self, name) != getattr(old_obj, name)
-                for name in self._significant_fields
-            ]
-
             changed_fields = [
                 name
-                for name, changed in zip(self._significant_fields, changed_fields)
-                if changed
+                for name in self._significant_fields
+                if (update_fields is None or name in update_fields)
+                and getattr(self, name) != getattr(old_obj, name)
             ]
 
-            # `instrument_parameters` is special as it can contain non-significant
-            # entries
-            if update_fields is None or "instrument_parameters" in update_fields:
-                if InstrumentParametersModel(
-                    **self.instrument_parameters
-                ) != InstrumentParametersModel(**old_obj.instrument_parameters):
-                    changed_fields += ["instrument_parameters"]
+            # `metadata` is special: only some of its entries affect derived
+            # data, so the significant ones are compared rather than the raw
+            # document.
+            if update_fields is None or "metadata" in update_fields:
+                if self._significant_metadata() != old_obj._significant_metadata():
+                    changed_fields += ["metadata"]
 
             # We need to refresh if any of the significant fields changed during this save
-            refresh_dependent_data = any(changed_fields)
+            refresh_dependent_data = bool(changed_fields)
 
             if refresh_dependent_data:
                 _log.debug(
-                    f"The following significant fields of topography {self.id} changed: "
+                    f"The following significant fields of measurement {self.id} changed: "
                 )
                 for name in changed_fields:
                     _log.debug(
@@ -989,7 +1124,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             run_task(self)
             # run_task sets the pending task state in memory (autosave=False),
             # expecting this save() to persist it. When the caller restricted
-            # update_fields (e.g. save(update_fields=["size_x"])) those fields
+            # update_fields (e.g. save(update_fields=["metadata"])) those fields
             # would otherwise be dropped, leaving task_state stale (reported as
             # SUCCESS while a recompute is in flight) and defeating the in-flight
             # re-dispatch guard, which keys off the persisted task_state.
@@ -1000,6 +1135,20 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Save after run task, because run task may update the task state
         super().save(*args, **kwargs)
+
+    def _significant_metadata(self):
+        """
+        Return the metadata entries that affect derived data.
+
+        Falls back to the raw document if the metadata cannot be parsed, which is
+        the case for a measurement whose kind is not (or no longer) registered.
+        Such a measurement can still be saved; only its metadata cannot be
+        interpreted.
+        """
+        try:
+            return significant_values(self.meta)
+        except (MeasurementRegistryError, pydantic.ValidationError):
+            return dict(self.metadata or {})
 
     def lazy_delete(self):
         self.deletion_time = timezone.now()
@@ -1014,7 +1163,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         )
 
     def remove_files(self):
-        """Remove files associated with a topography instance before removal of the topography."""
+        """Remove files associated with a measurement instance before removal of the measurement."""
 
         def delete(name, exc=Manifest.DoesNotExist):
             try:
@@ -1045,10 +1194,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         Looks like a relative path to a directory.
         If storage is on filesystem, the prefix should correspond
         to a real directory.
+
+        Note: this deliberately still says "topographies". The files of existing
+        measurements live under that prefix in object storage, and renaming it
+        would mean moving every stored object.
         """
         if self.id is None:
             raise RuntimeError(
-                "This `Topography` does not have an id yet; the storage prefix is not yet known."
+                "This `Measurement` does not have an id yet; the storage prefix is not yet known."
             )
         return f"topographies/{self.id}"
 
@@ -1060,77 +1213,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         return [self.surface]
 
     def is_shared(self, user) -> bool:
-        """Returns True, if this topography is shared with a given user."""
+        """Returns True, if this measurement is shared with a given user."""
         return self.permissions.get_for_user(user) is not None
 
-    @property
-    def instrument_info(self):
-        # Build dictionary with instrument information from database... this may override data provided by the
-        # topography reader
-        return {
-            "instrument": {
-                "name": self.instrument_name,
-                "parameters": InstrumentParametersModel(
-                    **self.instrument_parameters
-                ).model_dump(exclude_none=True),
-            }
-        }
-
-    def _read(self, reader: ReaderBase, apply_filters: bool = True):
-        """
-        Construct kwargs for reading topography given channel information.
-
-        apply_filters: bool, optional
-            If True (default), the instance is detrended and corrected for
-            missing artifacts according to the saved parameters.
-            (Default: True)
-        """
-        if not in_celery_worker_process() and self.size_y is not None:
-            _log.warning(
-                "You are requesting to load a (2D) topography and you are not within in a Celery worker "
-                "process. This operation is potentially slow and may require a lot of memory - do not use "
-                "`Topography.read` within the main Django server!"
-            )
-
-        reader_kwargs = dict(channel_index=self.data_source, periodic=self.is_periodic)
-
-        channel = reader.channels[
-            reader.default_channel.index if self.data_source is None else self.data_source]
-
-        # Set size if physical size was not given in datafile
-        # (see also  TopographyCreateWizard.get_form_initial)
-        # Physical size is always a tuple or None.
-        if channel.physical_sizes is None:
-            if self.size_y is None:
-                reader_kwargs["physical_sizes"] = (self.size_x,)
-            else:
-                reader_kwargs["physical_sizes"] = self.size_x, self.size_y
-
-        if channel.height_scale_factor is None and self.height_scale:
-            # Adjust height scale to value chosen by user
-            reader_kwargs["height_scale_factor"] = self.height_scale
-
-            # This is only possible and needed, if no height scale was given in the data file already.
-            # So default is to use the factor from the file.
-
-        # Set the unit, if not already given by file contents
-        if channel.unit is None:
-            reader_kwargs["unit"] = self.unit
-
-        # Populate instrument information
-        reader_kwargs["info"] = self.instrument_info
-
-        # Eventually get topography from module "SurfaceTopography" using the given keywords
-        topo = reader.topography(**reader_kwargs)
-        if apply_filters:
-            if (
-                self.fill_undefined_data_mode
-                != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
-                and topo.is_uniform
-            ):
-                topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
-            topo = topo.detrend(detrend_mode=self.detrend_mode)
-        return topo
+    #
+    # Reading data
+    #
 
     def read(
         self,
@@ -1138,9 +1226,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         apply_filters: bool = True,
         return_reader: bool = False,
     ):
-        """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
+        """Return the data object for this measurement.
 
-        This instance is guaranteed to
+        For height data this is a
+        `SurfaceTopography.Topography`/`UniformLineScan`/`NonuniformLineScan`
+        instance, guaranteed to
 
         - have a 'unit' property
         - have a size: .physical_sizes
@@ -1154,7 +1244,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         was regenerated from the original file with additional steps
         applied.
 
-        If allow_squeezed=True, the returned topography may be read
+        If allow_squeezed=True, the returned instance may be read
         from a cached file which scaling and detrending already applied.
 
         Parameters
@@ -1169,51 +1259,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             missing artifacts according to the saved parameters.
             (Default: True)
         return_reader: bool
-            If True, return a tuple containing the topography and the reader.
+            If True, return a tuple containing the data object and the reader.
             (Default: False)
         """
-        #
-        # Try to get topography from cache if possible
-        #
-        toporeader = None
-        topo = None
-        if allow_squeezed and self.squeezed_datafile_id and apply_filters:
-            if not in_celery_worker_process() and self.size_y is not None:
-                _log.warning(
-                    "You are requesting to load a (2D) topography and you are not within in a Celery worker "
-                    "process. This operation is potentially slow and may require a lot of memory - do not use "
-                    "`Topography.read` within the main Django server!"
-                )
-
-            # Okay, we can use the squeezed datafile, it's already there.
-            toporeader = get_topography_reader(
-                self.squeezed_datafile.file, format=SQUEEZED_DATAFILE_FORMAT
-            )
-            topo = toporeader.topography(info=self.instrument_info)
-            # In the squeezed format, these things are already applied/included:
-            # unit, scaling, detrending, physical sizes
-            # so don't need to provide them to the .topography() method
-            _log.info(
-                f"Using squeezed datafile instead of original datafile for topography id {self.id}."
-            )
-
-        # Need to call exists to finish upload if file is None
-        if topo is None:
-            if self.datafile.exists():
-                # Read raw file if squeezed file is unavailable
-                toporeader = get_topography_reader(
-                    self.datafile.file, format=self.datafile_format
-                )
-                topo = self._read(toporeader, apply_filters=apply_filters)
-            else:
-                raise RuntimeError(
-                    f"Topography {self.id} does not appear to have a data file."
-                )
-
-        if return_reader:
-            return topo, toporeader
-        else:
-            return topo
+        return self.get_type().read(
+            self,
+            allow_canonical=allow_squeezed,
+            apply_filters=apply_filters,
+            return_reader=return_reader,
+        )
 
     lazy_read = read  # For compatibility with datasets that implement `lazy_read`
     topography = read  # Renaming this, mark `topography` as deprecated before v2
@@ -1221,6 +1275,21 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
         # FIXME!! This code should be moved to a separate serializer class
+        metadata = dict(self.metadata or {})
+
+        # A height scale that the data file itself encodes must not be exported:
+        # importing the archive would read the factor from the file *and* find it
+        # in the metadata, applying it twice (see GH 718). Whether the file
+        # provides it is exactly what `height_scale_editable` records.
+        try:
+            file_provides_height_scale = not getattr(
+                self.info, "height_scale_editable", True
+            )
+        except MeasurementRegistryError:
+            file_provides_height_scale = False
+        if file_provides_height_scale:
+            metadata.pop("height_scale", None)
+
         result = {
             "name": self.name,
             "datafile": {
@@ -1229,35 +1298,35 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     self.squeezed_datafile.filename if self.squeezed_datafile_id else None
                 ),
             },
-            "data_source": self.data_source,
-            "has_undefined_data": self.has_undefined_data,
-            "undefined_data_fraction": self.undefined_data_fraction,
-            "fill_undefined_data_mode": self.fill_undefined_data_mode,
-            "detrend_mode": self.detrend_mode,
-            "is_periodic": self.is_periodic,
+            "kind": self.kind,
+            "metadata": metadata,
+            "channel": (
+                None
+                if self.channel_name is None
+                else {
+                    "name": self.channel_name,
+                    "occurrence": self.channel_occurrence,
+                }
+            ),
             "created_by": {"name": self.created_by.name,
                            "orcid": getattr(self.created_by, 'orcid_id', None)},
             "measurement_date": self.measurement_date,
             "description": self.description,
-            "unit": self.unit,
-            "size": (
-                [self.size_x] if self.size_y is None else [self.size_x, self.size_y]
-            ),
             "tags": [t.name for t in self.tags.order_by("name")],
-            "instrument": {
-                "name": self.instrument_name,
-                "type": self.instrument_type,
-                "parameters": self.instrument_parameters,
-            },
         }
-        if self.height_scale_editable:
-            result["height_scale"] = self.height_scale
-            # see GH 718
+
+        # File-derived values are not part of `metadata`, because importing an
+        # archive recomputes them from the data file. This one is exported anyway,
+        # purely so a reader of the archive can see how much of the measurement is
+        # undefined without inspecting every data file.
+        undefined_data_fraction = (self.file_info or {}).get("undefined_data_fraction")
+        if undefined_data_fraction is not None:
+            result["undefined_data_fraction"] = undefined_data_fraction
 
         return result
 
     def deepcopy(self, to_surface):
-        """Creates a copy of this topography with all data files copied.
+        """Creates a copy of this measurement with all data files copied.
 
         Parameters
         ----------
@@ -1266,11 +1335,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         Returns
         -------
-        The copied topography.
+        The copied measurement.
         The reference to an instrument is not copied, it is always None.
 
         """
-        copy = Topography.objects.get(pk=self.pk)
+        copy = Measurement.objects.get(pk=self.pk)
         copy.pk = None  # This will lead to the creation of a new instance on save
         copy.task_id = None  # We need to indicate that no tasks have run
         copy.surface = to_surface
@@ -1285,7 +1354,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         copy.attachments = self.attachments.deepcopy(to_surface.permissions)
 
         # Set file names of derived data to None, otherwise they will be deleted and become unavailable to the
-        # original topography
+        # original measurement
         copy.thumbnail = None
         copy.squeezed_datafile = None
 
@@ -1301,136 +1370,58 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         return copy
 
-    def _render_thumbnail(self, width=400, height=400, cmap=None, st_topo=None):
+    #
+    # Derived artifacts
+    #
+    # The measurement type generates these; the error policy (log and store
+    # nothing, rather than failing the whole inspection) is generic and lives
+    # here.
+    #
+
+    def _make_derived(
+        self, method, field, exception_class, data, none_on_error, save=False
+    ):
         """
-        Make thumbnail image.
+        Let the measurement type generate one derived artifact.
+
+        On failure the corresponding field is cleared and the error logged, so
+        that a measurement with, say, an unrenderable thumbnail still finishes
+        its inspection. Callers that want to handle the failure themselves pass
+        ``none_on_error=False``.
 
         Parameters
         ----------
-        width : int, optional
-            Maximum width of the thumbnail. (Default: 400)
-        height : int, optional
-            Maximum height of the thumbnail. (Default: 400)
-        cmap : str or colormap, optional
-            Color map for rendering the topography. (Default: None)
-
-        Returns
-        -------
-        image : bytes-like
-            Thumbnail image.
+        method : str
+            Name of the measurement type's method that generates the artifact.
+        field : str
+            Field on this model that holds the artifact.
+        exception_class : type
+            Exception to raise when `none_on_error` is False.
+        data : object
+            Already loaded data object.
+        none_on_error : bool
+            Whether to swallow a failure and clear `field`.
+        save : bool, optional
+            Whether to save on success. (Default: False)
         """
-        if st_topo is None:
-            st_topo = self.read()  # SurfaceTopography instance (=st)
-        image_file = io.BytesIO()
-        if st_topo.dim == 1:
-            dpi = 100
-            # Use the object-oriented API rather than `pyplot`. `pyplot` resolves
-            # the interactive backend, which on macOS is `macosx`; instantiating
-            # its canvas inside a forked Celery worker initializes AppKit on the
-            # child side of a fork, which the ObjC runtime aborts with SIGABRT.
-            # A bare `Figure` renders through Agg and keeps no global state, so
-            # it also removes the need to close the figure (see issue 898).
-            fig = Figure(figsize=[width / dpi, height / dpi])
-            ax = fig.subplots()
-            x, y = st_topo.positions_and_heights()
-            ax.plot(x, y, "-")
-            ax.set_axis_off()
-            fig.savefig(
-                image_file,
-                bbox_inches="tight",
-                dpi=100,
-                format=settings.TOPOBANK_THUMBNAIL_FORMAT,
-            )
-        elif st_topo.dim == 2:
-            # Compute thumbnail size (keeping aspect ratio)
-            sx, sy = st_topo.physical_sizes
-            width2 = int(sx * height / sy)
-            height2 = int(sy * width / sx)
-            if width2 <= width:
-                width = width2
-            else:
-                height = height2
-
-            # Get heights and rescale to interval 0, 1
-            heights = st_topo.heights()
-            mx, mn = heights.max(), heights.min()
-            heights = (heights - mn) / (mx - mn)
-            # Get color map. `matplotlib.colormaps` is the pyplot-free lookup;
-            # `None` selects the default, as `pyplot.get_cmap` did.
-            if cmap is None:
-                cmap = matplotlib.colormaps[matplotlib.rcParams["image.cmap"]]
-            elif isinstance(cmap, str):
-                cmap = matplotlib.colormaps[cmap]
-            # Convert to image
-            colors = (cmap(heights.T) * 255).astype(np.uint8)
-            # Remove alpha channel before writing
-            PIL.Image.fromarray(colors[:, :, :3]).resize((width, height)).save(
-                image_file, format=settings.TOPOBANK_THUMBNAIL_FORMAT
+        try:
+            getattr(self.get_type(), method)(self, data)
+        except Exception as exc:
+            if not none_on_error:
+                raise exception_class(self, str(exc)) from exc
+            setattr(self, field, None)
+            self.save(update_fields=[field])
+            _log.error(
+                "Problems while generating %s for measurement %s: %s. Saving <None> "
+                "instead.",
+                field,
+                self.id,
+                exc,
+                exc_info=True,
             )
         else:
-            raise RuntimeError(
-                f"Don't know how to create thumbnail for topography of dimension {st_topo.dim}."
-            )
-        return image_file
-
-    def _make_thumbnail(self, st_topo=None):
-        """Renews thumbnail.
-
-        Returns
-        -------
-        None
-        """
-        if st_topo is None:
-            st_topo = self.read()
-
-        image_file = self._render_thumbnail(st_topo=st_topo)
-
-        # Save the contents of in-memory file in Django image field
-        if self.thumbnail is not None:
-            self.thumbnail.delete()
-        filename = f"thumbnail.{settings.TOPOBANK_THUMBNAIL_FORMAT}"
-        self.thumbnail = Manifest.objects.create(
-            permissions=self.permissions, filename=filename, kind="der"
-        )
-        self.thumbnail.save_file(ContentFile(image_file.getvalue()))
-
-    def _make_deepzoom(self, st_topo=None):
-        """Renew deep zoom images.
-
-        Returns
-        -------
-        None
-        """
-        if st_topo is None:
-            st_topo = self.read()
-        if self.size_y is not None:
-            # This is a topography (map), we need to create a Deep Zoom Image
-            if self.deepzoom is not None:
-                self.deepzoom.delete()
-            self.deepzoom = ManifestSet.objects.create(permissions=self.permissions)
-            render_deepzoom(st_topo, self.deepzoom)
-
-    def _make_squeezed(self, st_topo=None, save=False):
-        if st_topo is None:
-            st_topo = self.read(allow_squeezed=False)
-        with tempfile.NamedTemporaryFile() as tmp:
-            # Write and upload NetCDF file
-            st_topo.to_netcdf(tmp.name)
-            # Delete old squeezed file
-            if self.squeezed_datafile:
-                self.squeezed_datafile.delete()
-            # Upload new squeezed file
-            dirname, basename = os.path.split(self.datafile.filename)
-            orig_stem, orig_ext = os.path.splitext(basename)
-            squeezed_name = f"{orig_stem}-squeezed.nc"
-            self.squeezed_datafile = Manifest.objects.create(
-                permissions=self.permissions,
-                filename=squeezed_name,
-                kind="der",
-                file=File(open(tmp.name, mode="rb")),
-            )
-        if save:
-            self.save()
+            if save:
+                self.save()
 
     def make_thumbnail(self, none_on_error=True, st_topo=None):
         """Renew thumbnail field.
@@ -1440,6 +1431,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         none_on_error: bool
             If True (default), sets thumbnail to None if there are any errors.
             If False, exceptions have to be caught outside.
+        st_topo: data object, optional
+            Already loaded data, to avoid reading the file again.
 
         Returns
         -------
@@ -1449,21 +1442,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         ------
         ThumbnailGenerationException
         """
-        try:
-            self._make_thumbnail(st_topo=st_topo)
-        except Exception as exc:
-            if none_on_error:
-                self.thumbnail = None
-                self.save(update_fields=["thumbnail"])
-                _log.error(
-                    "Problems while generating thumbnail for topography %s: %s. "
-                    "Saving <None> instead.",
-                    self.id,
-                    exc,
-                    exc_info=True,
-                )
-            else:
-                raise ThumbnailGenerationException(self, str(exc)) from exc
+        if st_topo is None:
+            st_topo = self.read()
+        self._make_derived(
+            "make_thumbnail", "thumbnail", ThumbnailGenerationException, st_topo,
+            none_on_error,
+        )
 
     def make_deepzoom(self, none_on_error=True, st_topo=None):
         """Renew deep zoom image files.
@@ -1473,6 +1457,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         none_on_error: bool
             If True (default), do not raise an exception if there are any errors.
             If False, exceptions have to be caught outside.
+        st_topo: data object, optional
+            Already loaded data, to avoid reading the file again.
 
         Returns
         -------
@@ -1482,302 +1468,172 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         ------
         DZIGenerationException
         """
-        try:
-            self._make_deepzoom(st_topo=st_topo)
-        except Exception as exc:
-            if none_on_error:
-                self.deepzoom = None
-                self.save(update_fields=["deepzoom"])
-                _log.error(
-                    "Problems while generating deep zoom images for topography "
-                    "%s: %s. Saving <None> instead.",
-                    self.id,
-                    exc,
-                    exc_info=True,
-                )
-            else:
-                raise DZIGenerationException(self, str(exc)) from exc
-
-    def make_squeezed(self, none_on_error=True, st_topo=None, save=False):
-        try:
-            self._make_squeezed(st_topo=st_topo, save=save)
-        except Exception as exc:
-            if none_on_error:
-                self.squeezed_datafile = None
-                self.save(update_fields=["squeezed_datafile"])
-                _log.error(
-                    "Problems while generating squeezed datafile for topography "
-                    "%s: %s. Saving <None> instead.",
-                    self.id,
-                    exc,
-                    exc_info=True,
-                )
-            else:
-                raise SqueezedDatafileGenerationException(self, str(exc)) from exc
-
-    def refresh_bandwidth_cache(self, st_topo=None):
-        """Renew bandwidth cache.
-
-        Cache bandwidth for bandwidth plot in database. Data is stored in units of meter.
-        """
+        if not self.get_type().has_deepzoom:
+            return
         if st_topo is None:
             st_topo = self.read()
-        if st_topo.unit is not None:
-            bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
-            fac = get_unit_conversion_factor(st_topo.unit, "m")
-            self.bandwidth_lower = fac * bandwidth_lower
-            self.bandwidth_upper = fac * bandwidth_upper
+        self._make_derived(
+            "make_deepzoom", "deepzoom", DZIGenerationException, st_topo,
+            none_on_error,
+        )
 
-            try:
-                short_reliability_cutoff = (
-                    st_topo.short_reliability_cutoff()
-                )  # Return float or None
-            except UndefinedDataError:
-                # Short reliability cutoff can only be computed on topographies without undefined data
-                short_reliability_cutoff = None
-            if short_reliability_cutoff is not None:
-                short_reliability_cutoff *= fac
-            self.short_reliability_cutoff = (
-                short_reliability_cutoff  # None is also saved here
-            )
+    def make_squeezed(self, none_on_error=True, st_topo=None, save=False):
+        """Renew the canonical ("squeezed") representation of the data.
 
-    @property
-    def is_metadata_complete(self):
-        """Check whether we have all metadata to actually read the file"""
-        return (
-            self.size_x is not None
-            and self.unit is not None
-            and self.height_scale is not None
+        Parameters
+        ----------
+        none_on_error: bool
+            If True (default), do not raise an exception if there are any errors.
+            If False, exceptions have to be caught outside.
+        st_topo: data object, optional
+            Already loaded data, to avoid reading the file again.
+        save: bool, optional
+            Whether to save the measurement afterwards. (Default: False)
+        """
+        if not self.get_type().has_canonical_file:
+            return
+        if st_topo is None:
+            st_topo = self.read(allow_squeezed=False)
+        self._make_derived(
+            "make_canonical_file", "squeezed_datafile",
+            SqueezedDatafileGenerationException, st_topo, none_on_error, save=save,
         )
 
     def notify_users(self, sender, verb, description):
         self.permissions.notify_users(sender, verb, description)
 
+    #
+    # Inspection
+    #
+
+    def _select_channel(self, inspection):
+        """
+        Determine which channel of the data file this measurement refers to.
+
+        Returns the channel's index. On the first inspection the reader's default
+        channel is used (or the index recorded by an import of a container that
+        predates named channels); afterwards the recorded name is resolved, and a
+        name that no longer identifies exactly one channel is an error rather
+        than a silent fallback.
+        """
+        if self.channel_name is not None:
+            return inspection.resolve(self.channel_name, self.channel_occurrence)
+        if self.channel_index_hint is not None:
+            index = self.channel_index_hint
+            if 0 <= index < len(inspection.channels):
+                return index
+            _log.warning(
+                "Measurement %s records channel index %s, which the data file "
+                "does not have; falling back to the default channel.",
+                self.id,
+                index,
+            )
+        return inspection.default_index
+
     def refresh_cache(self, timer=None):
         """
-        Inspect datafile and renew cached properties, in particular database entries on
-        resolution, size etc. and the squeezed NetCDF representation of the data.
+        Inspect the data file and renew cached properties.
+
+        Determines the kind of measurement from the selected channel, merges the
+        metadata the file provides into the stored metadata, refreshes the
+        file-derived cache and regenerates the derived artifacts.
         """
         if timer is None:
             timer = Timer("refresh_cache")
 
         # Send signal
         _log.debug(f"Sending `pre_refresh_cache` signal from {self}...")
-        pre_refresh_cache.send(sender=Topography, instance=self)
+        pre_refresh_cache.send(sender=Measurement, instance=self)
 
         with timer("exists"):
             # First check if we have a datafile
             if not self.datafile.exists():
                 raise RuntimeError(
-                    f"Topography {self.id} does not appear to have a data file. Cannot "
-                    f"refresh cached data."
+                    f"Measurement {self.id} does not appear to have a data file. "
+                    f"Cannot refresh cached data."
                 )
 
-        # Check if this is the first time we are opening this file...
-        populate_initial_metadata = self.data_source is None
+        _log.info(f"Caching properties of measurement {self.id}...")
 
-        # Populate datafile information in the database.
-        # (We never load the topography in the web server, so we don't know this until
-        # the Celery task refreshes the cache. Fields that are undefined are
-        # autodetected.)
-        _log.info(f"Caching properties of topography {self.id}...")
-
-        # Open topography file
-        with timer("get_topography_reader"):
-            reader = get_topography_reader(self.datafile.file)
-            self.datafile_format = reader.format()
-
-        # Update channel names
-        self.channel_names = [
-            (channel.name, _get_unit(channel)) for channel in reader.channels
-        ]
+        # Open the data file through whichever measurement type can read it.
+        with timer("sniff_measurement_file"):
+            inspection = sniff_measurement_file(self)
 
         # Idiot check
-        if len(self.channel_names) == 0:
+        if len(inspection.channels) == 0:
             raise RuntimeError(
                 f"Datafile of measurement '{self.name}' could be opened, but it "
                 "appears to contain no valid data."
             )
 
-        # Check whether the user already selected a (valid) channel, if not set to
-        # default channel. We compute this into a local variable first so we can
-        # reject files with incomplete metadata (below) *before* mutating any
-        # significant field (such as `data_source`); otherwise a rejected inspection
-        # would leave a phantom change that re-dispatches the task on the terminal
-        # save().
-        data_source = self.data_source
-        if (
-            data_source is None
-            or data_source < 0
-            or data_source >= len(self.channel_names)
-        ):
-            data_source = reader.default_channel.index
+        channel_index = self._select_channel(inspection)
+        channel = inspection.channels[channel_index]
 
-        # Select channel
-        channel = reader.channels[data_source]
+        if channel.kind is None:
+            raise UnsupportedChannelError(
+                channel.name,
+                "No measurement type is registered that can import it.",
+            )
 
-        # Reject files with incomplete metadata if this instance is configured to do
-        # so. The file is of a supported format and could be read, but the metadata
-        # required to process it (physical size, unit) is missing and would normally
-        # have to be entered manually through the UI. A field is considered missing
-        # only if neither the file nor the existing database entry provides it, so
-        # container/zip imports (which populate this metadata from `index.json` before
-        # inspection) are not affected.
+        measurement_type = get_measurement_type(channel.kind)
+
+        # Everything up to here has left `self` untouched, and `inspect` does not
+        # mutate it either. That matters for the rejection below: a file we refuse
+        # must not leave a half-updated record behind, because a changed
+        # significant field would re-dispatch the task on the terminal save().
+        with timer("inspect"):
+            result = measurement_type.inspect(self, inspection, channel_index)
+
+        # Reject files with incomplete metadata if this instance is configured to
+        # do so. The file is of a supported format and could be read, but the
+        # metadata required to process it (physical size, unit) is missing and
+        # would normally have to be entered manually through the UI. A field is
+        # considered missing only if neither the file nor the existing metadata
+        # provides it, so container/zip imports (which populate this metadata
+        # from `index.json` before inspection) are not affected.
         if getattr(settings, "TOPOBANK_REJECT_INCOMPLETE_METADATA", False):
-            size_missing = channel.physical_sizes is None and self.size_x is None
-            unit_missing = channel.unit is None and self.unit is None
-            if size_missing or unit_missing:
-                missing = []
-                if size_missing:
-                    missing.append("physical size")
-                if unit_missing:
-                    missing.append("unit")
+            missing = result.metadata.missing_metadata()
+            if missing:
                 raise IncompleteMetadataError(
-                    f"The file format '{self.datafile_format}' is supported, but the "
+                    f"The file format '{inspection.format}' is supported, but the "
                     f"file does not contain complete metadata. The following required "
                     f"metadata could not be read from the file: {', '.join(missing)}. "
                     f"This instance is configured to reject files with incomplete "
                     f"metadata."
                 )
 
-        self.data_source = data_source
-
         #
-        # Look for necessary metadata. We override values in the database. This may be
-        # necessary if the underlying reader changes (e.g. through bug fixes).
+        # Apply the result of the inspection.
         #
-
-        # Populate resolution information in the database
-        if channel.dim == 1:
-            (n,) = channel.nb_grid_pts
-            self.resolution_x = int(n)
-            self.resolution_y = None  # This indicates that this is a line scan
-        elif channel.dim == 2:
-            self.resolution_x, self.resolution_y = (int(n) for n in channel.nb_grid_pts)
-        else:
-            # This should not happen
-            raise NotImplementedError(
-                f"Cannot handle topographies of dimension {channel.dim}."
-            )
-
-        # Populate size information in the database
-        if channel.physical_sizes is None:
-            # Data file *does not* provide size information; the user must provide it
-            self.size_editable = True
-        else:
-            # Data file *does* provide size information; the user cannot override it
-            self.size_editable = False
-            # Reset size information here
-            if channel.dim == 1:
-                (s,) = channel.physical_sizes
-                self.size_x = float(s)
-                self.size_y = None
-            elif channel.dim == 2:
-                self.size_x, self.size_y = (float(s) for s in channel.physical_sizes)
-            else:
-                # This should not happen
-                raise NotImplementedError(
-                    f"Cannot handle topographies of dimension {channel.dim}."
-                )
-
-        # Populate unit information in the database
-        if channel.unit is None:
-            # Data file *does not* provide unit information; the user must provide it
-            self.unit_editable = True
-        else:
-            # Data file *does* provide unit information; the user cannot override it
-            self.unit_editable = False
-            # Reset unit information here
-            if isinstance(channel.unit, tuple):
-                raise NotImplementedError(
-                    f"Data channel '{channel.name}' contains information that is not "
-                    "height."
-                )
-            self.unit = channel.unit
-
-        # Populate height scale information in the database
-        if channel.height_scale_factor is None:
-            # Data file *does not* provide height scale information; the user must provide it
-            self.height_scale_editable = True
-        else:
-            # Data file *does* provide height scale information; the user cannot override it
-            self.height_scale_editable = False
-            # Reset unit information here
-            self.height_scale = channel.height_scale_factor
-
-        # Populate information on periodicity
-        if not channel.is_uniform:
-            # This is a nonuniform line scan that does not support periodicity
-            self.is_periodic_editable = False
-            self.is_periodic = False
-        elif self.is_periodic is None:
-            # This is a uniform line scan or map, periodicity is supported
-            self.is_periodic_editable = True
-            self.is_periodic = channel.is_periodic
-
-        #
-        # We now look for optional metadata. Only import it from the file on first read,
-        # otherwise we may override what the user has painfully adjusted when refreshing
-        # the cache.
-        #
-
-        if populate_initial_metadata:
-            # Measurement time
-            try:
-                self.measurement_date = channel.info["acquisition_time"]
-            except:  # noqa: E722
-                pass
-
-            # Instrument name
-            try:
-                self.instrument_name = channel.info["instrument"]["name"]
-            except:  # noqa: E722
-                pass
-
-            # Instrument parameters
-            try:
-                self.instrument_parameters = channel.info["instrument"]["parameters"]
-                if "tip_radius" in self.instrument_parameters:
-                    self.instrument_type = self.INSTRUMENT_TYPE_CONTACT_BASED
-                elif "resolution" in self.instrument_parameters:
-                    self.instrument_type = self.INSTRUMENT_TYPE_MICROSCOPE_BASED
-            except:  # noqa: E722
-                self.instrument_type = self.INSTRUMENT_TYPE_UNDEFINED
+        if result.measurement_date is not None:
+            self.measurement_date = result.measurement_date
+        self.datafile_format = inspection.format
+        self.kind = channel.kind
+        self.channel_name = channel.name
+        self.channel_occurrence = inspection.occurrence_for(channel_index)
+        self.channel_index_hint = None
+        self.metadata = dump_metadata(result.metadata)
+        file_info = result.file_info
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:
             with timer("metadata is complete"):
                 _log.info(f"Metadata of {self} is complete. Generating images.")
-                with timer("_read"):
-                    st_topo = self._read(reader)
+                with timer("read"):
+                    data = measurement_type.read_from_inspection(self, inspection)
 
-                # How much of the original data file is undefined. Both values
-                # describe the *measured* data, which is why they are taken from
-                # the bottom of the pipeline rather than from `st_topo` itself:
-                # with filling enabled the pipeline reports no undefined data by
-                # definition, which would erase the very information the fill
-                # mode was chosen in response to.
-                self.undefined_data_fraction = undefined_data_fraction(st_topo)
-                self.has_undefined_data = (
-                    None
-                    if self.undefined_data_fraction is None
-                    else self.undefined_data_fraction > 0
-                )
+                # Refresh cached quantities that require the data itself, e.g.
+                # bandwidths and whether the data has undefined points.
+                with timer("refresh_derived_cache"):
+                    measurement_type.refresh_derived_cache(self, data, file_info)
+                self.file_info = dump_metadata(file_info)
 
-                # What the detrending actually removed. `st_topo` is the
-                # detrended topography, so this reads the fit it performed
-                # rather than repeating it.
-                self.detrend_parameters = detrend_parameters(st_topo)
-
-                # Refresh other cached quantities
-                with timer("refresh_bandwidth_cache"):
-                    self.refresh_bandwidth_cache(st_topo=st_topo)
                 with timer("make_thumbnail"):
-                    self.make_thumbnail(st_topo=st_topo)
+                    self.make_thumbnail(st_topo=data)
                 with timer("make_deepzoom"):
-                    self.make_deepzoom(st_topo=st_topo)
+                    self.make_deepzoom(st_topo=data)
                 with timer("make_squeezed"):
-                    self.make_squeezed(st_topo=st_topo)
+                    self.make_squeezed(st_topo=data)
 
                 # Verify the derived files actually landed. A measurement with
                 # complete metadata is expected to have these; a missing one is
@@ -1787,50 +1643,31 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 missing = []
                 if self.thumbnail is None or not self.thumbnail.exists():
                     missing.append("thumbnail")
-                # deepzoom is only generated for 2D maps (size_y is not None)
-                if self.size_y is not None and (
+                if measurement_type.has_deepzoom and (
                     self.deepzoom is None or len(self.deepzoom) == 0
                 ):
                     missing.append("deepzoom")
-                if self.squeezed_datafile is None or not (
-                    self.squeezed_datafile.exists()
+                if measurement_type.has_canonical_file and (
+                    self.squeezed_datafile is None
+                    or not self.squeezed_datafile.exists()
                 ):
                     missing.append("squeezed_datafile")
                 if missing:
                     _log.error(
-                        "refresh_cache: topography %s has complete metadata but "
+                        "refresh_cache: measurement %s has complete metadata but "
                         "is missing derived files: %s",
                         self.id,
                         ", ".join(missing),
                     )
+        else:
+            self.file_info = dump_metadata(file_info)
 
         # Save dataset
         self.save()
 
         # Send signal
         _log.debug(f"Sending `post_refresh_cache` signal from {self}...")
-        post_refresh_cache.send(sender=Topography, instance=self)
-
-    def get_undefined_data_status(self):
-        """Get human-readable description about status of undefined data as string."""
-        s = self.HAS_UNDEFINED_DATA_DESCRIPTION[self.has_undefined_data]
-        if self.has_undefined_data and self.undefined_data_fraction is not None:
-            percentage = f"{100 * self.undefined_data_fraction:.2g}"
-            s += f" {percentage}% of the data points are undefined."
-        if (
-            self.fill_undefined_data_mode
-            == Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
-        ):
-            s += " No correction of undefined data is performed."
-        elif (
-            self.fill_undefined_data_mode
-            == Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC
-        ):
-            s += (
-                " Undefined/missing values are filled in with values obtained from a "
-                "harmonic interpolation."
-            )
-        return s
+        post_refresh_cache.send(sender=Measurement, instance=self)
 
     def task_worker(self, timer=None):
         self.refresh_cache(timer=timer)

@@ -24,7 +24,7 @@ from SurfaceTopography.Support.UnitConversion import (
 
 _log = logging.getLogger(__name__)
 
-# Length units offered in the UI (mirrors Topography.LENGTH_UNIT_CHOICES). The
+# Length units offered in the UI (mirrors `measurements.schemas.LengthUnit`). The
 # natural-unit suggestion is clamped to this set so we never propose a unit the
 # frontend cannot display/select.
 _NATURAL_LENGTH_UNITS = {"km", "m", "mm", "µm", "nm", "Å", "pm"}
@@ -268,7 +268,7 @@ def subjects_to_dict(subjects):
 
     Parameters
     ----------
-    subjects : list of Topography or Surface or Tag
+    subjects : list of Measurement or Surface or Tag
         Subjects for serialization
 
     Returns
@@ -317,7 +317,7 @@ def subjects_from_dict(subjects_dict, user=None, function=None):
 
     Returns
     -------
-    List of subject instances (e.g. Topography or Surface)
+    List of subject instances (e.g. Measurement or Surface)
     """
 
     # Build list with potential subjects
@@ -388,7 +388,7 @@ def subjects_to_base64(subjects):
 
     Returns
     -------
-    List of subject instances (e.g. Topography or Surface)
+    List of subject instances (e.g. Measurement or Surface)
     """
     return dict_to_base64(subjects_to_dict(subjects))
 
@@ -400,7 +400,7 @@ def subjects_from_base64(subjects, user=None, function=None):
 
     Parameters
     ----------
-    subjects : list of Topography or Surface or Tag
+    subjects : list of Measurement or Surface or Tag
         Subjects for serialization
 
     Returns
@@ -501,7 +501,7 @@ def render_deepzoom(
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
         try:
-            # This is a Topography
+            # This is a Measurement
             filenames = data.to_dzi(
                 "dzi",
                 root_directory=tmpdirname,
@@ -538,7 +538,7 @@ def render_deepzoom(
         # Generate NetCDF tiles for interactive viewer
         if generate_netcdf:
             try:
-                # This is a Topography
+                # This is a Measurement
                 nc_filenames = data.to_dzi(
                     "dzi-nc",
                     root_directory=tmpdirname,

@@ -8,9 +8,9 @@ from .container_schema import (
     CONTAINER_METADATA_FILENAME,
     LEGACY_METADATA_FILENAME,
     ContainerMeta,
-    TopographyMeta,
+    MeasurementMeta,
 )
-from .models import Surface, Topography
+from .models import Measurement, Surface
 
 
 def load_container_metadata(surface_zip, unsafe_yaml_loader=False) -> ContainerMeta:
@@ -50,59 +50,39 @@ def load_container_metadata(surface_zip, unsafe_yaml_loader=False) -> ContainerM
     )
 
 
-def import_measurement(topo_meta: TopographyMeta, topo_file, surface):
+def import_measurement(measurement_meta: MeasurementMeta, measurement_file, surface):
     """
-    Create a single topography from a surface container.
+    Create a single measurement from a surface container.
 
     Parameters
     ----------
-    topo_meta : TopographyMeta
-        Validated metadata of the topography.
-    topo_file : file
-        File object with the topography data.
+    measurement_meta : MeasurementMeta
+        Validated metadata of the measurement.
+    measurement_file : file
+        File object with the measurement data.
     surface : Surface
-        Surface instance to which the topography belongs.
+        Surface instance to which the measurement belongs.
     """
-    size_x, *size_rest = topo_meta.size
-    size_y = None if len(size_rest) == 0 else size_rest[0]
-
     user = surface.created_by
 
-    topo_kwargs = dict(
+    measurement = Measurement(
         created_by=user,
-        name=topo_meta.name,
+        name=measurement_meta.name,
         surface=surface,
-        size_x=size_x,
-        size_y=size_y,
-        measurement_date=topo_meta.measurement_date,
-        description=topo_meta.description,
-        data_source=topo_meta.data_source,
-        unit=topo_meta.unit,
-        tags=topo_meta.tags,
-        fill_undefined_data_mode=topo_meta.fill_undefined_data_mode,
-        detrend_mode=topo_meta.detrend_mode,
-        is_periodic=topo_meta.is_periodic,
+        measurement_date=measurement_meta.measurement_date,
+        description=measurement_meta.description,
+        tags=measurement_meta.tags,
+        # Handles both the current and the legacy container layout.
+        **measurement_meta.to_measurement_kwargs(),
     )
-
-    if topo_meta.instrument is not None:
-        topo_kwargs.update(
-            instrument_name=topo_meta.instrument.name or "",
-            instrument_type=topo_meta.instrument.type or "",
-            instrument_parameters=topo_meta.instrument.parameters,
-        )
-
-    if topo_meta.height_scale is not None:
-        # If height_scale is not included, it has probably already been applied
-        # because of the file contents while loading.
-        topo_kwargs["height_scale"] = topo_meta.height_scale
-
-    topography = Topography(**topo_kwargs)
-    topography.datafile = Manifest.objects.create(
-        permissions=surface.permissions, filename=topo_meta.name, created_by=user
+    measurement.datafile = Manifest.objects.create(
+        permissions=surface.permissions,
+        filename=measurement_meta.name,
+        created_by=user,
     )
-    topography.datafile.save_file(File(topo_file))
+    measurement.datafile.save_file(File(measurement_file))
     # We need to save again to store the new file name
-    topography.save()
+    measurement.save()
 
 
 def import_container_zip(
@@ -115,8 +95,8 @@ def import_container_zip(
     """
     Import surfaces from a ZIP archive and create corresponding Surface instances in the database.
 
-    This function processes a ZIP archive containing surface data, including metadata and topography files. It creates
-    Surface instances for each surface in the archive, sets created_by to the specified user, and imports topographies
+    This function processes a ZIP archive containing surface data, including metadata and measurement files. It creates
+    Surface instances for each surface in the archive, sets created_by to the specified user, and imports measurements
     associated with each surface. It also handles optional tagging of surfaces.
 
     The metadata is loaded and validated through the :class:`ContainerMeta` schema, which preferentially reads the
@@ -185,9 +165,11 @@ def import_container_zip(
 
         surfaces.append(surface)
 
-        for topo_meta in surface_meta.topographies:
+        for measurement_meta in surface_meta.measurements:
             # We just import the original data file.
-            topo_file = surface_zip.open(topo_meta.datafile.original, mode="r")
-            import_measurement(topo_meta, topo_file, surface)
+            measurement_file = surface_zip.open(
+                measurement_meta.datafile.original, mode="r"
+            )
+            import_measurement(measurement_meta, measurement_file, surface)
 
     return surfaces

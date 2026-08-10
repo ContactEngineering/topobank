@@ -16,7 +16,11 @@ import pytest
 from topobank.manager.export_zip import export_container_zip
 from topobank.manager.models import Surface
 from topobank.manager.tasks import import_container_from_url
-from topobank.testing.factories import SurfaceFactory, Topography1DFactory, UserFactory
+from topobank.testing.factories import (
+    SurfaceFactory,
+    UniformLineScanFactory,
+    UserFactory,
+)
 
 REMOTE_URL = "https://example.org/go/abcde"
 ARCHIVED_URL = "https://example.org/go/abcde/download/"
@@ -75,7 +79,7 @@ class FakeSession:
 def container_bytes(db):
     """A real container, so the import path is genuinely exercised."""
     surface = SurfaceFactory(created_by=UserFactory(), name="Remote dataset")
-    Topography1DFactory(surface=surface)
+    UniformLineScanFactory(surface=surface)
     with tempfile.NamedTemporaryFile(mode="wb", delete=False) as outfile:
         export_container_zip(outfile, [surface])
         path = outfile.name

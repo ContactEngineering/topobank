@@ -12,7 +12,7 @@ import uuid
 import pytest
 
 from topobank.analysis.models import WorkflowResult
-from topobank.testing.factories import TopographyAnalysisFactory
+from topobank.testing.factories import MeasurementAnalysisFactory
 
 START_TIME = datetime.datetime(2018, 1, 1, 12, tzinfo=datetime.timezone.utc)
 END_TIME = datetime.datetime(2018, 1, 1, 13, tzinfo=datetime.timezone.utc)
@@ -24,7 +24,7 @@ class TestSetPendingState:
 
     def test_clears_timestamps(self, test_workflow):
         """Both run timestamps are reset so the re-pended row looks fresh."""
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_start_time=START_TIME,
             task_end_time=END_TIME,
@@ -43,7 +43,7 @@ class TestSetPendingState:
 
     def test_task_duration_is_none_after_repend(self, test_workflow):
         """duration() must not report a stale value from the previous run."""
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_start_time=START_TIME,
             task_end_time=END_TIME,
@@ -58,7 +58,7 @@ class TestSetPendingState:
 
     def test_resets_state_and_clears_error_fields(self, test_workflow):
         """The remaining bookkeeping fields are reset alongside the timestamps."""
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.FAILURE,
             task_id=str(uuid.uuid4()),
             task_error="boom",
@@ -77,7 +77,7 @@ class TestSetPendingState:
 
     def test_autosave_false_does_not_persist(self, test_workflow):
         """With autosave=False the in-memory row is reset but the DB is untouched."""
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_start_time=START_TIME,
             task_end_time=END_TIME,

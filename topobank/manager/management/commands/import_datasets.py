@@ -12,7 +12,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils.timezone import now
 
 from topobank.manager.import_zip import load_container_metadata
-from topobank.manager.models import Surface, Topography
+from topobank.manager.models import Measurement, Surface
 from topobank.properties.models import Property
 
 User = _get_user_model()
@@ -70,63 +70,44 @@ class Command(BaseCommand):
             "supplied by the container metadata schema.",
         )
 
-    def process_topography(self, topo_meta, topo_file, surface, dry_run=False):
-        self.stdout.write(self.style.NOTICE(f"  Topography name: '{topo_meta.name}'"))
-        if topo_meta.created_by is not None:
+    def process_measurement(
+        self, measurement_meta, measurement_file, surface, dry_run=False
+    ):
+        self.stdout.write(
+            self.style.NOTICE(f"  Measurement name: '{measurement_meta.name}'")
+        )
+        if measurement_meta.created_by is not None:
             self.stdout.write(
                 self.style.NOTICE(
-                    f"  Original creator is '{topo_meta.created_by.name}'."
+                    f"  Original creator is '{measurement_meta.created_by.name}'."
                 )
             )
 
-        topo_name = topo_meta.name
-
-        size_x, *size_rest = topo_meta.size
-        size_y = None if len(size_rest) == 0 else size_rest[0]
-
+        name = measurement_meta.name
         user = surface.created_by
-
-        topo_kwargs = dict(
-            created_by=user,
-            name=topo_name,
-            surface=surface,
-            size_x=size_x,
-            size_y=size_y,
-            measurement_date=topo_meta.measurement_date,
-            description=topo_meta.description,
-            data_source=topo_meta.data_source,
-            unit=topo_meta.unit,
-            tags=topo_meta.tags,
-            fill_undefined_data_mode=topo_meta.fill_undefined_data_mode,
-            detrend_mode=topo_meta.detrend_mode,
-            is_periodic=topo_meta.is_periodic,
-        )
-
-        if topo_meta.instrument is not None:
-            topo_kwargs.update(
-                instrument_name=topo_meta.instrument.name or "",
-                instrument_type=topo_meta.instrument.type or "",
-                instrument_parameters=topo_meta.instrument.parameters,
-            )
-
-        if topo_meta.height_scale is not None:
-            # If height_scale is not included, it has probably already been
-            # applied because of the file contents while loading.
-            topo_kwargs["height_scale"] = topo_meta.height_scale
 
         # Constructing the instance validates the metadata. On a dry run we stop
         # here: nothing is persisted (the surface is not saved either, so saving
-        # the topography would fail on the unsaved foreign key).
-        topography = Topography(**topo_kwargs)
+        # the measurement would fail on the unsaved foreign key).
+        measurement = Measurement(
+            created_by=user,
+            name=name,
+            surface=surface,
+            measurement_date=measurement_meta.measurement_date,
+            description=measurement_meta.description,
+            tags=measurement_meta.tags,
+            # Handles both the current and the legacy container layout.
+            **measurement_meta.to_measurement_kwargs(),
+        )
 
         if not dry_run:
             # ...which we need for the storage prefix
-            topography.save_datafile(topo_file)
+            measurement.save_datafile(measurement_file)
             self.stdout.write(
-                self.style.SUCCESS(f"Topography '{topo_name}' saved in database.")
+                self.style.SUCCESS(f"Measurement '{name}' saved in database.")
             )
             # Renew/generate cache
-            topography.refresh_cache()
+            measurement.refresh_cache()
 
     def process_dataset_archive(
         self,
@@ -173,21 +154,21 @@ class Command(BaseCommand):
                     self.style.SUCCESS(f"Surface '{surface.name}' saved.")
                 )
 
-            num_topographies = len(surface_meta.topographies)
-            for topo_idx, topo_meta in enumerate(surface_meta.topographies):
+            num_measurements = len(surface_meta.measurements)
+            for idx, measurement_meta in enumerate(surface_meta.measurements):
                 self.stdout.write(
                     self.style.NOTICE(
-                        f"Processing topography {topo_idx + 1}/{num_topographies} in archive..."
+                        f"Processing measurement {idx + 1}/{num_measurements} in archive..."
                     )
                 )
-                datafile_name = topo_meta.datafile.original
+                datafile_name = measurement_meta.datafile.original
                 try:
                     self.stdout.write(
                         self.style.NOTICE(
                             f"  Trying to read file '{datafile_name}' in archive..."
                         )
                     )
-                    topo_file = surface_zip.open(datafile_name, mode="r")
+                    measurement_file = surface_zip.open(datafile_name, mode="r")
                     self.stdout.write(
                         self.style.NOTICE(
                             f"  Datafile '{datafile_name}' found in archive."
@@ -198,15 +179,16 @@ class Command(BaseCommand):
                         f"  Cannot load datafile '{datafile_name}' from archive. Reason: {exc}"
                     ) from exc
                 try:
-                    self.process_topography(
-                        topo_meta,
-                        topo_file,
+                    self.process_measurement(
+                        measurement_meta,
+                        measurement_file,
                         surface,
                         dry_run=dry_run,
                     )
                 except Exception as exc:
                     raise CommandError(
-                        f"  Cannot create topography '{topo_meta.name}'. Reason: {exc}"
+                        f"  Cannot create measurement '{measurement_meta.name}'. "
+                        f"Reason: {exc}"
                     ) from exc
 
             if surface_meta.properties and not dry_run:

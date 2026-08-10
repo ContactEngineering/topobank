@@ -16,11 +16,11 @@ from topobank.analysis.custodian import periodic_cleanup
 from topobank.analysis.models import WorkflowResult
 from topobank.analysis.signals import (
     delete_all_related_analyses,
-    pre_delete_topography,
+    pre_delete_measurement,
     pre_measurement_save,
 )
-from topobank.manager.models import Topography
-from topobank.testing.factories import SurfaceFactory, Topography2DFactory
+from topobank.manager.models import Measurement
+from topobank.testing.factories import SurfaceFactory, TopographyMapFactory
 
 
 def _surface_set_analysis(test_workflow, user, surfaces):
@@ -33,13 +33,13 @@ def test_refresh_cache_deprecates_surface_set_analysis(test_workflow, user_alice
     s1 = SurfaceFactory(created_by=user_alice)
     s2 = SurfaceFactory(created_by=user_alice)
     other = SurfaceFactory(created_by=user_alice)
-    topo = Topography2DFactory(surface=s1)
+    topo = TopographyMapFactory(surface=s1)
 
     affected = _surface_set_analysis(test_workflow, user_alice, [s1, s2])
     unrelated = _surface_set_analysis(test_workflow, user_alice, [other])
     assert affected.deprecation_time is None
 
-    delete_all_related_analyses(sender=Topography, instance=topo)
+    delete_all_related_analyses(sender=Measurement, instance=topo)
 
     affected.refresh_from_db()
     unrelated.refresh_from_db()
@@ -56,8 +56,8 @@ def test_new_measurement_deletes_surface_set_analysis(test_workflow, user_alice)
     unrelated = _surface_set_analysis(test_workflow, user_alice, [other])
 
     # A brand-new (unsaved) measurement added to s1.
-    new_topo = Topography(surface=s1)  # pk is None -> "created" branch
-    pre_measurement_save(sender=Topography, instance=new_topo)
+    new_topo = Measurement(surface=s1)  # pk is None -> "created" branch
+    pre_measurement_save(sender=Measurement, instance=new_topo)
 
     assert not WorkflowResult.objects.filter(pk=affected.pk).exists()
     assert WorkflowResult.objects.filter(pk=unrelated.pk).exists()
@@ -69,7 +69,7 @@ def test_new_measurement_does_not_touch_unrelated_surface_analyses(
 ):
     """A new measurement must not delete surface/tag analyses of other surfaces.
 
-    Regression guard for the ``subject_topography=<unsaved>`` -> ``IS NULL``
+    Regression guard for the ``subject_measurement=<unsaved>`` -> ``IS NULL``
     trap: an unsaved instance must be scoped by surface only.
     """
     s1 = SurfaceFactory(created_by=user_alice)
@@ -79,8 +79,8 @@ def test_new_measurement_does_not_touch_unrelated_surface_analyses(
 
     unrelated_surface_analysis = SurfaceAnalysisFactory(subject_surface=other)
 
-    new_topo = Topography(surface=s1)
-    pre_measurement_save(sender=Topography, instance=new_topo)
+    new_topo = Measurement(surface=s1)
+    pre_measurement_save(sender=Measurement, instance=new_topo)
 
     assert WorkflowResult.objects.filter(
         pk=unrelated_surface_analysis.pk
@@ -91,12 +91,12 @@ def test_new_measurement_does_not_touch_unrelated_surface_analyses(
 def test_delete_topography_deletes_surface_set_analysis(test_workflow, user_alice):
     s1 = SurfaceFactory(created_by=user_alice)
     other = SurfaceFactory(created_by=user_alice)
-    topo = Topography2DFactory(surface=s1)
+    topo = TopographyMapFactory(surface=s1)
 
     affected = _surface_set_analysis(test_workflow, user_alice, [s1])
     unrelated = _surface_set_analysis(test_workflow, user_alice, [other])
 
-    pre_delete_topography(sender=Topography, instance=topo)
+    pre_delete_measurement(sender=Measurement, instance=topo)
 
     assert not WorkflowResult.objects.filter(pk=affected.pk).exists()
     assert WorkflowResult.objects.filter(pk=unrelated.pk).exists()

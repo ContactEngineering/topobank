@@ -19,7 +19,7 @@ class AnalysisController:
     """Retrieve and toggle status of analyses"""
 
     queryset = WorkflowResult.objects.all().select_related(
-        "subject_topography",
+        "subject_measurement",
         "subject_surface",
         "subject_tag",
     )
@@ -42,7 +42,7 @@ class AnalysisController:
         ----------
         user : topobank.manager.models.User
             Currently logged-in user.
-        subjects : list of Tag, Topography or Surface, optional
+        subjects : list of Tag, Measurement or Surface, optional
             Subjects for which to filter analyses. (Default: None)
         workflow : Workflow, optional
             Workflow function object. (Default: None)
@@ -239,13 +239,13 @@ class AnalysisController:
         qs = (
             self.queryset.filter(query)
             .order_by(
-                "subject_topography_id",
+                "subject_measurement_id",
                 "subject_surface_id",
                 "subject_tag_id",
                 "-task_start_time",
             )
             .distinct(
-                "subject_topography_id",
+                "subject_measurement_id",
                 "subject_surface_id",
                 "subject_tag_id",
             )

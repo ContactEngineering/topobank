@@ -13,7 +13,7 @@ import types
 import pytest
 from django.test import override_settings
 
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 from topobank.taskapp.models import IncompleteMetadataError, TaskStateModel
 from topobank.testing.factories import ManifestFactory, SurfaceFactory
 
@@ -27,15 +27,14 @@ UNSUPPORTED_DATAFILE = "dummy.txt"
 
 
 def _make_topography(surface, filename):
-    """Create a fresh, uninspected Topography backed by the given fixture file."""
+    """Create a fresh, uninspected Measurement backed by the given fixture file."""
     datafile = ManifestFactory(filename=filename, permissions=surface.permissions)
-    topo = Topography(
+    topo = Measurement(
         surface=surface,
         created_by=surface.created_by,
         permissions=surface.permissions,
         name=filename,
         datafile=datafile,
-        data_source=None,
     )
     # Creating a new object does not dispatch an inspection task, so the file is
     # not read until we call refresh_cache()/run_task() explicitly below.
@@ -60,10 +59,11 @@ def test_incomplete_metadata_accepted_by_default():
     topo.refresh_cache()
 
     assert not topo.is_metadata_complete
-    assert topo.size_editable
-    assert topo.unit_editable
-    assert topo.size_x is None
-    assert topo.unit is None
+    # The file provides neither, so both stay up to the user.
+    assert topo.info.size_editable
+    assert topo.info.unit_editable
+    assert topo.meta.size_x is None
+    assert topo.meta.unit is None
 
 
 @pytest.mark.django_db
@@ -93,8 +93,8 @@ def test_complete_metadata_accepted_when_flag_enabled():
     topo.refresh_cache()
 
     assert topo.is_metadata_complete
-    assert topo.unit is not None
-    assert topo.size_x is not None
+    assert topo.meta.unit is not None
+    assert topo.meta.size_x is not None
 
 
 @pytest.mark.django_db
