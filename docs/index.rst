@@ -26,8 +26,6 @@ Contents:
    storage-backend
    install
 
-.. docker_ec2
-
 .. todo:: add how to start tests
 .. todo:: bring everything in correct order
 
