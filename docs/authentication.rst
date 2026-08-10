@@ -13,6 +13,13 @@ identities are listed on the *Connected identities* page (``/accounts/3rdparty/`
 An identity can also be disconnected again, as long as one way of signing back
 in remains.
 
+Which providers a deployment actually offers depends on two things: the
+django-allauth provider app has to be in ``INSTALLED_APPS`` (ce-ui registers
+ORCID and Google), and a ``socialaccount.socialapp`` row carrying the client
+credentials has to exist for it. A provider missing either is simply not shown
+on the sign-in page, so the sections below have to be followed for every
+provider you want to offer.
+
 .. _orcid-required-for-publication:
 
 ORCID is required for publishing
@@ -38,30 +45,34 @@ Register a Public API Client
 For running TopoBank, you need to register a public API client on the ORCID website
 for the following purposes:
 
-- get a client API + secret in order to be able to authenticate against orcid.org
+- get a client ID + secret in order to be able to authenticate against orcid.org
 - set a redirect URL to which TopoBank will redirect after successful authentication
-- the TopoBank website is listed (TODO check where is this, or only true for members?)
 
-See `here <https://support.orcid.org/hc/en-us/articles/360006897174>`_ for more information
-how to do it.
+A free ORCID account is enough to register a public API client: there is no
+review to pass and no membership to buy. See
+`here <https://support.orcid.org/hc/en-us/articles/360006897174>`_ for more
+information how to do it.
 
 You need the generated client ID and client secret for the next step.
 
 As redirect URL add all of these
 
-- for development: http://127.0.0.1:8000/accounts/orcid/login/callback
-- for development: http://localhost:8000/accounts/orcid/login/callback
-- for production: https://topobank.contact.engineering/accounts/orcid/login/callback
+- for development: http://127.0.0.1:8000/accounts/orcid/login/callback/
+- for development: http://localhost:8000/accounts/orcid/login/callback/
+- for production: https://contact.engineering/accounts/orcid/login/callback/
 
 One of the redirect URLs configured at orcid.org must exactly match the redirect URL, which is
-transferred from the TopoBank application during the login process.
-This means, if you use
+transferred from the TopoBank application during the login process. django-allauth builds that
+URL by reversing its callback route, so it always carries the **trailing slash** shown above;
+a registered URL without one is rejected as a mismatch.
+
+The host has to match exactly as well, so if you browse to
 
  http://localhost:8000
 
-i.e. `localhost` instead of `127.0.0.1` during development, you'll need also redirect url with `localhost` which is
+i.e. `localhost` instead of `127.0.0.1` during development, you'll need also a redirect url with `localhost` which is
 
- http://localhost:8000/accounts/orcid/login/callback
+ http://localhost:8000/accounts/orcid/login/callback/
 
 If you have both `localhost` and `127.0.0.1`, it shouldn't matter.
 
@@ -106,7 +117,7 @@ Enter the URL
 Create an entry in the table `socialaccount_socialapp` filling the following fields:
 ::
 
-    Provider: orcid.org
+    Provider: orcid
     Name: ORCID
     Client ID: <use the one from ORCID website>
     Secret: <use the one from ORCID website>
@@ -145,6 +156,53 @@ Login with Google
 Google works the same way: register an OAuth client, then store its credentials
 in the database as a second ``socialaccount.socialapp`` entry.
 
+What you need before you start
+..............................
+
+An ordinary Google account and a Google Cloud project. Both are free: a Cloud
+project needs **no billing account**, because sign-in is not a billable API,
+and there is no paid developer programme to join.
+
+Because TopoBank asks only for the ``email`` and ``profile`` scopes (plus
+``openid``, which django-allauth adds), which Google classifies as
+*non-sensitive*, the app **does not have to pass Google's OAuth verification
+review** and needs no third-party security assessment. That changes the moment
+a sensitive or restricted scope is added — Gmail, Drive, Calendar and the like
+— so do not widen ``SOCIALACCOUNT_PROVIDERS["google"]["SCOPE"]`` without
+budgeting several weeks for review.
+
+One piece of validation is required: the domain you enter on the consent
+screen has to be one whose ownership you have proven in
+`Google Search Console <https://search.google.com/search-console>`_, via a DNS
+record or an uploaded file. This is a one-off and takes minutes.
+
+Configure the consent screen
+............................
+
+In the Google Cloud console, under *Google Auth Platform* (older versions of
+the console call this *APIs & Services* → *OAuth consent screen*), configure:
+
+- user type *External*, since users sign in with their own Google accounts
+- the application name and the support and developer contact addresses
+- links to the privacy policy and the terms and conditions
+- ``contact.engineering`` as an authorized domain (see the domain verification
+  above)
+- the ``email`` and ``profile`` scopes, and nothing else
+
+.. important::
+
+   A newly configured *External* app starts in publishing status **Testing**,
+   which only lets the up-to-100 accounts on its test-user list sign in, and
+   **expires every authorization after seven days**. Left in that state,
+   sign-in silently stops working for your testers a week later. Press
+   *Publish app* to move the app to *In production*; with non-sensitive scopes
+   only, that transition does not trigger a review.
+
+If you want TopoBank's name and logo to appear on Google's consent screen
+rather than only the domain, complete Google's *brand verification*. It is a
+lighter-weight process than scope verification and is not a prerequisite for
+sign-in to work.
+
 Register an OAuth client
 ........................
 
@@ -154,14 +212,16 @@ authorized redirect URIs:
 
 - for development: http://127.0.0.1:8000/accounts/google/login/callback/
 - for development: http://localhost:8000/accounts/google/login/callback/
-- for production: https://topobank.contact.engineering/accounts/google/login/callback/
+- for production: https://contact.engineering/accounts/google/login/callback/
 
 As with ORCID, the redirect URI must match exactly, including the trailing
-slash and the host name you actually browse to.
+slash and the host name you actually browse to. Google exempts ``localhost``
+from its HTTPS requirement, so a plain ``http://`` redirect URI is accepted for
+development — but ``localhost`` cannot be used as an *authorized domain* on the
+consent screen.
 
-The OAuth consent screen needs the ``email`` and ``profile`` scopes; those are
-the only ones TopoBank asks for, and they are what fills in the name and email
-address of a newly created account.
+The client ID and client secret are shown once the client is created, and can
+be downloaded again from the same page afterwards.
 
 Configure TopoBank with Client ID and Secret Key
 ................................................
@@ -182,7 +242,11 @@ Login with email and password
 -----------------------------
 
 Local accounts need no provider configuration; the sign-up form is reachable
-from the login page. Two settings govern them:
+from the login page. A registration asks for a name, a username, an email
+address and a password, and the account can then sign in with either the
+username or the address (``ACCOUNT_LOGIN_METHODS``).
+
+Two settings govern local accounts:
 
 ``ACCOUNT_ALLOW_SIGNUP``
    Whether the site accepts registrations for local accounts at all. Defaults
@@ -193,3 +257,9 @@ from the login page. Two settings govern them:
    can be used. Defaults to ``mandatory``, which requires a working outgoing
    mail configuration. Set it to ``none`` for a development instance that
    cannot send mail.
+
+Note that an address is mandatory for a *local* registration but not for a
+social one: ORCID does not necessarily release an email address, and requiring
+one would turn a working sign-in into a form to fill in. This is why
+``SOCIALACCOUNT_EMAIL_REQUIRED`` is set to ``False`` explicitly — django-allauth
+would otherwise derive it from the local signup fields.

@@ -1,5 +1,5 @@
 Docker Remote Debugging for VSCode
-=======================
+==================================
 
 To connect to python remote interpreter inside docker, you have to make sure first, that VSCode is aware of your docker.
 

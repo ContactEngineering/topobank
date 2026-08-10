@@ -4,6 +4,28 @@ Publishing Data
 Publishing is a non-reversible action which gives all users of the application
 read access to a surface.
 
+Publishing requires an ORCID iD
+-------------------------------
+
+A publication is a citable record, so the person minting it has to be
+identifiable as a researcher: TopoBank refuses to publish for a user who has no
+ORCID account connected. Users can sign in in other ways — with a Google
+account, or with an email address and a password — and everything else works
+for them; only publishing is gated. An ORCID account can be connected at any
+later time, from the *Connected identities* page. See
+:ref:`orcid-required-for-publication` in :doc:`authentication`.
+
+The check runs on the publication endpoints themselves rather than only in the
+user interface, so it applies to API clients as well.
+
+.. note::
+
+   The sections below are a design record from the time publishing was
+   introduced, written in the future tense against version 0.9.0. They describe
+   the intent accurately, but not every detail matches the current
+   implementation — permissions, for instance, are no longer modelled as a
+   group named "all" but through the permission set of a dataset.
+
 Comparison with Sharing
 -----------------------
 
@@ -77,9 +99,11 @@ Permanent URL
 -------------
 
 There is a permanent URL for the published surfaces, in the form
-```
-    https://contact.engineering/go/<UIID>
-```
+
+::
+
+    https://contact.engineering/go/<UUID>
+
 This redirects to the property page of the surface.
 
 Each specific version of a surface gets an new URL.

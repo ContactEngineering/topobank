@@ -127,7 +127,7 @@ Add remote repository by
 
 .. code:: bash
 
-   git remote add origin git@github.com:ComputationalMechanics/TopoBank.git
+   git remote add origin git@github.com:ContactEngineering/topobank.git
 
 Use this repository as source for the source code.
 
@@ -410,10 +410,19 @@ Configures Python part: Django and Celery. You can use this as template:
     CELERY_FLOWER_USER=<a long random string>
     CELERY_FLOWER_PASSWORD=<a very long random string>
 
-    # ORCID authentication
+    # Authentication, see docs/authentication.rst
     # ------------------------------------------------------------------------------
     ORCID_CLIENT_ID=<from your ORCID configuration>
     ORCID_SECRET=<from your ORCID configuration>
+
+    # Only needed if you offer Google as an identity provider
+    GOOGLE_CLIENT_ID=<from your Google Cloud OAuth client>
+    GOOGLE_SECRET=<from your Google Cloud OAuth client>
+
+    # Local accounts with an email address and a password. Both are optional;
+    # these are the defaults. Confirming an address needs working outgoing mail.
+    ACCOUNT_ALLOW_SIGNUP=yes
+    ACCOUNT_EMAIL_VERIFICATION=mandatory
 
     # Storage settings
     # ------------------------------------------------------------------------------
@@ -476,7 +485,8 @@ These settings are recognized by the "postgres" service and then used to automat
 Further preparation of first run
 --------------------------------
 
-Make sure, ORCID allows topobank to use it for authentication, see:
+Make sure the identity providers you want to offer are registered and allow
+topobank to use them for authentication, see :doc:`authentication`.
 
 Update database schema:
 

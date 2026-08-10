@@ -20,6 +20,8 @@ Contents:
    maintenance
    install-docker
    authentication
+   publishing
+   importing-datasets
    pycharm/configuration
    storage-backend
    install
