@@ -22,14 +22,14 @@ from topobank.analysis.tasks import (
     prepare_dependency_tasks,
     schedule_workflow,
 )
-from topobank.manager.models import Topography
-from topobank.testing.factories import TopographyAnalysisFactory
+from topobank.manager.models import Measurement
+from topobank.testing.factories import MeasurementAnalysisFactory
 
 
 def _pending_analysis(topo, workflow_name, **kwargs):
     wf = Workflow(name=workflow_name)
-    return TopographyAnalysisFactory.create(
-        subject_topography=topo,
+    return MeasurementAnalysisFactory.create(
+        subject_measurement=topo,
         workflow_name=workflow_name,
         kwargs=wf.get_default_kwargs(),
         result=None,
@@ -48,7 +48,7 @@ def test_current_statistics_empty():
     stats = current_statistics()
     assert stats == {
         "num_surfaces_excluding_publications": 0,
-        "num_topographies_excluding_publications": 0,
+        "num_measurements_excluding_publications": 0,
         "num_analyses_excluding_publications": 0,
     }
 
@@ -57,12 +57,12 @@ def test_current_statistics_empty():
 def test_current_statistics_counts(two_topos):
     stats = current_statistics()
     assert stats["num_surfaces_excluding_publications"] >= 1
-    assert stats["num_topographies_excluding_publications"] >= 2
+    assert stats["num_measurements_excluding_publications"] >= 2
 
 
 @pytest.mark.django_db
 def test_current_statistics_for_user(two_topos):
-    user = Topography.objects.first().created_by
+    user = Measurement.objects.first().created_by
     stats = current_statistics(user=user)
     assert stats["num_surfaces_excluding_publications"] >= 1
     # A user with no data sees zeros.
@@ -81,7 +81,7 @@ def test_current_statistics_for_user(two_topos):
 
 @pytest.mark.django_db
 def test_schedule_workflow_skips_completed_without_force(two_topos, test_workflow):
-    topo = Topography.objects.first()
+    topo = Measurement.objects.first()
     analysis = _pending_analysis(topo, "topobank.testing.test")
     WorkflowResult.objects.filter(pk=analysis.pk).update(
         task_state=WorkflowResult.SUCCESS
@@ -95,7 +95,7 @@ def test_schedule_workflow_skips_completed_without_force(two_topos, test_workflo
 
 @pytest.mark.django_db
 def test_execute_workflow_skips_failed(two_topos, test_workflow):
-    topo = Topography.objects.first()
+    topo = Measurement.objects.first()
     analysis = _pending_analysis(topo, "topobank.testing.test")
     WorkflowResult.objects.filter(pk=analysis.pk).update(
         task_state=WorkflowResult.FAILURE
@@ -114,7 +114,7 @@ def test_execute_workflow_skips_failed(two_topos, test_workflow):
 
 @pytest.mark.django_db
 def test_prepare_dependency_tasks_schedules_new_dependencies(two_topos, test_workflow):
-    topo = Topography.objects.first()
+    topo = Measurement.objects.first()
     parent = _pending_analysis(topo, "topobank.testing.test2")
 
     dependencies = parent.function.get_dependencies(parent)
@@ -132,7 +132,7 @@ def test_prepare_dependency_tasks_schedules_new_dependencies(two_topos, test_wor
 
 @pytest.mark.django_db
 def test_schedule_workflow_runs_dependencies_end_to_end(two_topos, test_workflow):
-    topo = Topography.objects.first()
+    topo = Measurement.objects.first()
     analysis = _pending_analysis(topo, "topobank.testing.test2")
 
     # force=True so dependencies are (re)resolved and run.
@@ -162,7 +162,7 @@ def test_workflow_produces_timing_information(two_topos, test_workflow):
     timing node named after itself, and implementations that opt in (accept a
     ``timer`` argument) nest their own sub-steps underneath.
     """
-    topo = Topography.objects.first()
+    topo = Measurement.objects.first()
     analysis = _pending_analysis(topo, "topobank.testing.test")
 
     perform_analysis.apply(args=(analysis.id, True))
@@ -192,7 +192,7 @@ def test_failed_workflow_persists_timing_information(two_topos, test_workflow):
     so even a workflow failing mid-flight leaves its partial duration behind —
     and the failure path must persist it.
     """
-    topo = Topography.objects.first()
+    topo = Measurement.objects.first()
     analysis = _pending_analysis(topo, "topobank.testing.test_error")
 
     perform_analysis.apply(args=(analysis.id, True))
@@ -226,7 +226,7 @@ def test_dependency_failure_marks_parent_failed(two_topos, test_workflow):
     rather than through ``chord`` so it does not depend on Celery's eager-chord
     execution.
     """
-    topo = Topography.objects.first()
+    topo = Measurement.objects.first()
 
     # Parent: waiting on its dependency, exactly as schedule_workflow leaves it.
     parent = _pending_analysis(topo, "topobank.testing.test_error_in_dependency")
@@ -287,7 +287,7 @@ def _capture_execute_workflow_dispatches():
 
 @pytest.mark.django_db
 def test_dependency_dispatch_carries_parent_id(two_topos, test_workflow):
-    topo = Topography.objects.first()
+    topo = Measurement.objects.first()
     analysis = _pending_analysis(topo, "topobank.testing.test2")
 
     with _capture_execute_workflow_dispatches() as captured:
@@ -318,7 +318,7 @@ def test_rerun_by_second_parent_attributes_to_that_parent(two_topos, test_workfl
     id in the task kwargs, while the rows keep the creation-time stamp of the
     parent that created them — per-execution attribution does not depend on
     (or mutate) the shared row."""
-    topo = Topography.objects.first()
+    topo = Measurement.objects.first()
     parent_a = _pending_analysis(topo, "topobank.testing.test2")
     perform_analysis.apply(args=(parent_a.id, True))
 

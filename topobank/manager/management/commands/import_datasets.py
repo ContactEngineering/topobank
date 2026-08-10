@@ -12,7 +12,7 @@ from django.core.management.base import BaseCommand, CommandError
 from django.utils.timezone import now
 
 from topobank.manager.import_zip import load_container_metadata
-from topobank.manager.models import Surface, Topography
+from topobank.manager.models import Surface, Measurement
 from topobank.properties.models import Property
 
 User = _get_user_model()
@@ -71,7 +71,7 @@ class Command(BaseCommand):
         )
 
     def process_topography(self, topo_meta, topo_file, surface, dry_run=False):
-        self.stdout.write(self.style.NOTICE(f"  Topography name: '{topo_meta.name}'"))
+        self.stdout.write(self.style.NOTICE(f"  Measurement name: '{topo_meta.name}'"))
         if topo_meta.created_by is not None:
             self.stdout.write(
                 self.style.NOTICE(
@@ -117,13 +117,13 @@ class Command(BaseCommand):
         # Constructing the instance validates the metadata. On a dry run we stop
         # here: nothing is persisted (the surface is not saved either, so saving
         # the topography would fail on the unsaved foreign key).
-        topography = Topography(**topo_kwargs)
+        topography = Measurement(**topo_kwargs)
 
         if not dry_run:
             # ...which we need for the storage prefix
             topography.save_datafile(topo_file)
             self.stdout.write(
-                self.style.SUCCESS(f"Topography '{topo_name}' saved in database.")
+                self.style.SUCCESS(f"Measurement '{topo_name}' saved in database.")
             )
             # Renew/generate cache
             topography.refresh_cache()
@@ -173,11 +173,11 @@ class Command(BaseCommand):
                     self.style.SUCCESS(f"Surface '{surface.name}' saved.")
                 )
 
-            num_topographies = len(surface_meta.topographies)
+            num_measurements = len(surface_meta.topographies)
             for topo_idx, topo_meta in enumerate(surface_meta.topographies):
                 self.stdout.write(
                     self.style.NOTICE(
-                        f"Processing topography {topo_idx + 1}/{num_topographies} in archive..."
+                        f"Processing topography {topo_idx + 1}/{num_measurements} in archive..."
                     )
                 )
                 datafile_name = topo_meta.datafile.original

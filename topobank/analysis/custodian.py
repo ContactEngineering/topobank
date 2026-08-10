@@ -27,7 +27,7 @@ def periodic_cleanup():
             name__isnull=True,
         )
         .filter(
-            Q(subject_topography__isnull=False)
+            Q(subject_measurement__isnull=False)
             | Q(subject_surface__isnull=False)
             | Q(subject_tag__isnull=False)
             | Q(surfaces__isnull=False)

@@ -131,10 +131,10 @@ def observed_bytes_per_point(use_cache=True):
             task_memory__isnull=False,
             task_memory__gt=0,
             task_end_time__gte=timezone.now() - timedelta(days=window_days),
-            subject_topography__isnull=False,
-            subject_topography__resolution_x__isnull=False,
+            subject_measurement__isnull=False,
+            subject_measurement__resolution_x__isnull=False,
         )
-        .annotate(points=_points_expression("subject_topography__"))
+        .annotate(points=_points_expression("subject_measurement__"))
         .values_list("workflow_name", "task_memory", "points")
     )
 
@@ -168,23 +168,23 @@ def grid_points(analysis):
     walking the tag tree across both surfaces and measurements, and a guard that
     is wrong is worse than a guard that abstains.
     """
-    from topobank.manager.models import Topography
+    from topobank.manager.models import Measurement
 
-    if analysis.subject_topography_id is not None:
-        topography = analysis.subject_topography
+    if analysis.subject_measurement_id is not None:
+        topography = analysis.subject_measurement
         if topography.resolution_x is None:
             return None
         return topography.resolution_x * (topography.resolution_y or 1)
 
     if analysis.subject_surface_id is not None:
-        queryset = Topography.objects.filter(surface_id=analysis.subject_surface_id)
+        queryset = Measurement.objects.filter(surface_id=analysis.subject_surface_id)
     elif analysis.subject_tag_id is not None:
         return None
     else:
         surface_ids = list(analysis.surfaces.values_list("id", flat=True))
         if not surface_ids:
             return None
-        queryset = Topography.objects.filter(surface_id__in=surface_ids)
+        queryset = Measurement.objects.filter(surface_id__in=surface_ids)
 
     return (
         queryset.filter(resolution_x__isnull=False)

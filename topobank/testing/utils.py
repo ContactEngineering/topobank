@@ -16,7 +16,7 @@ from django.test import SimpleTestCase
 from django.utils import formats
 
 from topobank.files.models import ManifestSet
-from topobank.manager.models import Surface, Tag, Topography
+from topobank.manager.models import Surface, Tag, Measurement
 
 _log = logging.getLogger(__name__)
 
@@ -214,9 +214,9 @@ def assert_dicts_equal(a, b, key=None, ignore_keys=set(), rtol=1e-07, atol=0):
 
 @dataclass(frozen=True)
 class FakeTopographyModel:
-    """This model is used to create a Topography for  being passed to analysis functions."""
+    """This model is used to create a Measurement for  being passed to analysis functions."""
 
-    t: Topography
+    t: Measurement
     name: str = "mytopo"
     is_periodic: bool = False
 
@@ -226,10 +226,10 @@ class FakeTopographyModel:
 
 
 class AnalysisResultMock:
-    subject: Union[Tag, Surface, Topography] = None
+    subject: Union[Tag, Surface, Measurement] = None
     folder: ManifestSet = None
 
-    def __init__(self, subject: Union[Tag, Surface, Topography], folder: ManifestSet = None):
+    def __init__(self, subject: Union[Tag, Surface, Measurement], folder: ManifestSet = None):
         self.subject = subject
         self.folder = folder
         if self.folder is None and hasattr(self.subject, "permissions"):

@@ -339,7 +339,7 @@ def simple_surface():
             self._c = c
 
         @property
-        def topography_set(self):
+        def measurements(self):
             return WrapRequest(self._c)
 
     nx, ny = 113, 123

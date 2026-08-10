@@ -1,5 +1,15 @@
 # Changelog for *TopoBank*
 
+# 2.0.0 (unreleased)
+
+- API: `Topography` is now `Measurement`. The model records a measurement --
+  identity, permissions, files and task state -- rather than something specific to
+  topography data; every measurement still holds height data, so this release only
+  renames it. `Surface.topography_set` is now `Surface.measurements`,
+  `num_topographies()` is `num_measurements()`, and
+  `WorkflowResult.subject_topography` is `subject_measurement`. There is no
+  compatibility alias, so out-of-tree code has to be updated.
+
 # 1.71.0 (2026-08-03)
 
 - ENH: A data series records the extent of its data next to the reference to its

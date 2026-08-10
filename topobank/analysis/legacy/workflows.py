@@ -15,7 +15,7 @@ import pydantic
 from muTimer import Timer
 from pydantic import field_validator
 
-from ...manager.models import Surface, Tag, Topography
+from ...manager.models import Surface, Tag, Measurement
 from ...supplib.dict import SplitDictionaryHere
 from ..models import Workflow
 from ..outputs import get_outputs_schema
@@ -189,7 +189,7 @@ def make_alert_entry(
 @dataclass
 class WorkflowDefinition:
     # We don't allow tags as dependencies
-    subject: Union[Surface, Topography] = None
+    subject: Union[Surface, Measurement] = None
 
     # Analysis function
     function: Workflow = None
@@ -272,8 +272,8 @@ class WorkflowImplementation:
         elif n == 1:
             if self.has_implementation(Surface):
                 impl = self.get_implementation(Surface)
-            elif self.has_implementation(Topography):
-                impl = self.get_implementation(Topography)
+            elif self.has_implementation(Measurement):
+                impl = self.get_implementation(Measurement)
             else:
                 raise WorkflowNotImplementedException(self.Meta.name, Surface)
         else:
@@ -374,9 +374,9 @@ class WorkflowImplementation:
         # More than one surface → use Tag-based dependency function
         if n > 1:
             dep_key = Tag
-        # Exactly one surface → prefer Surface, fall back to Topography
+        # Exactly one surface → prefer Surface, fall back to Measurement
         elif n == 1:
-            dep_key = Surface if Surface in dependencies else Topography
+            dep_key = Surface if Surface in dependencies else Measurement
         else:
             return []
 

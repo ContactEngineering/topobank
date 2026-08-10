@@ -15,13 +15,13 @@ from celery.signals import task_failure, task_revoked, task_success
 from django.utils import timezone
 
 from topobank.analysis.models import WorkflowResult
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 from topobank.manager.zip_model import ZipContainer
 from topobank.taskapp.celeryapp import CeleryAppConfig
 from topobank.testing.factories import (
     SurfaceFactory,
     Topography2DFactory,
-    TopographyAnalysisFactory,
+    MeasurementAnalysisFactory,
     UserFactory,
 )
 
@@ -48,7 +48,7 @@ class TestTaskFailureSignal:
     def test_updates_state_on_worker_crash(self, app_config, mock_now, test_workflow):
         """Test that task failure updates state from STARTED to FAILURE."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -72,7 +72,7 @@ class TestTaskFailureSignal:
     def test_records_exception_message_and_traceback(self, app_config, mock_now, test_workflow):
         """Test that exception details are properly recorded."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -96,7 +96,7 @@ class TestTaskFailureSignal:
         """Test that traceback objects are properly formatted as strings."""
         import traceback as tb
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -123,7 +123,7 @@ class TestTaskFailureSignal:
     def test_sets_task_end_time(self, app_config, mock_now, test_workflow):
         """Test that task_end_time is set when task fails."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             task_end_time=None,
@@ -143,7 +143,7 @@ class TestTaskFailureSignal:
     def test_respects_success_terminal_state(self, app_config, mocker, test_workflow):
         """Test that SUCCESS state is not overridden by failure signal."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -168,7 +168,7 @@ class TestTaskFailureSignal:
         """Test that FAILURE state is not overridden by another failure signal."""
         task_id = str(uuid.uuid4())
         original_error = "Original error"
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.FAILURE,
             task_id=task_id,
             task_error=original_error,
@@ -207,10 +207,10 @@ class TestTaskFailureSignal:
         assert mock_log.debug.called
 
     def test_handles_all_model_types(self, app_config, mock_now, test_workflow):
-        """Test that signal handler works for WorkflowResult, Topography, and ZipContainer."""
+        """Test that signal handler works for WorkflowResult, Measurement, and ZipContainer."""
         # Test WorkflowResult
         task_id_1 = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id_1,
             workflow_name=test_workflow.name,
@@ -226,13 +226,13 @@ class TestTaskFailureSignal:
         analysis.refresh_from_db()
         assert analysis.task_state == WorkflowResult.FAILURE
 
-        # Test Topography
+        # Test Measurement
         task_id_2 = str(uuid.uuid4())
         user = UserFactory()
         surface = SurfaceFactory(created_by=user)
         topo = Topography2DFactory(
             surface=surface,
-            task_state=Topography.STARTED,
+            task_state=Measurement.STARTED,
             task_id=task_id_2,
         )
 
@@ -244,7 +244,7 @@ class TestTaskFailureSignal:
         )
 
         topo.refresh_from_db()
-        assert topo.task_state == Topography.FAILURE
+        assert topo.task_state == Measurement.FAILURE
 
         # Test ZipContainer
         task_id_3 = str(uuid.uuid4())
@@ -270,7 +270,7 @@ class TestTaskFailureSignal:
     def test_signal_handler_exception_handling(self, app_config, mocker, test_workflow):
         """Test that signal handler doesn't crash even if internal error occurs."""
         task_id = str(uuid.uuid4())
-        TopographyAnalysisFactory(
+        MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -299,7 +299,7 @@ class TestTaskRevokedSignal:
     def test_updates_state_on_cancellation(self, app_config, mock_now, test_workflow):
         """Test that task revocation updates state to FAILURE."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -325,7 +325,7 @@ class TestTaskRevokedSignal:
     def test_records_terminated_flag(self, app_config, mock_now, test_workflow):
         """Test that terminated flag is recorded in error message."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -349,7 +349,7 @@ class TestTaskRevokedSignal:
     def test_records_expired_flag(self, app_config, mock_now, test_workflow):
         """Test that expired flag is recorded in error message."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -373,7 +373,7 @@ class TestTaskRevokedSignal:
     def test_sets_task_end_time(self, app_config, mock_now, test_workflow):
         """Test that task_end_time is set when task is revoked."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             task_end_time=None,
@@ -397,7 +397,7 @@ class TestTaskRevokedSignal:
     def test_respects_terminal_states(self, app_config, mocker, test_workflow):
         """Test that terminal states are not overridden."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -442,7 +442,7 @@ class TestTaskRevokedSignal:
     def test_signal_handler_exception_handling(self, app_config, mocker, test_workflow):
         """Test that signal handler doesn't crash even if internal error occurs."""
         task_id = str(uuid.uuid4())
-        TopographyAnalysisFactory(
+        MeasurementAnalysisFactory(
             task_state=WorkflowResult.STARTED,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -474,7 +474,7 @@ class TestTaskSuccessSignal:
     def test_logs_warning_on_state_mismatch(self, app_config, mocker, test_workflow):
         """Test that warning is logged when Celery reports SUCCESS but DB shows FAILURE."""
         task_id = str(uuid.uuid4())
-        TopographyAnalysisFactory(
+        MeasurementAnalysisFactory(
             task_state=WorkflowResult.FAILURE,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -500,7 +500,7 @@ class TestTaskSuccessSignal:
     def test_no_action_when_states_match(self, app_config, mocker, test_workflow):
         """Test that no action is taken when states match."""
         task_id = str(uuid.uuid4())
-        TopographyAnalysisFactory(
+        MeasurementAnalysisFactory(
             task_state=WorkflowResult.SUCCESS,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -539,7 +539,7 @@ class TestTaskSuccessSignal:
     def test_signal_handler_exception_handling(self, app_config, mocker, test_workflow):
         """Test that signal handler doesn't crash even if internal error occurs."""
         task_id = str(uuid.uuid4())
-        TopographyAnalysisFactory(
+        MeasurementAnalysisFactory(
             task_state=WorkflowResult.FAILURE,
             task_id=task_id,
             workflow_name=test_workflow.name,
@@ -575,7 +575,7 @@ class TestFindTaskInstance:
     def test_finds_workflow_result(self, app_config, test_workflow):
         """Test that WorkflowResult can be found by task_id."""
         task_id = str(uuid.uuid4())
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_id=task_id,
             workflow_name=test_workflow.name,
         )
@@ -587,7 +587,7 @@ class TestFindTaskInstance:
         assert isinstance(found, WorkflowResult)
 
     def test_finds_topography(self, app_config):
-        """Test that Topography can be found by task_id."""
+        """Test that Measurement can be found by task_id."""
         task_id = str(uuid.uuid4())
         user = UserFactory()
         surface = SurfaceFactory(created_by=user)
@@ -600,7 +600,7 @@ class TestFindTaskInstance:
 
         assert found is not None
         assert found.id == topo.id
-        assert isinstance(found, Topography)
+        assert isinstance(found, Measurement)
 
     def test_finds_zip_container(self, app_config):
         """Test that ZipContainer can be found by task_id."""
@@ -630,12 +630,12 @@ class TestFindTaskInstance:
         task_id = str(uuid.uuid4())
 
         # Create WorkflowResult with this task_id
-        analysis = TopographyAnalysisFactory(
+        analysis = MeasurementAnalysisFactory(
             task_id=task_id,
             workflow_name=test_workflow.name,
         )
 
-        # The helper searches in order: WorkflowResult, Topography, ZipContainer
+        # The helper searches in order: WorkflowResult, Measurement, ZipContainer
         # So it should find WorkflowResult first
         found = app_config._find_task_instance(task_id)
 

@@ -6,7 +6,7 @@ from django.utils import timezone
 from topobank.files.models import Manifest
 
 from ..taskapp.celeryapp import app
-from .models import Surface, Topography
+from .models import Surface, Measurement
 from .zip_model import ZipContainer
 
 _log = logging.getLogger(__name__)
@@ -21,7 +21,7 @@ def periodic_cleanup():
     )
 
     # Delete all topographies that were marked for deletion
-    q = Topography.all_objects.filter(
+    q = Measurement.all_objects.filter(
         deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
     )
     if q.count() > 0:

@@ -24,7 +24,7 @@ def test_submit_returns_successful_over_notrun(test_workflow, user_alice):
     def _make(state, start):
         wr = WorkflowResult.objects.create(
             workflow_name=test_workflow.name,
-            subject_topography=topo,
+            subject_measurement=topo,
             kwargs=kwargs,
             created_by=user_alice,
             task_state=state,

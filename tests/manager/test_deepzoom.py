@@ -13,7 +13,7 @@ def test_deepzoom_creation_fails(mocker):
     assert topo.deepzoom is not None
 
     mocker.patch(
-        "topobank.manager.models.Topography._make_deepzoom",
+        "topobank.manager.models.Measurement._make_deepzoom",
         side_effect=Exception("Test exception"),
     )
     topo.refresh_cache()
@@ -27,7 +27,7 @@ def test_missing_thumbnail_is_logged_but_not_fatal(mocker, caplog):
     topo = Topography2DFactory(size_x=1, size_y=1)
 
     mocker.patch(
-        "topobank.manager.models.Topography._make_thumbnail",
+        "topobank.manager.models.Measurement._make_thumbnail",
         side_effect=Exception("Test exception"),
     )
 

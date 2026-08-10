@@ -11,7 +11,7 @@ from django.utils import timezone
 from factory import post_generation
 
 from ..analysis.models import Workflow, WorkflowResult
-from ..manager.models import Surface, Tag, Topography
+from ..manager.models import Surface, Tag, Measurement
 from ..properties.models import Property
 from .data import FIXTURE_DATA_DIR
 
@@ -193,12 +193,12 @@ class PropertyFactory(factory.django.DjangoModelFactory):
 
 class Topography1DFactory(factory.django.DjangoModelFactory):
     """
-    Generates a 1D Topography.
+    Generates a 1D Measurement.
     """
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
-        model = Topography
+        model = Measurement
         exclude = ("filename",)
         skip_postgeneration_save = True
 
@@ -222,15 +222,15 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     height_scale_editable = True
     unit = "nm"
     instrument_name = ""
-    instrument_type = Topography.INSTRUMENT_TYPE_UNDEFINED
+    instrument_type = Measurement.INSTRUMENT_TYPE_UNDEFINED
     instrument_parameters = {}
     # `post_generation` below calls refresh_cache(), which is the body of the
-    # inspection task (see Topography.task_worker). Calling it directly bypasses
+    # inspection task (see Measurement.task_worker). Calling it directly bypasses
     # the task wrapper that would normally record the outcome, so factory-built
     # measurements would otherwise look like they were never inspected
     # successfully despite having a populated cache. Override to build a
-    # measurement in a different state, e.g. task_state=Topography.FAILURE.
-    task_state = Topography.SUCCESS
+    # measurement in a different state, e.g. task_state=Measurement.FAILURE.
+    task_state = Measurement.SUCCESS
 
     @factory.post_generation
     def post_generation(self, create, value, **kwargs):
@@ -245,16 +245,16 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
         # after post_generation (`skip_postgeneration_save`), so writing it
         # both in memory and in the database keeps them consistent.
         self.task_state = requested_task_state
-        Topography.objects.filter(pk=self.pk).update(task_state=requested_task_state)
+        Measurement.objects.filter(pk=self.pk).update(task_state=requested_task_state)
 
 
 class Topography2DFactory(Topography1DFactory):
     """
-    Generates a 2D Topography.
+    Generates a 2D Measurement.
     """
 
     class Meta:
-        model = Topography
+        model = Measurement
         exclude = ("filename",)
 
     size_y = 512
@@ -304,7 +304,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
         )
         skip_postgeneration_save = True
 
-    subject_topography = None  # factory.SubFactory(Topography2DFactory)
+    subject_measurement = None  # factory.SubFactory(Topography2DFactory)
     subject_surface = None
     subject_tag = None
 
@@ -313,7 +313,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
         lambda obj: (
             obj.subject_surface
             if obj.subject_surface
-            else (obj.subject_topography if obj.subject_topography else obj.subject_tag)
+            else (obj.subject_measurement if obj.subject_measurement else obj.subject_tag)
         )
     )
 
@@ -322,8 +322,8 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
             obj.subject_surface.created_by
             if obj.subject_surface
             else (
-                obj.subject_topography.created_by
-                if obj.subject_topography
+                obj.subject_measurement.created_by
+                if obj.subject_measurement
                 else obj.subject_tag.get_related_surfaces().first().created_by
             )
         )
@@ -373,24 +373,24 @@ class AnalysisFactory(AnalysisFactoryWithoutResult):
     result = factory.LazyAttribute(_analysis_result)
 
 
-class TopographyAnalysisFactory(AnalysisFactory):
+class MeasurementAnalysisFactory(AnalysisFactory):
     """Create an analysis for a topography."""
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = WorkflowResult
 
-    subject_topography = factory.SubFactory(Topography2DFactory)
+    subject_measurement = factory.SubFactory(Topography2DFactory)
 
 
-class FailedTopographyAnalysisFactory(AnalysisFactory):
+class FailedMeasurementAnalysisFactory(AnalysisFactory):
     """Create an analysis for a topography."""
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
         model = WorkflowResult
 
-    subject_topography = factory.SubFactory(Topography2DFactory)
+    subject_measurement = factory.SubFactory(Topography2DFactory)
     result = factory.LazyAttribute(_failed_analysis_result)
 
 

@@ -8,7 +8,7 @@ causing concurrent ``refresh_cache`` executions on the same measurement.
 import pytest
 from django.core.management import call_command
 
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 from topobank.taskapp.models import TaskStateModel
 from topobank.taskapp.utils import run_task
 from topobank.testing.factories import Topography1DFactory
@@ -16,7 +16,7 @@ from topobank.testing.factories import Topography1DFactory
 
 def _set_state(topo, state, **extra):
     """Force task_state (and optional extra fields) directly in the DB."""
-    Topography.objects.filter(pk=topo.pk).update(task_state=state, **extra)
+    Measurement.objects.filter(pk=topo.pk).update(task_state=state, **extra)
     topo.refresh_from_db()
 
 

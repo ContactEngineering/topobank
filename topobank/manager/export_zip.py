@@ -18,7 +18,7 @@ import topobank
 from topobank.supplib.json import ExtendedJSONEncoder
 
 from .container_schema import CONTAINER_METADATA_FILENAME, ContainerMeta
-from .models import Topography
+from .models import Measurement
 
 _log = logging.getLogger(__name__)
 
@@ -50,7 +50,7 @@ def export_container_zip(file, surfaces, extra_metadata=None, progress_recorder=
     # One step per measurement, plus a final one for the metadata and license
     # files, so that a client can show a meaningful bar rather than an
     # indeterminate spinner.
-    nb_steps = 1 + Topography.objects.filter(surface__in=surfaces).count()
+    nb_steps = 1 + Measurement.objects.filter(surface__in=surfaces).count()
     step = 0
     if progress_recorder is not None:
         progress_recorder.set_progress(step, nb_steps, message="Preparing container")
@@ -75,7 +75,7 @@ def export_container_zip(file, surfaces, extra_metadata=None, progress_recorder=
             else f"{surface_index}".zfill(log10_nb_surfaces + 1) + "-"
         )
 
-        topographies = surface.topography_set.all()
+        topographies = surface.measurements.all()
 
         topography_dicts = []
 
@@ -179,7 +179,7 @@ def export_container_zip(file, surfaces, extra_metadata=None, progress_recorder=
     ============================
     This archive contains {len(surfaces)} digital surface twin(s). Each digital surface
     twin is a collection of individual topography measurements. In total,
-    this archive contains {sum(s.topography_set.count() for s in surfaces)} topography measurements.
+    this archive contains {sum(s.measurements.count() for s in surfaces)} topography measurements.
 
     There are two files for each measurement:
     - The original data file which was uploaded by a user,

@@ -3,7 +3,7 @@ import logging
 from django.core.management.base import BaseCommand
 from SurfaceTopography.IO import CannotDetectFileFormat, detect_format
 
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 
 _log = logging.getLogger(__name__)
 
@@ -40,10 +40,10 @@ class Command(BaseCommand):
         format_counts = {None: 0}
         num_cannot_openend = 0  # number of files which cannot be openend
 
-        topographies = Topography.objects.all()
+        topographies = Measurement.objects.all()
         if not options['all']:
             topographies = topographies.filter(datafile_format__isnull=True)
-        num_topographies = topographies.count()
+        num_measurements = topographies.count()
 
         for topo in topographies:
             if topo.datafile_format is None:
@@ -73,13 +73,13 @@ class Command(BaseCommand):
                 else:
                     format_counts[datafile_format] += 1
 
-        self.stdout.write(self.style.SUCCESS(f"Processed {num_topographies} specified topographies."))
+        self.stdout.write(self.style.SUCCESS(f"Processed {num_measurements} specified topographies."))
 
         if num_cannot_openend == 0:
             self.stdout.write(self.style.SUCCESS("All specified topography files can be opened."))
         else:
             self.stdout.write(self.style.ERROR("In total {} of {} topographies currently cannot be opened.".format(
-                num_cannot_openend, num_topographies)))
+                num_cannot_openend, num_measurements)))
 
         self.stdout.write(self.style.SUCCESS("Frequencies of topographies which could be opened:"))
         for fmt, freq in format_counts.items():
@@ -88,7 +88,7 @@ class Command(BaseCommand):
         if format_counts[None] == 0:
             self.stdout.write(
                 self.style.SUCCESS("All {} topography files which can be opened can also be loaded.".format(
-                    num_topographies - num_cannot_openend)))
+                    num_measurements - num_cannot_openend)))
         else:
             self.stdout.write(
                 self.style.WARNING("In total {} topographies currently can be opened, but not be loaded.".format(

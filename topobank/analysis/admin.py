@@ -5,7 +5,7 @@ from .models import WorkflowResult
 
 
 class SubjectTypeFilter(admin.SimpleListFilter):
-    """Filter for WorkflowResult subject types (Tag, Surface, or Topography)."""
+    """Filter for WorkflowResult subject types (Tag, Surface, or Measurement)."""
 
     title = _("Subject Type")
     parameter_name = "subject_type"
@@ -14,7 +14,7 @@ class SubjectTypeFilter(admin.SimpleListFilter):
         return (
             ("tag", _("Tag")),
             ("surface", _("Surface")),
-            ("topography", _("Topography")),
+            ("topography", _("Measurement")),
         )
 
     def queryset(self, _request, queryset):

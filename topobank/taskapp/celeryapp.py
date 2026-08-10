@@ -229,7 +229,7 @@ class CeleryAppConfig(AppConfig):
 
         Searches all models that inherit from TaskStateModel:
         - WorkflowResult (analysis results)
-        - Topography (dataset measurements)
+        - Measurement (dataset measurements)
         - ZipContainer (ZIP file exports)
 
         Returns None if not found.
@@ -239,11 +239,11 @@ class CeleryAppConfig(AppConfig):
 
         # Import here to avoid circular imports
         from topobank.analysis.models import WorkflowResult
-        from topobank.manager.models import Topography
+        from topobank.manager.models import Measurement
         from topobank.manager.zip_model import ZipContainer
 
         # Search each model type
-        for model_class in [WorkflowResult, Topography, ZipContainer]:
+        for model_class in [WorkflowResult, Measurement, ZipContainer]:
             try:
                 return model_class.objects.get(task_id=task_id)
             except model_class.DoesNotExist:

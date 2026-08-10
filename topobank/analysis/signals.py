@@ -6,7 +6,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from ..authorization import get_permission_model
-from ..manager.models import Topography, post_refresh_cache
+from ..manager.models import Measurement, post_refresh_cache
 from .models import WorkflowResult
 from .zip_model import ResultZipContainer
 
@@ -58,8 +58,8 @@ def post_delete_analysis(sender, instance, **kwargs):
         instance.permissions.delete()
     except get_permission_model().DoesNotExist:
         # This permissions set may have been deleted when analysis was deleted in
-        # pre_delete_topography. This happens when a surface is deleted, which
-        # trigger pre_delete_topography and this triggers pre_delete_analysis twice
+        # pre_delete_measurement. This happens when a surface is deleted, which
+        # trigger pre_delete_measurement and this triggers pre_delete_analysis twice
         pass
 
 
@@ -85,12 +85,12 @@ def _related_analysis_pks(instance):
     Covers the topography's own analysis plus every analysis attached to its
     surface via the legacy FK or the surface-set M2M. Only valid for a saved
     instance (``instance.pk`` set); for a not-yet-saved measurement use
-    ``_surface_scoped_analysis_pks`` so ``subject_topography=instance`` does
+    ``_surface_scoped_analysis_pks`` so ``subject_measurement=instance`` does
     not degenerate into an ``IS NULL`` match on unrelated analyses.
     """
     return list(
         WorkflowResult.objects.filter(
-            Q(subject_topography=instance)
+            Q(subject_measurement=instance)
             | Q(subject_surface=instance.surface)
             | Q(surfaces=instance.surface)
         )
@@ -99,7 +99,7 @@ def _related_analysis_pks(instance):
     )
 
 
-@receiver(post_refresh_cache, sender=Topography)
+@receiver(post_refresh_cache, sender=Measurement)
 def delete_all_related_analyses(sender, instance, **kwargs):
     # Cache is renewed, this means something significant changed and we need to remove
     # the analyses
@@ -113,7 +113,7 @@ def delete_all_related_analyses(sender, instance, **kwargs):
     WorkflowResult.objects.filter(pk__in=pks).update(deprecation_time=timezone.now())
 
 
-@receiver(pre_save, sender=Topography)
+@receiver(pre_save, sender=Measurement)
 def pre_measurement_save(sender, instance, **kwargs):
     created = instance.pk is None
     if created:
@@ -132,8 +132,8 @@ def pre_measurement_save(sender, instance, **kwargs):
         analyses.delete()
 
 
-@receiver(pre_delete, sender=Topography)
-def pre_delete_topography(sender, instance, **kwargs):
+@receiver(pre_delete, sender=Measurement)
+def pre_delete_measurement(sender, instance, **kwargs):
     # The topography analysis is automatically deleted, but we have to delete the
     # corresponding surface analysis; we do this after the transaction has finished
     # so we can check whether the surface still exists.

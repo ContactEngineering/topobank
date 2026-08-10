@@ -10,7 +10,7 @@ from ..analysis.models import RESULT_FILE_BASENAME, Workflow
 from ..analysis.outputs import OutputFile
 from ..analysis.registry import register_implementation
 from ..analysis.workflows import WorkflowDefinition, WorkflowImplementation
-from ..manager.models import Surface, Tag, Topography
+from ..manager.models import Surface, Tag, Measurement
 from ..supplib.dict import store_split_dict
 from ..supplib.json import ExtendedJSONEncoder
 
@@ -27,7 +27,7 @@ class TestImplementation(WorkflowImplementation):
         display_name = "Test implementation"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "topography_implementation",
             Surface: "surface_implementation",
             Tag: "tag_implementation",
         }
@@ -144,10 +144,10 @@ class TopographyOnlyTestImplementation(TestImplementation):
 
     class Meta:
         name = "topobank.testing.topography_only_test"
-        display_name = "Topography-only test implementation"
+        display_name = "Measurement-only test implementation"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "topography_implementation",
         }
 
 
@@ -163,10 +163,10 @@ class SecondTestImplementation(WorkflowImplementation):
         display_name = "Second test implementation"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "topography_implementation",
         }
 
-        dependencies = {Topography: "topography_dependencies"}
+        dependencies = {Measurement: "topography_dependencies"}
 
     class Parameters(WorkflowImplementation.Parameters):
         c: int = 1
@@ -214,7 +214,7 @@ class TestImplementationWithError(WorkflowImplementation):
         display_name = "Test implementation with error"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "topography_implementation",
         }
 
     class Parameters(WorkflowImplementation.Parameters):
@@ -243,10 +243,10 @@ class TestImplementationWithErrorInDependency(WorkflowImplementation):
         display_name = "Test implementation with error in dependency"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "topography_implementation",
         }
 
-        dependencies = {Topography: "topography_dependencies"}
+        dependencies = {Measurement: "topography_dependencies"}
 
     class Parameters(WorkflowImplementation.Parameters):
         c: int = 1
@@ -299,7 +299,7 @@ class TestImplementationWithOutputs(WorkflowImplementation):
         display_name = "Test implementation with outputs"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "topography_implementation",
         }
 
     class Parameters(WorkflowImplementation.Parameters):
@@ -342,10 +342,10 @@ class TestImplementationWithIntegerKeys(WorkflowImplementation):
         display_name = "Test implementation with integer keys"
 
         implementations = {
-            Topography: "topography_implementation",
+            Measurement: "topography_implementation",
         }
 
-        dependencies = {Topography: "topography_dependencies"}
+        dependencies = {Measurement: "topography_dependencies"}
 
     class Parameters(WorkflowImplementation.Parameters):
         value: int = 42

@@ -32,7 +32,7 @@ def test_workflow_schema_generation():
         assert isinstance(default_kwargs, dict), f"Expected dict for defaults of {name}"
 
         # Test has_implementation doesn't crash on any model class
-        from topobank.manager.models import Surface, Tag, Topography
-        workflow.has_implementation(Topography)
+        from topobank.manager.models import Surface, Tag, Measurement
+        workflow.has_implementation(Measurement)
         workflow.has_implementation(Surface)
         workflow.has_implementation(Tag)
