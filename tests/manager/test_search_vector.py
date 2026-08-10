@@ -1,8 +1,14 @@
 """
-The full-text search index still covers measurements after the rename.
+Tests for the full-text search index on `Surface`.
 
-`Surface.build_search_document` walks its measurements, and signal handlers keep
-the vector current, so both had to follow the renamed relation.
+`Surface.build_search_document` assembles the searchable text from a dataset and
+its measurements, and the signal handlers in `manager.signals` keep
+`Surface.search_vector` current as either changes. These tests pin down what ends
+up in the index and, just as importantly, which saves do *not* trigger a
+re-index.
+
+The document walks `Surface.measurements`, so these also guard the renamed
+relation.
 """
 
 import pytest
@@ -77,20 +83,35 @@ def test_deleting_a_measurement_reindexes_its_dataset():
 
 
 @pytest.mark.django_db
-def test_metadata_only_save_does_not_need_reindexing():
+def test_a_save_that_touches_no_searchable_field_does_not_reindex(mocker):
     """
-    Metadata is not part of the search document.
+    Only `name`, `description` and `created_by` contribute to the document.
 
-    Worth pinning down: `metadata` is written on every inspection, and re-indexing
-    on each of those would be pure overhead.
+    Worth pinning down: `metadata` is rewritten on every inspection, and
+    re-indexing the whole dataset on each of those would be pure overhead. The
+    assertion is on `update_search_vector` rather than on the stored vector,
+    because recomputing the document would leave the vector unchanged anyway --
+    that is exactly the wasted work being guarded against.
     """
     surface = SurfaceFactory()
     measurement = TopographyMapFactory(surface=surface, name="stable.txt")
-    surface.refresh_from_db()
-    before = surface.search_vector
+    reindex = mocker.patch.object(Surface, "update_search_vector")
 
+    # Saves with `update_fields=["metadata"]`, so this exercises the guard.
     measurement.update_metadata(detrend_mode="height")
 
-    surface.refresh_from_db()
-    assert surface.search_vector == before
+    reindex.assert_not_called()
     assert Measurement.objects.get(pk=measurement.pk).meta.detrend_mode == "height"
+
+
+@pytest.mark.django_db
+def test_a_save_that_touches_a_searchable_field_reindexes(mocker):
+    """The counterpart to the above: the guard must not swallow a real change."""
+    surface = SurfaceFactory()
+    measurement = TopographyMapFactory(surface=surface, name="stable.txt")
+    reindex = mocker.patch.object(Surface, "update_search_vector")
+
+    measurement.name = "renamed.txt"
+    measurement.save(update_fields=["name"])
+
+    reindex.assert_called()
