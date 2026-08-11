@@ -78,14 +78,51 @@ def test_a_first_inspection_records_what_was_inferred(mocker):
 
 
 @pytest.mark.django_db
-def test_an_uninspected_measurement_says_so_rather_than_guessing():
+def test_a_measurement_with_no_recorded_kind_is_still_readable():
+    """
+    Importing a container creates measurements that were never inspected.
+
+    Their metadata comes from the archive, not from reading the file, so no kind
+    was ever recorded -- but the data file is right there and the measurement has
+    to stay readable. The kind is derived from the file on demand.
+    """
+    measurement = Topography2DFactory()
+    Measurement.objects.filter(pk=measurement.pk).update(kind=None)
+    measurement.refresh_from_db()
+
+    assert measurement.measurement_type.Meta.name == "topography-map"
+    assert measurement.read() is not None
+    # Deriving it does not quietly record it; inspection is what stores a kind.
+    assert Measurement.objects.get(pk=measurement.pk).kind is None
+
+
+@pytest.mark.django_db
+def test_a_measurement_with_neither_kind_nor_data_file_says_so():
     measurement = Topography2DFactory()
     measurement.kind = None
+    measurement.datafile = None
 
-    with pytest.raises(MeasurementNotInspectedError, match="not been inspected"):
+    with pytest.raises(MeasurementNotInspectedError, match="derive one from"):
         measurement.measurement_type
 
     assert not measurement.has_known_kind
+
+
+@pytest.mark.django_db
+def test_the_cheap_interpretability_check_does_not_open_the_data_file(mocker):
+    """
+    `has_known_kind` is used to decide whether to offer data at all.
+
+    It answers from the recorded kind alone, so that listing many measurements
+    does not turn into one file open each.
+    """
+    measurement = Topography2DFactory()
+    Measurement.objects.filter(pk=measurement.pk).update(kind=None)
+    measurement.refresh_from_db()
+    reader = mocker.patch("topobank.manager.models.get_topography_reader")
+
+    assert not measurement.has_known_kind
+    reader.assert_not_called()
 
 
 @pytest.mark.django_db
@@ -125,3 +162,41 @@ def test_reading_goes_through_the_registered_type(mocker):
 
     assert result == "data"
     assert read.call_args.kwargs["allow_canonical"] is False
+
+
+@pytest.mark.django_db
+def test_a_measurement_imported_from_a_container_can_be_read():
+    """
+    The end-to-end version of the case above, through the real import path.
+
+    Importing builds measurements straight from the archive's metadata without
+    ever inspecting a file, so nothing records a kind. This goes through
+    `import_container_zip` rather than nulling the column by hand, because the
+    absence of a kind there is a property of the import path and would survive a
+    fix that only made the hand-written case pass.
+    """
+    import os
+    import tempfile
+    import zipfile
+
+    from topobank.manager.export_zip import export_container_zip
+    from topobank.manager.import_zip import import_container_zip
+    from topobank.testing.factories import SurfaceFactory, UserFactory
+
+    user = UserFactory()
+    surface = SurfaceFactory(created_by=user)
+    Topography2DFactory(surface=surface)
+
+    outfile = tempfile.NamedTemporaryFile(mode="wb", delete=False)
+    export_container_zip(outfile, [surface])
+    outfile.close()
+    try:
+        with zipfile.ZipFile(outfile.name, mode="r") as archive:
+            (imported,) = import_container_zip(archive, UserFactory())
+    finally:
+        os.remove(outfile.name)
+
+    (measurement,) = imported.measurements.all()
+    assert measurement.kind is None  # never inspected
+    data = measurement.read()
+    assert len(data.nb_grid_pts) == 2

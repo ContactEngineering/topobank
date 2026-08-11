@@ -1095,29 +1095,62 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
             }
         }
 
+    def _infer_kind_from_datafile(self):
+        """
+        Derive the kind from the data file without recording it.
+
+        A measurement created from a container carries metadata that came from the
+        archive rather than from an inspection, so it has no kind yet but is
+        perfectly readable. Deriving it here keeps such a measurement usable; the
+        next inspection is what stores the value.
+
+        Raises
+        ------
+        MeasurementNotInspectedError
+            If there is no data file to derive it from.
+        """
+        if not self.datafile_id:
+            raise MeasurementNotInspectedError(
+                f"Measurement {self.id} has neither a recorded kind nor a data file "
+                "to derive one from."
+            )
+        reader = get_topography_reader(self.datafile.file, format=self.datafile_format)
+        channel = reader.channels[
+            reader.default_channel.index
+            if self.data_source is None
+            else self.data_source
+        ]
+        return infer_kind(channel)
+
     @property
     def measurement_type(self):
         """
         The measurement type that handles this record.
 
+        Falls back to deriving the kind from the data file for a measurement that
+        has not been inspected yet -- importing a container creates exactly such
+        records, and they have to stay readable.
+
         Raises
         ------
         MeasurementNotInspectedError
-            If the data file has not been inspected yet, so no kind is known.
+            If no kind is recorded and there is no data file to derive one from.
         UnknownMeasurementKindError
             If no type is registered for this measurement's kind, i.e. the package
             providing it is not installed.
         """
-        if self.kind is None:
-            raise MeasurementNotInspectedError(
-                f"Measurement {self.id} has not been inspected yet, so the kind of "
-                "measurement it holds is not known."
-            )
-        return get_measurement_type(self.kind)
+        return get_measurement_type(
+            self.kind if self.kind is not None else self._infer_kind_from_datafile()
+        )
 
     @property
     def has_known_kind(self):
-        """Whether this measurement's data can be interpreted at all."""
+        """
+        Whether this measurement's data can be interpreted at all.
+
+        Only considers the recorded kind: this is the cheap check used to decide
+        whether a record is interpretable, so it must not open the data file.
+        """
         return self.kind is not None and has_measurement_type(self.kind)
 
     def _read(self, reader: ReaderBase, apply_filters: bool = True):
