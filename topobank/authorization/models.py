@@ -97,7 +97,7 @@ class AuthorizedManager(models.Manager):
 
 
 class SurfaceTopographyManager(AuthorizedManager):
-    """Default manager for Surface and Topography that excludes soft-deleted records."""
+    """Default manager for Surface and Measurement that excludes soft-deleted records."""
 
     def get_queryset(self) -> AuthorizedQuerySet:
         return super().get_queryset().filter(deletion_time__isnull=True)

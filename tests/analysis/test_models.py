@@ -13,14 +13,14 @@ from topobank.analysis.registry import (
 )
 from topobank.analysis.tasks import get_current_configuration
 from topobank.files.models import Manifest
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 from topobank.testing.factories import (
     SurfaceAnalysisFactory,
     SurfaceFactory,
     TagAnalysisFactory,
     TagFactory,
     Topography1DFactory,
-    TopographyAnalysisFactory,
+    MeasurementAnalysisFactory,
 )
 from topobank.testing.workflows import TestImplementation
 
@@ -28,7 +28,7 @@ from topobank.testing.workflows import TestImplementation
 @pytest.mark.django_db
 def test_topography_as_analysis_subject():
     topo = Topography1DFactory()
-    analysis = TopographyAnalysisFactory(subject_topography=topo)
+    analysis = MeasurementAnalysisFactory(subject_measurement=topo)
     assert analysis.subject == topo
 
 
@@ -54,7 +54,7 @@ def test_tag_as_analysis_subject():
 def test_exception_implementation_missing(test_workflow):
     # We create an implementation for surfaces, but not for analyses
     function = Workflow(name="topobank.testing.topography_only_test")
-    analysis = TopographyAnalysisFactory(workflow_name=function.name)
+    analysis = MeasurementAnalysisFactory(workflow_name=function.name)
     analysis.folder.remove_files()
     function.eval(analysis)  # that's okay, it's implemented
     analysis = SurfaceAnalysisFactory()
@@ -68,8 +68,8 @@ def test_workflow_eval(test_workflow):
 
     surface = SurfaceFactory()
     t = Topography1DFactory(surface=surface)
-    analysis = TopographyAnalysisFactory.create(
-        subject_topography=t,
+    analysis = MeasurementAnalysisFactory.create(
+        subject_measurement=t,
         kwargs=dict(a=2, b="bar"),
     )
     analysis.folder.remove_files()  # Make sure there are no files
@@ -82,8 +82,8 @@ def test_workflow_eval(test_workflow):
 def test_analysis_times(two_topos, test_workflow):
     now = timezone.now()
 
-    analysis = TopographyAnalysisFactory.create(
-        subject_topography=Topography.objects.first(),
+    analysis = MeasurementAnalysisFactory.create(
+        subject_measurement=Measurement.objects.first(),
         task_state=WorkflowResult.SUCCESS,
         kwargs={"a": 2, "b": "abcdef"},
         task_start_time=datetime.datetime(2018, 1, 1, 12),
@@ -186,7 +186,7 @@ def test_current_configuration(settings):
 
 @pytest.mark.django_db
 def test_analysis_delete_removes_files(test_workflow):
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     assert len(analysis.folder) == 4
     file_path = analysis.folder.files.first().file.name
     assert default_storage.exists(file_path)
@@ -200,7 +200,7 @@ def test_analysis_delete_removes_files(test_workflow):
 def test_fix_folder(test_workflow):
     # Old analyses do not have folders
     assert Manifest.objects.count() == 0
-    analysis = TopographyAnalysisFactory(
+    analysis = MeasurementAnalysisFactory(
         workflow_name=test_workflow.name,
         folder=None,
     )
@@ -223,6 +223,6 @@ def test_fix_folder(test_workflow):
 
 @pytest.mark.django_db
 def test_submit_again(test_workflow):
-    analysis = TopographyAnalysisFactory()
+    analysis = MeasurementAnalysisFactory()
     new_analysis = analysis.submit_again()
     assert new_analysis.task_state == WorkflowResult.PENDING

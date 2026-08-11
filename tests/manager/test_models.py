@@ -13,7 +13,7 @@ from notifications.models import Notification
 from notifications.signals import notify
 from numpy.testing import assert_allclose
 
-from topobank.manager.models import Surface, Tag, Topography
+from topobank.manager.models import Surface, Tag, Measurement
 from topobank.testing.factories import (
     SurfaceFactory,
     Topography1DFactory,
@@ -26,20 +26,20 @@ PermissionSet = apps.get_model('authorization', 'PermissionSet')
 
 @pytest.mark.django_db
 def test_topography_name(two_topos):
-    topos = Topography.objects.all().order_by("name")
+    topos = Measurement.objects.all().order_by("name")
     assert [t.name for t in topos] == ["Example 3 - ZSensor", "Example 4 - Default"]
 
 
 @pytest.mark.django_db
 def test_topography_has_periodic_flag(two_topos):
-    topos = Topography.objects.all().order_by("name")
+    topos = Measurement.objects.all().order_by("name")
     assert not topos[0].is_periodic
     assert not topos[1].is_periodic
 
 
 @pytest.mark.django_db
 def test_topography_has_unit_set(two_topos):
-    topos = Topography.objects.all().order_by("name")
+    topos = Measurement.objects.all().order_by("name")
     assert topos[0].unit == "nm"
     assert topos[1].unit == "m"
 
@@ -69,13 +69,13 @@ def test_topography_instrument_dict():
 @pytest.mark.django_db
 def test_topography_str(two_topos):
     surface = Surface.objects.get(name="Surface 1")
-    topos = Topography.objects.filter(surface=surface).order_by("name")
+    topos = Measurement.objects.filter(surface=surface).order_by("name")
     assert [str(t) for t in topos] == [
         "Measurement 'Example 3 - ZSensor'"
     ]
 
     surface = Surface.objects.get(name="Surface 2")
-    topos = Topography.objects.filter(surface=surface).order_by("name")
+    topos = Measurement.objects.filter(surface=surface).order_by("name")
     assert [str(t) for t in topos] == [
         "Measurement 'Example 4 - Default'"
     ]
@@ -144,7 +144,7 @@ def test_topography_to_dict():
         "is_periodic": is_periodic,
         "tags": tags,
         "instrument": instrument,
-        "fill_undefined_data_mode": Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING,
+        "fill_undefined_data_mode": Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING,
         "has_undefined_data": False,
         "undefined_data_fraction": 0,
     }
@@ -152,7 +152,7 @@ def test_topography_to_dict():
 
 @pytest.mark.django_db
 def test_call_topography_method_multiple_times(two_topos):
-    topo = Topography.objects.get(name="Example 3 - ZSensor")
+    topo = Measurement.objects.get(name="Example 3 - ZSensor")
 
     #
     # coeffs should not change in between calls
@@ -448,23 +448,23 @@ def test_deepcopy_delete_does_not_delete_files(user_bob, handle_usage_statistics
     assert PermissionSet.objects.count() == 1
 
     surface_copy = surface.deepcopy()
-    assert surface.topography_set.all().first().datafile
-    assert surface_copy.topography_set.all().first().datafile
+    assert surface.measurements.all().first().datafile
+    assert surface_copy.measurements.all().first().datafile
 
     assert PermissionSet.objects.count() == 2
 
     topo.delete()
 
     # Not topography left for surface but one left for surface_copy
-    assert surface.topography_set.count() == 0
-    assert surface_copy.topography_set.all().first().datafile
+    assert surface.measurements.count() == 0
+    assert surface_copy.measurements.all().first().datafile
 
     # Both surfaces are still there so we should have two permission sets
     assert PermissionSet.objects.count() == 2
 
     surface.delete()
     assert PermissionSet.objects.count() == 1
-    assert surface_copy.topography_set.all().first().datafile
+    assert surface_copy.measurements.all().first().datafile
 
 
 @pytest.mark.django_db
@@ -519,8 +519,8 @@ def test_deepcopy_copies_attachments(user_bob, handle_usage_statistics):
     assert PermissionSet.objects.count() == 1
 
     surface_copy = surface.deepcopy()
-    assert surface.topography_set.all().first().datafile
-    assert surface_copy.topography_set.all().first().datafile
+    assert surface.measurements.all().first().datafile
+    assert surface_copy.measurements.all().first().datafile
 
     assert PermissionSet.objects.count() == 2
 
@@ -532,8 +532,8 @@ def test_deepcopy_copies_attachments(user_bob, handle_usage_statistics):
     assert file.id != file_copy.id
     assert file.file.name != file_copy.file.name
 
-    topo = surface.topography_set.all().first()
-    topo_copy = surface_copy.topography_set.all().first()
+    topo = surface.measurements.all().first()
+    topo_copy = surface_copy.measurements.all().first()
 
     assert topo.id != topo_copy.id
     assert topo.attachments.id != topo_copy.attachments.id

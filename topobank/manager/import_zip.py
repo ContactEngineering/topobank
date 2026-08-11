@@ -10,7 +10,7 @@ from .container_schema import (
     ContainerMeta,
     TopographyMeta,
 )
-from .models import Surface, Topography
+from .models import Surface, Measurement
 
 
 def load_container_metadata(surface_zip, unsafe_yaml_loader=False) -> ContainerMeta:
@@ -96,7 +96,7 @@ def import_measurement(topo_meta: TopographyMeta, topo_file, surface):
         # because of the file contents while loading.
         topo_kwargs["height_scale"] = topo_meta.height_scale
 
-    topography = Topography(**topo_kwargs)
+    topography = Measurement(**topo_kwargs)
     topography.datafile = Manifest.objects.create(
         permissions=surface.permissions, filename=topo_meta.name, created_by=user
     )

@@ -51,7 +51,7 @@ def test_import_datasets_creates_surface_with_data(container_archive):
     surfaces = Surface.objects.filter(created_by=importer)
     assert surfaces.count() == 1
     surface = surfaces.get()
-    assert surface.topography_set.count() == 1
+    assert surface.measurements.count() == 1
     # The import records its provenance in the description.
     assert "Imported from file" in surface.description
     # Both the categorical and the numerical property were imported.

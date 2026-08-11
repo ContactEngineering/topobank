@@ -11,18 +11,18 @@ from topobank.analysis.utils import (
     merge_dicts,
     round_to_significant_digits,
 )
-from topobank.manager.models import Surface, Topography
-from topobank.testing.factories import TopographyAnalysisFactory, UserFactory
+from topobank.manager.models import Surface, Measurement
+from topobank.testing.factories import MeasurementAnalysisFactory, UserFactory
 
 
 @pytest.mark.django_db
 def test_request_analysis(two_topos, test_workflow):
-    topo1 = Topography.objects.get(name="Example 3 - ZSensor")
-    topo2 = Topography.objects.get(name="Example 4 - Default")
+    topo1 = Measurement.objects.get(name="Example 3 - ZSensor")
+    topo2 = Measurement.objects.get(name="Example 4 - Default")
 
     # delete all prior analyses for these two topographies in order to have a clean state
     WorkflowResult.objects.filter(
-        subject_topography__in=[topo1, topo2]
+        subject_measurement__in=[topo1, topo2]
     ).delete()
 
     user = topo1.created_by
@@ -36,22 +36,22 @@ def test_request_analysis(two_topos, test_workflow):
 
 @pytest.mark.django_db
 def test_latest_analyses(two_topos, test_workflow):
-    topo1 = Topography.objects.get(name="Example 3 - ZSensor")
-    topo2 = Topography.objects.get(name="Example 4 - Default")
+    topo1 = Measurement.objects.get(name="Example 3 - ZSensor")
+    topo2 = Measurement.objects.get(name="Example 4 - Default")
 
     user = topo1.created_by
 
     # delete all prior analyses for these two topographies in order to have a clean state
     WorkflowResult.objects.filter(
-        subject_topography__in=[topo1, topo2]
+        subject_measurement__in=[topo1, topo2]
     ).delete()
 
     #
-    # Topography 1
+    # Measurement 1
     #
-    TopographyAnalysisFactory.create(
+    MeasurementAnalysisFactory.create(
         user=user,
-        subject_topography=topo1,
+        subject_measurement=topo1,
         workflow_name=test_workflow.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_workflow.get_default_kwargs(),
@@ -60,9 +60,9 @@ def test_latest_analyses(two_topos, test_workflow):
     )
 
     # save a second only, which has a later start time
-    TopographyAnalysisFactory.create(
+    MeasurementAnalysisFactory.create(
         user=user,
-        subject_topography=topo1,
+        subject_measurement=topo1,
         workflow_name=test_workflow.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_workflow.get_default_kwargs(),
@@ -71,11 +71,11 @@ def test_latest_analyses(two_topos, test_workflow):
     )
 
     #
-    # Topography 2
+    # Measurement 2
     #
-    TopographyAnalysisFactory.create(
+    MeasurementAnalysisFactory.create(
         user=user,
-        subject_topography=topo2,
+        subject_measurement=topo2,
         workflow_name=test_workflow.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_workflow.get_default_kwargs(),
@@ -84,9 +84,9 @@ def test_latest_analyses(two_topos, test_workflow):
     )
 
     # save a second one, which has the latest start time
-    TopographyAnalysisFactory.create(
+    MeasurementAnalysisFactory.create(
         user=user,
-        subject_topography=topo2,
+        subject_measurement=topo2,
         workflow_name=test_workflow.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_workflow.get_default_kwargs(),
@@ -95,9 +95,9 @@ def test_latest_analyses(two_topos, test_workflow):
     )
 
     # save a third one, which has a later start time than the first
-    TopographyAnalysisFactory.create(
+    MeasurementAnalysisFactory.create(
         user=user,
-        subject_topography=topo2,
+        subject_measurement=topo2,
         workflow_name=test_workflow.name,
         task_state=WorkflowResult.SUCCESS,
         kwargs=test_workflow.get_default_kwargs(),
@@ -105,7 +105,7 @@ def test_latest_analyses(two_topos, test_workflow):
         task_end_time=datetime.datetime(2018, 1, 4, 13, 1, 1),
     )
 
-    ContentType.objects.get_for_model(Topography)
+    ContentType.objects.get_for_model(Measurement)
     analyses = AnalysisController(
         user, subjects=[topo1, topo2], workflow=test_workflow
     )
@@ -144,7 +144,7 @@ def test_latest_analyses_if_no_analyses(test_workflow):
 
 @pytest.mark.django_db
 def test_find_children(user_three_topographies_three_surfaces_three_tags):
-    topo1, topo2, topo3 = Topography.objects.all()
+    topo1, topo2, topo3 = Measurement.objects.all()
     surf1, surf2, surf3 = Surface.objects.all()
 
     assert set(find_children([surf1, surf2, topo3])) == set(
@@ -206,11 +206,11 @@ def test_filter_and_order_analyses_surface_before_its_topographies(test_workflow
     topo1 = Topography2DFactory(surface=surface)
     topo2 = Topography2DFactory(surface=surface)
 
-    ta1 = TopographyAnalysisFactory(
-        subject_topography=topo1, workflow_name=test_workflow.name, result=None
+    ta1 = MeasurementAnalysisFactory(
+        subject_measurement=topo1, workflow_name=test_workflow.name, result=None
     )
-    ta2 = TopographyAnalysisFactory(
-        subject_topography=topo2, workflow_name=test_workflow.name, result=None
+    ta2 = MeasurementAnalysisFactory(
+        subject_measurement=topo2, workflow_name=test_workflow.name, result=None
     )
     sa = SurfaceAnalysisFactory(
         subject_surface=surface, workflow_name=test_workflow.name, result=None
@@ -241,8 +241,8 @@ def test_filter_and_order_analyses_drops_surface_analysis_for_single_topography(
     surface = SurfaceFactory(created_by=user)
     topo = Topography2DFactory(surface=surface)
 
-    ta = TopographyAnalysisFactory(
-        subject_topography=topo, workflow_name=test_workflow.name, result=None
+    ta = MeasurementAnalysisFactory(
+        subject_measurement=topo, workflow_name=test_workflow.name, result=None
     )
     sa = SurfaceAnalysisFactory(
         subject_surface=surface, workflow_name=test_workflow.name, result=None

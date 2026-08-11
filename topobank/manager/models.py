@@ -97,7 +97,7 @@ class TopobankLazySurfaceContainer(SurfaceContainer):
 
     def __init__(self, surface, **kwargs):
         self._surface = surface
-        self._topographies = self._surface.topography_set.all()
+        self._topographies = self._surface.measurements.all()
         self._kwargs = kwargs
 
     def __len__(self):
@@ -445,8 +445,8 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     def get_related_surfaces(self):
         return [self]
 
-    def num_topographies(self):
-        return self.topography_set.count()
+    def num_measurements(self):
+        return self.measurements.count()
 
     def save(self, *args, **kwargs):
         created = self.pk is None
@@ -473,7 +473,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     def lazy_delete(self):
         self.deletion_time = timezone.now()
         self.save(update_fields=["deletion_time"])
-        self.topography_set.filter(deletion_time__isnull=True).update(
+        self.measurements.filter(deletion_time__isnull=True).update(
             deletion_time=self.deletion_time
         )
 
@@ -490,7 +490,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             self.created_by.name if self.created_by is not None else "",
         ]
         parts += [flatten_for_search(tag.name) for tag in self.tags.all()]
-        for topography in self.topography_set.select_related("created_by").prefetch_related("tags").all():
+        for topography in self.measurements.select_related("created_by").prefetch_related("tags").all():
             parts += [
                 flatten_for_search(topography.name),
                 topography.description or "",
@@ -525,7 +525,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         Does not include topographies. They can be added like this:
 
          surface_dict = surface.to_dict()
-         surface_dict['topographies'] = [t.to_dict() for t in surface.topography_set.order_by('name')]
+         surface_dict['topographies'] = [t.to_dict() for t in surface.measurements.order_by('name')]
 
         The publication URL will be based on the official contact.engineering URL.
 
@@ -612,7 +612,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         surface.attachments = self.attachments.deepcopy(permissions=surface.permissions)
         surface.save(update_fields=["attachments"])
 
-        for topography in self.topography_set.all():
+        for topography in self.measurements.all():
             topography.deepcopy(surface)
             # we pass the surface here because there is a constraint that (surface_id +
             # topography name) must be unique, i.e. a surface should never have two
@@ -640,9 +640,13 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         return TopobankLazySurfaceContainer(self, **kwargs)
 
 
-class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
+class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     """
-    A single topography measurement of a surface of a specimen.
+    A single measurement of a surface of a specimen.
+
+    Presently every measurement holds topography (height) data; the name is
+    deliberately generic because the model itself carries only identity,
+    permissions, files and task state.
     """
 
     celery_queue = settings.TOPOBANK_MANAGER_QUEUE
@@ -706,7 +710,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         verbose_name_plural = "measurements"
         indexes = [
             # Index on surface foreign key for JOIN optimization
-            # Used in: surface.topography_set.all() and filtering by surface__deletion_time
+            # Used in: surface.measurements.all() and filtering by surface__deletion_time
             models.Index(fields=['surface'], name='topography_surface_idx'),
             # Composite index for filtering and ordering
             # Used in: list queries with deletion_time filter
@@ -740,7 +744,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         getattr(settings, 'TOPOBANK_PERMISSION_MODEL', 'authorization.PermissionSet'),
         on_delete=models.CASCADE, null=True
     )
-    surface = models.ForeignKey(Surface, on_delete=models.CASCADE)
+    surface = models.ForeignKey(
+        Surface, on_delete=models.CASCADE, related_name="measurements"
+    )
 
     #
     # Descriptive fields
@@ -930,7 +936,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 update_fields.append('attachments')
         if self.datafile is None:
             _log.debug(
-                f"DATAFILE MISSING: Creating datafile manifest for Topography: {self}")
+                f"DATAFILE MISSING: Creating datafile manifest for Measurement: {self}")
             self.datafile = Manifest.objects.create(
                 permissions=self.permissions,
                 filename=self.name,
@@ -947,7 +953,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # https://stackoverflow.com/questions/1355150/when-saving-how-can-you-check-if-a-field-has-changed
         try:
             # Do not check for None in self.id as this breaks should we switch to UUIDs
-            old_obj = Topography.objects.get(pk=self.pk)
+            old_obj = Measurement.objects.get(pk=self.pk)
         except self.DoesNotExist:
             pass  # Do nothing, we have just created a new topography
         else:
@@ -1048,7 +1054,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         """
         if self.id is None:
             raise RuntimeError(
-                "This `Topography` does not have an id yet; the storage prefix is not yet known."
+                "This `Measurement` does not have an id yet; the storage prefix is not yet known."
             )
         return f"topographies/{self.id}"
 
@@ -1089,7 +1095,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             _log.warning(
                 "You are requesting to load a (2D) topography and you are not within in a Celery worker "
                 "process. This operation is potentially slow and may require a lot of memory - do not use "
-                "`Topography.read` within the main Django server!"
+                "`Measurement.read` within the main Django server!"
             )
 
         reader_kwargs = dict(channel_index=self.data_source, periodic=self.is_periodic)
@@ -1125,7 +1131,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if apply_filters:
             if (
                 self.fill_undefined_data_mode
-                != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+                != Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING
                 and topo.is_uniform
             ):
                 topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
@@ -1182,7 +1188,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 _log.warning(
                     "You are requesting to load a (2D) topography and you are not within in a Celery worker "
                     "process. This operation is potentially slow and may require a lot of memory - do not use "
-                    "`Topography.read` within the main Django server!"
+                    "`Measurement.read` within the main Django server!"
                 )
 
             # Okay, we can use the squeezed datafile, it's already there.
@@ -1207,7 +1213,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 topo = self._read(toporeader, apply_filters=apply_filters)
             else:
                 raise RuntimeError(
-                    f"Topography {self.id} does not appear to have a data file."
+                    f"Measurement {self.id} does not appear to have a data file."
                 )
 
         if return_reader:
@@ -1270,7 +1276,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         The reference to an instrument is not copied, it is always None.
 
         """
-        copy = Topography.objects.get(pk=self.pk)
+        copy = Measurement.objects.get(pk=self.pk)
         copy.pk = None  # This will lead to the creation of a new instance on save
         copy.task_id = None  # We need to indicate that no tasks have run
         copy.surface = to_surface
@@ -1563,13 +1569,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Send signal
         _log.debug(f"Sending `pre_refresh_cache` signal from {self}...")
-        pre_refresh_cache.send(sender=Topography, instance=self)
+        pre_refresh_cache.send(sender=Measurement, instance=self)
 
         with timer("exists"):
             # First check if we have a datafile
             if not self.datafile.exists():
                 raise RuntimeError(
-                    f"Topography {self.id} does not appear to have a data file. Cannot "
+                    f"Measurement {self.id} does not appear to have a data file. Cannot "
                     f"refresh cached data."
                 )
 
@@ -1809,7 +1815,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Send signal
         _log.debug(f"Sending `post_refresh_cache` signal from {self}...")
-        post_refresh_cache.send(sender=Topography, instance=self)
+        post_refresh_cache.send(sender=Measurement, instance=self)
 
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""
@@ -1819,12 +1825,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             s += f" {percentage}% of the data points are undefined."
         if (
             self.fill_undefined_data_mode
-            == Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+            == Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING
         ):
             s += " No correction of undefined data is performed."
         elif (
             self.fill_undefined_data_mode
-            == Topography.FILL_UNDEFINED_DATA_MODE_HARMONIC
+            == Measurement.FILL_UNDEFINED_DATA_MODE_HARMONIC
         ):
             s += (
                 " Undefined/missing values are filled in with values obtained from a "

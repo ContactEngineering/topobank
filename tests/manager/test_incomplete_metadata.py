@@ -13,7 +13,7 @@ import types
 import pytest
 from django.test import override_settings
 
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 from topobank.taskapp.models import IncompleteMetadataError, TaskStateModel
 from topobank.testing.factories import ManifestFactory, SurfaceFactory
 
@@ -27,9 +27,9 @@ UNSUPPORTED_DATAFILE = "dummy.txt"
 
 
 def _make_topography(surface, filename):
-    """Create a fresh, uninspected Topography backed by the given fixture file."""
+    """Create a fresh, uninspected Measurement backed by the given fixture file."""
     datafile = ManifestFactory(filename=filename, permissions=surface.permissions)
-    topo = Topography(
+    topo = Measurement(
         surface=surface,
         created_by=surface.created_by,
         permissions=surface.permissions,

@@ -6,7 +6,7 @@ from django.dispatch import receiver
 from notifications.models import Notification
 
 from ..authorization import get_permission_model
-from .models import Surface, Topography
+from .models import Surface, Measurement
 from .zip_model import ZipContainer
 
 _log = logging.getLogger(__name__)
@@ -14,7 +14,7 @@ _log = logging.getLogger(__name__)
 # Fields that contribute to the full-text search document. Saves that only
 # touch other fields (e.g. task state updates) do not trigger a re-index.
 _SURFACE_SEARCH_FIELDS = {"name", "description", "created_by"}
-_TOPOGRAPHY_SEARCH_FIELDS = {"name", "description", "created_by"}
+_MEASUREMENT_SEARCH_FIELDS = {"name", "description", "created_by"}
 
 
 def _remove_notifications(instance):
@@ -24,8 +24,8 @@ def _remove_notifications(instance):
     ).delete()
 
 
-@receiver(pre_delete, sender=Topography)
-def pre_delete_topography(sender, instance, using, **kwargs):
+@receiver(pre_delete, sender=Measurement)
+def pre_delete_measurement(sender, instance, using, **kwargs):
     _remove_notifications(instance)
     instance.remove_files()
 
@@ -56,18 +56,18 @@ def update_surface_search_vector(sender, instance, created, update_fields, **kwa
         instance.update_search_vector()
 
 
-@receiver(post_save, sender=Topography)
-def update_search_vector_on_topography_save(
+@receiver(post_save, sender=Measurement)
+def update_search_vector_on_measurement_save(
     sender, instance, created, update_fields, **kwargs
 ):
     if created or _searchable_fields_changed(
-        update_fields, _TOPOGRAPHY_SEARCH_FIELDS
+        update_fields, _MEASUREMENT_SEARCH_FIELDS
     ):
         _update_parent_search_vector(instance)
 
 
-@receiver(post_delete, sender=Topography)
-def update_search_vector_on_topography_delete(sender, instance, using, **kwargs):
+@receiver(post_delete, sender=Measurement)
+def update_search_vector_on_measurement_delete(sender, instance, using, **kwargs):
     _update_parent_search_vector(instance)
 
 
@@ -89,8 +89,8 @@ def update_search_vector_on_surface_tags_change(
         instance.update_search_vector()
 
 
-@receiver(m2m_changed, sender=Topography.tags.through)
-def update_search_vector_on_topography_tags_change(
+@receiver(m2m_changed, sender=Measurement.tags.through)
+def update_search_vector_on_measurement_tags_change(
     sender, instance, action, reverse, **kwargs
 ):
     if action in ("post_add", "post_remove", "post_clear") and not reverse:

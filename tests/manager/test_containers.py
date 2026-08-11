@@ -13,7 +13,7 @@ from notifications.models import Notification
 import topobank
 from topobank.manager.export_zip import export_container_zip
 from topobank.manager.import_zip import import_container_zip, load_container_metadata
-from topobank.manager.models import Surface, Topography
+from topobank.manager.models import Surface, Measurement
 from topobank.testing.factories import (
     PropertyFactory,
     SurfaceFactory,
@@ -36,7 +36,7 @@ def test_surface_container(example_authors):
         }
     }
     has_undefined_data = False
-    fill_undefined_data_mode = Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
+    fill_undefined_data_mode = Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
     user = UserFactory()
     tag1 = TagFactory(name="apple")
@@ -104,7 +104,7 @@ def test_surface_container(example_authors):
             assert meta_surfaces[surf_idx]["created_by"].get("orcid") == surf.created_by.orcid_id
             assert (
                 len(meta_surfaces[surf_idx]["topographies"])
-                == surf.topography_set.count()
+                == surf.measurements.count()
             )
 
         # check some tags
@@ -166,7 +166,7 @@ def test_import():
     ).id
     surface = Surface.objects.get(id=surface_id)
     assert surface.name == "Self-affine synthetic surface"
-    assert surface.topography_set.count() == 3
+    assert surface.measurements.count() == 3
     assert surface.description.startswith(
         "This surface contains virtual measurements taken"
     )

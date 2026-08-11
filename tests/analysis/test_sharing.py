@@ -1,7 +1,7 @@
 import pytest
 
 from topobank.analysis.controller import AnalysisController
-from topobank.manager.models import Topography
+from topobank.manager.models import Measurement
 from topobank.testing.factories import TagFactory
 
 
@@ -9,7 +9,7 @@ from topobank.testing.factories import TagFactory
 def test_topography_analysis(two_users, test_workflow):
     (user1, user2), (surface1, surface2, surface3) = two_users
 
-    topography1, topography2, topography3 = Topography.objects.all()
+    topography1, topography2, topography3 = Measurement.objects.all()
 
     controller = AnalysisController(
         user1, subjects=[topography1], workflow=test_workflow

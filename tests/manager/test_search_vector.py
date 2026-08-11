@@ -11,7 +11,7 @@ re-index.
 import pytest
 from django.contrib.postgres.search import SearchQuery
 
-from topobank.manager.models import Surface, Topography
+from topobank.manager.models import Surface, Measurement
 from topobank.testing.factories import (
     SurfaceFactory,
     TagFactory,
@@ -98,7 +98,7 @@ def test_a_save_that_touches_no_searchable_field_does_not_reindex(mocker):
     topography.save(update_fields=["detrend_mode"])
 
     reindex.assert_not_called()
-    assert Topography.objects.get(pk=topography.pk).detrend_mode == "height"
+    assert Measurement.objects.get(pk=topography.pk).detrend_mode == "height"
 
 
 @pytest.mark.django_db

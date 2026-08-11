@@ -2,20 +2,20 @@ import pytest
 
 from topobank.analysis.models import WorkflowResult
 from topobank.analysis.tasks import get_current_configuration, perform_analysis
-from topobank.manager.models import Topography
-from topobank.testing.factories import TopographyAnalysisFactory
+from topobank.manager.models import Measurement
+from topobank.testing.factories import MeasurementAnalysisFactory
 
 
 @pytest.mark.django_db
 def test_perform_analysis(
     two_topos, test_workflow, settings
 ):
-    topo = Topography.objects.first()  # doesn't matter
+    topo = Measurement.objects.first()  # doesn't matter
 
     func_kwargs = dict(a=1, b="hamming")
 
-    analysis = TopographyAnalysisFactory.create(
-        subject_topography=topo,
+    analysis = MeasurementAnalysisFactory.create(
+        subject_measurement=topo,
         workflow_name=test_workflow.name,
         kwargs=func_kwargs,
         result=None,
@@ -47,9 +47,9 @@ def test_perform_analysis(
         ("numpy", "numpy.version.full_version", "BSD 3-Clause", "ghi"),
     ]
 
-    topo2 = Topography.objects.last()
-    analysis2 = TopographyAnalysisFactory.create(
-        subject_topography=topo2,
+    topo2 = Measurement.objects.last()
+    analysis2 = MeasurementAnalysisFactory.create(
+        subject_measurement=topo2,
         workflow_name=test_workflow.name,
         kwargs=func_kwargs,
         result=None,
