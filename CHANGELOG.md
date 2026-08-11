@@ -2,6 +2,13 @@
 
 # 2.0.0 (unreleased)
 
+- ENH: The kind of data a measurement holds is now recorded explicitly, in
+  `Measurement.kind`, and a registry of measurement types decides how a record of
+  that kind is read and which derived artifacts it has. An external package can
+  register its own type through the `topobank.measurement_types` entry point,
+  which is what makes non-height data possible. Measurements whose kind has no
+  registered type -- because the package providing it is not installed -- stay
+  listable, downloadable and deletable; only reading their data is refused.
 - API: `Topography` is now `Measurement`. The model records a measurement --
   identity, permissions, files and task state -- rather than something specific to
   topography data; every measurement still holds height data, so this release only

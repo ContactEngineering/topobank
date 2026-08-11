@@ -2,18 +2,13 @@
 Basic models for the web app for handling topography data.
 """
 
-import io
 import itertools
 import logging
-import os.path
-import tempfile
 from collections import defaultdict
 from typing import List
 
 import django.dispatch
-import matplotlib
 import numpy as np
-import PIL
 import tagulous.models as tm
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
@@ -21,12 +16,10 @@ from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
-from django.core.files.base import ContentFile
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q, Value
 from django.utils import timezone
-from matplotlib.figure import Figure
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.IO import ReaderBase
@@ -42,12 +35,21 @@ from ..authorization.models import (
 )
 from ..files.models import Manifest, ManifestSet
 from ..taskapp.models import IncompleteMetadataError, TaskStateModel
-from ..taskapp.utils import in_celery_worker_process, run_task
+from ..taskapp.utils import run_task
+from ..measurements.registry import (
+    MeasurementNotInspectedError,
+    get_measurement_type,
+    has_measurement_type,
+    infer_kind,
+)
+from ..measurements.types import (
+    write_canonical_manifest,
+    write_thumbnail_manifest,
+)
 from ..utils.timer import Timer
 from .utils import (
     detrend_parameters,
     get_topography_reader,
-    render_deepzoom,
     undefined_data_fraction,
 )
 
@@ -799,6 +801,17 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     )
     channel_names = models.JSONField(default=list)
     data_source = models.IntegerField(null=True)  # Channel index
+
+    #
+    # Kind of measurement
+    #
+    # Registry key of the measurement type that handles this record; see
+    # `topobank.measurements`. Null until the data file has been inspected, since
+    # the kind is derived from the selected channel. A value with no registered
+    # type means the plugin that created the measurement is not installed: the
+    # record stays listable, downloadable and deletable, but its data cannot be
+    # read.
+    kind = models.TextField(null=True, blank=True, editable=False)
     # Django documentation discourages the use of null=True on a CharField. We use it
     # here nevertheless, because we need this values as argument to a function where
     # None has a special meaning (autodetection of format). If we used an empty string
@@ -1082,61 +1095,41 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
             }
         }
 
+    @property
+    def measurement_type(self):
+        """
+        The measurement type that handles this record.
+
+        Raises
+        ------
+        MeasurementNotInspectedError
+            If the data file has not been inspected yet, so no kind is known.
+        UnknownMeasurementKindError
+            If no type is registered for this measurement's kind, i.e. the package
+            providing it is not installed.
+        """
+        if self.kind is None:
+            raise MeasurementNotInspectedError(
+                f"Measurement {self.id} has not been inspected yet, so the kind of "
+                "measurement it holds is not known."
+            )
+        return get_measurement_type(self.kind)
+
+    @property
+    def has_known_kind(self):
+        """Whether this measurement's data can be interpreted at all."""
+        return self.kind is not None and has_measurement_type(self.kind)
+
     def _read(self, reader: ReaderBase, apply_filters: bool = True):
         """
-        Construct kwargs for reading topography given channel information.
+        Read the data object from an already opened reader.
 
-        apply_filters: bool, optional
-            If True (default), the instance is detrended and corrected for
-            missing artifacts according to the saved parameters.
-            (Default: True)
+        Kept as a thin wrapper because callers outside this class use it; the work
+        belongs to the measurement type, which knows what the data looks like.
         """
-        if not in_celery_worker_process() and self.size_y is not None:
-            _log.warning(
-                "You are requesting to load a (2D) topography and you are not within in a Celery worker "
-                "process. This operation is potentially slow and may require a lot of memory - do not use "
-                "`Measurement.read` within the main Django server!"
-            )
-
-        reader_kwargs = dict(channel_index=self.data_source, periodic=self.is_periodic)
-
-        channel = reader.channels[
-            reader.default_channel.index if self.data_source is None else self.data_source]
-
-        # Set size if physical size was not given in datafile
-        # (see also  TopographyCreateWizard.get_form_initial)
-        # Physical size is always a tuple or None.
-        if channel.physical_sizes is None:
-            if self.size_y is None:
-                reader_kwargs["physical_sizes"] = (self.size_x,)
-            else:
-                reader_kwargs["physical_sizes"] = self.size_x, self.size_y
-
-        if channel.height_scale_factor is None and self.height_scale:
-            # Adjust height scale to value chosen by user
-            reader_kwargs["height_scale_factor"] = self.height_scale
-
-            # This is only possible and needed, if no height scale was given in the data file already.
-            # So default is to use the factor from the file.
-
-        # Set the unit, if not already given by file contents
-        if channel.unit is None:
-            reader_kwargs["unit"] = self.unit
-
-        # Populate instrument information
-        reader_kwargs["info"] = self.instrument_info
-
-        # Eventually get topography from module "SurfaceTopography" using the given keywords
-        topo = reader.topography(**reader_kwargs)
-        if apply_filters:
-            if (
-                self.fill_undefined_data_mode
-                != Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING
-                and topo.is_uniform
-            ):
-                topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
-            topo = topo.detrend(detrend_mode=self.detrend_mode)
-        return topo
+        return self.measurement_type.read_from_reader(
+            self, reader, apply_filters=apply_filters
+        )
 
     def read(
         self,
@@ -1144,24 +1137,23 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         apply_filters: bool = True,
         return_reader: bool = False,
     ):
-        """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
+        """Return the in-memory data object for this measurement.
 
-        This instance is guaranteed to
+        For the height-data kinds this is a
+        SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance,
+        guaranteed to
 
         - have a 'unit' property
         - have a size: .physical_sizes
         - have been scaled and detrended with the saved parameters
 
-        It has not necessarily a pipeline with all these steps
-        and a 'detrend_mode` attribute.
+        It has not necessarily a pipeline with all these steps and a
+        'detrend_mode` attribute. This is only always the case if
+        allow_squeezed=False. In this case the returned instance was regenerated
+        from the original file with additional steps applied.
 
-        This is only always the case
-        if allow_squeezed=False. In this case the returned instance
-        was regenerated from the original file with additional steps
-        applied.
-
-        If allow_squeezed=True, the returned topography may be read
-        from a cached file which scaling and detrending already applied.
+        If allow_squeezed=True, the returned data may be read from a cached file
+        which scaling and detrending already applied.
 
         Parameters
         ----------
@@ -1175,51 +1167,22 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
             missing artifacts according to the saved parameters.
             (Default: True)
         return_reader: bool
-            If True, return a tuple containing the topography and the reader.
+            If True, return a tuple containing the data object and the reader.
             (Default: False)
+
+        Raises
+        ------
+        MeasurementNotInspectedError
+            If the data file has not been inspected yet.
+        UnknownMeasurementKindError
+            If the package providing this kind of measurement is not installed.
         """
-        #
-        # Try to get topography from cache if possible
-        #
-        toporeader = None
-        topo = None
-        if allow_squeezed and self.squeezed_datafile_id and apply_filters:
-            if not in_celery_worker_process() and self.size_y is not None:
-                _log.warning(
-                    "You are requesting to load a (2D) topography and you are not within in a Celery worker "
-                    "process. This operation is potentially slow and may require a lot of memory - do not use "
-                    "`Measurement.read` within the main Django server!"
-                )
-
-            # Okay, we can use the squeezed datafile, it's already there.
-            toporeader = get_topography_reader(
-                self.squeezed_datafile.file, format=SQUEEZED_DATAFILE_FORMAT
-            )
-            topo = toporeader.topography(info=self.instrument_info)
-            # In the squeezed format, these things are already applied/included:
-            # unit, scaling, detrending, physical sizes
-            # so don't need to provide them to the .topography() method
-            _log.info(
-                f"Using squeezed datafile instead of original datafile for topography id {self.id}."
-            )
-
-        # Need to call exists to finish upload if file is None
-        if topo is None:
-            if self.datafile.exists():
-                # Read raw file if squeezed file is unavailable
-                toporeader = get_topography_reader(
-                    self.datafile.file, format=self.datafile_format
-                )
-                topo = self._read(toporeader, apply_filters=apply_filters)
-            else:
-                raise RuntimeError(
-                    f"Measurement {self.id} does not appear to have a data file."
-                )
-
-        if return_reader:
-            return topo, toporeader
-        else:
-            return topo
+        return self.measurement_type.read(
+            self,
+            allow_canonical=allow_squeezed,
+            apply_filters=apply_filters,
+            return_reader=return_reader,
+        )
 
     lazy_read = read  # For compatibility with datasets that implement `lazy_read`
     topography = read  # Renaming this, mark `topography` as deprecated before v2
@@ -1318,7 +1281,9 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         height : int, optional
             Maximum height of the thumbnail. (Default: 400)
         cmap : str or colormap, optional
-            Color map for rendering the topography. (Default: None)
+            Color map for rendering the data. (Default: None)
+        st_topo : optional
+            Already-read data object, to avoid reading it twice. (Default: None)
 
         Returns
         -------
@@ -1326,58 +1291,10 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
             Thumbnail image.
         """
         if st_topo is None:
-            st_topo = self.read()  # SurfaceTopography instance (=st)
-        image_file = io.BytesIO()
-        if st_topo.dim == 1:
-            dpi = 100
-            # Use the object-oriented API rather than `pyplot`. `pyplot` resolves
-            # the interactive backend, which on macOS is `macosx`; instantiating
-            # its canvas inside a forked Celery worker initializes AppKit on the
-            # child side of a fork, which the ObjC runtime aborts with SIGABRT.
-            # A bare `Figure` renders through Agg and keeps no global state, so
-            # it also removes the need to close the figure (see issue 898).
-            fig = Figure(figsize=[width / dpi, height / dpi])
-            ax = fig.subplots()
-            x, y = st_topo.positions_and_heights()
-            ax.plot(x, y, "-")
-            ax.set_axis_off()
-            fig.savefig(
-                image_file,
-                bbox_inches="tight",
-                dpi=100,
-                format=settings.TOPOBANK_THUMBNAIL_FORMAT,
-            )
-        elif st_topo.dim == 2:
-            # Compute thumbnail size (keeping aspect ratio)
-            sx, sy = st_topo.physical_sizes
-            width2 = int(sx * height / sy)
-            height2 = int(sy * width / sx)
-            if width2 <= width:
-                width = width2
-            else:
-                height = height2
-
-            # Get heights and rescale to interval 0, 1
-            heights = st_topo.heights()
-            mx, mn = heights.max(), heights.min()
-            heights = (heights - mn) / (mx - mn)
-            # Get color map. `matplotlib.colormaps` is the pyplot-free lookup;
-            # `None` selects the default, as `pyplot.get_cmap` did.
-            if cmap is None:
-                cmap = matplotlib.colormaps[matplotlib.rcParams["image.cmap"]]
-            elif isinstance(cmap, str):
-                cmap = matplotlib.colormaps[cmap]
-            # Convert to image
-            colors = (cmap(heights.T) * 255).astype(np.uint8)
-            # Remove alpha channel before writing
-            PIL.Image.fromarray(colors[:, :, :3]).resize((width, height)).save(
-                image_file, format=settings.TOPOBANK_THUMBNAIL_FORMAT
-            )
-        else:
-            raise RuntimeError(
-                f"Don't know how to create thumbnail for topography of dimension {st_topo.dim}."
-            )
-        return image_file
+            st_topo = self.read()
+        return self.measurement_type.render_thumbnail(
+            self, st_topo, width=width, height=height, cmap=cmap
+        )
 
     def _make_thumbnail(self, st_topo=None):
         """Renews thumbnail.
@@ -1391,50 +1308,41 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
 
         image_file = self._render_thumbnail(st_topo=st_topo)
 
-        # Save the contents of in-memory file in Django image field
+        # Replace the old thumbnail only once the new one has been rendered
         if self.thumbnail is not None:
             self.thumbnail.delete()
-        filename = f"thumbnail.{settings.TOPOBANK_THUMBNAIL_FORMAT}"
-        self.thumbnail = Manifest.objects.create(
-            permissions=self.permissions, filename=filename, kind="der"
-        )
-        self.thumbnail.save_file(ContentFile(image_file.getvalue()))
+        self.thumbnail = write_thumbnail_manifest(self, image_file)
 
     def _make_deepzoom(self, st_topo=None):
         """Renew deep zoom images.
+
+        Does nothing for kinds that have no Deep Zoom representation.
 
         Returns
         -------
         None
         """
+        if not self.measurement_type.has_deepzoom:
+            return
         if st_topo is None:
             st_topo = self.read()
-        if self.size_y is not None:
-            # This is a topography (map), we need to create a Deep Zoom Image
-            if self.deepzoom is not None:
-                self.deepzoom.delete()
-            self.deepzoom = ManifestSet.objects.create(permissions=self.permissions)
-            render_deepzoom(st_topo, self.deepzoom)
+        if self.deepzoom is not None:
+            self.deepzoom.delete()
+        self.deepzoom = ManifestSet.objects.create(permissions=self.permissions)
+        self.measurement_type.make_deepzoom(self, st_topo, self.deepzoom)
 
     def _make_squeezed(self, st_topo=None, save=False):
+        """Renew the canonical ("squeezed") data file."""
+        if not self.measurement_type.has_canonical_file:
+            return
         if st_topo is None:
             st_topo = self.read(allow_squeezed=False)
-        with tempfile.NamedTemporaryFile() as tmp:
-            # Write and upload NetCDF file
-            st_topo.to_netcdf(tmp.name)
-            # Delete old squeezed file
-            if self.squeezed_datafile:
-                self.squeezed_datafile.delete()
-            # Upload new squeezed file
-            dirname, basename = os.path.split(self.datafile.filename)
-            orig_stem, orig_ext = os.path.splitext(basename)
-            squeezed_name = f"{orig_stem}-squeezed.nc"
-            self.squeezed_datafile = Manifest.objects.create(
-                permissions=self.permissions,
-                filename=squeezed_name,
-                kind="der",
-                file=File(open(tmp.name, mode="rb")),
-            )
+        new_datafile = write_canonical_manifest(self, st_topo)
+        # Delete the old file only once the new one is written, so a failure part
+        # way through leaves the usable file in place.
+        if self.squeezed_datafile:
+            self.squeezed_datafile.delete()
+        self.squeezed_datafile = new_datafile
         if save:
             self.save()
 
@@ -1648,6 +1556,14 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
 
         self.data_source = data_source
 
+        # Which kind of measurement this is follows from the selected channel, so it
+        # is recorded here rather than guessed from field values later. An existing
+        # kind is not overwritten: a measurement keeps the type that created it even
+        # if the inference would now pick a different one, so that reprocessing
+        # cannot silently reinterpret stored data.
+        if self.kind is None:
+            self.kind = infer_kind(channel)
+
         #
         # Look for necessary metadata. We override values in the database. This may be
         # necessary if the underlying reader changes (e.g. through bug fixes).
@@ -1793,13 +1709,14 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
                 missing = []
                 if self.thumbnail is None or not self.thumbnail.exists():
                     missing.append("thumbnail")
-                # deepzoom is only generated for 2D maps (size_y is not None)
-                if self.size_y is not None and (
+                # Only kinds that declare a Deep Zoom representation have one.
+                if self.measurement_type.has_deepzoom and (
                     self.deepzoom is None or len(self.deepzoom) == 0
                 ):
                     missing.append("deepzoom")
-                if self.squeezed_datafile is None or not (
-                    self.squeezed_datafile.exists()
+                if self.measurement_type.has_canonical_file and (
+                    self.squeezed_datafile is None
+                    or not self.squeezed_datafile.exists()
                 ):
                     missing.append("squeezed_datafile")
                 if missing:
