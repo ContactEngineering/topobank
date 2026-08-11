@@ -1144,7 +1144,7 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         apply_filters: bool = True,
         return_reader: bool = False,
     ):
-        """Return a SurfaceTopography.Measurement/UniformLineScan/NonuniformLineScan instance.
+        """Return a SurfaceTopography.Topography/UniformLineScan/NonuniformLineScan instance.
 
         This instance is guaranteed to
 

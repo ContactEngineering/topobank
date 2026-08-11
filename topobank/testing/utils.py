@@ -214,7 +214,7 @@ def assert_dicts_equal(a, b, key=None, ignore_keys=set(), rtol=1e-07, atol=0):
 
 @dataclass(frozen=True)
 class FakeTopographyModel:
-    """This model is used to create a Measurement for  being passed to analysis functions."""
+    """This model is used to create a Measurement for being passed to analysis functions."""
 
     t: Measurement
     name: str = "mytopo"

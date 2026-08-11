@@ -105,7 +105,7 @@ class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
 
 
 @admin.register(Measurement)
-class TopographyAdmin(TagFieldAdminMixin, admin.ModelAdmin):
+class MeasurementAdmin(TagFieldAdminMixin, admin.ModelAdmin):
     list_display = ("id", "name", "deletion_time", "created_at", "task_state", "task_id")
     list_filter = ("task_state",)
     ordering = ["-created_at"]

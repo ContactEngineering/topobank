@@ -14,12 +14,12 @@ class SubjectTypeFilter(admin.SimpleListFilter):
         return (
             ("tag", _("Tag")),
             ("surface", _("Surface")),
-            ("topography", _("Measurement")),
+            ("measurement", _("Measurement")),
         )
 
     def queryset(self, _request, queryset):
         value = self.value()
-        if value in ("tag", "surface", "topography"):
+        if value in ("tag", "surface", "measurement"):
             filter_key = f"subject_{value}__isnull"
             return queryset.filter(**{filter_key: False})
         return queryset
@@ -46,7 +46,7 @@ class WorkflowResultAdmin(admin.ModelAdmin):
 
     @admin.display(description="Subject Type")
     def subject_type(self, obj):
-        """Display the type of the subject (tag, surface, or topography)."""
+        """Display the type of the subject (tag, surface, or measurement)."""
         return obj.subject.__class__.__name__
 
     @admin.action(description="Resubmit selected workflow results")

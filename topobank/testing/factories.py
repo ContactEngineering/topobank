@@ -374,7 +374,7 @@ class AnalysisFactory(AnalysisFactoryWithoutResult):
 
 
 class MeasurementAnalysisFactory(AnalysisFactory):
-    """Create an analysis for a topography."""
+    """Create an analysis for a measurement."""
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
@@ -384,7 +384,7 @@ class MeasurementAnalysisFactory(AnalysisFactory):
 
 
 class FailedMeasurementAnalysisFactory(AnalysisFactory):
-    """Create an analysis for a topography."""
+    """Create an analysis for a measurement."""
 
     # noinspection PyMissingOrEmptyDocstring
     class Meta:
