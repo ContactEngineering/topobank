@@ -1,5 +1,5 @@
 """
-Measurement types: what kind of data a measurement holds, and how to read it.
+Measurement handlers: what kind of data a measurement holds, and how to read it.
 
 The public interface is the registry; see :mod:`topobank.measurements.registry`.
 """

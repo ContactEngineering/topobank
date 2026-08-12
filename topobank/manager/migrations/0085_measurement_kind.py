@@ -1,9 +1,9 @@
 """
 Add `Measurement.kind`.
 
-The column records which registered measurement type handles a record. It stays
-null for measurements whose data file has not been inspected yet; `0086` fills it
-in for those that have.
+The column records which registered measurement handler is used for a record. It
+stays null for measurements whose data file has not been inspected yet; `0086`
+fills it in for those that have.
 """
 
 from django.db import migrations, models

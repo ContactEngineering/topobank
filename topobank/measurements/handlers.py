@@ -1,16 +1,16 @@
 """
-Measurement types.
+Measurement handlers.
 
-A :class:`MeasurementType` is the strategy that binds a stored
+A :class:`MeasurementHandler` is the strategy that binds a stored
 :class:`~topobank.manager.models.Measurement` to the in-memory *data object*
 representing its actual data. It owns everything that depends on what kind of
 measurement is being handled: which channels can be imported, how the data file
 is read, and which derived artifacts exist.
 
 The three built-in types cover height data and share
-:class:`SurfaceTopographyType`, which holds everything that goes through
+:class:`SurfaceTopographyHandler`, which holds everything that goes through
 ``SurfaceTopography.IO``. A type for an entirely different modality (an XPS
-spectrum, say) subclasses :class:`MeasurementType` directly and imports its own
+spectrum, say) subclasses :class:`MeasurementHandler` directly and imports its own
 data package; nothing in this module needs to know about it.
 
 At this stage the metadata a type needs still lives in typed columns on the model,
@@ -33,7 +33,7 @@ from django.conf import settings
 from django.core.files import File
 from django.core.files.base import ContentFile
 
-from .registry import register_measurement_type
+from .registry import register_handler
 
 _log = logging.getLogger(__name__)
 
@@ -41,18 +41,18 @@ _log = logging.getLogger(__name__)
 CANONICAL_DATAFILE_FORMAT = "nc"
 
 
-class MeasurementType(abc.ABC):
+class MeasurementHandler(abc.ABC):
     """
-    Base class of all measurement types.
+    Base class of all measurement handlers.
 
     Registered subclasses are instantiated once; that singleton is what
-    :func:`~topobank.measurements.registry.get_measurement_type` returns. There is
+    :func:`~topobank.measurements.registry.get_handler` returns. There is
     no per-instance state -- the measurement to work on is always passed in.
     """
 
     class Meta:
         #: Stable registry key, stored in ``Measurement.kind``. Never rename.
-        name = None
+        kind = None
         #: Human-readable name for the UI.
         display_name = None
 
@@ -72,7 +72,7 @@ class MeasurementType(abc.ABC):
     is_expensive_to_read = False
 
     def __str__(self):
-        return self.Meta.display_name or self.Meta.name
+        return self.Meta.display_name or self.Meta.kind
 
     @classmethod
     @abc.abstractmethod
@@ -139,9 +139,9 @@ class MeasurementType(abc.ABC):
         )
 
 
-class SurfaceTopographyType(MeasurementType):
+class SurfaceTopographyHandler(MeasurementHandler):
     """
-    Common base of the measurement types backed by ``SurfaceTopography``.
+    Common base of the measurement handlers backed by ``SurfaceTopography``.
 
     Everything that goes through ``SurfaceTopography.IO`` lives here: reading data
     objects and the canonical NetCDF representation. Concrete subclasses declare
@@ -303,7 +303,7 @@ class SurfaceTopographyType(MeasurementType):
         data.to_netcdf(path)
 
 
-class LineScanType(SurfaceTopographyType):
+class LineScanHandler(SurfaceTopographyHandler):
     """Common base of the one-dimensional height measurements."""
 
     dim = 1
@@ -337,12 +337,12 @@ class LineScanType(SurfaceTopographyType):
         return image_file
 
 
-@register_measurement_type
-class TopographyMapType(SurfaceTopographyType):
+@register_handler
+class TopographyMapHandler(SurfaceTopographyHandler):
     """A two-dimensional map of heights."""
 
     class Meta:
-        name = "topography-map"
+        kind = "topography-map"
         display_name = "Topography map"
 
     dim = 2
@@ -389,23 +389,23 @@ class TopographyMapType(SurfaceTopographyType):
         render_deepzoom(data, manifest_set)
 
 
-@register_measurement_type
-class UniformLineScanType(LineScanType):
+@register_handler
+class UniformLineScanHandler(LineScanHandler):
     """A line scan on an evenly spaced grid."""
 
     class Meta:
-        name = "uniform-line-scan"
+        kind = "uniform-line-scan"
         display_name = "Uniform line scan"
 
     is_uniform = True
 
 
-@register_measurement_type
-class NonuniformLineScanType(LineScanType):
+@register_handler
+class NonuniformLineScanHandler(LineScanHandler):
     """A line scan whose sample positions are arbitrary."""
 
     class Meta:
-        name = "nonuniform-line-scan"
+        kind = "nonuniform-line-scan"
         display_name = "Nonuniform line scan"
 
     is_uniform = False
@@ -425,9 +425,9 @@ def write_canonical_manifest(measurement, data):
     """
     from ..files.models import Manifest
 
-    measurement_type = measurement.measurement_type
+    handler = measurement.handler
     with tempfile.NamedTemporaryFile(suffix=f".{CANONICAL_DATAFILE_FORMAT}") as tmp:
-        measurement_type.write_canonical_file(measurement, data, tmp.name)
+        handler.write_canonical_file(measurement, data, tmp.name)
         _, basename = os.path.split(measurement.datafile.filename)
         stem, _ = os.path.splitext(basename)
         return Manifest.objects.create(
