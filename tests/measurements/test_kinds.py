@@ -109,6 +109,41 @@ def test_a_measurement_with_neither_kind_nor_data_file_says_so():
 
 
 @pytest.mark.django_db
+def test_deriving_the_kind_finalizes_a_pending_upload(mocker):
+    """
+    `Manifest.exists` is what finishes an upload, so it has to run first.
+
+    `read` calls it, but the kind is resolved before `read` is reached, so a
+    measurement whose upload is not yet confirmed would fail during inference
+    instead. Asserted by watching `exists`, since the fixture's file is already
+    confirmed and a missing call would otherwise be invisible.
+    """
+    measurement = Topography2DFactory()
+    Measurement.objects.filter(pk=measurement.pk).update(kind=None)
+    measurement.refresh_from_db()
+    exists = mocker.spy(type(measurement.datafile), "exists")
+
+    measurement._infer_kind_from_datafile()
+
+    assert exists.called
+
+
+@pytest.mark.django_db
+def test_an_unreadable_data_file_is_reported_rather_than_opened(mocker):
+    """An upload that never completed cannot yield a kind."""
+    measurement = Topography2DFactory()
+    Measurement.objects.filter(pk=measurement.pk).update(kind=None)
+    measurement.refresh_from_db()
+    mocker.patch.object(type(measurement.datafile), "exists", return_value=False)
+    reader = mocker.patch("topobank.manager.models.get_topography_reader")
+
+    with pytest.raises(MeasurementNotInspectedError, match="readable"):
+        measurement._infer_kind_from_datafile()
+
+    reader.assert_not_called()
+
+
+@pytest.mark.django_db
 def test_the_cheap_interpretability_check_does_not_open_the_data_file(mocker):
     """
     `has_adapter` is used to decide whether to offer data at all.

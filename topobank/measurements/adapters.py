@@ -369,7 +369,15 @@ class TopographyMapAdapter(SurfaceTopographyAdapter):
         # Get heights and rescale to the interval [0, 1]
         heights = data.heights()
         mx, mn = heights.max(), heights.min()
-        heights = (heights - mn) / (mx - mn)
+        span = mx - mn
+        if span == 0:
+            # A perfectly flat map -- a zeroed or synthetic surface. Normalizing
+            # would divide by zero and hand NaNs to the colormap, whose output for
+            # NaN is not something to rely on. Every pixel is the same height, so
+            # the bottom of the colormap is the honest rendering.
+            heights = np.zeros_like(heights)
+        else:
+            heights = (heights - mn) / span
         # `matplotlib.colormaps` is the pyplot-free lookup; `None` selects the
         # default, as `pyplot.get_cmap` did.
         if cmap is None:

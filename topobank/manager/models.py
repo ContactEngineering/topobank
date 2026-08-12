@@ -1109,10 +1109,14 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         MeasurementNotInspectedError
             If there is no data file to derive it from.
         """
-        if not self.datafile_id:
+        # `exists` finalizes a pending upload, so it has to run before the file is
+        # read. `read` does this too, but the kind is resolved before `read` is
+        # reached, so a measurement whose upload is not yet confirmed would fail
+        # here first.
+        if not self.datafile_id or not self.datafile.exists():
             raise MeasurementNotInspectedError(
-                f"Measurement {self.id} has neither a recorded kind nor a data file "
-                "to derive one from."
+                f"Measurement {self.id} has neither a recorded kind nor a readable "
+                "data file to derive one from."
             )
         reader = get_topography_reader(self.datafile.file, format=self.datafile_format)
         channel = reader.channels[
@@ -1206,7 +1210,8 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         Raises
         ------
         MeasurementNotInspectedError
-            If the data file has not been inspected yet.
+            If no kind is recorded and there is no readable data file to derive one
+            from. An un-inspected measurement with a data file reads fine.
         UnknownMeasurementKindError
             If the package providing this kind of measurement is not installed.
         """
