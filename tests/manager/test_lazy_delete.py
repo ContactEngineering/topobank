@@ -24,7 +24,7 @@ def test_surface_lazy_delete_records_deleting_user():
     surface.lazy_delete(deleted_by=user)
 
     surface.refresh_from_db()
-    assert surface.deletion_time is not None
+    assert surface.deleted_at is not None
     assert surface.deleted_by == user
 
 
@@ -37,7 +37,7 @@ def test_surface_lazy_delete_cascades_deleted_by_to_measurements():
     surface.lazy_delete(deleted_by=user)
 
     topo.refresh_from_db()
-    assert topo.deletion_time == surface.deletion_time
+    assert topo.deleted_at == surface.deleted_at
     assert topo.deleted_by == user
 
 
@@ -51,7 +51,7 @@ def test_surface_lazy_delete_defaults_to_no_user():
 
     surface.refresh_from_db()
     topo.refresh_from_db()
-    assert surface.deletion_time is not None
+    assert surface.deleted_at is not None
     assert surface.deleted_by is None
     assert topo.deleted_by is None
 
@@ -84,11 +84,11 @@ def test_topography_lazy_delete_records_deleting_user():
     topo.lazy_delete(deleted_by=user)
 
     topo.refresh_from_db()
-    assert topo.deletion_time is not None
+    assert topo.deleted_at is not None
     assert topo.deleted_by == user
     # The dataset itself is untouched by a measurement-level delete.
     surface.refresh_from_db()
-    assert surface.deletion_time is None
+    assert surface.deleted_at is None
     assert surface.deleted_by is None
 
 
@@ -102,7 +102,7 @@ def test_deleted_by_is_cleared_when_the_user_is_deleted():
     user.delete()
 
     surface = Surface.all_objects.get(pk=surface.pk)
-    assert surface.deletion_time is not None
+    assert surface.deleted_at is not None
     assert surface.deleted_by is None
 
 

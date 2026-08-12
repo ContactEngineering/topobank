@@ -21,7 +21,7 @@ def test_periodic_cleanup_deletes_old_marked_surface():
     surface = SurfaceFactory()
     # Mark for deletion further in the past than TOPOBANK_DELETE_DELAY (7 days).
     old = timezone.now() - datetime.timedelta(days=8)
-    Surface.all_objects.filter(pk=surface.pk).update(deletion_time=old)
+    Surface.all_objects.filter(pk=surface.pk).update(deleted_at=old)
     assert Surface.all_objects.filter(pk=surface.pk).exists()
 
     periodic_cleanup()
@@ -33,7 +33,7 @@ def test_periodic_cleanup_deletes_old_marked_surface():
 def test_periodic_cleanup_keeps_recently_marked_surface():
     surface = SurfaceFactory()
     # Marked for deletion just now -> still within the grace period.
-    Surface.all_objects.filter(pk=surface.pk).update(deletion_time=timezone.now())
+    Surface.all_objects.filter(pk=surface.pk).update(deleted_at=timezone.now())
 
     periodic_cleanup()
 
@@ -58,7 +58,7 @@ def test_periodic_cleanup_deletes_old_marked_topography():
     surface = SurfaceFactory()
     topo = Topography2DFactory(surface=surface)
     old = timezone.now() - datetime.timedelta(days=8)
-    Topography.all_objects.filter(pk=topo.pk).update(deletion_time=old)
+    Topography.all_objects.filter(pk=topo.pk).update(deleted_at=old)
 
     periodic_cleanup()
 

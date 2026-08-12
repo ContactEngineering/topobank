@@ -344,15 +344,15 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             # Index on name for ordering in list views
             models.Index(fields=['name'], name='surface_name_idx'),
             # Composite index for filtering and ordering
-            # Used in: list queries with deletion_time filter
-            models.Index(fields=['deletion_time', 'name'], name='surface_list_idx'),
+            # Used in: list queries with deleted_at filter
+            models.Index(fields=['deleted_at', 'name'], name='surface_list_idx'),
             # Partial index for active (non-deleted) surfaces
-            # Most common query: only show surfaces where deletion_time IS NULL
+            # Most common query: only show surfaces where deleted_at IS NULL
             # More efficient than full index since it excludes soft-deleted rows
             models.Index(
                 fields=['name'],
                 name='surface_active_name_idx',
-                condition=Q(deletion_time__isnull=True)
+                condition=Q(deleted_at__isnull=True)
             ),
             # Full-text search over the precomputed search document
             GinIndex(fields=['search_vector'], name='surface_search_idx'),
@@ -392,7 +392,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     )
     # User who soft-deleted this dataset. NULL when it is not deleted, when the
     # deletion was a system operation, or for datasets deleted before this field
-    # existed. Only meaningful while `deletion_time` is set.
+    # existed. Only meaningful while `deleted_at` is set.
     deleted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
         blank=True, related_name="+"
@@ -429,7 +429,7 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
     # If deletion date is set, the datasets will be deleted after TOPOBANK_DELETE_DELAY
-    deletion_time = models.DateTimeField(null=True)
+    deleted_at = models.DateTimeField(null=True)
 
     #
     # Attachments
@@ -484,11 +484,11 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
         dataset and the measurements this call cascades to. Pass None for system
         operations.
         """
-        self.deletion_time = timezone.now()
+        self.deleted_at = timezone.now()
         self.deleted_by = deleted_by
-        self.save(update_fields=["deletion_time", "deleted_by"])
-        self.topography_set.filter(deletion_time__isnull=True).update(
-            deletion_time=self.deletion_time, deleted_by=deleted_by
+        self.save(update_fields=["deleted_at", "deleted_by"])
+        self.topography_set.filter(deleted_at__isnull=True).update(
+            deleted_at=self.deleted_at, deleted_by=deleted_by
         )
 
     def build_search_document(self):
@@ -720,18 +720,18 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         verbose_name_plural = "measurements"
         indexes = [
             # Index on surface foreign key for JOIN optimization
-            # Used in: surface.topography_set.all() and filtering by surface__deletion_time
+            # Used in: surface.topography_set.all() and filtering by surface__deleted_at
             models.Index(fields=['surface'], name='topography_surface_idx'),
             # Composite index for filtering and ordering
-            # Used in: list queries with deletion_time filter
-            models.Index(fields=['deletion_time', 'name'], name='topography_list_idx'),
+            # Used in: list queries with deleted_at filter
+            models.Index(fields=['deleted_at', 'name'], name='topography_list_idx'),
             # Partial index for active (non-deleted) topographies
-            # Most common query: only show topographies where deletion_time IS NULL
+            # Most common query: only show topographies where deleted_at IS NULL
             # More efficient than full index since it excludes soft-deleted rows
             models.Index(
                 fields=['name'],
                 name='topography_active_name_idx',
-                condition=Q(deletion_time__isnull=True)
+                condition=Q(deleted_at__isnull=True)
             ),
         ]
 
@@ -775,7 +775,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     # User who soft-deleted this measurement, either directly or via a cascade
     # from its dataset. NULL for system operations and for measurements deleted
-    # before this field existed. Only meaningful while `deletion_time` is set.
+    # before this field existed. Only meaningful while `deleted_at` is set.
     #
     deleted_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, null=True, blank=True,
@@ -800,7 +800,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     created_at = models.DateTimeField(auto_now_add=True, null=True)
     updated_at = models.DateTimeField(auto_now=True, null=True)
     # If deletion date is set, the datasets will be deleted after TOPOBANK_DELETE_DELAY
-    deletion_time = models.DateTimeField(null=True)
+    deleted_at = models.DateTimeField(null=True)
 
     #
     # Fields related to raw data
@@ -1030,9 +1030,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         `deleted_by` is the user performing the deletion. Pass None for system
         operations.
         """
-        self.deletion_time = timezone.now()
+        self.deleted_at = timezone.now()
         self.deleted_by = deleted_by
-        self.save(update_fields=["deletion_time", "deleted_by"])
+        self.save(update_fields=["deleted_at", "deleted_by"])
 
     def save_datafile(self, fobj):
         self.datafile = Manifest.objects.create(
