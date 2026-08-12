@@ -390,6 +390,13 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
     updated_by = models.ForeignKey(
         settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True, related_name="+"
     )
+    # User who soft-deleted this dataset. NULL when it is not deleted, when the
+    # deletion was a system operation, or for datasets deleted before this field
+    # existed. Only meaningful while `deletion_time` is set.
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, on_delete=models.SET_NULL, null=True,
+        blank=True, related_name="+"
+    )
 
     # `owned_by` is always an organization. The field is only NULL if
     # organization is deleted after dataset has been created.
@@ -470,11 +477,18 @@ class Surface(PermissionMixin, models.Model, SubjectMixin):
             )
         super().save(*args, **kwargs)
 
-    def lazy_delete(self):
+    def lazy_delete(self, deleted_by=None):
+        """Mark this dataset and its measurements for deletion.
+
+        `deleted_by` is the user performing the deletion, recorded on both this
+        dataset and the measurements this call cascades to. Pass None for system
+        operations.
+        """
         self.deletion_time = timezone.now()
-        self.save(update_fields=["deletion_time"])
+        self.deleted_by = deleted_by
+        self.save(update_fields=["deletion_time", "deleted_by"])
         self.topography_set.filter(deletion_time__isnull=True).update(
-            deletion_time=self.deletion_time
+            deletion_time=self.deletion_time, deleted_by=deleted_by
         )
 
     def build_search_document(self):
@@ -759,6 +773,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         settings.AUTH_USER_MODEL, null=True, on_delete=models.SET_NULL, related_name="+"
     )
     #
+    # User who soft-deleted this measurement, either directly or via a cascade
+    # from its dataset. NULL for system operations and for measurements deleted
+    # before this field existed. Only meaningful while `deletion_time` is set.
+    #
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL, null=True, blank=True,
+        on_delete=models.SET_NULL, related_name="+"
+    )
+    #
     # Organization owning this topography. (Cleanup only happens if the surface is deleted)
     #
     owned_by = models.ForeignKey(
@@ -1001,9 +1024,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # Save after run task, because run task may update the task state
         super().save(*args, **kwargs)
 
-    def lazy_delete(self):
+    def lazy_delete(self, deleted_by=None):
+        """Mark this measurement for deletion.
+
+        `deleted_by` is the user performing the deletion. Pass None for system
+        operations.
+        """
         self.deletion_time = timezone.now()
-        self.save(update_fields=["deletion_time"])
+        self.deleted_by = deleted_by
+        self.save(update_fields=["deletion_time", "deleted_by"])
 
     def save_datafile(self, fobj):
         self.datafile = Manifest.objects.create(
