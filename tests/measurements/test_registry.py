@@ -1,10 +1,10 @@
 """
-Tests for the measurement-handler registry.
+Tests for the measurement-adapter registry.
 
 The registry is the seam that lets a package outside TopoBank add a kind of
 measurement, so what matters here is the contract it offers such a package:
 registration is keyed by a stable name, lookup fails loudly for an unknown kind,
-and which handler claims a data channel is decided by the handlers themselves.
+and which adapter claims a data channel is decided by the adapters themselves.
 """
 
 import pytest
@@ -15,23 +15,23 @@ from topobank.measurements.registry import (
     UnknownMeasurementKindError,
     UnsupportedChannelError,
     get_kinds,
-    get_handler,
-    get_handlers,
-    has_handler,
+    get_adapter,
+    get_adapters,
+    has_adapter,
     infer_kind,
-    register_handler,
-    unregister_handler,
+    register_adapter,
+    unregister_adapter,
 )
-from topobank.measurements.handlers import (
-    MeasurementHandler,
-    NonuniformLineScanHandler,
-    TopographyMapHandler,
-    UniformLineScanHandler,
+from topobank.measurements.adapters import (
+    MeasurementAdapter,
+    NonuniformLineScanAdapter,
+    TopographyMapAdapter,
+    UniformLineScanAdapter,
 )
 
 
 class FakeChannel:
-    """The handful of channel attributes the built-in handlers look at."""
+    """The handful of channel attributes the built-in adapters look at."""
 
     def __init__(self, dim=2, unit="um", is_uniform=True, name="channel"):
         self.dim = dim
@@ -42,18 +42,18 @@ class FakeChannel:
 
 @pytest.fixture
 def registered():
-    """Register a throwaway handler and remove it again afterwards."""
+    """Register a throwaway adapter and remove it again afterwards."""
     registered_kinds = []
 
     def register(cls):
-        register_handler(cls)
-        registered_kinds.append(cls.Meta.kind)
+        register_adapter(cls)
+        registered_kinds.append(cls.Meta.name)
         return cls
 
     yield register
 
     for kind in registered_kinds:
-        unregister_handler(kind)
+        unregister_adapter(kind)
 
 
 #
@@ -63,9 +63,9 @@ def registered():
 
 def test_a_registered_type_is_returned_as_a_singleton(registered):
     @registered
-    class Spectrum(MeasurementHandler):
+    class Spectrum(MeasurementAdapter):
         class Meta:
-            kind = "test-singleton"
+            name = "test-singleton"
             display_name = "Test singleton"
 
         @classmethod
@@ -76,18 +76,18 @@ def test_a_registered_type_is_returned_as_a_singleton(registered):
             return None
 
     # The decorator returns the class, so it stays usable under its own name...
-    assert Spectrum.Meta.kind == "test-singleton"
+    assert Spectrum.Meta.name == "test-singleton"
     # ...while the registry holds one instance of it, handed out every time.
-    assert get_handler("test-singleton") is get_handler(
+    assert get_adapter("test-singleton") is get_adapter(
         "test-singleton"
     )
-    assert isinstance(get_handler("test-singleton"), Spectrum)
+    assert isinstance(get_adapter("test-singleton"), Spectrum)
 
 
 def test_a_type_without_a_name_is_refused():
-    class Nameless(MeasurementHandler):
+    class Nameless(MeasurementAdapter):
         class Meta:
-            kind = None
+            name = None
 
         @classmethod
         def claims_channel(cls, channel):
@@ -97,14 +97,14 @@ def test_a_type_without_a_name_is_refused():
             return None
 
     with pytest.raises(MeasurementRegistryError, match="does not declare"):
-        register_handler(Nameless)
+        register_adapter(Nameless)
 
 
 def test_two_types_cannot_claim_the_same_kind(registered):
     @registered
-    class First(MeasurementHandler):
+    class First(MeasurementAdapter):
         class Meta:
-            kind = "test-duplicate"
+            name = "test-duplicate"
 
         @classmethod
         def claims_channel(cls, channel):
@@ -113,9 +113,9 @@ def test_two_types_cannot_claim_the_same_kind(registered):
         def read(self, measurement, **kwargs):
             return None
 
-    class Second(MeasurementHandler):
+    class Second(MeasurementAdapter):
         class Meta:
-            kind = "test-duplicate"
+            name = "test-duplicate"
 
         @classmethod
         def claims_channel(cls, channel):
@@ -125,16 +125,16 @@ def test_two_types_cannot_claim_the_same_kind(registered):
             return None
 
     with pytest.raises(AlreadyRegisteredError, match="already registered"):
-        register_handler(Second)
+        register_adapter(Second)
 
 
 def test_registering_the_same_class_twice_is_harmless(registered):
     """A module imported through two paths must not blow up at import time."""
 
     @registered
-    class Reimported(MeasurementHandler):
+    class Reimported(MeasurementAdapter):
         class Meta:
-            kind = "test-reimported"
+            name = "test-reimported"
 
         @classmethod
         def claims_channel(cls, channel):
@@ -143,7 +143,7 @@ def test_registering_the_same_class_twice_is_harmless(registered):
         def read(self, measurement, **kwargs):
             return None
 
-    assert register_handler(Reimported) is Reimported
+    assert register_adapter(Reimported) is Reimported
 
 
 #
@@ -159,15 +159,15 @@ def test_an_unknown_kind_names_the_missing_package():
     created it, so it has to say which kind is missing.
     """
     with pytest.raises(UnknownMeasurementKindError) as excinfo:
-        get_handler("no-such-kind")
+        get_adapter("no-such-kind")
 
     assert "no-such-kind" in str(excinfo.value)
     assert "may not be installed" in str(excinfo.value)
 
 
 def test_absence_can_be_checked_without_catching():
-    assert has_handler(TopographyMapHandler.Meta.kind)
-    assert not has_handler("no-such-kind")
+    assert has_adapter(TopographyMapAdapter.Meta.name)
+    assert not has_adapter("no-such-kind")
 
 
 def test_the_built_in_kinds_are_registered():
@@ -178,7 +178,7 @@ def test_the_built_in_kinds_are_registered():
         "uniform-line-scan",
         "nonuniform-line-scan",
     }
-    assert set(get_handlers()) == set(kinds)
+    assert set(get_adapters()) == set(kinds)
 
 
 #
@@ -189,19 +189,19 @@ def test_the_built_in_kinds_are_registered():
 @pytest.mark.parametrize(
     "channel,expected",
     [
-        (FakeChannel(dim=2), TopographyMapHandler),
-        (FakeChannel(dim=1, is_uniform=True), UniformLineScanHandler),
-        (FakeChannel(dim=1, is_uniform=False), NonuniformLineScanHandler),
+        (FakeChannel(dim=2), TopographyMapAdapter),
+        (FakeChannel(dim=1, is_uniform=True), UniformLineScanAdapter),
+        (FakeChannel(dim=1, is_uniform=False), NonuniformLineScanAdapter),
     ],
 )
 def test_a_height_channel_is_claimed_by_exactly_one_built_in_type(channel, expected):
-    assert infer_kind(channel) == expected.Meta.kind
+    assert infer_kind(channel) == expected.Meta.name
     # Exactly one: the others must not claim it, or the result would depend on
     # registration order.
     claiming = [
-        handler
-        for handler in get_handlers().values()
-        if handler.claims_channel(channel)
+        adapter
+        for adapter in get_adapters().values()
+        if adapter.claims_channel(channel)
     ]
     assert len(claiming) == 1
 
@@ -210,7 +210,7 @@ def test_a_channel_that_is_not_height_data_is_claimed_by_nobody():
     """
     A tuple unit means the data is not a height (adhesion, current, ...).
 
-    Such channels are listed in a file's inventory but no built-in handler can import
+    Such channels are listed in a file's inventory but no built-in adapter can import
     them, which is exactly the gap an external plugin fills.
     """
     channel = FakeChannel(dim=2, unit=("um", "nN"), name="adhesion")
@@ -224,9 +224,9 @@ def test_a_plugin_type_can_claim_a_channel_the_built_ins_reject(registered):
     channel = FakeChannel(dim=2, unit=("um", "nN"), name="adhesion")
 
     @registered
-    class AdhesionMap(MeasurementHandler):
+    class AdhesionMap(MeasurementAdapter):
         class Meta:
-            kind = "test-adhesion-map"
+            name = "test-adhesion-map"
 
         @classmethod
         def claims_channel(cls, other):

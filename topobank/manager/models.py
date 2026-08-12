@@ -38,11 +38,11 @@ from ..taskapp.models import IncompleteMetadataError, TaskStateModel
 from ..taskapp.utils import run_task
 from ..measurements.registry import (
     MeasurementNotInspectedError,
-    get_handler,
-    has_handler,
+    get_adapter,
+    has_adapter,
     infer_kind,
 )
-from ..measurements.handlers import (
+from ..measurements.adapters import (
     write_canonical_manifest,
     write_thumbnail_manifest,
 )
@@ -805,7 +805,7 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     # Kind of measurement
     #
-    # Registry key of the measurement handler that handles this record; see
+    # Registry key of the measurement adapter that handles this record; see
     # `topobank.measurements`. Null until the data file has been inspected, since
     # the kind is derived from the selected channel. A value with no registered
     # type means the plugin that created the measurement is not installed: the
@@ -1123,9 +1123,9 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         return infer_kind(channel)
 
     @property
-    def handler(self):
+    def adapter(self):
         """
-        The measurement handler that handles this record.
+        The measurement adapter that handles this record.
 
         Falls back to deriving the kind from the data file for a measurement that
         has not been inspected yet -- importing a container creates exactly such
@@ -1139,28 +1139,28 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
             If no type is registered for this measurement's kind, i.e. the package
             providing it is not installed.
         """
-        return get_handler(
+        return get_adapter(
             self.kind if self.kind is not None else self._infer_kind_from_datafile()
         )
 
     @property
-    def has_handler(self):
+    def has_adapter(self):
         """
         Whether this measurement's data can be interpreted at all.
 
         Only considers the recorded kind: this is the cheap check used to decide
         whether a record is interpretable, so it must not open the data file.
         """
-        return self.kind is not None and has_handler(self.kind)
+        return self.kind is not None and has_adapter(self.kind)
 
     def _read(self, reader: ReaderBase, apply_filters: bool = True):
         """
         Read the data object from an already opened reader.
 
         Kept as a thin wrapper because callers outside this class use it; the work
-        belongs to the handler, which knows what the data looks like.
+        belongs to the adapter, which knows what the data looks like.
         """
-        return self.handler.read_from_reader(
+        return self.adapter.read_from_reader(
             self, reader, apply_filters=apply_filters
         )
 
@@ -1210,7 +1210,7 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         UnknownMeasurementKindError
             If the package providing this kind of measurement is not installed.
         """
-        return self.handler.read(
+        return self.adapter.read(
             self,
             allow_canonical=allow_squeezed,
             apply_filters=apply_filters,
@@ -1325,7 +1325,7 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         """
         if st_topo is None:
             st_topo = self.read()
-        return self.handler.render_thumbnail(
+        return self.adapter.render_thumbnail(
             self, st_topo, width=width, height=height, cmap=cmap
         )
 
@@ -1355,18 +1355,18 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         -------
         None
         """
-        if not self.handler.has_deepzoom:
+        if not self.adapter.has_deepzoom:
             return
         if st_topo is None:
             st_topo = self.read()
         if self.deepzoom is not None:
             self.deepzoom.delete()
         self.deepzoom = ManifestSet.objects.create(permissions=self.permissions)
-        self.handler.make_deepzoom(self, st_topo, self.deepzoom)
+        self.adapter.make_deepzoom(self, st_topo, self.deepzoom)
 
     def _make_squeezed(self, st_topo=None, save=False):
         """Renew the canonical ("squeezed") data file."""
-        if not self.handler.has_canonical_file:
+        if not self.adapter.has_canonical_file:
             return
         if st_topo is None:
             st_topo = self.read(allow_squeezed=False)
@@ -1743,11 +1743,11 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
                 if self.thumbnail is None or not self.thumbnail.exists():
                     missing.append("thumbnail")
                 # Only kinds that declare a Deep Zoom representation have one.
-                if self.handler.has_deepzoom and (
+                if self.adapter.has_deepzoom and (
                     self.deepzoom is None or len(self.deepzoom) == 0
                 ):
                     missing.append("deepzoom")
-                if self.handler.has_canonical_file and (
+                if self.adapter.has_canonical_file and (
                     self.squeezed_datafile is None
                     or not self.squeezed_datafile.exists()
                 ):

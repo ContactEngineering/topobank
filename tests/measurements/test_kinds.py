@@ -2,7 +2,7 @@
 Tests for the kind a measurement is recorded as, and what follows from it.
 
 `Measurement.kind` is written while the data file is inspected and from then on
-decides which handler is used for the record: how it is read, whether it has
+decides which adapter is used for the record: how it is read, whether it has
 a Deep Zoom pyramid, whether its data can be interpreted at all.
 """
 
@@ -21,7 +21,7 @@ def test_a_map_is_recorded_as_a_topography_map():
     measurement = Topography2DFactory()
 
     assert measurement.kind == "topography-map"
-    assert measurement.handler.has_deepzoom
+    assert measurement.adapter.has_deepzoom
 
 
 @pytest.mark.django_db
@@ -31,7 +31,7 @@ def test_a_line_scan_is_recorded_as_a_line_scan():
     assert measurement.kind in ("uniform-line-scan", "nonuniform-line-scan")
     # A line scan has no Deep Zoom pyramid; that is what the capability is for,
     # rather than testing `size_y` for null somewhere.
-    assert not measurement.handler.has_deepzoom
+    assert not measurement.adapter.has_deepzoom
 
 
 @pytest.mark.django_db
@@ -90,7 +90,7 @@ def test_a_measurement_with_no_recorded_kind_is_still_readable():
     Measurement.objects.filter(pk=measurement.pk).update(kind=None)
     measurement.refresh_from_db()
 
-    assert measurement.handler.Meta.kind == "topography-map"
+    assert measurement.adapter.Meta.name == "topography-map"
     assert measurement.read() is not None
     # Deriving it does not quietly record it; inspection is what stores a kind.
     assert Measurement.objects.get(pk=measurement.pk).kind is None
@@ -103,15 +103,15 @@ def test_a_measurement_with_neither_kind_nor_data_file_says_so():
     measurement.datafile = None
 
     with pytest.raises(MeasurementNotInspectedError, match="derive one from"):
-        measurement.handler
+        measurement.adapter
 
-    assert not measurement.has_handler
+    assert not measurement.has_adapter
 
 
 @pytest.mark.django_db
 def test_the_cheap_interpretability_check_does_not_open_the_data_file(mocker):
     """
-    `has_handler` is used to decide whether to offer data at all.
+    `has_adapter` is used to decide whether to offer data at all.
 
     It answers from the recorded kind alone, so that listing many measurements
     does not turn into one file open each.
@@ -121,7 +121,7 @@ def test_the_cheap_interpretability_check_does_not_open_the_data_file(mocker):
     measurement.refresh_from_db()
     reader = mocker.patch("topobank.manager.models.get_topography_reader")
 
-    assert not measurement.has_handler
+    assert not measurement.has_adapter
     reader.assert_not_called()
 
 
@@ -138,7 +138,7 @@ def test_a_measurement_from_an_uninstalled_plugin_stays_usable_as_a_record():
     Measurement.objects.filter(pk=measurement.pk).update(kind="gone-with-the-plugin")
     measurement = Measurement.objects.get(pk=measurement.pk)
 
-    assert not measurement.has_handler
+    assert not measurement.has_adapter
     with pytest.raises(UnknownMeasurementKindError, match="gone-with-the-plugin"):
         measurement.read()
 
@@ -155,7 +155,7 @@ def test_reading_goes_through_the_registered_type(mocker):
     """`Measurement.read` must dispatch rather than branch on field values."""
     measurement = Topography2DFactory()
     read = mocker.patch.object(
-        type(measurement.handler), "read", return_value="data"
+        type(measurement.adapter), "read", return_value="data"
     )
 
     result = measurement.read(allow_squeezed=False)

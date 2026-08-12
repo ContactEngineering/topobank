@@ -3,11 +3,11 @@
 # 2.0.0 (unreleased)
 
 - ENH: The kind of data a measurement holds is now recorded explicitly, in
-  `Measurement.kind`, and a registry of measurement handlers decides how a record
+  `Measurement.kind`, and a registry of measurement adapters decides how a record
   of that kind is read and which derived artifacts it has. An external package can
-  register its own handler through the `topobank.measurement_handlers` entry
+  register its own adapter through the `topobank.measurement_adapters` entry
   point, which is what makes non-height data possible. Measurements whose kind has
-  no registered handler -- because the package providing it is not installed --
+  no registered adapter -- because the package providing it is not installed --
   stay listable, downloadable and deletable; only reading their data is refused.
 - API: `Topography` is now `Measurement`. The model records a measurement --
   identity, permissions, files and task state -- rather than something specific to
