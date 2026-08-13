@@ -19,12 +19,11 @@ Contents:
    swarm
    maintenance
    install-docker
-   orcid
+   publishing
+   importing-datasets
    pycharm/configuration
    storage-backend
    install
-
-.. docker_ec2
 
 .. todo:: add how to start tests
 .. todo:: bring everything in correct order

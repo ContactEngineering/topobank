@@ -22,7 +22,7 @@ def periodic_cleanup():
 
     # Delete all topographies that were marked for deletion
     q = Topography.all_objects.filter(
-        deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
+        deleted_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
     )
     if q.count() > 0:
         _log.info(
@@ -32,7 +32,7 @@ def periodic_cleanup():
 
     # Delete all surfaces that were marked for deletion
     q = Surface.all_objects.filter(
-        deletion_time__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
+        deleted_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
     )
     if q.count() > 0:
         _log.info(
