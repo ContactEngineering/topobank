@@ -62,12 +62,14 @@ jobs:
         # The S3 gateway picks up AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY and
         # creates a matching admin identity, so no `-s3.config` file is needed
         # here (unlike in the development stack).
+        # The image is pinned so that a CI failure means our code changed, not
+        # that SeaweedFS released a new version overnight.
         docker run -d \
           --name seaweedfs \
           -p 9000:9000 \
           -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
           -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
-          chrislusf/seaweedfs:latest \
+          chrislusf/seaweedfs:4.41 \
           server -filer -s3 -s3.port=9000
 
     - name: Checkout source code
@@ -99,12 +101,20 @@ jobs:
         s3 = boto3.client("s3", endpoint_url=os.environ["AWS_S3_ENDPOINT_URL"])
         bucket = os.environ["AWS_STORAGE_BUCKET_NAME"]
 
+        # SeaweedFS reports an existing bucket as `BucketAlreadyOwnedByYou`,
+        # but other S3 implementations use `BucketAlreadyExists`. Either way
+        # the bucket is there, which is all we are after.
+        already_exists = (
+            s3.exceptions.BucketAlreadyOwnedByYou,
+            s3.exceptions.BucketAlreadyExists,
+        )
+
         error = None
         for attempt in range(30):
             try:
                 s3.create_bucket(Bucket=bucket)
                 break
-            except s3.exceptions.BucketAlreadyOwnedByYou:
+            except already_exists:
                 break
             except Exception as exc:
                 error = exc
