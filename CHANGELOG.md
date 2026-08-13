@@ -8,6 +8,22 @@
 - MAINT: CI runs its S3 tests against SeaweedFS instead of Minio, which is the
   S3 implementation the development stack uses. The bucket is created with
   `boto3` instead of a separately downloaded `mc` client
+- BUILD: Dropped four unmaintained dependencies. `backports.entry-points-selectable`
+  backports an API that is in the standard library on every Python we support,
+  `dj-inmemorystorage` (last release 2020) and `py` (retired, and no longer a
+  pytest dependency) were declared but never imported, and `mergedeep` (dormant
+  since 2021) is replaced by a local recursive merge in `analysis.utils`
+- BUILD: `django-notifications-hq` is pinned to a commit instead of tracking the
+  default branch, so a build no longer depends on what upstream master happens to
+  be at install time. Renovate cannot see `git+https` references, so a custom
+  manager now tracks that commit; it is deliberately not applied to the
+  `django-tagulous` fork pin, whose commit is ahead of that fork's default branch
+- BUILD: Removed the `urllib3`, `lxml`, `jinja2`, `cryptography`, `Pillow`,
+  `sqlparse` and `pyjwt` lower bounds. They carried 2020-2023 CVE mitigations that
+  every currently resolvable version satisfies, and none of them are imported
+  directly, so they read as active security controls while constraining nothing.
+  Raised the `django-allauth` floor to the major version actually in use and
+  dropped the undocumented `Sphinx` upper cap
 - TST: The test settings honor `STORAGE_BACKEND` and `TOPOBANK_UPLOAD_METHOD`
   again, and derive `USE_S3_STORAGE` from the configured backend. Both were
   hardcoded, so the S3 configuration in CI had no effect and every job silently
