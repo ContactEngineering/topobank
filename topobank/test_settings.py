@@ -70,9 +70,31 @@ MEDIA_ROOT = tempfile.mkdtemp()
 os.makedirs(os.path.join(MEDIA_ROOT, 'analyses'), exist_ok=True)
 
 STORAGES = {
-    "default": {"BACKEND": "django.core.files.storage.FileSystemStorage"},
+    "default": {
+        "BACKEND": env(
+            "STORAGE_BACKEND", default="django.core.files.storage.FileSystemStorage"
+        )
+    },
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
+
+# Whether files live on an S3-compatible object store rather than on a local
+# filesystem. This changes the upload flow: clients then upload directly to the
+# object store and `Manifest.finish_upload` looks for the file at the expected
+# storage location afterwards.
+USE_S3_STORAGE = STORAGES["default"]["BACKEND"].endswith("S3Boto3Storage")
+
+if USE_S3_STORAGE:
+    # The defaults describe the SeaweedFS instance of the development stack.
+    AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="admin")
+    AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="secret12")
+    AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="topobank-test")
+    AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="http://localhost:9000")
+    AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="us-east-1")
+    AWS_S3_SIGNATURE_VERSION = "s3v4"
+    # Consecutive runs reuse the same bucket, so a file left behind by an
+    # earlier run must not change the name a later run stores its file under.
+    AWS_S3_FILE_OVERWRITE = True
 
 
 CC_LICENSE_INFOS = {
@@ -121,9 +143,11 @@ PUBLICATION_DOI_STATE = "draft"
 PUBLICATION_MAX_NUM_AUTHORS = 200
 PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR = 20
 
-USE_S3_STORAGE = False
-
-UPLOAD_METHOD = "POST"
+UPLOAD_METHOD = env("TOPOBANK_UPLOAD_METHOD", default="POST")
+# Consecutive runs against the same bucket find the files of the previous run at
+# the storage paths they want to use, since the storage path is derived from the
+# manifest id and the test database restarts its id sequence for every run.
+DELETE_EXISTING_FILES = True
 BOKEH_OUTPUT_BACKEND = "canvas"
 WEBAPP_URL = "http://localhost:5173/"
 

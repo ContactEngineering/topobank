@@ -21,9 +21,12 @@ jobs:
           # - ['hello-world', 'sqlite:///topobank.sqlite3']
           - ['postgres:17', 'postgres://postgres:secret@localhost/topobank-test']
         storage:
-          - ['hello-world', 'inmemorystorage.InMemoryStorage', 'POST']
-          - ['minio', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
-          - ['minio', 'storages.backends.s3boto3.S3Boto3Storage', 'PUT']
+          - ['filesystem', 'django.core.files.storage.FileSystemStorage', 'POST']
+          # There is no second entry with 'PUT' here: the upload method only
+          # affects `get_upload_instructions`, which lives in topobank-rest-api.
+          # Nothing in this repository reads `UPLOAD_METHOD`, so a 'PUT' entry
+          # would run exactly the same tests as the 'POST' one.
+          - ['seaweedfs', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
         python-version: ['3.10', '3.13']
 
     services:
@@ -44,41 +47,30 @@ jobs:
       AWS_SECRET_ACCESS_KEY: secret12
       AWS_STORAGE_BUCKET_NAME: topobank-test
       AWS_S3_ENDPOINT_URL: http://localhost:9000
+      AWS_DEFAULT_REGION: us-east-1
 
     steps:
-    - name: Start Minio
+    # SeaweedFS is started before the checkout so that it boots while the source
+    # code is checked out and the dependencies are installed. Readiness is
+    # checked in the "Create bucket" step below.
+    #
+    # The S3 gateway is exposed on port 9000, which is the port the development
+    # stack uses as well.
+    - name: Start SeaweedFS
       if: endsWith(matrix.storage[1], 'S3Boto3Storage')
       run: |
+        # The S3 gateway picks up AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY and
+        # creates a matching admin identity, so no `-s3.config` file is needed
+        # here (unlike in the development stack).
+        # The image is pinned so that a CI failure means our code changed, not
+        # that SeaweedFS released a new version overnight.
         docker run -d \
-          --name minio \
+          --name seaweedfs \
           -p 9000:9000 \
-          -p 9001:9001 \
-          -e MINIO_ROOT_USER=$AWS_ACCESS_KEY_ID \
-          -e MINIO_ROOT_PASSWORD=$AWS_SECRET_ACCESS_KEY \
-          minio/minio:latest \
-          server /data --console-address ":9001"
-
-    - name: Create bucket
-      if: endsWith(matrix.storage[1], 'S3Boto3Storage')
-      run: |
-        curl -L https://dl.min.io/client/mc/release/linux-amd64/mc --create-dirs -o $HOME/minio-binaries/mc
-        chmod +x $HOME/minio-binaries/mc
-        export PATH=$PATH:$HOME/minio-binaries/
-
-        # Wait for Minio to be ready
-        echo "Waiting for Minio to be ready..."
-        for i in {1..30}; do
-          if mc alias set minio $AWS_S3_ENDPOINT_URL $AWS_ACCESS_KEY_ID $AWS_SECRET_ACCESS_KEY 2>/dev/null; then
-            echo "Minio is ready!"
-            break
-          fi
-          echo "Attempt $i: Minio not ready yet, waiting..."
-          sleep 2
-        done
-
-        # Verify the alias was set successfully
-        mc alias list minio
-        mc mb --ignore-existing minio/$AWS_STORAGE_BUCKET_NAME
+          -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
+          -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
+          chrislusf/seaweedfs:4.41 \
+          server -filer -s3 -s3.port=9000
 
     - name: Checkout source code
       uses: actions/checkout@v7
@@ -94,6 +86,45 @@ jobs:
     - name: Install
       run: |
         pip install .[dev]
+
+    # Uses the boto3 that ships with the project instead of a separately
+    # downloaded S3 client.
+    - name: Create bucket
+      if: endsWith(matrix.storage[1], 'S3Boto3Storage')
+      run: |
+        python - <<'EOF'
+        import os
+        import time
+
+        import boto3
+
+        s3 = boto3.client("s3", endpoint_url=os.environ["AWS_S3_ENDPOINT_URL"])
+        bucket = os.environ["AWS_STORAGE_BUCKET_NAME"]
+
+        # SeaweedFS reports an existing bucket as `BucketAlreadyOwnedByYou`,
+        # but other S3 implementations use `BucketAlreadyExists`. Either way
+        # the bucket is there, which is all we are after.
+        already_exists = (
+            s3.exceptions.BucketAlreadyOwnedByYou,
+            s3.exceptions.BucketAlreadyExists,
+        )
+
+        error = None
+        for attempt in range(30):
+            try:
+                s3.create_bucket(Bucket=bucket)
+                break
+            except already_exists:
+                break
+            except Exception as exc:
+                error = exc
+                print(f"Attempt {attempt + 1}: SeaweedFS not ready yet, waiting...")
+                time.sleep(2)
+        else:
+            raise SystemExit(f"SeaweedFS did not become ready: {error}")
+
+        print(f"Bucket '{bucket}' is ready.")
+        EOF
 
     - name: Test
       run: |
