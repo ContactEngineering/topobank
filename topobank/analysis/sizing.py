@@ -49,7 +49,8 @@ from datetime import timedelta
 
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import BigIntegerField, F, Max, Value
+from django.db.models import BigIntegerField, Max, Value
+from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast, Coalesce
 from django.template.defaultfilters import filesizeformat
 from django.utils import timezone
@@ -90,18 +91,26 @@ def _percentile(values, fraction):
     return ordered[min(len(ordered) - 1, max(0, rank - 1))]
 
 
+def _resolution(prefix, axis):
+    """One resolution, read out of the `file_info` JSON document."""
+    return KeyTextTransform(f"resolution_{axis}", f"{prefix}file_info")
+
+
 def _points_expression(prefix=""):
     """
-    Grid points of a topography: line scans have no second dimension.
+    Grid points of a measurement: line scans have no second dimension.
 
-    The cast is not cosmetic. Both resolutions are 32-bit integers, and
-    PostgreSQL multiplies ``integer * integer`` as an integer, so a map beyond
-    roughly 46000 x 46000 would overflow the product - precisely the size of map
-    this guard exists to catch.
+    The resolutions live in the `file_info` JSON document, so they arrive as text
+    and have to be cast before they can be multiplied.
+
+    The cast to `BigIntegerField` is not cosmetic. Both resolutions are 32-bit
+    integers, and PostgreSQL multiplies ``integer * integer`` as an integer, so a
+    map beyond roughly 46000 x 46000 would overflow the product - precisely the
+    size of map this guard exists to catch.
     """
-    return Cast(
-        f"{prefix}resolution_x", BigIntegerField()
-    ) * Coalesce(F(f"{prefix}resolution_y"), Value(1))
+    return Cast(_resolution(prefix, "x"), BigIntegerField()) * Coalesce(
+        Cast(_resolution(prefix, "y"), BigIntegerField()), Value(1)
+    )
 
 
 def observed_bytes_per_point(use_cache=True):
@@ -132,7 +141,7 @@ def observed_bytes_per_point(use_cache=True):
             task_memory__gt=0,
             task_end_time__gte=timezone.now() - timedelta(days=window_days),
             subject_measurement__isnull=False,
-            subject_measurement__resolution_x__isnull=False,
+            subject_measurement__file_info__has_key="resolution_x",
         )
         .annotate(points=_points_expression("subject_measurement__"))
         .values_list("workflow_name", "task_memory", "points")
@@ -171,10 +180,10 @@ def grid_points(analysis):
     from topobank.manager.models import Measurement
 
     if analysis.subject_measurement_id is not None:
-        topography = analysis.subject_measurement
-        if topography.resolution_x is None:
+        info = analysis.subject_measurement.info
+        if info.resolution_x is None:
             return None
-        return topography.resolution_x * (topography.resolution_y or 1)
+        return info.resolution_x * (getattr(info, "resolution_y", None) or 1)
 
     if analysis.subject_surface_id is not None:
         queryset = Measurement.objects.filter(surface_id=analysis.subject_surface_id)
@@ -187,7 +196,7 @@ def grid_points(analysis):
         queryset = Measurement.objects.filter(surface_id__in=surface_ids)
 
     return (
-        queryset.filter(resolution_x__isnull=False)
+        queryset.filter(file_info__has_key="resolution_x")
         .annotate(points=_points_expression())
         .aggregate(largest=Max("points"))["largest"]
     )

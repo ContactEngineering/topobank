@@ -38,6 +38,7 @@ from ..taskapp.models import IncompleteMetadataError, TaskStateModel
 from ..taskapp.utils import run_task
 from ..measurements.registry import (
     MeasurementNotInspectedError,
+    MeasurementRegistryError,
     get_adapter,
     has_adapter,
     infer_kind,
@@ -46,6 +47,7 @@ from ..measurements.adapters import (
     write_canonical_manifest,
     write_thumbnail_manifest,
 )
+from ..measurements.schemas import dump_metadata, significant_values
 from ..utils.timer import Timer
 from .utils import (
     detrend_parameters,
@@ -835,6 +837,17 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     # record stays listable, downloadable and deletable, but its data cannot be
     # read.
     kind = models.TextField(null=True, blank=True, editable=False)
+
+    #
+    # Metadata
+    #
+    # User-facing physical metadata, validated against the schema of this
+    # measurement's kind (see `topobank.measurements.schemas`). Reached through
+    # `meta`, which parses it, rather than read as a raw dict.
+    metadata = models.JSONField(default=dict)
+    # Read-only cache derived from the data file, written only by the inspection
+    # task. Reached through `info`.
+    file_info = models.JSONField(default=dict)
     # Django documentation discourages the use of null=True on a CharField. We use it
     # here nevertheless, because we need this values as argument to a function where
     # None has a special meaning (autodetection of format). If we used an empty string
@@ -993,38 +1006,32 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         except self.DoesNotExist:
             pass  # Do nothing, we have just created a new topography
         else:
-            # Check which fields actually changed
-            changed_fields = [
-                (update_fields is None or name in update_fields)
-                and getattr(self, name) != getattr(old_obj, name)
-                for name in self._significant_fields
-            ]
+            # Which metadata counts as significant is declared by the schema
+            # rather than listed here, so a kind that gains a field does not also
+            # have to be added to a set in this module. Fields marked
+            # `significant: False` -- the free-text instrument name, and the
+            # non-significant entries of the instrument parameters -- are
+            # excluded by `significant_values` itself.
+            if update_fields is None or "metadata" in update_fields:
+                before = significant_values(old_obj.meta)
+                after = significant_values(self.meta)
+                refresh_dependent_data = before != after
 
-            changed_fields = [
-                name
-                for name, changed in zip(self._significant_fields, changed_fields)
-                if changed
-            ]
-
-            # `instrument_parameters` is special as it can contain non-significant
-            # entries
-            if update_fields is None or "instrument_parameters" in update_fields:
-                if InstrumentParametersModel(
-                    **self.instrument_parameters
-                ) != InstrumentParametersModel(**old_obj.instrument_parameters):
-                    changed_fields += ["instrument_parameters"]
-
-            # We need to refresh if any of the significant fields changed during this save
-            refresh_dependent_data = any(changed_fields)
-
-            if refresh_dependent_data:
-                _log.debug(
-                    f"The following significant fields of topography {self.id} changed: "
-                )
-                for name in changed_fields:
+                if refresh_dependent_data:
+                    changed = [
+                        name
+                        for name in after
+                        if before.get(name) != after.get(name)
+                    ]
                     _log.debug(
-                        f"{name}: was '{getattr(old_obj, name)}', is now '{getattr(self, name)}'"
+                        f"The following significant metadata of measurement "
+                        f"{self.id} changed: "
                     )
+                    for name in changed:
+                        _log.debug(
+                            f"{name}: was '{before.get(name)}', is now "
+                            f"'{after.get(name)}'"
+                        )
 
         # Check if we need to run the update task
         if refresh_dependent_data:
@@ -1115,12 +1122,11 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     def instrument_info(self):
         # Build dictionary with instrument information from database... this may override data provided by the
         # topography reader
+        instrument = self.meta.instrument
         return {
             "instrument": {
-                "name": self.instrument_name,
-                "parameters": InstrumentParametersModel(
-                    **self.instrument_parameters
-                ).model_dump(exclude_none=True),
+                "name": instrument.name,
+                "parameters": instrument.parameters.model_dump(exclude_none=True),
             }
         }
 
@@ -1175,6 +1181,67 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         return get_adapter(
             self.kind if self.kind is not None else self._infer_kind_from_datafile()
         )
+
+    @property
+    def meta(self):
+        """
+        The validated user-facing metadata of this measurement.
+
+        Returns a schema instance rather than the stored dict, so that reading a
+        field that does not apply to this kind fails instead of returning None.
+        Mutating the returned object does not persist anything; use
+        :meth:`update_metadata`.
+        """
+        return self.adapter.Metadata(**(self.metadata or {}))
+
+    @property
+    def info(self):
+        """
+        The validated file-derived cache of this measurement.
+
+        Written only by the inspection task, so this is read-only as far as the
+        rest of the application is concerned.
+        """
+        return self.adapter.FileInfo(**(self.file_info or {}))
+
+    def update_metadata(self, save=True, **changes):
+        """
+        Validate and store changes to the user-facing metadata.
+
+        Parameters
+        ----------
+        save : bool, optional
+            Whether to save the measurement. (Default: True)
+        **changes
+            Metadata fields to change.
+
+        Returns
+        -------
+        Measurement
+            This measurement.
+
+        Raises
+        ------
+        pydantic.ValidationError
+            If a value is invalid, or the field does not exist for this kind.
+        """
+        metadata = self.meta
+        for name, value in changes.items():
+            setattr(metadata, name, value)
+        self.metadata = dump_metadata(metadata)
+        if save:
+            self.save(update_fields=["metadata"])
+        return self
+
+    def update_file_info(self, save=True, **changes):
+        """Validate and store changes to the file-derived cache."""
+        info = self.info
+        for name, value in changes.items():
+            setattr(info, name, value)
+        self.file_info = dump_metadata(info)
+        if save:
+            self.save(update_fields=["file_info"])
+        return self
 
     @property
     def has_adapter(self):
@@ -1257,6 +1324,8 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     def to_dict(self):
         """Create dictionary for export of metadata to json or yaml"""
         # FIXME!! This code should be moved to a separate serializer class
+        meta = self.meta
+        info = self.info
         result = {
             "name": self.name,
             "datafile": {
@@ -1266,28 +1335,37 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
                 ),
             },
             "data_source": self.data_source,
-            "has_undefined_data": self.has_undefined_data,
-            "undefined_data_fraction": self.undefined_data_fraction,
-            "fill_undefined_data_mode": self.fill_undefined_data_mode,
-            "detrend_mode": self.detrend_mode,
-            "is_periodic": self.is_periodic,
+            "has_undefined_data": info.has_undefined_data,
+            "undefined_data_fraction": info.undefined_data_fraction,
+            # A kind that does not support filling or periodicity has no such
+            # field; the container format still expects the keys, so they fall
+            # back to what the behaviour effectively was.
+            "fill_undefined_data_mode": getattr(
+                meta, "fill_undefined_data_mode", "do-not-fill"
+            ),
+            "detrend_mode": meta.detrend_mode,
+            "is_periodic": getattr(meta, "is_periodic", False),
             "created_by": {"name": self.created_by.name,
                            "orcid": getattr(self.created_by, 'orcid_id', None)},
             "measurement_date": self.measurement_date,
             "description": self.description,
-            "unit": self.unit,
+            "unit": meta.unit,
             "size": (
-                [self.size_x] if self.size_y is None else [self.size_x, self.size_y]
+                [meta.size_x]
+                if getattr(meta, "size_y", None) is None
+                else [meta.size_x, meta.size_y]
             ),
             "tags": [t.name for t in self.tags.order_by("name")],
             "instrument": {
-                "name": self.instrument_name,
-                "type": self.instrument_type,
-                "parameters": self.instrument_parameters,
+                "name": meta.instrument.name,
+                "type": meta.instrument.type,
+                "parameters": meta.instrument.parameters.model_dump(
+                    exclude_none=True
+                ),
             },
         }
-        if self.height_scale_editable:
-            result["height_scale"] = self.height_scale
+        if info.height_scale_editable:
+            result["height_scale"] = meta.height_scale
             # see GH 718
 
         return result
@@ -1506,8 +1584,6 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         if st_topo.unit is not None:
             bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
             fac = get_unit_conversion_factor(st_topo.unit, "m")
-            self.bandwidth_lower = fac * bandwidth_lower
-            self.bandwidth_upper = fac * bandwidth_upper
 
             try:
                 short_reliability_cutoff = (
@@ -1518,18 +1594,24 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
                 short_reliability_cutoff = None
             if short_reliability_cutoff is not None:
                 short_reliability_cutoff *= fac
-            self.short_reliability_cutoff = (
-                short_reliability_cutoff  # None is also saved here
+
+            self.update_file_info(
+                save=False,
+                bandwidth_lower=fac * bandwidth_lower,
+                bandwidth_upper=fac * bandwidth_upper,
+                # None is also stored here
+                short_reliability_cutoff=short_reliability_cutoff,
             )
 
     @property
     def is_metadata_complete(self):
-        """Check whether we have all metadata to actually read the file"""
-        return (
-            self.size_x is not None
-            and self.unit is not None
-            and self.height_scale is not None
-        )
+        """Whether we have all the metadata needed to actually read the file."""
+        try:
+            return self.meta.is_complete()
+        except MeasurementRegistryError:
+            # No kind recorded, or no adapter for it: nothing can say what this
+            # measurement still needs.
+            return False
 
     def notify_users(self, sender, verb, description):
         self.permissions.notify_users(sender, verb, description)
@@ -1605,8 +1687,9 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         # container/zip imports (which populate this metadata from `index.json` before
         # inspection) are not affected.
         if getattr(settings, "TOPOBANK_REJECT_INCOMPLETE_METADATA", False):
-            size_missing = channel.physical_sizes is None and self.size_x is None
-            unit_missing = channel.unit is None and self.unit is None
+            stored = self.meta
+            size_missing = channel.physical_sizes is None and stored.size_x is None
+            unit_missing = channel.unit is None and stored.unit is None
             if size_missing or unit_missing:
                 missing = []
                 if size_missing:
@@ -1636,73 +1719,73 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         # necessary if the underlying reader changes (e.g. through bug fixes).
         #
 
-        # Populate resolution information in the database
+        # The inspection assembles both documents and applies them at the end, so
+        # that a file it ends up rejecting leaves nothing half-written behind.
+        metadata = self.meta
+        info = self.info
+
+        # Resolution
         if channel.dim == 1:
             (n,) = channel.nb_grid_pts
-            self.resolution_x = int(n)
-            self.resolution_y = None  # This indicates that this is a line scan
+            info.resolution_x = int(n)
         elif channel.dim == 2:
-            self.resolution_x, self.resolution_y = (int(n) for n in channel.nb_grid_pts)
+            info.resolution_x, info.resolution_y = (
+                int(n) for n in channel.nb_grid_pts
+            )
         else:
             # This should not happen
             raise NotImplementedError(
-                f"Cannot handle topographies of dimension {channel.dim}."
+                f"Cannot handle measurements of dimension {channel.dim}."
             )
 
-        # Populate size information in the database
+        # Size. `*_editable` records whether the file left the value to the user,
+        # which is why it belongs to the file-derived document rather than to the
+        # metadata the user edits.
         if channel.physical_sizes is None:
-            # Data file *does not* provide size information; the user must provide it
-            self.size_editable = True
+            info.size_editable = True
         else:
-            # Data file *does* provide size information; the user cannot override it
-            self.size_editable = False
-            # Reset size information here
+            info.size_editable = False
             if channel.dim == 1:
-                (s,) = channel.physical_sizes
-                self.size_x = float(s)
-                self.size_y = None
+                (size_x,) = channel.physical_sizes
+                metadata.size_x = float(size_x)
             elif channel.dim == 2:
-                self.size_x, self.size_y = (float(s) for s in channel.physical_sizes)
+                size_x, size_y = channel.physical_sizes
+                metadata.size_x = float(size_x)
+                metadata.size_y = float(size_y)
             else:
                 # This should not happen
                 raise NotImplementedError(
-                    f"Cannot handle topographies of dimension {channel.dim}."
+                    f"Cannot handle measurements of dimension {channel.dim}."
                 )
 
-        # Populate unit information in the database
+        # Unit
         if channel.unit is None:
-            # Data file *does not* provide unit information; the user must provide it
-            self.unit_editable = True
+            info.unit_editable = True
         else:
-            # Data file *does* provide unit information; the user cannot override it
-            self.unit_editable = False
-            # Reset unit information here
+            info.unit_editable = False
             if isinstance(channel.unit, tuple):
                 raise NotImplementedError(
                     f"Data channel '{channel.name}' contains information that is not "
                     "height."
                 )
-            self.unit = channel.unit
+            metadata.unit = channel.unit
 
-        # Populate height scale information in the database
+        # Height scale
         if channel.height_scale_factor is None:
-            # Data file *does not* provide height scale information; the user must provide it
-            self.height_scale_editable = True
+            info.height_scale_editable = True
         else:
-            # Data file *does* provide height scale information; the user cannot override it
-            self.height_scale_editable = False
-            # Reset unit information here
-            self.height_scale = channel.height_scale_factor
+            info.height_scale_editable = False
+            metadata.height_scale = channel.height_scale_factor
 
-        # Populate information on periodicity
-        if not channel.is_uniform:
-            # This is a nonuniform line scan that does not support periodicity
-            self.is_periodic_editable = False
-            self.is_periodic = False
-        elif self.is_periodic is None:
-            # This is a uniform line scan or map, periodicity is supported
-            self.is_periodic_editable = True
-            self.is_periodic = channel.is_periodic
+        # Periodicity. A nonuniform line scan has no `is_periodic` field at all,
+        # so there is nothing to set for it -- what used to be expressed by
+        # clearing `is_periodic_editable` is now the shape of its schema.
+        if channel.is_uniform:
+            info.is_periodic_editable = True
+            if not self.metadata:
+                metadata.is_periodic = bool(channel.is_periodic)
+        else:
+            info.is_periodic_editable = False
 
         #
         # We now look for optional metadata. Only import it from the file on first read,
@@ -1719,19 +1802,25 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
 
             # Instrument name
             try:
-                self.instrument_name = channel.info["instrument"]["name"]
+                metadata.instrument.name = channel.info["instrument"]["name"]
             except:  # noqa: E722
                 pass
 
             # Instrument parameters
             try:
-                self.instrument_parameters = channel.info["instrument"]["parameters"]
-                if "tip_radius" in self.instrument_parameters:
-                    self.instrument_type = self.INSTRUMENT_TYPE_CONTACT_BASED
-                elif "resolution" in self.instrument_parameters:
-                    self.instrument_type = self.INSTRUMENT_TYPE_MICROSCOPE_BASED
+                parameters = channel.info["instrument"]["parameters"]
+                metadata.instrument.parameters = InstrumentParametersModel(
+                    **parameters
+                )
+                if "tip_radius" in parameters:
+                    metadata.instrument.type = self.INSTRUMENT_TYPE_CONTACT_BASED
+                elif "resolution" in parameters:
+                    metadata.instrument.type = self.INSTRUMENT_TYPE_MICROSCOPE_BASED
             except:  # noqa: E722
-                self.instrument_type = self.INSTRUMENT_TYPE_UNDEFINED
+                metadata.instrument.type = self.INSTRUMENT_TYPE_UNDEFINED
+
+        self.metadata = dump_metadata(metadata)
+        self.file_info = dump_metadata(info)
 
         # Read the file if metadata information is complete
         if self.is_metadata_complete:
@@ -1746,17 +1835,18 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
                 # with filling enabled the pipeline reports no undefined data by
                 # definition, which would erase the very information the fill
                 # mode was chosen in response to.
-                self.undefined_data_fraction = undefined_data_fraction(st_topo)
-                self.has_undefined_data = (
-                    None
-                    if self.undefined_data_fraction is None
-                    else self.undefined_data_fraction > 0
+                fraction = undefined_data_fraction(st_topo)
+                self.update_file_info(
+                    save=False,
+                    undefined_data_fraction=fraction,
+                    has_undefined_data=(
+                        None if fraction is None else fraction > 0
+                    ),
+                    # What the detrending actually removed. `st_topo` is the
+                    # detrended topography, so this reads the fit it performed
+                    # rather than repeating it.
+                    detrend_parameters=detrend_parameters(st_topo),
                 )
-
-                # What the detrending actually removed. `st_topo` is the
-                # detrended topography, so this reads the fit it performed
-                # rather than repeating it.
-                self.detrend_parameters = detrend_parameters(st_topo)
 
                 # Refresh other cached quantities
                 with timer("refresh_bandwidth_cache"):
@@ -1803,9 +1893,10 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
 
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""
-        s = self.HAS_UNDEFINED_DATA_DESCRIPTION[self.has_undefined_data]
-        if self.has_undefined_data and self.undefined_data_fraction is not None:
-            percentage = f"{100 * self.undefined_data_fraction:.2g}"
+        info = self.info
+        s = self.HAS_UNDEFINED_DATA_DESCRIPTION[info.has_undefined_data]
+        if info.has_undefined_data and info.undefined_data_fraction is not None:
+            percentage = f"{100 * info.undefined_data_fraction:.2g}"
             s += f" {percentage}% of the data points are undefined."
         if (
             self.fill_undefined_data_mode

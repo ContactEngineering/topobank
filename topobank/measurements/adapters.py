@@ -34,6 +34,16 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 
 from .registry import register_adapter
+from .schemas import (
+    MeasurementFileInfo,
+    MeasurementMetadata,
+    NonuniformLineScanFileInfo,
+    NonuniformLineScanMetadata,
+    TopographyMapFileInfo,
+    TopographyMapMetadata,
+    UniformLineScanFileInfo,
+    UniformLineScanMetadata,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -55,6 +65,11 @@ class MeasurementAdapter(abc.ABC):
         name = None
         #: Human-readable name for the UI.
         display_name = None
+
+    #: Schema of the user-facing metadata, stored in ``Measurement.metadata``.
+    Metadata = MeasurementMetadata
+    #: Schema of the file-derived cache, stored in ``Measurement.file_info``.
+    FileInfo = MeasurementFileInfo
 
     #
     # Capabilities. These tell the generic machinery which derived artifacts exist
@@ -243,8 +258,11 @@ class SurfaceTopographyAdapter(MeasurementAdapter):
         """
         self._warn_if_expensive(measurement)
 
+        meta = measurement.meta
         reader_kwargs = dict(
-            channel_index=measurement.data_source, periodic=measurement.is_periodic
+            channel_index=measurement.data_source,
+            # A kind without periodicity is never periodic.
+            periodic=getattr(meta, "is_periodic", False),
         )
         channel = reader.channels[
             reader.default_channel.index
@@ -254,10 +272,10 @@ class SurfaceTopographyAdapter(MeasurementAdapter):
 
         if channel.physical_sizes is None:
             reader_kwargs["physical_sizes"] = self.physical_sizes_of(measurement)
-        if channel.height_scale_factor is None and measurement.height_scale:
-            reader_kwargs["height_scale_factor"] = measurement.height_scale
+        if channel.height_scale_factor is None and meta.height_scale:
+            reader_kwargs["height_scale_factor"] = meta.height_scale
         if channel.unit is None:
-            reader_kwargs["unit"] = measurement.unit
+            reader_kwargs["unit"] = meta.unit
         reader_kwargs["info"] = measurement.instrument_info
 
         data = reader.topography(**reader_kwargs)
@@ -266,18 +284,14 @@ class SurfaceTopographyAdapter(MeasurementAdapter):
         return data
 
     def apply_filters(self, measurement, data):
-        """Fill undefined data and detrend, according to the stored parameters."""
-        from ..manager.models import Measurement
-
-        if (
-            measurement.fill_undefined_data_mode
-            != Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING
-            and data.is_uniform
-        ):
-            data = data.interpolate_undefined_data(
-                measurement.fill_undefined_data_mode
-            )
-        return data.detrend(detrend_mode=measurement.detrend_mode)
+        """Fill undefined data and detrend, according to the stored metadata."""
+        meta = measurement.meta
+        # A kind that cannot interpolate undefined data has no such field, which
+        # is the same as never filling.
+        fill_mode = getattr(meta, "fill_undefined_data_mode", "do-not-fill")
+        if fill_mode != "do-not-fill" and data.is_uniform:
+            data = data.interpolate_undefined_data(fill_mode)
+        return data.detrend(detrend_mode=meta.detrend_mode)
 
     @staticmethod
     def physical_sizes_of(measurement):
@@ -310,7 +324,7 @@ class LineScanAdapter(SurfaceTopographyAdapter):
 
     @staticmethod
     def physical_sizes_of(measurement):
-        return (measurement.size_x,)
+        return (measurement.meta.size_x,)
 
     def render_thumbnail(self, measurement, data, width=400, height=400, cmap=None):
         from matplotlib.figure import Figure
@@ -345,6 +359,9 @@ class TopographyMapAdapter(SurfaceTopographyAdapter):
         name = "topography-map"
         display_name = "Topography map"
 
+    Metadata = TopographyMapMetadata
+    FileInfo = TopographyMapFileInfo
+
     dim = 2
     has_deepzoom = True
     # Reading a map means pulling a full 2D array into memory.
@@ -352,7 +369,8 @@ class TopographyMapAdapter(SurfaceTopographyAdapter):
 
     @staticmethod
     def physical_sizes_of(measurement):
-        return measurement.size_x, measurement.size_y
+        meta = measurement.meta
+        return meta.size_x, meta.size_y
 
     def render_thumbnail(self, measurement, data, width=400, height=400, cmap=None):
         image_file = io.BytesIO()
@@ -405,6 +423,9 @@ class UniformLineScanAdapter(LineScanAdapter):
         name = "uniform-line-scan"
         display_name = "Uniform line scan"
 
+    Metadata = UniformLineScanMetadata
+    FileInfo = UniformLineScanFileInfo
+
     is_uniform = True
 
 
@@ -415,6 +436,9 @@ class NonuniformLineScanAdapter(LineScanAdapter):
     class Meta:
         name = "nonuniform-line-scan"
         display_name = "Nonuniform line scan"
+
+    Metadata = NonuniformLineScanMetadata
+    FileInfo = NonuniformLineScanFileInfo
 
     is_uniform = False
 

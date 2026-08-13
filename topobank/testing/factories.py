@@ -220,15 +220,11 @@ class Topography1DFactory(factory.django.DjangoModelFactory):
     measurement_date = factory.Sequence(
         lambda n: datetime.date(2019, 1, 1) + datetime.timedelta(days=n)
     )
-    size_x = 512
-    # if you need size_y, use Topography2DFactory below
-    size_editable = False
-    unit_editable = False
-    height_scale_editable = True
-    unit = "nm"
-    instrument_name = ""
-    instrument_type = Measurement.INSTRUMENT_TYPE_UNDEFINED
-    instrument_parameters = {}
+    # Seed metadata for what the data file does not provide. The inspection in
+    # `post_generation` merges the file's own values in on top and adds `kind`,
+    # so this only has to cover the gaps. Deliberately without `kind`: it is not
+    # known until the file has been inspected.
+    metadata = {"size_x": 512, "unit": "nm"}
     # `post_generation` below calls refresh_cache(), which is the body of the
     # inspection task (see Measurement.task_worker). Calling it directly bypasses
     # the task wrapper that would normally record the outcome, so factory-built
@@ -262,7 +258,7 @@ class Topography2DFactory(Topography1DFactory):
         model = Measurement
         exclude = ("filename",)
 
-    size_y = 512
+    metadata = {"size_x": 512, "size_y": 512, "unit": "nm"}
     filename = "10x10.txt"
     datafile = factory.SubFactory(
         ManifestFactory, filename=factory.SelfAttribute("..filename")
