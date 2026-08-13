@@ -12,7 +12,7 @@ from django.db import migrations, models
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("manager", "0084_rename_topography_measurement"),
+        ("manager", "0086_rename_topography_measurement"),
     ]
 
     operations = [

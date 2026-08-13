@@ -17,6 +17,17 @@
   `WorkflowResult.subject_topography` is `subject_measurement`. There is no
   compatibility alias, so out-of-tree code has to be updated.
 
+# 1.72.0 (not yet released)
+
+- ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
+  iD, for testing behaviour that depends on the identity a user signed in with.
+  The factory previously always attached one
+- DOC: Authentication is documented by the site that implements it, not here.
+  `docs/orcid.rst` and the provider fixture templates moved to ce-ui, and the
+  installation, deployment and publishing documents now describe what topobank
+  requires -- a user model and, for social sign-in, a `socialaccount.socialapp`
+  row -- without naming a provider
+
 # 1.71.0 (2026-08-03)
 
 - ENH: A data series records the extent of its data next to the reference to its

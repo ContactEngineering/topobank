@@ -50,7 +50,7 @@ def clear_kind(apps, schema_editor):
 class Migration(migrations.Migration):
 
     dependencies = [
-        ("manager", "0085_measurement_kind"),
+        ("manager", "0087_measurement_kind"),
     ]
 
     operations = [

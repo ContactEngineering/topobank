@@ -18,7 +18,7 @@ from topobank.testing.factories import Topography1DFactory
 # The module name starts with a digit, so it cannot be imported with `from ...
 # import`.
 backfill_module = importlib.import_module(
-    "topobank.manager.migrations.0086_backfill_measurement_kind"
+    "topobank.manager.migrations.0088_backfill_measurement_kind"
 )
 
 

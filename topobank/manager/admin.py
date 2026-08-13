@@ -80,7 +80,7 @@ class TagFieldAdminMixin:
 
 @admin.register(Surface)
 class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
-    list_display = ("id", "name", "tags_display", "deletion_time", "created_at")
+    list_display = ("id", "name", "tags_display", "deleted_at", "created_at")
     ordering = ["-created_at"]
     search_fields = ("name", "id", "tags__name")
     # Render foreign keys as ID inputs with a lookup popup rather than <select>
@@ -106,7 +106,7 @@ class SurfaceAdmin(TagFieldAdminMixin, admin.ModelAdmin):
 
 @admin.register(Measurement)
 class MeasurementAdmin(TagFieldAdminMixin, admin.ModelAdmin):
-    list_display = ("id", "name", "deletion_time", "created_at", "task_state", "task_id")
+    list_display = ("id", "name", "deleted_at", "created_at", "task_state", "task_id")
     list_filter = ("task_state",)
     ordering = ["-created_at"]
     search_fields = ("name", "id", "task_id")

@@ -100,4 +100,4 @@ class SurfaceTopographyManager(AuthorizedManager):
     """Default manager for Surface and Measurement that excludes soft-deleted records."""
 
     def get_queryset(self) -> AuthorizedQuerySet:
-        return super().get_queryset().filter(deletion_time__isnull=True)
+        return super().get_queryset().filter(deleted_at__isnull=True)

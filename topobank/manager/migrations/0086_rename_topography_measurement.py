@@ -49,7 +49,9 @@ class Migration(migrations.Migration):
         # them.
         ("analysis", "0064_backfill_subject_hash"),
         ("contenttypes", "0002_remove_content_type_name"),
-        ("manager", "0083_topography_undefined_data_fraction"),
+        # `main`'s `0084`/`0085` refer to `manager.topography` by name, so they have
+        # to run before the model is renamed out from under them.
+        ("manager", "0085_rename_deletion_time_to_deleted_at"),
     ]
 
     operations = [

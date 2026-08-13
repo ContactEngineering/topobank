@@ -4,6 +4,24 @@ Publishing Data
 Publishing is a non-reversible action which gives all users of the application
 read access to a surface.
 
+Who may publish
+---------------
+
+topobank does not restrict publishing beyond the permissions on the dataset. A
+site may add its own requirement, because a publication is a citable record and
+its authors have to be identifiable. contact.engineering requires the publisher
+to have a connected ORCID iD and enforces that on the publication endpoints, so
+that it applies to API clients as well; see ``docs/authentication.rst`` in
+ce-ui.
+
+.. note::
+
+   The sections below are a design record from the time publishing was
+   introduced, written in the future tense against version 0.9.0. They describe
+   the intent accurately, but not every detail matches the current
+   implementation — permissions, for instance, are no longer modelled as a
+   group named "all" but through the permission set of a dataset.
+
 Comparison with Sharing
 -----------------------
 
@@ -77,9 +95,11 @@ Permanent URL
 -------------
 
 There is a permanent URL for the published surfaces, in the form
-```
-    https://contact.engineering/go/<UIID>
-```
+
+::
+
+    https://contact.engineering/go/<UUID>
+
 This redirects to the property page of the surface.
 
 Each specific version of a surface gets an new URL.
