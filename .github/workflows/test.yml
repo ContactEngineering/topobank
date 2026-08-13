@@ -21,9 +21,12 @@ jobs:
           # - ['hello-world', 'sqlite:///topobank.sqlite3']
           - ['postgres:17', 'postgres://postgres:secret@localhost/topobank-test']
         storage:
-          - ['hello-world', 'inmemorystorage.InMemoryStorage', 'POST']
+          - ['filesystem', 'django.core.files.storage.FileSystemStorage', 'POST']
+          # There is no second entry with 'PUT' here: the upload method only
+          # affects `get_upload_instructions`, which lives in topobank-rest-api.
+          # Nothing in this repository reads `UPLOAD_METHOD`, so a 'PUT' entry
+          # would run exactly the same tests as the 'POST' one.
           - ['seaweedfs', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
-          - ['seaweedfs', 'storages.backends.s3boto3.S3Boto3Storage', 'PUT']
         python-version: ['3.10', '3.13']
 
     services:
@@ -43,25 +46,29 @@ jobs:
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: secret12
       AWS_STORAGE_BUCKET_NAME: topobank-test
-      AWS_S3_ENDPOINT_URL: http://localhost:8333
+      AWS_S3_ENDPOINT_URL: http://localhost:9000
       AWS_DEFAULT_REGION: us-east-1
 
     steps:
     # SeaweedFS is started before the checkout so that it boots while the source
     # code is checked out and the dependencies are installed. Readiness is
     # checked in the "Create bucket" step below.
+    #
+    # The S3 gateway is exposed on port 9000, which is the port the development
+    # stack uses as well.
     - name: Start SeaweedFS
       if: endsWith(matrix.storage[1], 'S3Boto3Storage')
       run: |
         # The S3 gateway picks up AWS_ACCESS_KEY_ID/AWS_SECRET_ACCESS_KEY and
-        # creates a matching admin identity, so no `-s3.config` file is needed.
+        # creates a matching admin identity, so no `-s3.config` file is needed
+        # here (unlike in the development stack).
         docker run -d \
           --name seaweedfs \
-          -p 8333:8333 \
+          -p 9000:9000 \
           -e AWS_ACCESS_KEY_ID=$AWS_ACCESS_KEY_ID \
           -e AWS_SECRET_ACCESS_KEY=$AWS_SECRET_ACCESS_KEY \
           chrislusf/seaweedfs:latest \
-          server -s3 -s3.port=8333
+          server -filer -s3 -s3.port=9000
 
     - name: Checkout source code
       uses: actions/checkout@v7

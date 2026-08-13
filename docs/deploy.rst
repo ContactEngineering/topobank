@@ -761,11 +761,11 @@ In the docker compose files there is a predefined service named "dbbackup". This
 docker image named "codestation/postgres-s3-backup", which stores postgres dumps to an S3 backend
 using a scheduler.
 
-The docker compose configuration for local development also starts a local "minio" S3 service
+The configuration for local development also starts a local "seaweedfs" S3 service
 to store the media files and stores the dumps. It is used automatically.
 
 The docker compose configuration for production also uses the configured S3 connection, but there
-is no local minio service installed.
+is no local S3 service installed.
 
 The backup is always saved with a prefix "backup", so your dump files e.g. look like this:
 
