@@ -101,79 +101,69 @@ developing this plugin:
 First build the plugin package, upload it to the integrated pypi server (see above)
 and rebuild the image, then restart the docker containers.
 
-Accessing Minio contents from localhost
----------------------------------------
+Accessing S3 contents from localhost
+------------------------------------
+
+The browser accesses some S3 contents directly, without going through the Django
+application server: the zoom image of a measurement and the analysis results are
+fetched from the storage backend. The S3 endpoint therefore has to be reachable
+under the same URL from both the application server and the browser.
 
 Configuring URL resolution
 ..........................
 
-If you run the application in Docker with :code:`docker compose -f local.yml up`,
-you want your browser to be able to access the S3 contents directly,
-because the Zoom image of a measurement and also the analyses results are fetched from
-there without going over the django application server.
-
-In order to do so, we use a trick:
-
-1. Edit your :code:`/etc/hosts` and add this line:
+The development stack (see :code:`ce-devbox`) runs SeaweedFS as a normal process
+on the development machine, so both the application server and the browser reach
+it at :code:`http://localhost:9000` and nothing else needs to be configured:
 
 .. code::
 
-    127.0.0.1 topobank-minio-alias
+   AWS_S3_ENDPOINT_URL=http://localhost:9000
 
-2. Make sure in :code:`.envs/.local/.django` that you have configured
-
-.. code::
-
-   AWS_S3_ENDPOINT_URL=http://topobank-minio-alias:9000
-
-3. Make sure that in :code:`local.yml` you define an alias for the :code:`minio` container
-   e.g.
-
-   .. code::
-
-    networks:
-      topobank_net:
-        aliases:
-          # For localhost access, add the following to your /etc/hosts
-          # 127.0.0.1  topobank-minio-alias
-          # and make sure that in settings, the AWS URL also uses this hostname;
-          # Like this, the URL given for accessing the S3 can be resolved
-          # on the host computer, because minio is exposed to port 9000 on host
-          - topobank-minio-alias
-
-    Of course you need to use this network :code:`topobank_net` also for this other containers
-    and define it on top.
-
-The alternative we used before is also possible. You could also
-defined in :code:`/etc/hosts` an alias the the **current IP of minio**, e.g.
-
-.. code::
-
-    172.18.0.5      minio
-
-The current minio IP can be found be inspecting the running minio service.
-This has to be changed each time the minio IP changes, so this is a bit cumbersome.
-Using the alias as described above is more convenient and also assumed in the next subsection
-below.
+If you instead run the stack in Docker, the storage container is not reachable
+under the same name from inside the Docker network and from the host. In that
+case, give the container a network alias, expose the S3 port on the host, add
+the alias to your :code:`/etc/hosts` pointing at :code:`127.0.0.1`, and use that
+alias in :code:`AWS_S3_ENDPOINT_URL`, so that the URL resolves both inside and
+outside the Docker network.
 
 Configuring CORS
 ................
 
-This also applies to the development when running the app in Docker.
+Since the browser loads S3 contents from a different origin than the application
+server, the storage backend has to send the appropriate CORS headers. Without
+them you will see error messages such as "The Same Origin Policy disallows
+reading the remote resource at http://localhost:9000/..." and "Reason: CORS
+request did not succeed".
 
-When your application tries to access the local minio server (S3 server),
-that minio server runs in a Docker container on your development machine.
+SeaweedFS takes the CORS configuration per bucket through the regular S3 API, so
+it can be applied with any S3 client:
 
-You might see the error message "The Same Policy Origin disallows reading the remote
-resource at http://topobank-minio-alias:9000/..." and "Reason: CORS request did not succeed".
+.. code:: bash
 
-In order to solve this, this minio via its web console: https://topobank-minio-alias:9001
-The username and password is configured in `.envs/.local/.django`, the default ist "admin"
-and "secret12". Then, go to "Settings > Configuration > API".
-For "Cors Allow Origin" enter: "http://localhost:8000"
+    $ aws --endpoint-url $AWS_S3_ENDPOINT_URL --region us-east-1 \
+        s3api put-bucket-cors --bucket $AWS_STORAGE_BUCKET_NAME \
+        --cors-configuration file://cors.json
 
-Then it should be possible to access the S3 contents directly which is done
-e.g. when displaying analysis results.
+where :code:`cors.json` allows the origin the application is served from, e.g.:
+
+.. code:: json
+
+    {
+      "CORSRules": [
+        {
+          "AllowedOrigins": ["http://localhost:8000"],
+          "AllowedMethods": ["GET", "PUT", "POST", "HEAD"],
+          "AllowedHeaders": ["*"],
+          "ExposeHeaders": ["ETag"]
+        }
+      ]
+    }
+
+In the development stack this is done by :code:`devbox run setup-storage`, which
+creates the bucket and applies the CORS policy in one step. Alternatively,
+SeaweedFS accepts a global list of allowed origins on startup via the
+:code:`-s3.allowedOrigins` command line flag.
 
 
 

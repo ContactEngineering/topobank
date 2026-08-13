@@ -75,4 +75,4 @@ Currently this workaround is needed:
 - Select "TCP socket" (instead "Unix socket")
 - Enter 'unix:///var/run/docker.sock' under "Engine API URL"
 
-More about docker + pycharm see `Docker Remote Debugging`_.
+More about docker + pycharm see :doc:`pycharm/configuration`.

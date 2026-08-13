@@ -29,6 +29,14 @@ Alternatively, open a psql console and enter::
 German description of initialization of a development machine (to be translated + tested)
 -----------------------------------------------------------------------------------------
 
+.. warning::
+
+   This section is out of date and kept only for reference. It describes a
+   ``develop`` branch and a repository layout that no longer exist, an
+   organization that has since been renamed to ``ContactEngineering``, and a
+   file layout under ``media/topographies`` that the storage layer replaced.
+   Follow :doc:`development` for setting up a development machine.
+
 Im "develop"-Branch des "Topobank"-Projekts
 
  https://github.com/ComputationalMechanics/TopoBank/tree/develop
@@ -107,18 +115,30 @@ not already happend. Currently errors during the database operations are not cat
 Creating a superuser
 --------------------
 
-Is this needed?
+A superuser is needed to reach the Django admin interface, which is where the
+identity providers are configured by hand if you do not import them from a
+fixture:
 
-In order to activate the ORCID authentication we need to have a super user who enters ...
+.. code:: bash
 
+    $ python manage.py createsuperuser
 
-Create ORCID configuration directly in database
------------------------------------------------
+An account created this way signs in with its username and password.
 
-::
+Configuring the identity providers
+----------------------------------
 
-     INSERT INTO socialaccount_socialapp (provider,name,client_id,key,secret)
-            VALUES ('orcid', 'ORCID', '<insert client id here>', '','<insert password here>')
+topobank does not prescribe how users sign in; that is decided by the site
+supplying the user model. If the site offers social sign-in, each identity
+provider needs a ``socialaccount.socialapp`` row holding its client ID and
+secret, associated with the current site. Create it either from the Django
+admin or, preferably, by importing a fixture template. For
+contact.engineering, both routes and how to obtain the credentials in the first
+place are described in ``docs/authentication.rst`` in ce-ui.
+
+Do not write that row with hand-crafted SQL: django-allauth also maintains a
+many-to-many relation to ``django_site``, and a row inserted without it is
+ignored.
 
 Setup of RabbitMQ on local machine
 ----------------------------------
@@ -249,7 +269,8 @@ The following services are started:
 - automatic database backup to S3
 - rabbitmq message broker
 - memcached for caching intermediate results
-- minio: S3 server for media files and backup, see port 9000 in browser
+- seaweedfs: S3 server for media files and backup, S3 API on port 9000,
+  filer user interface on port 8888
 - mailhog: local mail server+client with web interface on port 8025
 
 See local.yml for details and which ports are available to the host.

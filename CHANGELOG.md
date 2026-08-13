@@ -1,7 +1,13 @@
 # Changelog for *TopoBank*
 
-# Unreleased
+# 1.72.0 (not yet released)
 
+- ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
+  iD, for testing behaviour that depends on the identity a user signed in with.
+  The factory previously always attached one
+- MAINT: CI runs its S3 tests against SeaweedFS instead of Minio, which is the
+  S3 implementation the development stack uses. The bucket is created with
+  `boto3` instead of a separately downloaded `mc` client
 - BUILD: Dropped four unmaintained dependencies. `backports.entry-points-selectable`
   backports an API that is in the standard library on every Python we support,
   `dj-inmemorystorage` (last release 2020) and `py` (retired, and no longer a
@@ -18,6 +24,19 @@
   directly, so they read as active security controls while constraining nothing.
   Raised the `django-allauth` floor to the major version actually in use and
   dropped the undocumented `Sphinx` upper cap
+- TST: The test settings honor `STORAGE_BACKEND` and `TOPOBANK_UPLOAD_METHOD`
+  again, and derive `USE_S3_STORAGE` from the configured backend. Both were
+  hardcoded, so the S3 configuration in CI had no effect and every job silently
+  ran against `FileSystemStorage`
+- TST: `test_analysis_container_uses_spooled_temporary_file_with_setting` checks
+  that the container requests its spool size, rather than that it is the only
+  caller of `tempfile.SpooledTemporaryFile`. The S3 storage backend spools the
+  files it reads, so it also shows up in the globally patched mock
+- DOC: Authentication is documented by the site that implements it, not here.
+  `docs/orcid.rst` and the provider fixture templates moved to ce-ui, and the
+  installation, deployment and publishing documents now describe what topobank
+  requires -- a user model and, for social sign-in, a `socialaccount.socialapp`
+  row -- without naming a provider
 
 # 1.71.0 (2026-08-03)
 
