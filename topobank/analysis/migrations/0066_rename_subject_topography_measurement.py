@@ -21,7 +21,7 @@ class Migration(migrations.Migration):
     dependencies = [
         ("analysis", "0065_resultzipcontainer"),
         # The target model must have been renamed first.
-        ("manager", "0084_rename_topography_measurement"),
+        ("manager", "0086_rename_topography_measurement"),
     ]
 
     operations = [

@@ -54,6 +54,11 @@ class UserFactory(factory.django.DjangoModelFactory):
 
     @factory.post_generation
     def create_orcid_account(self, create, value, **kwargs):
+        # Pass `create_orcid_account=False` for a user who signed in through
+        # another identity provider, or with an email address and a password.
+        # Such a user has no ORCID iD and may therefore not publish.
+        if value is False:
+            return
         OrcidSocialAccountFactory(user_id=self.id)
         # NOTE: tests break without this save
         models.Model.save(self)

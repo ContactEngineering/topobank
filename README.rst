@@ -6,13 +6,14 @@ A surface metrology cloud database.
 User Accounts
 -------------
 
-The application uses `ORCID`_ for user authentication,
-so you need an ORCID account to use it.
+topobank does not implement authentication. The user model and the sign-in
+procedure are supplied by the site through ``AUTH_USER_MODEL`` and the
+``TOPOBANK_*_MODEL`` settings, so which identities users sign in with — and
+whether any of them are required for a given action — is the site's decision.
+For contact.engineering, see ``docs/authentication.rst`` in ce-ui.
 
 If you need a super user or staff user during development, e.g. for acccessing the admin page,
 connect to the database and set the :code:`is_superuser` or :code:`is_staff` flags manually.
-
-.. _ORCID: https://orcid.org/
 
 Running tests with pytest
 -------------------------

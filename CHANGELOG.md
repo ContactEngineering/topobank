@@ -2,6 +2,13 @@
 
 # 2.0.0 (unreleased)
 
+- ENH: The kind of data a measurement holds is now recorded explicitly, in
+  `Measurement.kind`, and a registry of measurement adapters decides how a record
+  of that kind is read and which derived artifacts it has. An external package can
+  register its own adapter through the `topobank.measurement_adapters` entry
+  point, which is what makes non-height data possible. Measurements whose kind has
+  no registered adapter -- because the package providing it is not installed --
+  stay listable, downloadable and deletable; only reading their data is refused.
 - API: `Topography` is now `Measurement`. The model records a measurement --
   identity, permissions, files and task state -- rather than something specific to
   topography data; every measurement still holds height data, so this release only
@@ -9,6 +16,17 @@
   `num_topographies()` is `num_measurements()`, and
   `WorkflowResult.subject_topography` is `subject_measurement`. There is no
   compatibility alias, so out-of-tree code has to be updated.
+
+# 1.72.0 (not yet released)
+
+- ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
+  iD, for testing behaviour that depends on the identity a user signed in with.
+  The factory previously always attached one
+- DOC: Authentication is documented by the site that implements it, not here.
+  `docs/orcid.rst` and the provider fixture templates moved to ce-ui, and the
+  installation, deployment and publishing documents now describe what topobank
+  requires -- a user model and, for social sign-in, a `socialaccount.socialapp`
+  row -- without naming a provider
 
 # 1.71.0 (2026-08-03)
 
