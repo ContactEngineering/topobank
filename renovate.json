@@ -2,5 +2,20 @@
     "$schema": "https://docs.renovatebot.com/renovate-schema.json",
     "extends": [
         "config:recommended"
+    ],
+    "customManagers": [
+        {
+            "description": "Track the django-notifications commit pinned in pyproject.toml. The standard pep621 manager ignores `git+https` direct references, which would otherwise leave this dependency invisible to Renovate. Deliberately scoped to django-notifications only: django-tagulous is pinned to a commit on a fork branch that carries a Django 5.2 fix absent from that fork's default branch, so bumping it to the branch head would silently regress it.",
+            "customType": "regex",
+            "managerFilePatterns": [
+                "/^pyproject\\.toml$/"
+            ],
+            "matchStrings": [
+                "git\\+https://github\\.com/(?<depName>django-notifications/django-notifications)\\.git@(?<currentDigest>[a-f0-9]{40})"
+            ],
+            "datasourceTemplate": "git-refs",
+            "packageNameTemplate": "https://github.com/{{{depName}}}",
+            "currentValueTemplate": "master"
+        }
     ]
 }
