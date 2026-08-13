@@ -5,6 +5,17 @@
 - ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
   iD, for testing behaviour that depends on the identity a user signed in with.
   The factory previously always attached one
+- MAINT: CI runs its S3 tests against SeaweedFS instead of Minio, which is the
+  S3 implementation the development stack uses. The bucket is created with
+  `boto3` instead of a separately downloaded `mc` client
+- TST: The test settings honor `STORAGE_BACKEND` and `TOPOBANK_UPLOAD_METHOD`
+  again, and derive `USE_S3_STORAGE` from the configured backend. Both were
+  hardcoded, so the S3 configuration in CI had no effect and every job silently
+  ran against `FileSystemStorage`
+- TST: `test_analysis_container_uses_spooled_temporary_file_with_setting` checks
+  that the container requests its spool size, rather than that it is the only
+  caller of `tempfile.SpooledTemporaryFile`. The S3 storage backend spools the
+  files it reads, so it also shows up in the globally patched mock
 - DOC: Authentication is documented by the site that implements it, not here.
   `docs/orcid.rst` and the provider fixture templates moved to ce-ui, and the
   installation, deployment and publishing documents now describe what topobank
