@@ -42,6 +42,24 @@ def periodic_cleanup():
         )
         WorkflowResult.objects.filter(pk__in=deprecated_pks).delete()
 
+    # Delete all analyses that were soft-deleted longer than the retention
+    # window ago. Independent of the deprecation clause above: stamped rows
+    # are purged regardless of ``name`` and regardless of whether a subject
+    # link survives — a soft-deleted result belongs to a deleted container,
+    # and its subject links may already be gone.
+    soft_deleted = WorkflowResult.objects.filter(
+        deleted_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
+    )
+    count = soft_deleted.count()
+    if count:
+        _log.info(
+            "Custodian: Deleting %d analysis results because they were "
+            "soft-deleted more than %s ago.",
+            count,
+            settings.TOPOBANK_DELETE_DELAY,
+        )
+        soft_deleted.delete()
+
     # Delete all ZIP containers of workflow results (they are just temporary
     # download bundles and can be rebuilt at any time)
     temporary_delay = getattr(

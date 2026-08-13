@@ -1,11 +1,13 @@
 """
 Functional tests for the analysis custodian (``topobank.analysis.custodian``).
 
-The ``periodic_cleanup`` task does two things:
+The ``periodic_cleanup`` task does three things:
 
 1. Hard-deletes deprecated, unnamed analysis results that have a subject and
    whose ``deprecation_time`` is older than ``TOPOBANK_ANALYSIS_DELETE_DELAY``.
-2. Marks analysis results that are stuck in the ``PENDING`` state (no Celery
+2. Hard-deletes soft-deleted analysis results whose ``deleted_at`` is older
+   than ``TOPOBANK_DELETE_DELAY`` — regardless of ``name`` or subject links.
+3. Marks analysis results that are stuck in the ``PENDING`` state (no Celery
    task id) for more than a day as ``FAILURE``.
 
 These tests assert the actual state transitions / deletions, including the
@@ -97,6 +99,79 @@ def test_keeps_active_non_deprecated_result():
     periodic_cleanup()
 
     assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+# ---------------------------------------------------------------------------
+# Cleanup of soft-deleted results
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_deletes_long_soft_deleted_result():
+    analysis = TopographyAnalysisFactory()
+    _set_unmanaged_fields(
+        analysis,
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        - datetime.timedelta(days=1),
+    )
+
+    periodic_cleanup()
+
+    assert not WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+@pytest.mark.django_db
+def test_keeps_recently_soft_deleted_result():
+    # Soft-deleted, but still inside the retention window -> restorable.
+    analysis = TopographyAnalysisFactory()
+    _set_unmanaged_fields(
+        analysis,
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        + datetime.timedelta(days=1),
+    )
+
+    periodic_cleanup()
+
+    assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+@pytest.mark.django_db
+def test_deletes_long_soft_deleted_named_result():
+    # Unlike the deprecation clause, a name does not protect a soft-deleted
+    # result: it was stamped because its container was deleted, and it goes
+    # when the container's retention window closes.
+    analysis = TopographyAnalysisFactory(name="my-saved-analysis")
+    _set_unmanaged_fields(
+        analysis,
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        - datetime.timedelta(days=1),
+    )
+
+    periodic_cleanup()
+
+    assert not WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+@pytest.mark.django_db
+def test_deletes_long_soft_deleted_result_without_subject():
+    # The deprecation clause requires a surviving subject link; the
+    # soft-delete clause must not, or purged containers would strand their
+    # results forever.
+    analysis = TopographyAnalysisFactory()
+    _set_unmanaged_fields(
+        analysis,
+        subject_topography=None,
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        - datetime.timedelta(days=1),
+    )
+
+    periodic_cleanup()
+
+    assert not WorkflowResult.objects.filter(pk=analysis.pk).exists()
 
 
 # ---------------------------------------------------------------------------
