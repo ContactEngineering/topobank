@@ -2,7 +2,7 @@ import logging
 from datetime import timedelta
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, RestrictedError
 from django.utils import timezone
 
 from ..taskapp.celeryapp import app
@@ -10,6 +10,31 @@ from .models import WorkflowResult
 from .zip_model import ResultZipContainer
 
 _log = logging.getLogger(__name__)
+
+
+def _delete_tolerating_restrict(queryset, description):
+    """Delete the queryset's rows, skipping any a RESTRICT reference protects.
+
+    Downstream plugins may guard analysis results with RESTRICT foreign keys
+    (e.g. a result a trained model was built from). A bulk delete aborts
+    wholesale on the first protected row, so fall back to per-row deletes
+    and leave protected rows for a later run, once their guard clears.
+    """
+    try:
+        queryset.delete()
+    except RestrictedError:
+        skipped = 0
+        for obj in queryset.iterator():
+            try:
+                obj.delete()
+            except RestrictedError:
+                skipped += 1
+        if skipped:
+            _log.info(
+                "Custodian: skipped %d %s protected by RESTRICT references.",
+                skipped,
+                description,
+            )
 
 
 @app.task
@@ -40,7 +65,10 @@ def periodic_cleanup():
             f"Custodian: Deleting {len(deprecated_pks)} analysis results because "
             "they were marked as deprecated."
         )
-        WorkflowResult.objects.filter(pk__in=deprecated_pks).delete()
+        _delete_tolerating_restrict(
+            WorkflowResult.objects.filter(pk__in=deprecated_pks),
+            "deprecated analysis results",
+        )
 
     # Delete all analyses that were soft-deleted longer than the retention
     # window ago. Independent of the deprecation clause above: stamped rows
@@ -58,7 +86,7 @@ def periodic_cleanup():
             count,
             settings.TOPOBANK_DELETE_DELAY,
         )
-        soft_deleted.delete()
+        _delete_tolerating_restrict(soft_deleted, "soft-deleted analysis results")
 
     # Delete all ZIP containers of workflow results (they are just temporary
     # download bundles and can be rebuilt at any time)
@@ -86,4 +114,6 @@ def periodic_cleanup():
             f"Custodian: Updating {q.count()} workflow results because they are stuck in pending state"
             " with no task assigned."
         )
-        q.update(task_state=WorkflowResult.FAILURE, task_error="Analysis failed to launch.")
+        q.update(
+            task_state=WorkflowResult.FAILURE, task_error="Analysis failed to launch."
+        )

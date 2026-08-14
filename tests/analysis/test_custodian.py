@@ -230,3 +230,42 @@ def test_keeps_pending_result_that_has_a_task_id():
 def test_cleanup_on_empty_database_is_noop():
     periodic_cleanup()
     assert WorkflowResult.objects.count() == 0
+
+
+# ---------------------------------------------------------------------------
+# RESTRICT tolerance
+# ---------------------------------------------------------------------------
+
+
+def test_delete_tolerating_restrict_falls_back_to_per_row_and_skips_protected():
+    from unittest.mock import MagicMock
+
+    from django.db.models import RestrictedError
+
+    from topobank.analysis.custodian import _delete_tolerating_restrict
+
+    collectable = MagicMock()
+    protected = MagicMock()
+    protected.delete.side_effect = RestrictedError("protected", set())
+
+    queryset = MagicMock()
+    queryset.delete.side_effect = RestrictedError("protected", set())
+    queryset.iterator.return_value = iter([collectable, protected])
+
+    _delete_tolerating_restrict(queryset, "analysis results")
+
+    collectable.delete.assert_called_once()
+    protected.delete.assert_called_once()
+
+
+def test_delete_tolerating_restrict_bulk_deletes_when_nothing_is_protected():
+    from unittest.mock import MagicMock
+
+    from topobank.analysis.custodian import _delete_tolerating_restrict
+
+    queryset = MagicMock()
+
+    _delete_tolerating_restrict(queryset, "analysis results")
+
+    queryset.delete.assert_called_once()
+    queryset.iterator.assert_not_called()
