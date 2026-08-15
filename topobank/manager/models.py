@@ -867,65 +867,74 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
     #
     # Fields with physical meta data
     #
-    size_editable = models.BooleanField(default=False, editable=False)
-    size_x = models.FloatField(null=True, validators=[MinValueValidator(0.0)])
-    size_y = models.FloatField(
+    #
+    # Legacy metadata columns
+    #
+    # Superseded by `metadata` and `file_info`, which `0090` filled in from these.
+    # Kept only so a backfill found to be wrong can be re-run from the original
+    # data, and renamed so that a reader nobody noticed raises `AttributeError`
+    # instead of quietly returning a pre-migration value. Nothing should read
+    # these; `0092` drops them.
+    #
+    legacy_size_editable = models.BooleanField(default=False, editable=False)
+    legacy_size_x = models.FloatField(null=True, validators=[MinValueValidator(0.0)])
+    legacy_size_y = models.FloatField(
         null=True, validators=[MinValueValidator(0.0)]
     )  # null for line scans
 
-    unit_editable = models.BooleanField(default=False, editable=False)
-    unit = models.TextField(choices=LENGTH_UNIT_CHOICES, null=True)
+    legacy_unit_editable = models.BooleanField(default=False, editable=False)
+    legacy_unit = models.TextField(choices=LENGTH_UNIT_CHOICES, null=True)
 
-    height_scale_editable = models.BooleanField(default=False, editable=False)
-    height_scale = models.FloatField(default=1)
+    legacy_height_scale_editable = models.BooleanField(default=False, editable=False)
+    legacy_height_scale = models.FloatField(default=1)
 
-    has_undefined_data = models.BooleanField(
+    legacy_has_undefined_data = models.BooleanField(
         null=True, default=None
     )  # default is undefined
     # Fraction (not percentage) of the data points of the measured data that are
     # undefined, in [0, 1]. Null until the measurement has been inspected.
-    undefined_data_fraction = models.FloatField(
+    legacy_undefined_data_fraction = models.FloatField(
         null=True, default=None, editable=False
     )
-    fill_undefined_data_mode = models.TextField(
+    legacy_fill_undefined_data_mode = models.TextField(
         choices=FILL_UNDEFINED_DATA_MODE_CHOICES,
         default=FILL_UNDEFINED_DATA_MODE_NOFILLING,
     )
 
-    detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default="center")
+    legacy_detrend_mode = models.TextField(choices=DETREND_MODE_CHOICES, default="center")
     # The trend that was subtracted, as `slope_x`/`slope_y` (dimensionless) and
     # `radius_x`/`radius_y` (in `unit`); see `utils.detrend_parameters`. Null until
     # the measurement has been inspected, empty when the mode fits no trend.
-    detrend_parameters = models.JSONField(null=True, default=None, editable=False)
+    legacy_detrend_parameters = models.JSONField(null=True, default=None, editable=False)
 
-    resolution_x = models.IntegerField(
+    legacy_resolution_x = models.IntegerField(
         null=True, editable=False, validators=[MinValueValidator(0)]
     )  # null for line scans
-    resolution_y = models.IntegerField(
+    legacy_resolution_y = models.IntegerField(
         null=True, editable=False, validators=[MinValueValidator(0)]
     )  # null for line scans
 
-    bandwidth_lower = models.FloatField(
+    legacy_bandwidth_lower = models.FloatField(
         null=True, default=None, editable=False
     )  # in meters
-    bandwidth_upper = models.FloatField(
+    legacy_bandwidth_upper = models.FloatField(
         null=True, default=None, editable=False
     )  # in meters
-    short_reliability_cutoff = models.FloatField(
+    legacy_short_reliability_cutoff = models.FloatField(
         null=True, default=None, editable=False
     )
 
-    is_periodic_editable = models.BooleanField(default=True, editable=False)
-    is_periodic = models.BooleanField(default=False)
+    legacy_is_periodic_editable = models.BooleanField(default=True, editable=False)
+    legacy_is_periodic = models.BooleanField(default=False)
 
     #
     # Fields about instrument and its parameters
     #
-    instrument_name = models.CharField(max_length=200, blank=True)
-    instrument_type = models.TextField(
+    legacy_instrument_name = models.CharField(max_length=200, blank=True)
+    legacy_instrument_type = models.TextField(
         choices=INSTRUMENT_TYPE_CHOICES, default=INSTRUMENT_TYPE_UNDEFINED
     )
-    instrument_parameters = models.JSONField(default=dict)
+    legacy_instrument_parameters = models.JSONField(default=dict)
 
     #
     # Thumnbnail and deep zoom files
@@ -1898,15 +1907,12 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         if info.has_undefined_data and info.undefined_data_fraction is not None:
             percentage = f"{100 * info.undefined_data_fraction:.2g}"
             s += f" {percentage}% of the data points are undefined."
-        if (
-            self.fill_undefined_data_mode
-            == Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING
-        ):
+        # A kind that cannot interpolate undefined data has no such field, which
+        # amounts to never filling.
+        fill_mode = getattr(self.meta, "fill_undefined_data_mode", "do-not-fill")
+        if fill_mode == Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING:
             s += " No correction of undefined data is performed."
-        elif (
-            self.fill_undefined_data_mode
-            == Measurement.FILL_UNDEFINED_DATA_MODE_HARMONIC
-        ):
+        elif fill_mode == Measurement.FILL_UNDEFINED_DATA_MODE_HARMONIC:
             s += (
                 " Undefined/missing values are filled in with values obtained from a "
                 "harmonic interpolation."
