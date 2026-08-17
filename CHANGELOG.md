@@ -9,6 +9,16 @@
   point, which is what makes non-height data possible. Measurements whose kind has
   no registered adapter -- because the package providing it is not installed --
   stay listable, downloadable and deletable; only reading their data is refused.
+- API: Measurement metadata moved out of typed columns into two validated JSON
+  documents. `Measurement.metadata` holds what a user can edit -- sizes, unit,
+  height scale, detrend mode, periodicity, instrument -- and `Measurement.file_info`
+  holds what inspecting the data file produced. Both are validated against a schema
+  chosen by the measurement's kind, reached through `measurement.meta` and
+  `measurement.info` and written through `update_metadata()`. A field that does not
+  apply to a kind is now absent rather than null: a line scan has no `size_y`, and a
+  nonuniform line scan has neither `is_periodic` nor `fill_undefined_data_mode`. The
+  columns they replace are retained under `legacy_*` names for one release and are
+  no longer read
 - API: `Topography` is now `Measurement`. The model records a measurement --
   identity, permissions, files and task state -- rather than something specific to
   topography data; every measurement still holds height data, so this release only

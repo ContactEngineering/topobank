@@ -35,7 +35,6 @@ def test_surface_container(example_authors):
             "unit": "µm",
         }
     }
-    has_undefined_data = False
     fill_undefined_data_mode = Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING
 
     user = UserFactory()
@@ -50,7 +49,7 @@ def test_surface_container(example_authors):
 
     topo1a = Topography1DFactory(surface=surface1)
     topo1b = Topography2DFactory(
-        surface=surface1, datafile__filename="example4.txt", height_scale_editable=False
+        surface=surface1, datafile__filename="example4.txt"
     )
     # for topo1b we use a datafile which has an height_scale_factor defined - this is needed in order
     # to test that this factor is NOT exported to index.json -
@@ -61,13 +60,16 @@ def test_surface_container(example_authors):
         surface=surface2,
         tags=[tag1, tag2],
         description="Nice measurement",
-        size_x=10,
-        size_y=5,
-        instrument_name=instrument_name,
-        instrument_type=instrument_type,
-        instrument_parameters=instrument_params,
-        has_undefined_data=has_undefined_data,
-        fill_undefined_data_mode=fill_undefined_data_mode,
+        metadata={
+            "size_x": 10,
+            "size_y": 5,
+            "instrument": {
+                "name": instrument_name,
+                "type": instrument_type,
+                "parameters": instrument_params,
+            },
+            "fill_undefined_data_mode": fill_undefined_data_mode,
+        },
     )
 
     # surface 3 is empty

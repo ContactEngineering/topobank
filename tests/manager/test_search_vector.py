@@ -94,11 +94,10 @@ def test_a_save_that_touches_no_searchable_field_does_not_reindex(mocker):
     topography = Topography2DFactory(surface=surface, name="stable.txt")
     reindex = mocker.patch.object(Surface, "update_search_vector")
 
-    topography.detrend_mode = "height"
-    topography.save(update_fields=["detrend_mode"])
+    topography.update_metadata(detrend_mode="height")
 
     reindex.assert_not_called()
-    assert Measurement.objects.get(pk=topography.pk).detrend_mode == "height"
+    assert Measurement.objects.get(pk=topography.pk).meta.detrend_mode == "height"
 
 
 @pytest.mark.django_db

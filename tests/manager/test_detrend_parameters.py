@@ -1,7 +1,7 @@
 """
 Tests for the trend that detrending subtracts from a measurement.
 
-`Topography.detrend_parameters` records what was removed — the slope of the tilt,
+`Measurement.info.detrend_parameters` records what was removed — the slope of the tilt,
 the radius of the curvature — so the UI can show which correction is in effect
 rather than only naming the mode.
 """
@@ -108,9 +108,13 @@ def test_a_topography_that_was_not_detrended_fits_no_trend():
 
 @pytest.mark.django_db
 def test_inspection_stores_the_parameters():
-    topo = Topography2DFactory(detrend_mode="height")
-    assert set(topo.detrend_parameters) == {"slope_x", "slope_y"}
-    assert all(isinstance(v, float) for v in topo.detrend_parameters.values())
+    topo = Topography2DFactory(
+        metadata={"size_x": 512, "size_y": 512, "unit": "nm", "detrend_mode": "height"}
+    )
+    assert set(topo.info.detrend_parameters) == {"slope_x", "slope_y"}
+    assert all(
+        isinstance(v, float) for v in topo.info.detrend_parameters.values()
+    )
 
 
 @pytest.mark.django_db

@@ -1022,8 +1022,8 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
             # non-significant entries of the instrument parameters -- are
             # excluded by `significant_values` itself.
             if update_fields is None or "metadata" in update_fields:
-                before = significant_values(old_obj.meta)
-                after = significant_values(self.meta)
+                before = old_obj._significant_metadata()
+                after = self._significant_metadata()
                 refresh_dependent_data = before != after
 
                 if refresh_dependent_data:
@@ -1190,6 +1190,21 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         return get_adapter(
             self.kind if self.kind is not None else self._infer_kind_from_datafile()
         )
+
+    def _significant_metadata(self):
+        """
+        The metadata that affects derived data, for change detection in `save`.
+
+        Deliberately does not go through `meta`: with no recorded kind, that
+        derives one from the data file, and opening a file during `save` is both
+        slow and outside the error handling of the inspection task -- an
+        unreadable file would raise here rather than being recorded as a failed
+        inspection. Without a kind there is no schema to say which fields matter,
+        so the stored document is compared as it is.
+        """
+        if not self.has_adapter:
+            return self.metadata or {}
+        return significant_values(self.meta)
 
     @property
     def meta(self):

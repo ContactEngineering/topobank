@@ -33,15 +33,15 @@ def test_topography_name(two_topos):
 @pytest.mark.django_db
 def test_topography_has_periodic_flag(two_topos):
     topos = Measurement.objects.all().order_by("name")
-    assert not topos[0].is_periodic
-    assert not topos[1].is_periodic
+    assert not topos[0].meta.is_periodic
+    assert not topos[1].meta.is_periodic
 
 
 @pytest.mark.django_db
 def test_topography_has_unit_set(two_topos):
     topos = Measurement.objects.all().order_by("name")
-    assert topos[0].unit == "nm"
-    assert topos[1].unit == "m"
+    assert topos[0].meta.unit == "nm"
+    assert topos[1].meta.unit == "m"
 
 
 @pytest.mark.django_db
@@ -56,14 +56,19 @@ def test_topography_instrument_dict():
     instrument_type = "contact-based"
 
     topo = Topography2DFactory(
-        instrument_name=instrument_name,
-        instrument_type=instrument_type,
-        instrument_parameters=instrument_parameters,
+        metadata={
+            "instrument": {
+                "name": instrument_name,
+                "type": instrument_type,
+                "parameters": instrument_parameters,
+            }
+        },
     )
 
-    assert topo.instrument_name == instrument_name
-    assert topo.instrument_type == instrument_type
-    assert topo.instrument_parameters == instrument_parameters
+    instrument = topo.meta.instrument
+    assert instrument.name == instrument_name
+    assert instrument.type == instrument_type
+    assert instrument.parameters.model_dump(exclude_none=True) == instrument_parameters
 
 
 @pytest.mark.django_db
@@ -111,19 +116,22 @@ def test_topography_to_dict():
     topo = Topography2DFactory(
         surface=surface,
         name=name,
-        size_x=size_x,
-        size_y=size_y,
-        height_scale=height_scale,
-        height_scale_editable=True,  # should be always True when height scale is given extra
-        detrend_mode=detrend_mode,
+        metadata={
+            "size_x": size_x,
+            "size_y": size_y,
+            "height_scale": height_scale,
+            "detrend_mode": detrend_mode,
+            "unit": unit,
+            "is_periodic": is_periodic,
+            "instrument": {
+                "name": instrument["name"],
+                "type": instrument["type"],
+                "parameters": instrument["parameters"],
+            },
+        },
         description=description,
-        unit=unit,
-        is_periodic=is_periodic,
         measurement_date=measurement_date,
         tags=tags,
-        instrument_name=instrument["name"],
-        instrument_type=instrument["type"],
-        instrument_parameters=instrument["parameters"],
     )
     topo.refresh_cache()
 
@@ -381,18 +389,18 @@ def test_notifications_are_deleted_when_topography_deleted():
 def test_squeezed_datafile(
     handle_usage_statistics, height_scale_factor, detrend_mode, use_dummy_cache_backend
 ):
-    factory_kwargs = dict(height_scale_editable=True)
+    metadata = {"size_x": 512, "size_y": 512, "unit": "nm"}
     if height_scale_factor is not None:
-        factory_kwargs["height_scale"] = height_scale_factor
+        metadata["height_scale"] = height_scale_factor
     if detrend_mode is not None:
-        factory_kwargs["detrend_mode"] = detrend_mode
+        metadata["detrend_mode"] = detrend_mode
 
-    topo = Topography2DFactory(**factory_kwargs)
+    topo = Topography2DFactory(metadata=metadata)
     # Original heights are modified here. The modified values
     # should be reconstructed when loading squeezed data. This is checked here.
 
-    assert topo.height_scale == height_scale_factor
-    assert topo.detrend_mode == detrend_mode
+    assert topo.meta.height_scale == height_scale_factor
+    assert topo.meta.detrend_mode == detrend_mode
 
     assert topo.squeezed_datafile
     st_topo = topo.topography(allow_squeezed=False)
@@ -409,7 +417,7 @@ def test_squeezed_datafile(
     )  # no context manager, we don't want the file closed
     reader = open_topography(df)
     st_topo = reader.topography(
-        topo.data_source, physical_sizes=(topo.size_x, topo.size_y)
+        topo.data_source, physical_sizes=(topo.meta.size_x, topo.meta.size_y)
     )
     if height_scale_factor is not None:
         st_topo = st_topo.scale(height_scale_factor)

@@ -30,7 +30,9 @@ def container_archive(db):
     """Build a real surface container ZIP on disk and return its path."""
     author = UserFactory()
     surface = SurfaceFactory(created_by=author, name="Source surface")
-    topo = Topography2DFactory(surface=surface, size_x=10, size_y=5)
+    topo = Topography2DFactory(
+        surface=surface, metadata={"size_x": 10, "size_y": 5, "unit": "nm"}
+    )
     topo.make_squeezed(save=True)
     PropertyFactory.create(name="material", value="steel", surface=surface)
     PropertyFactory.create(name="thickness", value=2.0, unit="mm", surface=surface)

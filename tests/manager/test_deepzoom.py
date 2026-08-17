@@ -7,7 +7,7 @@ from topobank.testing.factories import Topography2DFactory
 
 @pytest.mark.django_db
 def test_deepzoom_creation_fails(mocker):
-    topo = Topography2DFactory(size_x=1, size_y=1)
+    topo = Topography2DFactory(metadata={"size_x": 1, "size_y": 1, "unit": "nm"})
     topo.refresh_cache()
     # should have a deepzoom images
     assert topo.deepzoom is not None
@@ -24,7 +24,7 @@ def test_deepzoom_creation_fails(mocker):
 @pytest.mark.django_db
 def test_missing_thumbnail_is_logged_but_not_fatal(mocker, caplog):
     """A failed thumbnail stays non-fatal but is surfaced via an ERROR log."""
-    topo = Topography2DFactory(size_x=1, size_y=1)
+    topo = Topography2DFactory(metadata={"size_x": 1, "size_y": 1, "unit": "nm"})
 
     mocker.patch(
         "topobank.manager.models.Measurement._make_thumbnail",

@@ -60,10 +60,10 @@ def test_incomplete_metadata_accepted_by_default():
     topo.refresh_cache()
 
     assert not topo.is_metadata_complete
-    assert topo.size_editable
-    assert topo.unit_editable
-    assert topo.size_x is None
-    assert topo.unit is None
+    assert topo.info.size_editable
+    assert topo.info.unit_editable
+    assert topo.meta.size_x is None
+    assert topo.meta.unit is None
 
 
 @pytest.mark.django_db
@@ -93,8 +93,8 @@ def test_complete_metadata_accepted_when_flag_enabled():
     topo.refresh_cache()
 
     assert topo.is_metadata_complete
-    assert topo.unit is not None
-    assert topo.size_x is not None
+    assert topo.meta.unit is not None
+    assert topo.meta.size_x is not None
 
 
 @pytest.mark.django_db

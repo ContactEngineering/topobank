@@ -86,33 +86,43 @@ class Command(BaseCommand):
 
         user = surface.created_by
 
-        topo_kwargs = dict(
-            created_by=user,
-            name=topo_name,
-            surface=surface,
-            size_x=size_x,
-            size_y=size_y,
-            measurement_date=topo_meta.measurement_date,
-            description=topo_meta.description,
-            data_source=topo_meta.data_source,
-            unit=topo_meta.unit,
-            tags=topo_meta.tags,
-            fill_undefined_data_mode=topo_meta.fill_undefined_data_mode,
-            detrend_mode=topo_meta.detrend_mode,
-            is_periodic=topo_meta.is_periodic,
-        )
+        # The archive's metadata goes into the `metadata` document. `kind` is left
+        # out on purpose: nothing has inspected the file yet, so which kind this
+        # is only becomes known on the first read. `size_y` is omitted rather than
+        # set to None for the same reason -- a line scan's schema has no such
+        # field, and an explicit None would be rejected once the kind is known.
+        metadata = {
+            "size_x": size_x,
+            "unit": topo_meta.unit,
+            "fill_undefined_data_mode": topo_meta.fill_undefined_data_mode,
+            "detrend_mode": topo_meta.detrend_mode,
+            "is_periodic": topo_meta.is_periodic,
+        }
+        if size_y is not None:
+            metadata["size_y"] = size_y
 
         if topo_meta.instrument is not None:
-            topo_kwargs.update(
-                instrument_name=topo_meta.instrument.name or "",
-                instrument_type=topo_meta.instrument.type or "",
-                instrument_parameters=topo_meta.instrument.parameters,
-            )
+            metadata["instrument"] = {
+                "name": topo_meta.instrument.name or "",
+                "type": topo_meta.instrument.type or "undefined",
+                "parameters": topo_meta.instrument.parameters,
+            }
 
         if topo_meta.height_scale is not None:
             # If height_scale is not included, it has probably already been
             # applied because of the file contents while loading.
-            topo_kwargs["height_scale"] = topo_meta.height_scale
+            metadata["height_scale"] = topo_meta.height_scale
+
+        topo_kwargs = dict(
+            created_by=user,
+            name=topo_name,
+            surface=surface,
+            measurement_date=topo_meta.measurement_date,
+            description=topo_meta.description,
+            data_source=topo_meta.data_source,
+            tags=topo_meta.tags,
+            metadata=metadata,
+        )
 
         # Constructing the instance validates the metadata. On a dry run we stop
         # here: nothing is persisted (the surface is not saved either, so saving
