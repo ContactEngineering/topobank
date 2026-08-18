@@ -119,8 +119,16 @@ def test_inspection_stores_the_parameters():
 
 @pytest.mark.django_db
 def test_parameters_are_unknown_before_inspection():
+    """
+    Null until an inspection has fitted something.
+
+    Cleared through the stored document rather than by assigning to the
+    measurement: `detrend_parameters` is not an attribute of the model any more, so
+    an assignment would silently create a throwaway one and the test would pass
+    without touching anything.
+    """
     topo = Topography2DFactory(task_state="pe")
-    topo.detrend_parameters = None
-    topo.save()
+    topo.update_file_info(detrend_parameters=None)
     topo.refresh_from_db()
-    assert topo.detrend_parameters is None
+
+    assert topo.info.detrend_parameters is None
