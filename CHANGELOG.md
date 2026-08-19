@@ -9,6 +9,13 @@
   point, which is what makes non-height data possible. Measurements whose kind has
   no registered adapter -- because the package providing it is not installed --
   stay listable, downloadable and deletable; only reading their data is refused.
+  Reading metadata out of a data file is the adapter's job too: it imports the
+  instrument description and acquisition time on the first inspection
+  (`read_initial_metadata`), reports what reading the data revealed
+  (`read_file_info`), and describes the undefined-data status
+  (`get_undefined_data_status`, now `None` for a kind that has no such notion).
+  A kind declares whether undefined data can be interpolated in
+  `can_fill_undefined_data` rather than being recognised by the absence of a field
 - API: Measurement metadata moved out of typed columns into two validated JSON
   documents. `Measurement.metadata` holds what a user can edit -- sizes, unit,
   height scale, detrend mode, periodicity, instrument -- and `Measurement.file_info`

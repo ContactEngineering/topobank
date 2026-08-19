@@ -144,6 +144,26 @@ def test_metadata_survives_a_dump_and_reload():
     assert reloaded == original
 
 
+def test_significance_is_declared_per_field_and_opt_out():
+    """
+    Where "significant" is specified, and what the default is.
+
+    A field is significant unless it is built with `_insignificant(...)`, which is
+    the safe direction to default in: forgetting the marker means a change
+    invalidates derived data unnecessarily, while an opt-in scheme would silently
+    fail to invalidate it. Everything physical is therefore significant without
+    having to say so, and the exceptions are visible in the schema.
+    """
+    values = significant_values(
+        TopographyMapMetadata(size_x=1.0, size_y=2.0, unit="µm")
+    )
+
+    assert {"size_x", "size_y", "unit", "height_scale", "detrend_mode"} <= set(values)
+    # The one declared exception, and it is nested.
+    assert "type" in values["instrument"]
+    assert "name" not in values["instrument"]
+
+
 def test_the_instrument_name_does_not_count_as_a_change():
     """
     Significance drives cache invalidation.

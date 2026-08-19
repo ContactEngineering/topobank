@@ -248,7 +248,9 @@ class HeightMetadata(MeasurementMetadata):
     size_x: Optional[float] = pydantic.Field(default=None, ge=0)
     #: Unit of both the lateral sizes and the heights.
     unit: Optional[LengthUnit] = None
-    #: Factor applied to the raw values to obtain heights in ``unit``.
+    #: Factor applied to the raw values to obtain heights in ``unit``. Unlike the
+    #: size and the unit, this always has a usable value: a file that does not
+    #: report a scale factor is read at 1.0, so it is never missing metadata.
     height_scale: float = 1.0
     detrend_mode: DetrendMode = "center"
 
@@ -258,8 +260,6 @@ class HeightMetadata(MeasurementMetadata):
             missing.append("physical size")
         if self.unit is None:
             missing.append("unit")
-        if self.height_scale is None:
-            missing.append("height scale")
         return missing
 
 

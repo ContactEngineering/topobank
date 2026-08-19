@@ -9,6 +9,7 @@ from typing import List
 
 import django.dispatch
 import numpy as np
+import pydantic
 import tagulous.models as tm
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
@@ -23,7 +24,6 @@ from django.utils import timezone
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.IO import ReaderBase
-from SurfaceTopography.Metadata import InstrumentParametersModel
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..authorization import get_permission_model
@@ -49,11 +49,7 @@ from ..measurements.adapters import (
 )
 from ..measurements.schemas import dump_metadata, significant_values
 from ..utils.timer import Timer
-from .utils import (
-    detrend_parameters,
-    get_topography_reader,
-    undefined_data_fraction,
-)
+from .utils import get_topography_reader
 
 _log = logging.getLogger(__name__)
 
@@ -1629,12 +1625,36 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
 
     @property
     def is_metadata_complete(self):
-        """Whether we have all the metadata needed to actually read the file."""
+        """
+        Whether we have all the metadata needed to actually read the file.
+
+        Two failures answer the question with False rather than raising, because
+        in both of them nothing can say what the measurement still needs:
+
+        - the kind cannot be resolved (none recorded and none derivable, or a kind
+          whose plugin is not installed), and
+        - the stored document does not validate against the kind's schema, which
+          means either corruption or a document written under a different kind.
+          That is a fault worth a log line, not a silent False.
+
+        Anything else propagates, and deliberately so. In particular, deriving a
+        kind from the data file can fail with `CannotDetectFileFormat`, which
+        `TaskStateModel.run_task` translates into a user-facing "unknown or
+        unsupported format" error -- reporting it as incomplete metadata instead
+        would tell the user to go and enter a size for a file we cannot read.
+        """
         try:
             return self.meta.is_complete()
         except MeasurementRegistryError:
-            # No kind recorded, or no adapter for it: nothing can say what this
-            # measurement still needs.
+            return False
+        except pydantic.ValidationError:
+            _log.error(
+                "Stored metadata of measurement %s does not validate against the "
+                "schema of kind '%s'; reporting it as incomplete.",
+                self.id,
+                self.kind,
+                exc_info=True,
+            )
             return False
 
     def notify_users(self, sender, verb, description):
@@ -1818,30 +1838,9 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         #
 
         if populate_initial_metadata:
-            # Measurement time
-            try:
-                self.measurement_date = channel.info["acquisition_time"]
-            except:  # noqa: E722
-                pass
-
-            # Instrument name
-            try:
-                metadata.instrument.name = channel.info["instrument"]["name"]
-            except:  # noqa: E722
-                pass
-
-            # Instrument parameters
-            try:
-                parameters = channel.info["instrument"]["parameters"]
-                metadata.instrument.parameters = InstrumentParametersModel(
-                    **parameters
-                )
-                if "tip_radius" in parameters:
-                    metadata.instrument.type = self.INSTRUMENT_TYPE_CONTACT_BASED
-                elif "resolution" in parameters:
-                    metadata.instrument.type = self.INSTRUMENT_TYPE_MICROSCOPE_BASED
-            except:  # noqa: E722
-                metadata.instrument.type = self.INSTRUMENT_TYPE_UNDEFINED
+            # What can be imported from the file, and how, depends entirely on the
+            # reader this kind uses, so the adapter does it.
+            self.adapter.read_initial_metadata(self, channel, metadata)
 
         self.metadata = dump_metadata(metadata)
         self.file_info = dump_metadata(info)
@@ -1853,23 +1852,11 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
                 with timer("_read"):
                     st_topo = self._read(reader)
 
-                # How much of the original data file is undefined. Both values
-                # describe the *measured* data, which is why they are taken from
-                # the bottom of the pipeline rather than from `st_topo` itself:
-                # with filling enabled the pipeline reports no undefined data by
-                # definition, which would erase the very information the fill
-                # mode was chosen in response to.
-                fraction = undefined_data_fraction(st_topo)
+                # What reading the data revealed. Which values those are, and how
+                # they are obtained, is the adapter's business; recording them is
+                # ours.
                 self.update_file_info(
-                    save=False,
-                    undefined_data_fraction=fraction,
-                    has_undefined_data=(
-                        None if fraction is None else fraction > 0
-                    ),
-                    # What the detrending actually removed. `st_topo` is the
-                    # detrended topography, so this reads the fit it performed
-                    # rather than repeating it.
-                    detrend_parameters=detrend_parameters(st_topo),
+                    save=False, **self.adapter.read_file_info(self, st_topo)
                 )
 
                 # Refresh other cached quantities
@@ -1916,23 +1903,13 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         post_refresh_cache.send(sender=Measurement, instance=self)
 
     def get_undefined_data_status(self):
-        """Get human-readable description about status of undefined data as string."""
-        info = self.info
-        s = self.HAS_UNDEFINED_DATA_DESCRIPTION[info.has_undefined_data]
-        if info.has_undefined_data and info.undefined_data_fraction is not None:
-            percentage = f"{100 * info.undefined_data_fraction:.2g}"
-            s += f" {percentage}% of the data points are undefined."
-        # A kind that cannot interpolate undefined data has no such field, which
-        # amounts to never filling.
-        fill_mode = getattr(self.meta, "fill_undefined_data_mode", "do-not-fill")
-        if fill_mode == Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING:
-            s += " No correction of undefined data is performed."
-        elif fill_mode == Measurement.FILL_UNDEFINED_DATA_MODE_HARMONIC:
-            s += (
-                " Undefined/missing values are filled in with values obtained from a "
-                "harmonic interpolation."
-            )
-        return s
+        """
+        Human-readable description of the status of undefined data.
+
+        None for a kind that has no notion of undefined data points; whether the
+        notion applies, and what to say about it, is the adapter's to decide.
+        """
+        return self.adapter.get_undefined_data_status(self)
 
     def task_worker(self, timer=None):
         self.refresh_cache(timer=timer)
