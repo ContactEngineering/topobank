@@ -125,8 +125,15 @@ def test_the_adapter_imports_the_instrument_description(surface, mocker):
 
 
 def test_a_file_without_instrument_information_is_not_an_error(surface):
-    """Every lookup in the hook may fail; the type then falls back to undefined."""
+    """
+    Every lookup in the hook may fail; the type then falls back to undefined.
+
+    The seeded type is deliberately *not* the default, because `undefined` is what
+    the schema already returns for an untouched document -- asserting on it would
+    pass whether or not the hook ran at all.
+    """
     topo = uninspected(surface)
+    topo.update_metadata(instrument={"type": "contact-based"})
 
     topo.refresh_cache()
 
