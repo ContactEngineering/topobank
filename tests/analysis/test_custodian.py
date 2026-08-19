@@ -3,11 +3,11 @@ Functional tests for the analysis custodian (``topobank.analysis.custodian``).
 
 The ``periodic_cleanup`` task does three things:
 
-1. Hard-deletes deprecated, unnamed analysis results that have a subject and
+1. Hard-deletes deprecated, unnamed workflow results that have a subject and
    whose ``deprecation_time`` is older than ``TOPOBANK_ANALYSIS_DELETE_DELAY``.
-2. Hard-deletes soft-deleted analysis results whose ``deleted_at`` is older
+2. Hard-deletes soft-deleted workflow results whose ``deleted_at`` is older
    than ``TOPOBANK_DELETE_DELAY`` — regardless of ``name`` or subject links.
-3. Marks analysis results that are stuck in the ``PENDING`` state (no Celery
+3. Marks workflow results that are stuck in the ``PENDING`` state (no Celery
    task id) for more than a day as ``FAILURE``.
 
 These tests assert the actual state transitions / deletions, including the
@@ -95,6 +95,26 @@ def test_keeps_active_non_deprecated_result():
     # deprecation_time is NULL -> active result, never eligible for cleanup.
     analysis = TopographyAnalysisFactory()
     assert analysis.deprecation_time is None
+
+    periodic_cleanup()
+
+    assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+@pytest.mark.django_db
+def test_keeps_long_deprecated_result_that_was_recently_soft_deleted():
+    # The retention window owns stamped rows: a deprecated result whose
+    # container was just deleted must stay restorable until the window closes.
+    analysis = TopographyAnalysisFactory()
+    _set_unmanaged_fields(
+        analysis,
+        deprecation_time=timezone.now()
+        - settings.TOPOBANK_ANALYSIS_DELETE_DELAY
+        - datetime.timedelta(days=1),
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        + datetime.timedelta(days=1),
+    )
 
     periodic_cleanup()
 
@@ -192,7 +212,7 @@ def test_marks_stuck_pending_result_as_failure():
 
     analysis.refresh_from_db()
     assert analysis.task_state == WorkflowResult.FAILURE
-    assert analysis.task_error == "Analysis failed to launch."
+    assert analysis.task_error == "Workflow failed to launch."
     # It must not be deleted, only updated.
     assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
 
@@ -252,7 +272,7 @@ def test_delete_tolerating_restrict_falls_back_to_per_row_and_skips_protected():
     queryset.delete.side_effect = RestrictedError("protected", set())
     queryset.iterator.return_value = iter([collectable, protected])
 
-    _delete_tolerating_restrict(queryset, "analysis results")
+    _delete_tolerating_restrict(queryset, "workflow results")
 
     collectable.delete.assert_called_once()
     protected.delete.assert_called_once()
@@ -265,7 +285,7 @@ def test_delete_tolerating_restrict_bulk_deletes_when_nothing_is_protected():
 
     queryset = MagicMock()
 
-    _delete_tolerating_restrict(queryset, "analysis results")
+    _delete_tolerating_restrict(queryset, "workflow results")
 
     queryset.delete.assert_called_once()
     queryset.iterator.assert_not_called()
