@@ -167,6 +167,22 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # Invalid is True if the subject was changed after the WorkflowResult was computed
     deprecation_time = models.DateTimeField(null=True)
 
+    # If set, this result was soft-deleted. Stamped by container cascades (the
+    # result rides along when the container it belongs to is soft-deleted) and
+    # cleared again by a timestamp-matched restore. The custodian hard-deletes
+    # stamped rows after TOPOBANK_DELETE_DELAY.
+    deleted_at = models.DateTimeField(null=True)
+    # User who soft-deleted this result. NULL when it is not deleted, when the
+    # deletion was a system operation, or for results deleted before this
+    # field existed. Only meaningful while `deleted_at` is set.
+    deleted_by = models.ForeignKey(
+        settings.AUTH_USER_MODEL,
+        on_delete=models.SET_NULL,
+        null=True,
+        blank=True,
+        related_name="+",
+    )
+
     class Meta:
         indexes = [
             # Index on task_start_time for ordering recent results
@@ -203,6 +219,9 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 fields=["workflow_name", "subject_tag", "-task_start_time"],
                 name="result_func_tag_time_idx",
             ),
+            # Serves the custodian's purge scan (deleted_at < cutoff) and the
+            # cascade/restore sweeps that match rows by exact deleted_at.
+            models.Index(fields=["deleted_at"], name="result_deleted_at_idx"),
         ]
 
     def __init__(self, *args, result=None, **kwargs):
