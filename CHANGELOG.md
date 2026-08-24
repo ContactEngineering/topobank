@@ -8,6 +8,13 @@
 - MAINT: CI runs its S3 tests against SeaweedFS instead of Minio, which is the
   S3 implementation the development stack uses. The bucket is created with
   `boto3` instead of a separately downloaded `mc` client
+- TST: The test settings are defined once. There were two near-identical copies,
+  `topobank/test_settings.py` and a top-level `test_settings.py`, and only the
+  latter is what `DJANGO_SETTINGS_MODULE=test_settings` resolves to. The storage
+  configuration had been added to the former, so the S3 job ran the whole suite
+  against `FileSystemStorage` and never executed the direct-to-object-store upload
+  path. The package module is now the definition and the top-level one re-exports
+  it, so the two cannot drift again
 - BUILD: Dropped four unmaintained dependencies. `backports.entry-points-selectable`
   backports an API that is in the standard library on every Python we support,
   `dj-inmemorystorage` (last release 2020) and `py` (retired, and no longer a
