@@ -13,11 +13,11 @@ The three built-in types cover height data and share
 spectrum, say) subclasses :class:`MeasurementAdapter` directly and imports its own
 data package; nothing in this module needs to know about it.
 
-At this stage the metadata a type needs still lives in typed columns on the model,
-so the methods here read it off the measurement they are handed. Which fields are
-meaningful for which kind is therefore still implicit -- ``size_y`` being null is
-what makes a record a line scan. Making that explicit is the next step; this one
-only moves the kind-dependent *behaviour* out of the model.
+Which metadata a kind has is declared by the two schemas an adapter binds
+(:attr:`MeasurementAdapter.Metadata` and :attr:`MeasurementAdapter.FileInfo`), so
+a field that does not apply to a kind is absent rather than null. Reading values
+out of a file and into those schemas is an adapter's job too: the model owns the
+storage plumbing, the adapter owns what the values mean.
 """
 
 import abc
@@ -34,6 +34,16 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 
 from .registry import register_adapter
+from .schemas import (
+    MeasurementFileInfo,
+    MeasurementMetadata,
+    NonuniformLineScanFileInfo,
+    NonuniformLineScanMetadata,
+    TopographyMapFileInfo,
+    TopographyMapMetadata,
+    UniformLineScanFileInfo,
+    UniformLineScanMetadata,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -56,6 +66,11 @@ class MeasurementAdapter(abc.ABC):
         #: Human-readable name for the UI.
         display_name = None
 
+    #: Schema of the user-facing metadata, stored in ``Measurement.metadata``.
+    Metadata = MeasurementMetadata
+    #: Schema of the file-derived cache, stored in ``Measurement.file_info``.
+    FileInfo = MeasurementFileInfo
+
     #
     # Capabilities. These tell the generic machinery which derived artifacts exist
     # for this kind, so it does not have to infer that from field values.
@@ -70,6 +85,9 @@ class MeasurementAdapter(abc.ABC):
     #: Whether reading the data is costly enough that doing it outside a Celery
     #: worker deserves a warning.
     is_expensive_to_read = False
+    #: Whether undefined data points can be interpolated. Kinds that can have a
+    #: ``fill_undefined_data_mode`` in their metadata; the rest have no such field.
+    can_fill_undefined_data = False
 
     def __str__(self):
         return self.Meta.display_name or self.Meta.name
@@ -113,6 +131,65 @@ class MeasurementAdapter(abc.ABC):
         raise NotImplementedError
 
     #
+    # Reading metadata out of a file. The inspection task calls these; the model
+    # applies what they produce. Anything that knows how a particular reader
+    # presents its metadata belongs here, not on the model.
+    #
+
+    def read_initial_metadata(self, measurement, channel, metadata) -> None:
+        """
+        Import optional metadata from `channel` on the first read of a file.
+
+        Called only once per measurement, before the user has had a chance to
+        adjust anything -- on later inspections the stored values win, because
+        re-importing would overwrite hand-corrected metadata.
+
+        Mutates `metadata` (and, where a value belongs to a column rather than to
+        the metadata document, `measurement`) in place. The default imports
+        nothing.
+
+        Parameters
+        ----------
+        measurement : Measurement
+            The measurement being inspected.
+        channel : object
+            The selected channel, as presented by this kind's reader.
+        metadata : MeasurementMetadata
+            The metadata document being assembled, of this kind's schema.
+        """
+
+    def read_file_info(self, measurement, data) -> dict:
+        """
+        File-derived values to record once `data` has been read.
+
+        Returning a mapping rather than assigning it keeps the storage plumbing --
+        which document to write, whether to save -- in one place on the model,
+        where it is the same for every kind. The default records nothing.
+
+        Parameters
+        ----------
+        measurement : Measurement
+            The measurement being inspected.
+        data : object
+            The in-memory data object, as returned by :meth:`read`.
+
+        Returns
+        -------
+        dict
+            Field names of this kind's :attr:`FileInfo` schema, and their values.
+        """
+        return {}
+
+    def get_undefined_data_status(self, measurement) -> str | None:
+        """
+        Human-readable description of the undefined-data status, if any.
+
+        None for a kind that has no notion of undefined data points, so that a
+        caller can leave the statement out rather than print something untrue.
+        """
+        return None
+
+    #
     # Derived artifacts. The defaults do nothing, so a type only implements what it
     # actually supports.
     #
@@ -150,6 +227,7 @@ class SurfaceTopographyAdapter(MeasurementAdapter):
 
     yields_surface_topography = True
     has_canonical_file = True
+    can_fill_undefined_data = True
 
     #: Dimensionality of the data this type imports, checked by
     #: :meth:`claims_channel`.
@@ -243,8 +321,11 @@ class SurfaceTopographyAdapter(MeasurementAdapter):
         """
         self._warn_if_expensive(measurement)
 
+        meta = measurement.meta
         reader_kwargs = dict(
-            channel_index=measurement.data_source, periodic=measurement.is_periodic
+            channel_index=measurement.data_source,
+            # A kind without periodicity is never periodic.
+            periodic=getattr(meta, "is_periodic", False),
         )
         channel = reader.channels[
             reader.default_channel.index
@@ -254,10 +335,10 @@ class SurfaceTopographyAdapter(MeasurementAdapter):
 
         if channel.physical_sizes is None:
             reader_kwargs["physical_sizes"] = self.physical_sizes_of(measurement)
-        if channel.height_scale_factor is None and measurement.height_scale:
-            reader_kwargs["height_scale_factor"] = measurement.height_scale
+        if channel.height_scale_factor is None and meta.height_scale:
+            reader_kwargs["height_scale_factor"] = meta.height_scale
         if channel.unit is None:
-            reader_kwargs["unit"] = measurement.unit
+            reader_kwargs["unit"] = meta.unit
         reader_kwargs["info"] = measurement.instrument_info
 
         data = reader.topography(**reader_kwargs)
@@ -266,23 +347,95 @@ class SurfaceTopographyAdapter(MeasurementAdapter):
         return data
 
     def apply_filters(self, measurement, data):
-        """Fill undefined data and detrend, according to the stored parameters."""
-        from ..manager.models import Measurement
-
-        if (
-            measurement.fill_undefined_data_mode
-            != Measurement.FILL_UNDEFINED_DATA_MODE_NOFILLING
-            and data.is_uniform
-        ):
-            data = data.interpolate_undefined_data(
-                measurement.fill_undefined_data_mode
-            )
-        return data.detrend(detrend_mode=measurement.detrend_mode)
+        """Fill undefined data and detrend, according to the stored metadata."""
+        meta = measurement.meta
+        fill_mode = self.fill_undefined_data_mode_of(measurement)
+        if fill_mode != "do-not-fill" and data.is_uniform:
+            data = data.interpolate_undefined_data(fill_mode)
+        return data.detrend(detrend_mode=meta.detrend_mode)
 
     @staticmethod
     def physical_sizes_of(measurement):
         """Physical sizes to pass to the reader when the file omits them."""
         raise NotImplementedError
+
+    def fill_undefined_data_mode_of(self, measurement):
+        """
+        The fill mode in effect, for a kind that may not have the field at all.
+
+        A kind that cannot interpolate undefined data has no
+        ``fill_undefined_data_mode`` in its schema, which amounts to never
+        filling.
+        """
+        if not self.can_fill_undefined_data:
+            return "do-not-fill"
+        return measurement.meta.fill_undefined_data_mode
+
+    #
+    # Metadata read out of the file
+    #
+
+    def read_initial_metadata(self, measurement, channel, metadata):
+        """
+        Import acquisition time and instrument description from the channel.
+
+        Both come from ``channel.info``, which is a ``SurfaceTopography`` reader
+        convention: a reader that knows nothing about them simply omits the keys,
+        which is why every lookup here is allowed to fail.
+        """
+        # Imported here rather than at module level: this module is imported while
+        # apps load, and `SurfaceTopography.Metadata` is only needed on this path.
+        from SurfaceTopography.Metadata import InstrumentParametersModel
+
+        try:
+            measurement.measurement_date = channel.info["acquisition_time"]
+        except:  # noqa: E722
+            pass
+
+        try:
+            metadata.instrument.name = channel.info["instrument"]["name"]
+        except:  # noqa: E722
+            pass
+
+        try:
+            parameters = channel.info["instrument"]["parameters"]
+            metadata.instrument.parameters = InstrumentParametersModel(**parameters)
+            # Which kind of instrument this was follows from which parameters it
+            # reported: a tip radius comes from a contact-based instrument, a
+            # resolution from a microscope-based one.
+            if "tip_radius" in parameters:
+                metadata.instrument.type = "contact-based"
+            elif "resolution" in parameters:
+                metadata.instrument.type = "microscope-based"
+        except:  # noqa: E722
+            metadata.instrument.type = "undefined"
+
+    def read_file_info(self, measurement, data):
+        """
+        Record what reading the data revealed: undefined data, and the trend removed.
+
+        Both undefined-data values describe the *measured* data, which is why they
+        are taken from the bottom of the pipeline rather than from `data` itself:
+        with filling enabled the pipeline reports no undefined data by definition,
+        which would erase the very information the fill mode was chosen in
+        response to.
+        """
+        from ..manager.utils import detrend_parameters, undefined_data_fraction
+
+        fraction = undefined_data_fraction(data)
+        return {
+            "undefined_data_fraction": fraction,
+            "has_undefined_data": None if fraction is None else fraction > 0,
+            # What the detrending actually removed. `data` is the detrended
+            # topography, so this reads the fit it performed rather than repeating
+            # it.
+            "detrend_parameters": detrend_parameters(data),
+        }
+
+    def get_undefined_data_status(self, measurement):
+        return measurement.info.get_undefined_data_status(
+            self.fill_undefined_data_mode_of(measurement)
+        )
 
     def _warn_if_expensive(self, measurement):
         from ..taskapp.utils import in_celery_worker_process
@@ -310,7 +463,7 @@ class LineScanAdapter(SurfaceTopographyAdapter):
 
     @staticmethod
     def physical_sizes_of(measurement):
-        return (measurement.size_x,)
+        return (measurement.meta.size_x,)
 
     def render_thumbnail(self, measurement, data, width=400, height=400, cmap=None):
         from matplotlib.figure import Figure
@@ -345,6 +498,9 @@ class TopographyMapAdapter(SurfaceTopographyAdapter):
         name = "topography-map"
         display_name = "Topography map"
 
+    Metadata = TopographyMapMetadata
+    FileInfo = TopographyMapFileInfo
+
     dim = 2
     has_deepzoom = True
     # Reading a map means pulling a full 2D array into memory.
@@ -352,7 +508,8 @@ class TopographyMapAdapter(SurfaceTopographyAdapter):
 
     @staticmethod
     def physical_sizes_of(measurement):
-        return measurement.size_x, measurement.size_y
+        meta = measurement.meta
+        return meta.size_x, meta.size_y
 
     def render_thumbnail(self, measurement, data, width=400, height=400, cmap=None):
         image_file = io.BytesIO()
@@ -405,6 +562,9 @@ class UniformLineScanAdapter(LineScanAdapter):
         name = "uniform-line-scan"
         display_name = "Uniform line scan"
 
+    Metadata = UniformLineScanMetadata
+    FileInfo = UniformLineScanFileInfo
+
     is_uniform = True
 
 
@@ -416,7 +576,13 @@ class NonuniformLineScanAdapter(LineScanAdapter):
         name = "nonuniform-line-scan"
         display_name = "Nonuniform line scan"
 
+    Metadata = NonuniformLineScanMetadata
+    FileInfo = NonuniformLineScanFileInfo
+
     is_uniform = False
+    #: Non-uniformly spaced points cannot be interpolated, so this kind has no
+    #: `fill_undefined_data_mode` at all.
+    can_fill_undefined_data = False
 
 
 #

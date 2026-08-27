@@ -21,13 +21,46 @@ def test_save_update_fields_persists_pending_state():
     topo.refresh_from_db()
     assert topo.task_state == Measurement.SUCCESS
 
-    # A significant field changes, saved with a restricted update_fields.
-    topo.size_x = topo.size_x + 1
-    topo.save(update_fields=["size_x"])
+    # Significant metadata changes, saved with a restricted update_fields.
+    topo.update_metadata(size_x=topo.meta.size_x + 1)
 
     reloaded = Measurement.objects.get(pk=topo.pk)
     assert reloaded.task_state == Measurement.PENDING  # pending state persisted
-    assert reloaded.size_x == topo.size_x  # the requested field still saved
+    # the requested field still saved
+    assert reloaded.meta.size_x == topo.meta.size_x
+
+
+@pytest.mark.django_db
+@pytest.mark.parametrize("update_fields", [None, ["data_source"]])
+def test_selecting_another_channel_triggers_a_refresh(update_fields):
+    """
+    `data_source` is significant, but no schema can declare it.
+
+    It selects *which* channel the metadata describes rather than describing it,
+    so it is not a field of the metadata document -- and the document comparison
+    in `save()` therefore cannot see it changing. It needs its own comparison:
+    selecting another channel invalidates everything derived from the data.
+    """
+    topo = Topography2DFactory()
+    Measurement.objects.filter(pk=topo.pk).update(task_state=Measurement.SUCCESS)
+    topo.refresh_from_db()
+
+    topo.data_source = topo.data_source + 1
+    topo.save(update_fields=update_fields)
+
+    assert Measurement.objects.get(pk=topo.pk).task_state == Measurement.PENDING
+
+
+@pytest.mark.django_db
+def test_saving_an_unchanged_channel_selection_does_not_refresh():
+    """The comparison must not fire on every save that includes the field."""
+    topo = Topography2DFactory()
+    Measurement.objects.filter(pk=topo.pk).update(task_state=Measurement.SUCCESS)
+    topo.refresh_from_db()
+
+    topo.save(update_fields=["data_source"])
+
+    assert Measurement.objects.get(pk=topo.pk).task_state == Measurement.SUCCESS
 
 
 @pytest.mark.django_db
@@ -52,16 +85,14 @@ def test_persisted_pending_state_enables_inflight_guard():
     Measurement.objects.filter(pk=topo.pk).update(task_state=Measurement.SUCCESS)
     topo.refresh_from_db()
 
-    topo.size_x += 1
-    topo.save(update_fields=["size_x"])
+    topo.update_metadata(size_x=topo.meta.size_x + 1)
     assert Measurement.objects.get(pk=topo.pk).task_state == Measurement.PENDING
     submission_before = Measurement.objects.get(pk=topo.pk).task_submission_time
 
     # A separate handle (concurrent worker) sees PENDING; its save must not
     # reset the submission time, i.e. no second dispatch is set up.
     concurrent = Measurement.objects.get(pk=topo.pk)
-    concurrent.size_x += 1
-    concurrent.save(update_fields=["size_x"])
+    concurrent.update_metadata(size_x=concurrent.meta.size_x + 1)
 
     assert (
         Measurement.objects.get(pk=topo.pk).task_submission_time == submission_before

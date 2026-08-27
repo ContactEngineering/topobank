@@ -114,17 +114,19 @@ def two_topos(settings):
         data_source=0,
         measurement_date=datetime.date(2018, 1, 1),
         description="description1",
-        size_x=10.0,
-        size_y=10.0,
-        size_editable=True,  # needed for supplib
-        unit="µm",
-        detrend_mode="height",
-        height_scale_editable=False,  # height_scale_factor defined in DI file
-        height_scale=0.296382712790741,  # workaround: mentioned here so it is correctly set
+        # The inspection in the factory's `post_generation` merges the file's own
+        # values in on top and adds `kind`, so this only seeds what matters to the
+        # tests. `height_scale` is stated because the DI file defines it and it
+        # would otherwise not be set before the first read.
+        metadata={
+            "size_x": 10.0,
+            "size_y": 10.0,
+            "unit": "µm",
+            "detrend_mode": "height",
+            "height_scale": 0.296382712790741,
+        },
         # normally this would be set during the upload process
         datafile=datafile1,
-        resolution_x=256,
-        resolution_y=256,
     )
 
     topos2 = Topography2DFactory(
@@ -134,15 +136,15 @@ def two_topos(settings):
         data_source=0,
         measurement_date=datetime.date(2018, 1, 2),
         description="description2",
-        size_x=112.80791,
-        size_y=27.73965,
-        unit="µm",
-        detrend_mode="height",
-        height_scale=2.91818e-08,  # workaround: mentioned here so it is correctly set
-        height_scale_editable=False,  # defined in TXT file
+        metadata={
+            "size_x": 112.80791,
+            "size_y": 27.73965,
+            "unit": "µm",
+            "detrend_mode": "height",
+            # Defined in the TXT file; stated so it is set before the first read.
+            "height_scale": 2.91818e-08,
+        },
         datafile=datafile2,
-        resolution_x=75,
-        resolution_y=305,
     )
     return topos1, topos2
 
@@ -160,9 +162,7 @@ def one_line_scan():
         name="Simple Line Scan",
         measurement_date=datetime.date(2018, 1, 1),
         description="description1",
-        size_x=9,
-        size_editable=True,  # needed for test
-        detrend_mode="height",
+        metadata={"size_x": 9, "detrend_mode": "height"},
         datafile=datafile,
     )
 

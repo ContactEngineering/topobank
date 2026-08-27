@@ -369,4 +369,7 @@ def test_analysis_container_uses_spooled_temporary_file_with_setting(mocker, set
     container = _container(analysis.permissions.user_permissions.first().user)
     container.task_worker(result_ids=[analysis.id])
 
-    spooled_mock.assert_called_once_with(max_size=987654)
+    # `tempfile.SpooledTemporaryFile` is patched globally, so other users of it
+    # show up here as well. The S3 storage backend, for example, spools every
+    # file it reads. We are only interested in the call made by the container.
+    spooled_mock.assert_any_call(max_size=987654)

@@ -9,6 +9,23 @@
   point, which is what makes non-height data possible. Measurements whose kind has
   no registered adapter -- because the package providing it is not installed --
   stay listable, downloadable and deletable; only reading their data is refused.
+  Reading metadata out of a data file is the adapter's job too: it imports the
+  instrument description and acquisition time on the first inspection
+  (`read_initial_metadata`), reports what reading the data revealed
+  (`read_file_info`), and describes the undefined-data status
+  (`get_undefined_data_status`, now `None` for a kind that has no such notion).
+  A kind declares whether undefined data can be interpolated in
+  `can_fill_undefined_data` rather than being recognised by the absence of a field
+- API: Measurement metadata moved out of typed columns into two validated JSON
+  documents. `Measurement.metadata` holds what a user can edit -- sizes, unit,
+  height scale, detrend mode, periodicity, instrument -- and `Measurement.file_info`
+  holds what inspecting the data file produced. Both are validated against a schema
+  chosen by the measurement's kind, reached through `measurement.meta` and
+  `measurement.info` and written through `update_metadata()`. A field that does not
+  apply to a kind is now absent rather than null: a line scan has no `size_y`, and a
+  nonuniform line scan has neither `is_periodic` nor `fill_undefined_data_mode`. The
+  columns they replace are retained under `legacy_*` names for one release and are
+  no longer read
 - API: `Topography` is now `Measurement`. The model records a measurement --
   identity, permissions, files and task state -- rather than something specific to
   topography data; every measurement still holds height data, so this release only
@@ -22,6 +39,17 @@
 - ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
   iD, for testing behaviour that depends on the identity a user signed in with.
   The factory previously always attached one
+- MAINT: CI runs its S3 tests against SeaweedFS instead of Minio, which is the
+  S3 implementation the development stack uses. The bucket is created with
+  `boto3` instead of a separately downloaded `mc` client
+- TST: The test settings honor `STORAGE_BACKEND` and `TOPOBANK_UPLOAD_METHOD`
+  again, and derive `USE_S3_STORAGE` from the configured backend. Both were
+  hardcoded, so the S3 configuration in CI had no effect and every job silently
+  ran against `FileSystemStorage`
+- TST: `test_analysis_container_uses_spooled_temporary_file_with_setting` checks
+  that the container requests its spool size, rather than that it is the only
+  caller of `tempfile.SpooledTemporaryFile`. The S3 storage backend spools the
+  files it reads, so it also shows up in the globally patched mock
 - DOC: Authentication is documented by the site that implements it, not here.
   `docs/orcid.rst` and the provider fixture templates moved to ce-ui, and the
   installation, deployment and publishing documents now describe what topobank

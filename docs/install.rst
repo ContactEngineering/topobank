@@ -269,7 +269,8 @@ The following services are started:
 - automatic database backup to S3
 - rabbitmq message broker
 - memcached for caching intermediate results
-- minio: S3 server for media files and backup, see port 9000 in browser
+- seaweedfs: S3 server for media files and backup, S3 API on port 9000,
+  filer user interface on port 8888
 - mailhog: local mail server+client with web interface on port 8025
 
 See local.yml for details and which ports are available to the host.

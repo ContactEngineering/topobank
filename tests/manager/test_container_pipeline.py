@@ -79,9 +79,11 @@ def test_full_inspection_via_task_runner(imported_surface):
     # ... and refresh_cache repopulated the cached metadata ...
     assert topo.datafile_format is not None
     assert topo.channel_names
-    assert topo.resolution_x is not None and topo.resolution_x > 0
-    assert topo.size_x is not None and topo.size_x > 0
-    assert topo.bandwidth_lower is not None
+    # The resolutions and the bandwidth are file-derived, so they live in
+    # `file_info`; the physical size is user-editable metadata.
+    assert topo.info.resolution_x is not None and topo.info.resolution_x > 0
+    assert topo.meta.size_x is not None and topo.meta.size_x > 0
+    assert topo.info.bandwidth_lower is not None
     # ... and regenerated the squeezed NetCDF representation.
     assert topo.squeezed_datafile is not None
     assert topo.squeezed_datafile.exists()

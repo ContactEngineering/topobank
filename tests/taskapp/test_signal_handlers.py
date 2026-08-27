@@ -591,10 +591,12 @@ class TestFindTaskInstance:
         task_id = str(uuid.uuid4())
         user = UserFactory()
         surface = SurfaceFactory(created_by=user)
-        topo = Topography2DFactory(
-            surface=surface,
-            task_id=task_id,
-        )
+        topo = Topography2DFactory(surface=surface)
+        # Assigned after the factory rather than through it: the factory inspects
+        # the file, which merges the file's own metadata in, and a metadata change
+        # dispatches a fresh inspection with a new `task_id`. This test is about
+        # the lookup, so it pins the id down once the measurement has settled.
+        Measurement.objects.filter(pk=topo.pk).update(task_id=task_id)
 
         found = app_config._find_task_instance(task_id)
 

@@ -1,7 +1,7 @@
 """
 Tests for the trend that detrending subtracts from a measurement.
 
-`Topography.detrend_parameters` records what was removed — the slope of the tilt,
+`Measurement.info.detrend_parameters` records what was removed — the slope of the tilt,
 the radius of the curvature — so the UI can show which correction is in effect
 rather than only naming the mode.
 """
@@ -108,15 +108,27 @@ def test_a_topography_that_was_not_detrended_fits_no_trend():
 
 @pytest.mark.django_db
 def test_inspection_stores_the_parameters():
-    topo = Topography2DFactory(detrend_mode="height")
-    assert set(topo.detrend_parameters) == {"slope_x", "slope_y"}
-    assert all(isinstance(v, float) for v in topo.detrend_parameters.values())
+    topo = Topography2DFactory(
+        metadata={"size_x": 512, "size_y": 512, "unit": "nm", "detrend_mode": "height"}
+    )
+    assert set(topo.info.detrend_parameters) == {"slope_x", "slope_y"}
+    assert all(
+        isinstance(v, float) for v in topo.info.detrend_parameters.values()
+    )
 
 
 @pytest.mark.django_db
 def test_parameters_are_unknown_before_inspection():
+    """
+    Null until an inspection has fitted something.
+
+    Cleared through the stored document rather than by assigning to the
+    measurement: `detrend_parameters` is not an attribute of the model any more, so
+    an assignment would silently create a throwaway one and the test would pass
+    without touching anything.
+    """
     topo = Topography2DFactory(task_state="pe")
-    topo.detrend_parameters = None
-    topo.save()
+    topo.update_file_info(detrend_parameters=None)
     topo.refresh_from_db()
-    assert topo.detrend_parameters is None
+
+    assert topo.info.detrend_parameters is None
