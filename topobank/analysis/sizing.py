@@ -2,13 +2,20 @@
 Predicting how much memory an analysis needs, so that one which cannot possibly
 fit is refused up front instead of being discovered by the OOM killer.
 
-Peak memory is close to linear in the number of grid points, with a coefficient
+Peak memory is close to linear in the number of data points, with a coefficient
 that is a property of the *workflow* rather than of the data. Measured on the
 production instance: ``variable_bandwidth`` used 125.7 B/point on a
 20178 x 20178 map and 128.8 B/point on an 8192 x 8192 one - 2.5% apart across a
 sixfold change in size - and ``scale_dependent_curvature`` stayed within
 746-830 B/point over eight different resolutions. So ``points x coefficient`` is
 a usable predictor, which is the whole basis of this module.
+
+How many data points a measurement holds is a property of its *kind*, so the
+equations live on the measurement adapters (``nb_data_points`` for a single
+instance, ``nb_data_points_expression`` for the SQL aggregates) and this module
+only dispatches. A kind that does not implement them - a plugin's kind, or one
+whose notion of size is not settled - simply is not sized, and the guard fails
+open for it.
 
 The coefficient is *learned* from the ``task_memory`` column rather than written
 down here. Every completed task records its own peak RSS (see
@@ -47,14 +54,14 @@ import math
 from collections import defaultdict
 from datetime import timedelta
 
+import pydantic
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import BigIntegerField, Max, Value
-from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Cast, Coalesce
+from django.db.models import BigIntegerField, Case, Max, When
 from django.template.defaultfilters import filesizeformat
 from django.utils import timezone
 
+from ..measurements.registry import get_adapter, get_adapters, has_adapter
 from .exceptions import AnalysisTooLargeError
 
 _log = logging.getLogger(__name__)
@@ -91,26 +98,48 @@ def _percentile(values, fraction):
     return ordered[min(len(ordered) - 1, max(0, rank - 1))]
 
 
-def _resolution(prefix, axis):
-    """One resolution, read out of the `file_info` JSON document."""
-    return KeyTextTransform(f"resolution_{axis}", f"{prefix}file_info")
-
-
 def _points_expression(prefix=""):
     """
-    Grid points of a measurement: line scans have no second dimension.
+    Datums of a measurement, dispatching on its kind, or ``None``.
 
-    The resolutions live in the `file_info` JSON document, so they arrive as text
-    and have to be cast before they can be multiplied.
+    How many datums a measurement holds is a property of its kind, so the
+    equation lives on the adapter (``nb_data_points_expression``) and this
+    merely assembles the registered ones into a ``CASE`` over the ``kind``
+    column. Every row therefore gets the equation of *its own* kind -- a
+    dataset mixing maps and line scans sizes each measurement correctly, where
+    a single shared equation would apply the wrong one to somebody.
 
-    The cast to `BigIntegerField` is not cosmetic. Both resolutions are 32-bit
-    integers, and PostgreSQL multiplies ``integer * integer`` as an integer, so a
-    map beyond roughly 46000 x 46000 would overflow the product - precisely the
-    size of map this guard exists to catch.
+    Rows no branch covers fall through to NULL: a kind that abstains, a kind
+    whose plugin is not installed, and never-inspected measurements
+    (``kind IS NULL`` matches no ``When``). NULL is skipped by ``Max`` and by
+    the coefficient learner, so an unsizable measurement counts as unknown
+    rather than as 0. ``None`` is returned when no registered kind supplies an
+    expression at all, and callers abstain.
     """
-    return Cast(_resolution(prefix, "x"), BigIntegerField()) * Coalesce(
-        Cast(_resolution(prefix, "y"), BigIntegerField()), Value(1)
-    )
+    whens = [
+        When(**{f"{prefix}kind": kind}, then=expression)
+        for kind, adapter in get_adapters().items()
+        if (expression := adapter.nb_data_points_expression(prefix)) is not None
+    ]
+    if not whens:
+        return None
+    return Case(*whens, default=None, output_field=BigIntegerField())
+
+
+def points_in_sql(queryset):
+    """
+    Datums of the largest sizable measurement in `queryset`, or ``None``.
+
+    The largest rather than the sum, because the workflows this feeds compute
+    per measurement and combine the results; see :func:`grid_points`. NULL
+    rows (unsizable measurements) do not participate.
+    """
+    expression = _points_expression()
+    if expression is None:
+        return None
+    return queryset.annotate(points=expression).aggregate(largest=Max("points"))[
+        "largest"
+    ]
 
 
 def observed_bytes_per_point(use_cache=True):
@@ -134,6 +163,10 @@ def observed_bytes_per_point(use_cache=True):
 
     from .models import WorkflowResult
 
+    expression = _points_expression("subject_measurement__")
+    if expression is None:
+        return {}
+
     window_days = _setting("TOPOBANK_ANALYSIS_MEMORY_WINDOW_DAYS", DEFAULT_WINDOW_DAYS)
     rows = (
         WorkflowResult.objects.filter(
@@ -141,9 +174,8 @@ def observed_bytes_per_point(use_cache=True):
             task_memory__gt=0,
             task_end_time__gte=timezone.now() - timedelta(days=window_days),
             subject_measurement__isnull=False,
-            subject_measurement__file_info__has_key="resolution_x",
         )
-        .annotate(points=_points_expression("subject_measurement__"))
+        .annotate(points=expression)
         .values_list("workflow_name", "task_memory", "points")
     )
 
@@ -180,10 +212,27 @@ def grid_points(analysis):
     from topobank.manager.models import Measurement
 
     if analysis.subject_measurement_id is not None:
-        info = analysis.subject_measurement.info
-        if info.resolution_x is None:
+        measurement = analysis.subject_measurement
+        # The registry is consulted directly rather than through
+        # `measurement.adapter`: with no recorded kind, that property derives
+        # one from the data file, and opening a file during task submission is
+        # exactly what this module must never do. No kind, or a kind whose
+        # plugin is not installed, means the size is unknown.
+        if measurement.kind is None or not has_adapter(measurement.kind):
             return None
-        return info.resolution_x * (getattr(info, "resolution_y", None) or 1)
+        try:
+            return get_adapter(measurement.kind).nb_data_points(measurement)
+        except pydantic.ValidationError:
+            # A stored document that does not parse is a fault, but not one
+            # this guard is allowed to turn into a refused analysis.
+            _log.error(
+                "Cannot size measurement %s: its file_info does not validate "
+                "against the schema of kind '%s'.",
+                measurement.id,
+                measurement.kind,
+                exc_info=True,
+            )
+            return None
 
     if analysis.subject_surface_id is not None:
         queryset = Measurement.objects.filter(surface_id=analysis.subject_surface_id)
@@ -195,11 +244,7 @@ def grid_points(analysis):
             return None
         queryset = Measurement.objects.filter(surface_id__in=surface_ids)
 
-    return (
-        queryset.filter(file_info__has_key="resolution_x")
-        .annotate(points=_points_expression())
-        .aggregate(largest=Max("points"))["largest"]
-    )
+    return points_in_sql(queryset)
 
 
 def estimate_memory(analysis):

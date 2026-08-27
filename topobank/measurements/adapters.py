@@ -32,6 +32,9 @@ import PIL
 from django.conf import settings
 from django.core.files import File
 from django.core.files.base import ContentFile
+from django.db.models import BigIntegerField, Value
+from django.db.models.fields.json import KeyTextTransform
+from django.db.models.functions import Cast
 
 from .registry import register_adapter
 from .schemas import (
@@ -49,6 +52,27 @@ _log = logging.getLogger(__name__)
 
 #: Format of the canonical ("squeezed") representation of height data.
 CANONICAL_DATAFILE_FORMAT = "nc"
+
+
+def _resolution_expression(prefix, axis):
+    """
+    One resolution of a height measurement, as a database expression.
+
+    The resolutions live in the ``file_info`` JSON document, so they arrive as
+    text and have to be cast before arithmetic. The cast target is
+    ``BigIntegerField`` rather than the 32-bit integer the value actually is,
+    and that is not cosmetic: PostgreSQL multiplies ``integer * integer`` as an
+    integer, so a map beyond roughly 46000 x 46000 would overflow the product -
+    precisely the size of map the memory guard exists to catch.
+
+    A measurement whose document lacks the key (never inspected) yields NULL,
+    which propagates through any product and is skipped by aggregates - an
+    unsized measurement counts as unknown, not as 0.
+    """
+    return Cast(
+        KeyTextTransform(f"resolution_{axis}", f"{prefix}file_info"),
+        BigIntegerField(),
+    )
 
 
 class MeasurementAdapter(abc.ABC):
@@ -186,6 +210,45 @@ class MeasurementAdapter(abc.ABC):
 
         None for a kind that has no notion of undefined data points, so that a
         caller can leave the statement out rather than print something untrue.
+        """
+        return None
+
+    #
+    # Job sizing. Peak memory of an analysis is close to linear in the number of
+    # datums it holds (see `analysis/sizing.py`), and how many datums a
+    # measurement has is a property of its kind. Both hooks abstain by default:
+    # a kind that cannot be sized simply is not sized, and the memory guard
+    # fails open for it.
+    #
+
+    def nb_data_points(self, measurement):
+        """
+        Number of datums needed to hold `measurement` in memory, or ``None``.
+
+        Read from the inspection cache (`measurement.info`), never from the data
+        file: this runs while an analysis is being *submitted*, where opening
+        the file would be both slow and outside any error handling. ``None``
+        means the size cannot be determined -- the kind has no notion of it, or
+        the measurement has not been inspected yet.
+        """
+        return None
+
+    @classmethod
+    def nb_data_points_expression(cls, prefix=""):
+        """
+        The same quantity as a database expression, or ``None``.
+
+        Aggregating over a dataset's measurements (and learning the
+        bytes-per-datum coefficient from past runs) happens in SQL, where
+        :meth:`nb_data_points` cannot be called per row. A kind that wants to
+        take part in those aggregates therefore supplies an ORM expression over
+        the measurement row; ``prefix`` is the join path to it (e.g.
+        ``"subject_measurement__"``).
+
+        Whatever this returns must equal :meth:`nb_data_points` on every
+        inspected measurement of the kind -- ``test_both_sizing_paths_agree``
+        holds the two together. ``None`` (the default) keeps the kind out of
+        the SQL aggregates; rows of the kind then count as unknown, not as 0.
         """
         return None
 
@@ -511,6 +574,28 @@ class TopographyMapAdapter(SurfaceTopographyAdapter):
         meta = measurement.meta
         return meta.size_x, meta.size_y
 
+    def nb_data_points(self, measurement):
+        """
+        Grid points of the map: the product of the two resolutions.
+
+        A map with only one resolution recorded is half-inspected; its size is
+        unknown, not `resolution_x` -- pretending otherwise would let a huge map
+        past the memory guard on the strength of a partial inspection.
+        """
+        info = measurement.info
+        if info.resolution_x is None or info.resolution_y is None:
+            return None
+        return info.resolution_x * info.resolution_y
+
+    @classmethod
+    def nb_data_points_expression(cls, prefix=""):
+        # A missing resolution makes the product NULL (unknown), matching the
+        # Python path above. See `_resolution_expression` for why the casts are
+        # to `BigIntegerField`.
+        return _resolution_expression(prefix, "x") * _resolution_expression(
+            prefix, "y"
+        )
+
     def render_thumbnail(self, measurement, data, width=400, height=400, cmap=None):
         image_file = io.BytesIO()
 
@@ -567,6 +652,14 @@ class UniformLineScanAdapter(LineScanAdapter):
 
     is_uniform = True
 
+    def nb_data_points(self, measurement):
+        """Grid points of the scan: the heights alone, the positions are implied."""
+        return measurement.info.resolution_x
+
+    @classmethod
+    def nb_data_points_expression(cls, prefix=""):
+        return _resolution_expression(prefix, "x")
+
 
 @register_adapter
 class NonuniformLineScanAdapter(LineScanAdapter):
@@ -583,6 +676,23 @@ class NonuniformLineScanAdapter(LineScanAdapter):
     #: Non-uniformly spaced points cannot be interpolated, so this kind has no
     #: `fill_undefined_data_mode` at all.
     can_fill_undefined_data = False
+
+    def nb_data_points(self, measurement):
+        """
+        Twice the number of samples: arbitrary positions have to be stored too.
+
+        A uniform grid keeps only the heights; here every sample carries its own
+        position, so holding the scan in memory costs two values per point.
+        """
+        if measurement.info.resolution_x is None:
+            return None
+        return 2 * measurement.info.resolution_x
+
+    @classmethod
+    def nb_data_points_expression(cls, prefix=""):
+        return _resolution_expression(prefix, "x") * Value(
+            2, output_field=BigIntegerField()
+        )
 
 
 #
