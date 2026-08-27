@@ -948,19 +948,6 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         related_name="topography_deepzooms",
     )
 
-    # Changes in these fields trigger a refresh of the topography cache and of all analyses
-    _significant_fields = {
-        "size_x",
-        "size_y",
-        "unit",
-        "is_periodic",
-        "height_scale",
-        "fill_undefined_data_mode",
-        "detrend_mode",
-        "data_source",
-        "instrument_type",
-    }  # + 'instrument_parameters'
-
     #
     # Methods
     #
@@ -1037,6 +1024,20 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
                             f"{name}: was '{before.get(name)}', is now "
                             f"'{after.get(name)}'"
                         )
+
+            # `data_source` is the one significant field no schema can declare:
+            # it selects *which* channel the metadata describes, rather than
+            # describing it. Selecting another channel invalidates everything
+            # derived from the data, so it triggers a refresh like a metadata
+            # change does.
+            if update_fields is None or "data_source" in update_fields:
+                if old_obj.data_source != self.data_source:
+                    _log.debug(
+                        f"The data source (channel) of measurement {self.id} "
+                        f"changed: was '{old_obj.data_source}', is now "
+                        f"'{self.data_source}'"
+                    )
+                    refresh_dependent_data = True
 
         # Check if we need to run the update task
         if refresh_dependent_data:

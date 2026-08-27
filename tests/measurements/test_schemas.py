@@ -103,6 +103,23 @@ def test_an_unknown_field_is_rejected_rather_than_kept():
         TopographyMapMetadata(size_ex=1.0)
 
 
+def test_an_invalid_assignment_fails_at_the_write():
+    """
+    `validate_assignment`, on the nested instrument model too.
+
+    These documents are mutated in place -- `read_initial_metadata` assigns to
+    `metadata.instrument.type` -- so a value the schema refuses has to fail at the
+    assignment. Without this, it would be accepted silently, stored, and only
+    explode on the next *read* of the document, far from the faulty write.
+    """
+    metadata = TopographyMapMetadata()
+
+    with pytest.raises(ValueError):
+        metadata.size_x = -1.0
+    with pytest.raises(ValueError):
+        metadata.instrument.type = "not-an-instrument-type"
+
+
 #
 # Completeness
 #

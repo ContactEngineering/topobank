@@ -191,7 +191,12 @@ def coerce_metadata(schema, values):
 class InstrumentMetadata(pydantic.BaseModel):
     """Instrument used to acquire a measurement."""
 
-    model_config = pydantic.ConfigDict(extra="forbid")
+    # `validate_assignment` matters here just as on the top-level documents:
+    # this model is mutated in place (`metadata.instrument.type = ...` in
+    # `read_initial_metadata`), and without it an invalid value would be
+    # accepted silently, stored, and only explode on the next *read* of the
+    # document -- far from the faulty write.
+    model_config = pydantic.ConfigDict(extra="forbid", validate_assignment=True)
 
     #: Free-text label. Purely descriptive, so a change does not invalidate
     #: anything derived from the data.

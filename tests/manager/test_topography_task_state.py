@@ -31,6 +31,39 @@ def test_save_update_fields_persists_pending_state():
 
 
 @pytest.mark.django_db
+@pytest.mark.parametrize("update_fields", [None, ["data_source"]])
+def test_selecting_another_channel_triggers_a_refresh(update_fields):
+    """
+    `data_source` is significant, but no schema can declare it.
+
+    It selects *which* channel the metadata describes rather than describing it,
+    so it is not a field of the metadata document -- and the document comparison
+    in `save()` therefore cannot see it changing. It needs its own comparison:
+    selecting another channel invalidates everything derived from the data.
+    """
+    topo = Topography2DFactory()
+    Measurement.objects.filter(pk=topo.pk).update(task_state=Measurement.SUCCESS)
+    topo.refresh_from_db()
+
+    topo.data_source = topo.data_source + 1
+    topo.save(update_fields=update_fields)
+
+    assert Measurement.objects.get(pk=topo.pk).task_state == Measurement.PENDING
+
+
+@pytest.mark.django_db
+def test_saving_an_unchanged_channel_selection_does_not_refresh():
+    """The comparison must not fire on every save that includes the field."""
+    topo = Topography2DFactory()
+    Measurement.objects.filter(pk=topo.pk).update(task_state=Measurement.SUCCESS)
+    topo.refresh_from_db()
+
+    topo.save(update_fields=["data_source"])
+
+    assert Measurement.objects.get(pk=topo.pk).task_state == Measurement.SUCCESS
+
+
+@pytest.mark.django_db
 def test_save_update_fields_no_change_keeps_state():
     """A save with update_fields that does not touch a significant field must
     not spuriously flip the state to pending."""
