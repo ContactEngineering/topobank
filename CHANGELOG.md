@@ -2,6 +2,23 @@
 
 # 1.72.0 (not yet released)
 
+- BUG: The memory guard learned its bytes-per-point coefficients from raw peak
+  RSS, which includes the several hundred MB that the interpreter, Django and
+  the scientific libraries occupy before any data is loaded. A completed run on
+  a subject of a few hundred points therefore taught it *megabytes* per point,
+  and once such runs entered the learning window, every following analysis of
+  that workflow was refused with a TB-scale prediction regardless of its actual
+  size (#1393). Coefficients are now learned with an assumed process baseline
+  (`TOPOBANK_ANALYSIS_MEMORY_BASELINE`, added back when predicting) subtracted,
+  and only from subjects of at least `TOPOBANK_ANALYSIS_MEMORY_MIN_POINTS` grid
+  points, which bounds what an error in the assumed baseline can contribute
+- ENH: Workflow results carry a soft-delete stamp (`deleted_at`/`deleted_by`),
+  mirroring datasets and measurements, and the custodian hard-deletes stamped
+  rows once their `TOPOBANK_DELETE_DELAY` retention window has closed
+- ENH: Datasets and measurements record who soft-deleted them (`deleted_by`),
+  so a recycle-bin view can report who deleted what while the objects are
+  still recoverable
+- TST: The full-text search index is covered by tests
 - ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
   iD, for testing behaviour that depends on the identity a user signed in with.
   The factory previously always attached one
