@@ -11,6 +11,19 @@ from .zip_model import ResultZipContainer
 
 _log = logging.getLogger(__name__)
 
+#: How long a dispatched task may sit in ``PENDING`` before it is presumed
+#: lost. Generous on purpose: a message can legitimately wait in a backlogged
+#: queue for hours, and failing a row whose message is still alive would race
+#: the worker that eventually executes it. Nothing waits for a week.
+#: Override with ``settings.TOPOBANK_ANALYSIS_PENDING_HORIZON``.
+DEFAULT_PENDING_HORIZON = timedelta(days=7)
+
+LOST_MESSAGE_ERROR = (
+    "This task was submitted but never picked up by a worker; its message was "
+    "most likely lost in a restart of the broker or the workers. No result was "
+    "produced. Please run it again."
+)
+
 
 def _delete_tolerating_restrict(queryset, description):
     """Delete the queryset's rows, skipping those protected by a RESTRICT reference.
@@ -121,3 +134,31 @@ def periodic_cleanup():
         q.update(
             task_state=WorkflowResult.FAILURE, task_error="Workflow failed to launch."
         )
+
+    # Fail WorkflowResults whose task was dispatched but never picked up.
+    # ``task_id`` set with the row still PENDING means the message was
+    # published. The lost-task reaper (``taskapp.custodian``) deliberately
+    # ignores these, because a queued-but-unreserved message is invisible to
+    # ``inspect`` and would look lost while being perfectly healthy. That
+    # ambiguity fades with time: no message legitimately waits in a queue for
+    # this long, so anything still PENDING past the horizon has no message
+    # behind it any more - acknowledged by a worker that died with it, dropped
+    # in a broker restart, or revoked - and nothing else will ever move the
+    # row.
+    horizon = getattr(
+        settings, "TOPOBANK_ANALYSIS_PENDING_HORIZON", DEFAULT_PENDING_HORIZON
+    )
+    q = WorkflowResult.objects.filter(
+        task_state=WorkflowResult.PENDING,
+        task_id__isnull=False,
+        task_submission_time__lt=timezone.now() - horizon,
+    )
+    count = q.count()
+    if count:
+        _log.info(
+            "Custodian: Failing %d workflow results whose task was submitted "
+            "more than %s ago but never picked up by a worker.",
+            count,
+            horizon,
+        )
+        q.update(task_state=WorkflowResult.FAILURE, task_error=LOST_MESSAGE_ERROR)

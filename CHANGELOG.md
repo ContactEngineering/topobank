@@ -12,6 +12,13 @@
   (`TOPOBANK_ANALYSIS_MEMORY_BASELINE`, added back when predicting) subtracted,
   and only from subjects of at least `TOPOBANK_ANALYSIS_MEMORY_MIN_POINTS` grid
   points, which bounds what an error in the assumed baseline can contribute
+- ENH: The custodian fails workflow results whose task was dispatched but that
+  are still pending past `TOPOBANK_ANALYSIS_PENDING_HORIZON` (default 7 days).
+  Such a row's message is gone - acknowledged by a worker that died with it,
+  dropped in a broker restart, or revoked - and neither the lost-task reaper
+  (which only trusts worker answers about *started* tasks) nor the
+  launch-failure sweep (which only covers rows that never got a task id) would
+  ever move it
 - ENH: Workflow results carry a soft-delete stamp (`deleted_at`/`deleted_by`),
   mirroring datasets and measurements, and the custodian hard-deletes stamped
   rows once their `TOPOBANK_DELETE_DELAY` retention window has closed

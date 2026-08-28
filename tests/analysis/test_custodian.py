@@ -9,6 +9,9 @@ The ``periodic_cleanup`` task does three things:
    than ``TOPOBANK_DELETE_DELAY`` — regardless of ``name`` or subject links.
 3. Marks workflow results that are stuck in the ``PENDING`` state (no Celery
    task id) for more than a day as ``FAILURE``.
+4. Marks workflow results whose task *was* dispatched (``task_id`` set) but
+   that are still ``PENDING`` past ``TOPOBANK_ANALYSIS_PENDING_HORIZON`` as
+   ``FAILURE`` - their message is gone and no worker will ever pick it up.
 
 These tests assert the actual state transitions / deletions, including the
 boundary cases that must be left untouched.
@@ -21,6 +24,7 @@ import pytest
 from django.conf import settings
 from django.utils import timezone
 
+from topobank.analysis import custodian
 from topobank.analysis.custodian import periodic_cleanup
 from topobank.analysis.models import WorkflowResult
 from topobank.testing.factories import TopographyAnalysisFactory
@@ -232,7 +236,8 @@ def test_keeps_recent_pending_result():
 
 @pytest.mark.django_db
 def test_keeps_pending_result_that_has_a_task_id():
-    # A task id means the task was actually dispatched -> not "stuck".
+    # A task id means the task was actually dispatched: within the horizon its
+    # message may simply be waiting in a backlogged queue -> leave untouched.
     analysis = TopographyAnalysisFactory(
         task_state=WorkflowResult.PENDING, task_id=uuid.uuid4()
     )
@@ -244,6 +249,84 @@ def test_keeps_pending_result_that_has_a_task_id():
 
     analysis.refresh_from_db()
     assert analysis.task_state == WorkflowResult.PENDING
+
+
+# ---------------------------------------------------------------------------
+# Failing dispatched results whose message was lost
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_fails_dispatched_result_still_pending_past_horizon():
+    analysis = TopographyAnalysisFactory(
+        task_state=WorkflowResult.PENDING, task_id=uuid.uuid4()
+    )
+    _set_unmanaged_fields(
+        analysis,
+        task_submission_time=timezone.now()
+        - custodian.DEFAULT_PENDING_HORIZON
+        - datetime.timedelta(hours=1),
+    )
+
+    periodic_cleanup()
+
+    analysis.refresh_from_db()
+    assert analysis.task_state == WorkflowResult.FAILURE
+    assert analysis.task_error == custodian.LOST_MESSAGE_ERROR
+    # It must not be deleted, only updated.
+    assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+@pytest.mark.django_db
+def test_keeps_dispatched_result_within_horizon():
+    analysis = TopographyAnalysisFactory(
+        task_state=WorkflowResult.PENDING, task_id=uuid.uuid4()
+    )
+    _set_unmanaged_fields(
+        analysis,
+        task_submission_time=timezone.now()
+        - custodian.DEFAULT_PENDING_HORIZON
+        + datetime.timedelta(hours=1),
+    )
+
+    periodic_cleanup()
+
+    analysis.refresh_from_db()
+    assert analysis.task_state == WorkflowResult.PENDING
+
+
+@pytest.mark.django_db
+def test_pending_horizon_is_configurable(settings):
+    settings.TOPOBANK_ANALYSIS_PENDING_HORIZON = datetime.timedelta(hours=1)
+    analysis = TopographyAnalysisFactory(
+        task_state=WorkflowResult.PENDING, task_id=uuid.uuid4()
+    )
+    _set_unmanaged_fields(
+        analysis, task_submission_time=timezone.now() - datetime.timedelta(hours=2)
+    )
+
+    periodic_cleanup()
+
+    analysis.refresh_from_db()
+    assert analysis.task_state == WorkflowResult.FAILURE
+
+
+@pytest.mark.django_db
+def test_horizon_does_not_touch_started_or_undispatched_rows():
+    # STARTED belongs to the lost-task reaper, which can ask the workers;
+    # PENDING without a task id belongs to the launch-failure clause above.
+    started = TopographyAnalysisFactory(
+        task_state=WorkflowResult.STARTED, task_id=uuid.uuid4()
+    )
+    _set_unmanaged_fields(
+        started,
+        task_submission_time=timezone.now() - datetime.timedelta(days=30),
+    )
+
+    periodic_cleanup()
+
+    started.refresh_from_db()
+    assert started.task_state == WorkflowResult.STARTED
 
 
 @pytest.mark.django_db
