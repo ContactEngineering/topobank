@@ -542,3 +542,36 @@ def test_deepcopy_copies_attachments(user_bob, handle_usage_statistics):
     file_copy = topo_copy.attachments.find_file("topo-attachment.txt")
     assert file.id != file_copy.id
     assert file.file.name != file_copy.file.name
+
+
+@pytest.mark.django_db
+def test_deepcopy_preserves_attachment_metadata(user_bob, handle_usage_statistics):
+    """A copied dataset's attachments keep who uploaded them and what they say.
+
+    `Manifest` carries the note, the kind and the uploader itself, so
+    `Manifest.deepcopy` picks all three up along with the rest of the row. That is
+    the reason this metadata belongs on the manifest rather than on a side table
+    keyed to it: `ManifestSet.deepcopy` copies manifests and knows nothing else, so
+    a parallel model would leave a copied dataset's attachments anonymous and
+    note-less while still showing the files themselves.
+    """
+    content = "Supplier certificate!"
+    surface = SurfaceFactory(created_by=user_bob)
+    surface.attachments.save_file("certificate.pdf", "att", ContentFile(content))
+
+    manifest = surface.attachments.find_file("certificate.pdf")
+    manifest.note = "Supplier certificate, revision C"
+    manifest.created_by = user_bob
+    manifest.size_bytes = len(content)
+    manifest.content_type = "application/pdf"
+    manifest.save()
+
+    surface_copy = surface.deepcopy()
+    copied = surface_copy.attachments.find_file("certificate.pdf")
+
+    assert copied.id != manifest.id
+    assert copied.note == "Supplier certificate, revision C"
+    assert copied.kind == "att"
+    assert copied.created_by == user_bob
+    assert copied.size_bytes == len(content)
+    assert copied.content_type == "application/pdf"
