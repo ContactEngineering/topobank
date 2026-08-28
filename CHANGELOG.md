@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# 1.72.0 (not yet released)
+# 1.72.0 (2026-08-28)
 
 - BUG: The memory guard learned its bytes-per-point coefficients from raw peak
   RSS, which includes the several hundred MB that the interpreter, Django and
