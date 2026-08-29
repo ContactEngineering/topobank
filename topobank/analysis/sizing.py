@@ -72,6 +72,7 @@ from datetime import timedelta
 import pydantic
 from django.conf import settings
 from django.core.cache import cache
+from django.db import DataError, transaction
 from django.db.models import BigIntegerField, Case, Max, When
 from django.template.defaultfilters import filesizeformat
 from django.utils import timezone
@@ -81,7 +82,12 @@ from .exceptions import AnalysisTooLargeError
 
 _log = logging.getLogger(__name__)
 
-CACHE_KEY = "analysis-sizing-bytes-per-point"
+#: The version suffix is part of the coefficient semantics: coefficients
+#: learned before the baseline subtraction (and before line scans counted
+#: their positions) must not survive a deployment in a persistent cache --
+#: they are exactly the poisoned values #1393 is about. Bump it whenever the
+#: learning arithmetic changes.
+CACHE_KEY = "analysis-sizing-bytes-per-point-v2"
 
 #: Coefficients change only when an implementation changes, so this can be long.
 CACHE_SECONDS = 3600
@@ -163,13 +169,30 @@ def points_in_sql(queryset):
     The largest rather than the sum, because the workflows this feeds compute
     per measurement and combine the results; see :func:`grid_points`. NULL
     rows (unsizable measurements) do not participate.
+
+    The database cannot validate a ``file_info`` document against its kind's
+    schema the way the Python path does, so a corrupt document -- a resolution
+    stored as something no integer cast accepts -- surfaces here as a
+    ``DataError`` from the cast. That is a fault worth a log line, but sizing
+    runs during task submission, and the one thing this guard must never do is
+    fail *closed*: the savepoint keeps the surrounding transaction usable and
+    the answer is "unknown".
     """
     expression = _points_expression()
     if expression is None:
         return None
-    return queryset.annotate(points=expression).aggregate(largest=Max("points"))[
-        "largest"
-    ]
+    try:
+        with transaction.atomic():
+            return queryset.annotate(points=expression).aggregate(
+                largest=Max("points")
+            )["largest"]
+    except DataError:
+        _log.error(
+            "Cannot size a set of measurements: a stored file_info document "
+            "holds a resolution the integer cast rejects.",
+            exc_info=True,
+        )
+        return None
 
 
 def observed_bytes_per_point(use_cache=True):
@@ -219,12 +242,26 @@ def observed_bytes_per_point(use_cache=True):
     )
 
     ratios = defaultdict(list)
-    for workflow_name, task_memory, points in rows.iterator():
-        # A peak below the assumed baseline carries no per-point information;
-        # clamping it to zero instead would drag the percentile down with
-        # fabricated "free" runs, so it is skipped entirely.
-        if points and task_memory > baseline:
-            ratios[workflow_name].append((task_memory - baseline) / points)
+    try:
+        with transaction.atomic():
+            for workflow_name, task_memory, points in rows.iterator():
+                # A peak below the assumed baseline carries no per-point
+                # information; clamping it to zero instead would drag the
+                # percentile down with fabricated "free" runs, so it is
+                # skipped entirely.
+                if points and task_memory > baseline:
+                    ratios[workflow_name].append((task_memory - baseline) / points)
+    except DataError:
+        # A corrupt document makes the cast fail for the whole query, taking
+        # every workflow's coefficient with it. Deliberately not cached: the
+        # empty result is a degraded answer, not a learned one, and caching it
+        # would keep the guard blind for an hour after the document is fixed.
+        _log.error(
+            "Cannot learn memory coefficients: a stored file_info document "
+            "holds a resolution the integer cast rejects.",
+            exc_info=True,
+        )
+        return {}
 
     percentile = _setting("TOPOBANK_ANALYSIS_MEMORY_PERCENTILE", DEFAULT_PERCENTILE)
     min_samples = _setting("TOPOBANK_ANALYSIS_MEMORY_MIN_SAMPLES", DEFAULT_MIN_SAMPLES)

@@ -26,7 +26,7 @@ from topobank.manager.models import Measurement
 from topobank.measurements.adapters import MeasurementAdapter
 from topobank.measurements.registry import (
     get_adapter,
-    get_kinds,
+    get_adapters,
     register_adapter,
     unregister_adapter,
 )
@@ -117,15 +117,22 @@ def both_paths(measurement):
 #
 
 
-def test_every_registered_kind_appears_in_the_equation_table():
+def test_every_builtin_kind_appears_in_the_equation_table():
     """
     A kind nobody thought about must fail loudly, here.
 
     Whoever adds a kind decides how it is sized -- implementing neither hook is
     a legitimate decision (the guard then abstains), but it has to be a
-    decision, recorded by adding a row to `CASES`.
+    decision, recorded by adding a row to `CASES`. Only the kinds this
+    repository ships are held to that: an installed plugin registers kinds it
+    cannot add to this table, so the comparison must not see them.
     """
-    assert set(CASES) == set(get_kinds())
+    builtin_kinds = {
+        kind
+        for kind, adapter in get_adapters().items()
+        if type(adapter).__module__ == "topobank.measurements.adapters"
+    }
+    assert set(CASES) == builtin_kinds
 
 
 @pytest.mark.django_db
@@ -292,6 +299,51 @@ def test_a_file_info_document_that_does_not_parse_abstains(caplog):
 
     assert grid_points(analysis) is None
     assert "Cannot size measurement" in caplog.text
+
+
+@pytest.mark.django_db
+def test_a_nonnumeric_resolution_does_not_abort_the_aggregate(caplog):
+    """
+    The SQL path cannot validate a document; a corrupt value reaches the cast.
+
+    The database then raises rather than returning NULL, and without handling
+    that would abort task submission -- the guard failing *closed* on a fault
+    in somebody else's data. The whole set degrades to "unknown" instead, and
+    the connection stays usable afterwards.
+    """
+    surface = SurfaceFactory()
+    honest = Topography2DFactory(surface=surface)
+    rotten = Topography2DFactory(surface=surface)
+    Measurement.objects.filter(pk=rotten.pk).update(
+        kind="uniform-line-scan",
+        file_info={"kind": "uniform-line-scan", "resolution_x": "garbage"},
+    )
+    analysis = AnalysisFactoryWithoutResult(subject_surface=surface)
+
+    assert grid_points(analysis) is None
+    assert "the integer cast rejects" in caplog.text
+    # The savepoint must leave the transaction usable.
+    assert Measurement.objects.filter(pk=honest.pk).exists()
+
+
+@pytest.mark.django_db
+def test_a_nonnumeric_resolution_does_not_abort_the_learner(caplog):
+    _completed_run(
+        task_memory=sizing.DEFAULT_BASELINE + 200 * 8192 * 8192,
+        resolution_x=8192,
+        resolution_y=8192,
+    )
+    rotten = sized(
+        "uniform-line-scan", {"resolution_x": "garbage"}
+    )
+    AnalysisFactoryWithoutResult(
+        subject_measurement=rotten, workflow_name=WORKFLOW, task_memory=GIB
+    )
+
+    # One corrupt document takes the whole query down, so every coefficient is
+    # lost until it is fixed -- degraded, logged, and deliberately not cached.
+    assert observed_bytes_per_point(use_cache=False) == {}
+    assert "Cannot learn memory coefficients" in caplog.text
 
 
 #
