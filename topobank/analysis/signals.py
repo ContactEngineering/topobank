@@ -54,6 +54,8 @@ def post_delete_analysis(sender, instance, **kwargs):
 
     # Delete permission set, which triggers deletion of all other associated data.
     # Needs to be in post_delete to avoid recursion.
+    if instance.permissions_id is None:
+        return
     try:
         instance.permissions.delete()
     except get_permission_model().DoesNotExist:
