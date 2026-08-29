@@ -2,13 +2,14 @@
 Predicting how much memory an analysis needs, so that one which cannot possibly
 fit is refused up front instead of being discovered by the OOM killer.
 
-Peak memory is close to linear in the number of data points, with a coefficient
-that is a property of the *workflow* rather than of the data. Measured on the
-production instance: ``variable_bandwidth`` used 125.7 B/point on a
-20178 x 20178 map and 128.8 B/point on an 8192 x 8192 one - 2.5% apart across a
-sixfold change in size - and ``scale_dependent_curvature`` stayed within
-746-830 B/point over eight different resolutions. So ``points x coefficient`` is
-a usable predictor, which is the whole basis of this module.
+Peak memory is a fixed process baseline plus a term close to linear in the
+number of data points, with a coefficient that is a property of the *workflow*
+rather than of the data. Measured on the production instance:
+``variable_bandwidth`` used 125.7 B/point on a 20178 x 20178 map and
+128.8 B/point on an 8192 x 8192 one - 2.5% apart across a sixfold change in
+size - and ``scale_dependent_curvature`` stayed within 746-830 B/point over
+eight different resolutions. So ``baseline + points x coefficient`` is a usable
+predictor, which is the whole basis of this module.
 
 How many data points a measurement holds is a property of its *kind*, so the
 equations live on the measurement adapters (``nb_data_points`` for a single
@@ -22,6 +23,20 @@ down here. Every completed task records its own peak RSS (see
 ``taskapp/memory.py``), so no table of magic numbers has to be maintained and a
 workflow that does not exist yet is covered the moment it has been run a few
 times.
+
+The baseline is why small runs must not teach. ``task_memory`` is peak RSS, and
+several hundred MB of that is interpreter, Django and numpy - resident before
+the first data point is loaded. Dividing raw peak RSS by the subject's points
+therefore does not converge to the workflow's coefficient for small subjects; it
+diverges to ``baseline / points``. A power-spectrum run on a line scan of a few
+hundred points yields *megabytes* per point, the high percentile below latches
+onto exactly those samples, and every following analysis of that workflow is
+refused no matter its size (issue #1393 - the production instance rejected
+ordinary sub-megapixel maps with TB-scale predictions). Two measures keep the
+baseline out of the coefficient: the assumed baseline is subtracted before
+dividing (and added back when predicting), and runs on subjects below a minimum
+point count are not used for learning at all, which bounds what an error in the
+assumed baseline can contribute.
 
 Only runs from the last ``TOPOBANK_ANALYSIS_MEMORY_WINDOW_DAYS`` days count, and
 that window is what lets the coefficient come *down* again. Over an unbounded
@@ -86,6 +101,21 @@ DEFAULT_MIN_SAMPLES = 5
 #: within a release cycle or two rather than never.
 DEFAULT_WINDOW_DAYS = 90
 
+#: Fixed per-process overhead assumed to be part of every recorded peak RSS:
+#: interpreter, Django and the scientific libraries are resident before the
+#: first data point is loaded. Subtracted before learning a coefficient, added
+#: back when predicting. Production worker children have been observed at
+#: roughly 300-700 MB before touching data, so this sits in the middle.
+DEFAULT_BASELINE = 512 * 1024**2
+
+#: Runs on subjects smaller than this teach us nothing about the per-point
+#: cost: their peak RSS is almost entirely baseline. The subtraction above
+#: removes the *assumed* baseline; this floor bounds what the remaining error
+#: can contribute. 16 Mpoints is a 4096 x 4096 map, so an assumed baseline
+#: that is off by even 512 MB contaminates a learned coefficient by at most
+#: 32 B/point - small against every coefficient observed in practice.
+DEFAULT_MIN_POINTS = 16 * 1024**2
+
 
 def _setting(name, default):
     return getattr(settings, name, default)
@@ -149,8 +179,12 @@ def observed_bytes_per_point(use_cache=True):
     Derived only from analyses of a single measurement, because that is the one
     case where the number of grid points involved is unambiguous, and only from
     runs inside the configured window, so that the coefficient can fall again
-    when a workflow is optimised. A workflow with no recent runs is absent from
-    the result, and callers must treat that as "no estimate".
+    when a workflow is optimised. Runs on subjects below the minimum point
+    count are excluded and the assumed process baseline is subtracted first;
+    see the module docstring for why raw ``task_memory / points`` on a small
+    subject is baseline, not coefficient. A workflow with no qualifying recent
+    runs is absent from the result, and callers must treat that as "no
+    estimate".
 
     ``task_end_time`` dates a run rather than ``task_start_time``, because that
     is when its memory was measured. It is set on both the success and the
@@ -168,6 +202,8 @@ def observed_bytes_per_point(use_cache=True):
         return {}
 
     window_days = _setting("TOPOBANK_ANALYSIS_MEMORY_WINDOW_DAYS", DEFAULT_WINDOW_DAYS)
+    baseline = _setting("TOPOBANK_ANALYSIS_MEMORY_BASELINE", DEFAULT_BASELINE)
+    min_points = _setting("TOPOBANK_ANALYSIS_MEMORY_MIN_POINTS", DEFAULT_MIN_POINTS)
     rows = (
         WorkflowResult.objects.filter(
             task_memory__isnull=False,
@@ -176,13 +212,19 @@ def observed_bytes_per_point(use_cache=True):
             subject_measurement__isnull=False,
         )
         .annotate(points=expression)
+        # Also excludes unsizable measurements: their `points` is NULL, and
+        # NULL compares as unknown.
+        .filter(points__gte=min_points)
         .values_list("workflow_name", "task_memory", "points")
     )
 
     ratios = defaultdict(list)
     for workflow_name, task_memory, points in rows.iterator():
-        if points:
-            ratios[workflow_name].append(task_memory / points)
+        # A peak below the assumed baseline carries no per-point information;
+        # clamping it to zero instead would drag the percentile down with
+        # fabricated "free" runs, so it is skipped entirely.
+        if points and task_memory > baseline:
+            ratios[workflow_name].append((task_memory - baseline) / points)
 
     percentile = _setting("TOPOBANK_ANALYSIS_MEMORY_PERCENTILE", DEFAULT_PERCENTILE)
     min_samples = _setting("TOPOBANK_ANALYSIS_MEMORY_MIN_SAMPLES", DEFAULT_MIN_SAMPLES)
@@ -260,7 +302,13 @@ def estimate_memory(analysis):
     safety_factor = _setting(
         "TOPOBANK_ANALYSIS_MEMORY_SAFETY_FACTOR", DEFAULT_SAFETY_FACTOR
     )
-    return int(points * coefficient * safety_factor)
+    baseline = _setting("TOPOBANK_ANALYSIS_MEMORY_BASELINE", DEFAULT_BASELINE)
+    # The baseline was subtracted when the coefficient was learned, so it has
+    # to be added back here: the budget is compared against the process's real
+    # peak RSS, which includes it. It is deliberately outside the safety
+    # factor - the spread the factor absorbs is in the per-point cost, not in
+    # the interpreter footprint.
+    return int(baseline + points * coefficient * safety_factor)
 
 
 def check_memory_budget(analysis):

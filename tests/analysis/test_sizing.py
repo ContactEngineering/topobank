@@ -14,7 +14,9 @@ import pytest
 from django.core.cache import cache
 
 from topobank.analysis import sizing
+from topobank.analysis.exceptions import AnalysisTooLargeError
 from topobank.analysis.sizing import (
+    check_memory_budget,
     estimate_memory,
     grid_points,
     observed_bytes_per_point,
@@ -48,6 +50,25 @@ CASES = {
 }
 
 
+WORKFLOW = "topobank.testing.test"
+
+GIB = 1024**3
+
+
+@pytest.fixture(autouse=True)
+def _fresh_coefficients():
+    """Learned coefficients are cached process-wide; isolate each test."""
+    cache.delete(sizing.CACHE_KEY)
+    yield
+    cache.delete(sizing.CACHE_KEY)
+
+
+@pytest.fixture(autouse=True)
+def _learn_from_single_runs(settings):
+    """One observation per scenario is enough for these tests."""
+    settings.TOPOBANK_ANALYSIS_MEMORY_MIN_SAMPLES = 1
+
+
 def sized(kind, file_info):
     """A measurement of `kind` whose inspection cache is set directly."""
     topo = Topography2DFactory()
@@ -55,6 +76,33 @@ def sized(kind, file_info):
         kind=kind, file_info={"kind": kind, **file_info}
     )
     return Measurement.objects.get(pk=topo.pk)
+
+
+def _subject(resolution_x, resolution_y=None):
+    """A map, or -- without a second resolution -- a uniform line scan."""
+    if resolution_y is None:
+        return sized("uniform-line-scan", {"resolution_x": resolution_x})
+    return sized(
+        "topography-map",
+        {"resolution_x": resolution_x, "resolution_y": resolution_y},
+    )
+
+
+def _completed_run(task_memory, resolution_x, resolution_y=None):
+    """A finished analysis whose subject has the given grid resolution."""
+    return AnalysisFactoryWithoutResult(
+        subject_measurement=_subject(resolution_x, resolution_y),
+        workflow_name=WORKFLOW,
+        task_memory=task_memory,
+    )
+
+
+def _pending_analysis(resolution_x, resolution_y=None):
+    """An analysis about to run on a subject of the given grid resolution."""
+    return AnalysisFactoryWithoutResult(
+        subject_measurement=_subject(resolution_x, resolution_y),
+        workflow_name=WORKFLOW,
+    )
 
 
 def both_paths(measurement):
@@ -256,24 +304,127 @@ def test_the_coefficient_is_learned_with_the_equation_it_predicts_with(settings)
     """
     Learn from a run, predict for the same measurement: the two must meet.
 
-    The trap this guards against is learning `task_memory / points` with one
-    equation and predicting `points * coefficient` with another -- for a
-    nonuniform scan that silently doubles or halves every prediction of the
-    workflow, which is the shape of the mispredictions in #1393.
+    The trap this guards against is learning `(task_memory - baseline) /
+    points` with one equation and predicting `points * coefficient` with
+    another -- for a nonuniform scan that silently doubles or halves every
+    prediction of the workflow. With the safety factor at 1, learning and
+    predicting are exact inverses, so the prediction must reproduce the
+    recorded peak to the byte.
     """
-    settings.TOPOBANK_ANALYSIS_MEMORY_MIN_SAMPLES = 1
     settings.TOPOBANK_ANALYSIS_MEMORY_SAFETY_FACTOR = 1.0
-    cache.delete(sizing.CACHE_KEY)
 
-    measurement = sized("nonuniform-line-scan", {"resolution_x": 100})  # 200 datums
+    # A nonuniform scan of 10M samples is 20M datums (positions and heights)
+    # -- above the minimum-points floor only if the learner counts them the
+    # way the predictor does.
+    datums = 2 * 10_000_000
+    peak = sizing.DEFAULT_BASELINE + 1000 * datums
     analysis = AnalysisFactoryWithoutResult(
-        subject_measurement=measurement,
-        workflow_name="topobank.testing.sized",
-        task_memory=200_000,
+        subject_measurement=sized(
+            "nonuniform-line-scan", {"resolution_x": 10_000_000}
+        ),
+        workflow_name=WORKFLOW,
+        task_memory=peak,
     )
 
     coefficients = observed_bytes_per_point(use_cache=False)
-    assert coefficients["topobank.testing.sized"] == pytest.approx(1000.0)
+    assert coefficients[WORKFLOW] == pytest.approx(1000.0)
+    assert estimate_memory(analysis) == peak
 
-    cache.delete(sizing.CACHE_KEY)
-    assert estimate_memory(analysis) == pytest.approx(200_000)
+
+#
+# The process baseline stays out of the coefficient (issue #1393; ported from
+# `main`, af418da). `task_memory` is peak RSS, several hundred MB of which is
+# interpreter and libraries -- dividing it raw by a small subject's points
+# yields megabytes per point, the high percentile latches onto those samples,
+# and every following analysis of the workflow is refused with a TB-scale
+# prediction.
+#
+
+
+@pytest.mark.django_db
+def test_small_subjects_do_not_teach():
+    # A line scan of 200 points that peaked at 1 GB: under the pre-#1393
+    # arithmetic this is ~5 MB/point. It must not produce a coefficient.
+    _completed_run(task_memory=GIB, resolution_x=200)
+
+    assert WORKFLOW not in observed_bytes_per_point(use_cache=False)
+
+
+@pytest.mark.django_db
+def test_baseline_is_subtracted_when_learning_and_restored_when_predicting():
+    points = 8192 * 8192  # above the minimum-points floor
+    true_coefficient = 200  # B/point
+    _completed_run(
+        task_memory=sizing.DEFAULT_BASELINE + true_coefficient * points,
+        resolution_x=8192,
+        resolution_y=8192,
+    )
+
+    coefficients = observed_bytes_per_point(use_cache=False)
+    assert coefficients[WORKFLOW] == pytest.approx(true_coefficient)
+
+    analysis = _pending_analysis(resolution_x=8192, resolution_y=8192)
+    expected = int(
+        sizing.DEFAULT_BASELINE
+        + points * true_coefficient * sizing.DEFAULT_SAFETY_FACTOR
+    )
+    assert estimate_memory(analysis) == expected
+
+
+@pytest.mark.django_db
+def test_poisoned_small_run_does_not_reject_ordinary_analyses(settings):
+    """The #1393 scenario end to end."""
+    settings.TOPOBANK_ANALYSIS_MEMORY_BUDGET = 64 * GIB
+
+    # The poison: a tiny line scan whose peak RSS is all baseline.
+    _completed_run(task_memory=GIB, resolution_x=200)
+    # An honest observation on a large map: 200 B/point.
+    big_points = 8192 * 8192
+    _completed_run(
+        task_memory=sizing.DEFAULT_BASELINE + 200 * big_points,
+        resolution_x=8192,
+        resolution_y=8192,
+    )
+
+    # An ordinary 1024 x 1024 measurement fits easily and must be allowed to
+    # run. With the poisoned coefficient (~5 MB/point) it would have been
+    # predicted at ~5 TB and refused.
+    analysis = _pending_analysis(resolution_x=1024, resolution_y=1024)
+    estimate = check_memory_budget(analysis)
+    assert estimate is not None
+    assert estimate < settings.TOPOBANK_ANALYSIS_MEMORY_BUDGET
+
+
+@pytest.mark.django_db
+def test_genuinely_too_large_analysis_is_still_refused(settings):
+    settings.TOPOBANK_ANALYSIS_MEMORY_BUDGET = 64 * GIB
+
+    big_points = 8192 * 8192
+    _completed_run(
+        task_memory=sizing.DEFAULT_BASELINE + 200 * big_points,
+        resolution_x=8192,
+        resolution_y=8192,
+    )
+
+    # 46000 x 46000 at 200 B/point x 1.2 safety is ~475 GB.
+    analysis = _pending_analysis(resolution_x=46000, resolution_y=46000)
+    with pytest.raises(AnalysisTooLargeError):
+        check_memory_budget(analysis)
+
+
+@pytest.mark.django_db
+def test_runs_that_never_exceed_the_baseline_are_skipped():
+    # Large subject, but the recorded peak is below the assumed baseline
+    # (e.g. recorded by a fallback mechanism, or the workflow streamed its
+    # data). There is no per-point information in it.
+    _completed_run(task_memory=100 * 1024**2, resolution_x=8192, resolution_y=8192)
+
+    assert WORKFLOW not in observed_bytes_per_point(use_cache=False)
+
+
+@pytest.mark.django_db
+def test_fails_open_without_history(settings):
+    settings.TOPOBANK_ANALYSIS_MEMORY_BUDGET = 64 * GIB
+
+    analysis = _pending_analysis(resolution_x=46000, resolution_y=46000)
+    assert check_memory_budget(analysis) is None
