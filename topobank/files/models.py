@@ -14,6 +14,7 @@ from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from storages.utils import clean_name
 
@@ -145,6 +146,16 @@ class ManifestSet(PermissionMixin, models.Model):
 class Manifest(PermissionMixin, models.Model):
     class Meta:
         unique_together = (("folder", "filename"),)
+        indexes = [
+            # Partial index for the custodian sweep over unconfirmed attachments
+            # (kind="att" AND confirmed_at IS NULL), ordered by age. Only reserved
+            # uploads that never completed are indexed, so it stays small.
+            models.Index(
+                fields=["created_at"],
+                name="manifest_unconfirmed_att_idx",
+                condition=Q(kind="att", confirmed_at__isnull=True),
+            ),
+        ]
 
     #
     # Manager
