@@ -2,6 +2,21 @@
 
 # 2.0.0 (unreleased)
 
+- ENH: The memory guard's sizing of analyses is pluggable (#1383). How many
+  datums a measurement holds is a property of its kind, so the equations live on
+  the measurement adapters now -- `nb_data_points()` for a single measurement
+  and `nb_data_points_expression()` for the SQL aggregates, both abstaining by
+  default -- and `analysis/sizing.py` merely dispatches on `kind`. Three
+  predictions change: a nonuniform line scan counts `2 * resolution_x` (its
+  positions have to be stored too; dividing recorded memory by the undercounted
+  denominator had inflated coefficients learned from such scans by the same
+  factor of two), a dataset mixing kinds sizes each measurement with its own
+  equation instead of the map equation, and a map whose inspection recorded only
+  one resolution counts as unknown rather than as a line scan. The coefficient
+  learner keeps the #1393 baseline correction (see 1.72.0), applied to the
+  dispatched equations, and its cache key is versioned so that coefficients
+  learned under the old arithmetic cannot survive a deployment in a persistent
+  cache
 - ENH: The kind of data a measurement holds is now recorded explicitly, in
   `Measurement.kind`, and a registry of measurement adapters decides how a record
   of that kind is read and which derived artifacts it has. An external package can

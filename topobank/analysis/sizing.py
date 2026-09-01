@@ -2,19 +2,41 @@
 Predicting how much memory an analysis needs, so that one which cannot possibly
 fit is refused up front instead of being discovered by the OOM killer.
 
-Peak memory is close to linear in the number of grid points, with a coefficient
-that is a property of the *workflow* rather than of the data. Measured on the
-production instance: ``variable_bandwidth`` used 125.7 B/point on a
-20178 x 20178 map and 128.8 B/point on an 8192 x 8192 one - 2.5% apart across a
-sixfold change in size - and ``scale_dependent_curvature`` stayed within
-746-830 B/point over eight different resolutions. So ``points x coefficient`` is
-a usable predictor, which is the whole basis of this module.
+Peak memory is a fixed process baseline plus a term close to linear in the
+number of data points, with a coefficient that is a property of the *workflow*
+rather than of the data. Measured on the production instance:
+``variable_bandwidth`` used 125.7 B/point on a 20178 x 20178 map and
+128.8 B/point on an 8192 x 8192 one - 2.5% apart across a sixfold change in
+size - and ``scale_dependent_curvature`` stayed within 746-830 B/point over
+eight different resolutions. So ``baseline + points x coefficient`` is a usable
+predictor, which is the whole basis of this module.
+
+How many data points a measurement holds is a property of its *kind*, so the
+equations live on the measurement adapters (``nb_data_points`` for a single
+instance, ``nb_data_points_expression`` for the SQL aggregates) and this module
+only dispatches. A kind that does not implement them - a plugin's kind, or one
+whose notion of size is not settled - simply is not sized, and the guard fails
+open for it.
 
 The coefficient is *learned* from the ``task_memory`` column rather than written
 down here. Every completed task records its own peak RSS (see
 ``taskapp/memory.py``), so no table of magic numbers has to be maintained and a
 workflow that does not exist yet is covered the moment it has been run a few
 times.
+
+The baseline is why small runs must not teach. ``task_memory`` is peak RSS, and
+several hundred MB of that is interpreter, Django and numpy - resident before
+the first data point is loaded. Dividing raw peak RSS by the subject's points
+therefore does not converge to the workflow's coefficient for small subjects; it
+diverges to ``baseline / points``. A power-spectrum run on a line scan of a few
+hundred points yields *megabytes* per point, the high percentile below latches
+onto exactly those samples, and every following analysis of that workflow is
+refused no matter its size (issue #1393 - the production instance rejected
+ordinary sub-megapixel maps with TB-scale predictions). Two measures keep the
+baseline out of the coefficient: the assumed baseline is subtracted before
+dividing (and added back when predicting), and runs on subjects below a minimum
+point count are not used for learning at all, which bounds what an error in the
+assumed baseline can contribute.
 
 Only runs from the last ``TOPOBANK_ANALYSIS_MEMORY_WINDOW_DAYS`` days count, and
 that window is what lets the coefficient come *down* again. Over an unbounded
@@ -47,19 +69,25 @@ import math
 from collections import defaultdict
 from datetime import timedelta
 
+import pydantic
 from django.conf import settings
 from django.core.cache import cache
-from django.db.models import BigIntegerField, Max, Value
-from django.db.models.fields.json import KeyTextTransform
-from django.db.models.functions import Cast, Coalesce
+from django.db import DataError, transaction
+from django.db.models import BigIntegerField, Case, Max, When
 from django.template.defaultfilters import filesizeformat
 from django.utils import timezone
 
+from ..measurements.registry import get_adapter, get_adapters, has_adapter
 from .exceptions import AnalysisTooLargeError
 
 _log = logging.getLogger(__name__)
 
-CACHE_KEY = "analysis-sizing-bytes-per-point"
+#: The version suffix is part of the coefficient semantics: coefficients
+#: learned before the baseline subtraction (and before line scans counted
+#: their positions) must not survive a deployment in a persistent cache --
+#: they are exactly the poisoned values #1393 is about. Bump it whenever the
+#: learning arithmetic changes.
+CACHE_KEY = "analysis-sizing-bytes-per-point-v2"
 
 #: Coefficients change only when an implementation changes, so this can be long.
 CACHE_SECONDS = 3600
@@ -79,6 +107,21 @@ DEFAULT_MIN_SAMPLES = 5
 #: within a release cycle or two rather than never.
 DEFAULT_WINDOW_DAYS = 90
 
+#: Fixed per-process overhead assumed to be part of every recorded peak RSS:
+#: interpreter, Django and the scientific libraries are resident before the
+#: first data point is loaded. Subtracted before learning a coefficient, added
+#: back when predicting. Production worker children have been observed at
+#: roughly 300-700 MB before touching data, so this sits in the middle.
+DEFAULT_BASELINE = 512 * 1024**2
+
+#: Runs on subjects smaller than this teach us nothing about the per-point
+#: cost: their peak RSS is almost entirely baseline. The subtraction above
+#: removes the *assumed* baseline; this floor bounds what the remaining error
+#: can contribute. 16 Mpoints is a 4096 x 4096 map, so an assumed baseline
+#: that is off by even 512 MB contaminates a learned coefficient by at most
+#: 32 B/point - small against every coefficient observed in practice.
+DEFAULT_MIN_POINTS = 16 * 1024**2
+
 
 def _setting(name, default):
     return getattr(settings, name, default)
@@ -91,26 +134,65 @@ def _percentile(values, fraction):
     return ordered[min(len(ordered) - 1, max(0, rank - 1))]
 
 
-def _resolution(prefix, axis):
-    """One resolution, read out of the `file_info` JSON document."""
-    return KeyTextTransform(f"resolution_{axis}", f"{prefix}file_info")
-
-
 def _points_expression(prefix=""):
     """
-    Grid points of a measurement: line scans have no second dimension.
+    Datums of a measurement, dispatching on its kind, or ``None``.
 
-    The resolutions live in the `file_info` JSON document, so they arrive as text
-    and have to be cast before they can be multiplied.
+    How many datums a measurement holds is a property of its kind, so the
+    equation lives on the adapter (``nb_data_points_expression``) and this
+    merely assembles the registered ones into a ``CASE`` over the ``kind``
+    column. Every row therefore gets the equation of *its own* kind -- a
+    dataset mixing maps and line scans sizes each measurement correctly, where
+    a single shared equation would apply the wrong one to somebody.
 
-    The cast to `BigIntegerField` is not cosmetic. Both resolutions are 32-bit
-    integers, and PostgreSQL multiplies ``integer * integer`` as an integer, so a
-    map beyond roughly 46000 x 46000 would overflow the product - precisely the
-    size of map this guard exists to catch.
+    Rows no branch covers fall through to NULL: a kind that abstains, a kind
+    whose plugin is not installed, and never-inspected measurements
+    (``kind IS NULL`` matches no ``When``). NULL is skipped by ``Max`` and by
+    the coefficient learner, so an unsizable measurement counts as unknown
+    rather than as 0. ``None`` is returned when no registered kind supplies an
+    expression at all, and callers abstain.
     """
-    return Cast(_resolution(prefix, "x"), BigIntegerField()) * Coalesce(
-        Cast(_resolution(prefix, "y"), BigIntegerField()), Value(1)
-    )
+    whens = [
+        When(**{f"{prefix}kind": kind}, then=expression)
+        for kind, adapter in get_adapters().items()
+        if (expression := adapter.nb_data_points_expression(prefix)) is not None
+    ]
+    if not whens:
+        return None
+    return Case(*whens, default=None, output_field=BigIntegerField())
+
+
+def points_in_sql(queryset):
+    """
+    Datums of the largest sizable measurement in `queryset`, or ``None``.
+
+    The largest rather than the sum, because the workflows this feeds compute
+    per measurement and combine the results; see :func:`grid_points`. NULL
+    rows (unsizable measurements) do not participate.
+
+    The database cannot validate a ``file_info`` document against its kind's
+    schema the way the Python path does, so a corrupt document -- a resolution
+    stored as something no integer cast accepts -- surfaces here as a
+    ``DataError`` from the cast. That is a fault worth a log line, but sizing
+    runs during task submission, and the one thing this guard must never do is
+    fail *closed*: the savepoint keeps the surrounding transaction usable and
+    the answer is "unknown".
+    """
+    expression = _points_expression()
+    if expression is None:
+        return None
+    try:
+        with transaction.atomic():
+            return queryset.annotate(points=expression).aggregate(
+                largest=Max("points")
+            )["largest"]
+    except DataError:
+        _log.error(
+            "Cannot size a set of measurements: a stored file_info document "
+            "holds a resolution the integer cast rejects.",
+            exc_info=True,
+        )
+        return None
 
 
 def observed_bytes_per_point(use_cache=True):
@@ -120,8 +202,12 @@ def observed_bytes_per_point(use_cache=True):
     Derived only from analyses of a single measurement, because that is the one
     case where the number of grid points involved is unambiguous, and only from
     runs inside the configured window, so that the coefficient can fall again
-    when a workflow is optimised. A workflow with no recent runs is absent from
-    the result, and callers must treat that as "no estimate".
+    when a workflow is optimised. Runs on subjects below the minimum point
+    count are excluded and the assumed process baseline is subtracted first;
+    see the module docstring for why raw ``task_memory / points`` on a small
+    subject is baseline, not coefficient. A workflow with no qualifying recent
+    runs is absent from the result, and callers must treat that as "no
+    estimate".
 
     ``task_end_time`` dates a run rather than ``task_start_time``, because that
     is when its memory was measured. It is set on both the success and the
@@ -134,23 +220,48 @@ def observed_bytes_per_point(use_cache=True):
 
     from .models import WorkflowResult
 
+    expression = _points_expression("subject_measurement__")
+    if expression is None:
+        return {}
+
     window_days = _setting("TOPOBANK_ANALYSIS_MEMORY_WINDOW_DAYS", DEFAULT_WINDOW_DAYS)
+    baseline = _setting("TOPOBANK_ANALYSIS_MEMORY_BASELINE", DEFAULT_BASELINE)
+    min_points = _setting("TOPOBANK_ANALYSIS_MEMORY_MIN_POINTS", DEFAULT_MIN_POINTS)
     rows = (
         WorkflowResult.objects.filter(
             task_memory__isnull=False,
             task_memory__gt=0,
             task_end_time__gte=timezone.now() - timedelta(days=window_days),
             subject_measurement__isnull=False,
-            subject_measurement__file_info__has_key="resolution_x",
         )
-        .annotate(points=_points_expression("subject_measurement__"))
+        .annotate(points=expression)
+        # Also excludes unsizable measurements: their `points` is NULL, and
+        # NULL compares as unknown.
+        .filter(points__gte=min_points)
         .values_list("workflow_name", "task_memory", "points")
     )
 
     ratios = defaultdict(list)
-    for workflow_name, task_memory, points in rows.iterator():
-        if points:
-            ratios[workflow_name].append(task_memory / points)
+    try:
+        with transaction.atomic():
+            for workflow_name, task_memory, points in rows.iterator():
+                # A peak below the assumed baseline carries no per-point
+                # information; clamping it to zero instead would drag the
+                # percentile down with fabricated "free" runs, so it is
+                # skipped entirely.
+                if points and task_memory > baseline:
+                    ratios[workflow_name].append((task_memory - baseline) / points)
+    except DataError:
+        # A corrupt document makes the cast fail for the whole query, taking
+        # every workflow's coefficient with it. Deliberately not cached: the
+        # empty result is a degraded answer, not a learned one, and caching it
+        # would keep the guard blind for an hour after the document is fixed.
+        _log.error(
+            "Cannot learn memory coefficients: a stored file_info document "
+            "holds a resolution the integer cast rejects.",
+            exc_info=True,
+        )
+        return {}
 
     percentile = _setting("TOPOBANK_ANALYSIS_MEMORY_PERCENTILE", DEFAULT_PERCENTILE)
     min_samples = _setting("TOPOBANK_ANALYSIS_MEMORY_MIN_SAMPLES", DEFAULT_MIN_SAMPLES)
@@ -180,10 +291,27 @@ def grid_points(analysis):
     from topobank.manager.models import Measurement
 
     if analysis.subject_measurement_id is not None:
-        info = analysis.subject_measurement.info
-        if info.resolution_x is None:
+        measurement = analysis.subject_measurement
+        # The registry is consulted directly rather than through
+        # `measurement.adapter`: with no recorded kind, that property derives
+        # one from the data file, and opening a file during task submission is
+        # exactly what this module must never do. No kind, or a kind whose
+        # plugin is not installed, means the size is unknown.
+        if measurement.kind is None or not has_adapter(measurement.kind):
             return None
-        return info.resolution_x * (getattr(info, "resolution_y", None) or 1)
+        try:
+            return get_adapter(measurement.kind).nb_data_points(measurement)
+        except pydantic.ValidationError:
+            # A stored document that does not parse is a fault, but not one
+            # this guard is allowed to turn into a refused analysis.
+            _log.error(
+                "Cannot size measurement %s: its file_info does not validate "
+                "against the schema of kind '%s'.",
+                measurement.id,
+                measurement.kind,
+                exc_info=True,
+            )
+            return None
 
     if analysis.subject_surface_id is not None:
         queryset = Measurement.objects.filter(surface_id=analysis.subject_surface_id)
@@ -195,11 +323,7 @@ def grid_points(analysis):
             return None
         queryset = Measurement.objects.filter(surface_id__in=surface_ids)
 
-    return (
-        queryset.filter(file_info__has_key="resolution_x")
-        .annotate(points=_points_expression())
-        .aggregate(largest=Max("points"))["largest"]
-    )
+    return points_in_sql(queryset)
 
 
 def estimate_memory(analysis):
@@ -215,7 +339,13 @@ def estimate_memory(analysis):
     safety_factor = _setting(
         "TOPOBANK_ANALYSIS_MEMORY_SAFETY_FACTOR", DEFAULT_SAFETY_FACTOR
     )
-    return int(points * coefficient * safety_factor)
+    baseline = _setting("TOPOBANK_ANALYSIS_MEMORY_BASELINE", DEFAULT_BASELINE)
+    # The baseline was subtracted when the coefficient was learned, so it has
+    # to be added back here: the budget is compared against the process's real
+    # peak RSS, which includes it. It is deliberately outside the safety
+    # factor - the spread the factor absorbs is in the per-point cost, not in
+    # the interpreter footprint.
+    return int(baseline + points * coefficient * safety_factor)
 
 
 def check_memory_budget(analysis):
