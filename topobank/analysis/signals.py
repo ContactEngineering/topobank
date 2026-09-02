@@ -6,6 +6,7 @@ from django.dispatch import receiver
 from django.utils import timezone
 
 from ..authorization import get_permission_model
+from ..files.models import ManifestSet
 from ..manager.models import Topography, post_refresh_cache
 from .models import WorkflowResult
 from .zip_model import ResultZipContainer
@@ -54,13 +55,19 @@ def post_delete_analysis(sender, instance, **kwargs):
 
     # Delete permission set, which triggers deletion of all other associated data.
     # Needs to be in post_delete to avoid recursion.
-    try:
-        instance.permissions.delete()
-    except get_permission_model().DoesNotExist:
-        # This permissions set may have been deleted when analysis was deleted in
-        # pre_delete_topography. This happens when a surface is deleted, which
-        # trigger pre_delete_topography and this triggers pre_delete_analysis twice
-        pass
+    if instance.permissions_id is not None:
+        try:
+            instance.permissions.delete()
+        except get_permission_model().DoesNotExist:
+            # This permissions set may have been deleted when analysis was deleted in
+            # pre_delete_topography. This happens when a surface is deleted, which
+            # trigger pre_delete_topography and this triggers pre_delete_analysis twice
+            pass
+    elif instance.folder_id is not None:
+        try:
+            instance.folder.delete()
+        except ManifestSet.DoesNotExist:
+            pass
 
 
 def _surface_scoped_analysis_pks(surface):
