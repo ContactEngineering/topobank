@@ -14,6 +14,7 @@ from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import models
+from django.db.models import Q
 from django.utils import timezone
 from storages.utils import clean_name
 
@@ -145,6 +146,16 @@ class ManifestSet(PermissionMixin, models.Model):
 class Manifest(PermissionMixin, models.Model):
     class Meta:
         unique_together = (("folder", "filename"),)
+        indexes = [
+            # Partial index for the custodian sweep over unconfirmed attachments
+            # (kind="att" AND confirmed_at IS NULL), ordered by age. Only reserved
+            # uploads that never completed are indexed, so it stays small.
+            models.Index(
+                fields=["created_at"],
+                name="manifest_unconfirmed_att_idx",
+                condition=Q(kind="att", confirmed_at__isnull=True),
+            ),
+        ]
 
     #
     # Manager
@@ -163,9 +174,19 @@ class Manifest(PermissionMixin, models.Model):
     # Model data
     #
 
+    # Where a file came from. The distinction that matters is *who* produced it:
+    # "raw" and "att" are both uploaded by a person, "der" is produced by the
+    # system. So "did a user put this here?" is answerable from `kind` alone, and
+    # nothing else needs to carry that fact.
+    #
+    # Do not stamp "att" on generated output. An attachment is a file a user
+    # attached to a dataset or measurement - a spec sheet, a photo of a defect, a
+    # supplier certificate - and the system does not process it. Anything the
+    # system writes is "der", including reports and rendered images, even when it
+    # writes them into a `ManifestSet` that also holds user attachments.
     FILE_KIND_CHOICES = [
         ("N/A", "Kind is unknown"),
-        ("att", "Attachment"),  # Attachments are not processed by the system
+        ("att", "File attachment uploaded by a user"),
         ("der", "Data derived from a raw data file"),
         ("raw", "Raw data file as uploaded by a user"),
     ]
@@ -192,6 +213,31 @@ class Manifest(PermissionMixin, models.Model):
 
     # File kind, indicating where the file came from
     kind = models.CharField(max_length=3, choices=FILE_KIND_CHOICES, default="N/A")
+
+    #
+    # Descriptive metadata
+    #
+
+    # Free-text annotation supplied by whoever uploaded the file: what it is, why
+    # it is attached. Purely informational - nothing reads it to make a decision.
+    note = models.TextField(blank=True, default="")
+
+    # Size of the file in bytes, as reported by the client before the upload.
+    #
+    # Storage remains the source of truth: this is a convenience for listings that
+    # would otherwise have to stat every object, and callers that presign an upload
+    # can only know the size the client claimed. Overwrite it with `file.size` once
+    # the upload is confirmed. None means "not reported" - typically an upload that
+    # has been reserved but not yet confirmed.
+    size_bytes = models.PositiveBigIntegerField(blank=True, null=True)
+
+    # MIME type the object is stored with.
+    #
+    # Whoever creates the manifest decides this, and for a presigned upload it is
+    # baked into the policy - so it governs what a bare presigned GET serves, and
+    # therefore whether a browser will render the file inline. Derive it rather
+    # than trusting a client-declared value.
+    content_type = models.CharField(max_length=127, blank=True, default="")
 
     #
     # Dates - all three dates are typically similar
