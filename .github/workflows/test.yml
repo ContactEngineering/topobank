@@ -21,12 +21,8 @@ jobs:
           # - ['hello-world', 'sqlite:///topobank.sqlite3']
           - ['postgres:17', 'postgres://postgres:secret@localhost/topobank-test']
         storage:
-          - ['filesystem', 'django.core.files.storage.FileSystemStorage', 'POST']
-          # There is no second entry with 'PUT' here: the upload method only
-          # affects `get_upload_instructions`, which lives in topobank-rest-api.
-          # Nothing in this repository reads `UPLOAD_METHOD`, so a 'PUT' entry
-          # would run exactly the same tests as the 'POST' one.
-          - ['seaweedfs', 'storages.backends.s3boto3.S3Boto3Storage', 'POST']
+          - ['filesystem', 'django.core.files.storage.FileSystemStorage']
+          - ['seaweedfs', 'storages.backends.s3boto3.S3Boto3Storage']
         python-version: ['3.10', '3.13']
 
     services:
@@ -42,7 +38,6 @@ jobs:
     env:
       DATABASE_URL: ${{ matrix.database[1] }}
       STORAGE_BACKEND: ${{ matrix.storage[1] }}
-      TOPOBANK_UPLOAD_METHOD: ${{ matrix.storage[2] }}
       AWS_ACCESS_KEY_ID: admin
       AWS_SECRET_ACCESS_KEY: secret12
       AWS_STORAGE_BUCKET_NAME: topobank-test
