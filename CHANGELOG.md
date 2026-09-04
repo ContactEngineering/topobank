@@ -1,5 +1,20 @@
 # Changelog for *TopoBank*
 
+# 1.73.0 (not yet released)
+
+- ENH: `topobank.files.upload.get_upload_instructions` presigns a direct-to-S3
+  POST for any user-uploaded `Manifest`. The policy carries the size ceiling
+  and the stored content type, so storage enforces both: measurements (`raw`)
+  are capped by `TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES` (default 5 GiB, the
+  S3 single-object limit) and stored as `binary/octet-stream`; attachments
+  (`att`) are capped by `TOPOBANK_MAX_ATTACHMENT_UPLOAD_BYTES` (default
+  100 MiB) and stored as the type their extension maps to in
+  `TOPOBANK_INLINE_PREVIEW_TYPES`, or `TOPOBANK_OPAQUE_CONTENT_TYPE` otherwise.
+  `TOPOBANK_UPLOAD_EXPIRE_SECONDS` and `TOPOBANK_MAX_ATTACHMENTS_PER_SURFACE`
+  round out the settings; all six have defaults, so nothing needs configuring
+- API: Presigned PUT uploads are gone, and with them the `UPLOAD_METHOD`
+  setting and the `TOPOBANK_UPLOAD_METHOD` environment variable
+
 # 1.72.0 (2026-08-28)
 
 - BUG: The memory guard learned its bytes-per-point coefficients from raw peak
