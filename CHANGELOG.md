@@ -1,5 +1,25 @@
 # Changelog for *TopoBank*
 
+# Unreleased
+
+- ENH: Work is handed to a *workflow manager* through a launch API
+  (`topobank.taskapp.launch`) instead of being dispatched to Celery directly.
+  topobank builds a self-contained job envelope (`LaunchRequest`), the manager
+  returns an opaque `LaunchHandle` that is stored on the row
+  (`execution_handle`), and state, progress and cancellation are routed to the
+  manager named in the handle. Lifecycle state reaches the database only
+  through the status contract (`topobank.taskapp.status`), which also fires
+  `TOPOBANK_TASK_LIFECYCLE_HOOKS` and translates a manager's file manifest
+  into `Manifest` rows. The Celery path is unchanged in behaviour and is now
+  the built-in `CeleryWorkflowManager`; deployments can add managers under
+  `TOPOBANK_WORKFLOW_MANAGERS` and select one with `TOPOBANK_WORKFLOW_MANAGER`
+- BUG: A workflow's `STARTED` transition is a claim that exactly one worker
+  wins. Previously a dependency that was re-dispatched while already running
+  could be executed twice on the same row
+- MAINT: `WorkflowResult.get_celery_queue()` is deprecated in favour of
+  `get_queue()`, which returns the logical queue; mapping it onto a broker
+  queue is the Celery manager's job
+
 # 1.72.0 (2026-08-28)
 
 - BUG: The memory guard learned its bytes-per-point coefficients from raw peak

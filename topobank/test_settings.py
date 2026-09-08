@@ -222,3 +222,10 @@ SERIALIZATION_MODULES = {
 }
 
 DJANGO_NOTIFICATIONS_CONFIG = {"USE_JSONFIELD": True}
+
+# Workflow manager: the system topobank hands launched work to. See
+# `topobank.taskapp.launch`. The Celery manager is built in; deployments add
+# managers under TOPOBANK_WORKFLOW_MANAGERS and pick one here.
+TOPOBANK_WORKFLOW_MANAGER = "celery"
+TOPOBANK_WORKFLOW_MANAGERS = {}
+TOPOBANK_TASK_LIFECYCLE_HOOKS = []

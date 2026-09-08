@@ -122,6 +122,40 @@ class ManifestSet(PermissionMixin, models.Model):
     def find_file(self, filename: str) -> "Manifest":
         return self.files.get(filename=filename)
 
+    def register_files(self, entries):
+        """
+        Record files a run produced, as described by a workflow manager.
+
+        This is the receiving end of the file manifest a manager returns with a
+        completion report (see `topobank.taskapp.status.FileEntry`): each entry
+        names a file and where it lives in the configured storage. The folder
+        does not look at storage to find out what exists - listing object storage
+        is slow and brittle, and the manager already knows what it wrote - it
+        only translates the manager's list into `Manifest` rows.
+
+        Entries may be `FileEntry` instances or mappings with the same keys.
+        A file that is already recorded under the same name is updated in place;
+        registering is idempotent.
+        """
+        now = timezone.now()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                entry = entry.model_dump()
+            filename = entry["filename"]
+            try:
+                manifest = self.files.get(filename=filename)
+            except Manifest.DoesNotExist:
+                manifest = Manifest(filename=filename, folder=self)
+            manifest.permissions = self.permissions
+            manifest.kind = entry.get("kind") or "der"
+            manifest.file.name = entry["path"]
+            if entry.get("size_bytes") is not None:
+                manifest.size_bytes = entry["size_bytes"]
+            if entry.get("content_type"):
+                manifest.content_type = entry["content_type"]
+            manifest.confirmed_at = now
+            manifest.save()
+
     def remove_files(self):
         """Clear this folder by removing all files."""
         self.files.all().delete()

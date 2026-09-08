@@ -17,6 +17,7 @@ from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
 from ..taskapp.memory import track_memory_usage
 from ..taskapp.models import Configuration
+from ..taskapp.status import StatusReport, apply_status_report
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
 from .sizing import check_memory_budget
@@ -237,10 +238,14 @@ def schedule_workflow(
             # rather than a generic message, so the UI shows why it failed
             # (mirrors execute_workflow and _fail_parent_on_dependency_failure).
             failed_dep = failed_dependencies[0]
-            analysis.task_state = WorkflowResult.FAILURE
-            analysis.task_error = failed_dep.task_error or "A dependent analysis failed."
-            analysis.task_traceback = failed_dep.task_traceback
-            analysis.save()
+            apply_status_report(
+                analysis,
+                StatusReport(
+                    state=WorkflowResult.FAILURE,
+                    error=failed_dep.task_error or "A dependent analysis failed.",
+                    traceback=failed_dep.task_traceback,
+                ),
+            )
             _log.debug(f"{analysis_id}/{self.request.id}: A dependency failed.")
             return
 
@@ -365,15 +370,24 @@ def execute_workflow(
         return
 
     #
-    # Update state to STARTED - we're now actually running the workflow
+    # Claim the row and move it to STARTED - we're now actually running the
+    # workflow. The claim is a conditional update that exactly one worker wins;
+    # if another worker is already running this row we must not run it again.
     #
-    analysis.task_state = WorkflowResult.STARTED
     analysis.task_id = self.request.id
-    # Only set start time if not already set (e.g., from schedule_workflow)
-    if analysis.task_start_time is None:
-        analysis.task_start_time = timezone.now()
     analysis.configuration = get_current_configuration()
-    analysis.save()
+    claimed = apply_status_report(
+        analysis,
+        StatusReport(state=WorkflowResult.STARTED),
+        claim=True,
+        extra_fields=["task_id", "configuration"],
+    )
+    if not claimed:
+        _log.info(
+            f"{analysis_id}/{self.request.id}: Not executing workflow, another worker "
+            f"holds this analysis (task_state '{analysis.task_state}')."
+        )
+        return
 
     #
     # Load finished dependencies
@@ -394,11 +408,14 @@ def execute_workflow(
                 # A dependency failed - we cannot proceed
                 # Copy error and traceback from the failed dependency
                 error_msg = dep.task_error or f"Dependency '{key}' failed."
-                analysis.task_state = WorkflowResult.FAILURE
-                analysis.task_error = error_msg
-                analysis.task_traceback = dep.task_traceback
-                analysis.task_end_time = timezone.now()
-                analysis.save()
+                apply_status_report(
+                    analysis,
+                    StatusReport(
+                        state=WorkflowResult.FAILURE,
+                        error=error_msg,
+                        traceback=dep.task_traceback,
+                    ),
+                )
                 _log.warning(
                     "%s/%s: Dependency '%s' (id=%s) is in state '%s', cannot execute workflow.",
                     analysis_id,
@@ -412,15 +429,18 @@ def execute_workflow(
             finished_dependencies[key] = dep
 
     def save_result(result, task_state, peak_memory=None, dois=set(), timer=None):
-        analysis.task_state = task_state
         # Only store result if the implementation returned one
         if result is not None:
             store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
-        analysis.task_memory = peak_memory
-        analysis.dois = list(dois)
-        if timer is not None:
-            analysis.task_timer = timer.to_dict()
-        analysis.save()
+        apply_status_report(
+            analysis,
+            StatusReport(
+                state=task_state,
+                memory=peak_memory,
+                dois=list(dois),
+                timer=timer.to_dict() if timer is not None else None,
+            ),
+        )
 
         if peak_memory is not None:
             _log.debug(
@@ -512,17 +532,20 @@ def execute_workflow(
         _log.exception(
             f"{analysis_id}/{self.request.id}: Exception during evaluation: {exc}"
         )
-        analysis.task_state = WorkflowResult.FAILURE
-        analysis.task_traceback = traceback.format_exc().replace("\x00", "")
-        analysis.task_error = str(exc).replace("\x00", "")
         # Persist the timings recorded up to the failure: for timeouts this is
         # what distinguishes "one stage stalled for an hour" from "many stages,
         # each fast, exceeded the budget together". muTimer records in a
         # finally, so the interrupted block carries its partial duration.
         timer_dict = timer.to_dict()
-        if timer_dict.get("timers"):
-            analysis.task_timer = timer_dict
-        analysis.save()
+        apply_status_report(
+            analysis,
+            StatusReport(
+                state=WorkflowResult.FAILURE,
+                error=str(exc),
+                traceback=traceback.format_exc(),
+                timer=timer_dict if timer_dict.get("timers") else None,
+            ),
+        )
         # Propagate the failure to the parent when this ran as a dependency.
         #
         # The parent waits for its dependencies via a Celery chord whose callback

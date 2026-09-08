@@ -1,11 +1,8 @@
 import inspect
 import logging
 import traceback
-from decimal import Decimal
 
-import celery.states
 import django.db.models as models
-import pydantic
 from django.core.cache import cache
 from django.utils import timezone
 from muTimer import Timer
@@ -16,6 +13,20 @@ from .memory import track_memory_usage
 from .tasks import ProgressRecorder
 
 _log = logging.getLogger(__name__)
+
+
+def _cache_set(key, value, timeout=30):
+    """
+    Remember a result-backend value; never let the cache break a status read.
+
+    Values coming back from Celery are not guaranteed to be picklable (an
+    exception carrying an odd payload, for instance). Status must still be
+    reported then, just without the cache.
+    """
+    try:
+        cache.set(key, value, timeout)
+    except Exception as exc:  # noqa: BLE001 - deliberately broad, see docstring
+        _log.debug("Not caching %s: %s", key, exc)
 
 
 class IncompleteMetadataError(Exception):
@@ -71,30 +82,23 @@ class TaskStateModel(models.Model):
         "task_id",
         "task_start_time",
         "task_end_time",
+        "execution_handle",
     )
 
-    # Mapping Celery states to our state information. Everything not in the
-    # list (e.g. custom Celery states) are interpreted as STARTED.
-    _CELERY_STATE_MAP = {
-        celery.states.SUCCESS: SUCCESS,
-        celery.states.STARTED: STARTED,
-        celery.states.PENDING: PENDING,
-        celery.states.RECEIVED: PENDING,
-        celery.states.RETRY: PENDING,
-        # The following are in celery.states.EXCEPTION_STATES
-        celery.states.FAILURE: FAILURE,
-        celery.states.REVOKED: FAILURE,
-        celery.states.REJECTED: FAILURE,
-    }
+    # Where the run lives: a serialised `topobank.taskapp.launch.LaunchHandle`
+    # naming the workflow manager that launched this row and whatever that
+    # manager needs to find the run again. None until launched. This is the only
+    # execution reference the launch API knows about; the two Celery ids below
+    # are the Celery manager's own bookkeeping.
+    execution_handle = models.JSONField(null=True)
 
-    # This is the Celery task id
+    # Celery manager bookkeeping: the id of the Celery task currently
+    # responsible for this row. Set by the Celery manager on dispatch and
+    # overwritten by the task once it runs.
     task_id = models.UUIDField(unique=True, null=True)
-    # Django documentation discourages the use of null=True on a CharField. I'll use it
-    # here  nevertheless, because I need this values as argument to a function where
-    # None has a special meaning (task not yet run).
 
-    # This is the Celery id of the task that launched the chord (if there are
-    # dependencies)
+    # Celery manager bookkeeping: the id of the Celery task that launched a
+    # chord of dependencies for this row, if there were any.
     launcher_task_id = models.UUIDField(unique=True, null=True)
 
     # This is the self-reported task state. It can differ from what Celery
@@ -132,6 +136,75 @@ class TaskStateModel(models.Model):
             return None
 
         return self.task_end_time - self.task_start_time
+
+    # --- Launch API -------------------------------------------------------
+    #
+    # Everything below asks the workflow manager that launched this row. The
+    # manager is found through `execution_handle`; rows launched before handles
+    # existed fall back to the default manager.
+
+    def build_launch_request(self, *, force=False, **fields):
+        """
+        Describe the work this row represents as a `LaunchRequest`.
+
+        The default is a plain task: the manager calls `task_worker` with the
+        given `args` and `task_kwargs`. Subclasses that represent workflows
+        override this to fill in the workflow envelope.
+        """
+        from .launch import LaunchRequest
+
+        request = dict(
+            kind="task",
+            model=f"{self._meta.app_label}.{self._meta.model_name}",
+            pk=self.pk,
+            force=force,
+            queue=self.get_queue(),
+        )
+        request.update(fields)
+        return LaunchRequest(**request)
+
+    def get_queue(self):
+        """
+        Logical queue this row's work should run on, or None for the default.
+
+        A logical name (e.g. "manager") is a resource hint for the workflow
+        manager; how it maps onto a real queue is the manager's business.
+        """
+        return getattr(self, "celery_queue", None)
+
+    def get_launch_handle(self):
+        """The handle of this row's run, or a handle for the default manager."""
+        from .launch import LaunchHandle, get_default_manager_name
+
+        if self.execution_handle:
+            return LaunchHandle(**self.execution_handle)
+        return LaunchHandle(
+            manager=get_default_manager_name(),
+            data={
+                "model": f"{self._meta.app_label}.{self._meta.model_name}",
+                "pk": self.pk,
+            },
+        )
+
+    def get_workflow_manager(self):
+        """The workflow manager responsible for this row's run."""
+        from .launch import get_workflow_manager
+
+        return get_workflow_manager(self.get_launch_handle().manager)
+
+    def poll(self):
+        """Ask the workflow manager what it knows about this row's run."""
+        if hasattr(self, "_cached_run_info"):
+            return self._cached_run_info
+        info = self.get_workflow_manager().poll(self.get_launch_handle(), instance=self)
+        self._cached_run_info = info
+        return info
+
+    # --- Celery manager bookkeeping ----------------------------------------
+    #
+    # These helpers read Celery's result backend for this row and are used by
+    # the Celery workflow manager. They are kept on the model because the
+    # manager's state *is* the row (task_id, launcher_task_id).
 
     def get_async_result(self):
         """Return the Celery result object"""
@@ -195,7 +268,7 @@ class TaskStateModel(models.Model):
 
         # Query Celery and cache for 30 seconds
         state = async_result.state
-        cache.set(cache_key, state, 30)
+        _cache_set(cache_key, state)
 
         return state
 
@@ -222,41 +295,29 @@ class TaskStateModel(models.Model):
 
         # Query Celery and cache for 30 seconds
         info = async_result.info
-        cache.set(cache_key, info, 30)
+        _cache_set(cache_key, info)
 
         return info
 
-    def get_celery_state(self):
-        """Return the state of the task as reported by Celery"""
-        # Optimization: If task is in terminal state, return DB value without querying Celery
+    # --- Reconciled task state --------------------------------------------
+
+    def get_manager_state(self):
+        """Return the state of the task as reported by the workflow manager"""
+        # Optimization: If task is in terminal state, return DB value without
+        # asking the manager
         if self.task_state in (TaskStateModel.SUCCESS, TaskStateModel.FAILURE):
             return self.task_state
+        return self.poll().state
 
-        # Check if any of the dependent tasks failed
-        for r in self.get_async_results():
-            state = self._get_result_state(r)
-            if state in celery.states.EXCEPTION_STATES:
-                return TaskStateModel.FAILURE
-
-        # Check state of current task
-        if self.task_id is None:
-            # Cannot get the state
-            return TaskStateModel.NOTRUN
-        else:
-            r = self.get_async_result()
-            state = self._get_result_state(r)
-            try:
-                state = self._CELERY_STATE_MAP[state]
-            except KeyError:
-                # Everything else (e.g. a custom state such as 'PROGRESS') is interpreted
-                # as a running task
-                state = TaskStateModel.STARTED
-            return state
+    # Kept under its historical name; the state no longer necessarily comes
+    # from Celery.
+    get_celery_state = get_manager_state
 
     def get_task_state(self):
         """
         Return the most likely state of the task from the self-reported task
-        information in the database and the information obtained from Celery.
+        information in the database and the information obtained from the
+        workflow manager.
         """
         # This is self-reported by the task runner
         self_reported_task_state = self.task_state
@@ -264,33 +325,32 @@ class TaskStateModel(models.Model):
             # If the task self-reports success or failure, we trust it without further checks
             return self_reported_task_state
 
-        # Self-reported state is not SUCCESS or FAILURE, check with Celery
-        # This is what Celery reports back
-        celery_task_state = self.get_celery_state()
+        # Self-reported state is not SUCCESS or FAILURE, check with the manager
+        manager_task_state = self.get_celery_state()
 
-        if self_reported_task_state == celery_task_state:
+        if self_reported_task_state == manager_task_state:
             # We're good!
             return self_reported_task_state
         else:
-            if celery_task_state == TaskStateModel.FAILURE:
-                # Celery seems to think this task failed, we trust it as the
+            if manager_task_state == TaskStateModel.FAILURE:
+                # The manager seems to think this task failed, we trust it as the
                 # self-reported state will be unreliable in this case.
                 _log.error(
                     f"The {self.__class__.__name__} instance with id {self.id} self-reported "
-                    f"the state '{self_reported_task_state}', but Celery reported "
-                    f"'{celery_task_state}'. I am returning a failure."
+                    f"the state '{self_reported_task_state}', but the workflow manager "
+                    f"reported '{manager_task_state}'. I am returning a failure."
                 )
                 return TaskStateModel.FAILURE
             elif (
                 self_reported_task_state == TaskStateModel.PENDING
-                and celery_task_state == TaskStateModel.NOTRUN
+                and manager_task_state == TaskStateModel.NOTRUN
             ):
                 if not self.task_submission_time:
                     return TaskStateModel.FAILURE
 
-                # The task is marked as pending but Celery thinks the task was never
-                # run. This corresponds to the initial creation of the task. The
-                # Celery task is started in an `on_commit` hook. If the task is older
+                # The task is marked as pending but the manager thinks the task was
+                # never run. This corresponds to the initial creation of the task.
+                # The task is launched in an `on_commit` hook. If the task is older
                 # than a threshold, we assume the on-commit never triggered and report
                 # and error.
                 if timezone.now() - self.task_submission_time > timezone.timedelta(
@@ -299,129 +359,46 @@ class TaskStateModel(models.Model):
                     _log.error(
                         f"The {self.__class__.__name__} instance with id {self.id} "
                         f"self-reported the state '{self_reported_task_state}', but "
-                        f"Celery reported '{celery_task_state}'. The database object "
-                        f"was created more than {self.COMMIT_EXPIRATION} seconds ago. "
-                        "I am returning a failure."
+                        f"the workflow manager reported '{manager_task_state}'. The "
+                        f"database object was created more than {self.COMMIT_EXPIRATION} "
+                        "seconds ago. I am returning a failure."
                     )
                     return TaskStateModel.FAILURE
                 else:
                     _log.debug(
                         f"The {self.__class__.__name__} instance with id {self.id} "
                         f"self-reported the state '{self_reported_task_state}', but "
-                        f"Celery reported '{celery_task_state}'. The database object "
-                        f"was created less than {self.COMMIT_EXPIRATION} seconds ago. "
-                        "I am returning a pending state."
+                        f"the workflow manager reported '{manager_task_state}'. The "
+                        f"database object was created less than {self.COMMIT_EXPIRATION} "
+                        "seconds ago. I am returning a pending state."
                     )
                     return TaskStateModel.PENDING
             else:
                 # In all other cases, we trust the self-reported state.
                 _log.debug(
                     f"The {self.__class__.__name__} instance with id {self.id} self-reported "
-                    f"the state '{self_reported_task_state}', but Celery reported "
-                    f"'{celery_task_state}'. I am returning the self-reported state."
+                    f"the state '{self_reported_task_state}', but the workflow manager "
+                    f"reported '{manager_task_state}'. I am returning the self-reported state."
                 )
                 return self_reported_task_state
 
     def get_task_progress(self):
         """Return progress of task, if running"""
-        # Optimization: If task is in terminal state, return appropriate value without querying Celery
+        # Optimization: If task is in terminal state, return appropriate value
+        # without asking the manager
         if self.task_state == TaskStateModel.SUCCESS:
             return 100.0
         elif self.task_state == TaskStateModel.FAILURE:
             return None
-
-        # Get all tasks
-        task_results = self.get_async_results()
-
-        # Sum up progress of all children
-        total = 0
-        current = 0
-        for r in task_results:
-            # Use cached state and info to avoid repeated Celery queries
-            state = self._get_result_state(r)
-            info = self._get_result_info(r)
-
-            # First check for errors
-            if state in celery.states.EXCEPTION_STATES or isinstance(info, Exception):
-                # Some of the tasks failed, we return no progress
-                return None
-            elif state == celery.states.SUCCESS:
-                total += 1
-                current += 1
-            elif state == celery.states.PENDING:
-                total += 1
-            elif info:
-                # We assume that the state is 'PROGRESS' and we can just extract the
-                # progress dictionary.
-                try:
-                    task_progress = ProgressRecorder.Model(**info)
-                except pydantic.ValidationError:
-                    _log.info(
-                        f"Validation of progress dictionary for task {r} of analysis "
-                        f"{self} failed. Ignoring task progress."
-                    )
-                    pass
-                except TypeError:
-                    _log.info(
-                        f"Progress dictionary for task {r} of analysis {self} failed "
-                        "does not appear to be a dictionary. Ignoring task progress."
-                    )
-                    pass
-                else:
-                    total += 1
-                    current += task_progress.current / task_progress.total
-
-        # Compute percentage
-        percent = 0
-        if total > 0:
-            percent = (Decimal(current) / Decimal(total)) * Decimal(100)
-            percent = float(round(percent, 2))
-
-        return percent
+        return self.poll().progress
 
     def get_task_messages(self):
         """Return progress message(s) of the task, if running"""
-        # Optimization: If task is in terminal state, return empty list without querying Celery
+        # Optimization: If task is in terminal state, return empty list without
+        # asking the manager
         if self.task_state in (TaskStateModel.SUCCESS, TaskStateModel.FAILURE):
             return []
-
-        # Get all tasks
-        task_results = self.get_async_results()
-
-        messages = []
-        for r in task_results:
-            # Use cached state and info to avoid repeated Celery queries
-            state = self._get_result_state(r)
-            info = self._get_result_info(r)
-
-            # First check for errors
-            if state in celery.states.EXCEPTION_STATES or isinstance(info, Exception):
-                # Some of the tasks failed, we return no progress message
-                return None
-            elif state == celery.states.SUCCESS or state == celery.states.PENDING:
-                # Task finished or is pending, no progress message
-                pass
-            elif info:
-                # We assume that the state is 'PROGRESS' and we can just extract the
-                # progress dictionary.
-                try:
-                    task_progress = ProgressRecorder.Model(**info)
-                except pydantic.ValidationError:
-                    _log.info(
-                        f"Validation of progress dictionary for task {r} of analysis "
-                        f"{self} failed. Ignoring task progress."
-                    )
-                    pass
-                except TypeError:
-                    _log.info(
-                        f"Progress dictionary for task {r} of analysis {self} failed "
-                        "does not appear to be a dictionary. Ignoring task progress."
-                    )
-                    pass
-                else:
-                    messages += [task_progress.message]
-
-        return messages
+        return self.poll().messages
 
     def set_pending_state(self, autosave=True):
         self.task_state = self.PENDING
@@ -429,6 +406,7 @@ class TaskStateModel(models.Model):
         self.task_error = ""
         self.task_traceback = None
         self.task_id = None  # Need to reset, otherwise Celery reports a failure
+        self.execution_handle = None  # A new launch produces a new handle
         # Clear timestamps from any prior run so a re-pended row looks freshly
         # created: otherwise duration() reports garbage and a stale task_start_time
         # could be mistaken for an in-flight run.
@@ -443,25 +421,19 @@ class TaskStateModel(models.Model):
         if self.task_error:
             return self.task_error
 
-        # If there is none, check Celery
-        for r in self.get_async_results():
-            # Use cached info to avoid repeated Celery queries
-            info = self._get_result_info(r)
-            # We simply fail with the first error we encounter
-            if r and isinstance(info, Exception):
-                # Generate error string
-                self.task_state = self.FAILURE
-                self.task_error = str(info).replace('\x00', '')
-                # There seems to be an error, store for future reference
-                self.save(update_fields=["task_state", "task_error"])
-                return self.task_error
+        # If there is none, ask the manager
+        error = self.poll().error
+        if error:
+            # There seems to be an error, store for future reference
+            from .status import StatusReport, apply_status_report
+
+            apply_status_report(self, StatusReport(state=self.FAILURE, error=error))
+            return self.task_error
         return None
 
     def cancel_task(self):
         """Cancel task, if running"""
-        r = self.get_async_result()
-        if r:
-            r.revoke()
+        self.get_workflow_manager().cancel(self.get_launch_handle(), instance=self)
 
     def task_worker(self, *args, **kwargs):
         """The actual task"""

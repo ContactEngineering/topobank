@@ -457,18 +457,61 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     def implementation(self):
         return Workflow(name=self.workflow_name).implementation
 
-    def get_celery_queue(self) -> str:
+    def get_queue(self) -> str:
+        """
+        Logical queue this workflow should run on.
+
+        Implementations may name a queue in `Meta.celery_queue` (e.g.
+        "analysis", "prediction"); otherwise the default analysis queue is used.
+        The name is a resource hint handed to the workflow manager, which decides
+        how it maps onto a real queue (the Celery manager translates it through
+        `CELERY_LOGICAL_QUEUE_MAP`).
+        """
         impl = self.implementation
-        if hasattr(impl.Meta, "celery_queue") and impl.Meta.celery_queue is not None:
+        if (
+            impl is not None
+            and hasattr(impl.Meta, "celery_queue")
+            and impl.Meta.celery_queue is not None
+        ):
             # Implementation-specific queue
-            queue = impl.Meta.celery_queue
-        else:
-            # Default queue for workflow result tasks
-            queue = settings.TOPOBANK_ANALYSIS_QUEUE
-        # Implementations may emit bare logical queue names (e.g. "analysis");
-        # translate them to the configured queue so the task routes to a
-        # predefined queue. Unknown/already-configured names pass through.
-        return getattr(settings, "CELERY_LOGICAL_QUEUE_MAP", {}).get(queue, queue)
+            return impl.Meta.celery_queue
+        # Default queue for workflow result tasks
+        return settings.TOPOBANK_ANALYSIS_QUEUE
+
+    def get_celery_queue(self) -> str:
+        """
+        Deprecated: the broker queue of the Celery workflow manager.
+
+        Queue translation is the Celery manager's business; use `get_queue` for
+        the logical name and let the manager map it.
+        """
+        from ..taskapp.celery_manager import CeleryWorkflowManager
+
+        return CeleryWorkflowManager().resolve_queue(self.get_queue())
+
+    def build_launch_request(self, *, force=False, **fields):
+        """
+        Describe this result as a workflow job envelope for the workflow manager.
+
+        Everything a manager may need without a database lookup travels in the
+        request: the workflow and its parameters, the subject hash, who owns the
+        result and who asked for it, the parent when this is a dependency, and
+        where output goes. A manager running inside Django may ignore most of
+        it and load the row; a manager running elsewhere has what it needs.
+        """
+        metadata = self.metadata or {}
+        request = dict(
+            kind="workflow",
+            workflow_name=self.workflow_name,
+            kwargs=self.kwargs or {},
+            subject_hash=self.subject_hash,
+            storage_prefix=self.storage_prefix,
+            organization_id=getattr(self, "owned_by_id", None),
+            user_id=self.created_by_id,
+            parent_id=metadata.get("parent_workflow_result_id"),
+        )
+        request.update(fields)
+        return super().build_launch_request(force=force, **request)
 
     # FIXME: discuss whether to remove this method and use the generic one from PermissionMixin
     # overrides PermissionMixin.authorize_user <- this one returns nothing, raises exception on failure
@@ -601,7 +644,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         with transaction.atomic():
             self.set_pending_state()
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, self, force_submit)
+                partial(submit_workflow, self, force_submit)
             )
         return self
 
@@ -631,20 +674,24 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         )
 
 
-def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool):
+def submit_workflow(analysis: WorkflowResult, force_submit: bool):
     """
-    Send task to the queue after the WorkflowResult has been created. This is typically run
-    in an on_commit hook. Note: on_commit will not execute in tests, unless
-    transaction=True is added to pytest.mark.django_db
+    Hand a WorkflowResult to the workflow manager after it has been created.
+
+    This is the single point where analysis work leaves topobank. It is
+    typically run in an on_commit hook so that the row is visible to whatever
+    worker the manager starts. Note: on_commit will not execute in tests, unless
+    transaction=True is added to pytest.mark.django_db.
     """
-    from .tasks import schedule_workflow
+    from ..taskapp.launch import launch
 
     # TODO: force_submit is currently hardcoded to True everywhere this is called.
-    _log.debug(f"Submitting task for WorkflowResult {analysis.id}...")
-    analysis.task_id = schedule_workflow.apply_async(
-        args=[analysis.id, force_submit], queue=analysis.get_celery_queue()
-    ).id
-    analysis.save(update_fields=["task_id"])
+    _log.debug(f"Launching WorkflowResult {analysis.id}...")
+    launch(analysis, force=force_submit)
+
+
+# Historical name, kept for callers outside this repository.
+submit_analysis_task_to_celery = submit_workflow
 
 
 class Workflow:
@@ -932,7 +979,7 @@ class Workflow:
             analysis.set_pending_state()
             analysis.permissions.grant_for_user(user, "edit")
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, analysis, True)
+                partial(submit_workflow, analysis, True)
             )
         return analysis
 
@@ -1047,7 +1094,7 @@ class Workflow:
             analysis.set_pending_state()
             analysis.permissions.grant_for_user(user, "edit")
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, analysis, True)
+                partial(submit_workflow, analysis, True)
             )
         return analysis
 
@@ -1072,7 +1119,7 @@ class Workflow:
         with transaction.atomic():
             analysis.set_pending_state()
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, analysis, True)
+                partial(submit_workflow, analysis, True)
             )
         return analysis
 
