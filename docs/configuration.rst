@@ -92,7 +92,47 @@ Container / ZIP export
       - Maximum archive size in bytes kept in memory before spilling to disk during ZIP file creation.
 
 
+File uploads
+------------
 
+Defaults for these live in :code:`topobank/settings/defaults.py`; a deployment
+only defines the ones it wants to change.
 
+.. list-table:: File uploads
+    :widths: 25 10 20 45
+    :header-rows: 1
 
-
+    * - ENV Variable
+      - Type
+      - Default
+      - Description
+    * - :code:`TOPOBANK_UPLOAD_EXPIRE_SECONDS`
+      - int
+      - :code:`900`
+      - Seconds a presigned upload POST stays valid.
+    * - :code:`TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES`
+      - int
+      - :code:`5368709120` (5 GiB)
+      - Size ceiling for a measurement file, carried in the upload policy so storage enforces it.
+        S3 refuses a single object above 5 GiB, so a larger value here would only promise what
+        storage then rejects.
+    * - :code:`TOPOBANK_MAX_ATTACHMENT_UPLOAD_BYTES`
+      - int
+      - :code:`104857600` (100 MiB)
+      - Size ceiling for a single attachment, carried in the upload policy.
+    * - :code:`TOPOBANK_MAX_ATTACHMENTS_PER_SURFACE`
+      - int
+      - :code:`200`
+      - Maximum number of attachments a single dataset may hold. Bounds the unpaginated listing.
+    * - :code:`TOPOBANK_OPAQUE_CONTENT_TYPE`
+      - str
+      - :code:`'binary/octet-stream'`
+      - Content type stored for an attachment that is not previewable. Opaque on purpose: a bare
+        presigned GET serves from the bucket origin, where an inline `.html` or `.svg` would be
+        stored XSS. Measurement files are always stored opaquely and ignore this setting.
+    * - :code:`TOPOBANK_INLINE_PREVIEW_TYPES`
+      - dict
+      - :code:`{'.png': 'image/png', '.jpg': 'image/jpeg', '.jpeg': 'image/jpeg', '.webp': 'image/webp', '.gif': 'image/gif'}`
+      - Attachment extensions a browser may render inline, mapped to the content type stored for
+        them. The type is derived from the extension, never taken from the client. SVG stays out
+        for the reason given above.

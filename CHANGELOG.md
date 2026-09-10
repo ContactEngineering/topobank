@@ -1,7 +1,31 @@
 # Changelog for *TopoBank*
 
-# 1.72.0 (2026-08-28)
+# 1.72.0 (2026-09-10)
 
+- ENH: `topobank.files.upload.get_upload_instructions` presigns a direct-to-S3
+  POST for any user-uploaded `Manifest`. The policy carries the size ceiling
+  and the stored content type, so storage enforces both: measurements (`raw`)
+  are capped by `TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES` (default 5 GiB, the
+  S3 single-object limit) and stored as `binary/octet-stream`; attachments
+  (`att`) are capped by `TOPOBANK_MAX_ATTACHMENT_UPLOAD_BYTES` (default
+  100 MiB) and stored as the type their extension maps to in
+  `TOPOBANK_INLINE_PREVIEW_TYPES`, or `TOPOBANK_OPAQUE_CONTENT_TYPE` otherwise.
+  `TOPOBANK_UPLOAD_EXPIRE_SECONDS` and `TOPOBANK_MAX_ATTACHMENTS_PER_SURFACE`
+  round out the settings, and all six are documented in
+  `docs/configuration.rst`
+- ENH: New `topobank.settings.defaults` module holds the default value of every
+  `TOPOBANK_*` setting, so a fallback is one named constant rather than a
+  literal repeated at the point of use. A deployment defines only the settings
+  it wants to change
+- API: Presigned PUT uploads are gone, and with them the `UPLOAD_METHOD`
+  setting and the `TOPOBANK_UPLOAD_METHOD` environment variable
+- API: The `USE_S3_STORAGE` setting is gone; it was a second source of truth for
+  something the configured storage already knows. `get_upload_instructions` now
+  asks the storage whether it can be presigned against and still returns `None`
+  when it cannot, and `Manifest.finish_upload` drops its non-S3 branch, since
+  the route that finished an upload through Django no longer exists and the
+  lookup it guarded works on any backend. The storage backend is configured
+  through `STORAGES["default"]["BACKEND"]` alone
 - BUG: The memory guard learned its bytes-per-point coefficients from raw peak
   RSS, which includes the several hundred MB that the interpreter, Django and
   the scientific libraries occupy before any data is loaded. A completed run on
