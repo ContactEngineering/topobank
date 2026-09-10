@@ -17,8 +17,8 @@ from django.test import override_settings
 
 # Registers the "topobank.testing.test" workflow with the Celery manager
 import topobank.testing.workflows  # noqa: E402,F401
-from topobank.analysis.celery_manager import CeleryWorkflowManager
-from topobank.analysis.celery_manager import registry as celery_registry
+from topobank.analysis.celery.manager import CeleryWorkflowManager
+from topobank.analysis.celery.manager import registry as celery_registry
 from topobank.analysis.descriptor import WorkflowDescriptor
 from topobank.analysis.managers import (
     LaunchHandle,

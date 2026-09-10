@@ -20,12 +20,12 @@ what it needs to know without running anything - the name, the display name,
 the accepted subject types, the pydantic ``Parameters`` model and the declared
 ``Outputs`` - and tells the manager whatever it needs to run the workflow. The
 Celery manager's shim is
-:class:`~topobank.analysis.legacy.workflows.WorkflowImplementation`, which adds
+:class:`~topobank.analysis.celery.workflows.WorkflowImplementation`, which adds
 the in-process implementation methods, their dependencies and a queue.
 
 Plugins register a shim with the manager it targets::
 
-    from topobank.analysis.celery_manager import registry
+    from topobank.analysis.celery.manager import registry
 
     @registry.register
     class MyWorkflow(WorkflowImplementation):
@@ -45,7 +45,7 @@ Managers are listed in settings, in priority order::
 
     TOPOBANK_WORKFLOW_MANAGERS = [
         "sds_api.workflows.RayWorkflowManager",
-        "topobank.analysis.celery_manager.CeleryWorkflowManager",
+        "topobank.analysis.celery.manager.CeleryWorkflowManager",
     ]
 
 The Celery manager is always available and is appended if not listed.
@@ -109,7 +109,7 @@ discover output; the manager already knows what it wrote.
 The Celery manager
 ------------------
 
-:class:`topobank.analysis.celery_manager.CeleryWorkflowManager` is the built-in
+:class:`topobank.analysis.celery.manager.CeleryWorkflowManager` is the built-in
 manager and topobank's original execution path. Its dependency resolution,
 chord construction, memory admission control and lost-task reaper are its own
 internals behind ``launch``. It keeps its bookkeeping on the result itself

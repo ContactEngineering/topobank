@@ -10,7 +10,7 @@ broker queues, and the reading of Celery's result backend when topobank asks how
 a run is doing.
 
 Workflows for this manager are
-:class:`~topobank.analysis.legacy.workflows.WorkflowImplementation` subclasses,
+:class:`~topobank.analysis.celery.workflows.WorkflowImplementation` subclasses,
 registered with :data:`registry` (``topobank.analysis.registry.register_implementation``
 is an alias). The implementation methods run in-process in a Celery worker.
 
@@ -28,8 +28,8 @@ import celery.states
 import pydantic
 from django.conf import settings
 
-from ..taskapp.tasks import ProgressRecorder
-from .managers import LaunchHandle, RunInfo, WorkflowRegistry
+from ...taskapp.tasks import ProgressRecorder
+from ..managers import LaunchHandle, RunInfo, WorkflowRegistry
 
 _log = logging.getLogger(__name__)
 
@@ -85,7 +85,7 @@ class CeleryWorkflowManager:
     # --- launch ------------------------------------------------------------
 
     def launch(self, result, *, force: bool = False) -> LaunchHandle:
-        from .tasks import schedule_workflow
+        from ..tasks import schedule_workflow
 
         task = schedule_workflow.apply_async(
             args=[result.id, force], queue=self.queue_for(result)

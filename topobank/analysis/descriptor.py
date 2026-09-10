@@ -10,7 +10,7 @@ de-duplication of results all work on descriptors alone.
 How a workflow *runs* is not part of the descriptor. Each workflow manager
 (see :mod:`topobank.analysis.managers`) registers its own subclass carrying
 whatever its engine needs - the Celery manager's
-:class:`~topobank.analysis.legacy.workflows.WorkflowImplementation` adds the
+:class:`~topobank.analysis.celery.workflows.WorkflowImplementation` adds the
 in-process implementation methods, their dependencies and a queue; a manager
 for another engine adds its own job description. A workflow is therefore tied
 to exactly one engine, and the descriptor is the shared vocabulary between

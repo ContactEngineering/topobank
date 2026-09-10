@@ -17,7 +17,7 @@ manager whatever it needs to run the thing. Resolution is by name over the
 configured managers, in order::
 
     TOPOBANK_WORKFLOW_MANAGERS = [
-        "topobank.analysis.celery_manager.CeleryWorkflowManager",
+        "topobank.analysis.celery.manager.CeleryWorkflowManager",
         "sds_api.workflows.RayWorkflowManager",
     ]
 
@@ -44,7 +44,7 @@ The contract a manager implements is small:
     state reaches the database.
 
 Managers are singletons, created once from the settings list. The Celery
-manager (:mod:`topobank.analysis.celery_manager`) is topobank's original
+manager (:mod:`topobank.analysis.celery.manager`) is topobank's original
 execution path behind this interface and is always available.
 """
 
@@ -62,7 +62,7 @@ _log = logging.getLogger(__name__)
 
 #: Import path of the built-in Celery manager. Always part of the manager list;
 #: deployments that do not configure ``TOPOBANK_WORKFLOW_MANAGERS`` get it alone.
-CELERY_WORKFLOW_MANAGER = "topobank.analysis.celery_manager.CeleryWorkflowManager"
+CELERY_WORKFLOW_MANAGER = "topobank.analysis.celery.manager.CeleryWorkflowManager"
 
 #: Name of the manager that owns rows launched before handles existed.
 LEGACY_MANAGER_NAME = "celery"
@@ -110,7 +110,7 @@ class WorkflowRegistry:
 
     Plugins register their shims explicitly with the manager they target::
 
-        from topobank.analysis.celery_manager import registry
+        from topobank.analysis.celery.manager import registry
 
         @registry.register
         class MyWorkflow(WorkflowImplementation):

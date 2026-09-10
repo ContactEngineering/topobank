@@ -467,7 +467,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         Deprecated: the broker queue the Celery workflow manager dispatches this
         result to. Queue selection is the Celery manager's business.
         """
-        from .celery_manager import CeleryWorkflowManager
+        from .celery.manager import CeleryWorkflowManager
 
         return CeleryWorkflowManager().queue_for(self)
 
