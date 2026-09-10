@@ -2,14 +2,13 @@
 The status contract: how a workflow manager reports a run back to topobank.
 
 A :class:`StatusReport` is the only way lifecycle state - task state, error,
-traceback, timings, peak memory, produced files - reaches a
-:class:`~topobank.taskapp.models.TaskStateModel` row. The Celery manager calls
-:func:`apply_status_report` from inside its worker; a manager that runs outside
-the Django process hands its reports to whatever topobank code observes it (a
-poll, a completion event) and that code calls the same function. Either way,
-every lifecycle write goes through one place, and lifecycle hooks configured in
-``TOPOBANK_TASK_LIFECYCLE_HOOKS`` fire from that one place regardless of the
-manager.
+traceback, timings, peak memory, produced files - reaches a task-state row. The
+Celery manager calls :func:`apply_status_report` from inside its worker; a
+manager that runs outside the Django process hands its reports to whatever
+topobank code observes it (a poll, a completion event) and that code calls the
+same function. Either way, every lifecycle write goes through one place, and
+the lifecycle hooks configured in ``TOPOBANK_TASK_LIFECYCLE_HOOKS`` fire from
+that one place regardless of the manager.
 
 Files are part of the report, not of storage: a manager that produced output
 says which files it wrote (as :class:`FileEntry` items) and topobank turns that
@@ -203,4 +202,6 @@ def _fire_lifecycle_hooks(instance, report: StatusReport):
         try:
             import_string(path)(instance, report)
         except Exception:  # noqa: BLE001 - deliberately broad, see docstring
-            _log.exception("Lifecycle hook %s failed for %s %s", path, type(instance).__name__, instance.pk)
+            _log.exception(
+                "Lifecycle hook %s failed for %s %s", path, type(instance).__name__, instance.pk
+            )

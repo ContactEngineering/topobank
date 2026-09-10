@@ -17,10 +17,10 @@ from ..supplib.dict import store_split_dict
 from ..taskapp.celeryapp import app
 from ..taskapp.memory import track_memory_usage
 from ..taskapp.models import Configuration
-from ..taskapp.status import StatusReport, apply_status_report
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
 from .sizing import check_memory_budget
+from .status import StatusReport, apply_status_report
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)

@@ -1,53 +1,106 @@
 Workflow managers
 =================
 
-topobank does not run analyses itself. It creates the record of a run - a
-``WorkflowResult`` for a workflow, or another task-state row such as a
-``Topography`` whose derived files need refreshing - applies its business
-rules (authorization, de-duplication, permissions, ownership) and then hands
-the work to a *workflow manager*. What happens next - queueing, dependency
-resolution, fan-out, resource limits, which worker fleet runs the code - is the
-manager's business. topobank neither knows nor cares whether a manager builds
-a DAG, when it does so, or which engine executes it.
+topobank does not run workflows itself. It creates the record of a run - a
+``WorkflowResult`` - applies its business rules (authorization,
+de-duplication, permissions, ownership) and then hands the result to a
+*workflow manager*. What happens next - queueing, dependency resolution,
+fan-out, resource limits, which worker fleet runs the code - is the manager's
+business. topobank neither knows nor cares whether a manager builds a DAG, when
+it does so, or which engine executes it.
 
-The launch API
---------------
+Descriptors and registries
+--------------------------
 
-The contract lives in :mod:`topobank.taskapp.launch` and has three parts.
+Every workflow is tied to exactly one engine. A workflow manager therefore owns
+a *registry* of the workflows it can run, and a workflow name resolves to a
+manager and to that manager's *shim* for the workflow: a subclass of
+:class:`~topobank.analysis.descriptor.WorkflowDescriptor` that tells topobank
+what it needs to know without running anything - the name, the display name,
+the accepted subject types, the pydantic ``Parameters`` model and the declared
+``Outputs`` - and tells the manager whatever it needs to run the workflow. The
+Celery manager's shim is
+:class:`~topobank.analysis.legacy.workflows.WorkflowImplementation`, which adds
+the in-process implementation methods, their dependencies and a queue.
 
-**launch.** topobank builds a :class:`~topobank.taskapp.launch.LaunchRequest`,
-a self-contained job envelope: which row, whether it is a workflow or a plain
-task, the workflow name and its parameters, the subject hash, the owning
-organization and requesting user, the parent when the run is a dependency, a
-logical queue hint and the storage prefix output should go to. The manager
-returns a :class:`~topobank.taskapp.launch.LaunchHandle`, an opaque JSON
-document naming the manager and carrying whatever the manager needs to find
-the run again. topobank stores the handle on the row in ``execution_handle``.
+Plugins register a shim with the manager it targets::
 
-**poll / cancel.** topobank asks the manager named in the handle what it knows
-about the run (a :class:`~topobank.taskapp.launch.RunInfo` with state,
-progress and messages) or asks it to stop the run. Because the handle names its
-manager, rows launched under one manager stay pollable after the default
-changes, so two managers can run side by side during a migration.
+    from topobank.analysis.celery_manager import registry
 
-**report.** The manager reports how a run is going through the status contract
-in :mod:`topobank.taskapp.status`. A
-:class:`~topobank.taskapp.status.StatusReport` carries the task state and,
+    @registry.register
+    class MyWorkflow(WorkflowImplementation):
+        class Meta:
+            name = "myplugin.my_workflow"
+            display_name = "My workflow"
+            implementations = {Topography: "topography_implementation"}
+        ...
+
+``topobank.analysis.registry.register_implementation`` remains as an alias for
+the Celery registry, so existing plugins keep working.
+
+Resolution
+----------
+
+Managers are listed in settings, in priority order::
+
+    TOPOBANK_WORKFLOW_MANAGERS = [
+        "sds_api.workflows.RayWorkflowManager",
+        "topobank.analysis.celery_manager.CeleryWorkflowManager",
+    ]
+
+The Celery manager is always available and is appended if not listed.
+:func:`topobank.analysis.managers.resolve_workflow` asks the managers in order
+and the first one that knows a name wins. This is how a workflow moves between
+engines without changing its name: register it with the new manager and list
+that manager first. Results launched earlier keep working, because every
+result records which manager launched it.
+
+Enumeration for the frontend is unchanged:
+``topobank.analysis.registry.get_workflow_names()`` is the union over all
+managers, and ``get_implementation(name=...)`` returns the resolved shim. Which
+manager runs a workflow is not exposed through the API.
+
+Launch, poll, cancel
+--------------------
+
+A manager implements three methods (:class:`topobank.analysis.managers.WorkflowManager`)::
+
+    class MyWorkflowManager:
+        name = "mine"
+        registry = WorkflowRegistry()
+
+        def launch(self, result, *, force=False) -> LaunchHandle: ...
+        def poll(self, result) -> RunInfo: ...
+        def cancel(self, result) -> None: ...
+
+``submit_workflow`` resolves the result's workflow name to its manager, calls
+``launch`` and stores the returned :class:`~topobank.analysis.managers.LaunchHandle`
+in ``WorkflowResult.execution_handle``. The handle names the manager and holds
+whatever that manager needs to find the run again (a Celery task id, a Ray job
+id). ``poll`` and ``cancel`` receive the result and read its handle. A result
+without a handle predates managers and belongs to Celery.
+
+Managers are singletons created once from the settings list; a Ray manager
+would hold its cluster client there.
+
+Status
+------
+
+Managers report how a run is going through the status contract in
+:mod:`topobank.analysis.status`. A
+:class:`~topobank.analysis.status.StatusReport` carries the task state and,
 optionally, error and traceback, peak memory, per-stage timings, DOIs and the
-list of files the run produced. :func:`~topobank.taskapp.status.apply_status_report`
+list of files the run produced. :func:`~topobank.analysis.status.apply_status_report`
 is the only place lifecycle state is written to the database, and it fires the
 hooks configured in ``TOPOBANK_TASK_LIFECYCLE_HOOKS`` with ``(instance, report)``
 so notification channels attach there rather than to any particular engine.
 
 A ``STARTED`` report may be made as a *claim*: a conditional update that
 exactly one worker wins. A worker that loses the claim must not run the work.
-This closes the window in which two workers pick up the same row.
-
-Files
------
+This closes the window in which two workers pick up the same result.
 
 A completion report may carry a file manifest: a list of
-:class:`~topobank.taskapp.status.FileEntry` items naming each file the run
+:class:`~topobank.analysis.status.FileEntry` items naming each file the run
 produced and its location in the configured Django storage, with optional size
 and content type. topobank translates the list into ``Manifest`` rows through
 ``ManifestSet.register_files``. topobank never lists a storage prefix to
@@ -56,45 +109,9 @@ discover output; the manager already knows what it wrote.
 The Celery manager
 ------------------
 
-:class:`topobank.taskapp.celery_manager.CeleryWorkflowManager` is the built-in
+:class:`topobank.analysis.celery_manager.CeleryWorkflowManager` is the built-in
 manager and topobank's original execution path. Its dependency resolution,
 chord construction, memory admission control and lost-task reaper are its own
-internals behind ``launch``. It keeps its bookkeeping on the row itself
+internals behind ``launch``. It keeps its bookkeeping on the result itself
 (``task_id``, ``launcher_task_id``) and maps logical queue names onto broker
 queues through ``CELERY_LOGICAL_QUEUE_MAP``.
-
-Configuration
--------------
-
-.. code:: python
-
-    # Name of the manager new work is launched on
-    TOPOBANK_WORKFLOW_MANAGER = "celery"
-
-    # Additional managers, by name. Merged over the built-in Celery entry.
-    TOPOBANK_WORKFLOW_MANAGERS = {
-        "ray": "myproject.workflows.RayWorkflowManager",
-    }
-
-    # Import paths called with (instance, report) on every status report
-    TOPOBANK_TASK_LIFECYCLE_HOOKS = [
-        "myproject.events.publish_task_status",
-    ]
-
-Writing a manager
------------------
-
-A manager is a class with a ``name`` and three methods::
-
-    class MyWorkflowManager:
-        name = "mine"
-
-        def launch(self, request, instance=None) -> LaunchHandle: ...
-        def poll(self, handle, instance=None) -> RunInfo: ...
-        def cancel(self, handle, instance=None) -> None: ...
-
-``instance`` is the already-loaded row when the caller has it; managers that
-keep their state elsewhere may ignore it. On completion the manager - or the
-topobank code that observes its completion - calls
-:func:`~topobank.taskapp.status.apply_status_report` with the outcome and the
-files produced.

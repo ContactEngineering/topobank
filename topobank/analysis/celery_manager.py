@@ -1,20 +1,23 @@
 """
 The Celery workflow manager: topobank's original execution path behind the
-launch API.
+workflow manager interface.
 
-Everything Celery-specific about running topobank work lives here or in the
-tasks this module dispatches: the two Celery tasks in
-:mod:`topobank.analysis.tasks` (``schedule_workflow`` resolves dependencies and
-builds a chord, ``execute_workflow`` runs one workflow), the generic
-``task_dispatch`` task in :mod:`topobank.taskapp.utils`, the mapping of logical
-queue names onto broker queues, and the reading of Celery's result backend when
-topobank asks how a run is doing.
+Everything Celery-specific about running workflows lives here or in the tasks
+this module dispatches: the two Celery tasks in :mod:`topobank.analysis.tasks`
+(``schedule_workflow`` resolves dependencies and builds a chord,
+``execute_workflow`` runs one workflow), the mapping of logical queue names onto
+broker queues, and the reading of Celery's result backend when topobank asks how
+a run is doing.
+
+Workflows for this manager are
+:class:`~topobank.analysis.legacy.workflows.WorkflowImplementation` subclasses,
+registered with :data:`registry` (``topobank.analysis.registry.register_implementation``
+is an alias). The implementation methods run in-process in a Celery worker.
 
 The manager keeps its bookkeeping on the row itself: ``task_id`` holds the id of
 the Celery task currently responsible for the row and ``launcher_task_id`` the
 id of the task that launched a chord of dependencies. Both columns are this
-manager's, not part of the launch contract; other managers keep their state in
-the handle or elsewhere.
+manager's, not part of the manager contract.
 """
 
 import logging
@@ -23,20 +26,23 @@ from typing import Optional
 
 import celery.states
 import pydantic
-from django.apps import apps
 from django.conf import settings
-from django.contrib.contenttypes.models import ContentType
 
-from .launch import LaunchHandle, LaunchRequest, RunInfo
-from .tasks import ProgressRecorder
+from ..taskapp.tasks import ProgressRecorder
+from .managers import LaunchHandle, RunInfo, WorkflowRegistry
 
 _log = logging.getLogger(__name__)
 
+#: Workflows the Celery manager can run. Plugins register their
+#: `WorkflowImplementation` subclasses here.
+registry = WorkflowRegistry()
+
 
 class CeleryWorkflowManager:
-    """Run topobank work as Celery tasks. See the module docstring."""
+    """Run topobank workflows as Celery tasks. See the module docstring."""
 
     name = "celery"
+    registry = registry
 
     #: Celery states mapped onto topobank task states. Anything not listed (e.g.
     #: the custom ``PROGRESS`` state) is read as a running task.
@@ -52,7 +58,7 @@ class CeleryWorkflowManager:
         celery.states.REJECTED: "fa",
     }
 
-    # --- launch ------------------------------------------------------------
+    # --- queues ------------------------------------------------------------
 
     def resolve_queue(self, queue: Optional[str]) -> Optional[str]:
         """
@@ -67,65 +73,43 @@ class CeleryWorkflowManager:
             return None
         return getattr(settings, "CELERY_LOGICAL_QUEUE_MAP", {}).get(queue, queue)
 
-    def launch(self, request: LaunchRequest, instance=None) -> LaunchHandle:
-        queue = self.resolve_queue(request.queue)
-        options = {"queue": queue} if queue else {}
+    def queue_for(self, result) -> str:
+        """The broker queue a `WorkflowResult` should be dispatched to."""
+        implementation = self.registry.get(result.workflow_name)
+        queue = getattr(getattr(implementation, "Meta", None), "celery_queue", None)
+        if queue is None:
+            # Default queue for workflow result tasks
+            queue = settings.TOPOBANK_ANALYSIS_QUEUE
+        return self.resolve_queue(queue)
 
-        if request.kind == "workflow":
-            from topobank.analysis.tasks import schedule_workflow
+    # --- launch ------------------------------------------------------------
 
-            result = schedule_workflow.apply_async(
-                args=[request.pk, request.force], **options
-            )
-        else:
-            from .utils import task_dispatch
+    def launch(self, result, *, force: bool = False) -> LaunchHandle:
+        from .tasks import schedule_workflow
 
-            content_type = ContentType.objects.get_by_natural_key(
-                request.app_label, request.model_name
-            )
-            result = task_dispatch.apply_async(
-                args=[content_type.id, request.pk] + list(request.args),
-                kwargs=request.task_kwargs,
-                **options,
-            )
-
+        task = schedule_workflow.apply_async(
+            args=[result.id, force], queue=self.queue_for(result)
+        )
         # Record the dispatching task on the row. The tasks overwrite this with
         # their own request id once they run; until then it lets the result
         # backend be consulted for a queued task, and lets the signal handlers
         # find the row should the task die before it ever starts.
-        model = apps.get_model(request.app_label, request.model_name)
-        model.objects.filter(pk=request.pk).update(task_id=result.id)
-        if instance is not None:
-            instance.task_id = result.id
-
+        result.task_id = task.id
+        result.save(update_fields=["task_id"])
         _log.debug(
-            "Dispatched %s %s as Celery task %s (queue %s)",
-            request.model,
-            request.pk,
-            result.id,
-            queue,
+            "Dispatched WorkflowResult %s as Celery task %s", result.id, task.id
         )
-        return LaunchHandle(
-            manager=self.name,
-            data={"task_id": str(result.id), "model": request.model, "pk": request.pk},
-        )
+        return LaunchHandle(manager=self.name, data={"task_id": str(task.id)})
 
     # --- poll --------------------------------------------------------------
 
-    def _load(self, handle: LaunchHandle):
-        model = apps.get_model(*handle.data["model"].split(".", 1))
-        return model.objects.get(pk=handle.data["pk"])
-
-    def poll(self, handle: LaunchHandle, instance=None) -> RunInfo:
-        if instance is None:
-            instance = self._load(handle)
-
+    def poll(self, result) -> RunInfo:
         # Read the result backend once per task: the row's own task and, for a
         # chord of dependencies, its children. Everything below is derived from
         # these two lists so that a poll costs one round trip per task.
-        results = instance.get_async_results()
-        states = [instance._get_result_state(r) for r in results]
-        infos = [instance._get_result_info(r) for r in results]
+        results = result.get_async_results()
+        states = [result._get_result_state(r) for r in results]
+        infos = [result._get_result_info(r) for r in results]
 
         # An exception the backend holds for any of the tasks, if there is one
         error = None
@@ -136,7 +120,7 @@ class CeleryWorkflowManager:
 
         # A failed child fails the row
         if any(state in celery.states.EXCEPTION_STATES for state in states):
-            return RunInfo(state=instance.FAILURE, error=error)
+            return RunInfo(state=result.FAILURE, error=error)
 
         if error is not None:
             # Celery holds an exception but no exception state (e.g. a stored
@@ -146,21 +130,21 @@ class CeleryWorkflowManager:
             progress, messages = self._aggregate_progress(states, infos)
 
         return RunInfo(
-            state=self._own_state(instance),
+            state=self._own_state(result),
             progress=progress,
             messages=messages,
             error=error,
         )
 
-    def _own_state(self, instance) -> str:
+    def _own_state(self, result) -> str:
         """The state of the row's own task as Celery's result backend reports it."""
-        if instance.task_id is None:
+        if result.task_id is None:
             # Nothing was ever dispatched (or it was reset)
-            return instance.NOTRUN
-        state = instance._get_result_state(instance.get_async_result())
+            return result.NOTRUN
+        state = result._get_result_state(result.get_async_result())
         # Everything not in the map (e.g. a custom state such as 'PROGRESS') is a
         # running task
-        return self.CELERY_STATE_MAP.get(state, instance.STARTED)
+        return self.CELERY_STATE_MAP.get(state, result.STARTED)
 
     def _aggregate_progress(self, states, infos):
         """
@@ -203,12 +187,7 @@ class CeleryWorkflowManager:
 
     # --- cancel ------------------------------------------------------------
 
-    def cancel(self, handle: LaunchHandle, instance=None) -> None:
-        if instance is None:
-            instance = self._load(handle)
-        r = instance.get_async_result()
+    def cancel(self, result) -> None:
+        r = result.get_async_result()
         if r:
             r.revoke()
-
-
-__all__ = ["CeleryWorkflowManager"]

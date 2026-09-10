@@ -129,6 +129,11 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     # Results
     folder = models.ForeignKey(ManifestSet, on_delete=models.CASCADE, null=True)
 
+    # Which workflow manager launched this result, and its handle to the run: a
+    # serialised `topobank.analysis.managers.LaunchHandle`. None until launched,
+    # and for results that predate managers (which were run by Celery).
+    execution_handle = models.JSONField(null=True)
+
     # Bibliography
     dois = models.JSONField(default=list)
 
@@ -457,61 +462,81 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     def implementation(self):
         return Workflow(name=self.workflow_name).implementation
 
-    def get_queue(self) -> str:
-        """
-        Logical queue this workflow should run on.
-
-        Implementations may name a queue in `Meta.celery_queue` (e.g.
-        "analysis", "prediction"); otherwise the default analysis queue is used.
-        The name is a resource hint handed to the workflow manager, which decides
-        how it maps onto a real queue (the Celery manager translates it through
-        `CELERY_LOGICAL_QUEUE_MAP`).
-        """
-        impl = self.implementation
-        if (
-            impl is not None
-            and hasattr(impl.Meta, "celery_queue")
-            and impl.Meta.celery_queue is not None
-        ):
-            # Implementation-specific queue
-            return impl.Meta.celery_queue
-        # Default queue for workflow result tasks
-        return settings.TOPOBANK_ANALYSIS_QUEUE
-
     def get_celery_queue(self) -> str:
         """
-        Deprecated: the broker queue of the Celery workflow manager.
-
-        Queue translation is the Celery manager's business; use `get_queue` for
-        the logical name and let the manager map it.
+        Deprecated: the broker queue the Celery workflow manager dispatches this
+        result to. Queue selection is the Celery manager's business.
         """
-        from ..taskapp.celery_manager import CeleryWorkflowManager
+        from .celery_manager import CeleryWorkflowManager
 
-        return CeleryWorkflowManager().resolve_queue(self.get_queue())
+        return CeleryWorkflowManager().queue_for(self)
 
-    def build_launch_request(self, *, force=False, **fields):
-        """
-        Describe this result as a workflow job envelope for the workflow manager.
+    # --- Workflow manager -------------------------------------------------
+    #
+    # A result is run by exactly one workflow manager (see
+    # `topobank.analysis.managers`). Everything below asks that manager; the
+    # reconciliation in `get_task_state` (inherited) is unchanged and merely
+    # sees the manager's answer where it used to see Celery's.
 
-        Everything a manager may need without a database lookup travels in the
-        request: the workflow and its parameters, the subject hash, who owns the
-        result and who asked for it, the parent when this is a dependency, and
-        where output goes. A manager running inside Django may ignore most of
-        it and load the row; a manager running elsewhere has what it needs.
-        """
-        metadata = self.metadata or {}
-        request = dict(
-            kind="workflow",
-            workflow_name=self.workflow_name,
-            kwargs=self.kwargs or {},
-            subject_hash=self.subject_hash,
-            storage_prefix=self.storage_prefix,
-            organization_id=getattr(self, "owned_by_id", None),
-            user_id=self.created_by_id,
-            parent_id=metadata.get("parent_workflow_result_id"),
-        )
-        request.update(fields)
-        return super().build_launch_request(force=force, **request)
+    def get_workflow_manager(self):
+        """The workflow manager responsible for this result's run."""
+        from .managers import manager_for_result
+
+        return manager_for_result(self)
+
+    def set_pending_state(self, autosave=True):
+        # A new launch produces a new handle
+        super().set_pending_state(autosave=False)
+        self.execution_handle = None
+        if autosave:
+            self.save(update_fields=[*self.PENDING_STATE_FIELDS, "execution_handle"])
+
+    def poll(self):
+        """Ask the workflow manager what it knows about this result's run."""
+        if not hasattr(self, "_cached_run_info"):
+            self._cached_run_info = self.get_workflow_manager().poll(self)
+        return self._cached_run_info
+
+    def get_celery_state(self):
+        """Return the state of the run as reported by the workflow manager"""
+        # Optimization: a terminal state is trusted without asking the manager
+        if self.task_state in (self.SUCCESS, self.FAILURE):
+            return self.task_state
+        return self.poll().state
+
+    def get_task_progress(self):
+        """Return progress of the run, if running"""
+        if self.task_state == self.SUCCESS:
+            return 100.0
+        elif self.task_state == self.FAILURE:
+            return None
+        return self.poll().progress
+
+    def get_task_messages(self):
+        """Return progress message(s) of the run, if running"""
+        if self.task_state in (self.SUCCESS, self.FAILURE):
+            return []
+        return self.poll().messages
+
+    def get_task_error(self):
+        """Return a string representation of any error occurred during the run"""
+        # Return self-reported task error, if any
+        if self.task_error:
+            return self.task_error
+
+        # If there is none, ask the manager
+        error = self.poll().error
+        if error:
+            from .status import StatusReport, apply_status_report
+
+            # The manager holds an error the run did not report itself; keep it
+            apply_status_report(self, StatusReport(state=self.FAILURE, error=error))
+            return self.task_error
+        return None
+
+    def cancel_task(self):
+        """Cancel the run, if running"""
+        self.get_workflow_manager().cancel(self)
 
     # FIXME: discuss whether to remove this method and use the generic one from PermissionMixin
     # overrides PermissionMixin.authorize_user <- this one returns nothing, raises exception on failure
@@ -676,18 +701,42 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
 def submit_workflow(analysis: WorkflowResult, force_submit: bool):
     """
-    Hand a WorkflowResult to the workflow manager after it has been created.
+    Hand a WorkflowResult to the workflow manager that runs its workflow.
 
     This is the single point where analysis work leaves topobank. It is
     typically run in an on_commit hook so that the row is visible to whatever
     worker the manager starts. Note: on_commit will not execute in tests, unless
     transaction=True is added to pytest.mark.django_db.
     """
-    from ..taskapp.launch import launch
+    from .managers import resolve_workflow
+    from .status import StatusReport, apply_status_report
 
     # TODO: force_submit is currently hardcoded to True everywhere this is called.
-    _log.debug(f"Launching WorkflowResult {analysis.id}...")
-    launch(analysis, force=force_submit)
+    resolved = resolve_workflow(analysis.workflow_name)
+    if resolved is None:
+        # Nothing can run this; an exception here would vanish in the on_commit
+        # hook, so record the failure where the user will see it.
+        _log.error(
+            "WorkflowResult %s names workflow %r, which no workflow manager knows.",
+            analysis.id,
+            analysis.workflow_name,
+        )
+        apply_status_report(
+            analysis,
+            StatusReport(
+                state=WorkflowResult.FAILURE,
+                error=f"No workflow manager can run workflow '{analysis.workflow_name}'.",
+            ),
+        )
+        return
+
+    manager, _ = resolved
+    _log.debug(
+        "Launching WorkflowResult %s on workflow manager %r...", analysis.id, manager.name
+    )
+    handle = manager.launch(analysis, force=force_submit)
+    analysis.execution_handle = handle.model_dump()
+    analysis.save(update_fields=["execution_handle"])
 
 
 # Historical name, kept for callers outside this repository.
@@ -729,16 +778,11 @@ class Workflow:
 
     @property
     def implementation(self):
-        """Return implementation for given subject type.
+        """
+        The descriptor (shim) class registered for this workflow, or None.
 
-        Returns
-        -------
-        AnalysisImplementation instance
-
-        Raises
-        ------
-        ImplementationMissingException
-            in case the implementation is missing
+        Resolved by name over the configured workflow managers; the class is
+        the manager's own shim, so it also knows how to run the workflow there.
         """
         return get_implementation(name=self.name)
 

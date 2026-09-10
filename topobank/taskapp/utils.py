@@ -229,18 +229,29 @@ def run_task(
         )
         return
     model_instance.set_pending_state(autosave=False)
-
-    # The logical queue is a resource hint for the workflow manager; an explicit
-    # queue given by the caller wins over the model's own.
-    request_fields = {"args": list(args), "task_kwargs": dict(kwargs)}
+    # Only submit this on_commit, once save() has finalized and everything
+    # has been flushed to the database (including a possible 'pe'nding state)
+    celery_kwargs = {}
     if celery_queue is not None:
-        request_fields["queue"] = celery_queue
+        # Explicit celery queue given
+        celery_kwargs["queue"] = celery_queue
+    elif hasattr(model_instance, "celery_queue"):
+        # Static celery queue
+        celery_kwargs["queue"] = model_instance.celery_queue
+    elif hasattr(model_instance, "get_celery_queue"):
+        # Dynamic celery queue
+        celery_kwargs["queue"] = model_instance.get_celery_queue()
 
-    def launch_task():
-        from .launch import launch
+    def submit_task_to_celery():
+        model_instance.task_id = task_dispatch.apply_async(
+            args=[
+                ContentType.objects.get_for_model(model_instance).id,
+                model_instance.id,
+            ]
+            + list(args),
+            kwargs=kwargs,
+            **celery_kwargs,
+        ).id
+        model_instance.save(update_fields=["task_id"])
 
-        launch(model_instance, force=force, **request_fields)
-
-    # Only launch this on_commit, once save() has finalized and everything has
-    # been flushed to the database (including a possible 'pe'nding state)
-    transaction.on_commit(launch_task)
+    transaction.on_commit(submit_task_to_celery)

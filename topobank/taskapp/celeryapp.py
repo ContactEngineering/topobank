@@ -91,7 +91,7 @@ class CeleryAppConfig(AppConfig):
         task could not report itself (a killed worker, a revoked task) and turn
         it into a status report like any other.
         """
-        from .status import StatusReport, apply_status_report
+        from topobank.analysis.status import StatusReport, apply_status_report
 
         @task_failure.connect(weak=False)
         def handle_task_failure(sender=None, task_id=None, exception=None,

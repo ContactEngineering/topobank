@@ -2,7 +2,7 @@ from django.db import migrations, models
 
 
 class Migration(migrations.Migration):
-    """Record the workflow manager handle of a run on every task-state row."""
+    """Record which workflow manager launched a result, and its handle to the run."""
 
     dependencies = [
         ("analysis", "0066_workflowresult_soft_delete"),
@@ -11,11 +11,6 @@ class Migration(migrations.Migration):
     operations = [
         migrations.AddField(
             model_name="workflowresult",
-            name="execution_handle",
-            field=models.JSONField(null=True),
-        ),
-        migrations.AddField(
-            model_name="resultzipcontainer",
             name="execution_handle",
             field=models.JSONField(null=True),
         ),

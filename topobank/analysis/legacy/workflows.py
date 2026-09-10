@@ -17,8 +17,8 @@ from pydantic import field_validator
 
 from ...manager.models import Surface, Tag, Topography
 from ...supplib.dict import SplitDictionaryHere
+from ..descriptor import WorkflowDescriptor
 from ..models import Workflow
-from ..outputs import get_outputs_schema
 from .registry import WorkflowNotImplementedException
 
 _log = logging.getLogger(__name__)
@@ -198,19 +198,21 @@ class WorkflowDefinition:
     kwargs: dict = None
 
 
-class WorkflowImplementation:
-    """Class that holds the actual implementation of a workflow"""
+class WorkflowImplementation(WorkflowDescriptor):
+    """
+    A workflow that runs in-process in a Celery worker.
+
+    This is the Celery workflow manager's shim: a `WorkflowDescriptor` (name,
+    display name, parameters, outputs) plus the implementation methods
+    themselves, keyed by subject model in ``Meta.implementations``, their
+    declared dependencies and the queue they run on. Register subclasses with
+    ``topobank.analysis.celery_manager.registry``.
+    """
 
     class Meta:
         celery_queue = None
         implementations = {}
         dependencies = {}
-
-    class Parameters(pydantic.BaseModel):
-        model_config = pydantic.ConfigDict(extra="forbid")
-
-    # Optional outputs declaration - subclasses can define an Outputs class
-    Outputs = None
 
     def __init__(self, **kwargs):
         self._kwargs = self.Parameters(**kwargs)
@@ -288,42 +290,6 @@ class WorkflowImplementation:
             )
         return result
 
-    @classmethod
-    def clean_kwargs(cls, kwargs: Union[dict, None], fill_missing: bool = True):
-        """
-        Validate keyword arguments (parameters) and return validated dictionary
-
-        Parameters
-        ----------
-        kwargs: Union[dict, None]
-            Keyword arguments
-        fill_missing: bool, optional
-            Fill missing keys with default values. (Default: True)
-
-        Raises
-        ------
-        pydantic.ValidationError if validation fails
-        """
-        if kwargs is None:
-            if fill_missing:
-                return cls.Parameters().model_dump()
-            else:
-                return {}
-        else:
-            return cls.Parameters(**kwargs).model_dump(exclude_unset=not fill_missing)
-
-    @classmethod
-    def get_outputs_schema(cls) -> list:
-        """
-        Get JSON schema for declared outputs.
-
-        Returns
-        -------
-        list
-            List of file descriptors with their schemas
-        """
-        return get_outputs_schema(getattr(cls, "Outputs", None))
-
     def get_implementation(self, model_class):
         """Returns the implementation function for a specific subject model"""
         try:
@@ -337,6 +303,7 @@ class WorkflowImplementation:
         """
         Returns whether implementation function for a specific subject model exists
         """
+        # The accepted subjects are the ones with an implementation method
         return model_class in cls.Meta.implementations
 
     def get_dependencies(self, analysis):

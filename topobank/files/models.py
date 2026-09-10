@@ -127,7 +127,7 @@ class ManifestSet(PermissionMixin, models.Model):
         Record files a run produced, as described by a workflow manager.
 
         This is the receiving end of the file manifest a manager returns with a
-        completion report (see `topobank.taskapp.status.FileEntry`): each entry
+        completion report (see `topobank.analysis.status.FileEntry`): each entry
         names a file and where it lives in the configured storage. The folder
         does not look at storage to find out what exists - listing object storage
         is slow and brittle, and the manager already knows what it wrote - it

@@ -2,23 +2,29 @@
 
 # Unreleased
 
-- ENH: Work is handed to a *workflow manager* through a launch API
-  (`topobank.taskapp.launch`) instead of being dispatched to Celery directly.
-  topobank builds a self-contained job envelope (`LaunchRequest`), the manager
-  returns an opaque `LaunchHandle` that is stored on the row
-  (`execution_handle`), and state, progress and cancellation are routed to the
-  manager named in the handle. Lifecycle state reaches the database only
-  through the status contract (`topobank.taskapp.status`), which also fires
-  `TOPOBANK_TASK_LIFECYCLE_HOOKS` and translates a manager's file manifest
-  into `Manifest` rows. The Celery path is unchanged in behaviour and is now
-  the built-in `CeleryWorkflowManager`; deployments can add managers under
-  `TOPOBANK_WORKFLOW_MANAGERS` and select one with `TOPOBANK_WORKFLOW_MANAGER`
+- ENH: Workflows are handed to a *workflow manager* instead of being dispatched
+  to Celery directly (`topobank.analysis.managers`). Every workflow belongs to
+  exactly one manager: each manager owns a registry of the workflows it can
+  run, registered as shims that subclass `WorkflowDescriptor` (name, display
+  name, accepted subjects, parameters, outputs) and carry whatever the engine
+  needs. A workflow name resolves to its manager over the ordered
+  `TOPOBANK_WORKFLOW_MANAGERS` list, first match wins, so a workflow can move
+  between engines under the same name. The manager's `launch` returns an
+  opaque `LaunchHandle` stored on the result (`execution_handle`); state,
+  progress and cancellation are routed to the manager named in the handle.
+  Lifecycle state reaches the database only through the status contract
+  (`topobank.analysis.status`), which also fires `TOPOBANK_TASK_LIFECYCLE_HOOKS`
+  and translates a manager's file manifest into `Manifest` rows. The Celery
+  path is unchanged in behaviour and is now the built-in
+  `CeleryWorkflowManager`; `register_implementation` registers with it
 - BUG: A workflow's `STARTED` transition is a claim that exactly one worker
   wins. Previously a dependency that was re-dispatched while already running
   could be executed twice on the same row
-- MAINT: `WorkflowResult.get_celery_queue()` is deprecated in favour of
-  `get_queue()`, which returns the logical queue; mapping it onto a broker
-  queue is the Celery manager's job
+- BUG: Submitting a result whose workflow no manager knows records a failure
+  on the result instead of raising inside the `on_commit` hook, where the
+  error was lost and the result stayed pending
+- MAINT: `WorkflowResult.get_celery_queue()` is deprecated; queue selection is
+  the Celery manager's business
 
 # 1.72.0 (2026-09-10)
 

@@ -1,5 +1,5 @@
 """
-Registry for WorkflowImplementation-based analysis functions.
+Exceptions of the workflow registry, and the historical registration entry point.
 """
 
 #
@@ -45,30 +45,12 @@ class UnknownKeyException(WorkflowRegistryException):
         return f"Key '{self._key}' is unknown."
 
 
-#
-# Legacy registry dicts
-#
-
-_implementation_classes_by_display_name = {}
-_implementation_classes_by_name = {}
-_app_name = {}
-
-
 def register_implementation(klass):
     """
-    Register implementation of an analysis function.
+    Register a `WorkflowImplementation` with the Celery workflow manager.
 
-    Parameters
-    ----------
-    klass: WorkflowImplementation
-        Runner class that has the Python function which implements the analysis, and
-        additional metadata
-
-    Returns
-    -------
-    klass
-        The registered class (to support use as a decorator)
+    Historical entry point; see `topobank.analysis.registry.register_implementation`.
     """
-    _implementation_classes_by_display_name[klass.Meta.display_name] = klass
-    _implementation_classes_by_name[klass.Meta.name] = klass
-    return klass
+    from ..celery_manager import registry
+
+    return registry.register(klass)
