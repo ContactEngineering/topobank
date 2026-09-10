@@ -294,10 +294,6 @@ class Manifest(PermissionMixin, models.Model):
 
     def finish_upload(self, file=None):
         if file is None:
-            if not settings.USE_S3_STORAGE:
-                # Do nothing; without S3 uploads are finished through a special route
-                # that provides the file here
-                return
             try:
                 storage_path = self.generate_storage_path()
             except SuspiciousFileOperation:
