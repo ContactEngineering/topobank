@@ -4,22 +4,14 @@ import pytest
 from django.core.exceptions import SuspiciousFileOperation, SuspiciousOperation
 
 from topobank.files.upload import (
-    DEFAULT_INLINE_PREVIEW_TYPES,
-    DEFAULT_MAX_ATTACHMENT_UPLOAD_BYTES,
-    DEFAULT_MAX_ATTACHMENTS_PER_SURFACE,
-    DEFAULT_MAX_MEASUREMENT_UPLOAD_BYTES,
-    DEFAULT_OPAQUE_CONTENT_TYPE,
-    DEFAULT_UPLOAD_EXPIRE_SECONDS,
     MEASUREMENT_CONTENT_TYPE,
     format_bytes_binary,
     get_upload_instructions,
     is_previewable,
-    max_attachments_per_surface,
     max_upload_bytes,
-    opaque_content_type,
     storage_content_type,
-    upload_expire_seconds,
 )
+from topobank.settings import defaults
 
 
 class _Stub:
@@ -37,7 +29,6 @@ class _Stub:
 
 @pytest.fixture
 def s3(settings):
-    settings.USE_S3_STORAGE = True
     settings.AWS_STORAGE_BUCKET_NAME = "test-bucket"
     with patch("topobank.files.upload.default_storage") as storage:
         storage._normalize_name.side_effect = lambda path: f"media/{path}"
@@ -53,8 +44,8 @@ def _presign_kwargs(storage):
 
 
 class TestGetUploadInstructions:
-    def test_returns_none_without_s3(self, settings):
-        settings.USE_S3_STORAGE = False
+    def test_returns_none_when_storage_cannot_be_presigned(self, s3):
+        del s3.bucket  # a filesystem backend has none
         assert get_upload_instructions(_Stub("raw", "scan.di")) is None
 
     @pytest.mark.parametrize("exc", [SuspiciousFileOperation, SuspiciousOperation])
@@ -122,26 +113,36 @@ class TestGetUploadInstructions:
         assert _presign_kwargs(s3)["ExpiresIn"] == 5
 
     @pytest.mark.parametrize("kind", ["der", "N/A"])
-    @pytest.mark.parametrize("use_s3", [True, False])
-    def test_system_written_kinds_are_never_presigned(self, s3, settings, kind, use_s3):
-        # Same failure with or without S3, so the bug cannot hide in tests.
-        settings.USE_S3_STORAGE = use_s3
+    def test_system_written_kinds_are_never_presigned(self, s3, kind):
         with pytest.raises(ValueError):
             get_upload_instructions(_Stub(kind, "result.nc"))
+
+    def test_a_system_written_kind_raises_before_the_storage_check(self, s3):
+        # Same failure whatever the backend, so the bug cannot hide in tests.
+        del s3.bucket
+        with pytest.raises(ValueError):
+            get_upload_instructions(_Stub("der", "result.nc"))
 
 
 class TestSettings:
     def test_defaults_apply_when_unset(self):
-        # The test settings define none of these, so the fallbacks are in play.
-        assert upload_expire_seconds() == DEFAULT_UPLOAD_EXPIRE_SECONDS
-        assert max_upload_bytes("raw") == DEFAULT_MAX_MEASUREMENT_UPLOAD_BYTES
-        assert max_upload_bytes("att") == DEFAULT_MAX_ATTACHMENT_UPLOAD_BYTES
-        assert max_attachments_per_surface() == DEFAULT_MAX_ATTACHMENTS_PER_SURFACE
-        assert opaque_content_type() == DEFAULT_OPAQUE_CONTENT_TYPE
-        assert storage_content_type("a.png") == DEFAULT_INLINE_PREVIEW_TYPES[".png"]
+        # The test settings define none of these, so `defaults` is in play.
+        assert max_upload_bytes("raw") == defaults.TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES
+        assert max_upload_bytes("att") == defaults.TOPOBANK_MAX_ATTACHMENT_UPLOAD_BYTES
+        assert (
+            storage_content_type("a.png")
+            == defaults.TOPOBANK_INLINE_PREVIEW_TYPES[".png"]
+        )
+        assert storage_content_type("a.pdf") == defaults.TOPOBANK_OPAQUE_CONTENT_TYPE
+
+    def test_the_ceiling_follows_the_kind(self, settings):
+        settings.TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES = 2048
+        settings.TOPOBANK_MAX_ATTACHMENT_UPLOAD_BYTES = 1024
+        assert max_upload_bytes("raw") == 2048
+        assert max_upload_bytes("att") == 1024
 
     def test_measurement_ceiling_stays_within_the_s3_object_limit(self):
-        assert DEFAULT_MAX_MEASUREMENT_UPLOAD_BYTES <= 5 * 1024**3
+        assert defaults.TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES <= 5 * 1024**3
 
     def test_unknown_kind_has_no_ceiling(self):
         with pytest.raises(ValueError):
@@ -154,7 +155,7 @@ class TestPreviewAllowlist:
     )
     def test_inline_types_are_previewable(self, name):
         assert is_previewable(name)
-        assert storage_content_type(name) != opaque_content_type()
+        assert storage_content_type(name) != defaults.TOPOBANK_OPAQUE_CONTENT_TYPE
 
     @pytest.mark.parametrize(
         "name", ["a.svg", "a.html", "a.pdf", "a.txt", "a", "", None, "png"]

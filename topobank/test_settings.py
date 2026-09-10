@@ -97,23 +97,18 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# Whether files live on an S3-compatible object store rather than on a local
-# filesystem. This changes the upload flow: clients then upload directly to the
-# object store and `Manifest.finish_upload` looks for the file at the expected
-# storage location afterwards.
-USE_S3_STORAGE = STORAGES["default"]["BACKEND"].endswith("S3Boto3Storage")
-
-if USE_S3_STORAGE:
-    # The defaults describe the SeaweedFS instance of the development stack.
-    AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="admin")
-    AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="secret12")
-    AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="topobank-test")
-    AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="http://localhost:9000")
-    AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="us-east-1")
-    AWS_S3_SIGNATURE_VERSION = "s3v4"
-    # Consecutive runs reuse the same bucket, so a file left behind by an
-    # earlier run must not change the name a later run stores its file under.
-    AWS_S3_FILE_OVERWRITE = True
+# The defaults describe the SeaweedFS instance of the development stack. They are
+# set whatever the backend, so that a test may presign against them without the
+# object store being the one configured.
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="admin")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="secret12")
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="topobank-test")
+AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="http://localhost:9000")
+AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="us-east-1")
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+# Consecutive runs reuse the same bucket, so a file left behind by an earlier run
+# must not change the name a later run stores its file under.
+AWS_S3_FILE_OVERWRITE = True
 
 
 CC_LICENSE_INFOS = {

@@ -7,48 +7,14 @@ from django.conf import settings
 from django.core.exceptions import SuspiciousOperation
 from django.core.files.storage import default_storage
 
+from ..settings import defaults
 from .utils import USER_UPLOAD_KINDS
 
 _log = logging.getLogger(__name__)
 
-#: Seconds a presigned POST stays valid.
-DEFAULT_UPLOAD_EXPIRE_SECONDS = 900
-
-#: Ceiling for a measurement file. S3 refuses a single object above 5 GiB, so a
-#: larger value here would only promise what storage then rejects.
-DEFAULT_MAX_MEASUREMENT_UPLOAD_BYTES = 5 * 1024**3
-
-#: Ceiling for a single attachment.
-DEFAULT_MAX_ATTACHMENT_UPLOAD_BYTES = 100 * 1024**2
-
-#: Ceiling on attachments per dataset; bounds the unpaginated listing.
-DEFAULT_MAX_ATTACHMENTS_PER_SURFACE = 200
-
-#: Stored type for an attachment that is not previewable. Opaque on purpose: a
-#: bare presigned GET serves from the bucket origin, where an inline ``.html``
-#: or ``.svg`` would be stored XSS.
-DEFAULT_OPAQUE_CONTENT_TYPE = "binary/octet-stream"
-
-#: Attachment extensions a browser may render inline, mapped to the stored type.
-#: SVG stays out for the reason above.
-DEFAULT_INLINE_PREVIEW_TYPES = {
-    ".png": "image/png",
-    ".jpg": "image/jpeg",
-    ".jpeg": "image/jpeg",
-    ".webp": "image/webp",
-    ".gif": "image/gif",
-}
-
 #: Measurement files are stored opaquely regardless of extension; the preview
-#: allowlist and the opaque setting apply to attachments only.
+#: allowlist and `TOPOBANK_OPAQUE_CONTENT_TYPE` apply to attachments only.
 MEASUREMENT_CONTENT_TYPE = "binary/octet-stream"
-
-
-def upload_expire_seconds():
-    """Lifetime of presigned upload instructions, in seconds."""
-    return getattr(
-        settings, "TOPOBANK_UPLOAD_EXPIRE_SECONDS", DEFAULT_UPLOAD_EXPIRE_SECONDS
-    )
 
 
 def max_upload_bytes(kind):
@@ -59,12 +25,12 @@ def max_upload_bytes(kind):
         return getattr(
             settings,
             "TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES",
-            DEFAULT_MAX_MEASUREMENT_UPLOAD_BYTES,
+            defaults.TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES,
         )
     return getattr(
         settings,
         "TOPOBANK_MAX_ATTACHMENT_UPLOAD_BYTES",
-        DEFAULT_MAX_ATTACHMENT_UPLOAD_BYTES,
+        defaults.TOPOBANK_MAX_ATTACHMENT_UPLOAD_BYTES,
     )
 
 
@@ -73,20 +39,7 @@ def max_attachments_per_surface():
     return getattr(
         settings,
         "TOPOBANK_MAX_ATTACHMENTS_PER_SURFACE",
-        DEFAULT_MAX_ATTACHMENTS_PER_SURFACE,
-    )
-
-
-def opaque_content_type():
-    """Stored type for an attachment that is not previewable."""
-    return getattr(
-        settings, "TOPOBANK_OPAQUE_CONTENT_TYPE", DEFAULT_OPAQUE_CONTENT_TYPE
-    )
-
-
-def _preview_types():
-    return getattr(
-        settings, "TOPOBANK_INLINE_PREVIEW_TYPES", DEFAULT_INLINE_PREVIEW_TYPES
+        defaults.TOPOBANK_MAX_ATTACHMENTS_PER_SURFACE,
     )
 
 
@@ -96,12 +49,28 @@ def _extension(filename):
 
 def is_previewable(filename):
     """Whether an attachment with this name may be rendered inline."""
-    return _extension(filename) in _preview_types()
+    return _extension(filename) in getattr(
+        settings,
+        "TOPOBANK_INLINE_PREVIEW_TYPES",
+        defaults.TOPOBANK_INLINE_PREVIEW_TYPES,
+    )
 
 
 def storage_content_type(filename):
     """Stored type for an attachment, derived from its extension, never the client."""
-    return _preview_types().get(_extension(filename), opaque_content_type())
+    preview_types = getattr(
+        settings,
+        "TOPOBANK_INLINE_PREVIEW_TYPES",
+        defaults.TOPOBANK_INLINE_PREVIEW_TYPES,
+    )
+    return preview_types.get(
+        _extension(filename),
+        getattr(
+            settings,
+            "TOPOBANK_OPAQUE_CONTENT_TYPE",
+            defaults.TOPOBANK_OPAQUE_CONTENT_TYPE,
+        ),
+    )
 
 
 def format_bytes_binary(num_bytes):
@@ -122,16 +91,17 @@ def _pinned_content_type(manifest):
 
 
 def get_upload_instructions(manifest, expire=None):
-    """Presign a POST for ``manifest``; ``None`` without S3 or for a bad filename.
+    """Presign a POST for ``manifest``; ``None`` unless storage can be presigned.
 
     Only the POST form carries a policy, so the size ceiling and the stored
     content type are enforced by storage itself. The lower bound of 1 rejects
     an empty upload, which would otherwise confirm as a valid file.
     """
-    # Raises for system-written kinds before the S3 guard, so a caller that
-    # presigns the wrong manifest fails the same way in tests and production.
+    # Raises for system-written kinds before the storage check, so a caller that
+    # presigns the wrong manifest fails the same way whatever the backend.
     max_bytes = max_upload_bytes(manifest.kind)
-    if not getattr(settings, "USE_S3_STORAGE", False):
+    # Only an object store can be presigned against; a filesystem has no bucket.
+    if not hasattr(default_storage, "bucket"):
         return None
 
     try:
@@ -146,6 +116,11 @@ def get_upload_instructions(manifest, expire=None):
         return None
 
     content_type = _pinned_content_type(manifest)
+    expire_seconds = expire or getattr(
+        settings,
+        "TOPOBANK_UPLOAD_EXPIRE_SECONDS",
+        defaults.TOPOBANK_UPLOAD_EXPIRE_SECONDS,
+    )
     instructions = default_storage.bucket.meta.client.generate_presigned_post(
         Bucket=settings.AWS_STORAGE_BUCKET_NAME,
         Key=storage_path,
@@ -154,7 +129,7 @@ def get_upload_instructions(manifest, expire=None):
             {"Content-Type": content_type},
         ],
         Fields={"Content-Type": content_type},
-        ExpiresIn=expire or upload_expire_seconds(),
+        ExpiresIn=expire_seconds,
     )
     instructions["method"] = "POST"
     return instructions
