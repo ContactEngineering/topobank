@@ -152,7 +152,9 @@ Status contract
 Engines report how a run is going through the status contract in
 :mod:`topobank.analysis.status`. A
 :class:`~topobank.analysis.status.StatusReport` carries the task state and,
-optionally:
+optionally, the fields below. The state itself is optional: a report without
+one changes no state and exists so that an engine can report files as they are
+written (an *incremental report*, see `File registration`_).
 
 ``error`` and ``traceback``
     Shown to the user on failure. NUL bytes are stripped before storage.
@@ -166,13 +168,14 @@ optionally:
 ``dois``
     DOIs of the methods the run used.
 ``files``
-    The files the run produced, as :class:`~topobank.analysis.status.ManifestEntry`
+    Files the run produced, as :class:`~topobank.analysis.status.ManifestEntry`
     items: the file name, its location in the configured Django storage (the
     ``name`` a ``FileField`` would hold, not a URL) and, optionally, size and
-    content type. Applied on success only. topobank translates the list into
-    ``Manifest`` rows through ``ManifestSet.register_files``; registering is
-    idempotent. topobank never lists a storage prefix to discover output - the
-    engine already knows what it wrote.
+    content type. topobank translates the list into ``Manifest`` rows through
+    ``ManifestSet.register_files``; registering is idempotent, and topobank
+    never lists a storage prefix to discover output - the engine already
+    knows what it wrote. What the list means depends on the state it comes
+    with; see `File registration`_.
 ``start_time`` and ``end_time``
     Filled in by topobank when omitted. An engine that reports from a signal
     handler with its own clock (the Celery engine does) may pass them.
@@ -197,56 +200,83 @@ File registration
 A result's output is a set of files in a folder - a ``ManifestSet`` - and
 topobank knows a file only through its ``Manifest`` row: the file name, where
 the file lives in the configured Django storage, its kind, size and content
-type, and ``confirmed_at``, the moment topobank learned that the file is
-really there. ``get_valid_files`` returns confirmed manifests only; an
-unconfirmed manifest is a reservation, not a file. topobank never lists a
-storage prefix to find out what a folder contains - listing object storage is
-slow and brittle - so a file that has no manifest does not exist as far as
-topobank is concerned, whatever is in the bucket.
+type, and ``confirmed_at``, the moment topobank accepted the file as complete
+and present. topobank never lists a storage prefix to find out what a folder
+contains - listing object storage is slow and brittle - so a file that has no
+manifest does not exist as far as topobank is concerned, whatever is in the
+bucket.
 
-Manifests come into being in two ways, and an engine uses whichever fits
-where its workers run:
+The rule that everything below serves: **a run's files are provisional until
+the run succeeds.** A manifest with ``confirmed_at`` unset is provisional; it
+is hidden from ``get_valid_files`` (and from ``has_result_file``) and visible
+through ``get_provisional_files``. ``open_file``, ``exists`` and ``find_file``
+see provisional files too, so a run can read what it wrote. Result folders
+carry ``provisional_writes``, which makes every write into them provisional.
 
-**In-process writes.** A workflow running inside a Django process - every
-workflow on the Celery engine - writes through the folder itself:
-``ManifestSet.save_file``, ``save_json``, ``save_xarray``. Each call stores
-the bytes and, in the same step, creates or replaces the ``Manifest`` row and
-stamps ``confirmed_at``. The row exists the moment the file does. The Celery
-engine's success report therefore carries no ``files``; there is nothing left
-to register when it arrives.
+A file's life, in order:
 
-**The engine's file manifest.** An engine whose workers do not touch Django
-writes to storage on its own and, with its ``SUCCESS`` report, hands topobank
-the list of what it wrote as
-:class:`~topobank.analysis.status.ManifestEntry` items. Each entry names the
-file and its storage location (the ``name`` a ``FileField`` would hold, not a
-URL) and, optionally, kind, size and content type.
-:func:`~topobank.analysis.status.apply_status_report` passes the list to
-``ManifestSet.register_files``, which, for each entry, finds the manifest with
-that file name or creates one, points it at the reported location, copies the
-attributes it was given and stamps ``confirmed_at``. Registering is
-idempotent: reporting the same file twice updates the row in place, and a
-file that was also written in-process under the same name is updated, not
-duplicated.
+1. **Reservation, before launch.** ``submit_workflow`` calls
+   ``WorkflowResult.reserve_declared_outputs`` before it calls the engine's
+   ``launch``: every file the descriptor declares in ``Outputs.files``,
+   optional or not, gets a provisional manifest without a file. The
+   reservation's planned storage location is
+   ``Manifest.generate_storage_path()``; that is how a remote engine learns
+   where to write, by reading the result's folder as its write plan. An
+   engine that creates results itself (the Celery engine does, for
+   dependencies) calls the same method, which is harmless to repeat. Files a
+   run produces beyond its declaration - data-dependent outputs such as the
+   split ``result-*.json`` files or one file per surface - cannot be reserved
+   and enter in step 2 or 3.
 
-What registration does *not* do defines its limits:
+2. **Writing.** A workflow running in a Django process - every workflow on
+   the Celery engine - writes through the folder itself:
+   ``ManifestSet.save_file``, ``save_json``, ``save_xarray``. Each call stores
+   the bytes and fills the reservation, or creates a manifest if there was
+   none, and leaves it provisional. An engine whose workers do not touch
+   Django writes to storage on its own.
 
-- It happens on ``SUCCESS`` only. A ``FAILURE`` report may carry ``files``
-  but they are ignored; nothing is recorded for a run that did not finish.
-- It never removes a manifest. A file recorded by an earlier run that the new
-  run did not report stays in the folder. The folder is the union of
-  everything ever registered, until ``remove_files`` clears it.
-- It does not check storage. A reported location that does not exist yields
-  a confirmed manifest whose file cannot be opened. The engine's list is
-  taken as the truth about what was written, because the engine is the only
-  party that knows.
+3. **Incremental reports (optional).** An engine that can observe its run
+   may send a report with ``files`` and no ``state`` whenever a file lands:
+   the files are registered provisionally, nothing else changes, and a later
+   death leaves rows that name real objects. An engine that cannot observe
+   its run skips this and relies on steps 1 and 4; nothing requires it.
+
+4. **Settlement, by the terminal report.** With ``SUCCESS``, topobank first
+   checks that every declared, non-optional output has been written. If one
+   is missing the run is recorded as a ``FAILURE`` naming the file, and
+   nothing is settled. Otherwise: a report with a ``files`` list is the
+   complete set - it is confirmed and every other provisional row of the
+   folder is dropped, be it a reservation never filled or a write the engine
+   did not report; a report with ``files=None`` says the run recorded its
+   files as it went (steps 2 and 3), so every provisional file that was
+   written is confirmed and unfilled reservations are dropped. With
+   ``FAILURE``, ``files`` are registered provisionally and nothing is
+   confirmed or dropped.
+
+5. **Failure leaves the truth behind.** A run that fails, or dies without
+   reporting, leaves its provisional rows exactly as they were: reservations
+   say what was promised and never delivered, filled rows say what was
+   written before the end. They are inspectable for debugging and invisible
+   to consumers. The custodian reclaims them - rows and storage objects -
+   once the result is no longer waiting or running and the rows are older
+   than ``TOPOBANK_TEMPORARY_DELAY``. A worker killed outright, which
+   reports nothing, is covered by the same path: its rows already exist,
+   the reapers establish the failure, and the sweep does the rest.
+
+6. **Re-runs start clean.** ``set_pending_state`` discards the previous
+   attempt's provisional rows before the new launch reserves its own.
+   Confirmed files of an earlier successful run stay until a run overwrites
+   them by name.
+
+What registration does *not* do: it never checks storage. A reported location
+that does not exist yields a confirmed manifest whose file cannot be opened.
+The engine's list is taken as the truth about what was written, because the
+engine is the only party that knows.
 
 Together with the lifecycle rule that a terminal state is written exactly
-once, this means the files of a result are settled at the same moment as its
-state: whoever sees ``SUCCESS`` sees the complete set of manifests the run
-reported. What happens to files written by a run that never reaches
-``SUCCESS`` is a question for the engine - see the discussion of partial
-output under `Lifecycle of a result`_, step 5.
+once, the files of a result are settled at the same moment as its state:
+whoever sees ``SUCCESS`` sees the complete, confirmed set of files, and
+whoever sees ``FAILURE`` sees no confirmed file from that run.
 
 Lifecycle of a result
 ---------------------
@@ -262,14 +292,16 @@ Who writes what, and when:
    ``ResultRequest``; ``find_or_create`` applies the reuse policy under an
    advisory lock and creates or reuses the result, with permissions and
    ownership. A new row goes through ``set_pending_state``, which puts it in
-   ``PENDING``, stamps ``task_submission_time`` and clears error, traceback,
-   timestamps and the ``execution_handle``. The engine is only involved from
-   a ``transaction.on_commit`` hook, so the row is visible to whatever worker
+   ``PENDING``, stamps ``task_submission_time``, clears error, traceback,
+   timestamps and the ``execution_handle``, and discards provisional files
+   of any earlier attempt. The engine is only involved from a
+   ``transaction.on_commit`` hook, so the row is visible to whatever worker
    the engine starts before that worker looks for it.
 
 2. **Launch (topobank → engine).** ``submit_workflow`` resolves the workflow
-   name to its engine and calls ``launch``; the returned handle is stored in
-   ``execution_handle``. If no engine knows the workflow, the result is set to
+   name to its engine, reserves the declared output files in the result's
+   folder (see `File registration`_) and calls ``launch``; the returned
+   handle is stored in ``execution_handle``. If no engine knows the workflow, the result is set to
    ``FAILURE`` with a message - an exception here would vanish in the
    ``on_commit`` hook and leave the result pending forever. ``PENDING`` is
    therefore the only state in which a result has no handle, apart from results
@@ -289,14 +321,12 @@ Who writes what, and when:
    (``progress`` as a percentage, ``messages``).
 
 5. **Completion (engine).** A ``SUCCESS`` or ``FAILURE`` report sets
-   ``task_end_time`` and, on success, registers the reported files (see
-   `File registration`_). These two states are *terminal*: once a result
-   carries one, topobank trusts the row and never asks the engine again. A
-   run that dies after writing some of its files leaves partial output
-   behind: recorded and confirmed if the files were written in-process,
-   unrecorded in storage if a remote engine had not yet reported them. No
-   report ever removes files, so the folder of a failed result is whatever
-   the run managed to write before it failed.
+   ``task_end_time`` and settles the result's files (see
+   `File registration`_): success confirms them, after checking that every
+   declared, non-optional output was produced - a success that broke that
+   promise is recorded as a failure; failure leaves everything the run wrote
+   provisional. These two states are *terminal*: once a result carries one,
+   topobank trusts the row and never asks the engine again.
 
 6. **Reconciliation (topobank, on read).** While a result is not terminal,
    ``get_task_state`` compares the self-reported state with what ``poll``
@@ -310,8 +340,9 @@ Who writes what, and when:
 
 7. **Re-submission.** ``submit_again`` goes through ``set_pending_state`` and
    a fresh ``launch``: a new handle, possibly on a different engine if the
-   workflow moved in the meantime. Results that already reached ``SUCCESS`` or
-   ``FAILURE`` are only re-run when forced.
+   workflow moved in the meantime, and fresh reservations in place of the
+   previous attempt's provisional files. Results that already reached
+   ``SUCCESS`` or ``FAILURE`` are only re-run when forced.
 
 8. **Cancellation.** ``cancel_task`` asks the engine named in the handle to
    stop the run. The engine reports the resulting ``FAILURE`` like any other
@@ -320,7 +351,8 @@ Who writes what, and when:
 
 What the engine must guarantee is small: claim the result (report
 ``STARTED`` with ``claim=True``) before doing work and stop if the claim is
-lost, report exactly one terminal state, and report failures it learns about
+lost, report exactly one terminal state, say with that state which files it
+wrote unless it recorded them as it went, and report failures it learns about
 out of band - a worker that died, a job the cluster killed - so that the
 reconciliation in step 6 has something to see.
 

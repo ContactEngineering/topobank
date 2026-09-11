@@ -147,6 +147,11 @@ def schedule_workflow(
     analysis.task_start_time = timezone.now()
     analysis.configuration = get_current_configuration()
 
+    # Dependencies are created by this engine, not launched through
+    # `submit_workflow`, so they get their reservations here. Harmless for a
+    # result that was reserved at launch already.
+    analysis.reserve_declared_outputs()
+
     #
     # Check and run dependencies
     #

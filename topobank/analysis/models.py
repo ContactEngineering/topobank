@@ -301,12 +301,18 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                     "WorkflowResult is missing permission set and created_by. Cannot create permissions."
                 )
         if self.folder is None:
+            # A run's output is provisional until its success report settles it
             self.folder = ManifestSet.objects.create(
-                permissions=self.permissions, read_only=True
+                permissions=self.permissions, read_only=True, provisional_writes=True
             )
             if "update_fields" in kwargs:
                 if kwargs["update_fields"] is not None:
                     kwargs["update_fields"].append("folder")
+        elif not self.folder.provisional_writes:
+            # A folder handed in from elsewhere (test factories, older rows)
+            # follows the same rule once it belongs to a result
+            self.folder.provisional_writes = True
+            self.folder.save(update_fields=["provisional_writes"])
 
         if not self.pk:
             # New instance - ensure creator has EDIT permission
@@ -325,6 +331,9 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         if self._result:
             store_split_dict(self.folder, RESULT_FILE_BASENAME, self._result)
             self._result = None
+            if self.task_state == self.SUCCESS:
+                # The files of a result that already succeeded are settled
+                self.folder.confirm_all()
 
     @property
     def subject(self):
@@ -409,9 +418,9 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     @property
     def has_result_file(self):
-        """Returns True if result file exists in storage backend, else False."""
+        """Whether a confirmed result file exists for this result."""
         self.fix_folder()
-        return self.folder.exists(self.result_file_name)
+        return self.folder.get_valid_files().filter(filename=self.result_file_name).exists()
 
     @property
     def storage_prefix(self):
@@ -444,7 +453,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
                 "not yet known."
             )
         self.folder = ManifestSet.objects.create(
-            permissions=self.permissions, read_only=True
+            permissions=self.permissions, read_only=True, provisional_writes=True
         )
         self.save(update_fields=["folder"])
         dir_tuple = default_storage.listdir(self.storage_prefix)
@@ -494,6 +503,33 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         self.execution_handle = None
         if autosave:
             self.save(update_fields=[*self.PENDING_STATE_FIELDS, "execution_handle"])
+        # Whatever a previous attempt reserved or wrote without succeeding is
+        # gone; the new run starts from its own reservations. Confirmed files
+        # of an earlier successful run stay until overwritten.
+        if self.folder_id is not None:
+            self.folder.discard_provisional()
+
+    def declared_outputs(self) -> dict:
+        """
+        The output files the workflow's descriptor declares (``Outputs.files``),
+        mapping file name to its `OutputFile`. Empty if none are declared or
+        the workflow is unknown.
+        """
+        descriptor = Workflow(name=self.workflow_name).implementation
+        outputs = getattr(descriptor, "Outputs", None)
+        return dict(getattr(outputs, "files", None) or {})
+
+    def reserve_declared_outputs(self) -> list:
+        """
+        Reserve a provisional manifest for every declared output file.
+
+        Called before a run is launched. The reservations tell whoever writes
+        the files where they go, and they are what remains - as the truthful
+        record of what was promised but never delivered - if the run dies.
+        Files already recorded are left alone, so calling this again is
+        harmless. Returns the manifests.
+        """
+        return [self.folder.reserve(filename) for filename in self.declared_outputs()]
 
     def poll(self):
         """Ask the workflow engine what it knows about this result's run."""
@@ -712,6 +748,8 @@ def submit_workflow(analysis: WorkflowResult, force_submit: bool):
         return
 
     engine, _ = resolved
+    # Before anything runs, the folder says what the run is expected to write
+    analysis.reserve_declared_outputs()
     _log.debug(
         "Launching WorkflowResult %s on workflow engine %r...", analysis.id, engine.name
     )

@@ -37,6 +37,17 @@
   `Reuse.FINISHED` for dependencies, `Reuse.NEVER` for `ignore_existing`).
   `WorkflowDefinition(subject=, function=, kwargs=)` still works and is
   deprecated in favour of `ResultRequest(workflow_name=, subject=, kwargs=)`
+- ENH: A workflow result's files are provisional until the run succeeds.
+  Declared outputs (`Outputs.files`) are reserved in the result's folder
+  before launch, in-process writes into a result folder stay unconfirmed
+  (`ManifestSet.provisional_writes`), and an engine may report files as they
+  are written with a state-less `StatusReport`. The `SUCCESS` report settles
+  the folder: a `files` list is the complete set, `None` confirms what the
+  run recorded. A success that leaves a declared, non-optional output
+  unproduced is recorded as a `FAILURE` naming the file. Failed runs leave
+  their provisional files as the record of what they wrote; the custodian
+  reclaims them after `TOPOBANK_TEMPORARY_DELAY`, and a re-run discards
+  them. `has_result_file` and `get_valid_files` see confirmed files only
 - MAINT: `Workflow` is a value object over a name: it resolves to the
   registered descriptor and delegates all metadata to it. Asking an unknown
   workflow for parameters, schema or outputs raises

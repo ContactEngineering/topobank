@@ -327,6 +327,33 @@ class TestImplementationWithOutputs(WorkflowImplementation):
             "confidence": 0.95,
         }
         store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
+        # The declared, non-optional output; `metadata.json` is optional and
+        # deliberately not written
+        analysis.folder.save_file("model.nc", "der", ContentFile(b"not really netcdf"))
+
+
+@register_implementation
+class TestImplementationMissingOutput(WorkflowImplementation):
+    """
+    Test implementation that declares an output file it never writes.
+    Used for testing that such a run is recorded as a failure.
+    """
+
+    class Meta:
+        name = "topobank.testing.test_missing_output"
+        display_name = "Test implementation that forgets an output"
+
+        implementations = {
+            Topography: "topography_implementation",
+        }
+
+    class Outputs:
+        files = {
+            "model.nc": OutputFile(file_type="netcdf", description="Never written"),
+        }
+
+    def topography_implementation(self, analysis, progress_recorder=None, timer=None):
+        store_split_dict(analysis.folder, RESULT_FILE_BASENAME, {"name": "forgetful"})
 
 
 @register_implementation

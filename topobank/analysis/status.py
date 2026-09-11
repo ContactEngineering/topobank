@@ -15,6 +15,12 @@ says which files it wrote (as :class:`ManifestEntry` items) and topobank turns t
 list into `Manifest` rows. topobank never lists a storage prefix to find out
 what a run produced; listing object storage is slow and brittle, and the
 engine already knows.
+
+A run's files are *provisional* until its success report settles them: files
+reserved before launch, written in-process or reported along the way are
+recorded but not confirmed, ``SUCCESS`` confirms them, and a run that never
+succeeds leaves the provisional rows behind as the truthful record of what
+it managed to write. See ``docs/workflow-engine.rst``, "File registration".
 """
 
 import logging
@@ -23,6 +29,7 @@ from typing import Any, Dict, Iterable, List, Optional
 
 import pydantic
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 from django.utils.module_loading import import_string
 
@@ -51,15 +58,19 @@ class StatusReport(pydantic.BaseModel):
     """
     An engine's account of a run at some point in its life.
 
-    Only ``state`` is required. Every other field is applied when given and left
-    alone when ``None``, so a report can carry as little as a state change or as
-    much as the full outcome of a run.
+    Every field is applied when given and left alone when ``None``, so a report
+    can carry as little as a state change or as much as the full outcome of a
+    run. A report without a ``state`` changes no state: engines that can watch
+    their runs use it to report files as they are written (an *incremental
+    report*), which is optional - an engine that cannot simply reports
+    everything with its terminal state.
     """
 
     model_config = pydantic.ConfigDict(extra="forbid")
 
-    #: A :class:`~topobank.taskapp.models.TaskStateModel` state code.
-    state: str
+    #: A :class:`~topobank.taskapp.models.TaskStateModel` state code, or None
+    #: for a report that changes no state.
+    state: Optional[str] = None
 
     error: Optional[str] = None
     traceback: Optional[str] = None
@@ -71,7 +82,11 @@ class StatusReport(pydantic.BaseModel):
     #: DOIs of the methods the run used.
     dois: Optional[List[str]] = None
 
-    #: Files the run produced. Applied on success only.
+    #: Files the run produced. With ``SUCCESS`` this is the complete set: it is
+    #: confirmed and reservations it does not mention are dropped; ``None``
+    #: with ``SUCCESS`` confirms everything the run recorded before (in-process
+    #: writes, incremental reports). With any other state, or no state, the
+    #: files are recorded provisionally.
     files: Optional[List[ManifestEntry]] = None
 
     #: When the run started or ended. Filled in by the receiver when omitted.
@@ -111,6 +126,13 @@ def apply_status_report(
         already running or finished is left alone and ``False`` is returned. A
         worker that loses the claim must not run the work. This closes the
         window in which two workers pick up the same row.
+
+    Notes
+    -----
+    Files are settled here as well (see the module docstring): a ``SUCCESS``
+    report confirms the run's files and a success that leaves a declared,
+    non-optional output unproduced is recorded as a ``FAILURE`` naming the
+    file. Any other report records its files provisionally.
     extra_fields : iterable of str, optional
         Names of fields the caller has set on ``instance`` that should be
         persisted together with the report (e.g. ``"task_id"``).
@@ -121,10 +143,13 @@ def apply_status_report(
         ``True`` if the report was applied, ``False`` if a claim was lost.
     """
     now = timezone.now()
-    fields = ["task_state"]
+    fields = []
     terminal = report.state in _terminal_states(instance)
+    folder = getattr(instance, "folder", None)
 
-    instance.task_state = report.state
+    if report.state is not None:
+        instance.task_state = report.state
+        fields.append("task_state")
 
     if report.state == instance.STARTED:
         if instance.task_start_time is None or report.start_time is not None:
@@ -151,6 +176,48 @@ def apply_status_report(
         instance.task_end_time = report.end_time or now
         fields.append("task_end_time")
 
+    # Files. Settled before the state is written, so that a success whose
+    # promised output is missing can still be turned into a failure below.
+    if folder is None:
+        if report.files:
+            _log.warning(
+                "%s %s reported %d files but has no folder to record them in.",
+                type(instance).__name__,
+                instance.pk,
+                len(report.files),
+            )
+    elif report.state == instance.SUCCESS:
+        if report.files is not None:
+            # Record what the engine reports before judging completeness
+            folder.register_files(report.files, confirm=False)
+        missing = _missing_declared_outputs(instance, folder)
+        if missing:
+            # A promise broken: the run is a failure and nothing is settled,
+            # so what it did write stays provisional, as for any failed run
+            message = (
+                "The workflow finished without producing its declared output "
+                f"file(s): {', '.join(sorted(missing))}."
+            )
+            _log.error("%s %s: %s", type(instance).__name__, instance.pk, message)
+            report = report.model_copy(update={"state": instance.FAILURE, "error": message})
+            instance.task_state = instance.FAILURE
+            instance.task_error = message
+            if "task_error" not in fields:
+                fields.append("task_error")
+        elif report.files is not None:
+            # The report is the complete set: confirm it, drop everything else
+            # the run recorded (reservations never filled, unreported writes)
+            reported = [entry.filename for entry in report.files]
+            folder.get_provisional_files().exclude(filename__in=reported).delete()
+            folder.register_files(report.files, confirm=True)
+        else:
+            # The run recorded its files as it went (in-process writes,
+            # incremental reports); success settles them all
+            folder.confirm_all()
+    elif report.files:
+        # Progress or failure: known to exist, not known to be complete
+        folder.register_files(report.files, confirm=False)
+
     fields += [f for f in extra_fields if f not in fields]
 
     if claim and report.state == instance.STARTED:
@@ -171,23 +238,36 @@ def apply_status_report(
             )
             instance.refresh_from_db(fields=fields)
             return False
-    else:
+    elif fields:
         instance.save(update_fields=fields)
-
-    if terminal and report.state == instance.SUCCESS and report.files:
-        folder = getattr(instance, "folder", None)
-        if folder is not None:
-            folder.register_files(report.files)
-        else:
-            _log.warning(
-                "%s %s reported %d files but has no folder to record them in.",
-                type(instance).__name__,
-                instance.pk,
-                len(report.files),
-            )
 
     _fire_lifecycle_hooks(instance, report)
     return True
+
+
+def _missing_declared_outputs(instance, folder) -> set:
+    """
+    Declared, non-optional output files that are not among the folder's
+    confirmed files. Empty for rows that declare no outputs.
+    """
+    declared = getattr(instance, "declared_outputs", None)
+    if declared is None:
+        return set()
+    required = {
+        filename
+        for filename, output in declared().items()
+        if not getattr(output, "optional", False)
+    }
+    if not required:
+        return set()
+    # Present means written: confirmed, or provisional with a file behind it.
+    # An unfilled reservation is a promise, not a file.
+    present = set(
+        folder.get_files()
+        .exclude(Q(file__isnull=True) | Q(file=""))
+        .values_list("filename", flat=True)
+    )
+    return required - present
 
 
 def _fire_lifecycle_hooks(instance, report: StatusReport):
