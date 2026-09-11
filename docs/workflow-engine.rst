@@ -191,6 +191,63 @@ logs - attach here rather than to any particular engine. A failing hook is
 logged and never blocks the report: status must reach the database even if a
 notification channel is down.
 
+File registration
+-----------------
+
+A result's output is a set of files in a folder - a ``ManifestSet`` - and
+topobank knows a file only through its ``Manifest`` row: the file name, where
+the file lives in the configured Django storage, its kind, size and content
+type, and ``confirmed_at``, the moment topobank learned that the file is
+really there. ``get_valid_files`` returns confirmed manifests only; an
+unconfirmed manifest is a reservation, not a file. topobank never lists a
+storage prefix to find out what a folder contains - listing object storage is
+slow and brittle - so a file that has no manifest does not exist as far as
+topobank is concerned, whatever is in the bucket.
+
+Manifests come into being in two ways, and an engine uses whichever fits
+where its workers run:
+
+**In-process writes.** A workflow running inside a Django process - every
+workflow on the Celery engine - writes through the folder itself:
+``ManifestSet.save_file``, ``save_json``, ``save_xarray``. Each call stores
+the bytes and, in the same step, creates or replaces the ``Manifest`` row and
+stamps ``confirmed_at``. The row exists the moment the file does. The Celery
+engine's success report therefore carries no ``files``; there is nothing left
+to register when it arrives.
+
+**The engine's file manifest.** An engine whose workers do not touch Django
+writes to storage on its own and, with its ``SUCCESS`` report, hands topobank
+the list of what it wrote as
+:class:`~topobank.analysis.status.ManifestEntry` items. Each entry names the
+file and its storage location (the ``name`` a ``FileField`` would hold, not a
+URL) and, optionally, kind, size and content type.
+:func:`~topobank.analysis.status.apply_status_report` passes the list to
+``ManifestSet.register_files``, which, for each entry, finds the manifest with
+that file name or creates one, points it at the reported location, copies the
+attributes it was given and stamps ``confirmed_at``. Registering is
+idempotent: reporting the same file twice updates the row in place, and a
+file that was also written in-process under the same name is updated, not
+duplicated.
+
+What registration does *not* do defines its limits:
+
+- It happens on ``SUCCESS`` only. A ``FAILURE`` report may carry ``files``
+  but they are ignored; nothing is recorded for a run that did not finish.
+- It never removes a manifest. A file recorded by an earlier run that the new
+  run did not report stays in the folder. The folder is the union of
+  everything ever registered, until ``remove_files`` clears it.
+- It does not check storage. A reported location that does not exist yields
+  a confirmed manifest whose file cannot be opened. The engine's list is
+  taken as the truth about what was written, because the engine is the only
+  party that knows.
+
+Together with the lifecycle rule that a terminal state is written exactly
+once, this means the files of a result are settled at the same moment as its
+state: whoever sees ``SUCCESS`` sees the complete set of manifests the run
+reported. What happens to files written by a run that never reaches
+``SUCCESS`` is a question for the engine - see the discussion of partial
+output under `Lifecycle of a result`_, step 5.
+
 Lifecycle of a result
 ---------------------
 
@@ -232,9 +289,14 @@ Who writes what, and when:
    (``progress`` as a percentage, ``messages``).
 
 5. **Completion (engine).** A ``SUCCESS`` or ``FAILURE`` report sets
-   ``task_end_time`` and, on success, registers the reported files. These two
-   states are *terminal*: once a result carries one, topobank trusts the row
-   and never asks the engine again.
+   ``task_end_time`` and, on success, registers the reported files (see
+   `File registration`_). These two states are *terminal*: once a result
+   carries one, topobank trusts the row and never asks the engine again. A
+   run that dies after writing some of its files leaves partial output
+   behind: recorded and confirmed if the files were written in-process,
+   unrecorded in storage if a remote engine had not yet reported them. No
+   report ever removes files, so the folder of a failed result is whatever
+   the run managed to write before it failed.
 
 6. **Reconciliation (topobank, on read).** While a result is not terminal,
    ``get_task_state`` compares the self-reported state with what ``poll``
