@@ -10,7 +10,7 @@ Covers:
 - ``topobank.files.utils.file_storage_path`` ``uploads``/``data-lake`` split
 
 Note: Submit tests assert DB state only — without ``transaction=True`` the
-``transaction.on_commit`` hook in ``submit_analysis_task_to_celery`` is
+``transaction.on_commit`` hook in ``submit_workflow`` is
 silently skipped, so no Celery dispatch happens (mirrors ``test_submit_again``).
 Coverage of ``_get_dependencies_for_surfaces`` is deferred; the existing test
 workflow implementations only define ``Topography`` dependencies, so meaningful
@@ -22,6 +22,7 @@ from types import SimpleNamespace
 import pydantic
 import pytest
 
+from topobank.analysis.celery.workflows import run_workflow
 from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.registry import WorkflowNotImplementedException
 from topobank.analysis.workflows import SurfaceSet, compute_subject_hash
@@ -256,7 +257,7 @@ def test_eval_surfaces_single_surface_uses_surface_implementation(
     analysis.folder.remove_files()
     analysis.surfaces.set([surface])
 
-    analysis.eval_self()
+    run_workflow(analysis)
 
     # surface_implementation builds this comment string from default kwargs.
     assert analysis.result["comment"] == "a is 1 and b is foo"
@@ -281,7 +282,7 @@ def test_eval_surfaces_multi_surface_routes_to_tag_implementation(
         TestImplementation, "tag_implementation", return_value=None
     )
 
-    analysis.eval_self()
+    run_workflow(analysis)
 
     mock_tag.assert_called_once()
 
@@ -297,7 +298,7 @@ def test_eval_surfaces_falls_back_to_topography_when_no_surface_impl():
     analysis.folder.remove_files()
     analysis.surfaces.set([surface])
 
-    analysis.eval_self()
+    run_workflow(analysis)
 
     # topography_implementation comment uses the parameters directly.
     assert (
@@ -317,7 +318,7 @@ def test_eval_surfaces_raises_when_multi_surface_lacks_tag_impl():
     analysis.surfaces.set([s1, s2])
 
     with pytest.raises(WorkflowNotImplementedException):
-        analysis.eval_self()
+        run_workflow(analysis)
 
 
 @pytest.mark.django_db

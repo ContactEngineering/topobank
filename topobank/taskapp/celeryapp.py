@@ -84,7 +84,14 @@ class CeleryAppConfig(AppConfig):
         self._register_task_state_signals()
 
     def _register_task_state_signals(self):
-        """Register Celery signal handlers for automatic task state synchronization."""
+        """
+        Register Celery signal handlers for automatic task state synchronization.
+
+        These handlers are part of the Celery workflow engine: they catch what a
+        task could not report itself (a killed worker, a revoked task) and turn
+        it into a status report like any other.
+        """
+        from topobank.analysis.status import StatusReport, apply_status_report
 
         @task_failure.connect(weak=False)
         def handle_task_failure(sender=None, task_id=None, exception=None,
@@ -111,20 +118,23 @@ class CeleryAppConfig(AppConfig):
                         f"Celery reported failure for {instance.__class__.__name__} "
                         f"id={instance.id}, task_id={task_id}. Updating database state."
                     )
-                    instance.task_state = 'fa'  # FAILURE
-                    instance.task_error = str(exception) if exception else "Task failed"
                     if traceback:
                         # Ensure traceback is a formatted string
                         if isinstance(traceback, str):
-                            instance.task_traceback = traceback
+                            traceback_str = traceback
                         else:
-                            instance.task_traceback = "".join(tb.format_tb(traceback))
+                            traceback_str = "".join(tb.format_tb(traceback))
                     else:
-                        instance.task_traceback = ""
-                    instance.task_end_time = timezone.now()
-                    instance.save(update_fields=[
-                        'task_state', 'task_error', 'task_traceback', 'task_end_time'
-                    ])
+                        traceback_str = ""
+                    apply_status_report(
+                        instance,
+                        StatusReport(
+                            state=instance.FAILURE,
+                            error=str(exception) if exception else "Task failed",
+                            traceback=traceback_str,
+                            end_time=timezone.now(),
+                        ),
+                    )
                 else:
                     _log.debug(
                         f"Task {task_id} failed in Celery but {instance.__class__.__name__} "
@@ -170,12 +180,14 @@ class CeleryAppConfig(AppConfig):
                         f"Task revoked for {instance.__class__.__name__} "
                         f"id={instance.id}, task_id={task_id}. Reason: {reason}"
                     )
-                    instance.task_state = 'fa'  # FAILURE
-                    instance.task_error = reason
-                    instance.task_end_time = timezone.now()
-                    instance.save(update_fields=[
-                        'task_state', 'task_error', 'task_end_time'
-                    ])
+                    apply_status_report(
+                        instance,
+                        StatusReport(
+                            state=instance.FAILURE,
+                            error=reason,
+                            end_time=timezone.now(),
+                        ),
+                    )
                 else:
                     _log.debug(
                         f"Task {task_id} revoked but {instance.__class__.__name__} "

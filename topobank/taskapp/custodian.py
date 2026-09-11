@@ -16,11 +16,11 @@ days.
 Neither of the two obvious detectors works here:
 
 * **The result backend cannot tell us.** Celery reports ``PENDING`` for a task
-  id it has never heard of, and ``_CELERY_STATE_MAP`` maps that to our
+  id it has never heard of, and ``CeleryWorkflowEngine.CELERY_STATE_MAP`` maps that to our
   ``PENDING``: "vanished" and "not started yet" are indistinguishable through
   ``AsyncResult``.
 * **A duration threshold is the wrong question.** Analyses already carry hard
-  and soft time limits (see ``analysis.tasks``), so a task that genuinely runs
+  and soft time limits (see ``analysis.celery.tasks``), so a task that genuinely runs
   too long fails itself. Anything still ``STARTED`` past that limit has no
   process behind it at all — and picking a cutoff would either kill legitimate
   long runs or leave zombies lying around for hours.
@@ -135,7 +135,7 @@ def _propagate_to_parent(obj, error):
     parent_id = metadata.get("parent_workflow_result_id")
     if not parent_id:
         return
-    from topobank.analysis.tasks import _fail_parent_on_dependency_failure
+    from topobank.analysis.celery.tasks import _fail_parent_on_dependency_failure
 
     # The helper copies error and traceback off the dependency, so reflect the
     # values we just wrote to the database onto the in-memory instance.

@@ -14,6 +14,7 @@ import pytest
 # Registers the test workflow implementations ("topobank.testing.test",
 # "...test2" with dependencies, etc.).
 import topobank.testing.workflows  # noqa: F401
+from topobank.analysis.celery.workflows import get_dependencies
 from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.tasks import (
     current_statistics,
@@ -117,7 +118,7 @@ def test_prepare_dependency_tasks_schedules_new_dependencies(two_topos, test_wor
     topo = Topography.objects.first()
     parent = _pending_analysis(topo, "topobank.testing.test2")
 
-    dependencies = parent.function.get_dependencies(parent)
+    dependencies = get_dependencies(parent)
     finished, scheduled = prepare_dependency_tasks(
         dependencies, force=False, user=parent.created_by, parent=parent
     )

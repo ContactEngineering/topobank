@@ -1,5 +1,63 @@
 # Changelog for *TopoBank*
 
+# Unreleased
+
+- ENH: Workflows are handed to a *workflow engine* instead of being dispatched
+  to Celery directly (`topobank.analysis.engines`). Every workflow belongs to
+  exactly one engine: each engine owns a registry of the workflows it can
+  run, registered as shims that subclass `WorkflowDescriptor` (name, display
+  name, accepted subjects, parameters, outputs) and carry whatever the engine
+  needs. A workflow name resolves to its engine over the ordered
+  `TOPOBANK_WORKFLOW_ENGINES` list, first match wins, so a workflow can move
+  between engines under the same name. The engine's `launch` returns an
+  opaque `LaunchHandle` stored on the result (`execution_handle`); state,
+  progress and cancellation are routed to the engine named in the handle.
+  Lifecycle state reaches the database only through the status contract
+  (`topobank.analysis.status`), which also fires `TOPOBANK_TASK_LIFECYCLE_HOOKS`
+  and translates an engine's file manifest into `Manifest` rows. The Celery
+  path is unchanged in behaviour and is now the built-in
+  `CeleryWorkflowEngine`; `register_implementation` registers with it
+- BUG: A workflow's `STARTED` transition is a claim that exactly one worker
+  wins. Previously a dependency that was re-dispatched while already running
+  could be executed twice on the same row
+- BUG: Submitting a result whose workflow no engine knows records a failure
+  on the result instead of raising inside the `on_commit` hook, where the
+  error was lost and the result stayed pending
+- MAINT: `WorkflowResult.get_celery_queue()` is deprecated; queue selection is
+  the Celery engine's business
+- MAINT: The Celery tasks moved to `topobank.analysis.celery.tasks`, keeping
+  their `topobank.analysis.tasks.*` names; `topobank.analysis.tasks` re-exports
+  them. `get_current_configuration` lives in `topobank.analysis.configuration`
+- MAINT: One way to ask for a result. `ResultRequest`
+  (`topobank.analysis.workflows`) names a workflow, a subject or surface set
+  and parameters, and is what both a user's submission and a workflow's
+  dependency declaration amount to. `topobank.analysis.store.find_or_create`
+  is the single place `WorkflowResult` rows are created; callers state when
+  an existing row may stand in (`Reuse.VIABLE` for submissions,
+  `Reuse.FINISHED` for dependencies, `Reuse.NEVER` for `ignore_existing`).
+  `WorkflowDefinition(subject=, function=, kwargs=)` still works and is
+  deprecated in favour of `ResultRequest(workflow_name=, subject=, kwargs=)`
+- ENH: A workflow result's files are provisional until the run succeeds.
+  Declared outputs (`Outputs.files`) are reserved in the result's folder
+  before launch, in-process writes into a result folder stay unconfirmed
+  (`ManifestSet.provisional_writes`), and an engine may report files as they
+  are written with a state-less `StatusReport`. The `SUCCESS` report settles
+  the folder: a `files` list is the complete set, `None` confirms what the
+  run recorded. A success that leaves a declared, non-optional output
+  unproduced is recorded as a `FAILURE` naming the file. Failed runs leave
+  their provisional files as the record of what they wrote; the custodian
+  reclaims them after `TOPOBANK_TEMPORARY_DELAY`, and a re-run discards
+  them. `has_result_file` and `get_valid_files` see confirmed files only
+- MAINT: `Workflow` is a value object over a name: it resolves to the
+  registered descriptor and delegates all metadata to it. Asking an unknown
+  workflow for parameters, schema or outputs raises
+  `WorkflowNotRegisteredException` instead of returning empty values;
+  `display_name` still falls back to the name. Running a workflow moved to the
+  Celery engine (`topobank.analysis.celery.workflows.run_workflow`,
+  `get_dependencies`); `Workflow.eval`, `Workflow.eval_surfaces`,
+  `Workflow.get_dependencies` and `WorkflowResult.eval_self` are gone
+  and `current_statistics` in `topobank.analysis.utils`
+
 # 1.72.0 (2026-09-10)
 
 - ENH: `topobank.files.upload.get_upload_instructions` presigns a direct-to-S3

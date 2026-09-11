@@ -1,0 +1,647 @@
+"""
+The Celery workflow engine's tasks.
+
+``schedule_workflow`` resolves a result's dependencies and, when some still
+have to run, builds a chord whose callback is ``execute_workflow``, which runs
+the workflow in-process and reports through the status contract. Both are
+internals of :class:`~topobank.analysis.celery.engine.CeleryWorkflowEngine`.
+
+The tasks keep their historical names (``topobank.analysis.tasks.*``) so that
+messages already queued, per-task settings such as ``CELERY_TASK_ANNOTATIONS``,
+and downstream code that matches on task names keep working.
+"""
+
+import traceback
+from typing import Any, Dict
+
+import celery
+from celery.utils.log import get_task_logger
+from django.conf import settings
+from django.core.exceptions import ImproperlyConfigured
+from django.utils import timezone
+from muTimer import Timer
+from SurfaceTopography.Support import doi
+
+from ...supplib.dict import store_split_dict
+from ...taskapp.celeryapp import app
+from ...taskapp.memory import track_memory_usage
+from ...taskapp.tasks import ProgressRecorder
+from ..configuration import get_current_configuration
+from ..sizing import check_memory_budget
+from ..status import StatusReport, apply_status_report
+from ..store import Reuse, find_or_create
+from ..workflows import ResultRequest
+from .workflows import get_dependencies, run_workflow
+
+_log = get_task_logger(__name__)
+
+# Time limits for the workflow tasks below. Long-running workflows (e.g. model
+# training) can exceed a fixed one-hour budget, so the limits are taken from
+# the standard Celery settings where deployments tune them. Falls back to a
+# 6-hour hard limit (soft limit 5 minutes earlier for graceful cleanup) when
+# the settings are absent or Django settings are not configured.
+DEFAULT_TASK_TIME_LIMIT = 21600  # 6 hours
+DEFAULT_TASK_SOFT_TIME_LIMIT = DEFAULT_TASK_TIME_LIMIT - 300
+
+try:
+    TASK_SOFT_TIME_LIMIT = getattr(
+        settings, "CELERY_TASK_SOFT_TIME_LIMIT", DEFAULT_TASK_SOFT_TIME_LIMIT
+    )
+    TASK_TIME_LIMIT = getattr(settings, "CELERY_TASK_TIME_LIMIT", DEFAULT_TASK_TIME_LIMIT)
+except ImproperlyConfigured:
+    TASK_SOFT_TIME_LIMIT = DEFAULT_TASK_SOFT_TIME_LIMIT
+    TASK_TIME_LIMIT = DEFAULT_TASK_TIME_LIMIT
+
+
+@app.task(
+    bind=True,
+    name="topobank.analysis.tasks.schedule_workflow",
+    soft_time_limit=TASK_SOFT_TIME_LIMIT,
+    time_limit=TASK_TIME_LIMIT,
+)
+def schedule_workflow(
+    self: celery.Task,
+    analysis_id: int,
+    force: bool,
+    is_dependency: bool = False,
+    parent_id: int = None,
+):
+    """Schedule a workflow, checking and setting up dependencies first.
+
+    This task handles the dependency resolution phase:
+    1. Loads the analysis from database
+    2. Checks if dependencies exist and their states
+    3. If dependencies need scheduling: creates chord with execute_workflow as callback
+    4. If no dependencies or all complete: directly calls execute_workflow
+
+    Parameters
+    ----------
+    self : celery.app.task.Task
+        Celery task on execution (because of bind=True).
+    analysis_id : int
+        ID of `topobank.analysis.WorkflowResult` instance.
+    force : bool
+        Submission was forced, which means we need to renew dependencies.
+    is_dependency : bool, optional
+        Whether this workflow was scheduled as a dependency of another
+        workflow. (Default: False)
+    parent_id : int, optional
+        ID of the WorkflowResult whose scheduling triggered this run, when
+        this workflow runs as a dependency. Attribution travels with the
+        Celery task rather than the (shared) WorkflowResult row, so
+        concurrent parents re-running the same dependency each carry their
+        own id. (Default: None)
+    """
+    from ..models import WorkflowResult
+
+    #
+    # Get analysis instance from database
+    #
+    try:
+        celery_queue = self.request.delivery_info["routing_key"]
+    except TypeError:
+        celery_queue = None
+
+    # Optimize query with select_related to reduce DB round trips
+    analysis = (
+        WorkflowResult.objects.select_related(
+            "subject_topography",
+            "subject_surface",
+            "subject_tag",
+            "configuration",
+            "created_by",
+            "owned_by",
+        )
+        .prefetch_related("permissions", "surfaces")
+        .get(id=analysis_id)
+    )
+    _log.info(
+        f"{analysis_id}/{self.request.id}: Scheduling workflow -- "
+        f"Queue: {celery_queue}, force recalculation: {force} -- "
+        f"Workflow: '{analysis.workflow_name}', subject: '{analysis.subject}', "
+        f"kwargs: {analysis.kwargs}, task_state: '{analysis.task_state}'"
+    )
+
+    #
+    # Check state - don't reschedule completed/failed tasks
+    #
+    if (
+        analysis.task_state in [WorkflowResult.FAILURE, WorkflowResult.SUCCESS]
+        and not force
+    ):
+        s = (
+            "completed successfully"
+            if analysis.task_state == WorkflowResult.SUCCESS
+            else "failed"
+        )
+        _log.debug(
+            f"{self.request.id}: Terminating schedule_workflow because this analysis has "
+            f"{s} in a previous run."
+        )
+        return
+
+    #
+    # Update entry to indicate we started scheduling
+    #
+    analysis.task_id = self.request.id
+    analysis.task_start_time = timezone.now()
+    analysis.configuration = get_current_configuration()
+
+    # Dependencies are created by this engine, not launched through
+    # `submit_workflow`, so they get their reservations here. Harmless for a
+    # result that was reserved at launch already.
+    analysis.reserve_declared_outputs()
+
+    #
+    # Check and run dependencies
+    #
+    dependencies = get_dependencies(analysis)  # This is a dict!
+
+    if len(dependencies) > 0:
+        _log.debug(f"{self.request.id}: Checking analysis dependencies...")
+        finished_dependencies, scheduled_dependencies = prepare_dependency_tasks(
+            dependencies, force, analysis.created_by, analysis
+        )
+
+        if len(scheduled_dependencies) > 0:
+            # Dependencies need to be scheduled first
+            for dep in scheduled_dependencies.values():
+                dep.set_pending_state()
+
+            # Store all dependencies (both finished and scheduled)
+            all_deps = {**finished_dependencies, **scheduled_dependencies}
+            analysis.dependencies = {key: dep.id for key, dep in all_deps.items()}
+
+            # Set state to PENDING_DEPENDENCIES - we're waiting for deps to complete
+            analysis.task_state = WorkflowResult.PENDING_DEPENDENCIES
+            analysis.launcher_task_id = self.request.id
+            analysis.save()
+
+            # Create chord: run all dependencies, then execute this workflow
+            task = celery.chord(
+                (
+                    schedule_workflow.si(
+                        dep.id, False, is_dependency=True, parent_id=analysis.id
+                    ).set(queue=celery_queue)
+                    for dep in scheduled_dependencies.values()
+                ),
+                execute_workflow.si(
+                    analysis.id, is_dependency=is_dependency, parent_id=parent_id
+                ).set(queue=celery_queue),
+            ).apply_async()
+
+            # Store chord task id
+            analysis.task_id = task.id
+            analysis.save(update_fields=["task_id"])
+
+            _log.debug(
+                f"{analysis_id}/{self.request.id}: Submitted "
+                f"{len(scheduled_dependencies)} dependencies; waiting for resolution."
+            )
+            return
+
+        # All dependencies are already finished
+        analysis.dependencies = {
+            key: dep.id for key, dep in finished_dependencies.items()
+        }
+        analysis.save()
+
+        # Check if any dependency failed
+        failed_dependencies = [
+            dep
+            for dep in finished_dependencies.values()
+            if dep.task_state != WorkflowResult.SUCCESS
+        ]
+        if failed_dependencies:
+            # Surface the failed dependency's real error/traceback on the parent
+            # rather than a generic message, so the UI shows why it failed
+            # (mirrors execute_workflow and _fail_parent_on_dependency_failure).
+            failed_dep = failed_dependencies[0]
+            apply_status_report(
+                analysis,
+                StatusReport(
+                    state=WorkflowResult.FAILURE,
+                    error=failed_dep.task_error or "A dependent analysis failed.",
+                    traceback=failed_dep.task_traceback,
+                ),
+            )
+            _log.debug(f"{analysis_id}/{self.request.id}: A dependency failed.")
+            return
+
+    else:
+        _log.debug(f"{analysis_id}/{self.request.id}: Analysis has no dependencies.")
+        analysis.dependencies = {}
+        analysis.save()
+
+    # No dependencies or all dependencies finished successfully - execute directly.
+    # Use .apply() (synchronous) so that when schedule_workflow is used as a chord
+    # header task, the chord does not fire its callback until the actual work is done.
+    # Using .apply_async() here would cause a race condition: the chord would see
+    # schedule_workflow as "complete" while execute_workflow is still running.
+    _log.debug(f"{analysis_id}/{self.request.id}: Calling execute_workflow directly.")
+    execute_workflow.apply(
+        args=(analysis.id, is_dependency), kwargs={"parent_id": parent_id}
+    )
+
+
+def _fail_parent_on_dependency_failure(parent_id, dependency, request_id):
+    """Mark a parent workflow FAILURE because one of its dependencies failed.
+
+    Called from the dependency's ``execute_workflow`` when it errors, so the
+    parent does not hang in PENDING_DEPENDENCIES waiting for a chord callback
+    that will never fire (a failed chord header suppresses the callback).
+
+    Uses a filtered ``update()`` so it is atomic and never clobbers a parent
+    that has already reached a terminal state (or was reset/rerun): only rows
+    still waiting are transitioned. The dependency's error/traceback are copied
+    onto the parent so the UI shows why it failed.
+    """
+    from ..models import WorkflowResult
+
+    waiting_states = [
+        WorkflowResult.NOTRUN,
+        WorkflowResult.PENDING,
+        WorkflowResult.RETRY,
+        WorkflowResult.STARTED,
+        WorkflowResult.PENDING_DEPENDENCIES,
+    ]
+    updated = WorkflowResult.objects.filter(
+        id=parent_id, task_state__in=waiting_states
+    ).update(
+        task_state=WorkflowResult.FAILURE,
+        task_error=dependency.task_error or "A dependent analysis failed.",
+        task_traceback=dependency.task_traceback,
+        task_end_time=timezone.now(),
+    )
+    if updated:
+        _log.warning(
+            "%s: dependency %s failed; propagated FAILURE to parent %s.",
+            request_id,
+            dependency.id,
+            parent_id,
+        )
+
+
+@app.task(
+    bind=True,
+    name="topobank.analysis.tasks.execute_workflow",
+    soft_time_limit=TASK_SOFT_TIME_LIMIT,
+    time_limit=TASK_TIME_LIMIT,
+)
+def execute_workflow(
+    self: celery.Task,
+    analysis_id: int,
+    is_dependency: bool = False,
+    parent_id: int = None,
+):
+    """Execute the actual workflow after dependencies are resolved.
+
+    This task assumes all dependencies are already complete and handles:
+    1. Loading finished dependencies
+    2. Running the actual workflow via run_workflow()
+    3. Storing results and statistics
+
+    Parameters
+    ----------
+    self : celery.app.task.Task
+        Celery task on execution (because of bind=True).
+    analysis_id : int
+        ID of `topobank.analysis.WorkflowResult` instance.
+    is_dependency : bool, optional
+        Whether this workflow runs as a dependency of another workflow.
+        (Default: False)
+    parent_id : int, optional
+        ID of the WorkflowResult whose scheduling triggered this run, when
+        running as a dependency. (Default: None)
+    """
+    from ..models import RESULT_FILE_BASENAME, WorkflowResult
+
+    #
+    # Get analysis instance from database
+    #
+    analysis = (
+        WorkflowResult.objects.select_related(
+            "subject_topography",
+            "subject_surface",
+            "subject_tag",
+            "configuration",
+            "created_by",
+            "owned_by",
+        )
+        .prefetch_related("permissions", "surfaces")
+        .get(id=analysis_id)
+    )
+
+    _log.info(
+        f"{analysis_id}/{self.request.id}: Executing workflow -- "
+        f"Workflow: '{analysis.workflow_name}', subject: '{analysis.subject}', "
+        f"kwargs: {analysis.kwargs}"
+    )
+
+    #
+    # Check state - don't re-execute completed/failed tasks
+    #
+    if analysis.task_state in [WorkflowResult.FAILURE, WorkflowResult.SUCCESS]:
+        s = (
+            "completed successfully"
+            if analysis.task_state == WorkflowResult.SUCCESS
+            else "failed"
+        )
+        _log.debug(
+            f"{self.request.id}: Terminating execute_workflow because this analysis has "
+            f"{s} in a previous run."
+        )
+        return
+
+    #
+    # Claim the row and move it to STARTED - we're now actually running the
+    # workflow. The claim is a conditional update that exactly one worker wins;
+    # if another worker is already running this row we must not run it again.
+    #
+    analysis.task_id = self.request.id
+    analysis.configuration = get_current_configuration()
+    claimed = apply_status_report(
+        analysis,
+        StatusReport(state=WorkflowResult.STARTED),
+        claim=True,
+        extra_fields=["task_id", "configuration"],
+    )
+    if not claimed:
+        _log.info(
+            f"{analysis_id}/{self.request.id}: Not executing workflow, another worker "
+            f"holds this analysis (task_state '{analysis.task_state}')."
+        )
+        return
+
+    #
+    # Load finished dependencies
+    #
+    finished_dependencies = {}
+    if analysis.dependencies:
+        for key, dep_id in analysis.dependencies.items():
+            # Convert JSON string key back to integer if it represents an integer.
+            # JSON only supports string keys, so integer keys (e.g., surface.id)
+            # get serialized as strings. We need to convert them back for workflow
+            # implementations that use integer keys to access dependencies.
+            try:
+                key = int(key)
+            except ValueError:
+                pass  # Keep as string if not a valid integer
+            dep = WorkflowResult.objects.get(id=dep_id)
+            if dep.task_state != WorkflowResult.SUCCESS:
+                # A dependency failed - we cannot proceed
+                # Copy error and traceback from the failed dependency
+                error_msg = dep.task_error or f"Dependency '{key}' failed."
+                apply_status_report(
+                    analysis,
+                    StatusReport(
+                        state=WorkflowResult.FAILURE,
+                        error=error_msg,
+                        traceback=dep.task_traceback,
+                    ),
+                )
+                _log.warning(
+                    "%s/%s: Dependency '%s' (id=%s) is in state '%s', cannot execute workflow.",
+                    analysis_id,
+                    self.request.id,
+                    key,
+                    dep_id,
+                    dep.task_state,
+                )
+                # Raise so Celery reports task_failure (not task_success)
+                raise RuntimeError(error_msg)
+            finished_dependencies[key] = dep
+
+    def save_result(result, task_state, peak_memory=None, dois=set(), timer=None):
+        # Only store result if the implementation returned one
+        if result is not None:
+            store_split_dict(analysis.folder, RESULT_FILE_BASENAME, result)
+        apply_status_report(
+            analysis,
+            StatusReport(
+                state=task_state,
+                memory=peak_memory,
+                dois=list(dois),
+                timer=timer.to_dict() if timer is not None else None,
+            ),
+        )
+
+        if peak_memory is not None:
+            _log.debug(
+                f"{analysis_id}/{self.request.id}: Task state: '{task_state}', "
+                f"duration: {analysis.task_duration}, "
+                f"peak memory usage: {int(peak_memory / 1024 / 1024)} MB"
+            )
+        else:
+            _log.debug(
+                f"{analysis_id}/{self.request.id}: Task state: '{task_state}', "
+                f"duration: {analysis.task_duration}"
+            )
+
+    @doi()
+    def evaluate_function(progress_recorder, timer, finished_analyses):
+        if len(finished_analyses) > 0:
+            return run_workflow(
+                analysis,
+                dependencies=finished_analyses,
+                progress_recorder=progress_recorder,
+                timer=timer,
+            )
+        else:
+            return run_workflow(
+                analysis,
+                progress_recorder=progress_recorder,
+                timer=timer,
+            )
+
+    #
+    # Actually perform the workflow
+    #
+    _log.debug(
+        f"{analysis_id}/{self.request.id}: Starting evaluation of analysis function..."
+    )
+    # Created outside the try so the failure path below can persist whatever
+    # block durations were recorded before the exception (Timer records in a
+    # finally, so an interrupted block — e.g. a SoftTimeLimitExceeded mid
+    # LOO fold — still leaves its partial duration behind).
+    timer = Timer(str(self.request.id))
+    try:
+        # Refuse an analysis that cannot fit before allocating anything. The
+        # alternative is the OOM killer removing this process mid-computation,
+        # which leaves the user with no explanation and (when the whole container
+        # goes) a row stuck in "running". Raising here instead means the handler
+        # below records a FAILURE carrying a message the user can act on.
+        check_memory_budget(analysis)
+
+        dois = set()
+        on_progress = None
+        # If a callback is configured, create a progress callback.
+        callback_path = getattr(settings, "WORKFLOW_PROGRESS_CALLBACK", None)
+        if callback_path:
+            from django.utils.module_loading import import_string
+
+            task_type = "dependency" if is_dependency else "analysis"
+            on_progress = import_string(callback_path)(
+                str(self.request.id),
+                org_id=getattr(analysis, "owned_by_id", None),
+                task_info={
+                    "type": task_type,
+                    "name": (
+                        analysis.function.display_name
+                        if analysis.function
+                        else "Workflow"
+                    ),
+                    "workflow_result_id": analysis.id,
+                    "organization_id": getattr(analysis, "owned_by_id", None),
+                    "parent_workflow_result_id": parent_id,
+                },
+            )
+
+        # Peak-memory tracking: cheap RSS high-water mark by default;
+        # precise (but ~35x slower on numeric workloads) tracemalloc only
+        # when TOPOBANK_TRACK_MEMORY_USAGE is enabled. See taskapp/memory.py.
+        with track_memory_usage() as memory_usage:
+            result = evaluate_function(
+                dois=dois,
+                progress_recorder=ProgressRecorder(self, on_progress=on_progress),
+                timer=timer,
+                finished_analyses=finished_dependencies,
+            )
+        save_result(
+            result,
+            WorkflowResult.SUCCESS,
+            peak_memory=memory_usage.peak,
+            dois=dois,
+            timer=timer,
+        )
+    except Exception as exc:
+        _log.exception(
+            f"{analysis_id}/{self.request.id}: Exception during evaluation: {exc}"
+        )
+        # Persist the timings recorded up to the failure: for timeouts this is
+        # what distinguishes "one stage stalled for an hour" from "many stages,
+        # each fast, exceeded the budget together". muTimer records in a
+        # finally, so the interrupted block carries its partial duration.
+        timer_dict = timer.to_dict()
+        apply_status_report(
+            analysis,
+            StatusReport(
+                state=WorkflowResult.FAILURE,
+                error=str(exc),
+                traceback=traceback.format_exc(),
+                timer=timer_dict if timer_dict.get("timers") else None,
+            ),
+        )
+        # Propagate the failure to the parent when this ran as a dependency.
+        #
+        # The parent waits for its dependencies via a Celery chord whose callback
+        # is the parent's own execute_workflow. But a failed chord *header* means
+        # Celery never fires that callback, so the parent would be stranded in
+        # PENDING_DEPENDENCIES until it is declared lost (28800 s) — surfacing in
+        # the UI as an indefinite "Queued". Failing the parent here, at the point
+        # the dependency actually fails, is deterministic and does not depend on
+        # the chord callback ever running. (If the callback does run later, it
+        # early-returns on seeing the parent already in a terminal state.)
+        if is_dependency and parent_id is not None:
+            _fail_parent_on_dependency_failure(parent_id, analysis, self.request.id)
+        raise
+    finally:
+        try:
+            analysis = WorkflowResult.objects.get(id=analysis_id)
+        except WorkflowResult.DoesNotExist:
+            _log.debug(
+                f"{analysis_id}/{self.request.id}: Analysis {analysis_id} does not exist."
+            )
+            pass
+        else:
+            analysis.task_end_time = timezone.now()
+            analysis.save(update_fields=["task_end_time"])
+    _log.debug(f"{analysis_id}/{self.request.id}: Workflow finished normally.")
+
+
+# Keep perform_analysis as an alias for backward compatibility
+@app.task(
+    bind=True,
+    name="topobank.analysis.tasks.perform_analysis",
+    soft_time_limit=TASK_SOFT_TIME_LIMIT,
+    time_limit=TASK_TIME_LIMIT,
+)
+def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
+    """Perform an analysis which is already present in the database.
+
+    This is a backward-compatible wrapper that calls schedule_workflow.
+
+    Parameters
+    ----------
+    self : celery.app.task.Task
+        Celery task on execution (because of bind=True).
+    analysis_id : int
+        ID of `topobank.analysis.WorkflowResult` instance.
+    force : bool
+        Submission was forced, which means we need to renew dependencies.
+    """
+    # Delegate to schedule_workflow
+    return schedule_workflow.apply(args=(analysis_id, force))
+
+
+def prepare_dependency_tasks(
+    dependencies: Dict[Any, ResultRequest], force: bool, user=None, parent=None
+):
+    """
+    Find or create the results a workflow depends on.
+
+    Parameters
+    ----------
+    dependencies : dict
+        The parent's dependency keys mapped to the `ResultRequest` for each.
+    force : bool
+        Run dependencies again even if they finished (the parent was forced).
+    user : User, optional
+        Recorded as the creator of new dependency results.
+    parent : WorkflowResult
+        The result that needs the dependencies. New dependency results share
+        its permissions and owner and record it in their metadata. When the
+        parent is a surface-set result, a dependency on a single surface is
+        stored as a one-surface set too, so parent and dependencies share one
+        addressing scheme.
+
+    Returns
+    -------
+    finished, scheduled : dict, dict
+        Dependency keys mapped to results that have finished (successfully or
+        not) and to results that still have to run, respectively.
+    """
+    # Determine if parent uses the surface set (M2M) path
+    use_surfaces_path = parent is not None and parent.surfaces.exists()
+
+    finished_dependent_analyses = {}  # Everything that finished or failed
+    scheduled_dependent_analyses = {}  # Everything that needs to be scheduled
+    for key, request in dependencies.items():
+        if key in scheduled_dependent_analyses or key in finished_dependent_analyses:
+            raise RuntimeError(f"Dependency '{key}' already dependent or finished.")
+
+        if use_surfaces_path:
+            request = request.as_surface_set()
+
+        # A dependency that failed is reused, not retried: `Reuse.FINISHED`.
+        # Whatever still has to run is scheduled, possibly again;
+        # `schedule_workflow` terminates by itself for a result that completed
+        # in the meantime.
+        found = find_or_create(
+            request,
+            user=user,
+            reuse=Reuse.FINISHED,
+            force=force,
+            permissions=parent.permissions,
+            owned_by_id=parent.owned_by_id,
+            metadata={"parent_workflow_result_id": parent.id},
+        )
+        if found.needs_run:
+            scheduled_dependent_analyses[key] = found.result
+        else:
+            finished_dependent_analyses[key] = found.result
+
+    return (
+        finished_dependent_analyses,
+        scheduled_dependent_analyses,
+    )

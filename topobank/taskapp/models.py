@@ -18,6 +18,20 @@ from .tasks import ProgressRecorder
 _log = logging.getLogger(__name__)
 
 
+def _cache_set(key, value, timeout=30):
+    """
+    Remember a result-backend value; never let the cache break a status read.
+
+    Values coming back from Celery are not guaranteed to be picklable (an
+    exception carrying an odd payload, for instance). Status must still be
+    reported then, just without the cache.
+    """
+    try:
+        cache.set(key, value, timeout)
+    except Exception as exc:  # noqa: BLE001 - deliberately broad, see docstring
+        _log.debug("Not caching %s: %s", key, exc)
+
+
 class IncompleteMetadataError(Exception):
     """
     Raised when a data file is of a supported format and can be read, but does
@@ -195,7 +209,7 @@ class TaskStateModel(models.Model):
 
         # Query Celery and cache for 30 seconds
         state = async_result.state
-        cache.set(cache_key, state, 30)
+        _cache_set(cache_key, state)
 
         return state
 
@@ -222,7 +236,7 @@ class TaskStateModel(models.Model):
 
         # Query Celery and cache for 30 seconds
         info = async_result.info
-        cache.set(cache_key, info, 30)
+        _cache_set(cache_key, info)
 
         return info
 
