@@ -33,7 +33,7 @@ from topobank.analysis.engines import (
 )
 from topobank.analysis.models import Workflow, WorkflowResult, submit_workflow
 from topobank.analysis.registry import get_implementation
-from topobank.analysis.status import FileEntry, StatusReport, apply_status_report
+from topobank.analysis.status import ManifestEntry, StatusReport, apply_status_report
 from topobank.manager.models import Topography
 from topobank.testing.factories import Topography1DFactory, TopographyAnalysisFactory
 
@@ -350,13 +350,13 @@ def test_failure_report_records_error_and_strips_nul(test_workflow):
 def test_files_in_a_success_report_become_manifests(test_workflow):
     a = _analysis(test_workflow, task_state=WorkflowResult.STARTED)
     files = [
-        FileEntry(
+        ManifestEntry(
             filename="model.nc",
             path=f"{a.storage_prefix}/model.nc",
             size_bytes=10,
             content_type="application/x-netcdf",
         ),
-        FileEntry(filename="result.json", path=f"{a.storage_prefix}/result.json"),
+        ManifestEntry(filename="result.json", path=f"{a.storage_prefix}/result.json"),
     ]
     apply_status_report(a, StatusReport(state=WorkflowResult.SUCCESS, files=files))
     names = {m.filename: m for m in a.folder.get_valid_files()}

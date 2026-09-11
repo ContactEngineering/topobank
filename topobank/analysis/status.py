@@ -11,7 +11,7 @@ the lifecycle hooks configured in ``TOPOBANK_TASK_LIFECYCLE_HOOKS`` fire from
 that one place regardless of the engine.
 
 Files are part of the report, not of storage: an engine that produced output
-says which files it wrote (as :class:`FileEntry` items) and topobank turns that
+says which files it wrote (as :class:`ManifestEntry` items) and topobank turns that
 list into `Manifest` rows. topobank never lists a storage prefix to find out
 what a run produced; listing object storage is slow and brittle, and the
 engine already knows.
@@ -29,7 +29,7 @@ from django.utils.module_loading import import_string
 _log = logging.getLogger(__name__)
 
 
-class FileEntry(pydantic.BaseModel):
+class ManifestEntry(pydantic.BaseModel):
     """
     One file a run produced, as an engine describes it.
 
@@ -72,7 +72,7 @@ class StatusReport(pydantic.BaseModel):
     dois: Optional[List[str]] = None
 
     #: Files the run produced. Applied on success only.
-    files: Optional[List[FileEntry]] = None
+    files: Optional[List[ManifestEntry]] = None
 
     #: When the run started or ended. Filled in by the receiver when omitted.
     start_time: Optional[datetime] = None

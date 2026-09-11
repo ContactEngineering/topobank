@@ -38,6 +38,18 @@ Plugins register a shim with the engine it targets::
 ``topobank.analysis.registry.register_implementation`` remains as an alias for
 the Celery registry, so existing plugins keep working.
 
+On the topobank side, a workflow is referred to by name through the
+:class:`~topobank.analysis.models.Workflow` value object. It is not a model -
+there is no table of workflows - and it holds no knowledge of its own: it
+resolves its name to the registered descriptor (``descriptor``, or
+``implementation`` for a lookup that yields ``None`` instead of raising) and
+delegates every question the API asks - ``display_name``,
+``get_kwargs_schema``, ``get_default_kwargs``, ``get_outputs_schema``,
+``clean_kwargs``, ``has_implementation`` - to it. Asking about a workflow no
+engine knows raises ``WorkflowNotRegisteredException``; only ``display_name``
+falls back to the name, because results outlive the workflows that produced
+them and still need a label. Running a workflow is not on this class at all.
+
 Resolution
 ----------
 
@@ -59,6 +71,57 @@ Enumeration for the frontend is unchanged:
 ``topobank.analysis.registry.get_workflow_names()`` is the union over all
 engines, and ``get_implementation(name=...)`` returns the resolved shim. Which
 engine runs a workflow is not exposed through the API.
+
+Result requests and reuse
+-------------------------
+
+A result comes into being in one of two ways: a user submits a workflow, or a
+workflow declares that it needs another workflow's result first. Both are the
+same request - *this workflow, on this subject, with these parameters* - and
+both are spelled as a :class:`~topobank.analysis.workflows.ResultRequest`::
+
+    ResultRequest(workflow_name="myplugin.my_workflow", subject=topography, kwargs={"n": 8})
+    ResultRequest(workflow_name="myplugin.my_workflow", surfaces=[s1, s2])
+
+A request names either a single ``subject`` (a topography, surface or tag,
+stored on the result's foreign keys) or a set of ``surfaces`` (stored on the
+result's ``surfaces`` relation and addressed by ``subject_hash``). Building a
+request touches neither the registry nor the database; parameters are
+validated and completed against the workflow's ``Parameters`` model when the
+request is resolved. The Celery shim's dependency methods return a dictionary
+of requests; ``WorkflowDefinition(subject=, function=Workflow(...), kwargs=)``
+is the deprecated spelling of the same thing and still works.
+
+:func:`topobank.analysis.store.find_or_create` turns a request into a
+``WorkflowResult`` row. It is the one place results are created, and it
+serializes the check-then-create for one (workflow, subject, parameters)
+triple under an advisory lock so that concurrent identical requests yield one
+row. What differs between callers is only *when an existing row may stand in
+for a new one*, which they say with a ``Reuse`` policy:
+
+``Reuse.VIABLE``
+    Reuse a result that is pending, running or finished successfully; when
+    none exists, delete the failed, unnamed leftovers for the triple and
+    create a fresh row. This is what ``Workflow.submit`` and
+    ``submit_for_surfaces`` want: the newest viable answer, computed once.
+    ``submit`` additionally restricts candidates to results the user may see
+    (``for_user``), and tag results to the user's own.
+``Reuse.FINISHED``
+    Reuse whatever exists, finished or not, and report whether it still has
+    to run. A dependency that failed once is reused, not retried behind the
+    parent's back. This is what the Celery engine's dependency resolution
+    wants; new dependency rows share the parent's permissions and owner and
+    record the parent in their metadata.
+``Reuse.NEVER``
+    Always create, leaving existing rows alone (``ignore_existing``).
+
+``force`` overrides either judgement: under ``VIABLE`` it creates anew, under
+``FINISHED`` it marks a reused row as needing a run. The function returns a
+``Found`` triple - the row, whether it was created, and whether it
+``needs_run`` - and dispatches nothing. The caller decides: ``Workflow.submit``
+registers ``submit_workflow`` in an ``on_commit`` hook exactly when
+``needs_run`` is set; dependency resolution puts the row in the set the engine
+schedules.
 
 Launch, poll, cancel
 --------------------
@@ -103,7 +166,7 @@ optionally:
 ``dois``
     DOIs of the methods the run used.
 ``files``
-    The files the run produced, as :class:`~topobank.analysis.status.FileEntry`
+    The files the run produced, as :class:`~topobank.analysis.status.ManifestEntry`
     items: the file name, its location in the configured Django storage (the
     ``name`` a ``FileField`` would hold, not a URL) and, optionally, size and
     content type. Applied on success only. topobank translates the list into
@@ -138,13 +201,14 @@ A ``WorkflowResult`` moves through the states of ``TaskStateModel``:
 Who writes what, and when:
 
 1. **Creation and submission (topobank, API process).** ``Workflow.submit``
-   and ``submit_for_surfaces`` apply the business rules - authorization,
-   de-duplication under an advisory lock, permissions, ownership - and create
-   or reuse the result. ``set_pending_state`` puts it in ``PENDING``, stamps
-   ``task_submission_time``, clears error, traceback, timestamps and the
-   ``execution_handle``. The engine is only involved from a
-   ``transaction.on_commit`` hook, so the row is visible to whatever worker the
-   engine starts before that worker looks for it.
+   and ``submit_for_surfaces`` check authorization and build a
+   ``ResultRequest``; ``find_or_create`` applies the reuse policy under an
+   advisory lock and creates or reuses the result, with permissions and
+   ownership. A new row goes through ``set_pending_state``, which puts it in
+   ``PENDING``, stamps ``task_submission_time`` and clears error, traceback,
+   timestamps and the ``execution_handle``. The engine is only involved from
+   a ``transaction.on_commit`` hook, so the row is visible to whatever worker
+   the engine starts before that worker looks for it.
 
 2. **Launch (topobank → engine).** ``submit_workflow`` resolves the workflow
    name to its engine and calls ``launch``; the returned handle is stored in
@@ -155,13 +219,12 @@ Who writes what, and when:
    that predate engines.
 
 3. **Start (engine).** The engine reports ``STARTED``, which sets
-   ``task_start_time`` if not set. It should do so as a *claim*
-   (``apply_status_report(..., claim=True)``): a conditional update that only
-   succeeds while the result is waiting. A worker that loses the claim - because
-   another worker already runs or finished the result - must not run the work.
-   This closes the window in which two workers pick up the same result.
-   ``PENDING_DEPENDENCIES`` is an intermediate state an engine may report while
-   it waits for dependencies it resolves itself; topobank treats it as pending.
+   ``task_start_time`` if not set. It should do so as a *claim* - see
+   `The STARTED claim`_ below: the transition is made only if the result is
+   still waiting, and a worker for which it is not made must not run the
+   work. ``PENDING_DEPENDENCIES`` is an intermediate state an engine may
+   report while it waits for dependencies it resolves itself; topobank treats
+   it as pending.
 
 4. **Progress (engine, optional).** Progress is not part of the status
    contract; it is transient and is answered by ``poll``. Engines that track
@@ -193,10 +256,55 @@ Who writes what, and when:
    (the Celery engine does so from its ``task_revoked`` signal handler).
    Deleting a result cancels its run first.
 
-What the engine must guarantee is small: report ``STARTED`` (as a claim)
-before doing work, report exactly one terminal state, and report failures it
-learns about out of band - a worker that died, a job the cluster killed - so
-that the reconciliation in step 6 has something to see.
+What the engine must guarantee is small: claim the result (report
+``STARTED`` with ``claim=True``) before doing work and stop if the claim is
+lost, report exactly one terminal state, and report failures it learns about
+out of band - a worker that died, a job the cluster killed - so that the
+reconciliation in step 6 has something to see.
+
+The STARTED claim
+~~~~~~~~~~~~~~~~~
+
+The same result can reach two workers. A dependency shared by two parents is
+scheduled by both; a forced re-submission is dispatched while the previous
+run is still going; a broker redelivers a message it believes lost. Without
+a rule, both workers run the same workflow on the same row and the second one
+overwrites whatever the first wrote.
+
+The rule is that ``STARTED`` is not a notification but a *claim* on the
+result, and exactly one worker wins it. A claim is made with
+``apply_status_report(result, StatusReport(state=STARTED), claim=True)``,
+which does not save the row but issues a single conditional update::
+
+    UPDATE analysis_workflowresult
+       SET task_state = 'STARTED', task_start_time = now(), ...
+     WHERE id = <result>
+       AND task_state NOT IN ('STARTED', 'SUCCESS', 'FAILURE')
+
+The condition is what makes it a claim: the transition only happens while the
+result is still waiting (``PENDING``, ``PENDING_DEPENDENCIES`` or ``RETRY``).
+The database serializes concurrent updates to a row, so of two workers issuing
+this statement, one changes the row and the other finds that nothing matched.
+``apply_status_report`` returns ``True`` to the winner and ``False`` to the
+loser, after refreshing the loser's instance so it sees the true state.
+
+A worker that loses the claim must not run the workflow. It has learned that
+another worker is already running the result (``STARTED``) or that the result
+has been completed in the meantime (``SUCCESS`` or ``FAILURE``); in both cases
+the right thing is to do nothing and report nothing, because any terminal
+report it made would be about a run that never happened. The Celery engine's
+``execute_workflow`` returns at this point.
+
+Two consequences follow. A result that is already ``STARTED`` is never
+claimed again, so a stuck run blocks re-runs until something reports its
+failure - which is why an engine must report failures it learns about out
+of band (a dead worker, a revoked task; the Celery engine does this from its
+``task_revoked`` and ``task_failure`` signal handlers and its lost-task
+reaper). And a forced re-run goes through ``set_pending_state`` first, which
+puts the row back to ``PENDING`` and thereby makes it claimable again; the
+previous run, if still alive, then loses nothing but reports into a row that
+was re-pended, which is the existing (and accepted) behaviour of a forced
+re-submission.
 
 The Celery engine
 ------------------
@@ -209,10 +317,20 @@ internals behind ``launch``. It keeps its bookkeeping on the result itself
 queues through ``CELERY_LOGICAL_QUEUE_MAP``.
 
 Its tasks live in :mod:`topobank.analysis.celery.tasks`: ``schedule_workflow``
-resolves a result's declared dependencies and, when some still have to run,
-builds a chord whose callback is ``execute_workflow``, which claims the result,
-runs the shim's implementation in-process and reports the outcome through the
+resolves a result's declared dependencies (``get_dependencies`` on the shim,
+``find_or_create`` with ``Reuse.FINISHED`` for each) and, when some still have
+to run, builds a chord whose callback is ``execute_workflow``, which claims the
+result, runs the workflow in-process and reports the outcome through the
 status contract. The tasks keep their historical ``topobank.analysis.tasks.*``
 names, and :mod:`topobank.analysis.tasks` re-exports them, so queued messages,
 per-task Celery settings and downstream code matching on task names are
 unaffected by the move.
+
+Running a workflow in-process is
+:func:`topobank.analysis.celery.workflows.run_workflow`: given a result, it
+looks the shim up in the Celery registry, binds it to the result's parameters
+and routes to the implementation method for the result's subject - by surface
+count for a surface set, by subject model otherwise. This routing is the
+Celery shim's way of running and belongs to this engine; ``WorkflowResult``
+and ``Workflow`` know nothing of it. Another engine would ship the result's
+identity to its own workers and run whatever its shim describes.
