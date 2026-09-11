@@ -2,6 +2,17 @@
 
 # 2.0.0 (unreleased)
 
+- ENH: A measurement's file inventory is recorded in `file_info["channels"]`,
+  one entry per channel of the data file with its name, dimensionality, lateral
+  and data units, and the kind that would import it -- `None` for a channel no
+  registered adapter claims, which makes non-height channels (phase, adhesion,
+  current) visible as present but not yet importable. An `occurrence` ordinal
+  disambiguates duplicated names and is deliberately `None` while a name is
+  unique, so that a reader later exposing a second channel of that name is
+  detected rather than silently resolved to the first. Existing measurements are
+  backfilled with what the old `channel_names` pairs know (name, data unit,
+  occurrence); the rest is filled in on the next inspection. `channel_names`
+  itself is still written for the REST API and joins the legacy columns
 - ENH: The memory guard's sizing of analyses is pluggable (#1383). How many
   datums a measurement holds is a property of its kind, so the equations live on
   the measurement adapters now -- `nb_data_points()` for a single measurement
