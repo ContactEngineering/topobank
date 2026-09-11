@@ -418,7 +418,7 @@ Configures Python part: Django and Celery. You can use this as template:
 
     # Storage settings
     # ------------------------------------------------------------------------------
-    USE_S3_STORAGE=yes
+    STORAGE_BACKEND=storages.backends.s3boto3.S3Boto3Storage
 
     AWS_ACCESS_KEY_ID=<insert your access key id>
     AWS_SECRET_ACCESS_KEY=<insert your secret acccess key>
@@ -450,7 +450,10 @@ For the Django secret and the passwords you can also use punctuation.
 
 Or better, use the file `.envs/.production/.django.template` as start.
 
-If `USE_S3_STORAGE` is `no`, a local directory will be used for file storage.
+Pointing `STORAGE_BACKEND` at `django.core.files.storage.FileSystemStorage` stores
+the files in a local directory instead. Uploads are presigned against the object
+store, so that configuration suits testing rather than a deployment that accepts
+uploads.
 
 
 Config file `.envs/.production/.postgres`

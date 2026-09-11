@@ -1,12 +1,17 @@
 """
 Functional tests for the analysis custodian (``topobank.analysis.custodian``).
 
-The ``periodic_cleanup`` task does two things:
+The ``periodic_cleanup`` task does three things:
 
-1. Hard-deletes deprecated, unnamed analysis results that have a subject and
+1. Hard-deletes deprecated, unnamed workflow results that have a subject and
    whose ``deprecation_time`` is older than ``TOPOBANK_ANALYSIS_DELETE_DELAY``.
-2. Marks analysis results that are stuck in the ``PENDING`` state (no Celery
+2. Hard-deletes soft-deleted workflow results whose ``deleted_at`` is older
+   than ``TOPOBANK_DELETE_DELAY`` — regardless of ``name`` or subject links.
+3. Marks workflow results that are stuck in the ``PENDING`` state (no Celery
    task id) for more than a day as ``FAILURE``.
+4. Marks workflow results whose task *was* dispatched (``task_id`` set) but
+   that are still ``PENDING`` past ``TOPOBANK_ANALYSIS_PENDING_HORIZON`` as
+   ``FAILURE`` - their message is gone and no worker will ever pick it up.
 
 These tests assert the actual state transitions / deletions, including the
 boundary cases that must be left untouched.
@@ -19,6 +24,7 @@ import pytest
 from django.conf import settings
 from django.utils import timezone
 
+from topobank.analysis import custodian
 from topobank.analysis.custodian import periodic_cleanup
 from topobank.analysis.models import WorkflowResult
 from topobank.testing.factories import MeasurementAnalysisFactory
@@ -99,6 +105,99 @@ def test_keeps_active_non_deprecated_result():
     assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
 
 
+@pytest.mark.django_db
+def test_keeps_long_deprecated_result_that_was_recently_soft_deleted():
+    # The retention window owns stamped rows: a deprecated result whose
+    # container was just deleted must stay restorable until the window closes.
+    analysis = MeasurementAnalysisFactory()
+    _set_unmanaged_fields(
+        analysis,
+        deprecation_time=timezone.now()
+        - settings.TOPOBANK_ANALYSIS_DELETE_DELAY
+        - datetime.timedelta(days=1),
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        + datetime.timedelta(days=1),
+    )
+
+    periodic_cleanup()
+
+    assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+# ---------------------------------------------------------------------------
+# Cleanup of soft-deleted results
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_deletes_long_soft_deleted_result():
+    analysis = MeasurementAnalysisFactory()
+    _set_unmanaged_fields(
+        analysis,
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        - datetime.timedelta(days=1),
+    )
+
+    periodic_cleanup()
+
+    assert not WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+@pytest.mark.django_db
+def test_keeps_recently_soft_deleted_result():
+    # Soft-deleted, but still inside the retention window -> restorable.
+    analysis = MeasurementAnalysisFactory()
+    _set_unmanaged_fields(
+        analysis,
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        + datetime.timedelta(days=1),
+    )
+
+    periodic_cleanup()
+
+    assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+@pytest.mark.django_db
+def test_deletes_long_soft_deleted_named_result():
+    # Unlike the deprecation clause, a name does not protect a soft-deleted
+    # result: it was stamped because its container was deleted, and it goes
+    # when the container's retention window closes.
+    analysis = MeasurementAnalysisFactory(name="my-saved-analysis")
+    _set_unmanaged_fields(
+        analysis,
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        - datetime.timedelta(days=1),
+    )
+
+    periodic_cleanup()
+
+    assert not WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+@pytest.mark.django_db
+def test_deletes_long_soft_deleted_result_without_subject():
+    # The deprecation clause requires a surviving subject link; the
+    # soft-delete clause must not, or purged containers would strand their
+    # results forever.
+    analysis = MeasurementAnalysisFactory()
+    _set_unmanaged_fields(
+        analysis,
+        subject_measurement=None,
+        deleted_at=timezone.now()
+        - settings.TOPOBANK_DELETE_DELAY
+        - datetime.timedelta(days=1),
+    )
+
+    periodic_cleanup()
+
+    assert not WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
 # ---------------------------------------------------------------------------
 # Failing results stuck in the PENDING state
 # ---------------------------------------------------------------------------
@@ -117,7 +216,7 @@ def test_marks_stuck_pending_result_as_failure():
 
     analysis.refresh_from_db()
     assert analysis.task_state == WorkflowResult.FAILURE
-    assert analysis.task_error == "Analysis failed to launch."
+    assert analysis.task_error == "Workflow failed to launch."
     # It must not be deleted, only updated.
     assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
 
@@ -137,7 +236,8 @@ def test_keeps_recent_pending_result():
 
 @pytest.mark.django_db
 def test_keeps_pending_result_that_has_a_task_id():
-    # A task id means the task was actually dispatched -> not "stuck".
+    # A task id means the task was actually dispatched: within the horizon its
+    # message may simply be waiting in a backlogged queue -> leave untouched.
     analysis = MeasurementAnalysisFactory(
         task_state=WorkflowResult.PENDING, task_id=uuid.uuid4()
     )
@@ -151,7 +251,124 @@ def test_keeps_pending_result_that_has_a_task_id():
     assert analysis.task_state == WorkflowResult.PENDING
 
 
+# ---------------------------------------------------------------------------
+# Failing dispatched results whose message was lost
+# ---------------------------------------------------------------------------
+
+
+@pytest.mark.django_db
+def test_fails_dispatched_result_still_pending_past_horizon():
+    analysis = MeasurementAnalysisFactory(
+        task_state=WorkflowResult.PENDING, task_id=uuid.uuid4()
+    )
+    _set_unmanaged_fields(
+        analysis,
+        task_submission_time=timezone.now()
+        - custodian.DEFAULT_PENDING_HORIZON
+        - datetime.timedelta(hours=1),
+    )
+
+    periodic_cleanup()
+
+    analysis.refresh_from_db()
+    assert analysis.task_state == WorkflowResult.FAILURE
+    assert analysis.task_error == custodian.LOST_MESSAGE_ERROR
+    # It must not be deleted, only updated.
+    assert WorkflowResult.objects.filter(pk=analysis.pk).exists()
+
+
+@pytest.mark.django_db
+def test_keeps_dispatched_result_within_horizon():
+    analysis = MeasurementAnalysisFactory(
+        task_state=WorkflowResult.PENDING, task_id=uuid.uuid4()
+    )
+    _set_unmanaged_fields(
+        analysis,
+        task_submission_time=timezone.now()
+        - custodian.DEFAULT_PENDING_HORIZON
+        + datetime.timedelta(hours=1),
+    )
+
+    periodic_cleanup()
+
+    analysis.refresh_from_db()
+    assert analysis.task_state == WorkflowResult.PENDING
+
+
+@pytest.mark.django_db
+def test_pending_horizon_is_configurable(settings):
+    settings.TOPOBANK_ANALYSIS_PENDING_HORIZON = datetime.timedelta(hours=1)
+    analysis = MeasurementAnalysisFactory(
+        task_state=WorkflowResult.PENDING, task_id=uuid.uuid4()
+    )
+    _set_unmanaged_fields(
+        analysis, task_submission_time=timezone.now() - datetime.timedelta(hours=2)
+    )
+
+    periodic_cleanup()
+
+    analysis.refresh_from_db()
+    assert analysis.task_state == WorkflowResult.FAILURE
+
+
+@pytest.mark.django_db
+def test_horizon_does_not_touch_started_or_undispatched_rows():
+    # STARTED belongs to the lost-task reaper, which can ask the workers;
+    # PENDING without a task id belongs to the launch-failure clause above.
+    started = MeasurementAnalysisFactory(
+        task_state=WorkflowResult.STARTED, task_id=uuid.uuid4()
+    )
+    _set_unmanaged_fields(
+        started,
+        task_submission_time=timezone.now() - datetime.timedelta(days=30),
+    )
+
+    periodic_cleanup()
+
+    started.refresh_from_db()
+    assert started.task_state == WorkflowResult.STARTED
+
+
 @pytest.mark.django_db
 def test_cleanup_on_empty_database_is_noop():
     periodic_cleanup()
     assert WorkflowResult.objects.count() == 0
+
+
+# ---------------------------------------------------------------------------
+# RESTRICT tolerance
+# ---------------------------------------------------------------------------
+
+
+def test_delete_tolerating_restrict_falls_back_to_per_row_and_skips_protected():
+    from unittest.mock import MagicMock
+
+    from django.db.models import RestrictedError
+
+    from topobank.analysis.custodian import _delete_tolerating_restrict
+
+    collectable = MagicMock()
+    protected = MagicMock()
+    protected.delete.side_effect = RestrictedError("protected", set())
+
+    queryset = MagicMock()
+    queryset.delete.side_effect = RestrictedError("protected", set())
+    queryset.iterator.return_value = iter([collectable, protected])
+
+    _delete_tolerating_restrict(queryset, "workflow results")
+
+    collectable.delete.assert_called_once()
+    protected.delete.assert_called_once()
+
+
+def test_delete_tolerating_restrict_bulk_deletes_when_nothing_is_protected():
+    from unittest.mock import MagicMock
+
+    from topobank.analysis.custodian import _delete_tolerating_restrict
+
+    queryset = MagicMock()
+
+    _delete_tolerating_restrict(queryset, "workflow results")
+
+    queryset.delete.assert_called_once()
+    queryset.iterator.assert_not_called()

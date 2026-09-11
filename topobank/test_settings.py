@@ -1,3 +1,12 @@
+"""
+Settings for the test suite.
+
+This is the single definition; the top-level ``test_settings`` module that
+``DJANGO_SETTINGS_MODULE`` names re-exports it, so that the copy an installed
+``topobank`` exposes to downstream plugins and the copy the test run uses cannot
+drift apart. See #1395.
+"""
+
 import os
 import tempfile
 from datetime import timedelta
@@ -24,25 +33,36 @@ INSTALLED_APPS = [
     "notifications",
     "tagulous",
     "django_celery_results",
-    "topobank.testing.mock_auth.apps.UsersAppConfig",
-    "topobank.testing.mock_auth.apps.AuthorizationAppConfig",
+    "topobank.testing.mock_auth.users.apps.UsersAppConfig",
+    "topobank.testing.mock_auth.authorization.apps.AuthorizationAppConfig",
     "topobank.files.apps.FilesAppConfig",
     "topobank.manager.apps.ManagerAppConfig",
     "topobank.measurements.apps.MeasurementsAppConfig",
     "topobank.analysis.apps.AnalysisAppConfig",
-    "topobank.testing.mock_auth.apps.OrganizationsAppConfig",
+    "topobank.testing.mock_auth.organizations.apps.OrganizationsAppConfig",
     "topobank.properties.apps.PropertiesAppConfig",
     "topobank.taskapp.celeryapp.CeleryAppConfig",
 ]
 
 DATABASES = {
-    "default": env.db("DATABASE_URL", default="postgres://postgres@localhost/topobank-test")
+    "default": env.db(
+        "DATABASE_URL",
+        default="postgres://topobank:topobankpassword@localhost:5432/topobank-test"
+    )
+}
+
+MIGRATION_MODULES = {
+    "authorization": "topobank.testing.mock_auth.authorization.migrations",
+    "organizations": "topobank.testing.mock_auth.organizations.migrations",
+    "users": "topobank.testing.mock_auth.users.migrations",
 }
 
 AUTH_USER_MODEL = "users.User"
 TOPOBANK_PERMISSION_MODEL = "authorization.PermissionSet"
 TOPOBANK_ORGANIZATION_MODEL = "organizations.Organization"
-TOPOBANK_ANONYMOUS_USER_GETTER = "topobank.testing.mock_auth.users.anonymous.get_anonymous_user"
+TOPOBANK_ANONYMOUS_USER_GETTER = (
+    "topobank.testing.mock_auth.users.anonymous.get_anonymous_user"
+)
 SITE_ID = 1
 USE_TZ = True
 TIME_ZONE = "Europe/Berlin"
@@ -78,29 +98,26 @@ STORAGES = {
     "staticfiles": {"BACKEND": "django.contrib.staticfiles.storage.StaticFilesStorage"},
 }
 
-# Whether files live on an S3-compatible object store rather than on a local
-# filesystem. This changes the upload flow: clients then upload directly to the
-# object store and `Manifest.finish_upload` looks for the file at the expected
-# storage location afterwards.
-USE_S3_STORAGE = STORAGES["default"]["BACKEND"].endswith("S3Boto3Storage")
-
-if USE_S3_STORAGE:
-    # The defaults describe the SeaweedFS instance of the development stack.
-    AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="admin")
-    AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="secret12")
-    AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="topobank-test")
-    AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="http://localhost:9000")
-    AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="us-east-1")
-    AWS_S3_SIGNATURE_VERSION = "s3v4"
-    # Consecutive runs reuse the same bucket, so a file left behind by an
-    # earlier run must not change the name a later run stores its file under.
-    AWS_S3_FILE_OVERWRITE = True
+# The defaults describe the SeaweedFS instance of the development stack. They are
+# set whatever the backend, so that a test may presign against them without the
+# object store being the one configured.
+AWS_ACCESS_KEY_ID = env("AWS_ACCESS_KEY_ID", default="admin")
+AWS_SECRET_ACCESS_KEY = env("AWS_SECRET_ACCESS_KEY", default="secret12")
+AWS_STORAGE_BUCKET_NAME = env("AWS_STORAGE_BUCKET_NAME", default="topobank-test")
+AWS_S3_ENDPOINT_URL = env("AWS_S3_ENDPOINT_URL", default="http://localhost:9000")
+AWS_S3_REGION_NAME = env("AWS_S3_REGION_NAME", default="us-east-1")
+AWS_S3_SIGNATURE_VERSION = "s3v4"
+# Consecutive runs reuse the same bucket, so a file left behind by an earlier run
+# must not change the name a later run stores its file under.
+AWS_S3_FILE_OVERWRITE = True
 
 
 CC_LICENSE_INFOS = {
     "cc0-1.0": {
         "description_url": "https://creativecommons.org/publicdomain/zero/1.0/",
-        "legal_code_url": "https://creativecommons.org/publicdomain/zero/1.0/legalcode",
+        "legal_code_url": (
+            "https://creativecommons.org/publicdomain/zero/1.0/legalcode"
+        ),
         "title": "CC0 1.0 Universal",
         "option_name": "CC0 1.0 (Public Domain Dedication)",
         "spdx_identifier": "CC0-1.0",
@@ -114,8 +131,13 @@ CC_LICENSE_INFOS = {
     },
     "ccbysa-4.0": {
         "description_url": "https://creativecommons.org/licenses/by-sa/4.0/",
-        "legal_code_url": "https://creativecommons.org/licenses/by-sa/4.0/legalcode",
-        "title": "Creative Commons Attribution-ShareAlike 4.0 International Public License",
+        "legal_code_url": (
+            "https://creativecommons.org/licenses/by-sa/4.0/legalcode"
+        ),
+        "title": (
+            "Creative Commons Attribution-ShareAlike 4.0 International "
+            "Public License"
+        ),
         "option_name": "CC BY-SA 4.0",
         "spdx_identifier": "CC-BY-SA-4.0",
     },
@@ -133,8 +155,15 @@ MIN_SECONDS_BETWEEN_SAME_SURFACE_PUBLICATIONS = 600
 PUBLICATION_ENABLED = True
 PUBLICATION_DOI_STATE_INFOS = {
     "draft": {"description": "only visible in Fabrica, DOI can be deleted"},
-    "registered": {"description": "registered with the DOI Resolver, cannot be deleted"},
-    "findable": {"description": "registered with the DOI Resolver and indexed in DataCite Search, cannot be deleted"},
+    "registered": {
+        "description": "registered with the DOI Resolver, cannot be deleted"
+    },
+    "findable": {
+        "description": (
+            "registered with the DOI Resolver and indexed in DataCite Search, "
+            "cannot be deleted"
+        )
+    },
 }
 PUBLICATION_URL_PREFIX = "https://contact.engineering/go/"
 PUBLICATION_DOI_MANDATORY = False
@@ -143,10 +172,6 @@ PUBLICATION_DOI_STATE = "draft"
 PUBLICATION_MAX_NUM_AUTHORS = 200
 PUBLICATION_MAX_NUM_AFFILIATIONS_PER_AUTHOR = 20
 
-UPLOAD_METHOD = env("TOPOBANK_UPLOAD_METHOD", default="POST")
-# Consecutive runs against the same bucket find the files of the previous run at
-# the storage paths they want to use, since the storage path is derived from the
-# manifest id and the test database restarts its id sequence for every run.
 DELETE_EXISTING_FILES = True
 BOKEH_OUTPUT_BACKEND = "canvas"
 WEBAPP_URL = "http://localhost:5173/"

@@ -226,3 +226,64 @@ def test_submit_again(test_workflow):
     analysis = MeasurementAnalysisFactory()
     new_analysis = analysis.submit_again()
     assert new_analysis.task_state == WorkflowResult.PENDING
+
+
+@pytest.mark.django_db
+def test_delete_workflow_result_without_permissions(test_workflow):
+    """
+    Ensure deleting a WorkflowResult whose permissions is None does not raise
+    AttributeError: 'NoneType' object has no attribute 'delete', and cleans up
+    its folder and storage files.
+    """
+    from topobank.files.models import ManifestSet
+
+    analysis = MeasurementAnalysisFactory(workflow_name=test_workflow.name)
+    folder = analysis.folder
+    assert folder is not None
+    assert folder.files.count() > 0
+    file_path = folder.files.first().file.name
+    assert default_storage.exists(file_path)
+
+    folder_pk = folder.pk
+    WorkflowResult.objects.filter(pk=analysis.pk).update(permissions=None)
+    analysis.refresh_from_db()
+    assert analysis.permissions_id is None
+
+    # Deleting the analysis should not crash in post_delete_analysis and should clean up folder
+    analysis.delete()
+    assert not WorkflowResult.objects.filter(pk=analysis.pk).exists()
+    assert not ManifestSet.objects.filter(pk=folder_pk).exists()
+    assert not default_storage.exists(file_path)
+
+
+@pytest.mark.django_db
+def test_delete_measurement_with_unpermissioned_analysis(test_workflow):
+    """
+    Ensure deleting a Measurement with related analyses that have permissions=None
+    cascades and deletes cleanly without AttributeError, cleaning up folders and storage files.
+    """
+    from topobank.files.models import ManifestSet
+
+    surface = SurfaceFactory()
+    topo = Topography1DFactory(surface=surface)
+    analysis = MeasurementAnalysisFactory(
+        subject_measurement=topo,
+        workflow_name=test_workflow.name,
+    )
+    folder = analysis.folder
+    assert folder is not None
+    assert folder.files.count() > 0
+    file_path = folder.files.first().file.name
+    assert default_storage.exists(file_path)
+
+    folder_pk = folder.pk
+    WorkflowResult.objects.filter(pk=analysis.pk).update(permissions=None)
+    analysis.refresh_from_db()
+    assert analysis.permissions_id is None
+
+    # Deleting the measurement triggers pre_delete_measurement and deletes the analysis & folder
+    topo.delete()
+    assert not Measurement.objects.filter(pk=topo.pk).exists()
+    assert not WorkflowResult.objects.filter(pk=analysis.pk).exists()
+    assert not ManifestSet.objects.filter(pk=folder_pk).exists()
+    assert not default_storage.exists(file_path)
