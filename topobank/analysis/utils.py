@@ -3,8 +3,6 @@ import math
 from collections import OrderedDict
 from typing import Dict, List
 
-from mergedeep import merge
-
 from ..manager.models import Surface
 
 _log = logging.getLogger(__name__)
@@ -143,6 +141,22 @@ def round_to_significant_digits(x, num_dig_digits):
         return x
 
 
+def _merge_dict(destination: Dict, source: Dict) -> Dict:
+    """
+    Recursively merge `source` into `destination`, in place.
+
+    Nested dictionaries are merged key by key; any other value replaces
+    whatever is already there.
+    """
+    for key, value in source.items():
+        if isinstance(value, dict) and isinstance(destination.get(key), dict):
+            _merge_dict(destination[key], value)
+        else:
+            destination[key] = value
+
+    return destination
+
+
 def merge_dicts(destination: Dict, sources: List[Dict]) -> Dict:
     """
     Merge multiple source dictionaries into a single destination dictionary.
@@ -160,6 +174,6 @@ def merge_dicts(destination: Dict, sources: List[Dict]) -> Dict:
         The merged dictionary.
     """
     for source in sources:
-        merge(destination, source)  # Merge each source into the destination
+        _merge_dict(destination, source)  # Merge each source into the destination
 
     return destination

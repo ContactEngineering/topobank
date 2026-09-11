@@ -2,7 +2,7 @@ import logging
 from datetime import timedelta
 
 from django.conf import settings
-from django.db.models import Q
+from django.db.models import Q, RestrictedError
 from django.utils import timezone
 
 from ..taskapp.celeryapp import app
@@ -11,10 +11,49 @@ from .zip_model import ResultZipContainer
 
 _log = logging.getLogger(__name__)
 
+#: How long a dispatched task may sit in ``PENDING`` before it is presumed
+#: lost. Generous on purpose: a message can legitimately wait in a backlogged
+#: queue for hours, and failing a row whose message is still alive would race
+#: the worker that eventually executes it. Nothing waits for a week.
+#: Override with ``settings.TOPOBANK_ANALYSIS_PENDING_HORIZON``.
+DEFAULT_PENDING_HORIZON = timedelta(days=7)
+
+LOST_MESSAGE_ERROR = (
+    "This task was submitted but never picked up by a worker; its message was "
+    "most likely lost in a restart of the broker or the workers. No result was "
+    "produced. Please run it again."
+)
+
+
+def _delete_tolerating_restrict(queryset, description):
+    """Delete the queryset's rows, skipping those protected by a RESTRICT reference.
+
+    Downstream plugins may guard workflow results with RESTRICT foreign keys
+    (e.g. a result a trained model was built from). A bulk delete aborts
+    wholesale on the first protected row, so fall back to per-row deletes
+    and leave protected rows for a later run, once their guard clears.
+    """
+    try:
+        queryset.delete()
+    except RestrictedError:
+        skipped = 0
+        for obj in queryset.iterator():
+            try:
+                obj.delete()
+            except RestrictedError:
+                skipped += 1
+        if skipped:
+            _log.info(
+                "Custodian: skipped %d %s protected by RESTRICT references.",
+                skipped,
+                description,
+            )
+
 
 @app.task
 def periodic_cleanup():
-    # Delete all analyses that were marked as deprecated and that are not saved
+    # Delete all workflow results that were marked as deprecated and that are
+    # not saved
     analysis_delay = getattr(
         settings, "TOPOBANK_ANALYSIS_DELETE_DELAY", settings.TOPOBANK_DELETE_DELAY
     )
@@ -25,6 +64,9 @@ def periodic_cleanup():
         WorkflowResult.objects.filter(
             deprecation_time__lt=timezone.now() - analysis_delay,
             name__isnull=True,
+            # Soft-deleted rows belong to the retention clause below; they stay
+            # restorable until their window closes.
+            deleted_at__isnull=True,
         )
         .filter(
             Q(subject_measurement__isnull=False)
@@ -37,10 +79,31 @@ def periodic_cleanup():
     )
     if deprecated_pks:
         _log.info(
-            f"Custodian: Deleting {len(deprecated_pks)} analysis results because "
+            f"Custodian: Deleting {len(deprecated_pks)} workflow results because "
             "they were marked as deprecated."
         )
-        WorkflowResult.objects.filter(pk__in=deprecated_pks).delete()
+        _delete_tolerating_restrict(
+            WorkflowResult.objects.filter(pk__in=deprecated_pks),
+            "deprecated workflow results",
+        )
+
+    # Delete all workflow results that were soft-deleted longer than the retention
+    # window ago. Independent of the deprecation clause above: stamped rows
+    # are purged regardless of ``name`` and regardless of whether a subject
+    # link survives — a soft-deleted result belongs to a deleted container,
+    # and its subject links may already be gone.
+    soft_deleted = WorkflowResult.objects.filter(
+        deleted_at__lt=timezone.now() - settings.TOPOBANK_DELETE_DELAY
+    )
+    count = soft_deleted.count()
+    if count:
+        _log.info(
+            "Custodian: Deleting %d workflow results because they were "
+            "soft-deleted more than %s ago.",
+            count,
+            settings.TOPOBANK_DELETE_DELAY,
+        )
+        _delete_tolerating_restrict(soft_deleted, "soft-deleted workflow results")
 
     # Delete all ZIP containers of workflow results (they are just temporary
     # download bundles and can be rebuilt at any time)
@@ -68,4 +131,34 @@ def periodic_cleanup():
             f"Custodian: Updating {q.count()} workflow results because they are stuck in pending state"
             " with no task assigned."
         )
-        q.update(task_state=WorkflowResult.FAILURE, task_error="Analysis failed to launch.")
+        q.update(
+            task_state=WorkflowResult.FAILURE, task_error="Workflow failed to launch."
+        )
+
+    # Fail WorkflowResults whose task was dispatched but never picked up.
+    # ``task_id`` set with the row still PENDING means the message was
+    # published. The lost-task reaper (``taskapp.custodian``) deliberately
+    # ignores these, because a queued-but-unreserved message is invisible to
+    # ``inspect`` and would look lost while being perfectly healthy. That
+    # ambiguity fades with time: no message legitimately waits in a queue for
+    # this long, so anything still PENDING past the horizon has no message
+    # behind it any more - acknowledged by a worker that died with it, dropped
+    # in a broker restart, or revoked - and nothing else will ever move the
+    # row.
+    horizon = getattr(
+        settings, "TOPOBANK_ANALYSIS_PENDING_HORIZON", DEFAULT_PENDING_HORIZON
+    )
+    q = WorkflowResult.objects.filter(
+        task_state=WorkflowResult.PENDING,
+        task_id__isnull=False,
+        task_submission_time__lt=timezone.now() - horizon,
+    )
+    count = q.count()
+    if count:
+        _log.info(
+            "Custodian: Failing %d workflow results whose task was submitted "
+            "more than %s ago but never picked up by a worker.",
+            count,
+            horizon,
+        )
+        q.update(task_state=WorkflowResult.FAILURE, task_error=LOST_MESSAGE_ERROR)

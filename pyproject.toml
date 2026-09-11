@@ -34,14 +34,19 @@ classifiers = [
     'Topic :: Internet :: WWW/HTTP :: Dynamic Content',
 ]
 dependencies = [
-    'backports.entry-points-selectable', # Plugin handling
-
     # Django
-    'django==5.2.17',         # https://www.djangoproject.com/
-    'django-allauth>=0.56.0', # https://github.com/pennersr/django-allauth
-    'fido2',                  # required by django-allauth
+    'django==5.2.17',       # https://www.djangoproject.com/
+    'django-allauth>=65.0', # https://github.com/pennersr/django-allauth
+    'fido2',                # required by django-allauth
 
     # tagging support
+    # Pinned to a fork: the released django-tagulous (2.1.1) monkeypatches
+    # `serializer._get_model`, which Django 5.2 removed, so it raises an
+    # AttributeError on import. See radiac/django-tagulous#187. Upstream has
+    # fixed this on `main` but has not released it yet, and has meanwhile
+    # renamed the import path `tagulous` -> `django_tagulous`. When the next
+    # upstream release lands, move back to PyPI and update the `tagulous.*`
+    # imports in manager migrations 0011, 0049 and 0064 in the same change.
     'django-tagulous @ git+https://github.com/stephendwolff/django-tagulous.git@d80ef84',
 
     #
@@ -76,8 +81,13 @@ dependencies = [
     'xarray',
 
     # notifications
-    # (static/js/notify.js appears to be missing from 1.8.0 and above)
-    'django-notifications-hq @ git+https://github.com/django-notifications/django-notifications.git',
+    # Pinned to a commit rather than a branch so that builds are reproducible.
+    # The last PyPI release (1.8.3) predates Django 4.2 support, so we cannot
+    # use it; upstream master does support Django 5.2 but 1.9.0 was tagged
+    # without ever being published. Upstream has been quiet since, so this is
+    # a candidate for replacement -- we only use the `notify` signal and the
+    # `Notification` model.
+    'django-notifications-hq @ git+https://github.com/django-notifications/django-notifications.git@4c44bcea2504d9a3fcd26366b232a13732a08f2a',
 
     # openpyxl
     'openpyxl',
@@ -89,41 +99,24 @@ dependencies = [
     'pint>=0.24.4',  # https://github.com/hgrecco/pint/issues/2074
 
     # markdown conversion for terms & conditions and for docstrings in readers
-    'markdown2>=2.4.0',
-    # Version 2.3.8 has a security issue (CVE-2020-11888)
-    # Version 2.3.9 has a security issue (CVE-2021-26813)
+    'markdown2',
 
-    'urllib3>=1.26.5',
-    # Upgrade because of CVE-2021-33503
+    # for syntax highlighting of fenced code blocks in the above
+    'pygments',
 
-    # for syntax highlighting for docstrings of readers
-    'pygments>=2.7.4',
-
-    # some other constraints due to security concerns
-    'lxml>=4.9.1',
-    'jinja2>=2.11.3',
-    # because of CVE-2020-28493
-
-    'cryptography>=39.0.1',
-    # https://www.openssl.org/news/secadv/20221213.txt
-
-    'Pillow>=9.0.1',
-    # because of several CVEs
-
-    'PyYAML>=5.4',
-    # CVE-2020-14343
-
-    'sqlparse>=0.4.2',
-    # CVE-2021-32839
-
-    'pyjwt>=2.4.0',
-    #  https://github.com/ContactEngineering/TopoBank/security/dependabot/61
+    # reading metadata from surface containers
+    'PyYAML',
 
     # because of problem with AttributeError for 'X509_V_FLAG_CB_ISSUER_CHECK'
     'pyopenssl>=23.0.0',
 
-    # merging dictionaries
-    'mergedeep',
+    # Note on security pins: `urllib3`, `lxml`, `jinja2`, `cryptography`,
+    # `Pillow`, `sqlparse` and `pyjwt` used to be listed here with lower
+    # bounds carrying 2020-2023 CVE mitigations. Every one of those floors is
+    # several major versions behind what actually resolves today, and none of
+    # them are imported directly -- they arrive via Django, requests, boto3,
+    # django-allauth and SurfaceTopography. Renovate and Dependabot alerts
+    # cover them now; re-adding a floor here only hides that.
 
     # Environment variables
     'django-environ',
@@ -151,7 +144,7 @@ dev = [
 
     # Documentation
     # ------------------------------------------------------------------------------
-    'Sphinx<9.1.1',
+    'Sphinx',
     # https://github.com/sphinx-doc/sphinx
     'sphinx_rtd_theme',
 
@@ -160,9 +153,6 @@ dev = [
     'pytest',
     'pytest-sugar',
     'pytest-env',
-
-    # Because of CVE-2020-29651
-    'py>=1.10.0',
 
     # Code quality
     # ------------------------------------------------------------------------------
@@ -205,9 +195,6 @@ dev = [
 
     # for testing functions depending on date functions
     'freezegun',
-
-    # for using storage items in test
-    'dj-inmemorystorage',
 
     # JAX
     'jax',

@@ -13,14 +13,15 @@ Two backends are supported:
 - :code:`django.core.files.storage.FileSystemStorage` stores the files in a local
   directory. This is the default and requires no additional services.
 - :code:`storages.backends.s3boto3.S3Boto3Storage` stores the files on an
-  S3-compatible object store. This is what production uses, and it is the only
-  configuration that supports uploading files directly from the browser to the
-  object store, bypassing the application server.
+  S3-compatible object store. This is what production uses.
 
-The application selects the backend with the :code:`USE_S3_STORAGE` setting, see
-:doc:`deploy` for the full list of related settings. The test settings instead
-take the backend from :code:`STORAGE_BACKEND` and derive :code:`USE_S3_STORAGE`
-from it, see below.
+The backend is configured through :code:`STORAGES["default"]["BACKEND"]`; the test
+settings take it from the :code:`STORAGE_BACKEND` environment variable, see below.
+
+Uploads always go directly from the browser to the object store, so a deployment
+that accepts uploads needs the S3 backend:
+:code:`topobank.files.upload.get_upload_instructions` presigns against the
+configured bucket, and returns :code:`None` on a backend that has none.
 
 S3 in development and testing
 -----------------------------

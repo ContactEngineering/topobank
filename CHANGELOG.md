@@ -49,14 +49,85 @@
   `WorkflowResult.subject_topography` is `subject_measurement`. There is no
   compatibility alias, so out-of-tree code has to be updated.
 
-# 1.72.0 (not yet released)
+# 1.72.0 (2026-09-10)
 
+- ENH: `topobank.files.upload.get_upload_instructions` presigns a direct-to-S3
+  POST for any user-uploaded `Manifest`. The policy carries the size ceiling
+  and the stored content type, so storage enforces both: measurements (`raw`)
+  are capped by `TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES` (default 5 GiB, the
+  S3 single-object limit) and stored as `binary/octet-stream`; attachments
+  (`att`) are capped by `TOPOBANK_MAX_ATTACHMENT_UPLOAD_BYTES` (default
+  100 MiB) and stored as the type their extension maps to in
+  `TOPOBANK_INLINE_PREVIEW_TYPES`, or `TOPOBANK_OPAQUE_CONTENT_TYPE` otherwise.
+  `TOPOBANK_UPLOAD_EXPIRE_SECONDS` and `TOPOBANK_MAX_ATTACHMENTS_PER_SURFACE`
+  round out the settings, and all six are documented in
+  `docs/configuration.rst`
+- ENH: New `topobank.settings.defaults` module holds the default value of every
+  `TOPOBANK_*` setting, so a fallback is one named constant rather than a
+  literal repeated at the point of use. A deployment defines only the settings
+  it wants to change
+- API: Presigned PUT uploads are gone, and with them the `UPLOAD_METHOD`
+  setting and the `TOPOBANK_UPLOAD_METHOD` environment variable
+- API: The `USE_S3_STORAGE` setting is gone; it was a second source of truth for
+  something the configured storage already knows. `get_upload_instructions` now
+  asks the storage whether it can be presigned against and still returns `None`
+  when it cannot, and `Manifest.finish_upload` drops its non-S3 branch, since
+  the route that finished an upload through Django no longer exists and the
+  lookup it guarded works on any backend. The storage backend is configured
+  through `STORAGES["default"]["BACKEND"]` alone
+- BUG: The memory guard learned its bytes-per-point coefficients from raw peak
+  RSS, which includes the several hundred MB that the interpreter, Django and
+  the scientific libraries occupy before any data is loaded. A completed run on
+  a subject of a few hundred points therefore taught it *megabytes* per point,
+  and once such runs entered the learning window, every following analysis of
+  that workflow was refused with a TB-scale prediction regardless of its actual
+  size (#1393). Coefficients are now learned with an assumed process baseline
+  (`TOPOBANK_ANALYSIS_MEMORY_BASELINE`, added back when predicting) subtracted,
+  and only from subjects of at least `TOPOBANK_ANALYSIS_MEMORY_MIN_POINTS` grid
+  points, which bounds what an error in the assumed baseline can contribute
+- ENH: The custodian fails workflow results whose task was dispatched but that
+  are still pending past `TOPOBANK_ANALYSIS_PENDING_HORIZON` (default 7 days).
+  Such a row's message is gone - acknowledged by a worker that died with it,
+  dropped in a broker restart, or revoked - and neither the lost-task reaper
+  (which only trusts worker answers about *started* tasks) nor the
+  launch-failure sweep (which only covers rows that never got a task id) would
+  ever move it
+- ENH: Workflow results carry a soft-delete stamp (`deleted_at`/`deleted_by`),
+  mirroring datasets and measurements, and the custodian hard-deletes stamped
+  rows once their `TOPOBANK_DELETE_DELAY` retention window has closed
+- ENH: Datasets and measurements record who soft-deleted them (`deleted_by`),
+  so a recycle-bin view can report who deleted what while the objects are
+  still recoverable
+- TST: The full-text search index is covered by tests
 - ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
   iD, for testing behaviour that depends on the identity a user signed in with.
   The factory previously always attached one
 - MAINT: CI runs its S3 tests against SeaweedFS instead of Minio, which is the
   S3 implementation the development stack uses. The bucket is created with
   `boto3` instead of a separately downloaded `mc` client
+- TST: The test settings are defined once. There were two near-identical copies,
+  `topobank/test_settings.py` and a top-level `test_settings.py`, and only the
+  latter is what `DJANGO_SETTINGS_MODULE=test_settings` resolves to. The storage
+  configuration had been added to the former, so the S3 job ran the whole suite
+  against `FileSystemStorage` and never executed the direct-to-object-store upload
+  path. The package module is now the definition and the top-level one re-exports
+  it, so the two cannot drift again
+- BUILD: Dropped four unmaintained dependencies. `backports.entry-points-selectable`
+  backports an API that is in the standard library on every Python we support,
+  `dj-inmemorystorage` (last release 2020) and `py` (retired, and no longer a
+  pytest dependency) were declared but never imported, and `mergedeep` (dormant
+  since 2021) is replaced by a local recursive merge in `analysis.utils`
+- BUILD: `django-notifications-hq` is pinned to a commit instead of tracking the
+  default branch, so a build no longer depends on what upstream master happens to
+  be at install time. Renovate cannot see `git+https` references, so a custom
+  manager now tracks that commit; it is deliberately not applied to the
+  `django-tagulous` fork pin, whose commit is ahead of that fork's default branch
+- BUILD: Removed the `urllib3`, `lxml`, `jinja2`, `cryptography`, `Pillow`,
+  `sqlparse` and `pyjwt` lower bounds. They carried 2020-2023 CVE mitigations that
+  every currently resolvable version satisfies, and none of them are imported
+  directly, so they read as active security controls while constraining nothing.
+  Raised the `django-allauth` floor to the major version actually in use and
+  dropped the undocumented `Sphinx` upper cap
 - TST: The test settings honor `STORAGE_BACKEND` and `TOPOBANK_UPLOAD_METHOD`
   again, and derive `USE_S3_STORAGE` from the configured backend. Both were
   hardcoded, so the S3 configuration in CI had no effect and every job silently
