@@ -177,3 +177,52 @@ def merge_dicts(destination: Dict, sources: List[Dict]) -> Dict:
         _merge_dict(destination, source)  # Merge each source into the destination
 
     return destination
+
+
+def current_statistics(user=None):
+    """Return some statistics about managed data.
+
+    These values are calculated from current counts
+    of database objects.
+
+    Parameters
+    ----------
+        user: User instance
+            If given, the statistics is only related to the surfaces of a given user
+            (as created_by)
+
+    Returns
+    -------
+        dict with keys
+
+        - num_surfaces_excluding_publications
+        - num_topographies_excluding_publications
+        - num_analyses_excluding_publications
+    """
+    from ..manager.models import Topography
+    from .models import WorkflowResult
+
+    if hasattr(Surface, "publication"):
+        if user:
+            unpublished_surfaces = Surface.objects.filter(
+                created_by=user, publication__isnull=True
+            )
+        else:
+            unpublished_surfaces = Surface.objects.filter(publication__isnull=True)
+    else:
+        if user:
+            unpublished_surfaces = Surface.objects.filter(created_by=user)
+        else:
+            unpublished_surfaces = Surface.objects.all()
+    unpublished_topographies = Topography.objects.filter(
+        surface__in=unpublished_surfaces
+    )
+    unpublished_analyses = WorkflowResult.objects.filter(
+        subject_topography__in=unpublished_topographies
+    )
+
+    return dict(
+        num_surfaces_excluding_publications=unpublished_surfaces.count(),
+        num_topographies_excluding_publications=unpublished_topographies.count(),
+        num_analyses_excluding_publications=unpublished_analyses.count(),
+    )

@@ -3,7 +3,7 @@ The Celery workflow engine: topobank's original execution path behind the
 workflow engine interface.
 
 Everything Celery-specific about running workflows lives here or in the tasks
-this module dispatches: the two Celery tasks in :mod:`topobank.analysis.tasks`
+this module dispatches: the two Celery tasks in :mod:`topobank.analysis.celery.tasks`
 (``schedule_workflow`` resolves dependencies and builds a chord,
 ``execute_workflow`` runs one workflow), the mapping of logical queue names onto
 broker queues, and the reading of Celery's result backend when topobank asks how
@@ -85,7 +85,7 @@ class CeleryWorkflowEngine:
     # --- launch ------------------------------------------------------------
 
     def launch(self, result, *, force: bool = False) -> LaunchHandle:
-        from ..tasks import schedule_workflow
+        from .tasks import schedule_workflow
 
         task = schedule_workflow.apply_async(
             args=[result.id, force], queue=self.queue_for(result)

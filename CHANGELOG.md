@@ -25,6 +25,10 @@
   error was lost and the result stayed pending
 - MAINT: `WorkflowResult.get_celery_queue()` is deprecated; queue selection is
   the Celery engine's business
+- MAINT: The Celery tasks moved to `topobank.analysis.celery.tasks`, keeping
+  their `topobank.analysis.tasks.*` names; `topobank.analysis.tasks` re-exports
+  them. `get_current_configuration` lives in `topobank.analysis.configuration`
+  and `current_statistics` in `topobank.analysis.utils`
 
 # 1.72.0 (2026-09-10)
 
