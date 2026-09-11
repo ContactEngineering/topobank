@@ -16,7 +16,7 @@ days.
 Neither of the two obvious detectors works here:
 
 * **The result backend cannot tell us.** Celery reports ``PENDING`` for a task
-  id it has never heard of, and ``CeleryWorkflowManager.CELERY_STATE_MAP`` maps that to our
+  id it has never heard of, and ``CeleryWorkflowEngine.CELERY_STATE_MAP`` maps that to our
   ``PENDING``: "vanished" and "not started yet" are indistinguishable through
   ``AsyncResult``.
 * **A duration threshold is the wrong question.** Analyses already carry hard

@@ -1,10 +1,10 @@
 """
-The Celery workflow manager's shim: `WorkflowImplementation`.
+The Celery workflow engine's shim: `WorkflowImplementation`.
 
 A `WorkflowImplementation` is a `WorkflowDescriptor` plus the code that runs
 the workflow in-process in a Celery worker - the implementation methods keyed
 by subject model, the dependencies they declare and the queue they run on.
-Register subclasses with :data:`topobank.analysis.celery.manager.registry`.
+Register subclasses with :data:`topobank.analysis.celery.engine.registry`.
 """
 
 import inspect
@@ -24,7 +24,7 @@ class WorkflowImplementation(WorkflowDescriptor):
     """
     A workflow that runs in-process in a Celery worker.
 
-    This is the Celery workflow manager's shim: a `WorkflowDescriptor` (name,
+    This is the Celery workflow engine's shim: a `WorkflowDescriptor` (name,
     display name, parameters, outputs) plus the implementation methods
     themselves, keyed by subject model in ``Meta.implementations``, their
     declared dependencies and the queue they run on. Register subclasses with

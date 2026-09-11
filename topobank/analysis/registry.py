@@ -1,15 +1,15 @@
 """
 Registry façade for workflows.
 
-Workflows are registered with the workflow manager that runs them (see
-:mod:`topobank.analysis.managers`); this module offers the historical
-module-level functions over all configured managers, so callers that only need
+Workflows are registered with the workflow engine that runs them (see
+:mod:`topobank.analysis.engines`); this module offers the historical
+module-level functions over all configured engines, so callers that only need
 "which workflows exist" or "give me the descriptor for this name" do not have
-to know about managers.
+to know about engines.
 """
 
-from .managers import get_workflow_names as _get_workflow_names
-from .managers import resolve_workflow, resolve_workflow_by_display_name
+from .engines import get_workflow_names as _get_workflow_names
+from .engines import resolve_workflow, resolve_workflow_by_display_name
 
 #
 # Exceptions
@@ -61,12 +61,12 @@ class UnknownKeyException(WorkflowRegistryException):
 
 def register_implementation(klass):
     """
-    Register a `WorkflowImplementation` with the Celery workflow manager.
+    Register a `WorkflowImplementation` with the Celery workflow engine.
 
-    Kept for plugins written before managers existed; new code registers with
-    the manager it targets, e.g. ``topobank.analysis.celery.manager.registry``.
+    Kept for plugins written before engines existed; new code registers with
+    the engine it targets, e.g. ``topobank.analysis.celery.engine.registry``.
     """
-    from .celery.manager import registry
+    from .celery.engine import registry
 
     return registry.register(klass)
 

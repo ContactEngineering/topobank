@@ -1,6 +1,6 @@
 """
-The Celery workflow manager: topobank's original execution path behind the
-workflow manager interface.
+The Celery workflow engine: topobank's original execution path behind the
+workflow engine interface.
 
 Everything Celery-specific about running workflows lives here or in the tasks
 this module dispatches: the two Celery tasks in :mod:`topobank.analysis.tasks`
@@ -9,15 +9,15 @@ this module dispatches: the two Celery tasks in :mod:`topobank.analysis.tasks`
 broker queues, and the reading of Celery's result backend when topobank asks how
 a run is doing.
 
-Workflows for this manager are
+Workflows for this engine are
 :class:`~topobank.analysis.celery.workflows.WorkflowImplementation` subclasses,
 registered with :data:`registry` (``topobank.analysis.registry.register_implementation``
 is an alias). The implementation methods run in-process in a Celery worker.
 
-The manager keeps its bookkeeping on the row itself: ``task_id`` holds the id of
+The engine keeps its bookkeeping on the row itself: ``task_id`` holds the id of
 the Celery task currently responsible for the row and ``launcher_task_id`` the
 id of the task that launched a chord of dependencies. Both columns are this
-manager's, not part of the manager contract.
+engine's, not part of the engine contract.
 """
 
 import logging
@@ -29,16 +29,16 @@ import pydantic
 from django.conf import settings
 
 from ...taskapp.tasks import ProgressRecorder
-from ..managers import LaunchHandle, RunInfo, WorkflowRegistry
+from ..engines import LaunchHandle, RunInfo, WorkflowRegistry
 
 _log = logging.getLogger(__name__)
 
-#: Workflows the Celery manager can run. Plugins register their
+#: Workflows the Celery engine can run. Plugins register their
 #: `WorkflowImplementation` subclasses here.
 registry = WorkflowRegistry()
 
 
-class CeleryWorkflowManager:
+class CeleryWorkflowEngine:
     """Run topobank workflows as Celery tasks. See the module docstring."""
 
     name = "celery"
@@ -99,7 +99,7 @@ class CeleryWorkflowManager:
         _log.debug(
             "Dispatched WorkflowResult %s as Celery task %s", result.id, task.id
         )
-        return LaunchHandle(manager=self.name, data={"task_id": str(task.id)})
+        return LaunchHandle(engine=self.name, data={"task_id": str(task.id)})
 
     # --- poll --------------------------------------------------------------
 

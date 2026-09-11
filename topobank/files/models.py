@@ -124,14 +124,14 @@ class ManifestSet(PermissionMixin, models.Model):
 
     def register_files(self, entries):
         """
-        Record files a run produced, as described by a workflow manager.
+        Record files a run produced, as described by a workflow engine.
 
-        This is the receiving end of the file manifest a manager returns with a
+        This is the receiving end of the file manifest an engine returns with a
         completion report (see `topobank.analysis.status.FileEntry`): each entry
         names a file and where it lives in the configured storage. The folder
         does not look at storage to find out what exists - listing object storage
-        is slow and brittle, and the manager already knows what it wrote - it
-        only translates the manager's list into `Manifest` rows.
+        is slow and brittle, and the engine already knows what it wrote - it
+        only translates the engine's list into `Manifest` rows.
 
         Entries may be `FileEntry` instances or mappings with the same keys.
         A file that is already recorded under the same name is updated in place;

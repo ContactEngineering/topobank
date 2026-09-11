@@ -2,15 +2,15 @@
 Building blocks shared by workflows and the code that submits them.
 
 Nothing in this module runs a workflow or knows how one is run. It holds what
-every workflow manager and every shim has in common: how a set of surfaces is
+every workflow engine and every shim has in common: how a set of surfaces is
 identified (`SurfaceSet`, `compute_subject_hash`), how a workflow declares a
 dependency (`WorkflowDefinition`), and helpers that implementations use to
 build their results (`ContainerProxy`, `wrap_series`, `make_alert_entry`,
 `reasonable_bins_argument`).
 
-The Celery manager's shim, `WorkflowImplementation`, lives in
+The Celery engine's shim, `WorkflowImplementation`, lives in
 :mod:`topobank.analysis.celery.workflows`; it is still importable from here for
-callers written before workflow managers existed.
+callers written before workflow engines existed.
 """
 
 import collections
@@ -206,7 +206,7 @@ class WorkflowDefinition:
 
 def __getattr__(name):
     # `WorkflowImplementation` used to be defined here. It is the Celery
-    # manager's shim now, and importing it eagerly would be circular.
+    # engine's shim now, and importing it eagerly would be circular.
     if name == "WorkflowImplementation":
         from .celery.workflows import WorkflowImplementation
 

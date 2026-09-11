@@ -87,7 +87,7 @@ class CeleryAppConfig(AppConfig):
         """
         Register Celery signal handlers for automatic task state synchronization.
 
-        These handlers are part of the Celery workflow manager: they catch what a
+        These handlers are part of the Celery workflow engine: they catch what a
         task could not report itself (a killed worker, a revoked task) and turn
         it into a status report like any other.
         """

@@ -217,8 +217,8 @@ SERIALIZATION_MODULES = {
 
 DJANGO_NOTIFICATIONS_CONFIG = {"USE_JSONFIELD": True}
 
-# Workflow managers: the systems topobank hands workflows to, in priority
-# order. See `topobank.analysis.managers`. The Celery manager is always
+# Workflow engines: the systems topobank hands workflows to, in priority
+# order. See `topobank.analysis.engines`. The Celery engine is always
 # available and is appended if not listed.
-TOPOBANK_WORKFLOW_MANAGERS = []
+TOPOBANK_WORKFLOW_ENGINES = []
 TOPOBANK_TASK_LIFECYCLE_HOOKS = []

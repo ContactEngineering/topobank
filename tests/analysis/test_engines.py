@@ -1,11 +1,11 @@
 """
-Tests for workflow managers (``topobank.analysis.managers``), per-manager
+Tests for workflow engines (``topobank.analysis.engines``), per-engine
 registries, and the status contract (``topobank.analysis.status``).
 
-The point of the manager interface is that topobank hands a `WorkflowResult`
-to *a* workflow manager without knowing how it runs. These tests prove that by
-configuring a fake manager with its own registry and a fake workflow, and by
-driving the status contract directly, the way any manager would.
+The point of the engine interface is that topobank hands a `WorkflowResult`
+to *a* workflow engine without knowing how it runs. These tests prove that by
+configuring a fake engine with its own registry and a fake workflow, and by
+driving the status contract directly, the way any engine would.
 """
 
 import uuid
@@ -15,20 +15,20 @@ import pytest
 from django.core.exceptions import ImproperlyConfigured
 from django.test import override_settings
 
-# Registers the "topobank.testing.test" workflow with the Celery manager
+# Registers the "topobank.testing.test" workflow with the Celery engine
 import topobank.testing.workflows  # noqa: E402,F401
-from topobank.analysis.celery.manager import CeleryWorkflowManager
-from topobank.analysis.celery.manager import registry as celery_registry
+from topobank.analysis.celery.engine import CeleryWorkflowEngine
+from topobank.analysis.celery.engine import registry as celery_registry
 from topobank.analysis.descriptor import WorkflowDescriptor
-from topobank.analysis.managers import (
+from topobank.analysis.engines import (
     LaunchHandle,
     RunInfo,
-    WorkflowManager,
+    WorkflowEngine,
     WorkflowRegistry,
-    get_workflow_manager,
-    get_workflow_managers,
+    engine_for_result,
+    get_workflow_engine,
+    get_workflow_engines,
     get_workflow_names,
-    manager_for_result,
     resolve_workflow,
 )
 from topobank.analysis.models import Workflow, WorkflowResult, submit_workflow
@@ -41,7 +41,7 @@ FAKE_WORKFLOW = "tests.fake.workflow"
 
 
 class FakeWorkflow(WorkflowDescriptor):
-    """A workflow only the fake manager can run."""
+    """A workflow only the fake engine can run."""
 
     class Meta:
         name = FAKE_WORKFLOW
@@ -53,8 +53,8 @@ class FakeWorkflow(WorkflowDescriptor):
         n: int = 3
 
 
-class FakeWorkflowManager:
-    """A manager that runs nothing and remembers everything."""
+class FakeWorkflowEngine:
+    """An engine that runs nothing and remembers everything."""
 
     name = "fake"
     registry = WorkflowRegistry()
@@ -64,7 +64,7 @@ class FakeWorkflowManager:
 
     def launch(self, result, *, force=False):
         type(self).launched.append((result.pk, force))
-        return LaunchHandle(manager=self.name, data={"run": str(uuid.uuid4())})
+        return LaunchHandle(engine=self.name, data={"run": str(uuid.uuid4())})
 
     def poll(self, result):
         return RunInfo(state=type(self).state, progress=42.0, messages=["working"])
@@ -73,17 +73,17 @@ class FakeWorkflowManager:
         type(self).cancelled.append(result.pk)
 
 
-FakeWorkflowManager.registry.register(FakeWorkflow)
+FakeWorkflowEngine.registry.register(FakeWorkflow)
 
-FAKE_PATH = f"{FakeWorkflowManager.__module__}.FakeWorkflowManager"
-CELERY_PATH = f"{CeleryWorkflowManager.__module__}.CeleryWorkflowManager"
+FAKE_PATH = f"{FakeWorkflowEngine.__module__}.FakeWorkflowEngine"
+CELERY_PATH = f"{CeleryWorkflowEngine.__module__}.CeleryWorkflowEngine"
 
 
 @pytest.fixture(autouse=True)
 def _reset_fake():
-    FakeWorkflowManager.launched = []
-    FakeWorkflowManager.cancelled = []
-    FakeWorkflowManager.state = WorkflowResult.STARTED
+    FakeWorkflowEngine.launched = []
+    FakeWorkflowEngine.cancelled = []
+    FakeWorkflowEngine.state = WorkflowResult.STARTED
 
 
 def _analysis(test_workflow, **overrides):
@@ -93,27 +93,27 @@ def _analysis(test_workflow, **overrides):
 
 
 # ---------------------------------------------------------------------------
-# Managers and registries
+# Engines and registries
 # ---------------------------------------------------------------------------
 
 
-def test_celery_manager_is_always_available():
-    managers = get_workflow_managers()
-    assert [m.name for m in managers] == ["celery"]
-    assert isinstance(managers[0], CeleryWorkflowManager)
-    assert isinstance(managers[0], WorkflowManager)
+def test_celery_engine_is_always_available():
+    engines = get_workflow_engines()
+    assert [m.name for m in engines] == ["celery"]
+    assert isinstance(engines[0], CeleryWorkflowEngine)
+    assert isinstance(engines[0], WorkflowEngine)
     # Singleton: the same instance is handed out again
-    assert get_workflow_manager("celery") is managers[0]
+    assert get_workflow_engine("celery") is engines[0]
 
 
-@override_settings(TOPOBANK_WORKFLOW_MANAGERS=[FAKE_PATH])
-def test_managers_come_from_settings_in_priority_order():
-    assert [m.name for m in get_workflow_managers()] == ["fake", "celery"]
+@override_settings(TOPOBANK_WORKFLOW_ENGINES=[FAKE_PATH])
+def test_engines_come_from_settings_in_priority_order():
+    assert [m.name for m in get_workflow_engines()] == ["fake", "celery"]
 
 
-def test_unknown_manager_is_a_configuration_error():
+def test_unknown_engine_is_a_configuration_error():
     with pytest.raises(ImproperlyConfigured):
-        get_workflow_manager("no-such-manager")
+        get_workflow_engine("no-such-engine")
 
 
 def test_registry_requires_name_and_display_name():
@@ -138,48 +138,48 @@ def test_register_implementation_targets_the_celery_registry(test_workflow):
 # ---------------------------------------------------------------------------
 
 
-def test_workflow_resolves_to_its_manager(test_workflow):
-    manager, descriptor = resolve_workflow(test_workflow.name)
-    assert manager.name == "celery"
+def test_workflow_resolves_to_its_engine(test_workflow):
+    engine, descriptor = resolve_workflow(test_workflow.name)
+    assert engine.name == "celery"
     assert descriptor.Meta.name == test_workflow.name
     assert resolve_workflow("no.such.workflow") is None
 
 
-@override_settings(TOPOBANK_WORKFLOW_MANAGERS=[FAKE_PATH])
-def test_names_are_the_union_over_managers(test_workflow):
+@override_settings(TOPOBANK_WORKFLOW_ENGINES=[FAKE_PATH])
+def test_names_are_the_union_over_engines(test_workflow):
     names = get_workflow_names()
     assert FAKE_WORKFLOW in names
     assert test_workflow.name in names
-    manager, descriptor = resolve_workflow(FAKE_WORKFLOW)
-    assert manager.name == "fake"
+    engine, descriptor = resolve_workflow(FAKE_WORKFLOW)
+    assert engine.name == "fake"
     assert descriptor is FakeWorkflow
 
 
-def test_fake_workflow_is_unknown_without_its_manager():
+def test_fake_workflow_is_unknown_without_its_engine():
     assert resolve_workflow(FAKE_WORKFLOW) is None
     assert FAKE_WORKFLOW not in get_workflow_names()
 
 
-@override_settings(TOPOBANK_WORKFLOW_MANAGERS=[FAKE_PATH])
-def test_first_manager_wins_on_a_shared_name(test_workflow):
-    # The fake manager claims a workflow the Celery manager also provides
+@override_settings(TOPOBANK_WORKFLOW_ENGINES=[FAKE_PATH])
+def test_first_engine_wins_on_a_shared_name(test_workflow):
+    # The fake engine claims a workflow the Celery engine also provides
     class Shadow(WorkflowDescriptor):
         class Meta:
             name = test_workflow.name
             display_name = "Shadow"
 
-    FakeWorkflowManager.registry.register(Shadow)
+    FakeWorkflowEngine.registry.register(Shadow)
     try:
-        manager, descriptor = resolve_workflow(test_workflow.name)
-        assert manager.name == "fake" and descriptor is Shadow
+        engine, descriptor = resolve_workflow(test_workflow.name)
+        assert engine.name == "fake" and descriptor is Shadow
         assert get_workflow_names().count(test_workflow.name) == 1
     finally:
-        FakeWorkflowManager.registry.unregister(test_workflow.name)
-    manager, _ = resolve_workflow(test_workflow.name)
-    assert manager.name == "celery"
+        FakeWorkflowEngine.registry.unregister(test_workflow.name)
+    engine, _ = resolve_workflow(test_workflow.name)
+    assert engine.name == "celery"
 
 
-@override_settings(TOPOBANK_WORKFLOW_MANAGERS=[FAKE_PATH])
+@override_settings(TOPOBANK_WORKFLOW_ENGINES=[FAKE_PATH])
 def test_workflow_value_object_uses_the_descriptor():
     wf = Workflow(FAKE_WORKFLOW)
     assert wf.display_name == "Fake workflow"
@@ -192,32 +192,32 @@ def test_workflow_value_object_uses_the_descriptor():
 
 
 # ---------------------------------------------------------------------------
-# Launching, polling and cancelling through the manager of a result
+# Launching, polling and cancelling through the engine of a result
 # ---------------------------------------------------------------------------
 
 
 @pytest.mark.django_db
-@override_settings(TOPOBANK_WORKFLOW_MANAGERS=[FAKE_PATH])
-def test_submit_workflow_launches_on_the_resolved_manager():
+@override_settings(TOPOBANK_WORKFLOW_ENGINES=[FAKE_PATH])
+def test_submit_workflow_launches_on_the_resolved_engine():
     topo = Topography1DFactory()
     a = TopographyAnalysisFactory.create(
         subject_topography=topo, workflow_name=FAKE_WORKFLOW, kwargs={"n": 1}, result=None
     )
     submit_workflow(a, True)
     a.refresh_from_db()
-    assert a.execution_handle["manager"] == "fake"
-    assert FakeWorkflowManager.launched == [(a.pk, True)]
-    assert manager_for_result(a).name == "fake"
+    assert a.execution_handle["engine"] == "fake"
+    assert FakeWorkflowEngine.launched == [(a.pk, True)]
+    assert engine_for_result(a).name == "fake"
 
 
 @pytest.mark.django_db(transaction=True)
-@override_settings(TOPOBANK_WORKFLOW_MANAGERS=[FAKE_PATH])
-def test_workflow_submit_goes_through_the_manager():
+@override_settings(TOPOBANK_WORKFLOW_ENGINES=[FAKE_PATH])
+def test_workflow_submit_goes_through_the_engine():
     topo = Topography1DFactory()
     analysis = Workflow(FAKE_WORKFLOW).submit(topo.created_by, topo, {"n": 2})
     analysis.refresh_from_db()
-    assert analysis.execution_handle["manager"] == "fake"
-    assert [pk for pk, _ in FakeWorkflowManager.launched] == [analysis.pk]
+    assert analysis.execution_handle["engine"] == "fake"
+    assert [pk for pk, _ in FakeWorkflowEngine.launched] == [analysis.pk]
 
 
 @pytest.mark.django_db
@@ -233,42 +233,42 @@ def test_unknown_workflow_fails_the_result_instead_of_raising(test_workflow):
 @pytest.mark.django_db
 def test_result_without_handle_belongs_to_celery(test_workflow):
     a = _analysis(test_workflow, execution_handle=None)
-    assert manager_for_result(a).name == "celery"
+    assert engine_for_result(a).name == "celery"
 
 
 @pytest.mark.django_db
-@override_settings(TOPOBANK_WORKFLOW_MANAGERS=[FAKE_PATH])
-def test_state_progress_and_cancel_route_to_the_manager_of_the_handle(test_workflow):
-    # Launched by the fake manager; polling must go to it even though the
-    # Celery manager also knows this workflow
+@override_settings(TOPOBANK_WORKFLOW_ENGINES=[FAKE_PATH])
+def test_state_progress_and_cancel_route_to_the_engine_of_the_handle(test_workflow):
+    # Launched by the fake engine; polling must go to it even though the
+    # Celery engine also knows this workflow
     a = _analysis(
         test_workflow,
         task_state=WorkflowResult.STARTED,
-        execution_handle={"manager": "fake", "data": {}},
+        execution_handle={"engine": "fake", "data": {}},
     )
     assert a.get_celery_state() == WorkflowResult.STARTED
     assert a.get_task_state() == WorkflowResult.STARTED
     assert a.get_task_progress() == 42.0
     assert a.get_task_messages() == ["working"]
     a.cancel_task()
-    assert FakeWorkflowManager.cancelled == [a.pk]
+    assert FakeWorkflowEngine.cancelled == [a.pk]
 
 
 @pytest.mark.django_db
-@override_settings(TOPOBANK_WORKFLOW_MANAGERS=[FAKE_PATH])
-def test_manager_failure_overrides_self_reported_state(test_workflow):
+@override_settings(TOPOBANK_WORKFLOW_ENGINES=[FAKE_PATH])
+def test_engine_failure_overrides_self_reported_state(test_workflow):
     a = _analysis(
         test_workflow,
         task_state=WorkflowResult.STARTED,
-        execution_handle={"manager": "fake", "data": {}},
+        execution_handle={"engine": "fake", "data": {}},
     )
-    FakeWorkflowManager.state = WorkflowResult.FAILURE
+    FakeWorkflowEngine.state = WorkflowResult.FAILURE
     assert a.get_task_state() == WorkflowResult.FAILURE
 
 
 @pytest.mark.django_db
 def test_set_pending_state_clears_handle(test_workflow):
-    a = _analysis(test_workflow, execution_handle={"manager": "fake", "data": {}})
+    a = _analysis(test_workflow, execution_handle={"engine": "fake", "data": {}})
     a.set_pending_state()
     a.refresh_from_db()
     assert a.execution_handle is None
@@ -398,16 +398,16 @@ def test_failing_hook_does_not_block_the_report(test_workflow):
 
 
 # ---------------------------------------------------------------------------
-# Celery manager specifics
+# Celery engine specifics
 # ---------------------------------------------------------------------------
 
 
 @override_settings(CELERY_LOGICAL_QUEUE_MAP={"analysis": "prod-analysis"})
-def test_celery_manager_maps_logical_queues():
-    manager = CeleryWorkflowManager()
-    assert manager.resolve_queue("analysis") == "prod-analysis"
-    assert manager.resolve_queue("manager") == "manager"
-    assert manager.resolve_queue(None) is None
+def test_celery_engine_maps_logical_queues():
+    engine = CeleryWorkflowEngine()
+    assert engine.resolve_queue("analysis") == "prod-analysis"
+    assert engine.resolve_queue("manager") == "manager"
+    assert engine.resolve_queue(None) is None
 
 
 @pytest.mark.django_db

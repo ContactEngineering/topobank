@@ -7,11 +7,11 @@ model of its parameters and the files it declares as outputs. Enumeration for
 the frontend, validation at submit time, the default parameters and the
 de-duplication of results all work on descriptors alone.
 
-How a workflow *runs* is not part of the descriptor. Each workflow manager
-(see :mod:`topobank.analysis.managers`) registers its own subclass carrying
-whatever its engine needs - the Celery manager's
+How a workflow *runs* is not part of the descriptor. Each workflow engine
+(see :mod:`topobank.analysis.engines`) registers its own subclass carrying
+whatever its engine needs - the Celery engine's
 :class:`~topobank.analysis.celery.workflows.WorkflowImplementation` adds the
-in-process implementation methods, their dependencies and a queue; a manager
+in-process implementation methods, their dependencies and a queue; an engine
 for another engine adds its own job description. A workflow is therefore tied
 to exactly one engine, and the descriptor is the shared vocabulary between
 that engine and topobank.
@@ -26,7 +26,7 @@ from .outputs import get_outputs_schema
 
 class WorkflowDescriptor:
     """
-    Describes a workflow to topobank. Subclassed by every manager's shim.
+    Describes a workflow to topobank. Subclassed by every engine's shim.
 
     Subclasses set ``Meta.name`` and ``Meta.display_name``, may narrow
     ``Meta.subject_types`` to the subject models the workflow accepts, define
@@ -39,8 +39,8 @@ class WorkflowDescriptor:
         name: str
         #: Human-readable name for listings.
         display_name: str
-        #: Subject model classes this workflow accepts. Managers whose shims
-        #: derive this from something else (the Celery manager derives it from
+        #: Subject model classes this workflow accepts. Engines whose shims
+        #: derive this from something else (the Celery engine derives it from
         #: its implementation methods) override :meth:`has_implementation`.
         subject_types = ()
 
