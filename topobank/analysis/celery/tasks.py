@@ -11,7 +11,6 @@ messages already queued, per-task settings such as ``CELERY_TASK_ANNOTATIONS``,
 and downstream code that matches on task names keep working.
 """
 
-import json
 import traceback
 from typing import Any, Dict
 
@@ -19,13 +18,10 @@ import celery
 from celery.utils.log import get_task_logger
 from django.conf import settings
 from django.core.exceptions import ImproperlyConfigured
-from django.db import transaction
 from django.utils import timezone
 from muTimer import Timer
 from SurfaceTopography.Support import doi
 
-from ...manager.models import Surface, Tag, Topography
-from ...supplib.db import advisory_lock
 from ...supplib.dict import store_split_dict
 from ...taskapp.celeryapp import app
 from ...taskapp.memory import track_memory_usage
@@ -33,7 +29,9 @@ from ...taskapp.tasks import ProgressRecorder
 from ..configuration import get_current_configuration
 from ..sizing import check_memory_budget
 from ..status import StatusReport, apply_status_report
-from ..workflows import WorkflowDefinition
+from ..store import Reuse, find_or_create
+from ..workflows import ResultRequest
+from .workflows import get_dependencies, run_workflow
 
 _log = get_task_logger(__name__)
 
@@ -152,7 +150,7 @@ def schedule_workflow(
     #
     # Check and run dependencies
     #
-    dependencies = analysis.function.get_dependencies(analysis)  # This is a dict!
+    dependencies = get_dependencies(analysis)  # This is a dict!
 
     if len(dependencies) > 0:
         _log.debug(f"{self.request.id}: Checking analysis dependencies...")
@@ -295,7 +293,7 @@ def execute_workflow(
 
     This task assumes all dependencies are already complete and handles:
     1. Loading finished dependencies
-    2. Running the actual workflow via analysis.eval_self()
+    2. Running the actual workflow via run_workflow()
     3. Storing results and statistics
 
     Parameters
@@ -438,13 +436,15 @@ def execute_workflow(
     @doi()
     def evaluate_function(progress_recorder, timer, finished_analyses):
         if len(finished_analyses) > 0:
-            return analysis.eval_self(
+            return run_workflow(
+                analysis,
                 dependencies=finished_analyses,
                 progress_recorder=progress_recorder,
                 timer=timer,
             )
         else:
-            return analysis.eval_self(
+            return run_workflow(
+                analysis,
                 progress_recorder=progress_recorder,
                 timer=timer,
             )
@@ -580,102 +580,61 @@ def perform_analysis(self: celery.Task, analysis_id: int, force: bool):
 
 
 def prepare_dependency_tasks(
-    dependencies: Dict[Any, WorkflowDefinition], force: bool, user=None, parent=None
+    dependencies: Dict[Any, ResultRequest], force: bool, user=None, parent=None
 ):
-    from ..models import WorkflowResult
+    """
+    Find or create the results a workflow depends on.
 
+    Parameters
+    ----------
+    dependencies : dict
+        The parent's dependency keys mapped to the `ResultRequest` for each.
+    force : bool
+        Run dependencies again even if they finished (the parent was forced).
+    user : User, optional
+        Recorded as the creator of new dependency results.
+    parent : WorkflowResult
+        The result that needs the dependencies. New dependency results share
+        its permissions and owner and record it in their metadata. When the
+        parent is a surface-set result, a dependency on a single surface is
+        stored as a one-surface set too, so parent and dependencies share one
+        addressing scheme.
+
+    Returns
+    -------
+    finished, scheduled : dict, dict
+        Dependency keys mapped to results that have finished (successfully or
+        not) and to results that still have to run, respectively.
+    """
     # Determine if parent uses the surface set (M2M) path
     use_surfaces_path = parent is not None and parent.surfaces.exists()
 
     finished_dependent_analyses = {}  # Everything that finished or failed
     scheduled_dependent_analyses = {}  # Everything that needs to be scheduled
-    for key, dependency in dependencies.items():
+    for key, request in dependencies.items():
         if key in scheduled_dependent_analyses or key in finished_dependent_analyses:
             raise RuntimeError(f"Dependency '{key}' already dependent or finished.")
 
-        # Get analysis function
-        function = dependency.function
+        if use_surfaces_path:
+            request = request.as_surface_set()
 
-        # Clean kwargs for dependency (fill potentially missing values)
-        kwargs = function.clean_kwargs(dependency.kwargs)
-
-        # Compute subject_hash for this dependency
-        subject = dependency.subject
-        if use_surfaces_path and isinstance(subject, Surface):
-            subject_hash = WorkflowResult.compute_subject_hash("surfaces", [subject.id])
-        elif isinstance(subject, Surface):
-            subject_hash = WorkflowResult.compute_subject_hash("surface", [subject.id])
-        elif isinstance(subject, Topography):
-            subject_hash = WorkflowResult.compute_subject_hash(
-                "topography", [subject.id]
-            )
-        elif isinstance(subject, Tag):
-            subject_hash = WorkflowResult.compute_subject_hash("tag", [subject.id])
+        # A dependency that failed is reused, not retried: `Reuse.FINISHED`.
+        # Whatever still has to run is scheduled, possibly again;
+        # `schedule_workflow` terminates by itself for a result that completed
+        # in the meantime.
+        found = find_or_create(
+            request,
+            user=user,
+            reuse=Reuse.FINISHED,
+            force=force,
+            permissions=parent.permissions,
+            owned_by_id=parent.owned_by_id,
+            metadata={"parent_workflow_result_id": parent.id},
+        )
+        if found.needs_run:
+            scheduled_dependent_analyses[key] = found.result
         else:
-            raise ValueError(f"Unsupported dependency subject type: {type(subject)}")
-
-        existing_analysis_qs = WorkflowResult.objects.filter(
-            workflow_name=dependency.function.name,
-            subject_hash=subject_hash,
-            kwargs=kwargs,
-        ).select_related("subject_topography", "subject_surface", "subject_tag")
-        if use_surfaces_path and isinstance(subject, Surface):
-            existing_analysis_qs = existing_analysis_qs.prefetch_related("surfaces")
-        # Serialize the existence check and creation of this dependency against
-        # concurrent parents needing the same dependency. Without this, two
-        # parents can both observe "no existing dependency" and each create a
-        # separate dependency analysis, doubling the work. The advisory lock is
-        # released when the surrounding transaction commits.
-        with transaction.atomic(), advisory_lock(
-            "dependency",
-            function.name,
-            subject_hash,
-            json.dumps(kwargs, sort_keys=True, default=str),
-        ):
-            existing_analysis = existing_analysis_qs.order_by(
-                "-task_start_time"
-            ).first()
-
-            if existing_analysis is None:
-                create_kwargs = dict(
-                    permissions=parent.permissions,
-                    workflow_name=function.name,
-                    task_state=WorkflowResult.PENDING,
-                    kwargs=kwargs,
-                    created_by=user,
-                    owned_by=parent.owned_by,
-                    metadata={"parent_workflow_result_id": parent.id},
-                    subject_hash=subject_hash,
-                )
-                if use_surfaces_path and isinstance(subject, Surface):
-                    pass  # subject stored in M2M below; no FK field set
-                elif isinstance(subject, Surface):
-                    create_kwargs["subject_surface"] = subject
-                elif isinstance(subject, Topography):
-                    create_kwargs["subject_topography"] = subject
-                elif isinstance(subject, Tag):
-                    create_kwargs["subject_tag"] = subject
-
-                new_analysis = WorkflowResult.objects.create(**create_kwargs)
-
-                if use_surfaces_path and isinstance(subject, Surface):
-                    # M2M fields cannot be set until after the instance is created.
-                    new_analysis.surfaces.set([subject])
-                scheduled_dependent_analyses[key] = new_analysis
-            else:
-                # An analysis exists. Check whether it is successful or failed.
-                # task_state is the *self reported* state, not the Celery state
-                if not force and existing_analysis.task_state in [
-                    WorkflowResult.FAILURE,
-                    WorkflowResult.SUCCESS,
-                ]:
-                    # This one does not need to be scheduled
-                    finished_dependent_analyses[key] = existing_analysis
-                else:
-                    # We schedule everything else, possibly again.
-                    # `perform_analysis` will automatically terminate if an
-                    # analysis already completed successfully.
-                    scheduled_dependent_analyses[key] = existing_analysis
+            finished_dependent_analyses[key] = found.result
 
     return (
         finished_dependent_analyses,

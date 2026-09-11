@@ -6,10 +6,10 @@ import pydantic
 from django.core.files.base import ContentFile
 from muTimer import Timer
 
-from ..analysis.models import RESULT_FILE_BASENAME, Workflow
+from ..analysis.models import RESULT_FILE_BASENAME
 from ..analysis.outputs import OutputFile
 from ..analysis.registry import register_implementation
-from ..analysis.workflows import WorkflowDefinition, WorkflowImplementation
+from ..analysis.workflows import ResultRequest, WorkflowImplementation
 from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import store_split_dict
 from ..supplib.json import ExtendedJSONEncoder
@@ -172,17 +172,17 @@ class SecondTestImplementation(WorkflowImplementation):
         c: int = 1
         d: float = 1.3
 
-    def topography_dependencies(self, analysis) -> Dict[str, WorkflowDefinition]:
+    def topography_dependencies(self, analysis) -> Dict[str, ResultRequest]:
         topography = analysis.subject
         return {
-            "dep1": WorkflowDefinition(
+            "dep1": ResultRequest(
+                workflow_name="topobank.testing.test",
                 subject=topography,
-                function=Workflow(name="topobank.testing.test"),
                 kwargs=dict(a=self._kwargs.c),
             ),
-            "dep2": WorkflowDefinition(
+            "dep2": ResultRequest(
+                workflow_name="topobank.testing.test",
                 subject=topography,
-                function=Workflow(name="topobank.testing.test"),
                 kwargs=dict(b=self._kwargs.c * "A"),
             ),
         }
@@ -252,12 +252,12 @@ class TestImplementationWithErrorInDependency(WorkflowImplementation):
         c: int = 1
         d: float = 1.3
 
-    def topography_dependencies(self, analysis) -> Dict[str, WorkflowDefinition]:
+    def topography_dependencies(self, analysis) -> Dict[str, ResultRequest]:
         topography = analysis.subject
         return {
-            "dep": WorkflowDefinition(
+            "dep": ResultRequest(
+                workflow_name="topobank.testing.test_error",
                 subject=topography,
-                function=Workflow(name="topobank.testing.test_error"),
                 kwargs=self._kwargs.model_dump(),
             ),
         }
@@ -350,13 +350,13 @@ class TestImplementationWithIntegerKeys(WorkflowImplementation):
     class Parameters(WorkflowImplementation.Parameters):
         value: int = 42
 
-    def topography_dependencies(self, analysis) -> Dict[int, WorkflowDefinition]:
+    def topography_dependencies(self, analysis) -> Dict[int, ResultRequest]:
         """Return dependencies with integer keys (topography.id)."""
         topography = analysis.subject
         return {
-            topography.id: WorkflowDefinition(
+            topography.id: ResultRequest(
+                workflow_name="topobank.testing.test",
                 subject=topography,
-                function=Workflow(name="topobank.testing.test"),
                 kwargs=dict(a=self._kwargs.value),
             ),
         }

@@ -1,10 +1,15 @@
 """
-The Celery workflow engine's shim: `WorkflowImplementation`.
+The Celery workflow engine's shim, `WorkflowImplementation`, and how it is run.
 
 A `WorkflowImplementation` is a `WorkflowDescriptor` plus the code that runs
 the workflow in-process in a Celery worker - the implementation methods keyed
 by subject model, the dependencies they declare and the queue they run on.
 Register subclasses with :data:`topobank.analysis.celery.engine.registry`.
+
+`run_workflow` and `get_dependencies` are what the engine's tasks call: given
+a `WorkflowResult`, they look up its shim in the Celery registry and route to
+the implementation method for the result's subject. No other engine runs
+shims this way, so none of this lives on `WorkflowResult` or `Workflow`.
 """
 
 import inspect
@@ -15,7 +20,10 @@ from muTimer import Timer
 
 from ...manager.models import Surface, Tag, Topography
 from ..descriptor import WorkflowDescriptor
-from ..registry import WorkflowNotImplementedException
+from ..registry import (
+    WorkflowNotImplementedException,
+    WorkflowNotRegisteredException,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -28,7 +36,7 @@ class WorkflowImplementation(WorkflowDescriptor):
     display name, parameters, outputs) plus the implementation methods
     themselves, keyed by subject model in ``Meta.implementations``, their
     declared dependencies and the queue they run on. Register subclasses with
-    ``topobank.analysis.celery_manager.registry``.
+    ``topobank.analysis.celery.engine.registry``.
     """
 
     class Meta:
@@ -178,20 +186,55 @@ class WorkflowImplementation(WorkflowDescriptor):
 
         return dependency_func(analysis)
 
-    @staticmethod
-    def _get_app_config_for_obj(klass):
-        """For given object, find out app config it belongs to."""
-        from django.apps import apps
 
-        search_path = klass.__module__
-        if search_path.startswith("topobank."):
-            search_path = search_path[9:]  # otherwise app from topobank are not found
-        app = None
-        while app is None:
-            try:
-                app = apps.get_app_config(search_path)
-            except LookupError:
-                if ("." not in search_path) or app:
-                    break
-                search_path, _ = search_path.rsplit(".", 1)
-        return app
+def _runner_for(result) -> WorkflowImplementation:
+    """The shim instance that runs `result`'s workflow, bound to its parameters."""
+    from .engine import registry
+
+    klass = registry.get(result.workflow_name)
+    if klass is None:
+        raise WorkflowNotRegisteredException(result.workflow_name)
+    return klass(**result.kwargs)
+
+
+def get_dependencies(result) -> dict:
+    """
+    The results `result`'s workflow needs before it can run.
+
+    Returns a dictionary mapping the workflow's own dependency keys to
+    :class:`~topobank.analysis.workflows.ResultRequest` items, as declared by
+    the shim's ``Meta.dependencies`` method for the result's subject. Empty
+    when the workflow declares none.
+    """
+    return _runner_for(result).get_dependencies(result) or {}
+
+
+def run_workflow(result, **auxiliary_kwargs):
+    """
+    Run `result`'s workflow in this process.
+
+    Routes to the shim's implementation method for the result's subject: the
+    surface-set relation when the result has one (by surface count), the
+    subject foreign key otherwise. ``auxiliary_kwargs`` (``dependencies``,
+    ``progress_recorder``, ``timer``) are forwarded to the implementation as
+    far as it accepts them.
+
+    A tag result is private to a single user; the workflow runs with that
+    user's view permission on the tag and raises `PermissionError` if the
+    result is shared with anybody else.
+    """
+    runner = _runner_for(result)
+
+    if result.surfaces.exists():
+        return runner.eval_surfaces(result, **auxiliary_kwargs)
+
+    if result.is_tag_related:
+        users = result.permissions.user_permissions.all()
+        if users.count() != 1:
+            raise PermissionError(
+                "This is a tag WorkflowResult, which should only be assigned to a single "
+                "user."
+            )
+        result.subject.authorize_user(users.first().user, "view")
+
+    return runner.eval(result, **auxiliary_kwargs)

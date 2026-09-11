@@ -28,6 +28,23 @@
 - MAINT: The Celery tasks moved to `topobank.analysis.celery.tasks`, keeping
   their `topobank.analysis.tasks.*` names; `topobank.analysis.tasks` re-exports
   them. `get_current_configuration` lives in `topobank.analysis.configuration`
+- MAINT: One way to ask for a result. `ResultRequest`
+  (`topobank.analysis.workflows`) names a workflow, a subject or surface set
+  and parameters, and is what both a user's submission and a workflow's
+  dependency declaration amount to. `topobank.analysis.store.find_or_create`
+  is the single place `WorkflowResult` rows are created; callers state when
+  an existing row may stand in (`Reuse.VIABLE` for submissions,
+  `Reuse.FINISHED` for dependencies, `Reuse.NEVER` for `ignore_existing`).
+  `WorkflowDefinition(subject=, function=, kwargs=)` still works and is
+  deprecated in favour of `ResultRequest(workflow_name=, subject=, kwargs=)`
+- MAINT: `Workflow` is a value object over a name: it resolves to the
+  registered descriptor and delegates all metadata to it. Asking an unknown
+  workflow for parameters, schema or outputs raises
+  `WorkflowNotRegisteredException` instead of returning empty values;
+  `display_name` still falls back to the name. Running a workflow moved to the
+  Celery engine (`topobank.analysis.celery.workflows.run_workflow`,
+  `get_dependencies`); `Workflow.eval`, `Workflow.eval_surfaces`,
+  `Workflow.get_dependencies` and `WorkflowResult.eval_self` are gone
   and `current_statistics` in `topobank.analysis.utils`
 
 # 1.72.0 (2026-09-10)

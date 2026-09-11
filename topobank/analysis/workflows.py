@@ -3,8 +3,9 @@ Building blocks shared by workflows and the code that submits them.
 
 Nothing in this module runs a workflow or knows how one is run. It holds what
 every workflow engine and every shim has in common: how a set of surfaces is
-identified (`SurfaceSet`, `compute_subject_hash`), how a workflow declares a
-dependency (`WorkflowDefinition`), and helpers that implementations use to
+identified (`SurfaceSet`, `compute_subject_hash`), how a result is asked for
+(`ResultRequest` - the same value object whether a user submits a workflow or a
+workflow declares a dependency), and helpers that implementations use to
 build their results (`ContainerProxy`, `wrap_series`, `make_alert_entry`,
 `reasonable_bins_argument`).
 
@@ -16,21 +17,18 @@ callers written before workflow engines existed.
 import collections
 import hashlib
 import logging
-from dataclasses import dataclass
-from typing import Union
+import warnings
+from dataclasses import dataclass, field
+from typing import List, Optional, Union
 
 import numpy as np
 import pydantic
 from pydantic import field_validator
 
-from ..manager.models import Surface, Topography
+from ..manager.models import Surface, Tag, Topography
 from ..supplib.dict import SplitDictionaryHere
-from .models import Workflow
 
 _log = logging.getLogger(__name__)
-
-APP_NAME = "analysis"
-VIZ_SERIES = "series"
 
 
 def compute_subject_hash(subject_type: str, subject_ids):
@@ -193,15 +191,114 @@ def make_alert_entry(
 
 
 @dataclass
-class WorkflowDefinition:
-    # We don't allow tags as dependencies
-    subject: Union[Surface, Topography] = None
+class ResultRequest:
+    """
+    What a caller asks for: a workflow, applied to a subject, with parameters.
 
-    # Analysis function
-    function: Workflow = None
+    This is the single value object behind both ways a `WorkflowResult` comes
+    into being - a user submitting a workflow (`Workflow.submit`,
+    `Workflow.submit_for_surfaces`) and a workflow declaring a dependency
+    (`Meta.dependencies` on the Celery shim). `topobank.analysis.store`
+    turns a request into a result row, reusing an existing one where the
+    caller's reuse policy allows.
 
-    # Parameters
-    kwargs: dict = None
+    Exactly one of `subject` and `surfaces` is set. `subject` is a single
+    `Topography`, `Surface` or `Tag`, stored on the result's foreign keys;
+    `surfaces` is a set of surfaces, stored on the result's `surfaces`
+    relation and identified by `subject_hash`.
+
+    `kwargs` are the parameters as given; they are validated and completed
+    against the workflow's `Parameters` model when the request is resolved,
+    not here, so a request is cheap to build and never touches the registry.
+    """
+
+    workflow_name: str
+    subject: Union[Surface, Topography, Tag, None] = None
+    surfaces: Optional[List[Surface]] = None
+    kwargs: Optional[dict] = field(default=None)
+
+    def __post_init__(self):
+        if (self.subject is None) == (self.surfaces is None):
+            raise ValueError(
+                "A ResultRequest needs exactly one of `subject` and `surfaces`."
+            )
+        if self.surfaces is not None:
+            self.surfaces = list(self.surfaces)
+            if len(self.surfaces) == 0:
+                raise ValueError("A ResultRequest for a surface set needs at least one surface.")
+        elif not isinstance(self.subject, (Surface, Topography, Tag)):
+            raise ValueError(
+                "`subject` must be a `Tag`, `Topography` or `Surface`, "
+                f"not {type(self.subject)}."
+            )
+
+    @property
+    def subject_type(self) -> str:
+        """The subject type as used in `subject_hash`: 'surfaces', 'surface', 'topography' or 'tag'."""
+        if self.surfaces is not None:
+            return "surfaces"
+        if isinstance(self.subject, Tag):
+            return "tag"
+        if isinstance(self.subject, Topography):
+            return "topography"
+        return "surface"
+
+    @property
+    def subject_ids(self) -> List[int]:
+        if self.surfaces is not None:
+            return [s.id for s in self.surfaces]
+        return [self.subject.id]
+
+    @property
+    def subject_hash(self) -> str:
+        """Deterministic identifier of the subject, as stored on `WorkflowResult.subject_hash`."""
+        return compute_subject_hash(self.subject_type, self.subject_ids)
+
+    def as_surface_set(self) -> "ResultRequest":
+        """
+        The same request with a `Surface` subject turned into a one-surface set.
+
+        Dependencies of a surface-set result are themselves surface-set
+        results, so that a parent and its dependencies share one addressing
+        scheme. Requests that are already surface sets, or whose subject is a
+        topography or tag, are returned unchanged.
+        """
+        if self.surfaces is None and isinstance(self.subject, Surface):
+            return ResultRequest(
+                workflow_name=self.workflow_name,
+                surfaces=[self.subject],
+                kwargs=self.kwargs,
+            )
+        return self
+
+
+class WorkflowDefinition(ResultRequest):
+    """
+    Deprecated spelling of `ResultRequest` with a `Workflow` in place of the name.
+
+    Kept for dependency declarations written as
+    ``WorkflowDefinition(subject=..., function=Workflow(name=...), kwargs=...)``.
+    New code builds a `ResultRequest` with `workflow_name`.
+    """
+
+    def __init__(self, subject=None, function=None, kwargs=None, workflow_name=None):
+        warnings.warn(
+            "WorkflowDefinition is deprecated; declare dependencies as "
+            "ResultRequest(workflow_name=..., subject=..., kwargs=...).",
+            DeprecationWarning,
+            stacklevel=2,
+        )
+        if function is not None:
+            workflow_name = function if isinstance(function, str) else function.name
+        if workflow_name is None:
+            raise ValueError("WorkflowDefinition needs a `function` (or `workflow_name`).")
+        super().__init__(workflow_name=workflow_name, subject=subject, kwargs=kwargs)
+
+    @property
+    def function(self):
+        from .models import Workflow
+
+        return Workflow(name=self.workflow_name)
 
 
 def __getattr__(name):

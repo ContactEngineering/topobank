@@ -8,6 +8,7 @@ from functools import partial
 from typing import Union
 from urllib.parse import urlparse
 
+import pydantic
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import models, transaction
@@ -22,10 +23,13 @@ from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, ViewEditFull
 from ..files.models import Manifest, ManifestSet
 from ..manager.models import Surface, Tag, Topography
-from ..supplib.db import advisory_lock
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
-from .registry import WorkflowNotImplementedException, get_implementation
+from .registry import (
+    WorkflowNotImplementedException,
+    WorkflowNotRegisteredException,
+    get_implementation,
+)
 
 _log = logging.getLogger(__name__)
 
@@ -642,29 +646,6 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
             self.subject_hash = None
         self.save(update_fields=["subject_hash"])
 
-    def eval_self(self, **auxiliary_kwargs):
-        if self.surfaces.exists():
-            # New path: use surface set routing
-            return self.function.eval_surfaces(
-                self,
-                **auxiliary_kwargs,
-            )
-
-        # Old path: use subject FK
-        if self.is_tag_related:
-            users = self.permissions.user_permissions.all()
-            if users.count() != 1:
-                raise PermissionError(
-                    "This is a tag WorkflowResult, which should only be assigned to a single "
-                    "user."
-                )
-            self.subject.authorize_user(users.first().user, "view")
-
-        return Workflow(name=self.workflow_name).eval(
-            self,
-            **auxiliary_kwargs,
-        )
-
     def submit(self, force_submit: bool = False) -> "WorkflowResult":
         with transaction.atomic():
             self.set_pending_state()
@@ -745,11 +726,18 @@ submit_analysis_task_to_celery = submit_workflow
 
 class Workflow:
     """
-    Workflow represents a registered analysis workflow.
+    A workflow, by name.
 
-    This is a plain Python class — not a Django model. Workflow metadata is
-    derived from the implementation registry at runtime; there is no database
-    table for workflows.
+    This is a plain value object, not a Django model; there is no table of
+    workflows. It resolves its name to the descriptor (shim) a workflow engine
+    registered under it and answers the questions the API asks about a
+    workflow - display name, parameter schema and defaults, outputs, accepted
+    subjects - by delegating to that descriptor. It is also where a result is
+    asked for: `submit`, `submit_for_surfaces` and `submit_again` apply the
+    business rules and hand the result to its engine.
+
+    Running a workflow is the engine's business and is not on this class; see
+    :mod:`topobank.analysis.celery.workflows` for how the Celery engine does it.
     """
 
     def __init__(self, name: str):
@@ -769,116 +757,98 @@ class Workflow:
     def __hash__(self):
         return hash(self.name)
 
-    @property
-    def display_name(self):
-        impl = self.implementation
-        if impl is not None:
-            return impl.Meta.display_name
-        return self.name
+    # --- Resolution ------------------------------------------------------
 
     @property
     def implementation(self):
         """
-        The descriptor (shim) class registered for this workflow, or None.
+        The descriptor (shim) class registered for this workflow, or None if
+        no workflow engine knows the name.
 
-        Resolved by name over the configured workflow engines; the class is
+        Resolved over the configured engines in priority order; the class is
         the engine's own shim, so it also knows how to run the workflow there.
         """
         return get_implementation(name=self.name)
 
-    def has_implementation(self, model_class):
+    @property
+    def descriptor(self):
         """
-        Returns whether implementation function for a specific subject model exists
-        """
-        impl = self.implementation
-        if impl is not None:
-            return impl.has_implementation(model_class)
-        return False
-
-    def get_default_kwargs(self):
-        """
-        Return default keyword arguments as a dictionary.
-        """
-        impl = self.implementation
-        if impl is None:
-            return {}
-        try:
-            params = impl.Parameters
-            if params is None:
-                return {}
-            return params().model_dump()
-        except Exception:
-            return {}
-
-    def get_kwargs_schema(self):
-        """
-        JSON schema describing the keyword arguments.
-        """
-        impl = self.implementation
-        if impl is None:
-            return {}
-        params = impl.Parameters
-        if params is not None:
-            return params.model_json_schema()
-        return {}
-
-    def get_outputs_schema(self) -> list:
-        """
-        JSON schema describing workflow outputs.
-
-        Returns
-        -------
-        list
-            List of file descriptors with their schemas
-        """
-        impl = self.implementation
-        if impl is not None and hasattr(impl, "get_outputs_schema"):
-            return impl.get_outputs_schema()
-        return []
-
-    def clean_kwargs(self, kwargs: Union[dict, None], fill_missing: bool = True):
-        """
-        Validate keyword arguments (parameters) and return validated dictionary
-
-        Parameters
-        ----------
-        kwargs: Union[dict, None]
-            Keyword arguments
-        fill_missing: bool, optional
-            Fill missing keys with default values. (Default: True)
+        The descriptor (shim) class registered for this workflow.
 
         Raises
         ------
-        pydantic.ValidationError if validation fails
+        WorkflowNotRegisteredException
+            If no workflow engine knows the name.
         """
-        impl = self.implementation
-        if impl is None:
-            return kwargs or {}
-        if hasattr(impl, "instance_clean_kwargs"):
-            return impl.instance_clean_kwargs(kwargs, fill_missing=fill_missing)
-        return impl.clean_kwargs(kwargs, fill_missing=fill_missing)
+        descriptor = self.implementation
+        if descriptor is None:
+            raise WorkflowNotRegisteredException(self.name)
+        return descriptor
 
-    def get_dependencies(self, analysis):
-        impl = self.implementation
-        if impl is None:
+    @property
+    def is_registered(self) -> bool:
+        """Whether some workflow engine knows this workflow."""
+        return self.implementation is not None
+
+    # --- Metadata, delegated to the descriptor ---------------------------
+
+    @property
+    def display_name(self) -> str:
+        """
+        The workflow's display name.
+
+        Falls back to the name itself for a workflow no engine knows: results
+        outlive the workflows that produced them and still need a label.
+        """
+        descriptor = self.implementation
+        return self.name if descriptor is None else descriptor.Meta.display_name
+
+    def has_implementation(self, model_class) -> bool:
+        """Whether the workflow accepts subjects of `model_class`; False if unknown."""
+        descriptor = self.implementation
+        return descriptor is not None and descriptor.has_implementation(model_class)
+
+    def get_default_kwargs(self) -> dict:
+        """
+        The default parameters as a dictionary.
+
+        Empty for a workflow whose parameters have required fields, which has
+        no complete set of defaults.
+        """
+        try:
+            return self.descriptor.get_default_kwargs()
+        except pydantic.ValidationError:
             return {}
-        return impl(**analysis.kwargs).get_dependencies(analysis)
 
-    def eval(self, analysis, **auxiliary_kwargs):
-        """
-        First argument is the subject of the WorkflowResult (`Surface`, `Topography` or `Tag`).
-        """
-        impl = self.implementation
-        if impl is None:
-            raise WorkflowNotImplementedException(self.name, type(analysis.subject))
-        runner = impl(**analysis.kwargs)
-        return runner.eval(analysis, **auxiliary_kwargs)
+    def get_kwargs_schema(self) -> dict:
+        """JSON schema of the parameters."""
+        return self.descriptor.get_kwargs_schema()
 
-    def eval_surfaces(self, analysis, **auxiliary_kwargs):
-        """Evaluate using the surfaces M2M path. Routes to existing implementations
-        based on surface set size."""
-        runner = self.implementation(**analysis.kwargs)
-        return runner.eval_surfaces(analysis, **auxiliary_kwargs)
+    def get_outputs_schema(self) -> list:
+        """The declared output files, each with its schema."""
+        return self.descriptor.get_outputs_schema()
+
+    def clean_kwargs(self, kwargs: Union[dict, None], fill_missing: bool = True) -> dict:
+        """
+        Validate parameters against the workflow's `Parameters` model.
+
+        Parameters
+        ----------
+        kwargs : dict or None
+            Parameters as given; None stands for "all defaults".
+        fill_missing : bool, optional
+            Fill in defaults for parameters not given. (Default: True)
+
+        Raises
+        ------
+        pydantic.ValidationError
+            If the parameters do not validate.
+        WorkflowNotRegisteredException
+            If no workflow engine knows the workflow.
+        """
+        return self.descriptor.clean_kwargs(kwargs, fill_missing=fill_missing)
+
+    # --- Asking for results ----------------------------------------------
 
     def submit(
         self,
@@ -886,21 +856,38 @@ class Workflow:
         subject: Union[Tag, Surface, Topography],
         kwargs: dict = None,
         force_submit: bool = False,
-    ):
+    ) -> WorkflowResult:
         """
+        Ask for this workflow's result on `subject`, running it if needed.
+
+        A result that is pending, running or finished successfully for the
+        same subject and parameters, and that `user` may see, is returned as
+        is. Otherwise failed leftovers are removed and a new result is created
+        and handed to the workflow engine once the transaction commits.
+
+        Parameters
+        ----------
         user : topobank.users.models.User
-            Users which should see the WorkflowResult.
+            User asking; must be allowed to view `subject`, gets `edit` on a
+            new result.
         subject : Tag or Topography or Surface
-            Instance which will be subject of the WorkflowResult (first argument of WorkflowResult
-            function).
+            Subject of the result.
         kwargs : dict, optional
-            Keyword arguments for the function which should be saved to database. If
-            None is given, the default arguments for the given WorkflowResult function are
-            used. The default arguments are the ones used in the function
-            implementation (python function). (Default: None)
+            Parameters. Missing ones are filled with the workflow's defaults;
+            None means all defaults. (Default: None)
         force_submit : bool, optional
-            Submit even if WorkflowResult already exists. (Default: False)
+            Create and run a new result even if a viable one exists.
+            (Default: False)
+
+        Raises
+        ------
+        WorkflowNotImplementedException
+            If the workflow does not accept subjects of this type, or no
+            engine knows the workflow.
         """
+        from .store import Reuse, find_or_create
+        from .workflows import ResultRequest
+
         # Check if user can actually access the subject
         subject.authorize_user(user, "view")
 
@@ -915,117 +902,14 @@ class Workflow:
         #     if subject.get_task_state() != subject.SUCCESS:
         #         raise SubjectNotReadyException(subject)
 
-        # Make sure the parameters are correct and fill in missing values
-        # (will trigger validation error if not)
-        kwargs = self.clean_kwargs(kwargs)
-
-        # Query for all existing WorkflowResults with the same parameters
-        q = WorkflowResult.Q(subject) & Q(workflow_name=self.name) & Q(kwargs=kwargs)
-
-        # If subject is tag, we need to restrict this to the current user because those
-        # WorkflowResults cannot be shared
-        if isinstance(subject, Tag):
-            q &= Q(permissions__user_permissions__user=user)
-
-        # Serialize the check-then-create against concurrent identical
-        # submissions. Without this, two requests for the same
-        # subject/workflow/kwargs can both observe "no viable result", both
-        # delete the failed set and both create+dispatch a new WorkflowResult,
-        # producing duplicate rows and duplicate compute. The advisory lock is
-        # released when the surrounding transaction commits.
-        with transaction.atomic(), advisory_lock(
-            "workflow-submit",
-            self.name,
-            f"{type(subject).__name__}:{subject.id}",
-            json.dumps(kwargs, sort_keys=True, default=str),
-        ):
-            # All existing WorkflowResults for this subject and parameter set
-            existing_analyses = WorkflowResult.objects.for_user(user).filter(q)
-
-            # WorkflowResults, excluding those that have failed or that have not
-            # been submitted to the task queue for some reason (state "no"t run)
-            successful_or_running_analyses = existing_analyses.filter(
-                task_state__in=[
-                    WorkflowResult.PENDING,
-                    WorkflowResult.PENDING_DEPENDENCIES,
-                    WorkflowResult.RETRY,
-                    WorkflowResult.STARTED,
-                    WorkflowResult.SUCCESS,
-                ]
-            )
-
-            # We submit a new WorkflowResult only if we are either forced to do
-            # so or if there is no WorkflowResult with the same parameter
-            # pending, running or successfully completed.
-            if force_submit or successful_or_running_analyses.count() == 0:
-                # Delete *all* existing WorkflowResults with this subject/parameter
-                # set (which now may only contain failed ones), excluding
-                # saved/named ones (name__isnull is redundant since all saved
-                # analyses no longer have subjects)
-                existing_analyses.filter(name__isnull=True).delete()
-
-                return self._submit_new_analysis(user, subject, kwargs)
-            else:
-                # There seem to be viable analyses. Fetch the latest one. Select
-                # from the successful/running set, not from all existing analyses:
-                # NULL task_start_time (never-run rows) sort last in PostgreSQL,
-                # so .last() over the full set could return a NOTRUN row instead
-                # of an available SUCCESS one.
-                return successful_or_running_analyses.order_by(
-                    "task_start_time"
-                ).last()
-
-    def _submit_new_analysis(
-        self,
-        user: settings.AUTH_USER_MODEL,
-        subject: Union[Tag, Topography, Surface],
-        kwargs: dict,
-    ):
-        """
-        Create and submit a new WorkflowResult analysis.
-
-        Parameters
-        ----------
-        user: topobank.users.models.User
-            User which should see the WorkflowResult.
-        subject: Tag or Topography or Surface
-            Instance which will be subject of the WorkflowResult.
-        kwargs: dict
-            Keyword arguments for the function which should be saved to database.
-
-        Returns
-        -------
-        New WorkflowResult object.
-        """
-        _log.info(
-            f"Submitting new WorkflowResult for user {user}, "
-            f"subject {subject}, function {self}, kwargs: {kwargs}"
-        )
-
+        request = ResultRequest(workflow_name=self.name, subject=subject, kwargs=kwargs)
         with transaction.atomic():
-            # Create new entry in the WorkflowResult table and grant access to current user
-            create_kwargs = dict(
-                workflow_name=self.name,
-                kwargs=kwargs,
-                created_by=user,
-                updated_by=user,
+            found = find_or_create(
+                request, user=user, reuse=Reuse.VIABLE, force=force_submit, for_user=True
             )
-            if isinstance(subject, Tag):
-                create_kwargs["subject_tag"] = subject
-                create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("tag", [subject.id])
-            elif isinstance(subject, Topography):
-                create_kwargs["subject_topography"] = subject
-                create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("topography", [subject.id])
-            elif isinstance(subject, Surface):
-                create_kwargs["subject_surface"] = subject
-                create_kwargs["subject_hash"] = WorkflowResult.compute_subject_hash("surface", [subject.id])
-            analysis = WorkflowResult.objects.create(**create_kwargs)
-            analysis.set_pending_state()
-            analysis.permissions.grant_for_user(user, "edit")
-            transaction.on_commit(
-                partial(submit_workflow, analysis, True)
-            )
-        return analysis
+            if found.needs_run:
+                transaction.on_commit(partial(submit_workflow, found.result, True))
+        return found.result
 
     def submit_for_surfaces(
         self,
@@ -1035,125 +919,59 @@ class Workflow:
         owned_by_id=None,
         force_submit: bool = False,
         ignore_existing: bool = False,
-    ):
+    ) -> WorkflowResult:
         """
-        Submit workflow for a set of surfaces (new surface set system).
+        Ask for this workflow's result on a set of surfaces, running it if needed.
+
+        Reuse follows the same rule as `submit`, except that any viable result
+        for the same surface set and parameters counts, not only those `user`
+        may see.
 
         Parameters
         ----------
         user : User
-            User submitting the workflow.
+            User asking; gets `edit` on a new result.
         surfaces : list[Surface]
-            List of Surface instances to include in the surface set.
+            The surfaces making up the surface set.
         kwargs : dict, optional
-            Keyword arguments for the workflow. (Default: None)
+            Parameters. (Default: None)
+        owned_by_id : int, optional
+            Owner of a new result; defaults to the owner of the first surface.
         force_submit : bool, optional
-            Submit even if a matching WorkflowResult already exists. (Default: False)
-        ignore_existing : bool, optional
-            Skip the dedup/existing lookup entirely and always submit a new
-            WorkflowResult, without deleting any previous matching result.
+            Create and run a new result even if a viable one exists.
             (Default: False)
+        ignore_existing : bool, optional
+            Always create a new result, without looking at or deleting any
+            existing one. (Default: False)
         """
-        from .workflows import SurfaceSet
-
-        surface_set = SurfaceSet(surfaces=[s.id for s in surfaces])
+        from .store import Reuse, find_or_create
+        from .workflows import ResultRequest
 
         # Permission checks (commented out during initial implementation)
         # for surface in surfaces:
         #     surface.authorize_user(user, "view")
 
-        kwargs = self.clean_kwargs(kwargs)
-
-        if ignore_existing:
-            return self._submit_new_analysis_for_surfaces(
-                user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id
-            )
-
-        # Serialize the check-then-create against concurrent identical
-        # submissions (see Workflow.submit for the rationale). The advisory lock
-        # is released when the surrounding transaction commits.
-        with transaction.atomic(), advisory_lock(
-            "workflow-submit-surfaces",
-            self.name,
-            surface_set.subject_hash,
-            json.dumps(kwargs, sort_keys=True, default=str),
-        ):
-            # Dedup check using subject_hash
-            existing = WorkflowResult.objects.filter(
-                workflow_name=self.name,
-                subject_hash=surface_set.subject_hash,
-                kwargs=kwargs,
-            )
-
-            successful_or_running = existing.filter(
-                task_state__in=[
-                    WorkflowResult.PENDING,
-                    WorkflowResult.PENDING_DEPENDENCIES,
-                    WorkflowResult.RETRY,
-                    WorkflowResult.STARTED,
-                    WorkflowResult.SUCCESS,
-                ]
-            )
-
-            if force_submit or successful_or_running.count() == 0:
-                existing.filter(name__isnull=True).delete()
-                return self._submit_new_analysis_for_surfaces(
-                    user, surfaces, surface_set, kwargs, owned_by_id=owned_by_id
-                )
-            else:
-                # Select from the successful/running set (see Workflow.submit).
-                return successful_or_running.order_by("task_start_time").last()
-
-    def _submit_new_analysis_for_surfaces(
-        self,
-        user: settings.AUTH_USER_MODEL,
-        surfaces: list,
-        surface_set,
-        kwargs: dict,
-        owned_by_id=None,
-    ):
-        """Create and submit a new WorkflowResult for a surface set."""
-        _log.info(
-            "Submitting new surface-set WorkflowResult for user %s, "
-            "surfaces %s, function %s, kwargs: %s",
-            user,
-            [s.id for s in surfaces],
-            self,
-            kwargs,
-        )
-
-        if not owned_by_id:
-            owned_by_id = surfaces[0].owned_by_id
-
+        request = ResultRequest(workflow_name=self.name, surfaces=surfaces, kwargs=kwargs)
         with transaction.atomic():
-            analysis = WorkflowResult.objects.create(
-                workflow_name=self.name,
-                kwargs=kwargs,
-                subject_hash=surface_set.subject_hash,
-                created_by=user,
-                updated_by=user,
+            found = find_or_create(
+                request,
+                user=user,
+                reuse=Reuse.NEVER if ignore_existing else Reuse.VIABLE,
+                force=force_submit,
                 owned_by_id=owned_by_id,
             )
-            analysis.surfaces.set(surfaces)
-            analysis.set_pending_state()
-            analysis.permissions.grant_for_user(user, "edit")
-            transaction.on_commit(
-                partial(submit_workflow, analysis, True)
-            )
-        return analysis
+            if found.needs_run:
+                transaction.on_commit(partial(submit_workflow, found.result, True))
+        return found.result
 
-    def submit_again(self, analysis: WorkflowResult):
+    def submit_again(self, analysis: WorkflowResult) -> WorkflowResult:
         """
-        Submit WorkflowResult with same arguments and users.
+        Run an existing result again, with the same subject, parameters and users.
 
         Parameters
         ----------
-        analysis: WorkflowResult
-            WorkflowResult instance to be renewed.
-
-        Returns
-        -------
-        New WorkflowResult object.
+        analysis : WorkflowResult
+            The result to run again.
         """
         _log.info(
             f"Renewing WorkflowResult {analysis.id}: Users "
@@ -1162,9 +980,7 @@ class Workflow:
         )
         with transaction.atomic():
             analysis.set_pending_state()
-            transaction.on_commit(
-                partial(submit_workflow, analysis, True)
-            )
+            transaction.on_commit(partial(submit_workflow, analysis, True))
         return analysis
 
 

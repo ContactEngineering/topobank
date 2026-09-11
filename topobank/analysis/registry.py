@@ -44,6 +44,16 @@ class WorkflowNotImplementedException(WorkflowRegistryException):
         )
 
 
+class WorkflowNotRegisteredException(WorkflowRegistryException):
+    """No configured workflow engine knows a workflow of the given name."""
+
+    def __init__(self, name):
+        self._name = name
+
+    def __str__(self):
+        return f"No workflow engine knows a workflow named '{self._name}'."
+
+
 class UnknownKeyException(WorkflowRegistryException):
     """A key was requested which is not known."""
 
