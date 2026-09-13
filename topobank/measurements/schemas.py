@@ -13,8 +13,11 @@ validators. There are two families:
     Read-only, file-derived cache written exclusively by the inspection task.
     Stored in ``Measurement.file_info``.
 
-The inventory of a file's channels is deliberately not here yet: it still lives in
-the ``channel_names`` column, and moving it is a separate change.
+The inventory of a file's channels lives in ``MeasurementFileInfo.channels``, one
+:class:`ChannelInfo` per channel, on the *base* class: which channels a file has
+is a property of the file, not of the kind selected from it. The ``channel_names``
+column it supersedes is still written for the REST API and goes with the other
+legacy columns.
 
 Both carry a ``kind`` discriminator so that the stored JSON is self-describing
 (important for exported containers and published datasets, which must be
@@ -312,6 +315,39 @@ class NonuniformLineScanMetadata(HeightMetadata):
 #
 
 
+class ChannelInfo(pydantic.BaseModel):
+    """
+    One data channel of a measurement's file, as the inspection found it.
+
+    Channels are identified by ``name``. Nothing guarantees names are unique
+    within a file, so ``occurrence`` disambiguates -- but only when it has to:
+    it is the channel's 0-based position among the channels *of the same name*,
+    in file order, and ``None`` when the name is unique. The distinction is
+    deliberate. A ``None`` asserts "this name identified exactly one channel when
+    it was recorded", so a reader that later exposes a second channel of that
+    name is *detected* as an ambiguity instead of quietly resolving to the first
+    match -- which is the failure mode positional channel indices have today.
+
+    ``kind`` is the registry key of the adapter that would import this channel,
+    or ``None`` if none claims it. That is what makes a non-height channel
+    (adhesion, phase, current) visible as "present, importable by no kind yet".
+    """
+
+    model_config = pydantic.ConfigDict(extra="forbid", validate_assignment=True)
+
+    name: str
+    #: Position among same-named channels, None while the name is unique.
+    occurrence: Optional[int] = pydantic.Field(default=None, ge=0)
+    #: Dimensionality of the data (1 for a line scan, 2 for a map).
+    dim: Optional[int] = pydantic.Field(default=None, ge=1)
+    #: Unit of the lateral positions.
+    unit: Optional[str] = None
+    #: Unit of the data values. Equal to ``unit`` for height data.
+    data_unit: Optional[str] = None
+    #: Kind this channel would be imported as, or None if no adapter claims it.
+    kind: Optional[str] = None
+
+
 class MeasurementFileInfo(pydantic.BaseModel):
     """
     Base class for the file-derived cache of a measurement.
@@ -322,6 +358,10 @@ class MeasurementFileInfo(pydantic.BaseModel):
     model_config = pydantic.ConfigDict(extra="forbid", validate_assignment=True)
 
     kind: str
+    #: Every channel the data file offers, in file order. On the base class
+    #: because a file's channels do not depend on which kind was selected from
+    #: it. Empty until the file has been inspected.
+    channels: list[ChannelInfo] = pydantic.Field(default_factory=list)
 
 
 class HeightFileInfo(MeasurementFileInfo):

@@ -36,8 +36,9 @@ from django.db.models import BigIntegerField, Value
 from django.db.models.fields.json import KeyTextTransform
 from django.db.models.functions import Cast
 
-from .registry import register_adapter
+from .registry import UnsupportedChannelError, infer_kind, register_adapter
 from .schemas import (
+    ChannelInfo,
     MeasurementFileInfo,
     MeasurementMetadata,
     NonuniformLineScanFileInfo,
@@ -320,6 +321,59 @@ class SurfaceTopographyAdapter(MeasurementAdapter):
         if channel.dim != cls.dim:
             return False
         return cls.is_uniform is None or bool(channel.is_uniform) == cls.is_uniform
+
+    @classmethod
+    def describe_channels(cls, reader):
+        """
+        Inventory of every channel an opened ``SurfaceTopography`` reader offers.
+
+        Lives on the adapter family because how a channel presents its name,
+        units and dimensionality is a reader convention; the model only stores
+        what comes back. It is a classmethod on the *family* rather than a method
+        of a kind because the inventory is taken before a kind has been chosen --
+        each channel is asked which kind, if any, would import it.
+
+        ``occurrence`` is set only for names that appear more than once; see
+        :class:`~topobank.measurements.schemas.ChannelInfo` for why a unique
+        name must record ``None`` rather than ``0``.
+
+        Parameters
+        ----------
+        reader : SurfaceTopography.IO.ReaderBase
+            An opened reader.
+
+        Returns
+        -------
+        list of ChannelInfo
+            One entry per channel, in file order.
+        """
+        from collections import Counter
+
+        counts = Counter(channel.name for channel in reader.channels)
+        seen = Counter()
+        channels = []
+        for channel in reader.channels:
+            lateral_unit, data_unit = cls.channel_units(channel)
+            occurrence = None
+            if counts[channel.name] > 1:
+                occurrence = seen[channel.name]
+                seen[channel.name] += 1
+            try:
+                kind = infer_kind(channel)
+            except UnsupportedChannelError:
+                # Present in the file, importable by no registered kind.
+                kind = None
+            channels.append(
+                ChannelInfo(
+                    name=channel.name,
+                    occurrence=occurrence,
+                    dim=channel.dim,
+                    unit=lateral_unit,
+                    data_unit=data_unit,
+                    kind=kind,
+                )
+            )
+        return channels
 
     #
     # Reading data

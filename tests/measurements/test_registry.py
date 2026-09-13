@@ -100,6 +100,40 @@ def test_a_type_without_a_name_is_refused():
         register_adapter(Nameless)
 
 
+@pytest.mark.parametrize("attribute", ["Metadata", "FileInfo"])
+def test_a_schema_that_does_not_derive_from_the_base_is_refused(attribute):
+    """
+    The schema base classes are an enforced contract.
+
+    Everything downstream -- the `kind` discriminator, completeness, significance,
+    the channel inventory -- lives on them. A plugin binding an unrelated pydantic
+    model would pass registration and then fail at inspection time, in a Celery
+    task, for a user; refusing at registration puts the error in front of the
+    plugin's author instead.
+    """
+    import pydantic
+
+    class Unrelated(pydantic.BaseModel):
+        model_config = pydantic.ConfigDict(extra="forbid")
+
+    class Foreign(MeasurementAdapter):
+        class Meta:
+            name = "test-foreign-schema"
+
+        @classmethod
+        def claims_channel(cls, channel):
+            return False
+
+        def read(self, measurement, **kwargs):
+            return None
+
+    setattr(Foreign, attribute, Unrelated)
+
+    with pytest.raises(MeasurementRegistryError, match=attribute):
+        register_adapter(Foreign)
+    assert not has_adapter("test-foreign-schema")
+
+
 def test_two_types_cannot_claim_the_same_kind(registered):
     @registered
     class First(MeasurementAdapter):

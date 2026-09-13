@@ -18,6 +18,8 @@ can register their own types either from the ``ready()`` method of their own
 
 import logging
 
+from .schemas import MeasurementFileInfo, MeasurementMetadata
+
 _log = logging.getLogger(__name__)
 
 #: Name of the entry-point group used to discover measurement adapters shipped by
@@ -104,7 +106,8 @@ def register_adapter(cls):
     Raises
     ------
     MeasurementRegistryError
-        If the class does not declare a name.
+        If the class does not declare a name, or binds a metadata or file-info
+        schema that does not derive from the base schemas.
     AlreadyRegisteredError
         If a different type is already registered under the same name.
     """
@@ -115,6 +118,21 @@ def register_adapter(cls):
         raise MeasurementRegistryError(
             f"Measurement adapter '{cls.__name__}' does not declare a `Meta.name`."
         )
+    # The two schemas are an enforced contract, not a convention: everything
+    # downstream -- the `kind` discriminator, completeness, significance, the
+    # channel inventory -- lives on the base classes, and a schema that does not
+    # derive from them would fail at inspection time, in a Celery task, for a
+    # user. Refusing here fails at import, in front of the plugin's author.
+    for attribute, base in (
+        ("Metadata", MeasurementMetadata),
+        ("FileInfo", MeasurementFileInfo),
+    ):
+        schema = getattr(cls, attribute, None)
+        if not (isinstance(schema, type) and issubclass(schema, base)):
+            raise MeasurementRegistryError(
+                f"Measurement adapter '{cls.__name__}' binds `{attribute}` = "
+                f"{schema!r}, which does not derive from `{base.__name__}`."
+            )
     if kind in _adapters:
         if type(_adapters[kind]) is cls:
             # Registering the very same class twice is harmless and happens when a

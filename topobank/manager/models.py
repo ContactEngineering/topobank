@@ -44,6 +44,7 @@ from ..measurements.registry import (
     infer_kind,
 )
 from ..measurements.adapters import (
+    SurfaceTopographyAdapter,
     write_canonical_manifest,
     write_thumbnail_manifest,
 )
@@ -60,13 +61,6 @@ MAX_LENGTH_DATAFILE_FORMAT = (
     15  # some more characters than currently needed, we may have sub formats in future
 )
 SQUEEZED_DATAFILE_FORMAT = "nc"
-
-
-def _get_unit(channel):
-    if isinstance(channel.unit, tuple):
-        lateral_unit, data_unit = channel.unit
-        return data_unit
-    return channel.unit
 
 
 class ThumbnailGenerationException(Exception):
@@ -1695,13 +1689,17 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
             reader = get_topography_reader(self.datafile.file)
             self.datafile_format = reader.format()
 
-        # Update channel names
+        # Take the inventory of channels. Recorded into `file_info` below, once
+        # the kind is known and the document can be built; `channel_names` is
+        # the legacy display cache the REST API still reads and is kept in step
+        # until it is dropped with the other legacy columns.
+        channels = SurfaceTopographyAdapter.describe_channels(reader)
         self.channel_names = [
-            (channel.name, _get_unit(channel)) for channel in reader.channels
+            (channel.name, channel.data_unit) for channel in channels
         ]
 
         # Idiot check
-        if len(self.channel_names) == 0:
+        if len(channels) == 0:
             raise RuntimeError(
                 f"Datafile of measurement '{self.name}' could be opened, but it "
                 "appears to contain no valid data."
@@ -1714,11 +1712,7 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         # would leave a phantom change that re-dispatches the task on the terminal
         # save().
         data_source = self.data_source
-        if (
-            data_source is None
-            or data_source < 0
-            or data_source >= len(self.channel_names)
-        ):
+        if data_source is None or data_source < 0 or data_source >= len(channels):
             data_source = reader.default_channel.index
 
         # Select channel
@@ -1768,6 +1762,7 @@ class Measurement(PermissionMixin, TaskStateModel, SubjectMixin):
         # that a file it ends up rejecting leaves nothing half-written behind.
         metadata = self.meta
         info = self.info
+        info.channels = channels
 
         # Resolution
         if channel.dim == 1:
