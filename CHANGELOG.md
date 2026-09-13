@@ -9,10 +9,14 @@
   current) visible as present but not yet importable. An `occurrence` ordinal
   disambiguates duplicated names and is deliberately `None` while a name is
   unique, so that a reader later exposing a second channel of that name is
-  detected rather than silently resolved to the first. Existing measurements are
-  backfilled with what the old `channel_names` pairs know (name, data unit,
-  occurrence); the rest is filled in on the next inspection. `channel_names`
-  itself is still written for the REST API and joins the legacy columns
+  detected rather than silently resolved to the first. Measurements that recorded
+  `channel_names` are backfilled with what those pairs know (name, data unit,
+  occurrence), the rest filled in on the next inspection; measurements inspected
+  before `channel_names` existed (September 2023) and not since get an inventory
+  only from a re-inspection. `channel_names` itself is still written for the REST
+  API and joins the legacy columns. Registering an adapter now requires its
+  `Metadata` and `FileInfo` schemas to derive from the base schemas, refused at
+  import time rather than failing at inspection
 - ENH: The memory guard's sizing of analyses is pluggable (#1383). How many
   datums a measurement holds is a property of its kind, so the equations live on
   the measurement adapters now -- `nb_data_points()` for a single measurement

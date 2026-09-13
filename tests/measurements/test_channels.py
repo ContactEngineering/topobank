@@ -230,6 +230,30 @@ def test_the_backfill_skips_never_inspected_measurements():
 
 
 @pytest.mark.django_db
+def test_the_backfill_cannot_help_a_measurement_inspected_before_names_were_kept():
+    """
+    Inspected, cached, and still no names: the pre-`0035` population.
+
+    `channel_names` arrived in September 2023 without a backfill, so such a row
+    looks exactly like this -- a populated `file_info`, an empty list of names.
+    There is nothing to derive an inventory from, and the migration must neither
+    invent one nor blank the rest of the document. Only a re-inspection helps,
+    which is why it is a prerequisite of retiring `data_source`, not of this step.
+    """
+    topo = Topography2DFactory()
+    Measurement.objects.filter(pk=topo.pk).update(
+        channel_names=[],
+        file_info={"kind": "topography-map", "resolution_x": 10, "resolution_y": 10},
+    )
+
+    backfill_module.backfill_channels(_Apps(), None)
+
+    info = Measurement.objects.get(pk=topo.pk).info
+    assert info.channels == []
+    assert info.resolution_x == 10
+
+
+@pytest.mark.django_db
 def test_the_backfill_can_be_undone():
     topo = Topography2DFactory()
     assert topo.info.channels  # populated by the inspection

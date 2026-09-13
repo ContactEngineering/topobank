@@ -9,10 +9,20 @@ and the occurrence ordinal, which is derived purely from the names (`None` unles
 a name is duplicated within the file). Everything else stays `None` until the
 measurement is inspected again; the schema treats `None` as "not recorded".
 
-Measurements that were never inspected have an empty `channel_names` and are left
-alone. The document is written unvalidated and the schema deliberately not
-imported, for the same reason as in `0090`: a migration has to keep describing
-the past.
+Measurements with an empty `channel_names` are left alone, and that is two
+populations, not one. Measurements never inspected have nothing to record. But
+`channel_names` was only added in `0035` (September 2023), without a backfill, so
+a measurement inspected before then and not since is fully inspected -- `0090`
+gave it a `file_info` -- and still has no names. There is nothing to derive an
+inventory from for those rows; only a re-inspection can supply one, and a
+migration is not the place to dispatch that. The same rows will not be able to
+convert their positional `data_source` into a channel name later, for the same
+reason, so the re-inspection is a prerequisite of that step rather than of this
+one. They can be counted with
+``Measurement.objects.filter(channel_names=[]).exclude(file_info={})``.
+
+The document is written unvalidated and the schema deliberately not imported, for
+the same reason as in `0090`: a migration has to keep describing the past.
 
 Done in batches with `bulk_update`: this runs over every measurement.
 """
