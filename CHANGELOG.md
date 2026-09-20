@@ -17,6 +17,17 @@
   `TOPOBANK_*` setting, so a fallback is one named constant rather than a
   literal repeated at the point of use. A deployment defines only the settings
   it wants to change
+- ENH: `Manifest` carries a `note`, `size_bytes` and `content_type`, the three
+  fields a user-uploaded attachment needs: a user's own annotation, the size the
+  client reported before uploading (overwritten from storage on confirmation) and
+  the MIME type the stored object is served with, which decides whether a bare
+  presigned GET renders inline. All three survive `Surface.deepcopy()` (#1400)
+- ENH: Attachments (`kind="att"`) are stored under the `uploads/` prefix like raw
+  datafiles, so the storage-upload webhook confirms them instead of relying on
+  the client calling back; a client that died after the bytes landed no longer
+  leaves an orphaned object. The `kind` documentation now records that the field
+  distinguishes *who produced the file*: `raw` and `att` are uploaded by a
+  person, `der` is written by the system (#1400)
 - API: Presigned PUT uploads are gone, and with them the `UPLOAD_METHOD`
   setting and the `TOPOBANK_UPLOAD_METHOD` environment variable
 - API: The `USE_S3_STORAGE` setting is gone; it was a second source of truth for
@@ -36,6 +47,10 @@
   (`TOPOBANK_ANALYSIS_MEMORY_BASELINE`, added back when predicting) subtracted,
   and only from subjects of at least `TOPOBANK_ANALYSIS_MEMORY_MIN_POINTS` grid
   points, which bounds what an error in the assumed baseline can contribute
+- BUG: Deleting a workflow result whose `permissions` is `None` no longer raises
+  `AttributeError` in `post_delete_analysis`, and its folder and stored files are
+  still removed; the same applied to deleting a measurement that cascades into
+  such a result (#1399)
 - ENH: The custodian fails workflow results whose task was dispatched but that
   are still pending past `TOPOBANK_ANALYSIS_PENDING_HORIZON` (default 7 days).
   Such a row's message is gone - acknowledged by a worker that died with it,
