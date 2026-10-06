@@ -30,3 +30,9 @@ TOPOBANK_INLINE_PREVIEW_TYPES = {
     ".webp": "image/webp",
     ".gif": "image/gif",
 }
+
+#: Detrending applied to a measurement's thumbnail and deep zoom images on top of
+#: its own ``detrend_mode`` -- one of the ``Topography.DETREND_MODE_CHOICES`` keys,
+#: or ``None`` to show the measurement exactly as analyses see it. Only the images
+#: are affected.
+TOPOBANK_VISUALIZATION_DETREND_MODE = None

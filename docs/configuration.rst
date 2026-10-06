@@ -92,6 +92,26 @@ Container / ZIP export
       - Maximum archive size in bytes kept in memory before spilling to disk during ZIP file creation.
 
 
+Measurement images
+------------------
+.. list-table:: Measurement images
+    :widths: 25 10 20 45
+    :header-rows: 1
+
+    * - Setting
+      - Type
+      - Default
+      - Description
+    * - :code:`TOPOBANK_VISUALIZATION_DETREND_MODE`
+      - str
+      - :code:`None`
+      - Detrending applied to a measurement's thumbnail and deep zoom images when the measurement's own
+        ``detrend_mode`` removes less: ``"height"`` removes tilt, ``"curvature"`` removes curvature and tilt.
+        ``None`` shows the measurement as analyses see it. Only the images change; analyses and the squeezed
+        datafile keep the measurement's own ``detrend_mode``. Existing images change only once the
+        measurement's cache is refreshed (``manage.py refresh_cache``).
+
+
 File uploads
 ------------
 
