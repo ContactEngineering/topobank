@@ -280,7 +280,12 @@ class Topography2DFactory(Topography1DFactory):
 #
 def _analysis_result(analysis):
     if analysis.folder is not None:
-        return Workflow(name=analysis.workflow_name).eval(analysis)
+        # `analysis` is the factory's attribute resolver here, not a model
+        # instance, so run the shim directly rather than through run_workflow
+        from ..analysis.celery.engine import registry
+
+        shim = registry.get(analysis.workflow_name)
+        return shim(**analysis.kwargs).eval(analysis)
     else:
         return {"test_result": 1.23}
 
@@ -313,7 +318,7 @@ class AnalysisFactoryWithoutResult(factory.django.DjangoModelFactory):
     subject_surface = None
     subject_tag = None
 
-    # Proxy so that Workflow.eval() can call analysis.subject during factory build
+    # Proxy so that the shim's eval() can call analysis.subject during factory build
     subject = factory.LazyAttribute(
         lambda obj: (
             obj.subject_surface

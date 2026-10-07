@@ -45,6 +45,13 @@ class ManifestSet(PermissionMixin, models.Model):
     #
     read_only = models.BooleanField("read_only", default=True)
 
+    # Files written into this folder are provisional - recorded but not
+    # confirmed - until something confirms them. Set on the folders of workflow
+    # results: a run's output is settled only by its success report, so that a
+    # run that dies half-way leaves a truthful record of what it managed to
+    # write. See ``topobank.analysis.status``.
+    provisional_writes = models.BooleanField(default=False)
+
     def __str__(self) -> str:
         return "ManifestSet"
 
@@ -74,6 +81,13 @@ class ManifestSet(PermissionMixin, models.Model):
             return xarray.load_dataset(io.BytesIO(f.read()), engine="scipy")
 
     def save_file(self, filename: str, kind: str, fobj):
+        """
+        Store `fobj` under `filename` in this folder, replacing an existing file.
+
+        The manifest is confirmed on write unless the folder has
+        ``provisional_writes`` set, in which case it stays provisional until
+        `confirm_all` (or a confirming `register_files`) settles it.
+        """
         # Check whether file exists in this folder, and delete if it does
         fobj.name = filename  # Make sure the filenames are the same
         try:
@@ -88,7 +102,7 @@ class ManifestSet(PermissionMixin, models.Model):
         if not created:
             manifest.file.delete()
         manifest.file = fobj
-        manifest.confirmed_at = timezone.now()
+        manifest.confirmed_at = None if self.provisional_writes else timezone.now()
         manifest.save()
 
     def save_json(self, filename: str, data):
@@ -116,11 +130,103 @@ class ManifestSet(PermissionMixin, models.Model):
         return self.files.all()
 
     def get_valid_files(self) -> models.QuerySet["Manifest"]:
+        """The confirmed files: those topobank knows to be complete and present."""
         # NOTE: "files" is the reverse `related_name` for the relation to `FileManifest`
         return self.get_files().filter(confirmed_at__isnull=False)
 
+    def get_provisional_files(self) -> models.QuerySet["Manifest"]:
+        """
+        The provisional files: reserved or written by a run that has not
+        succeeded (yet). Hidden from `get_valid_files`.
+        """
+        return self.get_files().filter(confirmed_at__isnull=True)
+
+    def reserve(self, filename: str, kind: str = "der") -> "Manifest":
+        """
+        Reserve a place for a file a run is expected to produce.
+
+        Creates a provisional manifest without a file. Its planned storage
+        location is `Manifest.generate_storage_path()`, which is how a remote
+        engine learns where to write; an in-process `save_file` fills the
+        reservation in place. A reservation that is never filled is dropped
+        when the run is settled. A file already recorded under `filename` is
+        left alone and returned.
+        """
+        try:
+            return self.files.get(filename=filename)
+        except Manifest.DoesNotExist:
+            return Manifest.objects.create(
+                filename=filename, kind=kind, folder=self, permissions=self.permissions
+            )
+
+    def confirm_all(self) -> int:
+        """
+        Settle the folder after a successful run: confirm every provisional
+        file that was written and drop reservations that never were. Returns
+        how many files were confirmed.
+        """
+        provisional = self.get_provisional_files()
+        unfilled = Q(file__isnull=True) | Q(file="")
+        for manifest in provisional.filter(unfilled):
+            manifest.delete()
+        return provisional.exclude(unfilled).update(confirmed_at=timezone.now())
+
+    def discard_provisional(self) -> int:
+        """
+        Remove every provisional file in this folder, including whatever was
+        written to storage under its location. Returns how many were removed.
+        """
+        provisional = list(self.get_provisional_files())
+        for manifest in provisional:
+            manifest.delete()  # pre_delete removes the storage object
+        return len(provisional)
+
     def find_file(self, filename: str) -> "Manifest":
         return self.files.get(filename=filename)
+
+    def register_files(self, entries, confirm: bool = True):
+        """
+        Record files a run produced, as described by a workflow engine.
+
+        This is the receiving end of the file manifest an engine returns with a
+        status report (see `topobank.analysis.status.ManifestEntry`): each entry
+        names a file and where it lives in the configured storage. The folder
+        does not look at storage to find out what exists - listing object storage
+        is slow and brittle, and the engine already knows what it wrote - it
+        only translates the engine's list into `Manifest` rows.
+
+        Entries may be `ManifestEntry` instances or mappings with the same keys.
+        A file that is already recorded under the same name (a reservation, an
+        earlier report) is updated in place; registering is idempotent.
+
+        Parameters
+        ----------
+        entries : iterable
+            The engine's file manifest.
+        confirm : bool, optional
+            Confirm the registered files. A success report confirms; a
+            progress or failure report registers provisionally, so that what a
+            run wrote is known without being taken for complete. (Default: True)
+        """
+        now = timezone.now()
+        for entry in entries:
+            if not isinstance(entry, dict):
+                entry = entry.model_dump()
+            filename = entry["filename"]
+            try:
+                manifest = self.files.get(filename=filename)
+            except Manifest.DoesNotExist:
+                manifest = Manifest(filename=filename, folder=self)
+            manifest.permissions = self.permissions
+            manifest.kind = entry.get("kind") or "der"
+            manifest.file.name = entry["path"]
+            if entry.get("size_bytes") is not None:
+                manifest.size_bytes = entry["size_bytes"]
+            if entry.get("content_type"):
+                manifest.content_type = entry["content_type"]
+            if confirm:
+                manifest.confirmed_at = now
+            manifest.save()
 
     def remove_files(self):
         """Clear this folder by removing all files."""

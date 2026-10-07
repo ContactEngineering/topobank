@@ -15,6 +15,7 @@ Contents:
    configuration
    search
    analyses
+   workflow-engine
    deploy
    swarm
    maintenance

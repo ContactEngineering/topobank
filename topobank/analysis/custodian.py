@@ -5,6 +5,7 @@ from django.conf import settings
 from django.db.models import Q, RestrictedError
 from django.utils import timezone
 
+from ..files.models import Manifest
 from ..taskapp.celeryapp import app
 from .models import WorkflowResult
 from .zip_model import ResultZipContainer
@@ -117,6 +118,31 @@ def periodic_cleanup():
     if count:
         _log.info(
             f"Custodian: Deleting {count} temporary ZIP containers of workflow results."
+        )
+        q.delete()
+
+    # Reclaim the provisional files of runs that did not succeed: reservations
+    # never filled and partial output of failed runs. Rows of results that are
+    # still waiting or running are left alone; a stuck run's rows age into this
+    # clause once the reapers below have failed it. Deleting the manifest
+    # removes the storage object with it.
+    active_states = [
+        WorkflowResult.PENDING,
+        WorkflowResult.PENDING_DEPENDENCIES,
+        WorkflowResult.RETRY,
+        WorkflowResult.STARTED,
+    ]
+    q = Manifest.objects.filter(
+        confirmed_at__isnull=True,
+        created_at__lt=timezone.now() - temporary_delay,
+        folder__workflowresult__isnull=False,
+    ).exclude(folder__workflowresult__task_state__in=active_states)
+    count = q.count()
+    if count:
+        _log.info(
+            "Custodian: Deleting %d provisional files of workflow results that did "
+            "not succeed.",
+            count,
         )
         q.delete()
 

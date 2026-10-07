@@ -6,9 +6,11 @@ from django.core.files.storage import default_storage
 from django.db.models.functions import Lower
 from django.utils import timezone
 
+from topobank.analysis.celery.workflows import run_workflow
 from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.registry import (
     WorkflowNotImplementedException,
+    WorkflowNotRegisteredException,
     get_workflow_names,
 )
 from topobank.analysis.tasks import get_current_configuration
@@ -56,10 +58,39 @@ def test_exception_implementation_missing(test_workflow):
     function = Workflow(name="topobank.testing.topography_only_test")
     analysis = TopographyAnalysisFactory(workflow_name=function.name)
     analysis.folder.remove_files()
-    function.eval(analysis)  # that's okay, it's implemented
+    run_workflow(analysis)  # that's okay, it's implemented
     analysis = SurfaceAnalysisFactory()
+    analysis.workflow_name = function.name
     with pytest.raises(WorkflowNotImplementedException):
-        function.eval(analysis)  # that's not implemented
+        run_workflow(analysis)  # that's not implemented
+
+
+def test_workflow_metadata_delegates_to_descriptor(test_workflow):
+    assert test_workflow.is_registered
+    assert test_workflow.descriptor == TestImplementation
+    assert test_workflow.display_name == TestImplementation.Meta.display_name
+    assert test_workflow.get_default_kwargs() == TestImplementation.get_default_kwargs()
+    assert test_workflow.get_kwargs_schema() == TestImplementation.get_kwargs_schema()
+    assert test_workflow.get_outputs_schema() == TestImplementation.get_outputs_schema()
+    assert test_workflow.clean_kwargs(dict(a=3)) == dict(a=3, b="foo")
+
+
+def test_unknown_workflow_keeps_a_label_but_has_no_metadata():
+    workflow = Workflow(name="nobody.knows.this")
+    assert not workflow.is_registered
+    assert workflow.implementation is None
+    # Results outlive workflows and still need a label
+    assert workflow.display_name == "nobody.knows.this"
+    assert not workflow.has_implementation(Topography)
+    for ask in (
+        lambda: workflow.descriptor,
+        workflow.get_default_kwargs,
+        workflow.get_kwargs_schema,
+        workflow.get_outputs_schema,
+        lambda: workflow.clean_kwargs({}),
+    ):
+        with pytest.raises(WorkflowNotRegisteredException):
+            ask()
 
 
 @pytest.mark.django_db
@@ -73,7 +104,7 @@ def test_workflow_eval(test_workflow):
         kwargs=dict(a=2, b="bar"),
     )
     analysis.folder.remove_files()  # Make sure there are no files
-    test_workflow.eval(analysis)
+    run_workflow(analysis)
     # Results are now stored as files, access via analysis.result
     assert analysis.result["comment"] == "Arguments: a is 2 and b is bar"
 

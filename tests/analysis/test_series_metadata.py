@@ -9,7 +9,7 @@ display unit that suits them (ContactEngineering/ce-ui#39).
 
 import numpy as np
 
-from topobank.analysis.legacy.workflows import wrap_series
+from topobank.analysis.workflows import wrap_series
 
 
 def _supplementary(series):

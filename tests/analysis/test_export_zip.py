@@ -91,6 +91,9 @@ def test_archive_skips_display_only_artifacts():
         f"step-0/{EXCLUDED_DIRECTORIES[0]}/pressure/0/0_0.png", "der", ContentFile(b"x")
     )
     analysis.folder.save_file("step-0/nc/results.nc", "der", ContentFile(b"y"))
+    # Files written into a result folder are provisional until the run is
+    # settled; these stand for files of the successful run
+    analysis.folder.confirm_all()
 
     with _archive([analysis]) as zip_file:
         names = zip_file.namelist()
@@ -196,6 +199,7 @@ def test_progress_counts_only_the_files_that_are_bundled():
             "der",
             ContentFile(b"tile"),
         )
+    analysis.folder.confirm_all()  # as the successful run would have settled them
     assert analysis.folder.get_valid_files().count() == nb_files + 50
 
     recorder = RecordingProgressRecorder()
