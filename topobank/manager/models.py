@@ -41,6 +41,7 @@ from ..authorization.models import (
     ViewEditFull,
 )
 from ..files.models import Manifest, ManifestSet
+from ..settings import defaults
 from ..taskapp.models import IncompleteMetadataError, TaskStateModel
 from ..taskapp.utils import in_celery_worker_process, run_task
 from ..utils.timer import Timer
@@ -1330,6 +1331,46 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         return copy
 
+    def _visualization_topography(self, st_topo):
+        """
+        Return the topography as its thumbnail and deep zoom images show it.
+
+        The images are a visualization, not data. A tilt of the sample across the
+        scan easily dwarfs its roughness and then renders as a plain color
+        gradient, so a deployment can remove tilt (or curvature) from the images
+        through ``TOPOBANK_VISUALIZATION_DETREND_MODE`` even when the
+        measurement's own ``detrend_mode`` keeps it. A measurement that is
+        already detrended at least that far is shown as it is. Analyses and the
+        squeezed datafile are unaffected.
+
+        Parameters
+        ----------
+        st_topo : SurfaceTopography.Topography or line scan
+            The measurement as read with its own filters applied.
+
+        Returns
+        -------
+        st_topo : SurfaceTopography.Topography or line scan
+            The topography to render.
+        """
+        mode = getattr(
+            settings,
+            "TOPOBANK_VISUALIZATION_DETREND_MODE",
+            defaults.TOPOBANK_VISUALIZATION_DETREND_MODE,
+        )
+        if mode is None:
+            return st_topo
+        # Choices are ordered by how much they remove
+        modes = [key for key, _ in self.DETREND_MODE_CHOICES]
+        if mode not in modes:
+            raise ValueError(
+                f"TOPOBANK_VISUALIZATION_DETREND_MODE must be one of {modes} or "
+                f"None, not '{mode}'."
+            )
+        if modes.index(mode) <= modes.index(self.detrend_mode):
+            return st_topo
+        return st_topo.detrend(detrend_mode=mode)
+
     def _render_thumbnail(self, width=400, height=400, cmap=None, st_topo=None):
         """
         Make thumbnail image.
@@ -1412,7 +1453,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if st_topo is None:
             st_topo = self.read()
 
-        image_file = self._render_thumbnail(st_topo=st_topo)
+        image_file = self._render_thumbnail(
+            st_topo=self._visualization_topography(st_topo)
+        )
 
         # Save the contents of in-memory file in Django image field
         if self.thumbnail is not None:
@@ -1437,7 +1480,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             if self.deepzoom is not None:
                 self.deepzoom.delete()
             self.deepzoom = ManifestSet.objects.create(permissions=self.permissions)
-            render_deepzoom(st_topo, self.deepzoom)
+            render_deepzoom(self._visualization_topography(st_topo), self.deepzoom)
 
     def _make_squeezed(self, st_topo=None, save=False):
         if st_topo is None:
