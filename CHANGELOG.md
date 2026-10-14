@@ -1,5 +1,13 @@
 # Changelog for *TopoBank*
 
+# 1.73.0 (2026-10-14)
+
+- ENH: `TOPOBANK_VISUALIZATION_DETREND_MODE` optionally detrends thumbnails and
+  deep zoom images beyond the measurement's own mode, so a tilted scan no longer
+  renders as a plain color gradient (#1410)
+- BUILD: Django 5.2.18 (#1411)
+- MAINT: CI runs on Ubuntu 26 (#1408)
+
 # 1.72.0 (2026-09-10)
 
 - ENH: `topobank.files.upload.get_upload_instructions` presigns a direct-to-S3
