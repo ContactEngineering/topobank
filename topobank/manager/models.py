@@ -1289,9 +1289,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     f"Using squeezed datafile instead of original datafile for topography id {self.id}."
                 )
 
-        # Need to call exists to finish upload if file is None
+        # The upload may not have been confirmed yet; only the file is needed
+        # here, not the processing a read through `Manifest.exists` would start
         if topo is None:
-            if self.datafile.exists():
+            if self.datafile.confirm_upload():
                 # Read raw file if squeezed file is unavailable
                 toporeader = get_topography_reader(
                     self.datafile.file, format=self.datafile_format
@@ -1934,8 +1935,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         The body of `refresh_cache`, which persists the result.
         """
         with timer("exists"):
-            # First check if we have a datafile
-            if not self.datafile.exists():
+            # First check if we have a datafile. This is the processing itself,
+            # so it must not go through `Manifest.exists`, which would start one.
+            if not self.datafile.confirm_upload():
                 raise RuntimeError(
                     f"Topography {self.id} does not appear to have a data file. Cannot "
                     f"refresh cached data."
