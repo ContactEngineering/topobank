@@ -1106,6 +1106,27 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             }
         }
 
+    @property
+    def has_instrument_info(self):
+        """Whether the database holds instrument information to read the file with.
+
+        The instrument fields keep their defaults until the first processing
+        copies them from the file (`refresh_cache`) or a user enters them. Read
+        with those defaults, a file loses its own instrument block (the tip
+        radius, say, and with it the reliability cutoff), so an unprocessed
+        measurement is read with what the file says instead.
+        """
+        return (
+            self.data_source is not None
+            or bool(self.instrument_name)
+            or bool(self.instrument_parameters)
+            or self.instrument_type != self.INSTRUMENT_TYPE_UNDEFINED
+        )
+
+    def _reader_info(self):
+        """The `info` to read the file with: the database's, once it has any."""
+        return self.instrument_info if self.has_instrument_info else None
+
     def _read(self, reader: ReaderBase, apply_filters: bool = True):
         """
         Construct kwargs for reading topography given channel information.
@@ -1147,8 +1168,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if channel.unit is None:
             reader_kwargs["unit"] = self.unit
 
-        # Populate instrument information
-        reader_kwargs["info"] = self.instrument_info
+        # Populate instrument information, where the database has any; an
+        # unprocessed measurement keeps the file's
+        info = self._reader_info()
+        if info is not None:
+            reader_kwargs["info"] = info
 
         # Eventually get topography from module "SurfaceTopography" using the given keywords
         topo = reader.topography(**reader_kwargs)
@@ -1219,7 +1243,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             toporeader = get_topography_reader(
                 self.squeezed_datafile.file, format=SQUEEZED_DATAFILE_FORMAT
             )
-            topo = toporeader.topography(info=self.instrument_info)
+            topo = toporeader.topography(info=self._reader_info() or {})
             # In the squeezed format, these things are already applied/included:
             # unit, scaling, detrending, physical sizes
             # so don't need to provide them to the .topography() method
