@@ -1,12 +1,15 @@
 import logging
 
 from django.contrib.contenttypes.models import ContentType
+from django.db import transaction
 from django.db.models.signals import m2m_changed, post_delete, post_save, pre_delete
 from django.dispatch import receiver
 from notifications.models import Notification
 
 from ..authorization import get_permission_model
+from ..files.models import Manifest, file_available
 from .models import Surface, Topography
+from .uploads import dispatch_processing
 from .zip_model import ZipContainer
 
 _log = logging.getLogger(__name__)
@@ -115,3 +118,15 @@ def post_delete_zip_container(sender, instance, **kwargs):
     except get_permission_model().DoesNotExist:
         # Already gone, nothing to do
         pass
+
+
+@receiver(file_available, sender=Manifest)
+def process_available_data_file(sender, instance, **kwargs):
+    """Start processing a measurement once its data file can be read.
+
+    Sent on every read of the file, so this only dispatches measurements that
+    were never processed (see `dispatch_processing`). Runs in a savepoint: a
+    failure here must not break the transaction the reader may be in.
+    """
+    with transaction.atomic():
+        dispatch_processing(instance)

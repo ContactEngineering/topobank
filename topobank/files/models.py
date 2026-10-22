@@ -8,13 +8,15 @@ import logging
 import os
 from tempfile import NamedTemporaryFile
 
+import django.dispatch
 import xarray
 from django.conf import settings
 from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import models
-from django.db.models import Q
+from django.db.models import Q, Value
+from django.db.models.functions import Coalesce
 from django.utils import timezone
 from storages.utils import clean_name
 
@@ -24,6 +26,13 @@ from ..supplib.json import ExtendedJSONEncoder
 from .utils import file_storage_path
 
 _log = logging.getLogger(__name__)
+
+# Sent by `Manifest.exists` whenever it finds the manifest's file, with the
+# manifest as `instance`. Whatever waits on an uploaded file (the processing of
+# a measurement, say) starts from here, so that a read of the file is enough to
+# get an upload acted on. Receivers must be idempotent: the signal is sent on
+# every read, not once per upload.
+file_available = django.dispatch.Signal()
 
 
 class ManifestSet(PermissionMixin, models.Model):
@@ -258,43 +267,112 @@ class Manifest(PermissionMixin, models.Model):
     def url(self):
         return self.file.url
 
-    def finish_upload(self, file=None):
-        if file is None:
-            try:
-                storage_path = self.generate_storage_path()
-            except SuspiciousFileOperation:
-                # Could not create a storage path! This is likely because the file
-                # name is invalid
-                _log.info(
-                    f"Manifest {self.id} has no file associated with it, and the "
-                    f"filename '{self.filename}' appears invalid. Cannot finish "
-                    "upload."
-                )
-                return
-            _log.debug(
-                f"Manifest {self.id} has no file associated with it. Checking if one "
-                f"exists at the likely storage location '{storage_path}'..."
+    def confirm_upload(self) -> bool:
+        """Record the uploaded file on this manifest, once it has arrived.
+
+        A manifest created ahead of a direct-to-storage upload has no file until
+        the object turns up at its storage path. This looks for it and, if it is
+        there, sets `file`, `confirmed_at` and `size_bytes`. Confirming is done
+        once: of concurrent callers one writes the confirmation and the others
+        read it back, so `confirmed_at` is never overwritten.
+
+        Returns whether the manifest has a file. Unlike `exists`, this does not
+        notify anyone of the file.
+        """
+        if self.file:
+            return True
+        if self.pk is None:
+            return False
+        try:
+            storage_path = self.generate_storage_path()
+        except SuspiciousFileOperation:
+            # Could not create a storage path! This is likely because the file
+            # name is invalid
+            _log.info(
+                f"Manifest {self.id} has no file associated with it, and the "
+                f"filename '{self.filename}' appears invalid. Cannot confirm the "
+                "upload."
             )
-            if default_storage.exists(storage_path):
-                _log.debug("...found file, updating manifest.")
-                # Set storage location to file that was just uploaded
-                self.file = self.file.field.attr_class(
-                    self, self.file.field, storage_path
-                )
-                self.confirmed_at = timezone.now()
-                self.save(update_fields=["file", "confirmed_at"])
-            else:
-                _log.debug("...no file found. Cannot finish upload.")
+            return False
+        _log.debug(
+            f"Manifest {self.id} has no file associated with it. Checking if one "
+            f"exists at the likely storage location '{storage_path}'..."
+        )
+        # One round trip to storage: the size tells whether the file is there
+        try:
+            size_bytes = default_storage.size(storage_path)
+        except FileNotFoundError:
+            _log.debug("...no file found. Cannot confirm the upload.")
+            return False
+        except Exception as exc:
+            # Storage is unreachable or refuses: not confirmed for now, rather
+            # than confirmed on a guess. The next read tries again.
+            _log.warning(
+                "Could not check for the file of manifest %s at '%s': %s",
+                self.id,
+                storage_path,
+                exc,
+            )
+            return False
+        _log.debug("...found file, updating manifest.")
+        now = timezone.now()
+        # Only a manifest without a file is confirmed, and `confirmed_at` is kept
+        # where it was already set (a copy whose file never arrived, say)
+        confirmed = (
+            Manifest.objects.filter(pk=self.pk)
+            .filter(Q(file__isnull=True) | Q(file=""))
+            .update(
+                file=storage_path,
+                size_bytes=size_bytes,
+                confirmed_at=Coalesce("confirmed_at", Value(now)),
+            )
+        )
+        if confirmed:
+            self.file = self.file.field.attr_class(self, self.file.field, storage_path)
+            self.size_bytes = size_bytes
+            if self.confirmed_at is None:
+                self.confirmed_at = now
         else:
-            self.file.save(self.filename, file, save=False)
-            self.confirmed_at = timezone.now()
-            self.save(update_fields=["file", "confirmed_at"])
+            # Someone else confirmed it first
+            self.refresh_from_db(fields=["file", "confirmed_at", "size_bytes"])
+        return bool(self.file)
+
+    def finish_upload(self, file=None):
+        """Confirm the upload (see `confirm_upload`), or store `file` as it."""
+        if file is None:
+            self.confirm_upload()
+        else:
+            self.save_file(file)
 
     def exists(self):
-        """Check if a file exists"""
-        if not self.file:
-            self.finish_upload()
-        return bool(self.file)
+        """Whether the manifest's file is there.
+
+        Confirms an upload that has arrived (see `confirm_upload`) and, if the
+        file is there, sends `file_available` so that whatever waits on the file,
+        such as the processing of a measurement, gets started. Reading a file is
+        therefore enough to get its upload confirmed and acted on, whether or
+        not the storage's own notification of the upload ever arrives.
+        """
+        if not self.confirm_upload():
+            return False
+        # Once per instance: the receivers' work is idempotent, so a second
+        # notification from the same instance finds nothing to do anyway
+        if not self.__dict__.get("_file_available_sent", False):
+            self._file_available_sent = True
+            # The file is there whatever a receiver makes of it; a receiver's
+            # error is its own problem, not the reader's
+            for receiver, response in file_available.send_robust(
+                sender=Manifest, instance=self
+            ):
+                if isinstance(response, Exception):
+                    _log.error(
+                        "file_available receiver %s failed for manifest %s: %s",
+                        getattr(receiver, "__qualname__", receiver),
+                        self.id,
+                        response,
+                        exc_info=(type(response), response, response.__traceback__),
+                    )
+        return True
 
     is_valid = exists
 
@@ -349,14 +427,31 @@ class Manifest(PermissionMixin, models.Model):
                     )
 
     def save_file(self, fobj):
-        if self.exists():
-            self.file.delete()
-        self.file.save(self.filename, fobj)
+        """Store `fobj` as this manifest's file, replacing any file it has.
+
+        The manifest is confirmed with it: a file stored by the application
+        itself is as confirmed as an upload that was found in storage.
+        """
+        if self.confirm_upload():
+            # The reference goes with the file: should storing the new file
+            # fail, the manifest must not keep pointing at a deleted one
+            self.file.delete(save=False)
+            self.save(update_fields=["file"])
+        self.file.save(self.filename, fobj, save=False)
+        self.confirmed_at = timezone.now()
+        # The size is known from the content; asking storage would be one more
+        # round trip for the same number
+        size_bytes = getattr(fobj, "size", None)
+        self.size_bytes = size_bytes if size_bytes is not None else self.file.size
+        self.save(update_fields=["file", "confirmed_at", "size_bytes"])
 
     def deepcopy(self, permissions=None):
         copy = Manifest.objects.get(pk=self.pk)
         copy.pk = None  # This will lead to the creation of a new instance on save
         copy.file = None
+        # Confirmed once its own file is in place (see `save_file`), not before
+        copy.confirmed_at = None
+        copy.size_bytes = None
         copy.folder = None  # Caller is responsible for assigning to a folder
 
         # Set permissions
