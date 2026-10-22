@@ -31,6 +31,17 @@ TOPOBANK_INLINE_PREVIEW_TYPES = {
     ".gif": "image/gif",
 }
 
+#: Seconds after which a delivered message may take over a task that is still
+#: recorded as ``STARTED`` under the same Celery task id. With ``task_acks_late``
+#: the broker redelivers the message of a worker that died mid-run once its
+#: visibility timeout lapses, but it redelivers the message of a run that merely
+#: outlives that timeout just the same, and a second delivery must not take over
+#: a live run. ``None`` (the default) takes a run over only once it is older than
+#: the task's hard time limit, past which the worker has killed it; a task with
+#: no hard time limit is never taken over. Set a number of seconds to take over
+#: sooner, on an installation where no run can live that long.
+TOPOBANK_TASK_RECLAIM_AFTER = None
+
 #: Detrending applied to a measurement's thumbnail and deep zoom images on top of
 #: its own ``detrend_mode`` -- one of the ``Topography.DETREND_MODE_CHOICES`` keys,
 #: or ``None`` to show the measurement exactly as analyses see it. Only the images
