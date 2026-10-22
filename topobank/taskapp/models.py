@@ -1,12 +1,14 @@
 import inspect
 import logging
 import traceback
+from copy import deepcopy
 from decimal import Decimal
 
 import celery.states
 import django.db.models as models
 import pydantic
 from django.core.cache import cache
+from django.db import transaction
 from django.utils import timezone
 from muTimer import Timer
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
@@ -60,9 +62,9 @@ class TaskStateModel(models.Model):
     # original (now-stale) task_start_time.
     IN_FLIGHT_STATES = (PENDING, PENDING_DEPENDENCIES, STARTED)
 
-    # Fields mutated by set_pending_state(). Callers that persist with a
-    # restricted update_fields must include these, otherwise the pending
-    # transition is silently dropped.
+    # Fields `pending_state_values` sets when a task is submitted. `run_task`
+    # (see `taskapp.utils`) writes them to the database itself; a caller only
+    # needs to save them after `set_pending_state(autosave=False)`.
     PENDING_STATE_FIELDS = (
         "task_state",
         "task_submission_time",
@@ -72,6 +74,19 @@ class TaskStateModel(models.Model):
         "task_start_time",
         "task_end_time",
     )
+
+    # Fields `run_task` writes when a run ends.
+    TASK_RESULT_FIELDS = (
+        "task_state",
+        "task_end_time",
+        "task_error",
+        "task_traceback",
+        "task_memory",
+        "task_timer",
+    )
+
+    # Every field the task machinery owns
+    TASK_FIELDS = PENDING_STATE_FIELDS + ("task_memory", "task_timer", "launcher_task_id")
 
     # Mapping Celery states to our state information. Everything not in the
     # list (e.g. custom Celery states) are interpreted as STARTED.
@@ -423,19 +438,91 @@ class TaskStateModel(models.Model):
 
         return messages
 
+    @classmethod
+    def pending_state_values(cls, task_id=None):
+        """Values of `PENDING_STATE_FIELDS` for a freshly submitted task."""
+        return {
+            "task_state": cls.PENDING,
+            "task_submission_time": timezone.now(),
+            "task_error": "",
+            "task_traceback": None,
+            # Need to reset, otherwise Celery reports a failure
+            "task_id": task_id,
+            # Clear timestamps from any prior run so a re-pended row looks freshly
+            # created: otherwise duration() reports garbage and a stale
+            # task_start_time could be mistaken for an in-flight run.
+            "task_start_time": None,
+            "task_end_time": None,
+        }
+
     def set_pending_state(self, autosave=True):
-        self.task_state = self.PENDING
-        self.task_submission_time = timezone.now()
-        self.task_error = ""
-        self.task_traceback = None
-        self.task_id = None  # Need to reset, otherwise Celery reports a failure
-        # Clear timestamps from any prior run so a re-pended row looks freshly
-        # created: otherwise duration() reports garbage and a stale task_start_time
-        # could be mistaken for an in-flight run.
-        self.task_start_time = None
-        self.task_end_time = None
+        for name, value in self.pending_state_values().items():
+            setattr(self, name, value)
         if autosave:
             self.save(update_fields=list(self.PENDING_STATE_FIELDS))
+
+    #
+    # The values of the tracked fields as this instance last saw them in the
+    # database. A save can then leave out the fields the instance did not change,
+    # instead of writing back values the database has moved on from since the
+    # instance loaded them: the claim `run_task` just made, the results of a run
+    # dispatched after the load. Every task model tracks its task fields; a model
+    # whose task writes other fields of the row as well tracks those too (see
+    # `Topography`).
+    #
+    @classmethod
+    def tracked_fields(cls):
+        """Attribute names of the fields whose loaded values are remembered.
+
+        Nothing by default: the bookkeeping costs a copy of every tracked value
+        on every load, and only a model whose `save` leaves unchanged fields out
+        (see `Topography.save`) gets anything back for it.
+        """
+        return ()
+
+    @classmethod
+    def from_db(cls, db, field_names, values):
+        instance = super().from_db(db, field_names, values)
+        instance._remember_fields()
+        return instance
+
+    def refresh_from_db(self, using=None, fields=None, from_queryset=None):
+        super().refresh_from_db(using=using, fields=fields, from_queryset=from_queryset)
+        self._remember_fields(fields)
+
+    def _tracked_attnames(self, fields=None):
+        """The tracked fields among `fields` (names or attribute names), or all."""
+        tracked = self.tracked_fields()
+        if fields is None:
+            return tracked
+        attnames = (self._meta.get_field(name).attname for name in fields)
+        return [attname for attname in attnames if attname in tracked]
+
+    def _remember_fields(self, fields=None):
+        """Record the loaded (or just written) values of the tracked fields."""
+        seen = self.__dict__.setdefault("_fields_seen", {})
+        for name in self._tracked_attnames(fields):
+            # Deferred fields are not loaded and stay unknown
+            if name in self.__dict__:
+                value = self.__dict__[name]
+                # JSON values can be edited in place; remember a copy
+                seen[name] = deepcopy(value) if isinstance(value, (dict, list)) else value
+
+    def _forget_fields(self, fields):
+        """Have the next save write `fields` whether or not they look unchanged."""
+        seen = self.__dict__.get("_fields_seen")
+        if seen:
+            for name in self._tracked_attnames(fields):
+                seen.pop(name, None)
+
+    def unchanged_fields(self):
+        """Attribute names of the tracked fields still holding the value last seen."""
+        seen = self.__dict__.get("_fields_seen") or {}
+        return {
+            name
+            for name, value in seen.items()
+            if name in self.__dict__ and self.__dict__[name] == value
+        }
 
     def get_task_error(self):
         """Return a string representation of any error occurred during task execution"""
@@ -491,10 +578,32 @@ class TaskStateModel(models.Model):
         Exception
             For any other exceptions that occur during task execution.
         """
-        self.task_state = TaskStateModel.STARTED
-        self.task_id = celery_task.request.id
-        self.task_start_time = timezone.now()  # with timezone
-        self.save()  # save such that any queries see this as running
+        task_id = celery_task.request.id
+        claimed_run = self.__dict__.pop("_claimed_run", None)
+        if claimed_run is not None:
+            # Claimed by `task_dispatch` before this instance was loaded. The row
+            # may have been claimed again since, by a newer dispatch; that run
+            # supersedes this one, which then leaves the row alone.
+            if (str(self.task_id), self.task_start_time) != claimed_run:
+                _log.info(
+                    "%s id=%s: run %s was superseded by a newer dispatch before it "
+                    "started; not running it.",
+                    type(self).__name__,
+                    self.pk,
+                    task_id,
+                )
+                return False
+        else:
+            # A caller runs the task inline
+            self.task_state = TaskStateModel.STARTED
+            self.task_id = task_id
+            self.task_start_time = timezone.now()  # with timezone
+            # save such that any queries see this as running
+            self.save(update_fields=["task_state", "task_id", "task_start_time"])
+        # The task id and start time identify this run. A forced re-dispatch or a
+        # takeover by a redelivered message replaces them, and this run then
+        # leaves the row to its successor.
+        self._task_run = (str(self.task_id), self.task_start_time)
 
         # actually run the task
         try:
@@ -543,7 +652,66 @@ class TaskStateModel(models.Model):
         finally:
             # Store time stamp and save state to database
             self.task_end_time = timezone.now()  # with timezone
-            self.save()
+            self._save_task_result()
+            self._task_run = None
+
+    def task_save_fields(self):
+        """Fields to persist when a run ends, or None to save the whole row.
+
+        Override this when the task worker persists its own results, so that the
+        end of a run does not overwrite fields changed elsewhere in the meantime.
+        """
+        return None
+
+    def _lock_row(self, *fields):
+        """Lock this row until the end of the surrounding transaction.
+
+        Returns the row's run token (task id and start time) and the values of
+        `fields`, or None if the row is gone.
+        """
+        return (
+            type(self)
+            ._base_manager.select_for_update()
+            .filter(pk=self.pk)
+            .values("task_id", "task_start_time", *fields)
+            .first()
+        )
+
+    def is_current_task_run(self, row=None) -> bool:
+        """Whether the row still belongs to the run in progress, if any.
+
+        Locks the row until the end of the surrounding transaction, unless the
+        caller passes the `row` it has locked already. Outside a run (no run in
+        progress) this is always True.
+        """
+        run = getattr(self, "_task_run", None)
+        if run is None:
+            return True
+        if row is None:
+            row = self._lock_row()
+        return row is not None and (str(row["task_id"]), row["task_start_time"]) == run
+
+    def _save_task_result(self):
+        with transaction.atomic():
+            if not self.is_current_task_run():
+                _log.warning(
+                    "%s id=%s: run %s was superseded by a newer dispatch; not "
+                    "recording its result (state=%s).",
+                    type(self).__name__,
+                    self.pk,
+                    self.task_id,
+                    self.task_state,
+                )
+                return
+            fields = self.task_save_fields()
+            # The run owns its result: write it even where it equals what the
+            # run loaded, which another writer (a reaper that gave the run up
+            # for lost, say) may have changed meanwhile.
+            self._forget_fields(self.TASK_FIELDS if fields is None else fields)
+            if fields is None:
+                self.save()
+            else:
+                self.save(update_fields=list(fields))
 
 
 class Dependency(models.Model):

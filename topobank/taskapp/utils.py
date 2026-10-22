@@ -2,12 +2,21 @@ import importlib
 import logging
 import os
 import sys
+import time
+from datetime import timedelta
 from functools import lru_cache
 from typing import Optional
+from uuid import UUID
 
+from celery.exceptions import Ignore
+from celery.utils import uuid
+from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from django.db.models import Q
+from django.utils import timezone
 
+from ..settings import defaults
 from .celeryapp import app
 from .models import Dependency, TaskStateModel, Version
 
@@ -192,45 +201,176 @@ def get_package_version(pkg_name, version_expr):
     return version
 
 
+def _reclaim_after(celery_task) -> Optional[float]:
+    """Seconds after which a run under ``celery_task``'s id may be taken over.
+
+    ``TOPOBANK_TASK_RECLAIM_AFTER`` when set; otherwise the task's hard time
+    limit, past which the worker has killed the run, so that a redelivery of its
+    message is the only way the task still gets done. None means never.
+    """
+    configured = getattr(
+        settings,
+        "TOPOBANK_TASK_RECLAIM_AFTER",
+        defaults.TOPOBANK_TASK_RECLAIM_AFTER,
+    )
+    if configured is not None:
+        return configured
+    # Resolved as the worker does: per message, then per task, then globally
+    limits = getattr(celery_task.request, "timelimit", None) or (None, None)
+    return limits[0] or celery_task.time_limit or celery_task.app.conf.task_time_limit
+
+
+def claim_started(model, obj_id, task_id, reclaim_after=None):
+    """Claim the row behind a delivered message for this worker.
+
+    Moves the row to ``STARTED`` only if it still belongs to ``task_id`` and is
+    waiting for a worker: ``PENDING``, or ``NOTRUN`` for a message queued by a
+    caller that never persisted the pending state. A row recorded as ``STARTED``
+    under the same id is taken over only once its start is older than
+    ``reclaim_after`` seconds (never, if None): that is the redelivery of a run
+    the worker could not finish, whereas a younger run is alive and the message
+    is a duplicate.
+
+    The update is a single conditional statement, so of several deliveries of the
+    same message exactly one claims the row. Returns the start time recorded for
+    the run if this call claimed it, else None.
+    """
+    now = timezone.now()
+    claimable = Q(task_state__in=(TaskStateModel.PENDING, TaskStateModel.NOTRUN))
+    if reclaim_after is not None:
+        claimable |= Q(task_state=TaskStateModel.STARTED) & (
+            Q(task_start_time__isnull=True)
+            | Q(task_start_time__lt=now - timedelta(seconds=reclaim_after))
+        )
+    claimed = model._base_manager.filter(
+        claimable, pk=obj_id, task_id=task_id
+    ).update(task_state=TaskStateModel.STARTED, task_start_time=now)
+    return now if claimed == 1 else None
+
+
+# How often, and how long apart, a delivery retries its claim while the row has
+# no task id yet. A dispatcher from before claims were introduced sends the
+# message first and writes the task id afterwards, so during a rolling upgrade a
+# worker can receive a message before the row names it.
+CLAIM_RETRIES = 5
+CLAIM_RETRY_DELAY = 1.0
+
+
+def _claim_delivery(model, obj_id, task_id, reclaim_after):
+    """`claim_started`, retried while the row still has no task id at all."""
+    for attempt in range(CLAIM_RETRIES + 1):
+        started_at = claim_started(model, obj_id, task_id, reclaim_after)
+        if started_at is not None:
+            return started_at
+        current = (
+            model._base_manager.filter(pk=obj_id)
+            .values_list("task_id", flat=True)
+            .first()
+        )
+        if current is not None or attempt == CLAIM_RETRIES:
+            return None
+        _log.info(
+            "task_dispatch: %s id=%s does not name task %s yet; retrying the "
+            "claim in %.1f s.",
+            model.__name__,
+            obj_id,
+            task_id,
+            CLAIM_RETRY_DELAY,
+        )
+        time.sleep(CLAIM_RETRY_DELAY)
+    return None  # pragma: no cover - the loop returns
+
+
 @app.task(bind=True)
 def task_dispatch(celery_task, cls_id, obj_id, *args, **kwargs):
     ct = ContentType.objects.get_for_id(cls_id)
+    model = ct.model_class()
+    task_id = celery_task.request.id
+    started_at = _claim_delivery(model, obj_id, task_id, _reclaim_after(celery_task))
+    if started_at is None:
+        # Duplicate delivery of a run that is already under way or finished, or a
+        # message superseded by a newer dispatch of the same object, or the object
+        # is gone. Either way another delivery owns the work. Ignored rather than
+        # returned: a return would record a success for this task id, which the
+        # live run still carries.
+        _log.info(
+            "task_dispatch: not running task %s for %s id=%s; the row is not "
+            "waiting for this task (duplicate, superseded or deleted).",
+            task_id,
+            model.__name__,
+            obj_id,
+        )
+        raise Ignore()
     try:
         obj = ct.get_object_for_this_type(id=obj_id)
-        obj.run_task(celery_task, *args, **kwargs)
-        # Return True so Celery knows the task completed successfully
-        # This is important for tasks that do not return anything
-        return True
-    except ct.model_class().DoesNotExist:
+    except model.DoesNotExist:
         # Ignore the task if the instance no longer exists
-        return None
+        raise Ignore()
+    # The run this delivery claimed. `run_task` compares it with the row it
+    # loaded, which a newer dispatch may have claimed in the meantime.
+    obj._claimed_run = (str(task_id), started_at)
+    if obj.run_task(celery_task, *args, **kwargs) is False:
+        raise Ignore()
+    # Return True so Celery knows the task completed successfully
+    # This is important for tasks that do not return anything
+    return True
 
 
-def run_task(
-    model_instance: TaskStateModel,
-    celery_queue: Optional[str] = None,
-    *args,
-    force: bool = False,
-    **kwargs,
-):
-    # Guard against re-dispatching a task that is already in flight. This
-    # prevents the re-entrant dispatch that happens when `refresh_cache` mutates
-    # significant fields and its terminal `save()` re-enters `run_task` (the
-    # outer task has already set state to STARTED at that point), as well as
-    # duplicate dispatches from repeated webhook deliveries. Pass `force=True`
-    # to deliberately re-run an in-flight task (e.g. an operator recompute).
-    if not force and model_instance.task_state in TaskStateModel.IN_FLIGHT_STATES:
-        _log.debug(
-            "run_task: skipping dispatch for %s id=%s; task already in-flight "
-            "(state=%s). Pass force=True to override.",
-            type(model_instance).__name__,
-            model_instance.id,
-            model_instance.task_state,
+def claim_pending(
+    model_instance: TaskStateModel, *, force: bool = False, from_states=None
+) -> Optional[str]:
+    """Claim ``model_instance`` for a new dispatch and persist the pending state.
+
+    A single conditional update moves the row to ``PENDING`` under a freshly
+    generated task id, unless a task is already in flight (``force=True`` claims
+    regardless) or, with ``from_states``, unless the row is in one of those
+    states. Of concurrent callers exactly one claims the row; the update runs in
+    the caller's transaction, so a rollback releases the claim.
+
+    On success the instance carries the persisted pending state and the new task
+    id is returned. Otherwise the instance's task state is reloaded from the
+    database, so that a later save of the instance cannot write back a stale
+    state, and None is returned.
+    """
+    if model_instance.pk is None:
+        raise ValueError(
+            f"Cannot dispatch a task for an unsaved {type(model_instance).__name__}."
         )
-        return
-    model_instance.set_pending_state(autosave=False)
-    # Only submit this on_commit, once save() has finalized and everything
-    # has been flushed to the database (including a possible 'pe'nding state)
+    task_id = UUID(uuid())
+    values = TaskStateModel.pending_state_values(task_id)
+    queryset = type(model_instance)._base_manager.filter(pk=model_instance.pk)
+    if from_states is not None:
+        queryset = queryset.filter(task_state__in=from_states)
+    if not force:
+        queryset = queryset.exclude(task_state__in=TaskStateModel.IN_FLIGHT_STATES)
+    if queryset.update(**values) != 1:
+        try:
+            model_instance.refresh_from_db(
+                fields=list(TaskStateModel.PENDING_STATE_FIELDS)
+            )
+        except type(model_instance).DoesNotExist:
+            pass
+        return None
+    for name, value in values.items():
+        setattr(model_instance, name, value)
+    # The claim is in the database: a later save of the instance has nothing to
+    # write for these fields
+    model_instance._remember_fields(values)
+    return str(task_id)
+
+
+def submit_on_commit(
+    model_instance: TaskStateModel,
+    task_id: str,
+    celery_queue: Optional[str] = None,
+    args=(),
+    kwargs=None,
+):
+    """Send the claimed task ``task_id`` to Celery once the transaction commits.
+
+    The id is passed to the broker, so the worker finds the row it was claimed
+    for, and a rollback of the claim cancels the dispatch.
+    """
     celery_kwargs = {}
     if celery_queue is not None:
         # Explicit celery queue given
@@ -242,16 +382,77 @@ def run_task(
         # Dynamic celery queue
         celery_kwargs["queue"] = model_instance.get_celery_queue()
 
+    content_type_id = ContentType.objects.get_for_model(model_instance).id
+    obj_id = model_instance.pk
+    model = type(model_instance)
+
     def submit_task_to_celery():
-        model_instance.task_id = task_dispatch.apply_async(
-            args=[
-                ContentType.objects.get_for_model(model_instance).id,
-                model_instance.id,
-            ]
-            + list(args),
-            kwargs=kwargs,
-            **celery_kwargs,
-        ).id
-        model_instance.save(update_fields=["task_id"])
+        try:
+            task_dispatch.apply_async(
+                args=[content_type_id, obj_id] + list(args),
+                kwargs=kwargs or {},
+                task_id=str(task_id),
+                **celery_kwargs,
+            )
+        except Exception as exc:
+            # The claim is committed but no message exists for it, and nothing
+            # would ever tell: the broker reports an unknown task id as pending.
+            # Fail the row, unless a newer dispatch has claimed it meanwhile.
+            _log.exception(
+                "Could not submit task %s for %s id=%s to the broker.",
+                task_id,
+                model.__name__,
+                obj_id,
+            )
+            values = {
+                "task_state": TaskStateModel.FAILURE,
+                "task_end_time": timezone.now(),
+                "task_error": f"The task could not be submitted to the broker: {exc}",
+            }
+            failed = model._base_manager.filter(
+                pk=obj_id, task_id=task_id, task_state=TaskStateModel.PENDING
+            ).update(**values)
+            if failed and str(model_instance.task_id) == str(task_id):
+                for name, value in values.items():
+                    setattr(model_instance, name, value)
+                model_instance._remember_fields(values)
+            raise
 
     transaction.on_commit(submit_task_to_celery)
+
+
+def run_task(
+    model_instance: TaskStateModel,
+    celery_queue: Optional[str] = None,
+    *args,
+    force: bool = False,
+    from_states=None,
+    **kwargs,
+) -> bool:
+    """Dispatch the task of ``model_instance`` unless one is already in flight.
+
+    Claims the row (see :func:`claim_pending`), which persists the pending state,
+    and submits the task once the surrounding transaction commits. Callers do not
+    need to save the instance afterwards. The in-flight guard keys off the
+    database, not the instance, so it also holds for stale instances and for
+    concurrent callers: it prevents the re-entrant dispatch that happens when
+    `refresh_cache` mutates significant fields and its terminal `save()` re-enters
+    `run_task`. Pass `force=True` to deliberately re-run an in-flight task (e.g. an operator
+    recompute); the run it replaces then discards its results. Pass `from_states`
+    to dispatch only while the row is in one of those states, e.g. to process a
+    measurement that was never processed without reprocessing one that was.
+
+    Returns whether a task was dispatched.
+    """
+    task_id = claim_pending(model_instance, force=force, from_states=from_states)
+    if task_id is None:
+        _log.debug(
+            "run_task: skipping dispatch for %s id=%s; task already in-flight "
+            "(state=%s). Pass force=True to override.",
+            type(model_instance).__name__,
+            model_instance.pk,
+            model_instance.task_state,
+        )
+        return False
+    submit_on_commit(model_instance, task_id, celery_queue, args, kwargs)
+    return True

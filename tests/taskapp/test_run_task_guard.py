@@ -5,6 +5,8 @@ already running (because its terminal ``save()`` mutated significant fields),
 causing concurrent ``refresh_cache`` executions on the same measurement.
 """
 
+from unittest import mock
+
 import pytest
 from django.core.management import call_command
 
@@ -21,41 +23,48 @@ def _set_state(topo, state, **extra):
 
 
 @pytest.mark.django_db
-def test_run_task_skips_when_in_flight(mocker):
+def test_run_task_skips_when_in_flight(django_capture_on_commit_callbacks):
     topo = Topography1DFactory()
     _set_state(topo, TaskStateModel.STARTED)
 
-    spy = mocker.spy(topo, "set_pending_state")
-    run_task(topo)
+    with django_capture_on_commit_callbacks(execute=False) as callbacks:
+        assert not run_task(topo)
 
-    # Guard short-circuited before set_pending_state; state untouched.
-    assert spy.call_count == 0
+    # Guard short-circuited: nothing dispatched, state untouched.
+    assert callbacks == []
+    assert topo.task_state == TaskStateModel.STARTED
+    topo.refresh_from_db()
     assert topo.task_state == TaskStateModel.STARTED
 
 
 @pytest.mark.django_db
-def test_run_task_force_overrides_in_flight(mocker):
+def test_run_task_force_overrides_in_flight(django_capture_on_commit_callbacks):
     topo = Topography1DFactory()
     _set_state(topo, TaskStateModel.STARTED)
+    old_task_id = topo.task_id
 
-    spy = mocker.spy(topo, "set_pending_state")
-    run_task(topo, force=True)
+    with django_capture_on_commit_callbacks(execute=False) as callbacks:
+        assert run_task(topo, force=True)
 
-    # force=True bypasses the guard and re-pends the task.
-    assert spy.call_count == 1
+    # force=True bypasses the guard and re-pends the task under a new id.
+    assert len(callbacks) == 1
+    topo.refresh_from_db()
     assert topo.task_state == TaskStateModel.PENDING
+    assert topo.task_id is not None and topo.task_id != old_task_id
 
 
 @pytest.mark.django_db
-def test_run_task_dispatches_when_notrun(mocker):
+def test_run_task_dispatches_when_notrun(django_capture_on_commit_callbacks):
     topo = Topography1DFactory()
     _set_state(topo, TaskStateModel.NOTRUN)
 
-    spy = mocker.spy(topo, "set_pending_state")
-    run_task(topo)
+    with django_capture_on_commit_callbacks(execute=False) as callbacks:
+        assert run_task(topo)
 
-    # NOTRUN is not an in-flight state, so the first dispatch proceeds.
-    assert spy.call_count == 1
+    # NOTRUN is not an in-flight state, so the first dispatch proceeds, and the
+    # pending state is persisted without the caller saving.
+    assert len(callbacks) == 1
+    topo.refresh_from_db()
     assert topo.task_state == TaskStateModel.PENDING
 
 
@@ -78,8 +87,14 @@ def test_refresh_cache_does_not_redispatch_when_started(
     with django_capture_on_commit_callbacks(execute=False) as callbacks:
         topo.refresh_cache()
 
-    # No new celery dispatch was registered and the state was not reset.
-    assert callbacks == []
+    # No new celery dispatch was registered (the only callback deletes the
+    # derived files the refresh replaced) and the state was not reset.
+    with mock.patch(
+        "topobank.taskapp.utils.task_dispatch.apply_async"
+    ) as apply_async:
+        for callback in callbacks:
+            callback()
+    apply_async.assert_not_called()
     topo.refresh_from_db()
     assert topo.task_state == TaskStateModel.STARTED
     # ...but the refresh still did its work (significant field repopulated).
@@ -100,10 +115,9 @@ def test_factory_path_still_dispatches():
 def test_refresh_cache_command_background_persists_pending_state():
     """`refresh_cache --background` must leave the DB showing the pending state.
 
-    run_task() only sets task_state in memory (autosave=False); without a save
-    the operator would keep seeing the stale prior state (e.g. SUCCESS) until a
-    worker starts. The command wraps run_task + save in a transaction, so the
-    DB reflects PENDING immediately.
+    Otherwise the operator would keep seeing the stale prior state (e.g.
+    SUCCESS) until a worker starts. run_task() persists the pending state itself,
+    so the DB reflects PENDING immediately.
     """
     topo = Topography1DFactory()
     _set_state(topo, TaskStateModel.SUCCESS)
