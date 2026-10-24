@@ -121,9 +121,6 @@ dependencies = [
     # Environment variables
     'django-environ',
 
-    # Timer
-    'muGrid>=0.105.1',
-
     # Database
     'psycopg[binary]',
 
