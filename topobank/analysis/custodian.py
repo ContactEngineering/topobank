@@ -2,10 +2,11 @@ import logging
 from datetime import timedelta
 
 from django.conf import settings
-from django.db.models import Q, RestrictedError
+from django.db.models import Q
 from django.utils import timezone
 
 from ..taskapp.celeryapp import app
+from ..taskapp.utils import delete_tolerating_restrict
 from .models import WorkflowResult
 from .zip_model import ResultZipContainer
 
@@ -25,29 +26,8 @@ LOST_MESSAGE_ERROR = (
 )
 
 
-def _delete_tolerating_restrict(queryset, description):
-    """Delete the queryset's rows, skipping those protected by a RESTRICT reference.
-
-    Downstream plugins may guard workflow results with RESTRICT foreign keys
-    (e.g. a result a trained model was built from). A bulk delete aborts
-    wholesale on the first protected row, so fall back to per-row deletes
-    and leave protected rows for a later run, once their guard clears.
-    """
-    try:
-        queryset.delete()
-    except RestrictedError:
-        skipped = 0
-        for obj in queryset.iterator():
-            try:
-                obj.delete()
-            except RestrictedError:
-                skipped += 1
-        if skipped:
-            _log.info(
-                "Custodian: skipped %d %s protected by RESTRICT references.",
-                skipped,
-                description,
-            )
+# Kept under its former name for downstream code that imports it from here.
+_delete_tolerating_restrict = delete_tolerating_restrict
 
 
 @app.task
@@ -82,7 +62,7 @@ def periodic_cleanup():
             f"Custodian: Deleting {len(deprecated_pks)} workflow results because "
             "they were marked as deprecated."
         )
-        _delete_tolerating_restrict(
+        delete_tolerating_restrict(
             WorkflowResult.objects.filter(pk__in=deprecated_pks),
             "deprecated workflow results",
         )
@@ -103,7 +83,7 @@ def periodic_cleanup():
             count,
             settings.TOPOBANK_DELETE_DELAY,
         )
-        _delete_tolerating_restrict(soft_deleted, "soft-deleted workflow results")
+        delete_tolerating_restrict(soft_deleted, "soft-deleted workflow results")
 
     # Delete all ZIP containers of workflow results (they are just temporary
     # download bundles and can be rebuilt at any time)
