@@ -99,3 +99,43 @@ def test_periodic_cleanup_deletes_unlinked_manifest():
     periodic_cleanup()
 
     assert not Manifest.objects.filter(pk=manifest.pk).exists()
+
+
+@pytest.mark.django_db
+def test_periodic_cleanup_continues_past_restrict_protected_measurement(monkeypatch):
+    # A downstream plugin may protect a measurement through a RESTRICT foreign
+    # key (sds-api's PredictionResult on its workflow result). That row must
+    # be skipped; it must not abort the purge of the others, nor the dataset
+    # step that follows. Before, the bulk delete raised RestrictedError and
+    # nothing was purged at all.
+    from django.db.models import QuerySet, RestrictedError
+
+    surface = SurfaceFactory()
+    blocked = Topography2DFactory(surface=surface)
+    free = Topography2DFactory(surface=surface)
+    other_surface = SurfaceFactory()
+    old = timezone.now() - datetime.timedelta(days=8)
+    Topography.all_objects.filter(pk__in=[blocked.pk, free.pk]).update(deleted_at=old)
+    Surface.all_objects.filter(pk=other_surface.pk).update(deleted_at=old)
+
+    bulk_delete = QuerySet.delete
+    row_delete = Topography.delete
+
+    def guarded_bulk_delete(self):
+        if self.model is Topography and self.filter(pk=blocked.pk).exists():
+            raise RestrictedError("protected", set())
+        return bulk_delete(self)
+
+    def guarded_row_delete(self, *args, **kwargs):
+        if self.pk == blocked.pk:
+            raise RestrictedError("protected", set())
+        return row_delete(self, *args, **kwargs)
+
+    monkeypatch.setattr(QuerySet, "delete", guarded_bulk_delete)
+    monkeypatch.setattr(Topography, "delete", guarded_row_delete)
+
+    periodic_cleanup()
+
+    assert Topography.all_objects.filter(pk=blocked.pk).exists()
+    assert not Topography.all_objects.filter(pk=free.pk).exists()
+    assert not Surface.all_objects.filter(pk=other_surface.pk).exists()

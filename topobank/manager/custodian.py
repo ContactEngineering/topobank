@@ -6,6 +6,7 @@ from django.utils import timezone
 from topobank.files.models import Manifest
 
 from ..taskapp.celeryapp import app
+from ..taskapp.utils import delete_tolerating_restrict
 from .models import Surface, Topography
 from .zip_model import ZipContainer
 
@@ -28,7 +29,10 @@ def periodic_cleanup():
         _log.info(
             f"Custodian: Deleting {q.count()} measurements because they were marked for deletion."
         )
-        q.delete()
+        # A downstream RESTRICT (e.g. sds-api's PredictionResult on a
+        # measurement's workflow result) must not abort the whole purge and
+        # the steps after it.
+        delete_tolerating_restrict(q, "soft-deleted measurements")
 
     # Delete all surfaces that were marked for deletion
     q = Surface.all_objects.filter(
@@ -38,7 +42,7 @@ def periodic_cleanup():
         _log.info(
             f"Custodian: Deleting {q.count()} datasets because they were marked for deletion."
         )
-        q.delete()
+        delete_tolerating_restrict(q, "soft-deleted datasets")
 
     # Delete all surfaces without created_by and owned_by
     q = Surface.all_objects.filter(created_by__isnull=True, owned_by__isnull=True)
@@ -46,7 +50,7 @@ def periodic_cleanup():
         _log.info(
             f"Custodian: Deleting {q.count()} datasets because they have neither a created_by nor an owned_by."
         )
-        q.delete()
+        delete_tolerating_restrict(q, "orphaned datasets")
 
     # Delete all ZIP containers (that are just temporary anyway)
     q = ZipContainer.objects.filter(updated_at__lt=timezone.now() - temporary_delay)

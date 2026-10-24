@@ -7,6 +7,7 @@ from typing import Optional
 
 from django.contrib.contenttypes.models import ContentType
 from django.db import transaction
+from django.db.models import RestrictedError
 
 from .celeryapp import app
 from .models import Dependency, TaskStateModel, Version
@@ -255,3 +256,32 @@ def run_task(
         model_instance.save(update_fields=["task_id"])
 
     transaction.on_commit(submit_task_to_celery)
+
+
+def delete_tolerating_restrict(queryset, description):
+    """Delete the queryset's rows, skipping those protected by a RESTRICT reference.
+
+    Downstream plugins may guard rows with RESTRICT foreign keys (e.g. a
+    result a trained model was built from). A bulk delete aborts wholesale on
+    the first protected row, so fall back to per-row deletes and leave
+    protected rows for a later run, once their guard clears.
+
+    Returns the number of rows that could not be deleted.
+    """
+    try:
+        queryset.delete()
+        return 0
+    except RestrictedError:
+        skipped = 0
+        for obj in queryset.iterator():
+            try:
+                obj.delete()
+            except RestrictedError:
+                skipped += 1
+        if skipped:
+            _log.info(
+                "Custodian: skipped %d %s protected by RESTRICT references.",
+                skipped,
+                description,
+            )
+        return skipped

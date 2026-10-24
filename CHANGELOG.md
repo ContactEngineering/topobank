@@ -1,5 +1,12 @@
 # Changelog for *TopoBank*
 
+# Unreleased
+
+- BUG: The dataset custodian skips measurements and datasets protected by a
+  downstream RESTRICT foreign key instead of aborting, so one protected row
+  no longer stops every soft-deleted dataset from being purged;
+  `delete_tolerating_restrict` moves to `topobank.taskapp.utils`
+
 # 1.73.0 (2026-10-14)
 
 - ENH: `TOPOBANK_VISUALIZATION_DETREND_MODE` optionally detrends thumbnails and
