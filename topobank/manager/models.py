@@ -225,6 +225,17 @@ def _validate_inspected_values(result):
             )
 
 
+def _unreferenced(model, pks):
+    """The rows `pks` of `model` that no other row references (the files a
+    folder holds aside)."""
+    queryset = model._base_manager.filter(pk__in=pks)
+    for rel in model._meta.related_objects:
+        if rel.related_model is Manifest and rel.field.name == "folder":
+            continue
+        queryset = queryset.filter(**{f"{rel.name}__isnull": True})
+    return queryset
+
+
 def _delete_all(objs):
     """Delete manifests or folders, logging rather than raising a failure."""
     for obj in objs:
@@ -2033,21 +2044,28 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             )
         transaction.on_commit(lambda: delete_keys(default_storage, sorted(keys)))
 
-    def apply_backend_result(self, task_id, result=None, error=None, traceback=None):
+    def apply_backend_result(
+        self, task_id, result=None, error=None, traceback=None, clean_up=None
+    ):
         """End the run `task_id` that the processing backend carried out.
 
         `result` is the `InspectionResult` the backend found, with its files in
-        `processing_folder(task_id)` (in a folder of their own for each attempt). `error` is the message of an
-        inspection that failed, and `traceback` the backend's account of it; what
-        its `result` (if any) found is recorded all the same, without its files. A
-        result for a run that is no longer in progress (superseded by a newer
-        dispatch, failed as lost, or ended already) is discarded, and so are the
-        files of a result that cannot be recorded.
+        `processing_folder(task_id)` (in a folder of their own for each
+        attempt). `error` is the message of an inspection that failed, and
+        `traceback` the backend's account of it; what its `result` (if any)
+        found is recorded all the same, without its files. A result for a run
+        that is no longer in progress (superseded by a newer dispatch, failed as
+        lost, or ended already) is discarded, and so are the files of a result
+        that cannot be recorded.
 
-        This deletes the derived files the result replaces, one storage object
-        at a time, so it belongs in a worker rather than in the request that
-        receives the result. Returns whether the end of the run was recorded
-        here. See `TOPOBANK_PROCESSING_BACKEND`.
+        Recording touches storage only to check that the result's files are
+        there. Cleaning up afterwards -- deleting the derived files the result
+        replaces, one storage object at a time, and whatever else the run
+        stored -- may take a while: it is described by a JSON-safe dict handed,
+        once the transaction commits, to `clean_up`, which can run
+        `Topography.clean_up_run` with it in a worker. By default it runs here.
+        Returns whether the end of the run was recorded here. See
+        `TOPOBANK_PROCESSING_BACKEND`.
         """
         task_id = _run_id(task_id)
         prefix = self.processing_folder(task_id)
@@ -2086,7 +2104,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             settled.append(self.apply_inspection(result, prefix=prefix))
 
         # The files the result replaces, deleted once the end of the run is
-        # recorded: that may take a while
+        # recorded (see `clean_up_run`)
         self._retired_after_run = retired = []
         try:
             ended = self.complete_task(task_id, work)
@@ -2102,11 +2120,48 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                         _log.error(
                             "post_refresh_cache receiver %s failed: %s", receiver, response
                         )
-                transaction.on_commit(lambda: _delete_all(retired))
+            else:
+                retired = []
+            work_left = {
+                "topography": self.pk,
+                "task_id": task_id,
+                "manifests": [o.pk for o in retired if isinstance(o, Manifest)],
+                "folders": [o.pk for o in retired if isinstance(o, ManifestSet)],
+            }
+            transaction.on_commit(
+                lambda: (clean_up or Topography.clean_up_run)(work_left)
+            )
+        return ended
+
+    @staticmethod
+    def clean_up_run(work_left):
+        """Clean up after a run that `apply_backend_result` ended.
+
+        Deletes the derived manifests and folders the run's result replaced, and
+        whatever the run stored that its measurement does not reference (see
+        `discard_run`). Only derived files are deleted, and only those nothing
+        references any more (a measurement, an analysis, a dataset). Safe to run
+        again.
+        """
+        task_id = _run_id(work_left["task_id"])
+        not_derived = [kind for kind, _ in Manifest.FILE_KIND_CHOICES if kind != "der"]
+        _delete_all(
+            _unreferenced(Manifest, work_left["manifests"]).filter(kind="der")
+        )
+        _delete_all(
+            _unreferenced(ManifestSet, work_left["folders"]).exclude(
+                files__kind__in=not_derived
+            )
+        )
+        topography = Topography._base_manager.filter(pk=work_left["topography"]).first()
+        if topography is not None:
             # Whatever the run stored that its measurement does not reference
             # now, whether or not the result names it
-            self.discard_run(task_id)
-        return ended
+            topography.discard_run(task_id)
+        else:
+            # Nothing references the files of a measurement that is gone
+            folder = f"{processing_storage_prefix()}/{work_left['topography']}/{task_id}"
+            delete_keys(default_storage, list_keys(default_storage, folder))
 
     def processing_folder(self, run):
         """The storage folder in which run `run` of this measurement writes its
