@@ -1272,3 +1272,80 @@ def test_a_long_file_name_gets_a_squeezed_file_with_a_name_that_fits(tmp_path):
     name = result.derived["squeezed_datafile"]["filename"]
     assert len(name) == processing.MAX_FILENAME_LENGTH
     assert name.endswith("-squeezed.nc")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_clean_up_can_be_left_to_a_worker(broker, backend):
+    topo = Topography1DFactory()
+    old_thumbnail = topo.thumbnail_id
+    task_id = _start(topo)
+    result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
+    leftover = default_storage.save(
+        topo.processing_folder(task_id) + "/thumbnail/first-attempt.jpeg",
+        ContentFile(b"jpeg"),
+    )
+    handed = []
+
+    assert Topography.objects.get(pk=topo.pk).apply_backend_result(
+        task_id, result, clean_up=handed.append
+    )
+
+    # Recorded, with nothing deleted yet
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.SUCCESS
+    assert stored.thumbnail.file.name in result.written_keys()
+    assert Manifest.objects.filter(pk=old_thumbnail).exists()
+    assert default_storage.exists(leftover)
+    (work_left,) = handed
+    assert json.loads(json.dumps(work_left)) == work_left
+
+    Topography.clean_up_run(work_left)
+    Topography.clean_up_run(work_left)  # once more, as a redelivered task would
+
+    assert not Manifest.objects.filter(pk=old_thumbnail).exists()
+    assert not default_storage.exists(leftover)
+    assert all(default_storage.exists(key) for key in result.written_keys())
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_clean_up_deletes_nothing_in_use_or_uploaded(broker):
+    topo = Topography2DFactory(size_x=1, size_y=1)
+    files = [
+        topo.datafile.file.name,
+        topo.thumbnail.file.name,
+        *(m.file.name for m in topo.deepzoom.files.all()),
+    ]
+
+    Topography.clean_up_run(
+        {
+            "topography": topo.pk,
+            "task_id": str(uuid.uuid4()),
+            "manifests": [topo.datafile_id, topo.thumbnail_id],
+            "folders": [topo.deepzoom_id, topo.attachments_id],
+        }
+    )
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert (stored.datafile_id, stored.thumbnail_id) == (topo.datafile_id, topo.thumbnail_id)
+    assert (stored.deepzoom_id, stored.attachments_id) == (
+        topo.deepzoom_id,
+        topo.attachments_id,
+    )
+    assert all(default_storage.exists(name) for name in files)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_clean_up_after_a_deleted_measurement_empties_its_run_folder(
+    broker, backend
+):
+    topo = Topography1DFactory()
+    task_id = _start(topo)
+    _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
+    folder = topo.processing_folder(task_id)
+    Topography.objects.filter(pk=topo.pk).delete()
+
+    Topography.clean_up_run(
+        {"topography": topo.pk, "task_id": task_id, "manifests": [], "folders": []}
+    )
+
+    assert processing.list_keys(default_storage, folder) == []
