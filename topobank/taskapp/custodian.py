@@ -33,8 +33,8 @@ nobody ever will.
 
 Three guardrails keep that inference honest:
 
-1. If *no* worker replies at all, do nothing. A broker outage or a network
-   partition must never be turned into a mass failure.
+1. If *no* worker replies at all, judge no Celery run. A broker outage or a
+   network partition must never be turned into a mass failure.
 2. A row must look lost on two consecutive passes before it is failed. This
    covers the small windows where a task is momentarily invisible — between
    finishing and saving its state, or re-queued by a retry.
@@ -44,6 +44,10 @@ Three guardrails keep that inference honest:
 Only ``STARTED`` is safe to reap this way. A ``PENDING`` row with a task id may
 simply be sitting in the queue: ``inspect`` cannot see messages that no worker
 has reserved yet, so those would look lost while being perfectly healthy.
+
+A run handed to a task backend (see ``TaskStateModel.task_backend``) is held by
+no worker, so the workers cannot vouch for it: it is lost once it is older than
+``min_age``, whether or not a worker answers.
 """
 
 import logging
@@ -145,20 +149,51 @@ def _propagate_to_parent(obj, error):
 
 
 def find_lost(live, min_age=DEFAULT_MIN_AGE):
-    """Rows in ``STARTED`` whose task no worker knows about."""
+    """Rows in ``STARTED`` whose task no worker knows about.
+
+    ``live`` holds the task ids the workers know, or is None if no worker
+    answered; then only runs handed to a task backend are judged. A run a worker
+    holds is never lost, even of a model that now hands its runs to a backend.
+    """
     cutoff = timezone.now() - min_age
     lost = []
     for model in task_state_models():
+        backend = _UNRESOLVED
         # Deliberately not deferring columns: `mark_lost` reads `metadata` to
         # find a waiting parent, and a deferred load would turn that into a
         # query per row. In a healthy system this queryset is empty anyway.
-        queryset = model.objects.filter(
+        # All rows, also those a default manager hides (deleted, say)
+        queryset = model._base_manager.filter(
             task_state=model.STARTED, task_start_time__lt=cutoff
         ).exclude(task_id=None)
+        if live is None:
+            # Only runs handed to a backend can be judged: look no further at a
+            # model that does not hand its runs to one
+            first = queryset.first()
+            if first is None or _task_backend(first) is None:
+                continue
         for obj in queryset.iterator():
-            if str(obj.task_id) not in live:
+            if live is not None and str(obj.task_id) in live:
+                continue
+            if backend is _UNRESOLVED:
+                backend = _task_backend(obj)
+            if backend is not None or live is not None:
                 lost.append(obj)
     return lost
+
+
+_UNRESOLVED = object()
+
+
+def _task_backend(obj):
+    """The task backend of `obj`'s model, or None, also if it cannot be loaded."""
+    try:
+        return obj.task_backend()
+    except Exception:
+        _log.exception(
+            "Custodian: cannot load the task backend of %s.", type(obj).__name__
+        )
+        return None
 
 
 def mark_lost(obj, error=LOST_TASK_ERROR):
@@ -169,7 +204,7 @@ def mark_lost(obj, error=LOST_TASK_ERROR):
     state in the meantime, so a task that finished between the sweep's two
     passes is never overwritten.
     """
-    updated = type(obj).objects.filter(pk=obj.pk, task_state=obj.STARTED).update(
+    updated = type(obj)._base_manager.filter(pk=obj.pk, task_state=obj.STARTED).update(
         task_state=obj.FAILURE,
         task_error=error,
         task_end_time=timezone.now(),
@@ -177,6 +212,12 @@ def mark_lost(obj, error=LOST_TASK_ERROR):
     if not updated:
         return False
     _propagate_to_parent(obj, error)
+    try:
+        obj.task_lost()
+    except Exception:  # cleanup; the run is failed either way
+        _log.exception(
+            "Custodian: cleaning up after lost %s %s failed.", type(obj).__name__, obj.pk
+        )
     return True
 
 
@@ -199,17 +240,24 @@ def reap_lost_tasks(
     live = live_task_ids()
     if live is None:
         _log.warning(
-            "Custodian: no Celery worker answered, skipping the lost-task sweep. "
-            "Nothing was changed."
+            "Custodian: no Celery worker answered; only runs handed to a task "
+            "backend are swept."
         )
-        return {"skipped": True, "candidates": 0, "failed": 0}
 
     candidates = find_lost(live, min_age=min_age)
     candidate_ids = {str(obj.task_id) for obj in candidates}
 
     if require_confirmation:
         previous = set(cache.get(SUSPECT_CACHE_KEY) or ())
-        cache.set(SUSPECT_CACHE_KEY, candidate_ids, SUSPECT_CACHE_SECONDS)
+        # Without an answer from the workers, the suspects among Celery runs
+        # were not judged this pass: keep them for the next
+        if live is None:
+            if candidate_ids:
+                cache.set(
+                    SUSPECT_CACHE_KEY, candidate_ids | previous, SUSPECT_CACHE_SECONDS
+                )
+        else:
+            cache.set(SUSPECT_CACHE_KEY, candidate_ids, SUSPECT_CACHE_SECONDS)
         confirmed = [obj for obj in candidates if str(obj.task_id) in previous]
         if len(confirmed) < len(candidates):
             _log.info(
@@ -229,7 +277,7 @@ def reap_lost_tasks(
                 obj.task_id,
             )
         return {
-            "skipped": False,
+            "skipped": live is None,
             "candidates": len(candidates),
             "failed": 0,
             "would_fail": len(confirmed),
@@ -248,4 +296,4 @@ def reap_lost_tasks(
             )
     if failed:
         _log.warning("Custodian: failed %d task(s) whose worker disappeared.", failed)
-    return {"skipped": False, "candidates": len(candidates), "failed": failed}
+    return {"skipped": live is None, "candidates": len(candidates), "failed": failed}
