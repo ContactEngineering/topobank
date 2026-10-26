@@ -18,7 +18,7 @@ from unittest import mock
 import pytest
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import connection
+from django.db import DatabaseError, connection, transaction
 
 from topobank.manager import processing
 from topobank.manager.models import (
@@ -433,6 +433,67 @@ def test_a_backend_result_ends_the_run(broker, backend):
     # Recording what the run found is not an edit that dispatches it again
     assert len(backend) == 1
     assert broker == []
+
+
+def _refuse_in_the_database(sender, instance, **kwargs):
+    """A `post_refresh_cache` receiver whose statement the database refuses."""
+    with connection.cursor() as cursor:
+        cursor.execute("SELECT 1/0")
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_run_whose_analyses_cannot_be_invalidated_is_not_recorded(broker, backend):
+    topo = Topography1DFactory()
+    task_id = _start(topo)
+    result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
+    cleaned_up = []
+
+    post_refresh_cache.connect(_refuse_in_the_database, sender=Topography)
+    try:
+        # Recorded in a transaction of the caller's, as from a request, which
+        # the failure rolls back for the result to be recorded again
+        with pytest.raises(DatabaseError), transaction.atomic():
+            Topography.objects.get(pk=topo.pk).apply_backend_result(
+                task_id, result, clean_up=cleaned_up.append
+            )
+    finally:
+        post_refresh_cache.disconnect(_refuse_in_the_database, sender=Topography)
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.STARTED
+    assert (stored.thumbnail_id, stored.squeezed_datafile_id) == (
+        topo.thumbnail_id,
+        topo.squeezed_datafile_id,
+    )
+    assert cleaned_up == []
+
+    # Once the analyses can be invalidated
+    assert Topography.objects.get(pk=topo.pk).apply_backend_result(task_id, result)
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.SUCCESS
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_run_recorded_outside_a_transaction_is_cleaned_up_whatever_the_receivers_do(
+    broker, backend
+):
+    topo = Topography1DFactory()
+    task_id = _start(topo)
+    result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
+    cleaned_up = []
+
+    post_refresh_cache.connect(_refuse_in_the_database, sender=Topography)
+    try:
+        with pytest.raises(DatabaseError):
+            Topography.objects.get(pk=topo.pk).apply_backend_result(
+                task_id, result, clean_up=cleaned_up.append
+            )
+    finally:
+        post_refresh_cache.disconnect(_refuse_in_the_database, sender=Topography)
+
+    # Recorded already: the files it replaced are cleaned up all the same
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.SUCCESS
+    (work_left,) = cleaned_up
+    assert topo.thumbnail_id in work_left["manifests"]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -856,6 +917,7 @@ def test_a_result_naming_a_file_that_was_never_stored_is_refused(broker, backend
         pytest.param({"size_x": "wide"}, id="not a number"),
         pytest.param({"unit": ""}, id="blank unit"),
         pytest.param({"instrument_type": ""}, id="blank instrument type"),
+        pytest.param({"measurement_date": 123}, id="date of another type"),
     ],
 )
 def test_a_backend_result_with_impossible_values_is_refused(broker, backend, values):
@@ -873,6 +935,24 @@ def test_a_backend_result_with_impossible_values_is_refused(broker, backend, val
     assert stored.values(*names).get() == before
     assert stored.get().task_state == TaskStateModel.FAILURE
     assert _run_folder(topo, task_id) == []
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("unit", ["fm", "Gm"])
+def test_a_backend_result_in_a_unit_offered_for_no_entry_is_recorded(
+    broker, backend, unit
+):
+    """A reader may report any length unit, and a Celery run stores it."""
+    topo = Topography1DFactory()
+    task_id = _start(topo)
+    result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
+    result.fields["unit"] = unit
+
+    assert Topography.objects.get(pk=topo.pk).apply_backend_result(task_id, result)
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.SUCCESS
+    assert stored.unit == unit
 
 
 @pytest.mark.django_db(transaction=True)

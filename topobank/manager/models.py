@@ -29,6 +29,7 @@ from django.utils.module_loading import import_string
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.Metadata import InstrumentParametersModel
+from SurfaceTopography.Support.UnitConversion import length_units
 
 from ..authorization import get_permission_model
 from ..authorization.mixins import PermissionMixin
@@ -204,13 +205,22 @@ def _validate_inspected_values(result):
             if isinstance(field, models.JSONField) and value in ({}, []):
                 # No instrument parameters, say: empty, not missing
                 continue
-            # Choices and blank as well as the validators
-            field.validate(value, None)
+            if name == "unit":
+                # Any length unit a reader may report, not only those offered
+                # for entry (as `refresh_cache` would store it)
+                if value not in length_units:
+                    raise ValidationError(f"'{value}' is no length unit.")
+            else:
+                # Choices and blank
+                field.validate(value, None)
             field.run_validators(value)
         except ValidationError as exc:
             raise ValueError(
                 f"An inspection result has an invalid {name}: {exc.messages}"
             ) from exc
+        except TypeError as exc:
+            # A value of a type the field cannot take (a number for a date, say)
+            raise ValueError(f"An inspection result has an invalid {name}: {exc}") from exc
     data_source = result.fields.get("data_source")
     channels = result.fields.get("channel_names")
     if channels is not None and not isinstance(channels, (list, tuple)):
@@ -2110,17 +2120,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             ended = self.complete_task(task_id, work)
         finally:
             self._retired_after_run = None
-            if any(settled):
-                # The measurement has changed, however the run ended
-                # (`refresh_cache` sends this for a run of its own)
-                for receiver, response in post_refresh_cache.send_robust(
-                    sender=Topography, instance=self
-                ):
-                    if isinstance(response, Exception):
-                        _log.error(
-                            "post_refresh_cache receiver %s failed: %s", receiver, response
-                        )
-            else:
+            if not any(settled):
                 retired = []
             work_left = {
                 "topography": self.pk,
@@ -2131,6 +2131,16 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             transaction.on_commit(
                 lambda: (clean_up or Topography.clean_up_run)(work_left)
             )
+            if any(settled):
+                # The measurement has changed, however the run ended, as
+                # `refresh_cache` announces for a run of its own. A receiver
+                # that fails (the analyses of the measurement not invalidated)
+                # fails the recording, which a caller recording in a
+                # transaction of its own rolls back and can retry; in a
+                # savepoint, so that a database error leaves that transaction
+                # usable.
+                with transaction.atomic():
+                    post_refresh_cache.send(sender=Topography, instance=self)
         return ended
 
     @staticmethod
