@@ -6,7 +6,7 @@ import itertools
 import logging
 from collections import defaultdict
 from copy import deepcopy
-from uuid import uuid4
+from uuid import UUID, uuid4
 from typing import List
 
 import django.dispatch
@@ -17,7 +17,7 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector, SearchVectorField
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import PermissionDenied, ValidationError
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
@@ -25,6 +25,7 @@ from django.db import models, transaction
 from django.db.models import Q, Value
 from django.utils import timezone
 from django.utils.dateparse import parse_datetime
+from django.utils.module_loading import import_string
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
 from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.Metadata import InstrumentParametersModel
@@ -36,6 +37,7 @@ from ..authorization.models import (
     SurfaceTopographyManager,
     ViewEditFull,
 )
+from ..exceptions import TaskBackendError
 from ..files.models import Manifest, ManifestSet
 from ..settings import defaults
 from ..taskapp.models import TaskStateModel
@@ -56,6 +58,7 @@ from .processing import (
     get_topography_reader,
     inspect_datafile,
     instrument_info,
+    list_keys,
     missing_derived_files,
     read_topography,
     visualization_topography,
@@ -107,6 +110,14 @@ def processing_storage_prefix():
         "TOPOBANK_PROCESSING_STORAGE_PREFIX",
         defaults.TOPOBANK_PROCESSING_STORAGE_PREFIX,
     ).rstrip("/")
+
+
+def _run_id(task_id):
+    """`task_id` as the id of a run, or a ValueError if it is none."""
+    try:
+        return str(UUID(str(task_id)))
+    except ValueError:
+        raise ValueError(f"'{task_id}' is not the id of a run.") from None
 
 
 def _validate_inspection_result(result, prefix):
@@ -171,6 +182,47 @@ def _inspected_value(field, value):
 def _snapshot(value):
     """`value`, copied if it is a JSON value that can be edited in place."""
     return deepcopy(value) if isinstance(value, (dict, list)) else value
+
+
+def _validate_inspected_values(result):
+    """Refuse values an inspection could not have found.
+
+    For a result from another process: each value must be one its field accepts.
+    The measurement's channel must be one of the channels found.
+    """
+    for name, value in result.fields.items():
+        if name not in INSPECTED_FIELDS:
+            raise ValueError(f"An inspection result may not set {name}.")
+        field = Topography._meta.get_field(name)
+        try:
+            value = _inspected_value(field, value)
+            if value is None:
+                # Not found (the height of a line scan, say)
+                if not field.null:
+                    raise ValidationError("This field cannot be null.")
+                continue
+            if isinstance(field, models.JSONField) and value in ({}, []):
+                # No instrument parameters, say: empty, not missing
+                continue
+            # Choices and blank as well as the validators
+            field.validate(value, None)
+            field.run_validators(value)
+        except ValidationError as exc:
+            raise ValueError(
+                f"An inspection result has an invalid {name}: {exc.messages}"
+            ) from exc
+    data_source = result.fields.get("data_source")
+    channels = result.fields.get("channel_names")
+    if channels is not None and not isinstance(channels, (list, tuple)):
+        raise ValueError("An inspection result has channel names that are no list.")
+    if data_source is not None and channels is None:
+        raise ValueError("An inspection result reads a channel without naming them.")
+    if data_source is not None:
+        if not 0 <= int(data_source) < len(channels):
+            raise ValueError(
+                f"An inspection result reads channel {data_source} of a file with "
+                f"{len(channels)} channels."
+            )
 
 
 def _delete_all(objs):
@@ -1074,6 +1126,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # `refresh_cache` saves the fields it changed itself
         return TaskStateModel.TASK_RESULT_FIELDS
 
+    def task_backend(self):
+        # `TOPOBANK_PROCESSING_BACKEND` runs the processing elsewhere
+        path = getattr(
+            settings,
+            "TOPOBANK_PROCESSING_BACKEND",
+            defaults.TOPOBANK_PROCESSING_BACKEND,
+        )
+        return None if path is None else import_string(path)
+
     def save(self, *args, **kwargs):
         update_fields: list = kwargs.get("update_fields", None)
         created = self.pk is None
@@ -1831,9 +1892,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         only the ones it changed, so that edits made while the file was being
         processed survive; recording them never dispatches the processing again.
         Nothing is written once the run in progress on this instance (see
-        `TaskStateModel.run_task`) has been superseded by a newer dispatch, and
-        the files the result references are deleted instead. Otherwise the
-        derived files it replaces are deleted once the transaction commits.
+        `TaskStateModel.run_task` and `complete_task`) has been superseded by a
+        newer dispatch, and the files the result references are deleted instead.
+        Otherwise the derived files it replaces are deleted once the transaction
+        commits.
 
         A `failed` inspection keeps the previous derived files. Within a run it
         still records the other fields it found, as the full-row save at the end
@@ -1924,7 +1986,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     ", ".join(missing),
                 )
             self._save_inspection(update_fields=fields)
-            transaction.on_commit(lambda: _delete_all(retired))
+            after_run = getattr(self, "_retired_after_run", None)
+            if after_run is not None:
+                # The caller deletes them (see `apply_backend_result`)
+                after_run.extend(retired)
+            else:
+                transaction.on_commit(lambda: _delete_all(retired))
         return True
 
     def _discard(self, keys, prefix, row=None):
@@ -1966,11 +2033,111 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             )
         transaction.on_commit(lambda: delete_keys(default_storage, sorted(keys)))
 
+    def apply_backend_result(self, task_id, result=None, error=None, traceback=None):
+        """End the run `task_id` that the processing backend carried out.
+
+        `result` is the `InspectionResult` the backend found, with its files in
+        `processing_folder(task_id)` (in a folder of their own for each attempt). `error` is the message of an
+        inspection that failed, and `traceback` the backend's account of it; what
+        its `result` (if any) found is recorded all the same, without its files. A
+        result for a run that is no longer in progress (superseded by a newer
+        dispatch, failed as lost, or ended already) is discarded, and so are the
+        files of a result that cannot be recorded.
+
+        This deletes the derived files the result replaces, one storage object
+        at a time, so it belongs in a worker rather than in the request that
+        receives the result. Returns whether the end of the run was recorded
+        here. See `TOPOBANK_PROCESSING_BACKEND`.
+        """
+        task_id = _run_id(task_id)
+        prefix = self.processing_folder(task_id)
+        # Whether `apply_inspection` recorded the result
+        settled = []
+
+        def work():
+            if error is not None:
+                if result is not None:
+                    found = InspectionResult(fields=result.fields, version=result.version)
+                    try:
+                        _validate_inspection_result(found, prefix)
+                        _validate_inspected_values(found)
+                        self.apply_inspection(found, failed=True, prefix=prefix)
+                    except Exception as exc:
+                        # The backend's error is the run's, not this one
+                        _log.warning(
+                            "Not recording the partial result of failed run %s of "
+                            "topography %s: %s",
+                            task_id,
+                            self.id,
+                            exc,
+                        )
+                raise TaskBackendError(error, traceback)
+            if result is None:
+                raise ValueError("A run that did not fail hands back its result.")
+            _validate_inspection_result(result, prefix)
+            _validate_inspected_values(result)
+            stored = set(list_keys(default_storage, prefix))
+            missing = [key for key in result.written_keys() if key not in stored]
+            if missing:
+                raise ValueError(
+                    f"An inspection result names {len(missing)} file(s) that were "
+                    f"never stored, e.g. '{missing[0]}'."
+                )
+            settled.append(self.apply_inspection(result, prefix=prefix))
+
+        # The files the result replaces, deleted once the end of the run is
+        # recorded: that may take a while
+        self._retired_after_run = retired = []
+        try:
+            ended = self.complete_task(task_id, work)
+        finally:
+            self._retired_after_run = None
+            if any(settled):
+                # The measurement has changed, however the run ended
+                # (`refresh_cache` sends this for a run of its own)
+                for receiver, response in post_refresh_cache.send_robust(
+                    sender=Topography, instance=self
+                ):
+                    if isinstance(response, Exception):
+                        _log.error(
+                            "post_refresh_cache receiver %s failed: %s", receiver, response
+                        )
+                transaction.on_commit(lambda: _delete_all(retired))
+            # Whatever the run stored that its measurement does not reference
+            # now, whether or not the result names it
+            self.discard_run(task_id)
+        return ended
+
     def processing_folder(self, run):
         """The storage folder in which run `run` of this measurement writes its
         derived files. Nothing outside it is ever deleted on the run's behalf."""
         owner = "new" if self.pk is None else self.pk
         return f"{processing_storage_prefix()}/{owner}/{run}"
+
+    def discard_run(self, task_id):
+        """Delete what the run `task_id` stored and this measurement does not
+        reference, e.g. after a backend run that was lost."""
+        prefix = self.processing_folder(_run_id(task_id))
+        keys = list_keys(default_storage, prefix)
+        if not keys:
+            return
+        with transaction.atomic():
+            # After a result that is being recorded right now, whose files are
+            # then referenced
+            row = self._lock_row(*(f"{name}_id" for name in self._DERIVED_FIELDS))
+            if (
+                row is not None
+                and str(row["task_id"]) == _run_id(task_id)
+                and row["task_state"] == self.STARTED
+            ):
+                # The run is still in progress; whatever ends it cleans up
+                return
+            self._discard(keys, prefix, row)
+
+    def task_lost(self):
+        # A backend run that was lost leaves its files behind
+        if self.task_id is not None:
+            self.discard_run(self.task_id)
 
     def _save_inspection(self, update_fields=None):
         """Save what an inspection found, without dispatching another.

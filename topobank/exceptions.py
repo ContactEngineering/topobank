@@ -7,3 +7,15 @@ class IncompleteMetadataError(Exception):
     """
 
     pass
+
+
+class TaskBackendError(Exception):
+    """
+    Raised to end a run that a task backend (see `TaskStateModel.task_backend`)
+    reports as failed. `traceback` is the backend's own account of the failure,
+    if it has one.
+    """
+
+    def __init__(self, message, traceback=None):
+        super().__init__(message)
+        self.traceback = None if traceback is None else str(traceback)

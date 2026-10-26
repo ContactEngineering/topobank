@@ -56,3 +56,21 @@ TOPOBANK_THUMBNAIL_FORMAT = "jpeg"
 #: measurement and run.
 #: The manifests created for them reference the files where they were written.
 TOPOBANK_PROCESSING_STORAGE_PREFIX = "data-lake/processing"
+
+#: Dotted path of a callable ``backend(topography, task_id)`` that runs the
+#: claimed processing of a measurement instead of the Celery task, or ``None``
+#: (the default) for the Celery task. It is called once the dispatching
+#: transaction commits, often within a web request, with the run started and the
+#: measurement as it is then; it only hands the run off (an asynchronous
+#: invocation, say) and returns, and an exception it raises fails the run. The
+#: backend takes what it needs at that point
+#: (``Topography.inspection_parameters``), inspects the data file with
+#: ``topobank.manager.processing.inspect_datafile``, writing the derived files
+#: in a folder of its own for each attempt within
+#: ``Topography.processing_folder(task_id)``, so that a retried attempt cannot
+#: touch the files of one that was recorded, and ends the run with
+#: ``Topography.apply_backend_result(task_id, result)`` (in a worker, as it
+#: deletes the files the result replaces), or with ``error`` if the inspection
+#: failed. A run it never ends is failed by the custodian as lost once it is
+#: older than the custodian's minimum age (15 minutes by default).
+TOPOBANK_PROCESSING_BACKEND = None

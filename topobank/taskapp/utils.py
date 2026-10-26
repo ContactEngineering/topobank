@@ -3,6 +3,7 @@ import logging
 import os
 import sys
 import time
+import traceback
 from datetime import timedelta
 from functools import lru_cache
 from typing import Optional
@@ -16,6 +17,7 @@ from django.db import transaction
 from django.db.models import Q, RestrictedError
 from django.utils import timezone
 
+from ..exceptions import TaskBackendError
 from ..settings import defaults
 from .celeryapp import app
 from .models import Dependency, TaskStateModel, Version
@@ -366,7 +368,9 @@ def submit_on_commit(
     """Send the claimed task ``task_id`` to Celery once the transaction commits.
 
     The id is passed to the broker, so the worker finds the row it was claimed
-    for, and a rollback of the claim cancels the dispatch.
+    for, and a rollback of the claim cancels the dispatch. A model whose
+    ``task_backend()`` names another way to run its task is handed to that
+    instead (see `start_on_backend`).
     """
     celery_kwargs = {}
     if celery_queue is not None:
@@ -385,12 +389,20 @@ def submit_on_commit(
 
     def submit_task_to_celery():
         try:
-            task_dispatch.apply_async(
-                args=[content_type_id, obj_id] + list(args),
-                kwargs=kwargs or {},
-                task_id=str(task_id),
-                **celery_kwargs,
-            )
+            # Resolved here, so that a backend that cannot be loaded fails the
+            # row like one that fails to start
+            backend = model_instance.task_backend()
+            if backend is not None:
+                if args or kwargs:
+                    raise TypeError("A task backend takes no task arguments.")
+                start_on_backend(backend, model, obj_id, str(task_id))
+            else:
+                task_dispatch.apply_async(
+                    args=[content_type_id, obj_id] + list(args),
+                    kwargs=kwargs or {},
+                    task_id=str(task_id),
+                    **celery_kwargs,
+                )
         except Exception as exc:
             # The claim is committed but no message exists for it, and nothing
             # would ever tell: the broker reports an unknown task id as pending.
@@ -417,6 +429,50 @@ def submit_on_commit(
     # keep the transaction's other hooks, such as the submissions of other rows
     # claimed alongside, from running
     transaction.on_commit(submit_task_to_celery, robust=True)
+
+
+def start_on_backend(backend, model, obj_id, task_id):
+    """Start the claimed run ``task_id`` and hand it to ``backend``.
+
+    The run is started here, as a worker starts a delivered message (see
+    `task_dispatch`), because the backend takes the instance as it is now: an
+    edit after this point supersedes the run with a new dispatch, while an edit
+    before it is part of what the backend gets. The backend ends the run with
+    ``TaskStateModel.complete_task``.
+
+    This runs once the dispatching transaction commits, often in a web request,
+    so the backend only hands the run off (an asynchronous invocation, say) and
+    returns. A backend that refuses the run (throttled, say) fails it; the
+    request that dispatched it carries on.
+    """
+    if claim_started(model, obj_id, task_id) is None:
+        # Superseded by a newer dispatch, or gone, before it could start
+        _log.info(
+            "Not starting task %s for %s id=%s on its backend; the row is not "
+            "waiting for it.",
+            task_id,
+            model.__name__,
+            obj_id,
+        )
+        return
+    instance = model._base_manager.filter(pk=obj_id).first()
+    if instance is None:
+        return
+    try:
+        backend(instance, task_id)
+    except Exception as exc:
+        _log.exception(
+            "The backend refused task %s for %s id=%s.", task_id, model.__name__, obj_id
+        )
+        error = TaskBackendError(
+            f"The task could not be handed to its backend: {exc}",
+            traceback.format_exc(),
+        )
+
+        def refused():
+            raise error
+
+        instance.complete_task(task_id, refused)
 
 
 def run_task(

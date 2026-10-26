@@ -235,6 +235,19 @@ class _RecordingWriter:
         return written
 
 
+def list_keys(storage, prefix):
+    """The keys stored in the folder `prefix` and its subfolders."""
+    try:
+        folders, files = storage.listdir(prefix)
+    except FileNotFoundError:  # a local folder that was never written to
+        return []
+    keys = [f"{prefix}/{name}" for name in files]
+    for name in folders:
+        if name not in ("", ".", ".."):  # what a storage may list for "//" or "/./"
+            keys += list_keys(storage, f"{prefix}/{name}")
+    return keys
+
+
 def delete_keys(storage, keys):
     """Delete storage `keys`, logging rather than raising a failure."""
     for key in keys:
