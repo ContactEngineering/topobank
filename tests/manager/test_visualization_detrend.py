@@ -8,6 +8,7 @@ import pytest
 from SurfaceTopography import Topography as STTopography
 from SurfaceTopography import UniformLineScan
 
+from topobank.manager import processing
 from topobank.manager.models import Topography
 from topobank.testing.factories import Topography2DFactory
 
@@ -82,8 +83,8 @@ def test_unknown_mode_is_rejected(settings):
 @pytest.mark.django_db
 def test_refresh_cache_renders_images_but_not_data_detrended(settings, mocker):
     settings.TOPOBANK_VISUALIZATION_DETREND_MODE = "height"
-    render_thumbnail = mocker.spy(Topography, "_render_thumbnail")
-    render_deepzoom = mocker.patch("topobank.manager.models.render_deepzoom")
+    render_thumbnail = mocker.spy(processing, "render_thumbnail")
+    render_deepzoom = mocker.patch.object(processing, "write_deepzoom")
 
     topo = Topography2DFactory(size_x=1, size_y=1, detrend_mode="center")
 

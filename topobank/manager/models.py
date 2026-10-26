@@ -2,18 +2,14 @@
 Basic models for the web app for handling topography data.
 """
 
-import io
 import itertools
 import logging
-import os.path
-import tempfile
 from collections import defaultdict
+from uuid import uuid4
 from typing import List
 
 import django.dispatch
-import matplotlib
 import numpy as np
-import PIL
 import tagulous.models as tm
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
@@ -22,17 +18,15 @@ from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector, SearchVectorField
 from django.core.exceptions import PermissionDenied
 from django.core.files import File
-from django.core.files.base import ContentFile
+from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
 from django.db import models, transaction
 from django.db.models import Q, Value
 from django.utils import timezone
-from matplotlib.figure import Figure
+from django.utils.dateparse import parse_datetime
 from SurfaceTopography.Container.SurfaceContainer import SurfaceContainer
-from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.Metadata import InstrumentParametersModel
-from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..authorization import get_permission_model
 from ..authorization.mixins import PermissionMixin
@@ -43,14 +37,28 @@ from ..authorization.models import (
 )
 from ..files.models import Manifest, ManifestSet
 from ..settings import defaults
-from ..taskapp.models import IncompleteMetadataError, TaskStateModel
+from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import in_celery_worker_process, run_task
 from ..utils.timer import Timer
-from .utils import (
-    detrend_parameters,
+from . import processing
+from .processing import (
+    DERIVED_NAMES,
+    INSPECTED_FIELDS,
+    MAX_FILENAME_LENGTH,
+    RESULT_VERSION,
+    SQUEEZED_DATAFILE_FORMAT,
+    InspectionParameters,
+    InspectionResult,
+    StorageWriter,
+    bandwidth_fields,
+    delete_keys,
     get_topography_reader,
-    render_deepzoom,
-    undefined_data_fraction,
+    inspect_datafile,
+    instrument_info,
+    missing_derived_files,
+    read_topography,
+    visualization_topography,
+    write_derived,
 )
 
 _log = logging.getLogger(__name__)
@@ -80,14 +88,92 @@ post_refresh_cache = django.dispatch.Signal()
 MAX_LENGTH_DATAFILE_FORMAT = (
     15  # some more characters than currently needed, we may have sub formats in future
 )
-SQUEEZED_DATAFILE_FORMAT = "nc"
 
 
-def _get_unit(channel):
-    if isinstance(channel.unit, tuple):
-        lateral_unit, data_unit = channel.unit
-        return data_unit
-    return channel.unit
+def _visualization_detrend_mode():
+    return getattr(
+        settings,
+        "TOPOBANK_VISUALIZATION_DETREND_MODE",
+        defaults.TOPOBANK_VISUALIZATION_DETREND_MODE,
+    )
+
+
+def processing_storage_prefix():
+    """The folder under which inspections write derived files, one folder per
+    measurement and run (see `Topography.processing_folder`)."""
+    return getattr(
+        settings,
+        "TOPOBANK_PROCESSING_STORAGE_PREFIX",
+        defaults.TOPOBANK_PROCESSING_STORAGE_PREFIX,
+    ).rstrip("/")
+
+
+def _validate_inspection_result(result, prefix):
+    """Refuse a result this code did not write or that points outside `prefix`.
+
+    A result may come back from another process, so it is checked before any of
+    it reaches the database: a field outside what an inspection determines, or a
+    file outside the inspections' storage prefix, could otherwise overwrite any
+    field or make a manifest of (and later delete) any stored object.
+    """
+    if result.version != RESULT_VERSION:
+        raise ValueError(
+            f"Cannot apply an inspection result of version {result.version}; this "
+            f"is version {RESULT_VERSION}."
+        )
+    unknown = set(result.fields) - set(INSPECTED_FIELDS)
+    if unknown:
+        raise ValueError(
+            f"An inspection result may not set {', '.join(sorted(unknown))}."
+        )
+    unknown = set(result.derived) - set(DERIVED_NAMES)
+    if unknown:
+        raise ValueError(
+            f"An inspection result has unknown derived files {', '.join(sorted(unknown))}."
+        )
+    for name, written in result.derived.items():
+        items = written if name == "deepzoom" and isinstance(written, list) else [written]
+        for item in items:
+            if item is not None and not (
+                isinstance(item, dict)
+                and isinstance(item.get("key"), str)
+                and isinstance(item.get("filename"), str)
+                and 0 < len(item["filename"]) <= MAX_FILENAME_LENGTH
+                and ".." not in item["filename"].split("/")
+                and (
+                    item.get("size") is None
+                    or (isinstance(item["size"], int) and item["size"] >= 0)
+                )
+            ):
+                raise ValueError(
+                    f"An inspection result names a malformed file for {name}."
+                )
+    keys = result.written_keys()
+    if len(set(keys)) < len(keys):
+        raise ValueError("An inspection result names a file more than once.")
+    for key in keys:
+        if not key.startswith(f"{prefix}/") or ".." in key.split("/"):
+            raise ValueError(
+                f"An inspection result references '{key}', which is not under "
+                f"'{prefix}/'."
+            )
+
+
+def _inspected_value(field, value):
+    """`value` of `field` as an inspection result holds it, as Python."""
+    if isinstance(field, models.DateField) and isinstance(value, str):
+        # A date the file gives with a time of day, as it came through JSON
+        value = parse_datetime(value) or value
+    return field.to_python(value)
+
+
+def _delete_all(objs):
+    """Delete manifests or folders, logging rather than raising a failure."""
+    for obj in objs:
+        try:
+            obj.delete()
+        except Exception as exc:  # deleting is cleanup; never fail on it
+            _log.warning("Could not delete derived file %s: %s", obj, exc)
 
 
 class ThumbnailGenerationException(Exception):
@@ -698,7 +784,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         False: "No undefined/missing data found.",
     }
 
-    FILL_UNDEFINED_DATA_MODE_NOFILLING = "do-not-fill"
+    FILL_UNDEFINED_DATA_MODE_NOFILLING = processing.FILL_UNDEFINED_DATA_MODE_NOFILLING
     FILL_UNDEFINED_DATA_MODE_HARMONIC = "harmonic"
 
     FILL_UNDEFINED_DATA_MODE_CHOICES = [
@@ -709,15 +795,22 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         ),
     ]
 
-    DETREND_MODE_CHOICES = [
-        ("center", "No detrending, but subtract mean height"),
-        ("height", "Remove tilt"),
-        ("curvature", "Remove curvature and tilt"),
-    ]
+    # In the order of `processing.DETREND_MODES`
+    DETREND_MODE_CHOICES = list(
+        zip(
+            processing.DETREND_MODES,
+            [
+                "No detrending, but subtract mean height",
+                "Remove tilt",
+                "Remove curvature and tilt",
+            ],
+            strict=True,
+        )
+    )
 
-    INSTRUMENT_TYPE_UNDEFINED = "undefined"
-    INSTRUMENT_TYPE_MICROSCOPE_BASED = "microscope-based"
-    INSTRUMENT_TYPE_CONTACT_BASED = "contact-based"
+    INSTRUMENT_TYPE_UNDEFINED = processing.INSTRUMENT_TYPE_UNDEFINED
+    INSTRUMENT_TYPE_MICROSCOPE_BASED = processing.INSTRUMENT_TYPE_MICROSCOPE_BASED
+    INSTRUMENT_TYPE_CONTACT_BASED = processing.INSTRUMENT_TYPE_CONTACT_BASED
 
     INSTRUMENT_TYPE_CHOICES = [
         (
@@ -1161,18 +1254,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def instrument_info(self):
         # Build dictionary with instrument information from database... this may override data provided by the
         # topography reader
-        return {
-            "instrument": {
-                "name": self.instrument_name,
-                "parameters": InstrumentParametersModel(
-                    **self.instrument_parameters
-                ).model_dump(exclude_none=True),
-            }
-        }
+        return instrument_info(self.instrument_name, self.instrument_parameters)
 
     def _read(self, reader: ReaderBase, apply_filters: bool = True):
         """
-        Construct kwargs for reading topography given channel information.
+        Read this measurement from `reader` (see `processing.read_topography`).
 
         apply_filters: bool, optional
             If True (default), the instance is detrended and corrected for
@@ -1186,45 +1272,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 "`Topography.read` within the main Django server!"
             )
 
-        reader_kwargs = dict(channel_index=self.data_source, periodic=self.is_periodic)
-
-        channel = reader.channels[
-            reader.default_channel.index if self.data_source is None else self.data_source]
-
-        # Set size if physical size was not given in datafile
-        # (see also  TopographyCreateWizard.get_form_initial)
-        # Physical size is always a tuple or None.
-        if channel.physical_sizes is None:
-            if self.size_y is None:
-                reader_kwargs["physical_sizes"] = (self.size_x,)
-            else:
-                reader_kwargs["physical_sizes"] = self.size_x, self.size_y
-
-        if channel.height_scale_factor is None and self.height_scale:
-            # Adjust height scale to value chosen by user
-            reader_kwargs["height_scale_factor"] = self.height_scale
-
-            # This is only possible and needed, if no height scale was given in the data file already.
-            # So default is to use the factor from the file.
-
-        # Set the unit, if not already given by file contents
-        if channel.unit is None:
-            reader_kwargs["unit"] = self.unit
-
-        # Populate instrument information
-        reader_kwargs["info"] = self.instrument_info
-
-        # Eventually get topography from module "SurfaceTopography" using the given keywords
-        topo = reader.topography(**reader_kwargs)
-        if apply_filters:
-            if (
-                self.fill_undefined_data_mode
-                != Topography.FILL_UNDEFINED_DATA_MODE_NOFILLING
-                and topo.is_uniform
-            ):
-                topo = topo.interpolate_undefined_data(self.fill_undefined_data_mode)
-            topo = topo.detrend(detrend_mode=self.detrend_mode)
-        return topo
+        return read_topography(
+            reader, self.inspection_parameters(), apply_filters=apply_filters
+        )
 
     def read(
         self,
@@ -1461,95 +1511,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         st_topo : SurfaceTopography.Topography or line scan
             The topography to render.
         """
-        mode = getattr(
-            settings,
-            "TOPOBANK_VISUALIZATION_DETREND_MODE",
-            defaults.TOPOBANK_VISUALIZATION_DETREND_MODE,
+        return visualization_topography(
+            st_topo, self.detrend_mode, _visualization_detrend_mode()
         )
-        if mode is None:
-            return st_topo
-        # Choices are ordered by how much they remove
-        modes = [key for key, _ in self.DETREND_MODE_CHOICES]
-        if mode not in modes:
-            raise ValueError(
-                f"TOPOBANK_VISUALIZATION_DETREND_MODE must be one of {modes} or "
-                f"None, not '{mode}'."
-            )
-        if modes.index(mode) <= modes.index(self.detrend_mode):
-            return st_topo
-        return st_topo.detrend(detrend_mode=mode)
-
-    def _render_thumbnail(self, width=400, height=400, cmap=None, st_topo=None):
-        """
-        Make thumbnail image.
-
-        Parameters
-        ----------
-        width : int, optional
-            Maximum width of the thumbnail. (Default: 400)
-        height : int, optional
-            Maximum height of the thumbnail. (Default: 400)
-        cmap : str or colormap, optional
-            Color map for rendering the topography. (Default: None)
-
-        Returns
-        -------
-        image : bytes-like
-            Thumbnail image.
-        """
-        if st_topo is None:
-            st_topo = self.read()  # SurfaceTopography instance (=st)
-        image_file = io.BytesIO()
-        if st_topo.dim == 1:
-            dpi = 100
-            # Use the object-oriented API rather than `pyplot`. `pyplot` resolves
-            # the interactive backend, which on macOS is `macosx`; instantiating
-            # its canvas inside a forked Celery worker initializes AppKit on the
-            # child side of a fork, which the ObjC runtime aborts with SIGABRT.
-            # A bare `Figure` renders through Agg and keeps no global state, so
-            # it also removes the need to close the figure (see issue 898).
-            fig = Figure(figsize=[width / dpi, height / dpi])
-            ax = fig.subplots()
-            x, y = st_topo.positions_and_heights()
-            ax.plot(x, y, "-")
-            ax.set_axis_off()
-            fig.savefig(
-                image_file,
-                bbox_inches="tight",
-                dpi=100,
-                format=settings.TOPOBANK_THUMBNAIL_FORMAT,
-            )
-        elif st_topo.dim == 2:
-            # Compute thumbnail size (keeping aspect ratio)
-            sx, sy = st_topo.physical_sizes
-            width2 = int(sx * height / sy)
-            height2 = int(sy * width / sx)
-            if width2 <= width:
-                width = width2
-            else:
-                height = height2
-
-            # Get heights and rescale to interval 0, 1
-            heights = st_topo.heights()
-            mx, mn = heights.max(), heights.min()
-            heights = (heights - mn) / (mx - mn)
-            # Get color map. `matplotlib.colormaps` is the pyplot-free lookup;
-            # `None` selects the default, as `pyplot.get_cmap` did.
-            if cmap is None:
-                cmap = matplotlib.colormaps[matplotlib.rcParams["image.cmap"]]
-            elif isinstance(cmap, str):
-                cmap = matplotlib.colormaps[cmap]
-            # Convert to image
-            colors = (cmap(heights.T) * 255).astype(np.uint8)
-            # Remove alpha channel before writing
-            PIL.Image.fromarray(colors[:, :, :3]).resize((width, height)).save(
-                image_file, format=settings.TOPOBANK_THUMBNAIL_FORMAT
-            )
-        else:
-            raise RuntimeError(
-                f"Don't know how to create thumbnail for topography of dimension {st_topo.dim}."
-            )
-        return image_file
 
     def _make_thumbnail(self, st_topo=None):
         """Renews thumbnail.
@@ -1560,20 +1524,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         """
         if st_topo is None:
             st_topo = self.read()
-
-        image_file = self._render_thumbnail(
-            st_topo=self._visualization_topography(st_topo)
-        )
-
-        # Save the contents of in-memory file in Django image field
-        self._retire_derived(self._derived("thumbnail"))
-        filename = f"thumbnail.{settings.TOPOBANK_THUMBNAIL_FORMAT}"
-        self.thumbnail = self._track_derived(
-            Manifest.objects.create(
-                permissions=self.permissions, filename=filename, kind="der"
-            )
-        )
-        self.thumbnail.save_file(ContentFile(image_file.getvalue()))
+        self._make_derived("thumbnail", st_topo)
 
     def _make_deepzoom(self, st_topo=None):
         """Renew deep zoom images.
@@ -1586,34 +1537,34 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             st_topo = self.read()
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            self._retire_derived(self._derived("deepzoom"))
-            self.deepzoom = self._track_derived(
-                ManifestSet.objects.create(permissions=self.permissions)
-            )
-            render_deepzoom(self._visualization_topography(st_topo), self.deepzoom)
+            self._make_derived("deepzoom", st_topo)
 
     def _make_squeezed(self, st_topo=None, save=False):
         if st_topo is None:
             st_topo = self.read(allow_squeezed=False)
-        with tempfile.NamedTemporaryFile() as tmp:
-            # Write and upload NetCDF file
-            st_topo.to_netcdf(tmp.name)
-            # Delete old squeezed file
-            self._retire_derived(self._derived("squeezed_datafile"))
-            # Upload new squeezed file
-            dirname, basename = os.path.split(self.datafile.filename)
-            orig_stem, orig_ext = os.path.splitext(basename)
-            squeezed_name = f"{orig_stem}-squeezed.nc"
-            self.squeezed_datafile = self._track_derived(
-                Manifest.objects.create(
-                    permissions=self.permissions,
-                    filename=squeezed_name,
-                    kind="der",
-                    file=File(open(tmp.name, mode="rb")),
-                )
-            )
+        self._make_derived("squeezed_datafile", st_topo)
         if save:
             self.save()
+
+    def _make_derived(self, name, st_topo):
+        """Write the derived file `name` alone, as an inspection does, and point
+        the field at it; the field is saved by the caller. The file it replaces
+        is deleted."""
+        writer = StorageWriter(default_storage, self.processing_folder(uuid4().hex))
+        written = write_derived(
+            name,
+            st_topo,
+            self.inspection_parameters(filename=self.datafile.filename),
+            writer,
+        )
+        try:
+            retired = self._attach_derived(
+                InspectionResult(derived={name: written}), row=None
+            )
+        except BaseException:
+            writer.delete()
+            raise
+        _delete_all(retired)
 
     def _derived(self, name):
         """The derived manifest or folder in field `name`, or None.
@@ -1627,38 +1578,19 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             return None
 
     def _retire_derived(self, obj):
-        """Retire a derived manifest or folder that is being replaced.
+        """Delete the derived manifest or folder of a file that failed to generate.
 
-        Within `refresh_cache` it is deleted only once the replacement has been
-        committed, so a reader that loaded the old reference keeps a file to read
-        for as long as possible. Elsewhere it is deleted right away.
+        See `_clear_derived`; a file that is replaced is retired by
+        `_attach_derived` instead.
         """
-        if obj is None:
-            return
-        if not getattr(self, "_refreshing", False):
+        if obj is not None:
             obj.delete()
-        elif not any(
-            type(other) is type(obj) and other.pk == obj.pk
-            for other in self._retired_derived
-        ):
-            # A file whose replacement failed is retired again by `_clear_derived`
-            self._retired_derived.append(obj)
-
-    def _track_derived(self, obj):
-        """Record a derived manifest or folder created by `refresh_cache`."""
-        if getattr(self, "_refreshing", False):
-            self._created_derived.append(obj)
-        return obj
 
     def _clear_derived(self, name):
         """Drop the derived file in field `name` after generating it failed."""
-        if not getattr(self, "_refreshing", False):
-            setattr(self, name, None)
-            self.save(update_fields=[name])
-        else:
-            # `refresh_cache` saves the field with everything else it changed
-            self._retire_derived(self._derived(name))
-            setattr(self, name, None)
+        self._retire_derived(self._derived(name))
+        setattr(self, name, None)
+        self.save(update_fields=[name])
 
     def make_thumbnail(self, none_on_error=True, st_topo=None):
         """Renew thumbnail field.
@@ -1754,24 +1686,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         """
         if st_topo is None:
             st_topo = self.read()
-        if st_topo.unit is not None:
-            bandwidth_lower, bandwidth_upper = st_topo.bandwidth()
-            fac = get_unit_conversion_factor(st_topo.unit, "m")
-            self.bandwidth_lower = fac * bandwidth_lower
-            self.bandwidth_upper = fac * bandwidth_upper
-
-            try:
-                short_reliability_cutoff = (
-                    st_topo.short_reliability_cutoff()
-                )  # Return float or None
-            except UndefinedDataError:
-                # Short reliability cutoff can only be computed on topographies without undefined data
-                short_reliability_cutoff = None
-            if short_reliability_cutoff is not None:
-                short_reliability_cutoff *= fac
-            self.short_reliability_cutoff = (
-                short_reliability_cutoff  # None is also saved here
-            )
+        for name, value in bandwidth_fields(st_topo).items():
+            setattr(self, name, value)
 
     @property
     def is_metadata_complete(self):
@@ -1785,10 +1701,44 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def notify_users(self, sender, verb, description):
         self.permissions.notify_users(sender, verb, description)
 
+    def inspection_parameters(self, filename=""):
+        """What `processing.inspect_datafile` needs to know about this measurement.
+
+        `filename` is the data file's name, which the squeezed datafile is named
+        after; reading the measurement does not need it.
+        """
+        return InspectionParameters(
+            name=self.name,
+            filename=filename,
+            data_source=self.data_source,
+            size_x=self.size_x,
+            size_y=self.size_y,
+            unit=self.unit,
+            height_scale=self.height_scale,
+            is_periodic=self.is_periodic,
+            fill_undefined_data_mode=self.fill_undefined_data_mode,
+            detrend_mode=self.detrend_mode,
+            instrument_name=self.instrument_name,
+            instrument_parameters=self.instrument_parameters,
+            thumbnail_format=getattr(
+                settings,
+                "TOPOBANK_THUMBNAIL_FORMAT",
+                defaults.TOPOBANK_THUMBNAIL_FORMAT,
+            ),
+            visualization_detrend_mode=_visualization_detrend_mode(),
+            reject_incomplete_metadata=getattr(
+                settings, "TOPOBANK_REJECT_INCOMPLETE_METADATA", False
+            ),
+        )
+
     def refresh_cache(self, timer=None):
         """
         Inspect datafile and renew cached properties, in particular database entries on
         resolution, size etc. and the squeezed NetCDF representation of the data.
+
+        The two halves of processing, run here in turn: `processing.inspect_datafile`
+        reads the file and writes the derived files under a fresh storage prefix,
+        and `apply_inspection` records what it found.
         """
         if timer is None:
             timer = Timer("refresh_cache")
@@ -1797,85 +1747,113 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         _log.debug(f"Sending `pre_refresh_cache` signal from {self}...")
         pre_refresh_cache.send(sender=Topography, instance=self)
 
-        # Derived files are replaced, not overwritten: the new ones are created
-        # first, and the old ones are deleted once the new references have been
-        # committed (see `_save_refreshed`).
-        previous = {name: getattr(self, f"{name}_id") for name in self._DERIVED_FIELDS}
-        self._refreshing = True
-        self._retired_derived = []
-        self._created_derived = []
+        with timer("exists"):
+            # First check if we have a datafile. This is the processing itself,
+            # so it must not go through `Manifest.exists`, which would start one.
+            if not self.datafile.confirm_upload():
+                raise RuntimeError(
+                    f"Topography {self.id} does not appear to have a data file. Cannot "
+                    f"refresh cached data."
+                )
+
+        writer = StorageWriter(default_storage, self.processing_folder(uuid4().hex))
+        result = None
         try:
-            try:
-                self._refresh_cached_properties(timer)
-                saved = self._save_refreshed(previous)
-            except Exception:
-                # Whether the inspection or the save failed, the files created
-                # for the new references are unreferenced and must go
-                self._clean_up_failed_refresh(previous)
-                raise
-        finally:
-            self._refreshing = False
+            result = inspect_datafile(
+                self.datafile.file,
+                self.inspection_parameters(filename=self.datafile.filename),
+                writer,
+                timer=timer,
+                label=self.id,
+            )
+            saved = self.apply_inspection(result, prefix=writer.prefix)
+        except Exception as exc:
+            # Whether the inspection or recording it failed, the files it wrote
+            # are referenced by nothing and must go. What it found is still
+            # recorded, without them.
+            writer.delete()
+            found = getattr(exc, "inspection_result", None) or result
+            if found is not None:
+                self._apply_failed_inspection(
+                    InspectionResult(fields=found.fields), writer.prefix
+                )
+            raise
 
         if saved:
             # Send signal
             _log.debug(f"Sending `post_refresh_cache` signal from {self}...")
             post_refresh_cache.send(sender=Topography, instance=self)
 
-    def _clean_up_failed_refresh(self, previous):
-        """Discard what a failed refresh created, without masking its error.
+    def _apply_failed_inspection(self, result, prefix):
+        """Record what a failed inspection found, without masking its error.
 
         The error is the task's result, so nothing here may replace it: a failure
-        of the cleanup itself (e.g. a database transaction the error has already
-        broken) is only logged.
+        of this itself (e.g. a database transaction the error has already broken)
+        is only logged.
         """
+        if result is None:
+            return
         try:
-            self._save_refreshed(previous, failed=True)
+            self.apply_inspection(result, prefix=prefix, failed=True)
         except Exception:
             _log.exception(
-                "refresh_cache: cleaning up after the failed refresh of topography "
-                "%s failed as well",
+                "refresh_cache: recording the failed inspection of topography %s "
+                "failed as well",
                 self.id,
             )
 
-    def _save_refreshed(self, previous, failed=False):
-        """Persist what `refresh_cache` changed and swap in the new derived files.
+    def apply_inspection(self, result, *, prefix, failed=False):
+        """Record an inspection's `result` and swap in the derived files it wrote.
 
         Only the fields this instance changed are written (see `save`), so that
-        edits made while the file was being processed survive; the task fields
-        belong to `run_task`. Within a task run nothing is written once the run
-        has been superseded by a newer dispatch, and the files this run created
-        are deleted instead. Otherwise the derived files this run replaced are
-        deleted once the transaction commits.
+        edits made while the file was being processed survive; recording them
+        never dispatches the processing again. Nothing is written once the run in
+        progress on this instance (see `TaskStateModel.run_task`) has been
+        superseded by a newer dispatch, and the files
+        the result references are deleted instead. Otherwise the derived files it
+        replaces are deleted once the transaction commits.
 
-        A failed refresh keeps the `previous` derived files. Within a task run it
-        still records the other fields it changed, as the full-row save at the end
-        of a run used to; outside a run it writes nothing, as before.
+        A `failed` inspection keeps the previous derived files. Within a run it
+        still records the other fields it found, as the full-row save at the end
+        of a run used to; outside a run it writes nothing.
 
-        Returns whether the changes were saved.
+        The result is checked before anything is written: its version, the fields
+        it may set, and that its files lie under `prefix`, the folder of the run
+        that wrote them (see `processing_folder`); files are only ever
+        deleted from there. Returns whether the result was recorded.
         """
-        created = list(self._created_derived)
-        retired = list(self._retired_derived)
+        _validate_inspection_result(result, prefix)
         in_task_run = getattr(self, "_task_run", None) is not None
 
-        def delete_all(objs):
-            for obj in objs:
-                try:
-                    obj.delete()
-                except Exception as exc:  # deleting is cleanup; never fail on it
-                    _log.warning("Could not delete derived file %s: %s", obj, exc)
-
         if failed:
-            for name, old_id in previous.items():
-                setattr(self, f"{name}_id", old_id)
-            delete_all(created)
+            self._discard(result.written_keys(), prefix)
             if not in_task_run:
                 return False
+            result = InspectionResult(fields=result.fields)
+        for name, value in result.fields.items():
+            field = self._meta.get_field(name)
+            setattr(self, field.attname, _inspected_value(field, value))
 
+        previous = {
+            f"{name}_id": getattr(self, f"{name}_id") for name in self._DERIVED_FIELDS
+        }
+        try:
+            return self._record_inspection(result, prefix)
+        except BaseException:
+            # Back to the derived files the database still has: the ones this
+            # result was attached as are gone with the rollback
+            for attname, pk in previous.items():
+                setattr(self, attname, pk)
+            raise
+
+    def _record_inspection(self, result, prefix):
         if self.pk is None:
             # A measurement inspected before it was ever saved: nothing can have
             # changed concurrently and nothing references the old files.
-            self.save()
-            delete_all(retired)
+            with transaction.atomic():
+                retired = self._attach_derived(result, row=None)
+                self._save_inspection()
+            _delete_all(retired)
             return True
 
         fields = [
@@ -1891,7 +1869,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     "processed; discarding the results.",
                     self.id,
                 )
-                delete_all(created)
+                self._discard(result.written_keys(), prefix)
                 return False
             if not self.is_current_task_run(row):
                 _log.warning(
@@ -1900,279 +1878,136 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     self.id,
                     self.task_id,
                 )
-                if not failed:
-                    transaction.on_commit(lambda: delete_all(created))
+                self._discard(result.written_keys(), prefix, row)
                 return False
-            if not failed:
-                # The files the row references now, under the lock, are the ones
-                # being replaced. They differ from what this run started from when
-                # another refresh (an inline one, which no ownership check covers)
-                # swapped files in meanwhile; retiring them keeps those from leaking.
-                unchanged = self.unchanged_fields()
-                to_retire = {}
-                for name in self._DERIVED_FIELDS:
-                    attname = f"{name}_id"
-                    old_id = row[attname]
-                    if (
-                        attname in unchanged
-                        or old_id is None
-                        or old_id == getattr(self, attname)
-                    ):
-                        continue
-                    model = self._meta.get_field(name).related_model
-                    to_retire.setdefault(model, set()).add(old_id)
-                for model, ids in to_retire.items():
-                    ids.difference_update(obj.pk for obj in retired if type(obj) is model)
-                    retired.extend(model._base_manager.filter(pk__in=ids))
-            self.save(update_fields=fields)
-            if not failed:
-                transaction.on_commit(lambda: delete_all(retired))
+            retired = self._attach_derived(result, row)
+            missing = missing_derived_files(result, is_map=self.size_y is not None)
+            if missing:
+                # A measurement with complete metadata is expected to have these;
+                # a missing one is a silent data-quality failure that would
+                # otherwise be masked by task_state=SUCCESS. We only log
+                # (generation stays non-fatal) so monitoring can catch it.
+                _log.error(
+                    "refresh_cache: topography %s has complete metadata but "
+                    "is missing derived files: %s",
+                    self.id,
+                    ", ".join(missing),
+                )
+            self._save_inspection(update_fields=fields)
+            transaction.on_commit(lambda: _delete_all(retired))
         return True
 
-    def _refresh_cached_properties(self, timer):
-        """Inspect the datafile and update the cached properties in memory.
+    def _discard(self, keys, prefix, row=None):
+        """Delete the files `keys` in the run folder `prefix` that this
+        measurement does not reference; keys elsewhere are left alone.
 
-        The body of `refresh_cache`, which persists the result.
+        A result that was applied before, and is now delivered again, references
+        files that are still in use. Only this measurement's own derived files can
+        reference them: they lie in the folder of the run that wrote them, and a
+        copy of a measurement gets derived files of its own. `row` holds the
+        derived-file fields as the caller has locked them; without it they are
+        read. The files are deleted once the transaction commits.
         """
-        with timer("exists"):
-            # First check if we have a datafile. This is the processing itself,
-            # so it must not go through `Manifest.exists`, which would start one.
-            if not self.datafile.confirm_upload():
-                raise RuntimeError(
-                    f"Topography {self.id} does not appear to have a data file. Cannot "
-                    f"refresh cached data."
-                )
-
-        # Check if this is the first time we are opening this file...
-        populate_initial_metadata = self.data_source is None
-
-        # Populate datafile information in the database.
-        # (We never load the topography in the web server, so we don't know this until
-        # the Celery task refreshes the cache. Fields that are undefined are
-        # autodetected.)
-        _log.info(f"Caching properties of topography {self.id}...")
-
-        # Open topography file
-        with timer("get_topography_reader"):
-            reader = get_topography_reader(self.datafile.file)
-            self.datafile_format = reader.format()
-
-        # Update channel names
-        self.channel_names = [
-            (channel.name, _get_unit(channel)) for channel in reader.channels
-        ]
-
-        # Idiot check
-        if len(self.channel_names) == 0:
-            raise RuntimeError(
-                f"Datafile of measurement '{self.name}' could be opened, but it "
-                "appears to contain no valid data."
+        keys = {
+            key
+            for key in keys
+            if isinstance(key, str)
+            and key.startswith(f"{prefix}/")
+            and ".." not in key.split("/")
+        }
+        if not keys:
+            return
+        if row is None and self.pk is not None:
+            row = (
+                type(self)
+                ._base_manager.filter(pk=self.pk)
+                .values(*(f"{name}_id" for name in self._DERIVED_FIELDS))
+                .first()
             )
-
-        # Check whether the user already selected a (valid) channel, if not set to
-        # default channel. We compute this into a local variable first so we can
-        # reject files with incomplete metadata (below) *before* mutating any
-        # significant field (such as `data_source`); otherwise a rejected inspection
-        # would leave a phantom change that re-dispatches the task on the terminal
-        # save().
-        data_source = self.data_source
-        if (
-            data_source is None
-            or data_source < 0
-            or data_source >= len(self.channel_names)
-        ):
-            data_source = reader.default_channel.index
-
-        # Select channel
-        channel = reader.channels[data_source]
-
-        # Reject files with incomplete metadata if this instance is configured to do
-        # so. The file is of a supported format and could be read, but the metadata
-        # required to process it (physical size, unit) is missing and would normally
-        # have to be entered manually through the UI. A field is considered missing
-        # only if neither the file nor the existing database entry provides it, so
-        # container/zip imports (which populate this metadata from `index.json` before
-        # inspection) are not affected.
-        if getattr(settings, "TOPOBANK_REJECT_INCOMPLETE_METADATA", False):
-            size_missing = channel.physical_sizes is None and self.size_x is None
-            unit_missing = channel.unit is None and self.unit is None
-            if size_missing or unit_missing:
-                missing = []
-                if size_missing:
-                    missing.append("physical size")
-                if unit_missing:
-                    missing.append("unit")
-                raise IncompleteMetadataError(
-                    f"The file format '{self.datafile_format}' is supported, but the "
-                    f"file does not contain complete metadata. The following required "
-                    f"metadata could not be read from the file: {', '.join(missing)}. "
-                    f"This instance is configured to reject files with incomplete "
-                    f"metadata."
+        if row is not None:
+            ids = [row["thumbnail_id"], row["squeezed_datafile_id"]]
+            own = Q(pk__in=[pk for pk in ids if pk is not None])
+            if row["deepzoom_id"] is not None:
+                own |= Q(folder_id=row["deepzoom_id"])
+            keys -= set(
+                Manifest.objects.filter(own, file__in=keys).values_list(
+                    "file", flat=True
                 )
-
-        self.data_source = data_source
-
-        #
-        # Look for necessary metadata. We override values in the database. This may be
-        # necessary if the underlying reader changes (e.g. through bug fixes).
-        #
-
-        # Populate resolution information in the database
-        if channel.dim == 1:
-            (n,) = channel.nb_grid_pts
-            self.resolution_x = int(n)
-            self.resolution_y = None  # This indicates that this is a line scan
-        elif channel.dim == 2:
-            self.resolution_x, self.resolution_y = (int(n) for n in channel.nb_grid_pts)
-        else:
-            # This should not happen
-            raise NotImplementedError(
-                f"Cannot handle topographies of dimension {channel.dim}."
             )
+        transaction.on_commit(lambda: delete_keys(default_storage, sorted(keys)))
 
-        # Populate size information in the database
-        if channel.physical_sizes is None:
-            # Data file *does not* provide size information; the user must provide it
-            self.size_editable = True
-        else:
-            # Data file *does* provide size information; the user cannot override it
-            self.size_editable = False
-            # Reset size information here
-            if channel.dim == 1:
-                (s,) = channel.physical_sizes
-                self.size_x = float(s)
-                self.size_y = None
-            elif channel.dim == 2:
-                self.size_x, self.size_y = (float(s) for s in channel.physical_sizes)
-            else:
-                # This should not happen
-                raise NotImplementedError(
-                    f"Cannot handle topographies of dimension {channel.dim}."
-                )
+    def processing_folder(self, run):
+        """The storage folder in which run `run` of this measurement writes its
+        derived files. Nothing outside it is ever deleted on the run's behalf."""
+        owner = "new" if self.pk is None else self.pk
+        return f"{processing_storage_prefix()}/{owner}/{run}"
 
-        # Populate unit information in the database
-        if channel.unit is None:
-            # Data file *does not* provide unit information; the user must provide it
-            self.unit_editable = True
-        else:
-            # Data file *does* provide unit information; the user cannot override it
-            self.unit_editable = False
-            # Reset unit information here
-            if isinstance(channel.unit, tuple):
-                raise NotImplementedError(
-                    f"Data channel '{channel.name}' contains information that is not "
-                    "height."
-                )
-            self.unit = channel.unit
+    def _save_inspection(self, **kwargs):
+        """Save what an inspection found, without dispatching another."""
+        refreshing = getattr(self, "_refreshing", False)
+        self._refreshing = True
+        try:
+            self.save(**kwargs)
+        finally:
+            self._refreshing = refreshing
 
-        # Populate height scale information in the database
-        if channel.height_scale_factor is None:
-            # Data file *does not* provide height scale information; the user must provide it
-            self.height_scale_editable = True
-        else:
-            # Data file *does* provide height scale information; the user cannot override it
-            self.height_scale_editable = False
-            # Reset unit information here
-            self.height_scale = channel.height_scale_factor
+    def _attach_derived(self, result, row):
+        """Point the derived-file fields at the files `result` wrote.
 
-        # Populate information on periodicity
-        if not channel.is_uniform:
-            # This is a nonuniform line scan that does not support periodicity
-            self.is_periodic_editable = False
-            self.is_periodic = False
-        elif self.is_periodic is None:
-            # This is a uniform line scan or map, periodicity is supported
-            self.is_periodic_editable = True
-            self.is_periodic = channel.is_periodic
-
-        #
-        # We now look for optional metadata. Only import it from the file on first read,
-        # otherwise we may override what the user has painfully adjusted when refreshing
-        # the cache.
-        #
-
-        if populate_initial_metadata:
-            # Measurement time
-            try:
-                self.measurement_date = channel.info["acquisition_time"]
-            except:  # noqa: E722
-                pass
-
-            # Instrument name
-            try:
-                self.instrument_name = channel.info["instrument"]["name"]
-            except:  # noqa: E722
-                pass
-
-            # Instrument parameters
-            try:
-                self.instrument_parameters = channel.info["instrument"]["parameters"]
-                if "tip_radius" in self.instrument_parameters:
-                    self.instrument_type = self.INSTRUMENT_TYPE_CONTACT_BASED
-                elif "resolution" in self.instrument_parameters:
-                    self.instrument_type = self.INSTRUMENT_TYPE_MICROSCOPE_BASED
-            except:  # noqa: E722
-                self.instrument_type = self.INSTRUMENT_TYPE_UNDEFINED
-
-        # Read the file if metadata information is complete
-        if self.is_metadata_complete:
-            with timer("metadata is complete"):
-                _log.info(f"Metadata of {self} is complete. Generating images.")
-                with timer("_read"):
-                    st_topo = self._read(reader)
-
-                # How much of the original data file is undefined. Both values
-                # describe the *measured* data, which is why they are taken from
-                # the bottom of the pipeline rather than from `st_topo` itself:
-                # with filling enabled the pipeline reports no undefined data by
-                # definition, which would erase the very information the fill
-                # mode was chosen in response to.
-                self.undefined_data_fraction = undefined_data_fraction(st_topo)
-                self.has_undefined_data = (
-                    None
-                    if self.undefined_data_fraction is None
-                    else self.undefined_data_fraction > 0
-                )
-
-                # What the detrending actually removed. `st_topo` is the
-                # detrended topography, so this reads the fit it performed
-                # rather than repeating it.
-                self.detrend_parameters = detrend_parameters(st_topo)
-
-                # Refresh other cached quantities
-                with timer("refresh_bandwidth_cache"):
-                    self.refresh_bandwidth_cache(st_topo=st_topo)
-                with timer("make_thumbnail"):
-                    self.make_thumbnail(st_topo=st_topo)
-                with timer("make_deepzoom"):
-                    self.make_deepzoom(st_topo=st_topo)
-                with timer("make_squeezed"):
-                    self.make_squeezed(st_topo=st_topo)
-
-                # Verify the derived files actually landed. A measurement with
-                # complete metadata is expected to have these; a missing one is
-                # a silent data-quality failure that would otherwise be masked
-                # by task_state=SUCCESS. We only log (generation stays
-                # non-fatal) so monitoring can catch it.
-                missing = []
-                if self.thumbnail is None or not self.thumbnail.exists():
-                    missing.append("thumbnail")
-                # deepzoom is only generated for 2D maps (size_y is not None)
-                if self.size_y is not None and (
-                    self.deepzoom is None or len(self.deepzoom) == 0
-                ):
-                    missing.append("deepzoom")
-                if self.squeezed_datafile is None or not (
-                    self.squeezed_datafile.exists()
-                ):
-                    missing.append("squeezed_datafile")
-                if missing:
-                    _log.error(
-                        "refresh_cache: topography %s has complete metadata but "
-                        "is missing derived files: %s",
-                        self.id,
-                        ", ".join(missing),
+        Creates the manifests (and the deep zoom folder) for files already in
+        storage, without copying them. Returns the manifests and folders they
+        replace: the ones `row` references (the row as locked now, so that files
+        a concurrent refresh swapped in are replaced too), or this instance does
+        when there is no row yet.
+        """
+        now = timezone.now()
+        retired = []
+        for name, written in result.derived.items():
+            attname = f"{name}_id"
+            old_id = getattr(self, attname) if row is None else row[attname]
+            files = (written if isinstance(written, list) else [written]) if written else []
+            if old_id is not None and files and self._references(name, old_id, files):
+                # This result was applied before (a redelivery): keep its files,
+                # whose objects a replacement would delete
+                setattr(self, attname, old_id)
+                continue
+            new = None
+            if files:
+                folder = None
+                if name == "deepzoom":
+                    folder = new = ManifestSet.objects.create(
+                        permissions=self.permissions
                     )
+                manifests = Manifest.objects.bulk_create(
+                    [
+                        Manifest(
+                            permissions=self.permissions,
+                            folder=folder,
+                            filename=item["filename"],
+                            kind="der",
+                            file=item["key"],
+                            confirmed_at=now,
+                            size_bytes=item.get("size"),
+                        )
+                        for item in files
+                    ]
+                )
+                if folder is None:
+                    (new,) = manifests
+            setattr(self, name, new)
+            if old_id is not None and old_id != (new.pk if new else None):
+                model = self._meta.get_field(name).related_model
+                old = model._base_manager.filter(pk=old_id).first()
+                if old is not None:
+                    retired.append(old)
+        return retired
+
+    def _references(self, name, pk, files):
+        """Whether the derived manifest or folder `pk` holds the written `files`."""
+        keys = {item["key"] for item in files}
+        if name == "deepzoom":
+            return Manifest.objects.filter(folder_id=pk, file__in=keys).exists()
+        return Manifest.objects.filter(pk=pk, file__in=keys).exists()
 
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""

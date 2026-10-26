@@ -47,3 +47,12 @@ TOPOBANK_TASK_RECLAIM_AFTER = None
 #: or ``None`` to show the measurement exactly as analyses see it. Only the images
 #: are affected.
 TOPOBANK_VISUALIZATION_DETREND_MODE = None
+
+#: Image format of a measurement's thumbnail
+TOPOBANK_THUMBNAIL_FORMAT = "jpeg"
+
+#: Storage prefix under which the processing of a measurement writes its derived
+#: files (squeezed datafile, thumbnail, deep zoom images), one folder per
+#: measurement and run.
+#: The manifests created for them reference the files where they were written.
+TOPOBANK_PROCESSING_STORAGE_PREFIX = "data-lake/processing"
