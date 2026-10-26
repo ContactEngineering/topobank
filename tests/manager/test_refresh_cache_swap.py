@@ -1,11 +1,13 @@
 """Tests for how `refresh_cache` replaces derived files and saves its results.
 
-Reprocessing creates the new squeezed file, thumbnail and deep zoom images first,
-saves the new references, and deletes the old files only once that save has been
-committed. It writes only the fields it changed, and nothing at all once a newer
-dispatch has taken the measurement over.
+Reprocessing writes the new squeezed file, thumbnail and deep zoom images first
+(`processing.inspect_datafile`), saves the new references, and deletes the old
+files only once that save has been committed (`Topography.apply_inspection`). It
+writes only the fields it changed, and nothing at all once a newer dispatch has
+taken the measurement over; the files it wrote are then deleted.
 """
 
+import contextlib
 import json
 import threading
 import uuid
@@ -13,11 +15,13 @@ from unittest import mock
 
 import pytest
 from django.contrib.contenttypes.models import ContentType
+from django.core.files.storage import default_storage
 from django.db import transaction
 from django.db.models import JSONField
 
 from topobank.files.models import Manifest, ManifestSet
-from topobank.manager.models import DerivedFileSwap, Topography
+from topobank.manager import processing
+from topobank.manager.models import Topography, processing_storage_prefix
 from topobank.taskapp.models import TaskStateModel
 from topobank.taskapp.utils import run_task, task_dispatch
 from topobank.testing.factories import Topography1DFactory, Topography2DFactory
@@ -37,8 +41,54 @@ def broker():
         yield messages
 
 
+@pytest.fixture
+def written():
+    """Storage keys of every derived file an inspection writes."""
+    keys = []
+    real_save = processing.StorageWriter.save
+
+    def save(self, name, path):
+        info = real_save(self, name, path)
+        keys.append(info["key"])
+        return info
+
+    with mock.patch.object(processing.StorageWriter, "save", save):
+        yield keys
+
+
 def _derived_ids(topo):
     return topo.thumbnail_id, topo.deepzoom_id, topo.squeezed_datafile_id
+
+
+def _all_gone(keys):
+    return keys and not any(default_storage.exists(key) for key in keys)
+
+
+@contextlib.contextmanager
+def _after_writing(name, hook):
+    """Call `hook(written)` once the derived file `name` has been written."""
+    description, write = processing._DERIVED_WRITERS[name]
+
+    def write_then_hook(st_topo, params, writer):
+        written = write(st_topo, params, writer)
+        hook(written)
+        return written
+
+    with mock.patch.dict(
+        processing._DERIVED_WRITERS, {name: (description, write_then_hook)}
+    ):
+        yield
+
+
+@contextlib.contextmanager
+def _failing_to_write(name, exc):
+    description, _ = processing._DERIVED_WRITERS[name]
+
+    def fail(st_topo, params, writer):
+        raise exc
+
+    with mock.patch.dict(processing._DERIVED_WRITERS, {name: (description, fail)}):
+        yield
 
 
 @pytest.mark.django_db(transaction=True)
@@ -95,24 +145,19 @@ def test_reader_falls_back_to_the_raw_file(broker):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_superseded_refresh_discards_its_files(broker):
+def test_superseded_refresh_discards_its_files(broker, written):
     topo = Topography2DFactory(size_x=1, size_y=1)
     broker.clear()
     old_ids = _derived_ids(topo)
     assert run_task(topo)
     task_id = topo.task_id
-    created = []
-    real_make_squeezed = Topography.make_squeezed
+    written.clear()
 
-    def make_squeezed_then_get_superseded(self, *args, **kwargs):
-        real_make_squeezed(self, *args, **kwargs)
-        created.extend(_derived_ids(self))
-        assert run_task(Topography.objects.get(pk=self.pk), force=True)
+    def get_superseded(_):
+        assert run_task(Topography.objects.get(pk=topo.pk), force=True)
 
     ct = ContentType.objects.get_for_model(Topography)
-    with mock.patch.object(
-        Topography, "make_squeezed", make_squeezed_then_get_superseded
-    ):
+    with _after_writing("squeezed_datafile", get_superseded):
         task_dispatch.apply(args=[ct.id, topo.pk], task_id=str(task_id)).get()
 
     stored = Topography.objects.get(pk=topo.pk)
@@ -121,27 +166,25 @@ def test_superseded_refresh_discards_its_files(broker):
     assert Manifest.objects.filter(pk=old_ids[0]).exists()
     assert ManifestSet.objects.filter(pk=old_ids[1]).exists()
     assert Manifest.objects.filter(pk=old_ids[2]).exists()
-    # ...the ones the superseded run created are gone...
-    assert not Manifest.objects.filter(pk__in=[created[0], created[2]]).exists()
-    assert not ManifestSet.objects.filter(pk=created[1]).exists()
+    # ...the files the superseded run wrote are gone...
+    assert _all_gone(written)
     # ...and the successor's claim stands
     assert stored.task_state == TaskStateModel.PENDING
     assert stored.task_id != task_id
 
 
 @pytest.mark.django_db(transaction=True)
-def test_failed_refresh_keeps_the_previous_derived_files(broker):
+def test_failed_refresh_keeps_the_previous_derived_files(broker, written):
     topo = Topography2DFactory(size_x=1, size_y=1)
     old_ids = _derived_ids(topo)
-    created = []
-    real_make_deepzoom = Topography.make_deepzoom
+    written.clear()
+    real_inspect = processing._inspect
 
-    def make_deepzoom_then_fail(self, *args, **kwargs):
-        real_make_deepzoom(self, *args, **kwargs)
-        created.extend(_derived_ids(self)[:2])
+    def inspect_then_fail(*args):
+        real_inspect(*args)
         raise RuntimeError("worker lost")
 
-    with mock.patch.object(Topography, "make_deepzoom", make_deepzoom_then_fail):
+    with mock.patch.object(processing, "_inspect", inspect_then_fail):
         with pytest.raises(RuntimeError):
             topo.refresh_cache()
 
@@ -149,8 +192,7 @@ def test_failed_refresh_keeps_the_previous_derived_files(broker):
     assert _derived_ids(Topography.objects.get(pk=topo.pk)) == old_ids
     assert Manifest.objects.filter(pk=old_ids[0]).exists()
     assert ManifestSet.objects.filter(pk=old_ids[1]).exists()
-    assert not Manifest.objects.filter(pk=created[0]).exists()
-    assert not ManifestSet.objects.filter(pk=created[1]).exists()
+    assert _all_gone(written)
 
 
 @pytest.mark.django_db(transaction=True)
@@ -158,17 +200,13 @@ def test_edits_made_during_processing_survive(broker):
     topo = Topography1DFactory()
     Topography.objects.filter(pk=topo.pk).update(data_source=None, resolution_x=None)
     topo.refresh_from_db()
-    real_make_thumbnail = Topography.make_thumbnail
 
-    def make_thumbnail_while_user_edits(self, *args, **kwargs):
-        Topography.objects.filter(pk=self.pk).update(
+    def user_edits(_):
+        Topography.objects.filter(pk=topo.pk).update(
             name="renamed meanwhile", description="edited meanwhile"
         )
-        real_make_thumbnail(self, *args, **kwargs)
 
-    with mock.patch.object(
-        Topography, "make_thumbnail", make_thumbnail_while_user_edits
-    ):
+    with _after_writing("thumbnail", user_edits):
         topo.refresh_cache()
 
     stored = Topography.objects.get(pk=topo.pk)
@@ -263,77 +301,43 @@ def test_processing_a_copy_leaves_the_original_deep_zoom_alone(broker):
 @pytest.mark.django_db(transaction=True)
 def test_a_failing_cleanup_does_not_mask_the_error(broker):
     topo = Topography1DFactory()
+    error = ValueError("the real one")
+    error.inspection_result = processing.InspectionResult(fields={"unit": "m"})
 
-    with mock.patch.object(
-        Topography, "_refresh_cached_properties", side_effect=ValueError("the real one")
+    with mock.patch(
+        "topobank.manager.models.inspect_datafile", side_effect=error
     ), mock.patch.object(
-        Topography, "_save_refreshed", side_effect=RuntimeError("cleanup")
+        Topography, "apply_inspection", side_effect=RuntimeError("cleanup")
     ):
         with pytest.raises(ValueError, match="the real one"):
             topo.refresh_cache()
 
 
-def _record_created(created):
-    """Patch `DerivedFileSwap.replace` to record the files a refresh creates."""
-    real_replace = DerivedFileSwap.replace
-
-    def replace(self, old, new):
-        if new is not None:
-            created.append(new)
-        return real_replace(self, old, new)
-
-    return mock.patch.object(DerivedFileSwap, "replace", replace)
-
-
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("step", ["_make_deepzoom", "_make_squeezed"])
-def test_running_out_of_time_fails_the_refresh_and_deletes_its_files(broker, step):
+@pytest.mark.parametrize("step", processing.DERIVED_NAMES)
+def test_running_out_of_time_fails_the_refresh_and_deletes_its_files(
+    broker, written, step
+):
     """The soft time limit is no problem with the file being generated: it is not
-    caught like one, and the files the refresh created so far are deleted rather
+    caught like one, and the files the refresh wrote so far are deleted rather
     than left behind unreferenced."""
     from celery.exceptions import SoftTimeLimitExceeded
 
     topo = Topography2DFactory(size_x=1, size_y=1)
     old_ids = _derived_ids(topo)
-    created = []
+    written.clear()
 
-    with _record_created(created), mock.patch.object(
-        Topography, step, side_effect=SoftTimeLimitExceeded()
-    ):
+    def run_out_of_time(_):
+        raise SoftTimeLimitExceeded()
+
+    with _after_writing(step, run_out_of_time):
         with pytest.raises(SoftTimeLimitExceeded):
             topo.refresh_cache()
 
-    assert created
-    for obj in created:
-        assert not type(obj)._base_manager.filter(pk=obj.pk).exists()
+    assert _all_gone(written)
     assert _derived_ids(Topography.objects.get(pk=topo.pk)) == old_ids
     assert Manifest.objects.filter(pk__in=[old_ids[0], old_ids[2]]).count() == 2
     assert ManifestSet.objects.filter(pk=old_ids[1]).exists()
-
-
-@pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize(
-    "target, model",
-    [
-        ("topobank.files.models.Manifest.save_file", Manifest),
-        ("topobank.manager.models.render_deepzoom", ManifestSet),
-    ],
-)
-def test_running_out_of_time_inside_a_step_deletes_the_file_it_was_making(
-    broker, target, model
-):
-    from celery.exceptions import SoftTimeLimitExceeded
-
-    topo = Topography2DFactory(size_x=1, size_y=1)
-    old_ids = _derived_ids(topo)
-    count = model.objects.count()
-
-    with mock.patch(target, side_effect=SoftTimeLimitExceeded()):
-        with pytest.raises(SoftTimeLimitExceeded):
-            topo.refresh_cache()
-
-    assert model.objects.count() == count
-    assert _derived_ids(Topography.objects.get(pk=topo.pk)) == old_ids
 
 
 @pytest.mark.django_db(transaction=True)
@@ -343,26 +347,24 @@ def test_an_inline_refresh_racing_a_run_leaks_no_files(broker):
     first_ids = _derived_ids(topo)
     assert run_task(topo)
     inline_ids = []
-    real_make_squeezed = Topography.make_squeezed
 
-    def make_squeezed_while_an_inline_refresh_lands(self, *args, **kwargs):
+    def an_inline_refresh_lands(_):
         if not inline_ids:
             inline_ids.append(None)  # only once: the inline refresh comes here too
-            inline = Topography.objects.get(pk=self.pk)
+            inline = Topography.objects.get(pk=topo.pk)
             inline.refresh_cache()
             inline_ids[:] = [inline.thumbnail_id, inline.squeezed_datafile_id]
-        real_make_squeezed(self, *args, **kwargs)
 
     ct = ContentType.objects.get_for_model(Topography)
-    with mock.patch.object(
-        Topography, "make_squeezed", make_squeezed_while_an_inline_refresh_lands
-    ):
+    with _after_writing("squeezed_datafile", an_inline_refresh_lands):
         task_dispatch.apply(args=[ct.id, topo.pk], task_id=str(topo.task_id)).get()
 
+    assert None not in inline_ids
     stored = Topography.objects.get(pk=topo.pk)
     assert stored.task_state == TaskStateModel.SUCCESS
     live = {stored.thumbnail_id, stored.squeezed_datafile_id}
     replaced = {first_ids[0], first_ids[2], *inline_ids} - live
+    assert len(replaced) == 4
     # Every file that is no longer referenced is gone, the inline refresh's too
     assert not Manifest.objects.filter(pk__in=replaced).exists()
     assert Manifest.objects.filter(pk__in=live).count() == 2
@@ -396,45 +398,39 @@ def test_an_inline_refresh_dispatches_no_processing(broker):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_failed_save_of_the_results_leaks_no_files(broker):
+def test_a_failed_save_of_the_results_leaks_no_files(broker, written):
     topo = Topography1DFactory()
     old_ids = _derived_ids(topo)
-    created = []
-    real_save_refreshed = Topography._save_refreshed
+    written.clear()
+    real_apply = Topography.apply_inspection
 
-    def record_then_fail(self, before, swap, failed=False):
+    def fail_unless_failed(self, result, failed=False, **kwargs):
         if not failed:
-            created.extend(swap.created)
             raise RuntimeError("lock wait timeout")
-        return real_save_refreshed(self, before, swap, failed=failed)
+        return real_apply(self, result, failed=failed, **kwargs)
 
-    with mock.patch.object(Topography, "_save_refreshed", record_then_fail):
+    with mock.patch.object(Topography, "apply_inspection", fail_unless_failed):
         with pytest.raises(RuntimeError, match="lock wait timeout"):
             topo.refresh_cache()
 
-    assert created
-    for obj in created:
-        assert not type(obj)._base_manager.filter(pk=obj.pk).exists()
+    assert _all_gone(written)
     assert _derived_ids(Topography.objects.get(pk=topo.pk)) == old_ids
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_measurement_deleted_during_an_inline_refresh_leaks_no_files(broker):
+def test_a_measurement_deleted_during_an_inline_refresh_leaks_no_files(
+    broker, written
+):
     topo = Topography1DFactory()
-    created = []
-    real_make_squeezed = Topography.make_squeezed
+    written.clear()
 
-    def make_squeezed_then_get_deleted(self, *args, **kwargs):
-        real_make_squeezed(self, *args, **kwargs)
-        created.extend(kwargs["swap"].created)
-        Topography.objects.filter(pk=self.pk).delete()
+    def get_deleted(_):
+        Topography.objects.filter(pk=topo.pk).delete()
 
-    with mock.patch.object(Topography, "make_squeezed", make_squeezed_then_get_deleted):
+    with _after_writing("squeezed_datafile", get_deleted):
         topo.refresh_cache()
 
-    assert created
-    for obj in created:
-        assert not type(obj)._base_manager.filter(pk=obj.pk).exists()
+    assert _all_gone(written)
     assert not Topography.objects.filter(pk=topo.pk).exists()
 
 
@@ -442,18 +438,141 @@ def test_a_measurement_deleted_during_an_inline_refresh_leaks_no_files(broker):
 def test_a_failed_replacement_retires_the_old_file_once(broker, caplog):
     topo = Topography1DFactory()
     old_squeezed = topo.squeezed_datafile_id
-    real_create = Manifest.objects.create
 
-    def create_fails_for_the_squeezed_file(**kwargs):
-        if kwargs.get("filename", "").endswith("-squeezed.nc"):
-            raise OSError("storage unavailable")
-        return real_create(**kwargs)
-
-    with mock.patch.object(
-        Manifest.objects, "create", side_effect=create_fails_for_the_squeezed_file
-    ):
+    with _failing_to_write("squeezed_datafile", OSError("storage unavailable")):
         topo.refresh_cache()
 
     assert Topography.objects.get(pk=topo.pk).squeezed_datafile_id is None
     assert not Manifest.objects.filter(pk=old_squeezed).exists()
     assert "Could not delete derived file" not in caplog.text
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_run_whose_results_fail_to_save_still_records_what_it_found(broker):
+    topo = Topography1DFactory()
+    broker.clear()
+    Topography.objects.filter(pk=topo.pk).update(
+        task_state=TaskStateModel.SUCCESS, task_id=uuid.uuid4(), resolution_x=None
+    )
+    topo.refresh_from_db()
+    assert run_task(topo, force=True)
+    (args, task_id), = broker
+    real_apply = Topography.apply_inspection
+
+    def fail_unless_failed(self, result, failed=False, **kwargs):
+        if not failed:
+            raise RuntimeError("lock wait timeout")
+        return real_apply(self, result, failed=failed, **kwargs)
+
+    with mock.patch.object(Topography, "apply_inspection", fail_unless_failed):
+        task_dispatch.apply(args=args, task_id=task_id)
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.FAILURE
+    assert stored.resolution_x is not None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_failed_refresh_deletes_each_of_its_files_once(broker, written):
+    topo = Topography2DFactory(size_x=1, size_y=1)
+    written.clear()
+    real_inspect = processing._inspect
+    real_delete = default_storage.delete
+    deleted = []
+
+    def inspect_then_fail(*args):
+        real_inspect(*args)
+        raise RuntimeError("worker lost")
+
+    def delete(name):
+        deleted.append(name)
+        return real_delete(name)
+
+    with mock.patch.object(processing, "_inspect", inspect_then_fail), \
+            mock.patch.object(default_storage, "delete", delete):
+        with pytest.raises(RuntimeError):
+            topo.refresh_cache()
+
+    assert sorted(deleted) == sorted(written)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_derived_file_that_fails_partway_leaves_no_files(broker, written):
+    topo = Topography2DFactory(size_x=1, size_y=1)
+    written.clear()
+
+    def descriptor_fails(_):
+        raise RuntimeError("could not write dzi.json")
+
+    with _after_writing("deepzoom", descriptor_fails):
+        topo.refresh_cache()
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.deepzoom_id is None
+    in_use = {stored.thumbnail.file.name, stored.squeezed_datafile.file.name}
+    tiles = [key for key in written if key not in in_use]
+    assert tiles
+    assert _all_gone(tiles)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_rolled_back_save_records_what_was_found_without_its_files(broker):
+    topo = Topography1DFactory()
+    old_ids = _derived_ids(topo)
+    broker.clear()
+    Topography.objects.filter(pk=topo.pk).update(
+        task_state=TaskStateModel.SUCCESS, task_id=uuid.uuid4(), resolution_x=None
+    )
+    topo.refresh_from_db()
+    assert run_task(topo, force=True)
+    (args, task_id), = broker
+    real_save = Topography._save_inspection
+    calls = []
+
+    def deadlock_once(self, **kwargs):
+        calls.append(kwargs)
+        if len(calls) == 1:
+            raise RuntimeError("deadlock detected")
+        return real_save(self, **kwargs)
+
+    with mock.patch.object(Topography, "_save_inspection", deadlock_once):
+        task_dispatch.apply(args=args, task_id=task_id)
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.FAILURE
+    assert stored.resolution_x is not None
+    assert _derived_ids(stored) == old_ids
+
+
+@pytest.mark.django_db(transaction=True)
+def test_unreadable_instrument_parameters_do_not_stop_an_incomplete_inspection(
+    broker,
+):
+    topo = Topography2DFactory(size_x=1, size_y=1)
+    Topography.objects.filter(pk=topo.pk).update(
+        size_x=None, size_y=None, channel_names=[], datafile_format=None,
+        instrument_parameters={"resolution": {"value": "not a number"}},
+    )
+    topo.refresh_from_db()
+
+    topo.refresh_cache()
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.datafile_format is not None
+    assert stored.channel_names
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_single_derived_file_is_written_like_an_inspection_writes_it(broker):
+    topo = Topography1DFactory()
+    old = topo.squeezed_datafile_id
+
+    topo.make_squeezed(save=True)
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.squeezed_datafile_id != old
+    assert stored.squeezed_datafile.file.name.startswith(
+        f"{processing_storage_prefix()}/"
+    )
+    assert stored.squeezed_datafile.size_bytes == stored.squeezed_datafile.file.size
+    assert not Manifest.objects.filter(pk=old).exists()

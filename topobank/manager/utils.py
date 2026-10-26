@@ -2,24 +2,26 @@ import base64
 import functools
 import json
 import logging
-import os
-import tempfile
-from typing import Optional
 
 import markdown2
-import numpy as np
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.core.files import File
 from django.db import models
-from SurfaceTopography import open_topography
-from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.IO import readers as surface_topography_readers
-from SurfaceTopography.IO.DZI import write_dzi
 from SurfaceTopography.Support.UnitConversion import (
     get_unit_conversion_factor,
     length_units,
     suggest_length_unit,
+)
+
+# The helpers that inspect a data file live in `processing`, which imports no
+# Django; they are imported here too, where they used to be defined.
+from .processing import (  # noqa: F401
+    detrend_parameters,
+    get_topography_reader,
+    undefined_data_fraction,
+    write_deepzoom,
 )
 
 _log = logging.getLogger(__name__)
@@ -92,106 +94,6 @@ class TopographyFileReadingException(TopographyFileException):
         return self._message
 
 
-#: Curvature below which a fitted paraboloid is treated as flat. The least-squares
-#: fit of a plane leaves quadratic coefficients at the level of numerical noise
-#: (~1e-18 / length²), and inverting those yields radii of order 1e17 length
-#: units. Scaled by the scan size, genuine curvatures sit many orders of magnitude
-#: above this.
-_FLAT_CURVATURE = 1e-9
-
-
-def detrend_parameters(st_topo):
-    """
-    The trend that was subtracted from a measurement, in physical units.
-
-    A detrended topography carries the coefficients of the polynomial it removed,
-    but in units of fractional position (`x = index / nb_grid_pts`), which are not
-    meaningful to report. They are converted here: slopes to the dimensionless
-    ratio of height over lateral distance, curvatures to a radius in the lateral
-    unit of the measurement.
-
-    The mixed term of a fitted paraboloid is left out. It is part of the removed
-    trend, but it does not describe a radius in either lateral direction, which is
-    what a reader is after.
-
-    Parameters
-    ----------
-    st_topo : SurfaceTopography.HeightContainer.AbstractHeightContainer
-        Topography, as returned by `detrend`.
-
-    Returns
-    -------
-    dict
-        Keys `slope_x`, `slope_y`, `radius_x` and `radius_y`, each present only
-        where the fit determines it: a detrend mode that only subtracts the mean
-        yields an empty dict, a line scan has no `y` component, and a direction the
-        fit found to be flat has no radius. Radii are in the lateral unit of the
-        measurement.
-    """
-    coeffs = getattr(st_topo, "coeffs", None)
-    if coeffs is None:
-        # Not a detrended topography; nothing was fitted.
-        return {}
-
-    directions = ["x", "y"][: st_topo.dim]
-    sizes = st_topo.physical_sizes
-    parameters = {}
-
-    # A fit on a uniform grid is parameterized in fractional position
-    # (`x = index / nb_grid_pts`), so its linear coefficients have to be divided
-    # by the extent of the scan; a fit on a nonuniform line scan uses the real
-    # positions and is already per unit length.
-    extents = sizes if st_topo.is_uniform else (1,) * len(directions)
-
-    # coeffs[0] is the offset, followed by one linear coefficient per direction.
-    # A mode that only subtracts the mean stops after the offset.
-    for index, (direction, extent) in enumerate(zip(directions, extents), start=1):
-        if len(coeffs) > index:
-            parameters[f"slope_{direction}"] = float(coeffs[index]) / extent
-
-    # `curvatures` returns 1/R per direction, followed by the mixed term, and
-    # already accounts for the parameterization of the fit.
-    curvatures = getattr(st_topo, "curvatures", ())
-    for direction, size, curvature in zip(directions, sizes, curvatures):
-        if abs(curvature) * size > _FLAT_CURVATURE:
-            parameters[f"radius_{direction}"] = 1 / float(curvature)
-
-    return parameters
-
-
-def undefined_data_fraction(st_topo):
-    """
-    Fraction of the data points of a measurement that carry no value, in [0, 1].
-
-    The number describes the data as it was *measured*, not the filtered
-    instance: a topography with filling enabled reports no undefined data by
-    definition (`interpolate_undefined_data_harmonic` overrides
-    `has_undefined_data` to False and replaces the mask with interpolated
-    values), so asking the instance itself would report zero for exactly those
-    measurements where the answer matters. The mask is therefore read from the
-    bottom of the pipeline, which is the node holding the data as read from the
-    file.
-
-    Parameters
-    ----------
-    st_topo : SurfaceTopography.HeightContainer.AbstractHeightContainer
-        Topography, possibly the result of a chain of filters.
-
-    Returns
-    -------
-    float or None
-        The fraction of undefined data points, or None for an empty topography.
-    """
-    while hasattr(st_topo, "parent_topography"):
-        st_topo = st_topo.parent_topography
-    # Topographies without any undefined data carry a plain array rather than a
-    # masked one; `getmaskarray` returns an all-False mask for those.
-    mask = np.ma.getmaskarray(st_topo.heights())
-    if mask.size == 0:
-        return None
-    return float(mask.sum()) / mask.size
-
-
 def mangle_content_type(obj, default_app_label="manager"):
     """Mangle content type into a string that can be used as a Javascript variable name"""
     if not isinstance(obj, ContentType):
@@ -227,35 +129,6 @@ def get_reader_infos():
         reader_infos.append((reader_class.name(), reader_class.format(), descr))
 
     return reader_infos
-
-
-def get_topography_reader(
-    filefield: models.FileField, format: Optional[str] = None
-) -> ReaderBase:
-    """Returns SurfaceTopography.IO.ReaderBase object.
-
-    Parameters
-    ----------
-
-    filefield: models.FileField instance
-        reference to file which should be opened by the reader
-    format: str, optional
-        specify in which format the file should be interpreted;
-        if not given, the format is determined automatically
-
-    Returns
-    -------
-        Instance of a `ReaderBase` subclass according to the format.
-    """
-    if not hasattr(filefield, "mode"):
-        # Workaround such that the SurfaceTopography module recognizes this as a binary
-        # stream
-        filefield.mode = "rb"
-    if hasattr(filefield.file, "seek"):
-        # make sure the file is rewound
-        filefield.file.seek(0)
-    reader = open_topography(filefield, format=format)
-    return reader
 
 
 def subjects_to_dict(subjects):
@@ -499,72 +372,20 @@ def render_deepzoom(
         If True, also generate NetCDF tiles alongside JPG tiles for the
         interactive Three.js viewer. (Default: True)
     """
-    with tempfile.TemporaryDirectory() as tmpdirname:
-        try:
-            # This is a Topography
-            filenames = data.to_dzi(
-                "dzi",
-                root_directory=tmpdirname,
-                meta_format="json",
-                quality=quality,
-                cmap=cmap,
-            )
-        except AttributeError:
-            # This is likely just a numpy array
-            if physical_sizes is None or unit is None:
-                raise ValueError(
-                    "You need to provide `physical_sizes` and `unit` when visualizing "
-                    "numpy arrays."
-                )
-            filenames = write_dzi(
-                data,
-                "dzi",
-                physical_sizes,
-                unit,
-                root_directory=tmpdirname,
-                meta_format="json",
-                quality=quality,
-                colorbar_title=colorbar_title,
-                cmap=cmap,
-            )
-        for filename in filenames:
-            # Strip tmp directory
-            storage_filename = os.path.join(
-                storage_prefix, filename[len(tmpdirname) + 1:]
-            )
-            # Upload to S3
-            folder.save_file(storage_filename, "der", File(open(filename, mode="rb")))
 
-        # Generate NetCDF tiles for interactive viewer
-        if generate_netcdf:
-            try:
-                # This is a Topography
-                nc_filenames = data.to_dzi(
-                    "dzi-nc",
-                    root_directory=tmpdirname,
-                    meta_format="json",
-                    format="nc",
-                )
-            except AttributeError:
-                # This is likely just a numpy array
-                if physical_sizes is not None and unit is not None:
-                    nc_filenames = write_dzi(
-                        data,
-                        "dzi-nc",
-                        physical_sizes,
-                        unit,
-                        root_directory=tmpdirname,
-                        meta_format="json",
-                        format="nc",
-                    )
-                else:
-                    nc_filenames = []
-            for filename in nc_filenames:
-                # Strip tmp directory
-                storage_filename = os.path.join(
-                    storage_prefix, filename[len(tmpdirname) + 1:]
-                )
-                # Upload to S3
-                folder.save_file(
-                    storage_filename, "der", File(open(filename, mode="rb"))
-                )
+    def save(filename, path):
+        # Upload to S3
+        with open(path, mode="rb") as fobj:
+            folder.save_file(filename, "der", File(fobj))
+
+    write_deepzoom(
+        data,
+        save,
+        physical_sizes=physical_sizes,
+        unit=unit,
+        quality=quality,
+        colorbar_title=colorbar_title,
+        cmap=cmap,
+        storage_prefix=storage_prefix,
+        generate_netcdf=generate_netcdf,
+    )
