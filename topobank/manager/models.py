@@ -246,6 +246,11 @@ def _unreferenced(model, pks):
     return queryset
 
 
+def _processing_folder(owner, run):
+    """The folder of run `run` of the measurement `owner` (its id, or "new")."""
+    return f"{processing_storage_prefix()}/{owner}/{run}"
+
+
 def _queue_clean_up_run(work_left):
     """Queue `Topography.clean_up_run` for `work_left` as a Celery task.
 
@@ -1879,7 +1884,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if self._task_run is None:
             folder = self.processing_folder(uuid4().hex)
         else:
-            folder = f"{self.processing_folder(self._task_run[0])}/{uuid4().hex}"
+            folder = f"{self.processing_folder(self._task_run.task_id)}/{uuid4().hex}"
         writer = StorageWriter(default_storage, folder)
         result = None
         try:
@@ -2142,8 +2147,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             }
             transaction.on_commit(lambda: (clean_up or _queue_clean_up_run)(work_left))
             if any(settled):
-                # The measurement has changed, however the run ended, as
-                # `refresh_cache` announces for a run of its own. A receiver
+                # The result is recorded, so the measurement has changed, as
+                # `refresh_cache` announces for a run of its own; like it, not
+                # for a failed run, even one whose partial result is. A receiver
                 # that fails (the analyses of the measurement not invalidated)
                 # fails the recording, which a caller recording in a
                 # transaction of its own rolls back and can retry; in a
@@ -2180,14 +2186,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             topography.discard_run(task_id)
         else:
             # Nothing references the files of a measurement that is gone
-            folder = f"{processing_storage_prefix()}/{work_left['topography']}/{task_id}"
+            folder = _processing_folder(work_left["topography"], task_id)
             delete_keys(default_storage, list_keys(default_storage, folder))
 
     def processing_folder(self, run):
         """The storage folder in which run `run` of this measurement writes its
         derived files. Nothing outside it is ever deleted on the run's behalf."""
-        owner = "new" if self.pk is None else self.pk
-        return f"{processing_storage_prefix()}/{owner}/{run}"
+        return _processing_folder("new" if self.pk is None else self.pk, run)
 
     def discard_run(self, task_id):
         """Delete what the run `task_id` stored and this measurement does not

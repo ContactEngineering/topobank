@@ -29,7 +29,7 @@ from topobank.manager.models import (
 from topobank.files.models import Manifest
 from topobank.taskapp import custodian
 from topobank.taskapp.custodian import find_lost
-from topobank.taskapp.models import TaskStateModel
+from topobank.taskapp.models import TaskRun, TaskStateModel
 from topobank.taskapp.utils import claim_started, run_task, task_dispatch
 from topobank.testing.data import FIXTURE_DATA_DIR
 from topobank.testing.factories import Topography1DFactory, Topography2DFactory
@@ -671,8 +671,7 @@ def test_a_backend_that_cannot_be_loaded_fails_the_measurement(broker, settings)
     settings.TOPOBANK_PROCESSING_BACKEND = "tests.manager.test_processing.no_such_backend"
     topo = Topography1DFactory()
 
-    with pytest.raises(ImportError):
-        run_task(topo)
+    assert run_task(topo)
 
     stored = Topography.objects.get(pk=topo.pk)
     assert stored.task_state == TaskStateModel.FAILURE
@@ -683,8 +682,7 @@ def test_a_backend_that_cannot_be_loaded_fails_the_measurement(broker, settings)
 def test_a_backend_refuses_task_arguments(broker, backend):
     topo = Topography1DFactory()
 
-    with pytest.raises(TypeError):
-        run_task(topo, None, "an argument")
+    assert run_task(topo, None, "an argument")
 
     stored = Topography.objects.get(pk=topo.pk)
     assert stored.task_state == TaskStateModel.FAILURE
@@ -828,8 +826,7 @@ def test_a_broker_error_after_a_worker_started_the_run_leaves_it_running(setting
         raise TimeoutError("no confirm from the broker")
 
     with mock.patch.object(task_dispatch, "apply_async", side_effect=deliver_then_fail):
-        with pytest.raises(TimeoutError):
-            run_task(Topography.objects.get(pk=topo.pk))
+        assert run_task(Topography.objects.get(pk=topo.pk))
 
     assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.STARTED
 
@@ -867,6 +864,28 @@ def test_a_lost_backend_run_leaves_no_files(broker, backend):
     assert _run_folder(topo, task_id)
 
     with mock.patch.object(custodian, "live_task_ids", return_value=None):
+        custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
+
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.FAILURE
+    assert _run_folder(topo, task_id) == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_lost_celery_run_leaves_no_files(broker):
+    topo = Topography1DFactory()
+    assert run_task(Topography.objects.get(pk=topo.pk), force=True)
+    task_id = str(Topography.objects.get(pk=topo.pk).task_id)
+    started_at = claim_started(Topography, topo.pk, task_id)
+    worker = Topography.objects.get(pk=topo.pk)
+    worker._task_run = TaskRun(task_id, started_at)
+
+    # The worker is killed once the run has written its files
+    with mock.patch.object(Topography, "apply_inspection", side_effect=SystemExit()):
+        with pytest.raises(SystemExit):
+            worker.refresh_cache()
+    assert _run_folder(topo, task_id)
+
+    with mock.patch.object(custodian, "live_task_ids", return_value=set()):
         custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
 
     assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.FAILURE
