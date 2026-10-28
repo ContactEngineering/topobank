@@ -238,12 +238,32 @@ def _validate_inspected_values(result):
 def _unreferenced(model, pks):
     """The rows `pks` of `model` that no other row references (the files a
     folder holds aside)."""
-    queryset = model._base_manager.filter(pk__in=pks)
+    queryset = model.objects.filter(pk__in=pks)
     for rel in model._meta.related_objects:
         if rel.related_model is Manifest and rel.field.name == "folder":
             continue
         queryset = queryset.filter(**{f"{rel.name}__isnull": True})
     return queryset
+
+
+def _queue_clean_up_run(work_left):
+    """Queue `Topography.clean_up_run` for `work_left` as a Celery task.
+
+    The default `clean_up` of `Topography.apply_backend_result`. Cleans up right
+    here instead if the task cannot be queued, rather than leave the files.
+    """
+    from .tasks import clean_up_processing_run
+
+    try:
+        clean_up_processing_run.delay(work_left)
+    except Exception:
+        _log.exception(
+            "Could not queue the clean-up after run %s of topography %s; "
+            "cleaning up now.",
+            work_left["task_id"],
+            work_left["topography"],
+        )
+        Topography.clean_up_run(work_left)
 
 
 def _delete_all(objs):
@@ -906,7 +926,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         ),
     ]
 
-    class Meta:
+    class Meta(TaskStateModel.Meta):
         ordering = ["measurement_date", "pk"]
         unique_together = (("surface", "name"),)
         verbose_name = "measurement"
@@ -1199,7 +1219,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         # https://stackoverflow.com/questions/1355150/when-saving-how-can-you-check-if-a-field-has-changed
         try:
             # Do not check for None in self.id as this breaks should we switch to UUIDs
-            old_obj = Topography._base_manager.get(pk=self.pk)
+            old_obj = Topography.all_objects.get(pk=self.pk)
         except self.DoesNotExist:
             pass  # Do nothing, we have just created a new topography
         else:
@@ -1468,7 +1488,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 if not _is_missing_file_error(exc):
                     raise
                 current = (
-                    Topography._base_manager.filter(pk=self.pk)
+                    Topography.all_objects.filter(pk=self.pk)
                     .values_list("squeezed_datafile_id", flat=True)
                     .first()
                 )
@@ -1482,7 +1502,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 )
                 if followed or current is None or current == manifest.pk:
                     return None, None
-                manifest = Manifest._base_manager.filter(pk=current).first()
+                manifest = Manifest.objects.filter(pk=current).first()
                 followed = True
         return None, None
 
@@ -1906,7 +1926,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 self.id,
             )
 
-    def apply_inspection(self, result, *, prefix, failed=False):
+    def apply_inspection(self, result, *, prefix, failed=False, retired=None):
         """Record an inspection's `result` and swap in the derived files it wrote.
 
         Writes the fields the result determines, of those a user may edit as well
@@ -1916,7 +1936,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         `TaskStateModel.run_task` and `complete_task`) has been superseded by a
         newer dispatch, and the files the result references are deleted instead.
         Otherwise the derived files it replaces are deleted once the transaction
-        commits.
+        commits, or, given a list `retired`, added to it for the caller to delete.
 
         A `failed` inspection keeps the previous derived files. Within a run it
         still records the other fields it found, as the full-row save at the end
@@ -1950,7 +1970,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             f"{name}_id": getattr(self, f"{name}_id") for name in self._DERIVED_FIELDS
         }
         try:
-            return self._record_inspection(result, prefix, changed)
+            return self._record_inspection(result, prefix, changed, retired)
         except BaseException:
             # Back to the derived files the database still has: the ones this
             # result was attached as are gone with the rollback
@@ -1958,7 +1978,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 setattr(self, attname, pk)
             raise
 
-    def _record_inspection(self, result, prefix, changed):
+    def _record_inspection(self, result, prefix, changed, retired_to=None):
         if self.pk is None:
             # A measurement inspected before it was ever saved: nothing can have
             # changed concurrently and nothing references the old files.
@@ -2007,10 +2027,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     ", ".join(missing),
                 )
             self._save_inspection(update_fields=fields)
-            after_run = getattr(self, "_retired_after_run", None)
-            if after_run is not None:
+            if retired_to is not None:
                 # The caller deletes them (see `apply_backend_result`)
-                after_run.extend(retired)
+                retired_to.extend(retired)
             else:
                 transaction.on_commit(lambda: _delete_all(retired))
         return True
@@ -2038,7 +2057,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if row is None and self.pk is not None:
             row = (
                 type(self)
-                ._base_manager.filter(pk=self.pk)
+                .all_objects.filter(pk=self.pk)
                 .values(*(f"{name}_id" for name in self._DERIVED_FIELDS))
                 .first()
             )
@@ -2068,12 +2087,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         lost, or ended already) is discarded, and so are the files of a result
         that cannot be recorded.
 
-        Recording touches storage only to check that the result's files are
-        there. Cleaning up afterwards -- deleting the derived files the result
-        replaces, one storage object at a time, and whatever else the run
-        stored -- may take a while: it is described by a JSON-safe dict handed,
-        once the transaction commits, to `clean_up`, which can run
-        `Topography.clean_up_run` with it in a worker. By default it runs here.
+        Recording does not touch storage: the result's files are confined to the
+        run's folder, and one that was never stored is found when it is read.
+        Cleaning up afterwards -- deleting the derived files the result replaces,
+        and whatever else the run stored -- may take a while: it is described by
+        a JSON-safe dict handed, once the transaction commits, to `clean_up`,
+        which runs `Topography.clean_up_run` with it. By default that is queued as
+        a Celery task (`tasks.clean_up_processing_run`).
         Returns whether the end of the run was recorded here. See
         `TOPOBANK_PROCESSING_BACKEND`.
         """
@@ -2104,22 +2124,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 raise ValueError("A run that did not fail hands back its result.")
             _validate_inspection_result(result, prefix)
             _validate_inspected_values(result)
-            stored = set(list_keys(default_storage, prefix))
-            missing = [key for key in result.written_keys() if key not in stored]
-            if missing:
-                raise ValueError(
-                    f"An inspection result names {len(missing)} file(s) that were "
-                    f"never stored, e.g. '{missing[0]}'."
-                )
-            settled.append(self.apply_inspection(result, prefix=prefix))
+            settled.append(self.apply_inspection(result, prefix=prefix, retired=retired))
 
         # The files the result replaces, deleted once the end of the run is
         # recorded (see `clean_up_run`)
-        self._retired_after_run = retired = []
+        retired = []
         try:
             ended = self.complete_task(task_id, work)
         finally:
-            self._retired_after_run = None
             if not any(settled):
                 retired = []
             work_left = {
@@ -2128,9 +2140,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 "manifests": [o.pk for o in retired if isinstance(o, Manifest)],
                 "folders": [o.pk for o in retired if isinstance(o, ManifestSet)],
             }
-            transaction.on_commit(
-                lambda: (clean_up or Topography.clean_up_run)(work_left)
-            )
+            transaction.on_commit(lambda: (clean_up or _queue_clean_up_run)(work_left))
             if any(settled):
                 # The measurement has changed, however the run ended, as
                 # `refresh_cache` announces for a run of its own. A receiver
@@ -2163,7 +2173,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 files__kind__in=not_derived
             )
         )
-        topography = Topography._base_manager.filter(pk=work_left["topography"]).first()
+        topography = Topography.all_objects.filter(pk=work_left["topography"]).first()
         if topography is not None:
             # Whatever the run stored that its measurement does not reference
             # now, whether or not the result names it
@@ -2262,7 +2272,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             setattr(self, name, new)
             if old_id is not None and old_id != (new.pk if new else None):
                 model = self._meta.get_field(name).related_model
-                old = model._base_manager.filter(pk=old_id).first()
+                old = model.objects.filter(pk=old_id).first()
                 if old is not None:
                     retired.append(old)
         return retired

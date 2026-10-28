@@ -1,7 +1,9 @@
 import inspect
 import logging
 import traceback
+from datetime import datetime
 from decimal import Decimal
+from typing import NamedTuple, Optional
 
 import celery.states
 import django.db.models as models
@@ -21,9 +23,33 @@ from .tasks import ProgressRecorder
 _log = logging.getLogger(__name__)
 
 
+class TaskRun(NamedTuple):
+    """A run of a task model's task, identified by its task id and start time."""
+
+    task_id: str
+    start_time: Optional[datetime]
+    # Ended through `complete_task`: the run is over once the row is no longer
+    # `STARTED`, whatever ended it
+    while_started: bool = False
+
+
 class TaskStateModel(models.Model):
     class Meta:
         abstract = True
+        # Django takes the first manager declared as a model's default, and the
+        # managers declared here count as declared before any of a subclass's:
+        # without this, a subclass's default manager would silently become one
+        # of these. A subclass with a `Meta` of its own keeps it only by
+        # extending this one (`class Meta(TaskStateModel.Meta)`).
+        default_manager_name = "objects"
+
+    # `all_objects` holds every row, also those a subclass's `objects` hides (the
+    # soft-deleted ones, say). The task machinery goes through it: a run of a row
+    # deleted meanwhile still ends, is reaped, and is cleaned up after. A
+    # subclass may redefine either manager, as long as `all_objects` stays
+    # unfiltered.
+    objects = models.Manager()
+    all_objects = models.Manager()
 
     # Time to wait for a task to be submitted after creation/update of the database
     # entry.
@@ -78,9 +104,10 @@ class TaskStateModel(models.Model):
     # Every field the task machinery owns
     TASK_FIELDS = PENDING_STATE_FIELDS + ("task_memory", "task_timer", "launcher_task_id")
 
-    # The run in progress on this instance, as (task id, start time), or None.
-    # Set by `run_task` for the duration of the run; `is_current_task_run`
-    # compares it with the row to tell whether a newer dispatch took over.
+    # The run in progress on this instance (a `TaskRun`), or None. Set by
+    # `run_task` and `complete_task` for the duration of the run;
+    # `is_current_task_run` compares it with the row to tell whether a newer
+    # dispatch took over.
     _task_run = None
 
     # Mapping Celery states to our state information. Everything not in the
@@ -539,7 +566,7 @@ class TaskStateModel(models.Model):
         # takeover by a redelivered message replaces them, and this run then
         # leaves the row to its successor.
         outer_run = self._task_run
-        self._task_run = (str(self.task_id), self.task_start_time)
+        self._task_run = TaskRun(str(self.task_id), self.task_start_time)
 
         def work():
             # Pass the optional `timer` and `progress_recorder` arguments only
@@ -592,16 +619,16 @@ class TaskStateModel(models.Model):
             )
             return False
         outer_run = self._task_run
-        self._task_run = (str(self.task_id), self.task_start_time)
+        self._task_run = TaskRun(
+            str(self.task_id), self.task_start_time, while_started=True
+        )
         # What the backend used is unknown here; the values of an earlier run are
         # not this run's
         self.task_memory = None
         self.task_timer = None
-        self._task_run_while_started = True
         try:
             return self._record_run(work, track_memory=False)
         finally:
-            self._task_run_while_started = False
             self._task_run = outer_run
 
     def _record_run(self, work, track_memory=True):
@@ -664,7 +691,12 @@ class TaskStateModel(models.Model):
 
     def task_lost(self):
         """Called once the custodian has failed this instance's run as lost, to
-        clean up after it. Does nothing by default."""
+        clean up after it. Does nothing by default.
+
+        It runs in the custodian after the row has been moved to ``FAILURE``,
+        outside any transaction: an implementation may touch storage, but cannot
+        roll the row back.
+        """
 
     def task_save_fields(self):
         """Fields to persist when a run ends, or None to save the whole row.
@@ -682,7 +714,7 @@ class TaskStateModel(models.Model):
         """
         return (
             type(self)
-            ._base_manager.select_for_update()
+            .all_objects.select_for_update()
             .filter(pk=self.pk)
             .values("task_id", "task_start_time", "task_state", *fields)
             .first()
@@ -700,12 +732,12 @@ class TaskStateModel(models.Model):
             return True
         if row is None:
             row = self._lock_row()
-        if row is None or (str(row["task_id"]), row["task_start_time"]) != run:
+        if row is None or (str(row["task_id"]), row["task_start_time"]) != (
+            run.task_id,
+            run.start_time,
+        ):
             return False
-        # A run ended through `complete_task` is over once the row has left it
-        return not getattr(self, "_task_run_while_started", False) or (
-            row["task_state"] == self.STARTED
-        )
+        return not run.while_started or row["task_state"] == self.STARTED
 
     def _save_task_result(self):
         """Record how the run ended; returns whether it still was this run's."""

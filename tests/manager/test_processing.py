@@ -887,22 +887,60 @@ def test_a_failure_without_a_result_leaves_no_files(broker, backend):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_result_naming_a_file_that_was_never_stored_is_refused(broker, backend):
+def test_recording_a_result_does_not_touch_storage(broker, backend):
     topo = Topography1DFactory()
-    old_ids = (topo.thumbnail_id, topo.squeezed_datafile_id)
     task_id = _start(topo)
     result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
-    result.derived["thumbnail"]["key"] = (
-        topo.processing_folder(task_id) + "/thumbnail/never-uploaded.jpeg"
-    )
+    left = []
 
-    with pytest.raises(ValueError, match="never stored"):
-        Topography.objects.get(pk=topo.pk).apply_backend_result(task_id, result)
+    with mock.patch.object(
+        processing, "list_keys", side_effect=AssertionError("listed")
+    ), mock.patch(
+        "topobank.manager.models.list_keys", side_effect=AssertionError("listed")
+    ), mock.patch.object(
+        default_storage, "exists", side_effect=AssertionError("checked")
+    ):
+        assert Topography.objects.get(pk=topo.pk).apply_backend_result(
+            task_id, result, clean_up=left.append
+        )
 
-    stored = Topography.objects.get(pk=topo.pk)
-    assert stored.task_state == TaskStateModel.FAILURE
-    assert (stored.thumbnail_id, stored.squeezed_datafile_id) == old_ids
-    assert _run_folder(topo, task_id) == []
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.SUCCESS
+    assert len(left) == 1
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_clean_up_is_queued_by_default(broker, backend):
+    from topobank.manager.tasks import clean_up_processing_run
+
+    topo = Topography1DFactory()
+    task_id = _start(topo)
+    result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
+
+    with mock.patch.object(clean_up_processing_run, "delay") as delay, mock.patch.object(
+        Topography, "clean_up_run"
+    ) as clean_up_run:
+        assert Topography.objects.get(pk=topo.pk).apply_backend_result(task_id, result)
+
+    ((work_left,), _), = delay.call_args_list
+    assert work_left["task_id"] == task_id
+    clean_up_run.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_clean_up_runs_here_if_it_cannot_be_queued(broker, backend):
+    from topobank.manager.tasks import clean_up_processing_run
+
+    topo = Topography1DFactory()
+    task_id = _start(topo)
+    result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
+
+    with mock.patch.object(
+        clean_up_processing_run, "delay", side_effect=OSError("broker")
+    ), mock.patch.object(Topography, "clean_up_run") as clean_up_run:
+        assert Topography.objects.get(pk=topo.pk).apply_backend_result(task_id, result)
+
+    ((work_left,), _), = clean_up_run.call_args_list
+    assert work_left["task_id"] == task_id
 
 
 @pytest.mark.django_db(transaction=True)
@@ -1255,7 +1293,7 @@ def test_a_lost_run_of_a_deleted_measurement_is_reaped(broker, backend):
     with mock.patch.object(custodian, "live_task_ids", return_value=None):
         custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
 
-    stored = Topography._base_manager.get(pk=topo.pk)
+    stored = Topography.all_objects.get(pk=topo.pk)
     assert stored.task_state == TaskStateModel.FAILURE
     assert _run_folder(topo, task_id) == []
 
@@ -1299,6 +1337,75 @@ def test_a_traceback_that_is_no_text_is_recorded_as_text(broker, backend):
     stored = Topography.objects.get(pk=topo.pk)
     assert stored.task_error == "out of memory"
     assert "frame 1" in stored.task_traceback
+
+
+class _Bucket:
+    """The part of a boto3 bucket that `list_keys` and `delete_keys` use."""
+
+    def __init__(self, keys, errors=()):
+        self.stored = set(keys)
+        self.errors = set(errors)
+        self.listings = []
+        self.deletions = []
+        self.objects = self
+
+    def filter(self, Prefix):
+        self.listings.append(Prefix)
+        return [
+            mock.Mock(key=key) for key in sorted(self.stored) if key.startswith(Prefix)
+        ]
+
+    def delete_objects(self, Delete):
+        keys = [obj["Key"] for obj in Delete["Objects"]]
+        self.deletions.append(keys)
+        self.stored -= set(keys) - self.errors
+        return {
+            "Errors": [
+                {"Key": key, "Message": "Access Denied"}
+                for key in keys
+                if key in self.errors
+            ]
+        }
+
+
+class _S3Storage:
+    """A storage with a bucket under a location, as `S3Storage` has."""
+
+    location = "media"
+
+    def __init__(self, bucket):
+        self.bucket = bucket
+
+    def _normalize_name(self, name):
+        return f"{self.location}/{name}"
+
+    def listdir(self, path):  # pragma: no cover - the fast path must not walk
+        raise AssertionError("walked the folders")
+
+    def delete(self, name):  # pragma: no cover - the fast path deletes in batches
+        raise AssertionError("deleted one key")
+
+
+def test_listing_a_folder_on_s3_takes_one_listing():
+    bucket = _Bucket(
+        ["media/run/a.jpg", "media/run/tiles/0/b.jpg", "media/runner/c.jpg"]
+    )
+
+    keys = processing.list_keys(_S3Storage(bucket), "run")
+
+    assert keys == ["run/a.jpg", "run/tiles/0/b.jpg"]
+    assert bucket.listings == ["media/run/"]
+
+
+def test_deleting_keys_on_s3_takes_a_request_per_thousand(caplog):
+    keys = [f"run/tiles/{i}.jpg" for i in range(2500)]
+    bucket = _Bucket([f"media/{key}" for key in keys], errors=["media/run/tiles/7.jpg"])
+
+    processing.delete_keys(_S3Storage(bucket), keys)
+
+    assert [len(batch) for batch in bucket.deletions] == [1000, 1000, 500]
+    assert bucket.stored == {"media/run/tiles/7.jpg"}
+    assert "run/tiles/7.jpg: Access Denied" in caplog.text
 
 
 def test_listing_a_folder_skips_the_names_a_storage_lists_for_empty_segments():

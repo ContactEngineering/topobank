@@ -235,8 +235,44 @@ class _RecordingWriter:
         return written
 
 
+# The most keys an object store deletes in one request
+_DELETE_BATCH_SIZE = 1000
+
+
+def _bucket(storage):
+    """The bucket of an S3 storage (django-storages' `S3Storage`), or None.
+
+    Recognized by its `bucket`, as `files.upload` recognizes it, so that this
+    module needs neither Django nor django-storages.
+    """
+    return getattr(storage, "bucket", None)
+
+
+def _object_key(storage, key):
+    """The object key under which an S3 storage stores the storage key `key`."""
+    return storage._normalize_name(key)
+
+
+def _storage_key(storage, object_key):
+    """The storage key of the object `object_key` (see `_object_key`)."""
+    location = getattr(storage, "location", "").strip("/")
+    if location and object_key.startswith(f"{location}/"):
+        return object_key[len(location) + 1 :]
+    return object_key
+
+
 def list_keys(storage, prefix):
-    """The keys stored in the folder `prefix` and its subfolders."""
+    """The keys stored in the folder `prefix` and its subfolders.
+
+    On an S3 storage, one (paginated) listing of the prefix; elsewhere a walk of
+    the folders, which on an object store would be a request per folder.
+    """
+    bucket = _bucket(storage)
+    if bucket is not None:
+        folder = _object_key(storage, prefix).rstrip("/") + "/"
+        return [
+            _storage_key(storage, obj.key) for obj in bucket.objects.filter(Prefix=folder)
+        ]
     try:
         folders, files = storage.listdir(prefix)
     except FileNotFoundError:  # a local folder that was never written to
@@ -249,12 +285,43 @@ def list_keys(storage, prefix):
 
 
 def delete_keys(storage, keys):
-    """Delete storage `keys`, logging rather than raising a failure."""
-    for key in keys:
+    """Delete storage `keys`, logging rather than raising a failure.
+
+    On an S3 storage, up to `_DELETE_BATCH_SIZE` keys a request; elsewhere one
+    key at a time.
+    """
+    keys = list(keys)
+    bucket = _bucket(storage)
+    if bucket is None:
+        for key in keys:
+            try:
+                storage.delete(key)
+            except Exception as exc:  # deleting is cleanup; never fail on it
+                _log.warning("Could not delete derived file %s: %s", key, exc)
+        return
+    for start in range(0, len(keys), _DELETE_BATCH_SIZE):
+        batch = keys[start : start + _DELETE_BATCH_SIZE]
         try:
-            storage.delete(key)
+            response = bucket.delete_objects(
+                Delete={
+                    "Objects": [{"Key": _object_key(storage, key)} for key in batch],
+                    "Quiet": True,
+                }
+            )
         except Exception as exc:  # deleting is cleanup; never fail on it
-            _log.warning("Could not delete derived file %s: %s", key, exc)
+            _log.warning(
+                "Could not delete %d derived file(s), e.g. %s: %s",
+                len(batch),
+                batch[0],
+                exc,
+            )
+            continue
+        for error in response.get("Errors", []):
+            _log.warning(
+                "Could not delete derived file %s: %s",
+                _storage_key(storage, error.get("Key", "")),
+                error.get("Message"),
+            )
 
 
 #

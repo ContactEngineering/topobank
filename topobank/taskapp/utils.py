@@ -244,7 +244,7 @@ def claim_started(model, obj_id, task_id, reclaim_after=None):
             Q(task_start_time__isnull=True)
             | Q(task_start_time__lt=now - timedelta(seconds=reclaim_after))
         )
-    claimed = model._base_manager.filter(
+    claimed = model.all_objects.filter(
         claimable, pk=obj_id, task_id=task_id
     ).update(task_state=TaskStateModel.STARTED, task_start_time=now)
     return now if claimed == 1 else None
@@ -266,7 +266,7 @@ def _claim_delivery(model, obj_id, task_id, reclaim_after):
         if started_at is not None:
             return started_at
         row = list(
-            model._base_manager.filter(pk=obj_id).values_list("task_id", flat=True)
+            model.all_objects.filter(pk=obj_id).values_list("task_id", flat=True)
         )
         # Gone, or named after another task: no wait makes this one's claim
         if not row or row[0] is not None or attempt == CLAIM_RETRIES:
@@ -340,7 +340,7 @@ def claim_pending(
         )
     task_id = UUID(uuid())
     values = TaskStateModel.pending_state_values(task_id)
-    queryset = type(model_instance)._base_manager.filter(pk=model_instance.pk)
+    queryset = type(model_instance).all_objects.filter(pk=model_instance.pk)
     if from_states is not None:
         queryset = queryset.filter(task_state__in=from_states)
     if not force:
@@ -418,7 +418,7 @@ def submit_on_commit(
                 "task_end_time": timezone.now(),
                 "task_error": f"The task could not be submitted to the broker: {exc}",
             }
-            failed = model._base_manager.filter(
+            failed = model.all_objects.filter(
                 pk=obj_id, task_id=task_id, task_state=TaskStateModel.PENDING
             ).update(**values)
             if failed and str(model_instance.task_id) == str(task_id):
@@ -455,7 +455,7 @@ def start_on_backend(backend, model, obj_id, task_id):
             obj_id,
         )
         return
-    instance = model._base_manager.filter(pk=obj_id).first()
+    instance = model.all_objects.filter(pk=obj_id).first()
     if instance is None:
         return
     try:

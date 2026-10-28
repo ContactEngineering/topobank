@@ -163,7 +163,7 @@ def find_lost(live, min_age=DEFAULT_MIN_AGE):
         # find a waiting parent, and a deferred load would turn that into a
         # query per row. In a healthy system this queryset is empty anyway.
         # All rows, also those a default manager hides (deleted, say)
-        queryset = model._base_manager.filter(
+        queryset = model.all_objects.filter(
             task_state=model.STARTED, task_start_time__lt=cutoff
         ).exclude(task_id=None)
         if live is None:
@@ -204,7 +204,7 @@ def mark_lost(obj, error=LOST_TASK_ERROR):
     state in the meantime, so a task that finished between the sweep's two
     passes is never overwritten.
     """
-    updated = type(obj)._base_manager.filter(pk=obj.pk, task_state=obj.STARTED).update(
+    updated = type(obj).all_objects.filter(pk=obj.pk, task_state=obj.STARTED).update(
         task_state=obj.FAILURE,
         task_error=error,
         task_end_time=timezone.now(),
