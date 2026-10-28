@@ -182,8 +182,7 @@ def test_a_dispatch_the_broker_refused_is_failed():
     with mock.patch.object(
         task_dispatch, "apply_async", side_effect=OSError("broker down")
     ):
-        with pytest.raises(OSError):
-            run_task(topo)
+        assert run_task(topo)
 
     stored = Topography.objects.get(pk=topo.pk)
     assert stored.task_state == TaskStateModel.FAILURE
@@ -211,12 +210,31 @@ def test_a_refused_dispatch_does_not_fail_a_newer_claim():
     with mock.patch.object(
         task_dispatch, "apply_async", side_effect=refuse_after_a_newer_dispatch
     ):
-        with pytest.raises(OSError):
-            run_task(topo)
+        assert run_task(topo)
 
     stored = Topography.objects.get(pk=topo.pk)
     assert stored.task_state == TaskStateModel.PENDING
     assert stored.task_id == newer[0]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_refused_dispatch_does_not_stop_the_others_in_its_transaction():
+    first, second = _topography(), _topography()
+    sent = []
+
+    def refuse_the_first(args=None, kwargs=None, task_id=None, **options):
+        if args[1] == first.pk:
+            raise OSError("broker down")
+        sent.append(args[1])
+
+    with mock.patch.object(task_dispatch, "apply_async", side_effect=refuse_the_first):
+        with transaction.atomic():
+            assert run_task(first)
+            assert run_task(second)
+
+    assert sent == [second.pk]
+    assert Topography.objects.get(pk=first.pk).task_state == TaskStateModel.FAILURE
+    assert Topography.objects.get(pk=second.pk).task_state == TaskStateModel.PENDING
 
 
 #
@@ -325,6 +343,18 @@ def test_a_message_for_a_row_that_names_another_task_does_not_wait(broker):
 
     with mock.patch.object(utils.time, "sleep") as sleep:
         assert _deliver(topo, uuid.uuid4()) is None
+
+    sleep.assert_not_called()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_message_for_a_deleted_row_does_not_wait(broker):
+    topo = _topography(TaskStateModel.PENDING, task_id=None)
+    task_id = uuid.uuid4()
+    Topography.objects.filter(pk=topo.pk).delete()
+
+    with mock.patch.object(utils.time, "sleep") as sleep:
+        assert _deliver(topo, task_id) is None
 
     sleep.assert_not_called()
 

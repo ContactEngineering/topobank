@@ -263,12 +263,11 @@ def _claim_delivery(model, obj_id, task_id, reclaim_after):
         started_at = claim_started(model, obj_id, task_id, reclaim_after)
         if started_at is not None:
             return started_at
-        current = (
-            model._base_manager.filter(pk=obj_id)
-            .values_list("task_id", flat=True)
-            .first()
+        row = list(
+            model._base_manager.filter(pk=obj_id).values_list("task_id", flat=True)
         )
-        if current is not None or attempt == CLAIM_RETRIES:
+        # Gone, or named after another task: no wait makes this one's claim
+        if not row or row[0] is not None or attempt == CLAIM_RETRIES:
             return None
         _log.info(
             "task_dispatch: %s id=%s does not name task %s yet; retrying the "
@@ -413,9 +412,11 @@ def submit_on_commit(
             if failed and str(model_instance.task_id) == str(task_id):
                 for name, value in values.items():
                     setattr(model_instance, name, value)
-            raise
 
-    transaction.on_commit(submit_task_to_celery)
+    # Robust: a submission that fails (or fails to record its failure) must not
+    # keep the transaction's other hooks, such as the submissions of other rows
+    # claimed alongside, from running
+    transaction.on_commit(submit_task_to_celery, robust=True)
 
 
 def run_task(
