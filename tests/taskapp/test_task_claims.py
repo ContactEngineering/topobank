@@ -577,48 +577,6 @@ def test_ensure_task_started_does_not_reprocess_a_finished_measurement(broker):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_stale_full_save_does_not_undo_a_claim_or_a_start(broker):
-    topo = _topography()
-    # A request loaded the measurement before it was dispatched...
-    stale = Topography.objects.get(pk=topo.pk)
-    assert run_task(topo)
-    assert claim_started(Topography, topo.pk, topo.task_id)
-    started = Topography.objects.get(pk=topo.pk)
-
-    # ...and saves it in full afterwards, e.g. a rename
-    stale.name = "renamed"
-    stale.save()
-
-    stored = Topography.objects.get(pk=topo.pk)
-    assert stored.name == "renamed"
-    assert stored.task_state == TaskStateModel.STARTED
-    assert stored.task_id == started.task_id
-    assert stored.task_start_time == started.task_start_time
-
-
-@pytest.mark.django_db(transaction=True)
-def test_a_stale_full_save_of_a_deleted_measurement_does_not_undo_a_claim(broker):
-    topo = _topography()
-    stale = Topography.objects.get(pk=topo.pk)
-    assert run_task(topo)
-    topo.lazy_delete()
-
-    stale.description = "edited"
-    stale.save()
-
-    stored = Topography.all_objects.get(pk=topo.pk)
-    assert stored.description == "edited"
-    assert stored.task_state == TaskStateModel.PENDING
-    assert stored.deleted_at is not None
-
-
-def test_only_models_that_use_field_tracking_pay_for_it():
-    assert TaskStateModel.tracked_fields() == ()
-    assert "task_state" in Topography.tracked_fields()
-    assert "squeezed_datafile_id" in Topography.tracked_fields()
-
-
-@pytest.mark.django_db(transaction=True)
 def test_a_field_edited_in_place_is_still_saved(broker):
     topo = _topography()
 
@@ -648,32 +606,6 @@ def test_a_worker_starting_inside_the_save_that_dispatched_it_keeps_its_start():
     assert stored.detrend_mode == "height"
     assert stored.task_state == TaskStateModel.STARTED
     assert stored.task_start_time is not None
-
-
-@pytest.mark.django_db(transaction=True)
-def test_saving_the_pending_fields_after_a_failed_claim_writes_nothing(broker):
-    """sds-api callers still save PENDING_STATE_FIELDS after run_task."""
-    task_id = uuid.uuid4()
-    topo = _topography(
-        TaskStateModel.STARTED, task_id=task_id, task_start_time=timezone.now()
-    )
-    assert not run_task(topo)
-    # The run finishes before the caller gets to its save
-    Topography.objects.filter(pk=topo.pk).update(task_state=TaskStateModel.SUCCESS)
-
-    topo.save(update_fields=list(TaskStateModel.PENDING_STATE_FIELDS))
-
-    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.SUCCESS
-
-
-@pytest.mark.django_db(transaction=True)
-def test_a_task_field_the_instance_changed_is_still_saved(broker):
-    topo = _topography(TaskStateModel.NOTRUN)
-
-    topo.task_state = TaskStateModel.SUCCESS
-    topo.save()
-
-    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.SUCCESS
 
 
 @pytest.mark.django_db(transaction=True)

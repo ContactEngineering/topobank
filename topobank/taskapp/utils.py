@@ -252,6 +252,7 @@ def claim_started(model, obj_id, task_id, reclaim_after=None):
 # no task id yet. A dispatcher from before claims were introduced sends the
 # message first and writes the task id afterwards, so during a rolling upgrade a
 # worker can receive a message before the row names it.
+# TODO(SD-1154): remove once no pre-claim dispatcher is deployed
 CLAIM_RETRIES = 5
 CLAIM_RETRY_DELAY = 1.0
 
@@ -306,10 +307,10 @@ def task_dispatch(celery_task, cls_id, obj_id, *args, **kwargs):
     except model.DoesNotExist:
         # Ignore the task if the instance no longer exists
         raise Ignore()
-    # The run this delivery claimed. `run_task` compares it with the row it
-    # loaded, which a newer dispatch may have claimed in the meantime.
-    obj._claimed_run = (str(task_id), started_at)
-    if obj.run_task(celery_task, *args, **kwargs) is False:
+    # `run_task` compares the run this delivery claimed with the row it loaded,
+    # which a newer dispatch may have claimed in the meantime.
+    claimed_run = (str(task_id), started_at)
+    if obj.run_task(celery_task, *args, claimed_run=claimed_run, **kwargs) is False:
         raise Ignore()
     # Return True so Celery knows the task completed successfully
     # This is important for tasks that do not return anything
@@ -353,9 +354,6 @@ def claim_pending(
         return None
     for name, value in values.items():
         setattr(model_instance, name, value)
-    # The claim is in the database: a later save of the instance has nothing to
-    # write for these fields
-    model_instance._remember_fields(values)
     return str(task_id)
 
 
@@ -415,7 +413,6 @@ def submit_on_commit(
             if failed and str(model_instance.task_id) == str(task_id):
                 for name, value in values.items():
                     setattr(model_instance, name, value)
-                model_instance._remember_fields(values)
             raise
 
     transaction.on_commit(submit_task_to_celery)

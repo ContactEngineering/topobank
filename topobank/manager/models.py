@@ -8,6 +8,7 @@ import logging
 import os.path
 import tempfile
 from collections import defaultdict
+from copy import deepcopy
 from typing import List
 
 import django.dispatch
@@ -72,6 +73,58 @@ def _is_missing_file_error(exc) -> bool:
         code = str(exc.response.get("Error", {}).get("Code", ""))
         return code in ("404", "NoSuchKey", "NotFound")
     return True
+
+
+def _snapshot(value):
+    """`value`, copied if it is a JSON value that can be edited in place."""
+    return deepcopy(value) if isinstance(value, (dict, list)) else value
+
+
+def _delete_all(objs):
+    """Delete derived manifests or folders; a failure is only logged."""
+    for obj in objs:
+        try:
+            obj.delete()
+        except Exception as exc:  # deleting is cleanup; never fail on it
+            _log.warning("Could not delete derived file %s: %s", obj, exc)
+
+
+class DerivedFileSwap:
+    """The derived files a refresh creates and the ones they replace.
+
+    `Topography.refresh_cache` hands one to the `make_*` methods. The files being
+    replaced are deleted only once the references to their replacements have
+    been committed, so a reader that loaded an old reference keeps a file to
+    read for as long as possible; if the refresh fails or is superseded, the
+    files it created are deleted instead.
+    """
+
+    def __init__(self):
+        self.created = []
+        self.retired = []
+
+    @staticmethod
+    def _has(objs, obj):
+        return any(type(other) is type(obj) and other.pk == obj.pk for other in objs)
+
+    def retire(self, obj):
+        """Have `obj` deleted once the swap is committed."""
+        if obj is not None and not self._has(self.retired, obj):
+            self.retired.append(obj)
+
+    def replace(self, old, new):
+        """Record that `new` (None if generating it failed) replaces `old`."""
+        self.retire(old)
+        if new is not None:
+            self.created.append(new)
+
+    def discard(self):
+        """Delete the files created; the refresh failed or was superseded."""
+        _delete_all(self.created)
+
+    def delete_retired_on_commit(self):
+        retired = list(self.retired)
+        transaction.on_commit(lambda: _delete_all(retired))
 
 
 pre_refresh_cache = django.dispatch.Signal()
@@ -948,6 +1001,25 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Derived files that `refresh_cache` replaces
     _DERIVED_FIELDS = ("thumbnail", "deepzoom", "squeezed_datafile")
 
+    # Columns computed from the data file, which `refresh_cache` always writes;
+    # of the others it writes only those it changed (see `_refreshed_fields`)
+    _CACHE_FIELDS = (
+        "resolution_x",
+        "resolution_y",
+        "datafile_format",
+        "channel_names",
+        "size_editable",
+        "unit_editable",
+        "height_scale_editable",
+        "is_periodic_editable",
+        "has_undefined_data",
+        "undefined_data_fraction",
+        "bandwidth_lower",
+        "bandwidth_upper",
+        "short_reliability_cutoff",
+        "detrend_parameters",
+    ) + _DERIVED_FIELDS
+
     # Fields owned by the task machinery, which `refresh_cache` never writes
     _TASK_FIELDS = frozenset(TaskStateModel.TASK_FIELDS)
 
@@ -957,39 +1029,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def task_save_fields(self):
         # `refresh_cache` saves the fields it changed itself
         return TaskStateModel.TASK_RESULT_FIELDS
-
-    @classmethod
-    def tracked_fields(cls):
-        # The whole row: `refresh_cache` writes most of it while requests edit
-        # the rest, so every field can go stale under a loaded instance
-        tracked = cls.__dict__.get("_tracked_fields")
-        if tracked is None:
-            tracked = cls._tracked_fields = frozenset(
-                field.attname
-                for field in cls._meta.concrete_fields
-                if not field.primary_key
-            )
-        return tracked
-
-    def _changed_update_fields(self, update_fields):
-        """`update_fields` without the fields unchanged since they were loaded.
-
-        A full save (None) becomes the loaded fields that changed. The `auto_now`
-        fields stay in either way, as a save always sets them.
-        """
-        unchanged = self.unchanged_fields()
-        if update_fields is None:
-            update_fields = [
-                field.name
-                for field in self._meta.concrete_fields
-                if not field.primary_key and field.attname in self.__dict__
-            ]
-        fields = (self._meta.get_field(name) for name in update_fields)
-        return [
-            field.name
-            for field in fields
-            if field.attname not in unchanged or getattr(field, "auto_now", False)
-        ]
 
     def save(self, *args, **kwargs):
         update_fields: list = kwargs.get("update_fields", None)
@@ -1038,16 +1077,6 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         except self.DoesNotExist:
             pass  # Do nothing, we have just created a new topography
         else:
-            if not kwargs.get("force_insert"):
-                # Write only the fields this instance changed since it last saw
-                # them in the database. Writing the others back would undo what
-                # was written meanwhile: the claim `run_task` just made (a worker
-                # may already have started it), the results of a run dispatched
-                # after this instance was loaded, or the derived files a
-                # concurrent refresh swapped in.
-                update_fields = self._changed_update_fields(update_fields)
-                kwargs["update_fields"] = update_fields
-
             # Check which fields actually changed
             changed_fields = [
                 name
@@ -1077,15 +1106,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     )
 
         super().save(*args, **kwargs)
-        self._remember_fields(kwargs.get("update_fields"))
 
         # Check if we need to run the update task. This comes after the save, so
         # that a run which has not started yet reads the new values: a run still
         # queued needs no second dispatch. A run already under way started from
         # the old values, so it is superseded rather than left to finish with
-        # stale results. The save `refresh_cache` makes of what it read from the
-        # file is that processing; it dispatches nothing.
-        if refresh_dependent_data and not getattr(self, "_refreshing", False):
+        # stale results. (`refresh_cache` does not save through this method: what
+        # it read from the file is that processing, and dispatches nothing.)
+        if refresh_dependent_data:
             if not run_task(self) and self.task_state == TaskStateModel.STARTED:
                 run_task(self, force=True)
 
@@ -1578,11 +1606,12 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         return image_file
 
     def _make_thumbnail(self, st_topo=None):
-        """Renews thumbnail.
+        """Create a new thumbnail.
 
         Returns
         -------
-        None
+        Manifest
+            The new thumbnail. The instance is left unchanged.
         """
         if st_topo is None:
             st_topo = self.read()
@@ -1592,54 +1621,62 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         )
 
         # Save the contents of in-memory file in Django image field
-        self._retire_derived(self._derived("thumbnail"))
         filename = f"thumbnail.{settings.TOPOBANK_THUMBNAIL_FORMAT}"
-        self.thumbnail = self._track_derived(
-            Manifest.objects.create(
-                permissions=self.permissions, filename=filename, kind="der"
-            )
+        thumbnail = Manifest.objects.create(
+            permissions=self.permissions, filename=filename, kind="der"
         )
-        self.thumbnail.save_file(ContentFile(image_file.getvalue()))
+        try:
+            thumbnail.save_file(ContentFile(image_file.getvalue()))
+        except Exception:
+            _delete_all([thumbnail])
+            raise
+        return thumbnail
 
     def _make_deepzoom(self, st_topo=None):
-        """Renew deep zoom images.
+        """Create new deep zoom images.
 
         Returns
         -------
-        None
+        ManifestSet or None
+            The folder with the new images, or None for a line scan, which has
+            none. The instance is left unchanged.
         """
+        if self.size_y is None:
+            return None
         if st_topo is None:
             st_topo = self.read()
-        if self.size_y is not None:
-            # This is a topography (map), we need to create a Deep Zoom Image
-            self._retire_derived(self._derived("deepzoom"))
-            self.deepzoom = self._track_derived(
-                ManifestSet.objects.create(permissions=self.permissions)
-            )
-            render_deepzoom(self._visualization_topography(st_topo), self.deepzoom)
+        # This is a topography (map), we need to create a Deep Zoom Image
+        deepzoom = ManifestSet.objects.create(permissions=self.permissions)
+        try:
+            render_deepzoom(self._visualization_topography(st_topo), deepzoom)
+        except Exception:
+            _delete_all([deepzoom])
+            raise
+        return deepzoom
 
-    def _make_squeezed(self, st_topo=None, save=False):
+    def _make_squeezed(self, st_topo=None):
+        """Create a new squeezed datafile.
+
+        Returns
+        -------
+        Manifest
+            The new squeezed datafile. The instance is left unchanged.
+        """
         if st_topo is None:
             st_topo = self.read(allow_squeezed=False)
         with tempfile.NamedTemporaryFile() as tmp:
             # Write and upload NetCDF file
             st_topo.to_netcdf(tmp.name)
-            # Delete old squeezed file
-            self._retire_derived(self._derived("squeezed_datafile"))
             # Upload new squeezed file
             dirname, basename = os.path.split(self.datafile.filename)
             orig_stem, orig_ext = os.path.splitext(basename)
             squeezed_name = f"{orig_stem}-squeezed.nc"
-            self.squeezed_datafile = self._track_derived(
-                Manifest.objects.create(
-                    permissions=self.permissions,
-                    filename=squeezed_name,
-                    kind="der",
-                    file=File(open(tmp.name, mode="rb")),
-                )
+            return Manifest.objects.create(
+                permissions=self.permissions,
+                filename=squeezed_name,
+                kind="der",
+                file=File(open(tmp.name, mode="rb")),
             )
-        if save:
-            self.save()
 
     def _derived(self, name):
         """The derived manifest or folder in field `name`, or None.
@@ -1652,41 +1689,23 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         except self._meta.get_field(name).related_model.DoesNotExist:
             return None
 
-    def _retire_derived(self, obj):
-        """Retire a derived manifest or folder that is being replaced.
+    def _replace_derived(self, name, new, swap):
+        """Put `new` (None if generating it failed) into derived field `name`.
 
-        Within `refresh_cache` it is deleted only once the replacement has been
-        committed, so a reader that loaded the old reference keeps a file to read
-        for as long as possible. Elsewhere it is deleted right away.
+        Without a `swap` the field is saved and the file it replaces is deleted
+        right away. With one, both are left to the refresh that owns the swap.
         """
-        if obj is None:
+        old = self._derived(name)
+        setattr(self, name, new)
+        if swap is not None:
+            swap.replace(old, new)
             return
-        if not getattr(self, "_refreshing", False):
-            obj.delete()
-        elif not any(
-            type(other) is type(obj) and other.pk == obj.pk
-            for other in self._retired_derived
-        ):
-            # A file whose replacement failed is retired again by `_clear_derived`
-            self._retired_derived.append(obj)
+        if self.pk is not None:
+            models.Model.save(self, update_fields=[name])
+        if old is not None:
+            _delete_all([old])
 
-    def _track_derived(self, obj):
-        """Record a derived manifest or folder created by `refresh_cache`."""
-        if getattr(self, "_refreshing", False):
-            self._created_derived.append(obj)
-        return obj
-
-    def _clear_derived(self, name):
-        """Drop the derived file in field `name` after generating it failed."""
-        if not getattr(self, "_refreshing", False):
-            setattr(self, name, None)
-            self.save(update_fields=[name])
-        else:
-            # `refresh_cache` saves the field with everything else it changed
-            self._retire_derived(self._derived(name))
-            setattr(self, name, None)
-
-    def make_thumbnail(self, none_on_error=True, st_topo=None):
+    def make_thumbnail(self, none_on_error=True, st_topo=None, swap=None):
         """Renew thumbnail field.
 
         Parameters
@@ -1694,6 +1713,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         none_on_error: bool
             If True (default), sets thumbnail to None if there are any errors.
             If False, exceptions have to be caught outside.
+        swap: DerivedFileSwap, optional
+            The swap of the refresh this is part of; see `_replace_derived`.
 
         Returns
         -------
@@ -1704,24 +1725,24 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         ThumbnailGenerationException
         """
         try:
-            self._make_thumbnail(st_topo=st_topo)
+            new = self._make_thumbnail(st_topo=st_topo)
         except SoftTimeLimitExceeded:
             # The worker is out of time, which is no fault of the thumbnail
             raise
         except Exception as exc:
-            if none_on_error:
-                self._clear_derived("thumbnail")
-                _log.error(
-                    "Problems while generating thumbnail for topography %s: %s. "
-                    "Saving <None> instead.",
-                    self.id,
-                    exc,
-                    exc_info=True,
-                )
-            else:
+            if not none_on_error:
                 raise ThumbnailGenerationException(self, str(exc)) from exc
+            _log.error(
+                "Problems while generating thumbnail for topography %s: %s. "
+                "Saving <None> instead.",
+                self.id,
+                exc,
+                exc_info=True,
+            )
+            new = None
+        self._replace_derived("thumbnail", new, swap)
 
-    def make_deepzoom(self, none_on_error=True, st_topo=None):
+    def make_deepzoom(self, none_on_error=True, st_topo=None, swap=None):
         """Renew deep zoom image files.
 
         Parameters
@@ -1729,6 +1750,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         none_on_error: bool
             If True (default), do not raise an exception if there are any errors.
             If False, exceptions have to be caught outside.
+        swap: DerivedFileSwap, optional
+            The swap of the refresh this is part of; see `_replace_derived`.
 
         Returns
         -------
@@ -1739,39 +1762,48 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         DZIGenerationException
         """
         try:
-            self._make_deepzoom(st_topo=st_topo)
+            new = self._make_deepzoom(st_topo=st_topo)
         except SoftTimeLimitExceeded:
             raise
         except Exception as exc:
-            if none_on_error:
-                self._clear_derived("deepzoom")
-                _log.error(
-                    "Problems while generating deep zoom images for topography "
-                    "%s: %s. Saving <None> instead.",
-                    self.id,
-                    exc,
-                    exc_info=True,
-                )
-            else:
+            if not none_on_error:
                 raise DZIGenerationException(self, str(exc)) from exc
+            _log.error(
+                "Problems while generating deep zoom images for topography "
+                "%s: %s. Saving <None> instead.",
+                self.id,
+                exc,
+                exc_info=True,
+            )
+            new = None
+        else:
+            if new is None:
+                # A line scan, which has no deep zoom images
+                return
+        self._replace_derived("deepzoom", new, swap)
 
-    def make_squeezed(self, none_on_error=True, st_topo=None, save=False):
+    def make_squeezed(self, none_on_error=True, st_topo=None, save=False, swap=None):
+        """Renew the squeezed datafile.
+
+        `save` is accepted for compatibility only: without a `swap` the field is
+        always saved (see `_replace_derived`).
+        """
         try:
-            self._make_squeezed(st_topo=st_topo, save=save)
+            new = self._make_squeezed(st_topo=st_topo)
         except SoftTimeLimitExceeded:
             raise
         except Exception as exc:
-            if none_on_error:
-                self._clear_derived("squeezed_datafile")
-                _log.error(
-                    "Problems while generating squeezed datafile for topography "
-                    "%s: %s. Saving <None> instead.",
-                    self.id,
-                    exc,
-                    exc_info=True,
-                )
-            else:
+            if not none_on_error:
                 raise SqueezedDatafileGenerationException(self, str(exc)) from exc
+            _log.error(
+                "Problems while generating squeezed datafile for topography "
+                "%s: %s. Saving <None> instead.",
+                self.id,
+                exc,
+                exc_info=True,
+            )
+            new = None
+        self._replace_derived("squeezed_datafile", new, swap)
 
     def refresh_bandwidth_cache(self, st_topo=None):
         """Renew bandwidth cache.
@@ -1823,31 +1855,31 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         _log.debug(f"Sending `pre_refresh_cache` signal from {self}...")
         pre_refresh_cache.send(sender=Topography, instance=self)
 
-        # Derived files are replaced, not overwritten: the new ones are created
-        # first, and the old ones are deleted once the new references have been
-        # committed (see `_save_refreshed`).
-        previous = {name: getattr(self, f"{name}_id") for name in self._DERIVED_FIELDS}
-        self._refreshing = True
-        self._retired_derived = []
-        self._created_derived = []
+        # The instance as the refresh found it, against which `_save_refreshed`
+        # tells what the refresh changed. Derived files are replaced, not
+        # overwritten: the new ones are created first, and the old ones are
+        # deleted once the new references have been committed.
+        before = {
+            field.attname: _snapshot(self.__dict__[field.attname])
+            for field in self._meta.concrete_fields
+            if field.attname in self.__dict__
+        }
+        swap = DerivedFileSwap()
         try:
-            try:
-                self._refresh_cached_properties(timer)
-                saved = self._save_refreshed(previous)
-            except Exception:
-                # Whether the inspection or the save failed, the files created
-                # for the new references are unreferenced and must go
-                self._clean_up_failed_refresh(previous)
-                raise
-        finally:
-            self._refreshing = False
+            self._refresh_cached_properties(timer, swap)
+            saved = self._save_refreshed(before, swap)
+        except Exception:
+            # Whether the inspection or the save failed, the files created for
+            # the new references are unreferenced and must go
+            self._clean_up_failed_refresh(before, swap)
+            raise
 
         if saved:
             # Send signal
             _log.debug(f"Sending `post_refresh_cache` signal from {self}...")
             post_refresh_cache.send(sender=Topography, instance=self)
 
-    def _clean_up_failed_refresh(self, previous):
+    def _clean_up_failed_refresh(self, before, swap):
         """Discard what a failed refresh created, without masking its error.
 
         The error is the task's result, so nothing here may replace it: a failure
@@ -1855,7 +1887,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         broken) is only logged.
         """
         try:
-            self._save_refreshed(previous, failed=True)
+            self._save_refreshed(before, swap, failed=True)
         except Exception:
             _log.exception(
                 "refresh_cache: cleaning up after the failed refresh of topography "
@@ -1863,52 +1895,65 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 self.id,
             )
 
-    def _save_refreshed(self, previous, failed=False):
+    def _refreshed_fields(self, before):
+        """Names of the fields `_save_refreshed` writes.
+
+        The cache columns, which are the refresh's to own, and the user columns
+        it changed from `before` (the instance as the refresh found it), so that
+        edits made while the file was being processed survive. A derived file
+        counts as changed only where the refresh replaced it. Never the task
+        columns, which belong to `run_task`.
+        """
+        always = set(self._CACHE_FIELDS) - set(self._DERIVED_FIELDS)
+        return [
+            field.name
+            for field in self._meta.concrete_fields
+            if not field.primary_key
+            and field.name not in self._TASK_FIELDS
+            # Neither loaded nor set
+            and field.attname in self.__dict__
+            and (
+                field.name in always
+                # A save sets these, as it always has
+                or getattr(field, "auto_now", False)
+                or field.attname not in before
+                or self.__dict__[field.attname] != before[field.attname]
+            )
+        ]
+
+    def _save_refreshed(self, before, swap, failed=False):
         """Persist what `refresh_cache` changed and swap in the new derived files.
 
-        Only the fields this instance changed are written (see `save`), so that
-        edits made while the file was being processed survive; the task fields
-        belong to `run_task`. Within a task run nothing is written once the run
-        has been superseded by a newer dispatch, and the files this run created
-        are deleted instead. Otherwise the derived files this run replaced are
-        deleted once the transaction commits.
+        Writes the fields of `_refreshed_fields`, bypassing `save`, which would
+        dispatch the very processing this is. Within a task run nothing is
+        written once the run has been superseded by a newer dispatch, and the
+        files of the `swap` are discarded instead. Otherwise the derived files
+        the swap retired are deleted once the transaction commits.
 
-        A failed refresh keeps the `previous` derived files. Within a task run it
+        A failed refresh keeps the derived files it found. Within a task run it
         still records the other fields it changed, as the full-row save at the end
         of a run used to; outside a run it writes nothing, as before.
 
         Returns whether the changes were saved.
         """
-        created = list(self._created_derived)
-        retired = list(self._retired_derived)
-        in_task_run = getattr(self, "_task_run", None) is not None
-
-        def delete_all(objs):
-            for obj in objs:
-                try:
-                    obj.delete()
-                except Exception as exc:  # deleting is cleanup; never fail on it
-                    _log.warning("Could not delete derived file %s: %s", obj, exc)
-
         if failed:
-            for name, old_id in previous.items():
-                setattr(self, f"{name}_id", old_id)
-            delete_all(created)
-            if not in_task_run:
+            for name in self._DERIVED_FIELDS:
+                attname = f"{name}_id"
+                if attname in before:
+                    setattr(self, attname, before[attname])
+            swap.discard()
+            if self._task_run is None:
                 return False
 
         if self.pk is None:
             # A measurement inspected before it was ever saved: nothing can have
-            # changed concurrently and nothing references the old files.
+            # changed concurrently and nothing references the old files. An
+            # insert writes every field.
             self.save()
-            delete_all(retired)
+            _delete_all(swap.retired)
             return True
 
-        fields = [
-            field.name
-            for field in self._meta.concrete_fields
-            if not field.primary_key and field.name not in self._TASK_FIELDS
-        ]
+        fields = self._refreshed_fields(before)
         with transaction.atomic():
             row = self._lock_row(*(f"{name}_id" for name in self._DERIVED_FIELDS))
             if row is None:
@@ -1917,7 +1962,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     "processed; discarding the results.",
                     self.id,
                 )
-                delete_all(created)
+                swap.discard()
                 return False
             if not self.is_current_task_run(row):
                 _log.warning(
@@ -1927,38 +1972,35 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     self.task_id,
                 )
                 if not failed:
-                    transaction.on_commit(lambda: delete_all(created))
+                    transaction.on_commit(swap.discard)
                 return False
             if not failed:
                 # The files the row references now, under the lock, are the ones
                 # being replaced. They differ from what this run started from when
                 # another refresh (an inline one, which no ownership check covers)
                 # swapped files in meanwhile; retiring them keeps those from leaking.
-                unchanged = self.unchanged_fields()
-                to_retire = {}
+                to_retire = defaultdict(set)
                 for name in self._DERIVED_FIELDS:
-                    attname = f"{name}_id"
-                    old_id = row[attname]
+                    old_id = row[f"{name}_id"]
                     if (
-                        attname in unchanged
-                        or old_id is None
-                        or old_id == getattr(self, attname)
+                        name in fields
+                        and old_id is not None
+                        and old_id != getattr(self, f"{name}_id")
                     ):
-                        continue
-                    model = self._meta.get_field(name).related_model
-                    to_retire.setdefault(model, set()).add(old_id)
+                        to_retire[self._meta.get_field(name).related_model].add(old_id)
                 for model, ids in to_retire.items():
-                    ids.difference_update(obj.pk for obj in retired if type(obj) is model)
-                    retired.extend(model._base_manager.filter(pk__in=ids))
-            self.save(update_fields=fields)
+                    for obj in model._base_manager.filter(pk__in=ids):
+                        swap.retire(obj)
+            models.Model.save(self, update_fields=fields)
             if not failed:
-                transaction.on_commit(lambda: delete_all(retired))
+                swap.delete_retired_on_commit()
         return True
 
-    def _refresh_cached_properties(self, timer):
+    def _refresh_cached_properties(self, timer, swap):
         """Inspect the datafile and update the cached properties in memory.
 
-        The body of `refresh_cache`, which persists the result.
+        The body of `refresh_cache`, which persists the result. The derived files
+        are generated into `swap`.
         """
         with timer("exists"):
             # First check if we have a datafile
@@ -2168,11 +2210,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 with timer("refresh_bandwidth_cache"):
                     self.refresh_bandwidth_cache(st_topo=st_topo)
                 with timer("make_thumbnail"):
-                    self.make_thumbnail(st_topo=st_topo)
+                    self.make_thumbnail(st_topo=st_topo, swap=swap)
                 with timer("make_deepzoom"):
-                    self.make_deepzoom(st_topo=st_topo)
+                    self.make_deepzoom(st_topo=st_topo, swap=swap)
                 with timer("make_squeezed"):
-                    self.make_squeezed(st_topo=st_topo)
+                    self.make_squeezed(st_topo=st_topo, swap=swap)
 
                 # Verify the derived files actually landed. A measurement with
                 # complete metadata is expected to have these; a missing one is
