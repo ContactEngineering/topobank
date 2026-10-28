@@ -4,9 +4,9 @@ A measurement's data file is uploaded straight to storage, ahead of anything
 reading it. Two things then have to happen exactly once: the manifest is
 confirmed (`Manifest.confirm_upload`), and the measurement's processing is
 dispatched. Several parties may get there first -- the storage's upload
-notification, a reader of the file, a periodic sweep -- so both steps are
-conditional updates that any number of callers can make; whoever comes later
-finds nothing left to do.
+notification, a reader of the file (which only confirms it), a periodic sweep
+-- so both steps are conditional updates that any number of callers can make;
+whoever comes later finds nothing left to do.
 """
 
 import logging
@@ -48,9 +48,9 @@ def dispatch_processing(manifest: Manifest) -> List[Topography]:
 def confirm_and_dispatch(manifest: Manifest) -> Optional[List[Topography]]:
     """Confirm the upload of `manifest`, if it has arrived, and process it.
 
-    The single entry point for anything that learns of an upload: the storage's
-    notification, a sweep over unconfirmed uploads, or a reader (through
-    `Manifest.exists`). Returns None if the file is not there, else the
+    The single entry point that starts the processing of an upload: the
+    storage's notification, a sweep over unconfirmed uploads, or a caller that
+    means to. Returns None if the file is not there, else the
     measurements this call dispatched (see `dispatch_processing`), which is
     empty when they were dispatched already. Both steps are idempotent, so
     repeated and concurrent calls confirm and dispatch once.

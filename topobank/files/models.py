@@ -8,7 +8,6 @@ import logging
 import os
 from tempfile import NamedTemporaryFile
 
-import django.dispatch
 import xarray
 from django.conf import settings
 from django.core.exceptions import SuspiciousFileOperation
@@ -26,13 +25,6 @@ from ..supplib.json import ExtendedJSONEncoder
 from .utils import file_storage_path
 
 _log = logging.getLogger(__name__)
-
-# Sent by `Manifest.exists` whenever it finds the manifest's file, with the
-# manifest as `instance`. Whatever waits on an uploaded file (the processing of
-# a measurement, say) starts from here, so that a read of the file is enough to
-# get an upload acted on. Receivers must be idempotent: the signal is sent on
-# every read, not once per upload.
-file_available = django.dispatch.Signal()
 
 
 class ManifestSet(PermissionMixin, models.Model):
@@ -276,8 +268,8 @@ class Manifest(PermissionMixin, models.Model):
         once: of concurrent callers one writes the confirmation and the others
         read it back, so `confirmed_at` is never overwritten.
 
-        Returns whether the manifest has a file. Unlike `exists`, this does not
-        notify anyone of the file.
+        Returns whether the manifest has a file. Unlike `exists`, which only
+        checks the manifest, this looks in storage.
         """
         if self.file:
             return True
@@ -345,39 +337,19 @@ class Manifest(PermissionMixin, models.Model):
             self.save_file(file)
 
     def exists(self):
-        """Whether the manifest's file is there.
+        """Whether the manifest has a file.
 
-        Confirms an upload that has arrived (see `confirm_upload`) and, if the
-        file is there, sends `file_available` so that whatever waits on the file,
-        such as the processing of a measurement, gets started. Reading a file is
-        therefore enough to get its upload confirmed and acted on, whether or
-        not the storage's own notification of the upload ever arrives.
+        Only checks the manifest. An upload that has arrived but is not confirmed
+        yet has none; `confirm_upload` looks for it in storage.
         """
-        if not self.confirm_upload():
-            return False
-        # Once per instance: the receivers' work is idempotent, so a second
-        # notification from the same instance finds nothing to do anyway
-        if not self.__dict__.get("_file_available_sent", False):
-            self._file_available_sent = True
-            # The file is there whatever a receiver makes of it; a receiver's
-            # error is its own problem, not the reader's
-            for receiver, response in file_available.send_robust(
-                sender=Manifest, instance=self
-            ):
-                if isinstance(response, Exception):
-                    _log.error(
-                        "file_available receiver %s failed for manifest %s: %s",
-                        getattr(receiver, "__qualname__", receiver),
-                        self.id,
-                        response,
-                        exc_info=(type(response), response, response.__traceback__),
-                    )
-        return True
+        return bool(self.file)
 
     is_valid = exists
 
     def assert_exists(self):
-        if not self.exists():
+        """Raise unless the manifest has a file, confirming an upload that has
+        arrived (see `confirm_upload`)."""
+        if not self.confirm_upload():
             raise OSError(
                 f"Manifest {self.id} does not have a file associated with it."
             )

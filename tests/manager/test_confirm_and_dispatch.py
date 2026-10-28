@@ -1,9 +1,10 @@
 """Tests for confirming an uploaded data file and starting its processing.
 
-An upload is confirmed and processed exactly once, whichever gets to it first:
-the storage's notification (`confirm_and_dispatch`), a read of the file
-(`Manifest.exists`), or both at the same time. The race runs on real
-transactions, with one database connection per thread; only the broker is
+An upload is confirmed exactly once, whichever gets to it first: the storage's
+notification (`confirm_and_dispatch`), a read of the file (`Manifest.read`,
+through `Manifest.confirm_upload`), or both at the same time. Only
+`confirm_and_dispatch` starts its processing, also exactly once. The race runs on
+real transactions, with one database connection per thread; only the broker is
 replaced.
 """
 
@@ -17,7 +18,7 @@ import pytest
 from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import connection, transaction
+from django.db import connection
 
 from topobank.files.models import Manifest
 from topobank.manager.export_zip import export_container_zip
@@ -90,19 +91,31 @@ def _unprocessed_measurement(uploaded=True):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_reading_an_arrived_upload_confirms_it_and_starts_processing(broker):
+def test_reading_an_arrived_upload_confirms_it_without_starting_processing(broker):
     topo = _unprocessed_measurement()
     broker.clear()
 
-    assert topo.datafile.exists()
+    assert topo.datafile.read()
 
     manifest = Manifest.objects.get(pk=topo.datafile_id)
     assert manifest.confirmed_at is not None
     assert manifest.file
     assert manifest.size_bytes == manifest.file.size > 0
-    stored = Topography.objects.get(pk=topo.pk)
-    assert stored.task_state == TaskStateModel.PENDING
-    assert broker == [([mock.ANY, topo.pk], str(stored.task_id))]
+    assert broker == []
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.NOTRUN
+
+
+@pytest.mark.django_db(transaction=True)
+def test_exists_only_checks_the_manifest(broker):
+    topo = _unprocessed_measurement()
+    manifest = Manifest.objects.get(pk=topo.datafile_id)
+
+    with mock.patch.object(default_storage, "size") as size:
+        assert not manifest.exists()
+
+    size.assert_not_called()
+    assert Manifest.objects.get(pk=topo.datafile_id).confirmed_at is None
+    assert broker == []
 
 
 @pytest.mark.django_db(transaction=True)
@@ -129,7 +142,7 @@ def test_a_read_racing_the_notification_confirms_and_processes_once(broker):
     def read_or_notify(i):
         manifest = Manifest.objects.get(pk=topo.datafile_id)
         if i % 2:
-            return manifest.exists()
+            return manifest.confirm_upload()
         return confirm_and_dispatch(manifest) is not None
 
     assert _in_threads(6, read_or_notify) == [True] * 6
@@ -143,14 +156,18 @@ def test_a_read_racing_the_notification_confirms_and_processes_once(broker):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_read_of_a_stranded_measurement_starts_its_processing(broker):
-    # Confirmed earlier without ever being dispatched
+def test_a_stranded_measurement_is_processed_once_confirm_and_dispatch_finds_it(
+    broker,
+):
+    # Confirmed earlier, by a read say, without ever being dispatched
     topo = _unprocessed_measurement()
     assert topo.datafile.confirm_upload()
     confirmed_at = Manifest.objects.get(pk=topo.datafile_id).confirmed_at
     broker.clear()
 
-    assert Topography.objects.get(pk=topo.pk).datafile.exists()
+    dispatched = confirm_and_dispatch(Topography.objects.get(pk=topo.pk).datafile)
+
+    assert [t.pk for t in dispatched] == [topo.pk]
 
     assert Manifest.objects.get(pk=topo.datafile_id).confirmed_at == confirmed_at
     assert len(broker) == 1
@@ -188,42 +205,6 @@ def test_an_upload_that_has_not_arrived_is_neither_confirmed_nor_processed(broke
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_receiver_failure_does_not_break_the_read(broker, caplog):
-    topo = _unprocessed_measurement()
-    manifest = Manifest.objects.get(pk=topo.datafile_id)
-
-    with mock.patch(
-        "topobank.manager.signals.dispatch_processing",
-        side_effect=RuntimeError("lock wait timeout"),
-    ):
-        with transaction.atomic():
-            assert manifest.exists()
-            # The transaction the reader is in is still usable
-            assert Topography.objects.filter(pk=topo.pk).exists()
-
-    assert "lock wait timeout" in caplog.text
-    assert Manifest.objects.get(pk=topo.datafile_id).confirmed_at is not None
-    assert manifest.read()  # and so is the file
-
-
-@pytest.mark.django_db(transaction=True)
-def test_an_instance_notifies_once(broker):
-    topo = _unprocessed_measurement()
-    manifest = Manifest.objects.get(pk=topo.datafile_id)
-
-    with mock.patch(
-        "topobank.manager.signals.dispatch_processing"
-    ) as dispatch_processing:
-        assert manifest.exists()
-        assert manifest.exists()
-        assert manifest.read()
-        # Another instance of the same manifest notifies again
-        assert Manifest.objects.get(pk=topo.datafile_id).exists()
-
-    assert dispatch_processing.call_count == 2
-
-
-@pytest.mark.django_db(transaction=True)
 def test_confirming_takes_one_storage_round_trip(broker):
     topo = _unprocessed_measurement()
     manifest = Manifest.objects.get(pk=topo.datafile_id)
@@ -246,14 +227,14 @@ def test_storage_trouble_leaves_the_upload_unconfirmed(broker, caplog):
     manifest = Manifest.objects.get(pk=topo.datafile_id)
 
     with mock.patch.object(default_storage, "size", side_effect=OSError("slow down")):
-        assert not manifest.exists()
+        assert not manifest.confirm_upload()
 
     assert "slow down" in caplog.text
     assert Manifest.objects.get(pk=topo.datafile_id).confirmed_at is None
-    assert broker == []
     # Once storage answers again, the upload is confirmed after all
-    assert manifest.exists()
-    assert len(broker) == 1
+    assert manifest.confirm_upload()
+    assert Manifest.objects.get(pk=topo.datafile_id).confirmed_at is not None
+    assert broker == []
 
 
 @pytest.mark.django_db(transaction=True)
@@ -273,7 +254,7 @@ def test_a_copy_whose_file_never_arrived_is_confirmed_once_it_does(broker):
     with original.file.open("rb") as fobj:
         default_storage.save(copy.generate_storage_path(), File(fobj))
 
-    assert copy.exists()
+    assert copy.confirm_upload()
     stored = Manifest.objects.get(pk=copy.pk)
     assert stored.file
     assert stored.confirmed_at is not None
@@ -290,7 +271,7 @@ def test_a_confirmed_manifest_that_lost_its_file_is_confirmed_again(broker):
     Manifest.objects.filter(pk=manifest.pk).update(file=None)
     manifest.refresh_from_db()
 
-    assert manifest.exists()
+    assert manifest.confirm_upload()
 
     stored = Manifest.objects.get(pk=manifest.pk)
     assert stored.file.name == path
