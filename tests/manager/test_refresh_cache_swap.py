@@ -576,3 +576,67 @@ def test_a_single_derived_file_is_written_like_an_inspection_writes_it(broker):
     )
     assert stored.squeezed_datafile.size_bytes == stored.squeezed_datafile.file.size
     assert not Manifest.objects.filter(pk=old).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_single_derived_file_is_saved_without_a_save_of_the_measurement(broker):
+    topo = Topography1DFactory()
+    old = topo.thumbnail_id
+
+    topo.make_thumbnail()
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.thumbnail_id == topo.thumbnail_id
+    assert stored.thumbnail_id not in (None, old)
+    assert not Manifest.objects.filter(pk=old).exists()
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_derived_file_that_fails_to_be_saved_leaves_the_measurement_as_it_was(
+    broker,
+):
+    topo = Topography1DFactory()
+    old = topo.squeezed_datafile_id
+    count = Manifest.objects.count()
+
+    with mock.patch(
+        "django.db.models.Model.save", side_effect=RuntimeError("lock wait timeout")
+    ):
+        with pytest.raises(RuntimeError):
+            topo._make_squeezed()
+
+    assert topo.squeezed_datafile_id == old
+    assert Topography.objects.get(pk=topo.pk).squeezed_datafile_id == old
+    assert Manifest.objects.count() == count
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_failed_file_whose_old_one_cannot_be_deleted_still_clears_the_field(
+    broker, caplog
+):
+    topo = Topography1DFactory()
+    old = topo.thumbnail_id
+
+    with mock.patch.object(
+        Topography, "_make_thumbnail", side_effect=OSError("render")
+    ), mock.patch.object(Manifest, "delete", side_effect=OSError("storage")):
+        topo.make_thumbnail()  # none_on_error: must not raise
+
+    assert Topography.objects.get(pk=topo.pk).thumbnail_id is None
+    assert Manifest.objects.filter(pk=old).exists()
+    assert "Could not delete derived file" in caplog.text
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_run_writes_its_files_under_its_task_id(broker):
+    topo = Topography1DFactory()
+    broker.clear()
+    assert run_task(Topography.objects.get(pk=topo.pk), force=True)
+    (args, task_id), = broker
+
+    task_dispatch.apply(args=args, task_id=task_id).get()
+
+    stored = Topography.objects.get(pk=topo.pk)
+    folder = stored.processing_folder(task_id)
+    assert stored.squeezed_datafile.file.name.startswith(f"{folder}/")
+    assert stored.thumbnail.file.name.startswith(f"{folder}/")

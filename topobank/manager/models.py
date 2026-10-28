@@ -1545,17 +1545,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             # This is a topography (map), we need to create a Deep Zoom Image
             self._make_derived("deepzoom", st_topo)
 
-    def _make_squeezed(self, st_topo=None, save=False):
+    def _make_squeezed(self, st_topo=None):
         if st_topo is None:
             st_topo = self.read(allow_squeezed=False)
         self._make_derived("squeezed_datafile", st_topo)
-        if save:
-            self.save()
 
     def _make_derived(self, name, st_topo):
         """Write the derived file `name` alone, as an inspection does, and point
-        the field at it; the field is saved by the caller. The file it replaces
-        is deleted."""
+        the field at it. The field is saved (a measurement without a row yet
+        excepted), and the file it replaces deleted after that."""
         writer = StorageWriter(default_storage, self.processing_folder(uuid4().hex))
         written = write_derived(
             name,
@@ -1563,11 +1561,18 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self.inspection_parameters(filename=self.datafile.filename),
             writer,
         )
+        attname = f"{name}_id"
+        previous = getattr(self, attname)
         try:
-            retired = self._attach_derived(
-                InspectionResult(derived={name: written}), row=None
-            )
+            with transaction.atomic():
+                retired = self._attach_derived(
+                    InspectionResult(derived={name: written}), row=None
+                )
+                if self.pk is not None:
+                    models.Model.save(self, update_fields=[name])
         except BaseException:
+            # The manifests it was attached as are gone with the rollback
+            setattr(self, attname, previous)
             writer.delete()
             raise
         _delete_all(retired)
@@ -1583,20 +1588,19 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         except self._meta.get_field(name).related_model.DoesNotExist:
             return None
 
-    def _retire_derived(self, obj):
-        """Delete the derived manifest or folder of a file that failed to generate.
-
-        See `_clear_derived`; a file that is replaced is retired by
-        `_attach_derived` instead.
-        """
-        if obj is not None:
-            obj.delete()
-
     def _clear_derived(self, name):
-        """Drop the derived file in field `name` after generating it failed."""
-        self._retire_derived(self._derived(name))
+        """Drop the derived file in field `name` after generating it failed.
+
+        The field is saved first, and the file deleted after; a failure to delete
+        it is only logged (see `_delete_all`). A file that is replaced is retired
+        by `_attach_derived` instead.
+        """
+        old = self._derived(name)
         setattr(self, name, None)
-        self.save(update_fields=[name])
+        if self.pk is not None:
+            self.save(update_fields=[name])
+        if old is not None:
+            _delete_all([old])
 
     def make_thumbnail(self, none_on_error=True, st_topo=None):
         """Renew thumbnail field.
@@ -1668,8 +1672,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 raise DZIGenerationException(self, str(exc)) from exc
 
     def make_squeezed(self, none_on_error=True, st_topo=None, save=False):
+        """Renew the squeezed datafile.
+
+        `save` is accepted for compatibility only: the field is always saved
+        (see `_make_derived`).
+        """
         try:
-            self._make_squeezed(st_topo=st_topo, save=save)
+            self._make_squeezed(st_topo=st_topo)
         except SoftTimeLimitExceeded:
             raise
         except Exception as exc:
@@ -1762,7 +1771,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     f"refresh cached data."
                 )
 
-        writer = StorageWriter(default_storage, self.processing_folder(uuid4().hex))
+        # Within a run, under the run's folder, so that what the run leaves
+        # behind is found by its task id; in a folder of its own for each
+        # attempt, as a redelivered message runs again under the same task id
+        if self._task_run is None:
+            folder = self.processing_folder(uuid4().hex)
+        else:
+            folder = f"{self.processing_folder(self._task_run[0])}/{uuid4().hex}"
+        writer = StorageWriter(default_storage, folder)
         result = None
         try:
             result = inspect_datafile(
