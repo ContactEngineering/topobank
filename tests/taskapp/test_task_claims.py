@@ -618,9 +618,29 @@ def test_a_field_edited_in_place_is_still_saved(broker):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_a_stale_full_save_does_not_undo_a_claim_or_a_start(broker):
+    topo = _topography()
+    # A request loaded the measurement before it was dispatched...
+    stale = Topography.objects.get(pk=topo.pk)
+    assert run_task(topo)
+    assert claim_started(Topography, topo.pk, topo.task_id)
+    started = Topography.objects.get(pk=topo.pk)
+
+    # ...and saves it in full afterwards, e.g. a rename
+    stale.name = "renamed"
+    stale.save()
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.name == "renamed"
+    assert stored.task_state == TaskStateModel.STARTED
+    assert stored.task_id == started.task_id
+    assert stored.task_start_time == started.task_start_time
+
+
+@pytest.mark.django_db(transaction=True)
 def test_a_worker_starting_inside_the_save_that_dispatched_it_keeps_its_start():
-    """Outside a transaction the claim commits and the task is sent at once, so
-    the worker can start before the dispatching save() writes its row."""
+    """Outside a transaction the dispatching save() writes its row, claims and
+    sends at once, so the worker can start before save() returns."""
     topo = _topography()
 
     def worker_starts_immediately(args=None, kwargs=None, task_id=None, **options):

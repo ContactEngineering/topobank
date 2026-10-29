@@ -120,7 +120,8 @@ class DerivedFileSwap:
 
     def discard(self):
         """Delete the files created; the refresh failed or was superseded."""
-        _delete_all(self.created)
+        created, self.created = self.created, []
+        _delete_all(created)
 
     def delete_retired_on_commit(self):
         retired = list(self.retired)
@@ -1023,6 +1024,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Fields owned by the task machinery, which `refresh_cache` never writes
     _TASK_FIELDS = frozenset(TaskStateModel.TASK_FIELDS)
 
+    # Columns a `save()` without `update_fields` leaves alone on an existing
+    # row: the task columns, which `run_task` and the worker write, and the
+    # derived-file references, which `refresh_cache` writes. Both are written
+    # with explicit `update_fields` by their owners, so an instance loaded
+    # before a dispatch or a refresh cannot write a stale claim or a reference
+    # to a deleted file back over them. The other cache columns are not
+    # protected: a stale full save may still revert what a refresh computed.
+    _OWNED_ELSEWHERE = _TASK_FIELDS | frozenset(_DERIVED_FIELDS)
+
     #
     # Methods
     #
@@ -1033,6 +1043,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def save(self, *args, **kwargs):
         update_fields: list = kwargs.get("update_fields", None)
         created = self.pk is None
+        if update_fields is None and not created and not kwargs.get("force_insert"):
+            # A full save of an existing row writes every column but those of
+            # `_OWNED_ELSEWHERE`; an insert still writes everything
+            kwargs["update_fields"] = update_fields = [
+                field.name
+                for field in self._meta.concrete_fields
+                if not field.primary_key and field.name not in self._OWNED_ELSEWHERE
+            ]
         if created:
             if self.permissions is None:
                 _log.debug(
@@ -1924,15 +1942,17 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def _save_refreshed(self, before, swap, failed=False):
         """Persist what `refresh_cache` changed and swap in the new derived files.
 
-        Writes the fields of `_refreshed_fields`, bypassing `save`, which would
-        dispatch the very processing this is. Within a task run nothing is
-        written once the run has been superseded by a newer dispatch, and the
-        files of the `swap` are discarded instead. Otherwise the derived files
-        the swap retired are deleted once the transaction commits.
+        Writes the fields of `_refreshed_fields` through `models.Model.save`,
+        bypassing `save`, which would dispatch the very processing this is. A
+        measurement without a row yet is inserted in full instead, which
+        dispatches nothing either. Within a task run nothing is written once the
+        run has been superseded by a newer dispatch, and the files of the `swap`
+        are discarded instead. Otherwise the derived files the swap retired are
+        deleted once the transaction commits.
 
         A failed refresh keeps the derived files it found. Within a task run it
-        still records the other fields it changed, as the full-row save at the end
-        of a run used to; outside a run it writes nothing, as before.
+        still records the other fields it changed; outside a run it writes
+        nothing.
 
         Returns whether the changes were saved.
         """

@@ -597,8 +597,10 @@ class TaskStateModel(models.Model):
         finally:
             # Store time stamp and save state to database
             self.task_end_time = timezone.now()  # with timezone
-            self._save_task_result()
-            self._task_run = outer_run
+            try:
+                self._save_task_result()
+            finally:
+                self._task_run = outer_run
 
     def task_save_fields(self):
         """Fields to persist when a run ends, or None to save the whole row.
