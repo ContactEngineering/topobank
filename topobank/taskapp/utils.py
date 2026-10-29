@@ -433,12 +433,11 @@ def run_task(
     and submits the task once the surrounding transaction commits. Callers do not
     need to save the instance afterwards. The in-flight guard keys off the
     database, not the instance, so it also holds for stale instances and for
-    concurrent callers: it prevents the re-entrant dispatch that happens when
-    `refresh_cache` mutates significant fields and its terminal `save()` re-enters
-    `run_task`. Pass `force=True` to deliberately re-run an in-flight task (e.g. an operator
-    recompute); the run it replaces then discards its results. Pass `from_states`
-    to dispatch only while the row is in one of those states, e.g. to process a
-    measurement that was never processed without reprocessing one that was.
+    concurrent callers. Pass `force=True` to deliberately re-run an in-flight
+    task (e.g. an operator recompute); the run it replaces then discards its
+    results. Pass `from_states` to dispatch only while the row is in one of
+    those states, e.g. to process a measurement that was never processed without
+    reprocessing one that was.
 
     Returns whether a task was dispatched.
     """

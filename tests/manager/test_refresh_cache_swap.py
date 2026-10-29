@@ -180,6 +180,27 @@ def test_edits_made_during_processing_survive(broker):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_a_stale_full_save_keeps_what_a_refresh_wrote(broker):
+    topo = Topography1DFactory()
+    # A request loaded the measurement before it was reprocessed...
+    stale = Topography.objects.get(pk=topo.pk)
+    old_squeezed = stale.squeezed_datafile_id
+    Topography.objects.get(pk=topo.pk).refresh_cache()
+    processed = Topography.objects.get(pk=topo.pk)
+    assert processed.squeezed_datafile_id != old_squeezed
+    assert not Manifest.objects.filter(pk=old_squeezed).exists()
+
+    # ...and saves it in full afterwards, e.g. a rename
+    stale.name = "renamed"
+    stale.save()
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.name == "renamed"
+    # The reference to the deleted file did not come back
+    assert _derived_ids(stored) == _derived_ids(processed)
+
+
+@pytest.mark.django_db(transaction=True)
 def test_refresh_cache_persists_everything_it_changed(broker):
     topo = Topography2DFactory(size_x=1, size_y=1)
     Topography.objects.filter(pk=topo.pk).update(
