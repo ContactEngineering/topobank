@@ -21,13 +21,14 @@ from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import DatabaseError, connection, transaction
 
+from topobank.files.models import Manifest
 from topobank.manager import processing
 from topobank.manager.models import (
     Topography,
     post_refresh_cache,
     processing_storage_prefix,
 )
-from topobank.files.models import Manifest
+from topobank.manager.tasks import discard_processing_run
 from topobank.taskapp import custodian
 from topobank.taskapp.custodian import find_lost
 from topobank.taskapp.models import TaskRun, TaskStateModel
@@ -948,6 +949,78 @@ def test_a_lost_celery_run_leaves_no_files(broker):
 
     assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.FAILURE
     assert _run_folder(topo, task_id) == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_lost_celery_run_is_cleaned_up_once_its_worker_must_be_dead(
+    broker, settings
+):
+    """The custodian may give up a run whose worker is only slow; that worker
+    then records its result, which must not point at deleted files."""
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 1234
+    topo = Topography1DFactory()
+    assert run_task(Topography.objects.get(pk=topo.pk), force=True)
+    task_id = str(Topography.objects.get(pk=topo.pk).task_id)
+    started_at = claim_started(Topography, topo.pk, task_id)
+    worker = Topography.objects.get(pk=topo.pk)
+    worker._task_run = TaskRun(task_id, started_at)
+    with mock.patch.object(Topography, "apply_inspection", side_effect=SystemExit()):
+        with pytest.raises(SystemExit):
+            worker.refresh_cache()
+    files = _run_folder(topo, task_id)
+    assert files
+
+    with mock.patch.object(custodian, "live_task_ids", return_value=set()), \
+            mock.patch.object(discard_processing_run, "apply_async") as queued:
+        custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
+
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.FAILURE
+    # The files wait for the time limit; the measurement may be gone by then
+    assert _run_folder(topo, task_id) == files
+    queued.assert_called_once_with(args=[topo.pk, task_id], countdown=1234)
+    Topography.objects.filter(pk=topo.pk).delete()
+    discard_processing_run(*queued.call_args.kwargs["args"])
+    assert _run_folder(topo, task_id) == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_run_whose_end_cannot_be_recorded_announces_no_change(broker, backend):
+    topo = Topography1DFactory()
+    task_id = _start(topo)
+    result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
+    refreshed = []
+
+    def receiver(sender, instance, **kwargs):
+        refreshed.append(instance.pk)
+
+    post_refresh_cache.connect(receiver, sender=Topography)
+    try:
+        with mock.patch.object(
+            Topography, "_save_task_result", side_effect=DatabaseError("gone away")
+        ):
+            with pytest.raises(DatabaseError, match="gone away"):
+                Topography.objects.get(pk=topo.pk).apply_backend_result(task_id, result)
+    finally:
+        post_refresh_cache.disconnect(receiver, sender=Topography)
+
+    assert refreshed == []
+
+
+def test_a_bucket_that_is_not_an_s3_bucket_takes_the_generic_path(tmp_path):
+    class GcsLikeStorage:
+        bucket = object()  # no `objects`, no `delete_objects`
+        deleted = []
+
+        def listdir(self, prefix):
+            return [], ["a.txt"]
+
+        def delete(self, key):
+            self.deleted.append(key)
+
+    storage = GcsLikeStorage()
+    assert processing.list_keys(storage, "folder") == ["folder/a.txt"]
+    processing.delete_keys(storage, ["folder/a.txt"])
+    assert storage.deleted == ["folder/a.txt"]
 
 
 @pytest.mark.django_db(transaction=True)

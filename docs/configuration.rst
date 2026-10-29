@@ -127,6 +127,14 @@ Task processing
       - Type
       - Default
       - Description
+    * - :code:`TOPOBANK_PROCESSING_BACKEND`
+      - str
+      - :code:`None`
+      - Dotted path of a callable ``backend(topography, task_id)`` that runs the processing of a
+        measurement instead of the Celery task, e.g. on a serverless function. The backend runs
+        ``topobank.manager.processing.inspect_datafile``, writes the derived files under
+        ``Topography.processing_folder(task_id)`` and ends the run through
+        ``Topography.apply_backend_result``. ``None`` processes in the Celery worker.
     * - :code:`TOPOBANK_PROCESSING_STORAGE_PREFIX`
       - str
       - :code:`'data-lake/processing'`

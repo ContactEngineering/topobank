@@ -18,6 +18,7 @@ import datetime
 import io
 import logging
 import os
+import posixpath
 import tempfile
 from typing import Any, Dict, List, Optional, Protocol
 
@@ -240,15 +241,25 @@ _DELETE_BATCH_SIZE = 1000
 def _bucket(storage):
     """The bucket of an S3 storage (django-storages' `S3Storage`), or None.
 
-    Recognized by its `bucket`, as `files.upload` recognizes it, so that this
-    module needs neither Django nor django-storages.
+    Recognized by a `bucket` that lists and deletes objects as boto3's does,
+    so that this module needs neither Django nor django-storages, and a storage
+    with a bucket of another kind (Google Cloud Storage, say) takes the generic
+    path.
     """
-    return getattr(storage, "bucket", None)
+    bucket = getattr(storage, "bucket", None)
+    if hasattr(bucket, "objects") and hasattr(bucket, "delete_objects"):
+        return bucket
+    return None
 
 
 def _object_key(storage, key):
-    """The object key under which an S3 storage stores the storage key `key`."""
-    return storage._normalize_name(key)
+    """The object key under which an S3 storage stores the storage key `key`.
+
+    Cleaned as `S3Storage` cleans a name before it normalizes it (django-storages'
+    `clean_name`), so that the listing and the deletion name the objects the
+    storage's own methods would.
+    """
+    return storage._normalize_name(posixpath.normpath(key).replace("\\", "/"))
 
 
 def _storage_key(storage, object_key):

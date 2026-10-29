@@ -277,7 +277,7 @@ def reap_lost_tasks(
                 obj.task_id,
             )
         return {
-            "skipped": live is None,
+            "skipped": live is None and not candidates,
             "candidates": len(candidates),
             "failed": 0,
             "would_fail": len(confirmed),
@@ -288,12 +288,17 @@ def reap_lost_tasks(
         if mark_lost(obj):
             failed += 1
             _log.warning(
-                "Custodian: failed %s %s because its worker disappeared "
-                "(task %s).",
+                "Custodian: failed %s %s as lost (task %s).",
                 type(obj).__name__,
                 obj.pk,
                 obj.task_id,
             )
     if failed:
-        _log.warning("Custodian: failed %d task(s) whose worker disappeared.", failed)
-    return {"skipped": live is None, "candidates": len(candidates), "failed": failed}
+        _log.warning("Custodian: failed %d task(s) as lost.", failed)
+    # Without an answer from the workers only backend runs were judged; the pass
+    # was skipped only if there were none of those either
+    return {
+        "skipped": live is None and not candidates,
+        "candidates": len(candidates),
+        "failed": failed,
+    }

@@ -489,23 +489,28 @@ def test_a_failed_refresh_deletes_each_of_its_files_once(broker, written):
     topo = Topography2DFactory(size_x=1, size_y=1)
     written.clear()
     real_inspect = processing._inspect
-    real_delete = default_storage.delete
+    real_delete_keys = processing.delete_keys
     deleted = []
 
     def inspect_then_fail(*args):
         real_inspect(*args)
         raise RuntimeError("worker lost")
 
-    def delete(name):
-        deleted.append(name)
-        return real_delete(name)
+    def delete_keys(storage, keys):
+        keys = list(keys)
+        deleted.extend(keys)
+        return real_delete_keys(storage, keys)
 
+    # Whichever path deletes (the writer, or `_discard`), and on whichever
+    # storage (one key at a time, or a batch)
     with mock.patch.object(processing, "_inspect", inspect_then_fail), \
-            mock.patch.object(default_storage, "delete", delete):
+            mock.patch.object(processing, "delete_keys", delete_keys), \
+            mock.patch("topobank.manager.models.delete_keys", delete_keys):
         with pytest.raises(RuntimeError):
             topo.refresh_cache()
 
     assert sorted(deleted) == sorted(written)
+    assert _all_gone(written)
 
 
 @pytest.mark.django_db(transaction=True)

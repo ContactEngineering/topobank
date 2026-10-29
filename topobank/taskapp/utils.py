@@ -203,7 +203,7 @@ def get_package_version(pkg_name, version_expr):
     return version
 
 
-def _reclaim_after(celery_task) -> Optional[float]:
+def reclaim_after(celery_task) -> Optional[float]:
     """Seconds after which a run under ``celery_task``'s id may be taken over.
 
     ``TOPOBANK_TASK_RECLAIM_AFTER`` when set; otherwise the task's hard time
@@ -288,7 +288,7 @@ def task_dispatch(celery_task, cls_id, obj_id, *args, **kwargs):
     ct = ContentType.objects.get_for_id(cls_id)
     model = ct.model_class()
     task_id = celery_task.request.id
-    started_at = _claim_delivery(model, obj_id, task_id, _reclaim_after(celery_task))
+    started_at = _claim_delivery(model, obj_id, task_id, reclaim_after(celery_task))
     if started_at is None:
         # Duplicate delivery of a run that is already under way or finished, or a
         # message superseded by a newer dispatch of the same object, or the object

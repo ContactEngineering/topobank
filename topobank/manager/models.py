@@ -18,7 +18,11 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector, SearchVectorField
-from django.core.exceptions import ImproperlyConfigured, PermissionDenied, ValidationError
+from django.core.exceptions import (
+    ImproperlyConfigured,
+    PermissionDenied,
+    ValidationError,
+)
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
@@ -43,7 +47,12 @@ from ..exceptions import TaskBackendError
 from ..files.models import Manifest, ManifestSet
 from ..settings import defaults
 from ..taskapp.models import TaskStateModel
-from ..taskapp.utils import in_celery_worker_process, run_task
+from ..taskapp.utils import (
+    in_celery_worker_process,
+    reclaim_after,
+    run_task,
+    task_dispatch,
+)
 from ..utils.timer import Timer
 from . import processing
 from .processing import (
@@ -2221,17 +2230,17 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 "folders": [o.pk for o in retired if isinstance(o, ManifestSet)],
             }
             transaction.on_commit(lambda: (clean_up or _queue_clean_up_run)(work_left))
-            if any(settled):
-                # The result is recorded, so the measurement has changed, as
-                # `refresh_cache` announces for a run of its own; like it, not
-                # for a failed run, even one whose partial result is. A receiver
-                # that fails (the analyses of the measurement not invalidated)
-                # fails the recording, which a caller recording in a
-                # transaction of its own rolls back and can retry; in a
-                # savepoint, so that a database error leaves that transaction
-                # usable.
-                with transaction.atomic():
-                    post_refresh_cache.send(sender=Topography, instance=self)
+        if any(settled):
+            # The result is recorded, so the measurement has changed, as
+            # `refresh_cache` announces for a run of its own; like it, not for
+            # a failed run, even one whose partial result is, nor (being past
+            # the `finally`) for a run whose end could not be recorded. A
+            # receiver that fails (the analyses of the measurement not
+            # invalidated) fails the recording, which a caller recording in a
+            # transaction of its own rolls back and can retry; in a savepoint,
+            # so that a database error leaves that transaction usable.
+            with transaction.atomic():
+                post_refresh_cache.send(sender=Topography, instance=self)
         return ended
 
     @staticmethod
@@ -2294,9 +2303,26 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             self._discard(keys, prefix, row)
 
     def task_lost(self):
-        # A backend run that was lost leaves its files behind
-        if self.task_id is not None:
+        """Clean up the files of a run the custodian has failed as lost.
+
+        A run handed to a backend left its files behind, and nothing else
+        deletes them. A Celery run given up for lost may still be alive, and
+        then ends by recording its result (see `TaskStateModel._save_task_result`),
+        which would reference files deleted here: its folder is cleaned up by
+        `tasks.discard_processing_run` once the hard time limit has killed any
+        worker still holding the run (see `taskapp.utils.reclaim_after`; at
+        once where there is none).
+        """
+        if self.task_id is None:
+            return
+        if self.task_backend() is not None:
             self.discard_run(self.task_id)
+            return
+        from .tasks import discard_processing_run
+
+        discard_processing_run.apply_async(
+            args=[self.pk, str(self.task_id)], countdown=reclaim_after(task_dispatch)
+        )
 
     def _save_inspection(self, update_fields=None):
         """Save what an inspection found, without dispatching another.

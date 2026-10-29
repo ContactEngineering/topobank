@@ -2,6 +2,18 @@
 
 # Unreleased
 
+- ENH: `TOPOBANK_PROCESSING_BACKEND` names a callable that runs the processing
+  of a measurement outside the Celery worker (on AWS Lambda, say) and ends the
+  run through `Topography.apply_backend_result`; the custodian fails a run the
+  backend never ends, and cleans up after it. On an S3 storage the files of a
+  run are listed and deleted in batches rather than one request per folder
+  and file
+- API: `TaskStateModel.all_objects` holds every row, including those a
+  subclass's `objects` hides, and the task machinery goes through it. A
+  downstream subclass that declares its own `Meta` must extend
+  `TaskStateModel.Meta` (`class Meta(TaskStateModel.Meta)`), or its default
+  manager silently becomes `all_objects`; migrations `manager/0087` and
+  `analysis/0067` record the managers
 - ENH: Processing a measurement is split into an inspection, which reads the
   data file and writes the derived files under a folder of its own
   (`topobank.manager.processing.inspect_datafile`, free of Django), and the
