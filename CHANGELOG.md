@@ -2,6 +2,14 @@
 
 # Unreleased
 
+- BUG: An upload is confirmed and its processing started from one place,
+  `topobank.manager.uploads.confirm_and_dispatch`; reading a data file
+  confirms an arrived upload (`Manifest.confirm_upload`) but no longer
+  decides whether it is processed. The custodian confirms and processes
+  uploads that arrived without a notification
+  (`sweep_unconfirmed_uploads`) before it deletes the manifests of uploads
+  that never arrived, and it now deletes those whose file is `""` as well
+  as `NULL`. `Manifest.exists` only checks the manifest
 - BUG: Each dispatch of a measurement is processed exactly once: the dispatch
   claims the row with a task id, the worker starts the run against that claim,
   and a run that was superseded by a newer dispatch discards its results and

@@ -8,6 +8,7 @@ real transactions, with one database connection per thread; only the broker is
 replaced.
 """
 
+import datetime
 import os
 import tempfile
 import threading
@@ -19,12 +20,14 @@ from django.core.files import File
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import connection
+from django.utils import timezone
 
 from topobank.files.models import Manifest
+from topobank.manager.custodian import periodic_cleanup
 from topobank.manager.export_zip import export_container_zip
 from topobank.manager.import_zip import import_container_zip
 from topobank.manager.models import Topography
-from topobank.manager.uploads import confirm_and_dispatch
+from topobank.manager.uploads import confirm_and_dispatch, sweep_unconfirmed_uploads
 from topobank.taskapp.models import TaskStateModel
 from topobank.taskapp.utils import task_dispatch
 from topobank.testing.data import FIXTURE_DATA_DIR
@@ -296,6 +299,61 @@ def test_a_failed_replacement_leaves_no_reference_to_the_deleted_file(broker):
         stored.read()
 
 
+@pytest.mark.django_db(transaction=True)
+def test_the_sweep_confirms_and_processes_an_upload_that_arrived_unnoticed(broker):
+    arrived = _unprocessed_measurement()
+    missing = _unprocessed_measurement(uploaded=False)
+    recent = _unprocessed_measurement()
+    cutoff = timezone.now()
+    Manifest.objects.filter(pk=recent.datafile.pk).update(
+        created_at=cutoff + datetime.timedelta(minutes=1)
+    )
+
+    confirmed = sweep_unconfirmed_uploads(cutoff)
+
+    assert [m.pk for m in confirmed] == [arrived.datafile.pk]
+    stored = Topography.objects.get(pk=arrived.pk)
+    assert stored.datafile.confirmed_at is not None
+    assert stored.task_state == TaskStateModel.PENDING
+    assert [args[1] for args, _ in broker] == [arrived.pk]
+    for untouched in (missing, recent):
+        stored = Topography.objects.get(pk=untouched.pk)
+        assert stored.datafile.confirmed_at is None
+        assert stored.task_state == TaskStateModel.NOTRUN
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_sweep_leaves_a_confirmed_upload_alone(broker):
+    topo = _unprocessed_measurement()
+    assert confirm_and_dispatch(topo.datafile)
+    broker.clear()
+
+    assert sweep_unconfirmed_uploads(timezone.now()) == []
+    assert broker == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_custodian_processes_an_unnoticed_upload_and_deletes_the_lost_ones(
+    broker,
+):
+    arrived = _unprocessed_measurement()
+    missing = _unprocessed_measurement(uploaded=False)
+    old = timezone.now() - datetime.timedelta(days=8)
+    Manifest.objects.filter(
+        pk__in=[arrived.datafile.pk, missing.datafile.pk]
+    ).update(created_at=old)
+
+    periodic_cleanup()
+
+    stored = Topography.objects.get(pk=arrived.pk)
+    assert stored.datafile.confirmed_at is not None
+    assert stored.task_state == TaskStateModel.PENDING
+    # The upload that never arrived is deleted as before, and the measurement
+    # is left without a data file
+    assert not Manifest.objects.filter(pk=missing.datafile.pk).exists()
+    assert Topography.objects.get(pk=missing.pk).datafile is None
+
+
 @pytest.mark.django_db
 def test_the_data_files_of_older_zip_imports_are_marked_raw():
     from django.apps import apps
@@ -335,9 +393,9 @@ def test_a_file_stored_by_the_application_is_confirmed():
     assert stored.confirmed_at is not None
     assert stored.size_bytes == 8
     assert stored.file.read() == b"0 1\n1 2\n"
-    # Storage was asked once whether an object was there, and not again for
-    # the size: that came from the content
-    assert size.call_count == 1
+    # Storage was not asked whether an object was there (the manifest says it
+    # has none), nor for the size: that came from the content
+    assert size.call_count == 0
 
 
 @pytest.mark.django_db
