@@ -204,10 +204,8 @@ class StorageWriter:
         self.keys = []
 
     def save(self, name, path):
-        key = f"{self.prefix}/{name}"
-        if hasattr(self.storage, "generate_filename"):
-            # Cleaned as a file field cleans the names of uploads
-            key = self.storage.generate_filename(key)
+        # Cleaned as a file field cleans the names of uploads
+        key = self.storage.generate_filename(f"{self.prefix}/{name}")
         with open(path, "rb") as fobj:
             key = self.storage.save(key, fobj)
         self.keys.append(key)
@@ -804,6 +802,13 @@ _DERIVED_WRITERS = {
     "squeezed_datafile": ("squeezed datafile", _write_squeezed),
 }
 
+# The timer step under which each derived file is written
+_DERIVED_TIMERS = {
+    "thumbnail": "make_thumbnail",
+    "deepzoom": "make_deepzoom",
+    "squeezed_datafile": "make_squeezed",
+}
+
 
 def write_derived(name, st_topo, params, writer):
     """Write the derived file `name` of `st_topo` (one of `DERIVED_NAMES`).
@@ -843,7 +848,12 @@ def _get_unit(channel):
 
 
 def inspect_datafile(
-    source, params: InspectionParameters, writer: Writer, timer=None, label=None
+    source,
+    params: InspectionParameters,
+    writer: Writer,
+    timer=None,
+    label=None,
+    result: Optional[InspectionResult] = None,
 ) -> InspectionResult:
     """
     Inspect the data file `source` of the measurement `params` describe.
@@ -855,9 +865,9 @@ def inspect_datafile(
     data, which is taken from the file only on the first inspection).
 
     A derived file that cannot be generated is logged and recorded as None; any
-    other error is raised, carrying what was found up to then as its
-    `inspection_result` attribute. The files written so far are then still in
-    storage: the caller deletes them through the writer.
+    other error is raised. What was found up to then is in `result`, where the
+    caller passed one in, and the files written so far are still in storage:
+    the caller deletes them through the writer.
 
     Parameters
     ----------
@@ -871,6 +881,9 @@ def inspect_datafile(
         Context manager factory timing the named steps.
     label : str, optional
         How to name the measurement in log messages.
+    result : InspectionResult, optional
+        The result to fill in, which the caller keeps if inspecting fails.
+        By default a new one, which is returned.
     """
     if timer is None:
 
@@ -878,12 +891,9 @@ def inspect_datafile(
             return contextlib.nullcontext()
 
     label = label or repr(params.name)
-    result = InspectionResult()
-    try:
-        _inspect(source, params, writer, timer, label, result)
-    except Exception as exc:
-        exc.inspection_result = result
-        raise
+    if result is None:
+        result = InspectionResult()
+    _inspect(source, params, writer, timer, label, result)
     return result
 
 
@@ -915,11 +925,9 @@ def _inspect(source, params, writer, timer, label, result):
         )
 
     # Check whether the user already selected a (valid) channel, if not set to
-    # default channel. We compute this into a local variable first so we can
-    # reject files with incomplete metadata (below) *before* mutating any
-    # significant field (such as `data_source`); otherwise a rejected inspection
-    # would leave a phantom change that re-dispatches the task on the terminal
-    # save().
+    # default channel. This is kept in a local variable until the file's
+    # metadata has been checked (below), so that a rejected inspection leaves
+    # the measurement's channel as it was.
     data_source = params.data_source
     if data_source is None or data_source < 0 or data_source >= len(channel_names):
         data_source = reader.default_channel.index
@@ -954,11 +962,12 @@ def _inspect(source, params, writer, timer, label, result):
     set_field("data_source", data_source)
 
     #
-    # Look for necessary metadata. We override values in the database. This may be
-    # necessary if the underlying reader changes (e.g. through bug fixes).
+    # Look for necessary metadata. The file's values override the measurement's.
+    # This may be necessary if the underlying reader changes (e.g. through bug
+    # fixes).
     #
 
-    # Populate resolution information in the database
+    # Resolution
     if channel.dim == 1:
         (n,) = channel.nb_grid_pts
         set_field("resolution_x", int(n))
@@ -973,7 +982,7 @@ def _inspect(source, params, writer, timer, label, result):
             f"Cannot handle topographies of dimension {channel.dim}."
         )
 
-    # Populate size information in the database
+    # Size
     if channel.physical_sizes is None:
         # Data file *does not* provide size information; the user must provide it
         set_field("size_editable", True)
@@ -995,7 +1004,7 @@ def _inspect(source, params, writer, timer, label, result):
                 f"Cannot handle topographies of dimension {channel.dim}."
             )
 
-    # Populate unit information in the database
+    # Unit
     if channel.unit is None:
         # Data file *does not* provide unit information; the user must provide it
         set_field("unit_editable", True)
@@ -1010,7 +1019,7 @@ def _inspect(source, params, writer, timer, label, result):
             )
         set_field("unit", channel.unit)
 
-    # Populate height scale information in the database
+    # Height scale
     if channel.height_scale_factor is None:
         # Data file *does not* provide height scale information; the user must provide it
         set_field("height_scale_editable", True)
@@ -1103,7 +1112,7 @@ def _inspect(source, params, writer, timer, label, result):
             if name == "deepzoom" and current.size_y is None:
                 # Only a map (not a line scan) has deep zoom images
                 continue
-            with timer(f"make_{name.split('_')[0]}"):
+            with timer(_DERIVED_TIMERS[name]):
                 try:
                     result.derived[name] = write_derived(name, st_topo, current, writer)
                 except _soft_time_limit_exceeded():

@@ -13,6 +13,7 @@ import logging
 from typing import List, Optional
 
 from django.db import transaction
+from django.db.models import Q
 
 from ..files.models import Manifest
 from ..taskapp.models import TaskStateModel
@@ -26,7 +27,10 @@ def dispatch_processing(manifest: Manifest) -> List[Topography]:
     """Start processing the measurements whose data file is `manifest`.
 
     Only measurements that were never processed are dispatched; a measurement
-    whose processing is queued, under way or done is left alone. Returns the
+    whose processing is queued, under way or done is left alone, and so is one
+    whose processing failed, even for want of the file (an edit of a
+    significant field before the upload arrived dispatches a run that fails
+    that way; the user's next edit or recompute reprocesses it). Returns the
     measurements dispatched, each carrying the task id of its dispatch.
     """
     if manifest.kind != "raw" or not manifest.file:
@@ -60,3 +64,34 @@ def confirm_and_dispatch(manifest: Manifest) -> Optional[List[Topography]]:
         return None
     with transaction.atomic():
         return dispatch_processing(manifest)
+
+
+def unconfirmed_uploads(older_than):
+    """The raw manifests created before `older_than` whose upload is unconfirmed."""
+    return Manifest.objects.filter(
+        Q(file__isnull=True) | Q(file=""),
+        kind="raw",
+        confirmed_at__isnull=True,
+        created_at__lt=older_than,
+    )
+
+
+def sweep_unconfirmed_uploads(older_than) -> List[Manifest]:
+    """Confirm and process the uploads that arrived without anyone noticing.
+
+    The storage's notification of an upload can be lost, and nothing may read
+    the file before the custodian comes to delete the manifest of an upload
+    that never arrived. This looks in storage for every unconfirmed raw upload
+    created before `older_than` (one round trip each, see
+    `Manifest.confirm_upload`) and runs `confirm_and_dispatch` on those that
+    are there. Returns the manifests it confirmed.
+    """
+    confirmed = []
+    for manifest in unconfirmed_uploads(older_than).iterator():
+        if confirm_and_dispatch(manifest) is not None:
+            confirmed.append(manifest)
+            _log.info(
+                "Sweep: confirmed the upload of %s, which arrived unnoticed.",
+                manifest,
+            )
+    return confirmed

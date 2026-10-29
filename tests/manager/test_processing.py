@@ -16,6 +16,7 @@ import uuid
 from unittest import mock
 
 import pytest
+from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
 from django.db import DatabaseError, connection, transaction
@@ -149,14 +150,17 @@ def test_incomplete_metadata_writes_no_derived_files(tmp_path):
 
 def test_a_failed_inspection_carries_what_it_found(tmp_path):
     writer = LocalWriter(str(tmp_path))
+    result = processing.InspectionResult()
     with mock.patch.object(
         processing, "undefined_data_fraction", side_effect=RuntimeError("broken")
     ):
         with open(os.path.join(FIXTURE_DATA_DIR, "10x10.txt"), "rb") as source:
-            with pytest.raises(RuntimeError) as info:
-                processing.inspect_datafile(source, _parameters(), writer)
+            with pytest.raises(RuntimeError, match="broken"):
+                processing.inspect_datafile(
+                    source, _parameters(), writer, result=result
+                )
 
-    assert info.value.inspection_result.fields["resolution_x"] == 10
+    assert result.fields["resolution_x"] == 10
 
 
 def test_the_deep_zoom_images_share_one_folder(tmp_path):
@@ -289,6 +293,19 @@ def written():
                 + "/../../uploads/1/raw.txt"
             ),
             id="key escaping the prefix",
+        ),
+        pytest.param(
+            lambda r: r.derived["thumbnail"].update(
+                key=r.derived["thumbnail"]["key"].rsplit("/thumbnail/", 1)[0]
+                + "/..\\..\\..\\uploads/1/raw.txt"
+            ),
+            id="key escaping the prefix with backslashes",
+        ),
+        pytest.param(
+            lambda r: r.derived["thumbnail"].update(
+                key=r.derived["thumbnail"]["key"].replace("/thumbnail/", "//thumbnail/")
+            ),
+            id="key that storage would normalize",
         ),
         pytest.param(
             lambda r: r.derived["squeezed_datafile"].update(
@@ -832,15 +849,56 @@ def test_a_broker_error_after_a_worker_started_the_run_leaves_it_running(setting
 
 
 @pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("folder", ["root", "other measurement", "backslash"])
+def test_a_result_is_refused_with_a_folder_that_is_not_the_measurements(
+    broker, folder
+):
+    topo = Topography1DFactory()
+    other = Topography1DFactory()
+    before = Topography.objects.filter(pk=topo.pk).values().get()
+    result, writer = _inspect(Topography.objects.get(pk=topo.pk))
+    prefix = {
+        "root": processing_storage_prefix(),
+        "other measurement": other.processing_folder(writer.prefix.rsplit("/", 1)[1]),
+        "backslash": writer.prefix.replace("/", "\\", 1),
+    }[folder]
+    for name, written in result.derived.items():
+        for item in written if isinstance(written, list) else [written]:
+            item["key"] = item["key"].replace(writer.prefix, prefix, 1)
+
+    for record in (
+        Topography.objects.get(pk=topo.pk).apply_inspection,
+        Topography.objects.get(pk=topo.pk).record_failed_inspection,
+    ):
+        with pytest.raises(ValueError, match="not a processing folder"):
+            record(result, prefix=prefix)
+
+    assert Topography.objects.filter(pk=topo.pk).values().get() == before
+    assert all(default_storage.exists(key) for key in writer.keys)
+    writer.delete()
+
+
+def test_the_storage_prefix_setting_is_checked(settings):
+    for bad in ("", "/", "data-lake/../processing", "data\\lake"):
+        settings.TOPOBANK_PROCESSING_STORAGE_PREFIX = bad
+        with pytest.raises(ImproperlyConfigured):
+            processing_storage_prefix()
+    settings.TOPOBANK_PROCESSING_STORAGE_PREFIX = "/data-lake/processing/"
+    assert processing_storage_prefix() == "data-lake/processing"
+
+
+@pytest.mark.django_db(transaction=True)
 def test_an_unsaved_measurement_that_fails_to_save_keeps_no_manifests(broker):
     topo = Topography1DFactory()
-    result, writer = _inspect(Topography.objects.get(pk=topo.pk))
     unsaved = Topography(
         surface=topo.surface,
         permissions=topo.permissions,
         created_by=topo.created_by,
+        datafile=topo.datafile,
         name="unsaved",
+        instrument_parameters={},
     )
+    result, writer = _inspect(unsaved)
 
     with mock.patch.object(
         Topography, "_save_inspection", side_effect=RuntimeError("constraint")

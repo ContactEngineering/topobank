@@ -74,14 +74,14 @@ def test_refresh_cache_does_not_redispatch_when_started(
 ):
     """Regression: a task running refresh_cache must not dispatch itself again.
 
-    The outer task sets task_state=STARTED before refresh_cache runs; the
-    terminal save() in refresh_cache then re-enters run_task. With the guard,
-    that re-entry is a no-op (no second celery dispatch, state stays STARTED).
+    The outer task sets task_state=STARTED before refresh_cache runs. The
+    refresh writes what it computed without going through save(), so even
+    though it changes significant fields, no second dispatch happens and the
+    state stays STARTED.
     """
     topo = Topography1DFactory()
     # Simulate the running task and clear a significant field so refresh_cache
-    # repopulates it -- pre-fix this is exactly what made the terminal save()
-    # re-dispatch a second, concurrent task.
+    # repopulates it; a save() of that change would dispatch.
     _set_state(topo, TaskStateModel.STARTED, data_source=None)
 
     with django_capture_on_commit_callbacks(execute=False) as callbacks:

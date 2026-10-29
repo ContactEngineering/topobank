@@ -218,6 +218,27 @@ def test_edits_made_during_processing_survive(broker):
 
 
 @pytest.mark.django_db(transaction=True)
+def test_a_stale_full_save_keeps_what_a_refresh_wrote(broker):
+    topo = Topography1DFactory()
+    # A request loaded the measurement before it was reprocessed...
+    stale = Topography.objects.get(pk=topo.pk)
+    old_squeezed = stale.squeezed_datafile_id
+    Topography.objects.get(pk=topo.pk).refresh_cache()
+    processed = Topography.objects.get(pk=topo.pk)
+    assert processed.squeezed_datafile_id != old_squeezed
+    assert not Manifest.objects.filter(pk=old_squeezed).exists()
+
+    # ...and saves it in full afterwards, e.g. a rename
+    stale.name = "renamed"
+    stale.save()
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.name == "renamed"
+    # The reference to the deleted file did not come back
+    assert _derived_ids(stored) == _derived_ids(processed)
+
+
+@pytest.mark.django_db(transaction=True)
 def test_refresh_cache_persists_everything_it_changed(broker):
     topo = Topography2DFactory(size_x=1, size_y=1)
     Topography.objects.filter(pk=topo.pk).update(
@@ -302,12 +323,11 @@ def test_processing_a_copy_leaves_the_original_deep_zoom_alone(broker):
 def test_a_failing_cleanup_does_not_mask_the_error(broker):
     topo = Topography1DFactory()
     error = ValueError("the real one")
-    error.inspection_result = processing.InspectionResult(fields={"unit": "m"})
 
     with mock.patch(
         "topobank.manager.models.inspect_datafile", side_effect=error
     ), mock.patch.object(
-        Topography, "apply_inspection", side_effect=RuntimeError("cleanup")
+        Topography, "record_failed_inspection", side_effect=RuntimeError("cleanup")
     ):
         with pytest.raises(ValueError, match="the real one"):
             topo.refresh_cache()
@@ -402,14 +422,10 @@ def test_a_failed_save_of_the_results_leaks_no_files(broker, written):
     topo = Topography1DFactory()
     old_ids = _derived_ids(topo)
     written.clear()
-    real_apply = Topography.apply_inspection
 
-    def fail_unless_failed(self, result, failed=False, **kwargs):
-        if not failed:
-            raise RuntimeError("lock wait timeout")
-        return real_apply(self, result, failed=failed, **kwargs)
-
-    with mock.patch.object(Topography, "apply_inspection", fail_unless_failed):
+    with mock.patch.object(
+        Topography, "apply_inspection", side_effect=RuntimeError("lock wait timeout")
+    ):
         with pytest.raises(RuntimeError, match="lock wait timeout"):
             topo.refresh_cache()
 
@@ -457,14 +473,10 @@ def test_a_run_whose_results_fail_to_save_still_records_what_it_found(broker):
     topo.refresh_from_db()
     assert run_task(topo, force=True)
     (args, task_id), = broker
-    real_apply = Topography.apply_inspection
 
-    def fail_unless_failed(self, result, failed=False, **kwargs):
-        if not failed:
-            raise RuntimeError("lock wait timeout")
-        return real_apply(self, result, failed=failed, **kwargs)
-
-    with mock.patch.object(Topography, "apply_inspection", fail_unless_failed):
+    with mock.patch.object(
+        Topography, "apply_inspection", side_effect=RuntimeError("lock wait timeout")
+    ):
         task_dispatch.apply(args=args, task_id=task_id)
 
     stored = Topography.objects.get(pk=topo.pk)
@@ -593,21 +605,25 @@ def test_a_single_derived_file_is_saved_without_a_save_of_the_measurement(broker
 
 @pytest.mark.django_db(transaction=True)
 def test_a_derived_file_that_fails_to_be_saved_leaves_the_measurement_as_it_was(
-    broker,
+    broker, written
 ):
     topo = Topography1DFactory()
     old = topo.squeezed_datafile_id
     count = Manifest.objects.count()
+    written.clear()
 
     with mock.patch(
         "django.db.models.Model.save", side_effect=RuntimeError("lock wait timeout")
     ):
-        with pytest.raises(RuntimeError):
-            topo._make_squeezed()
+        # A failure to save is not swallowed as a failure to generate would be
+        with pytest.raises(RuntimeError, match="lock wait timeout"):
+            topo.make_squeezed()
 
     assert topo.squeezed_datafile_id == old
     assert Topography.objects.get(pk=topo.pk).squeezed_datafile_id == old
+    assert Manifest.objects.get(pk=old).file.size > 0
     assert Manifest.objects.count() == count
+    assert _all_gone(written)
 
 
 @pytest.mark.django_db(transaction=True)
