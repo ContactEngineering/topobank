@@ -112,6 +112,27 @@ Measurement images
         measurement's cache is refreshed (``manage.py refresh_cache``).
 
 
+Task processing
+---------------
+
+.. list-table:: Task processing
+    :widths: 25 10 20 45
+    :header-rows: 1
+
+    * - Setting
+      - Type
+      - Default
+      - Description
+    * - :code:`TOPOBANK_TASK_RECLAIM_AFTER`
+      - int
+      - :code:`None`
+      - Seconds after which a redelivered task message may take over a run recorded as ``STARTED``
+        under the same task id. ``None`` takes a run over only once it is older than the task's
+        hard time limit; a task with no hard time limit is never taken over. A redelivery that
+        arrives sooner is ignored, which acknowledges and consumes it, so the broker's visibility
+        timeout must exceed this value (or the hard time limit) for a crashed worker's message to
+        be picked up at all. Otherwise the row waits for the custodian.
+
 File uploads
 ------------
 

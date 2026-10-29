@@ -244,7 +244,7 @@ class Manifest(PermissionMixin, models.Model):
     # Dates - all three dates are typically similar
     #
 
-    # The date the upload was confirmed by the `finish_upload` method. This is typically
+    # The date the upload was confirmed (see `confirm_upload`). This is typically
     # the date the file was uploaded.
     confirmed_at = models.DateTimeField(blank=True, null=True)
     # The date the manifest was created
@@ -346,21 +346,19 @@ class Manifest(PermissionMixin, models.Model):
 
     is_valid = exists
 
-    def assert_exists(self):
-        """Raise unless the manifest has a file, confirming an upload that has
-        arrived (see `confirm_upload`)."""
+    def _file_or_raise(self):
+        """The file, confirming an upload that has arrived (see `confirm_upload`)."""
         if not self.confirm_upload():
             raise OSError(
                 f"Manifest {self.id} does not have a file associated with it."
             )
+        return self.file
 
     def open(self, *args, **kwargs):
-        self.assert_exists()
-        return self.file.open(*args, **kwargs)
+        return self._file_or_raise().open(*args, **kwargs)
 
     def read(self, *args, **kwargs):
-        self.assert_exists()
-        return self.file.read(*args, **kwargs)
+        return self._file_or_raise().read(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         created = self.pk is not None  # True on creation of the manifest
@@ -398,22 +396,24 @@ class Manifest(PermissionMixin, models.Model):
                         f"DELETE_EXISTING_FILES to True to ignore this error."
                     )
 
-    def save_file(self, fobj):
-        """Store `fobj` as this manifest's file, replacing any file it has.
+    def save_file(self, fobj, size_bytes=None):
+        """Store `fobj` as this manifest's file, replacing the file it has.
 
         The manifest is confirmed with it: a file stored by the application
-        itself is as confirmed as an upload that was found in storage.
+        itself is as confirmed as an upload that was found in storage. Pass
+        `size_bytes` where the caller knows it, so that storage need not be asked.
         """
-        if self.confirm_upload():
+        if self.file:
             # The reference goes with the file: should storing the new file
             # fail, the manifest must not keep pointing at a deleted one
             self.file.delete(save=False)
             self.save(update_fields=["file"])
         self.file.save(self.filename, fobj, save=False)
         self.confirmed_at = timezone.now()
-        # The size is known from the content; asking storage would be one more
-        # round trip for the same number
-        size_bytes = getattr(fobj, "size", None)
+        # The size of an in-memory or local file comes from the content; only
+        # for a file that lives in storage would `fobj.size` ask storage
+        if size_bytes is None:
+            size_bytes = getattr(fobj, "size", None)
         self.size_bytes = size_bytes if size_bytes is not None else self.file.size
         self.save(update_fields=["file", "confirmed_at", "size_bytes"])
 
@@ -433,9 +433,9 @@ class Manifest(PermissionMixin, models.Model):
         # Save to get a pk
         copy.save()
 
-        # Copy the actual data file
+        # Copy the actual data file; its size is known, storage need not be asked
         with self.file.open(mode="rb") as file:
-            copy.save_file(file)
+            copy.save_file(file, size_bytes=self.size_bytes)
 
         # Save again
         copy.save()

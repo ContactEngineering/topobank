@@ -1067,6 +1067,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     # Fields owned by the task machinery, which `refresh_cache` never writes
     _TASK_FIELDS = frozenset(TaskStateModel.TASK_FIELDS)
 
+    # Columns a `save()` without `update_fields` leaves alone on an existing
+    # row: the task columns, which `run_task` and the worker write, and the
+    # derived-file references, which `refresh_cache` writes. Both are written
+    # with explicit `update_fields` by their owners, so an instance loaded
+    # before a dispatch or a refresh cannot write a stale claim or a reference
+    # to a deleted file back over them. The other cache columns are not
+    # protected: a stale full save may still revert what a refresh computed.
+    _OWNED_ELSEWHERE = _TASK_FIELDS | frozenset(_DERIVED_FIELDS)
+
     #
     # Methods
     #
@@ -1077,6 +1086,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def save(self, *args, **kwargs):
         update_fields: list = kwargs.get("update_fields", None)
         created = self.pk is None
+        if update_fields is None and not created and not kwargs.get("force_insert"):
+            # A full save of an existing row writes every column but those of
+            # `_OWNED_ELSEWHERE`; an insert still writes everything
+            kwargs["update_fields"] = update_fields = [
+                field.name
+                for field in self._meta.concrete_fields
+                if not field.primary_key and field.name not in self._OWNED_ELSEWHERE
+            ]
         if created:
             if self.permissions is None:
                 _log.debug(

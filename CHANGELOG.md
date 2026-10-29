@@ -2,6 +2,23 @@
 
 # Unreleased
 
+- BUG: An upload is confirmed and its processing started from one place,
+  `topobank.manager.uploads.confirm_and_dispatch`; reading a data file
+  confirms an arrived upload (`Manifest.confirm_upload`) but no longer
+  decides whether it is processed. The custodian confirms and processes
+  uploads that arrived without a notification
+  (`sweep_unconfirmed_uploads`) before it deletes the manifests of uploads
+  that never arrived, and it now deletes those whose file is `""` as well
+  as `NULL`. `Manifest.exists` only checks the manifest
+- BUG: Each dispatch of a measurement is processed exactly once: the dispatch
+  claims the row with a task id, the worker starts the run against that claim,
+  and a run that was superseded by a newer dispatch discards its results and
+  files instead of recording them. `refresh_cache` writes what it computed
+  through `models.Model.save` and dispatches nothing. A `save()` of an existing
+  `Topography` without `update_fields` no longer writes the task columns or the
+  derived-file references, so an instance loaded before a dispatch or a refresh
+  cannot revert them; `TOPOBANK_TASK_RECLAIM_AFTER` sets when a redelivered
+  message may take over a stalled run
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;
