@@ -102,6 +102,10 @@ Measurement images
       - Type
       - Default
       - Description
+    * - :code:`TOPOBANK_THUMBNAIL_FORMAT`
+      - str
+      - :code:`'jpeg'`
+      - Image format of a measurement's thumbnail, as Pillow names it.
     * - :code:`TOPOBANK_VISUALIZATION_DETREND_MODE`
       - str
       - :code:`None`
@@ -123,6 +127,13 @@ Task processing
       - Type
       - Default
       - Description
+    * - :code:`TOPOBANK_PROCESSING_STORAGE_PREFIX`
+      - str
+      - :code:`'data-lake/processing'`
+      - Storage folder under which the processing of a measurement writes its derived files
+        (squeezed datafile, thumbnail, deep zoom images), in a folder per measurement and run.
+        The manifests created for them reference the files where they were written. A plain
+        folder name, without a leading slash or ``..``.
     * - :code:`TOPOBANK_TASK_RECLAIM_AFTER`
       - int
       - :code:`None`

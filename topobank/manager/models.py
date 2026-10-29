@@ -4,10 +4,11 @@ Basic models for the web app for handling topography data.
 
 import itertools
 import logging
+import posixpath
 from collections import defaultdict
 from copy import deepcopy
-from uuid import uuid4
 from typing import List
+from uuid import uuid4
 
 import django.dispatch
 import numpy as np
@@ -17,7 +18,7 @@ from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
 from django.contrib.postgres.indexes import GinIndex
 from django.contrib.postgres.search import SearchVector, SearchVectorField
-from django.core.exceptions import PermissionDenied
+from django.core.exceptions import ImproperlyConfigured, PermissionDenied
 from django.core.files import File
 from django.core.files.storage import default_storage
 from django.core.validators import MinValueValidator
@@ -102,11 +103,34 @@ def _visualization_detrend_mode():
 def processing_storage_prefix():
     """The folder under which inspections write derived files, one folder per
     measurement and run (see `Topography.processing_folder`)."""
-    return getattr(
+    prefix = getattr(
         settings,
         "TOPOBANK_PROCESSING_STORAGE_PREFIX",
         defaults.TOPOBANK_PROCESSING_STORAGE_PREFIX,
-    ).rstrip("/")
+    ).strip("/")
+    if not prefix or not _confined_key(f"{prefix}/x", prefix):
+        raise ImproperlyConfigured(
+            "TOPOBANK_PROCESSING_STORAGE_PREFIX must be a folder name such as "
+            "'data-lake/processing'."
+        )
+    return prefix
+
+
+def _confined_key(key, prefix):
+    """Whether `key` is a storage key under the folder `prefix`.
+
+    The storage normalizes a key before it uses it (django-storages turns `\\`
+    into `/` after `normpath`), so a key is trusted only as it would be used:
+    no backslash, no leading slash, and no empty, `.` or `..` segment, and then
+    under `prefix`.
+    """
+    return (
+        isinstance(key, str)
+        and "\\" not in key
+        and not key.startswith("/")
+        and posixpath.normpath(key) == key
+        and key.startswith(f"{prefix}/")
+    )
 
 
 def _validate_inspection_result(result, prefix):
@@ -153,7 +177,7 @@ def _validate_inspection_result(result, prefix):
     if len(set(keys)) < len(keys):
         raise ValueError("An inspection result names a file more than once.")
     for key in keys:
-        if not key.startswith(f"{prefix}/") or ".." in key.split("/"):
+        if not _confined_key(key, prefix):
             raise ValueError(
                 f"An inspection result references '{key}', which is not under "
                 f"'{prefix}/'."
@@ -1547,7 +1571,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         """
         if st_topo is None:
             st_topo = self.read()
-        self._make_derived("thumbnail", st_topo)
+        return self._write_derived("thumbnail", st_topo)
 
     def _make_deepzoom(self, st_topo=None):
         """Renew deep zoom images.
@@ -1560,24 +1584,35 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             st_topo = self.read()
         if self.size_y is not None:
             # This is a topography (map), we need to create a Deep Zoom Image
-            self._make_derived("deepzoom", st_topo)
+            return self._write_derived("deepzoom", st_topo)
 
     def _make_squeezed(self, st_topo=None):
         if st_topo is None:
             st_topo = self.read(allow_squeezed=False)
-        self._make_derived("squeezed_datafile", st_topo)
+        return self._write_derived("squeezed_datafile", st_topo)
 
-    def _make_derived(self, name, st_topo):
-        """Write the derived file `name` alone, as an inspection does, and point
-        the field at it. The field is saved (a measurement without a row yet
-        excepted), and the file it replaces deleted after that."""
+    def _write_derived(self, name, st_topo):
+        """Write the derived file `name` alone, as an inspection does, into a
+        folder of its own. Returns the writer and what it wrote, for
+        `_attach_written`; a failure leaves nothing behind."""
         writer = StorageWriter(default_storage, self.processing_folder(uuid4().hex))
-        written = write_derived(
-            name,
-            st_topo,
-            self.inspection_parameters(filename=self.datafile.filename),
-            writer,
-        )
+        try:
+            written = write_derived(
+                name,
+                st_topo,
+                self.inspection_parameters(filename=self.datafile.filename),
+                writer,
+            )
+        except BaseException:
+            writer.delete()
+            raise
+        return writer, written
+
+    def _attach_written(self, name, writer, written):
+        """Point the field `name` at the file `_write_derived` wrote and save it
+        (a measurement without a row yet excepted). The file it replaces is
+        deleted once that commits. Should the save fail, the file written is
+        deleted and the field keeps its previous file."""
         attname = f"{name}_id"
         previous = getattr(self, attname)
         try:
@@ -1592,7 +1627,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             setattr(self, attname, previous)
             writer.delete()
             raise
-        _delete_all(retired)
+        transaction.on_commit(lambda: _delete_all(retired))
 
     def _derived(self, name):
         """The derived manifest or folder in field `name`, or None.
@@ -1608,16 +1643,17 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def _clear_derived(self, name):
         """Drop the derived file in field `name` after generating it failed.
 
-        The field is saved first, and the file deleted after; a failure to delete
+        The field is saved first (through `models.Model.save`, as every derived
+        file is), and the file deleted once that commits; a failure to delete
         it is only logged (see `_delete_all`). A file that is replaced is retired
         by `_attach_derived` instead.
         """
         old = self._derived(name)
         setattr(self, name, None)
         if self.pk is not None:
-            self.save(update_fields=[name])
+            models.Model.save(self, update_fields=[name])
         if old is not None:
-            _delete_all([old])
+            transaction.on_commit(lambda: _delete_all([old]))
 
     def make_thumbnail(self, none_on_error=True, st_topo=None):
         """Renew thumbnail field.
@@ -1637,7 +1673,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         ThumbnailGenerationException
         """
         try:
-            self._make_thumbnail(st_topo=st_topo)
+            writer, written = self._make_thumbnail(st_topo=st_topo)
         except SoftTimeLimitExceeded:
             # The worker is out of time, which is no fault of the thumbnail
             raise
@@ -1651,8 +1687,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     exc,
                     exc_info=True,
                 )
-            else:
-                raise ThumbnailGenerationException(self, str(exc)) from exc
+                return
+            raise ThumbnailGenerationException(self, str(exc)) from exc
+        # A failure to save is no failure to generate: the previous file stays
+        self._attach_written("thumbnail", writer, written)
 
     def make_deepzoom(self, none_on_error=True, st_topo=None):
         """Renew deep zoom image files.
@@ -1672,7 +1710,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         DZIGenerationException
         """
         try:
-            self._make_deepzoom(st_topo=st_topo)
+            writer, written = self._make_deepzoom(st_topo=st_topo)
         except SoftTimeLimitExceeded:
             raise
         except Exception as exc:
@@ -1685,17 +1723,18 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     exc,
                     exc_info=True,
                 )
-            else:
-                raise DZIGenerationException(self, str(exc)) from exc
+                return
+            raise DZIGenerationException(self, str(exc)) from exc
+        self._attach_written("deepzoom", writer, written)
 
     def make_squeezed(self, none_on_error=True, st_topo=None, save=False):
         """Renew the squeezed datafile.
 
         `save` is accepted for compatibility only: the field is always saved
-        (see `_make_derived`).
+        (see `_attach_written`).
         """
         try:
-            self._make_squeezed(st_topo=st_topo)
+            writer, written = self._make_squeezed(st_topo=st_topo)
         except SoftTimeLimitExceeded:
             raise
         except Exception as exc:
@@ -1708,8 +1747,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     exc,
                     exc_info=True,
                 )
-            else:
-                raise SqueezedDatafileGenerationException(self, str(exc)) from exc
+                return
+            raise SqueezedDatafileGenerationException(self, str(exc)) from exc
+        self._attach_written("squeezed_datafile", writer, written)
 
     def refresh_bandwidth_cache(self, st_topo=None):
         """Renew bandwidth cache.
@@ -1796,26 +1836,27 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         else:
             folder = f"{self.processing_folder(self._task_run[0])}/{uuid4().hex}"
         writer = StorageWriter(default_storage, folder)
-        result = None
+        # Filled in as the inspection goes, so that a failed one leaves what it
+        # found up to then
+        result = InspectionResult()
         try:
-            result = inspect_datafile(
+            inspect_datafile(
                 self.datafile.file,
                 self.inspection_parameters(filename=self.datafile.filename),
                 writer,
                 timer=timer,
                 label=self.id,
+                result=result,
             )
             saved = self.apply_inspection(result, prefix=writer.prefix)
-        except Exception as exc:
+        except Exception:
             # Whether the inspection or recording it failed, the files it wrote
             # are referenced by nothing and must go. What it found is still
             # recorded, without them.
             writer.delete()
-            found = getattr(exc, "inspection_result", None) or result
-            if found is not None:
-                self._apply_failed_inspection(
-                    InspectionResult(fields=found.fields), writer.prefix
-                )
+            self._record_failed_inspection_safely(
+                InspectionResult(fields=result.fields), writer.prefix
+            )
             raise
 
         if saved:
@@ -1823,17 +1864,15 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             _log.debug(f"Sending `post_refresh_cache` signal from {self}...")
             post_refresh_cache.send(sender=Topography, instance=self)
 
-    def _apply_failed_inspection(self, result, prefix):
-        """Record what a failed inspection found, without masking its error.
+    def _record_failed_inspection_safely(self, result, prefix):
+        """`record_failed_inspection`, without masking the inspection's error.
 
         The error is the task's result, so nothing here may replace it: a failure
         of this itself (e.g. a database transaction the error has already broken)
         is only logged.
         """
-        if result is None:
-            return
         try:
-            self.apply_inspection(result, prefix=prefix, failed=True)
+            self.record_failed_inspection(result, prefix=prefix)
         except Exception:
             _log.exception(
                 "refresh_cache: recording the failed inspection of topography %s "
@@ -1841,7 +1880,20 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 self.id,
             )
 
-    def apply_inspection(self, result, *, prefix, failed=False):
+    def _own_run_folder(self, prefix):
+        """Refuse a `prefix` that is not a run folder of this measurement.
+
+        A result that comes back from another process names the folder its
+        files were written to; one that names another measurement's folder, or
+        a folder above them all, could have this measurement adopt (and later
+        delete) files that are not its own.
+        """
+        if not _confined_key(prefix, self.processing_folder("").rstrip("/")):
+            raise ValueError(
+                f"'{prefix}' is not a processing folder of topography {self.id}."
+            )
+
+    def apply_inspection(self, result, *, prefix):
         """Record an inspection's `result` and swap in the derived files it wrote.
 
         Writes the fields the result determines, of those a user may edit as well
@@ -1852,23 +1904,35 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         the files the result references are deleted instead. Otherwise the
         derived files it replaces are deleted once the transaction commits.
 
-        A `failed` inspection keeps the previous derived files. Within a run it
-        still records the other fields it found, as the full-row save at the end
-        of a run used to; outside a run it writes nothing.
-
         The result is checked before anything is written: its version, the fields
-        it may set, and that its files lie under `prefix`, the folder of the run
-        that wrote them (see `processing_folder`); files are only ever
-        deleted from there. Returns whether the result was recorded.
+        it may set, and that its files lie under `prefix`, a run folder of this
+        measurement (see `processing_folder`) in which they were written. Files
+        of the result are deleted only from there. Returns whether the result
+        was recorded.
         """
+        self._own_run_folder(prefix)
         _validate_inspection_result(result, prefix)
-        in_task_run = self._task_run is not None
+        return self._record(result, prefix)
 
-        if failed:
-            self._discard(result.written_keys(), prefix)
-            if not in_task_run:
-                return False
-            result = InspectionResult(fields=result.fields)
+    def record_failed_inspection(self, result, *, prefix):
+        """Record what a failed inspection found, keeping the derived files.
+
+        The files `result` wrote under `prefix` are deleted (see `_discard`) and
+        the previous derived files are kept. Within a run the other fields the
+        inspection found are still recorded; outside a run nothing is written.
+        `result` and `prefix` are checked as `apply_inspection` checks them.
+        Returns whether anything was recorded.
+        """
+        self._own_run_folder(prefix)
+        _validate_inspection_result(result, prefix)
+        self._discard(result.written_keys(), prefix)
+        if self._task_run is None:
+            return False
+        return self._record(InspectionResult(fields=result.fields), prefix)
+
+    def _record(self, result, prefix):
+        """Set the fields of a checked `result` and record it (see
+        `apply_inspection`)."""
         changed = []
         for name, value in result.fields.items():
             field = self._meta.get_field(name)
@@ -1899,7 +1963,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             with transaction.atomic():
                 retired = self._attach_derived(result, row=None)
                 self._save_inspection()
-            _delete_all(retired)
+            transaction.on_commit(lambda: _delete_all(retired))
             return True
 
         # A save sets the `auto_now` fields, as it always has
@@ -1955,13 +2019,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         derived-file fields as the caller has locked them; without it they are
         read. The files are deleted once the transaction commits.
         """
-        keys = {
-            key
-            for key in keys
-            if isinstance(key, str)
-            and key.startswith(f"{prefix}/")
-            and ".." not in key.split("/")
-        }
+        keys = {key for key in keys if _confined_key(key, prefix)}
         if not keys:
             return
         if row is None and self.pk is not None:
@@ -1985,7 +2043,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
     def processing_folder(self, run):
         """The storage folder in which run `run` of this measurement writes its
-        derived files. Nothing outside it is ever deleted on the run's behalf."""
+        derived files: `<TOPOBANK_PROCESSING_STORAGE_PREFIX>/<id>/<run>`, under
+        `new` instead of the id for a measurement that has no row yet.
+
+        The files of a run are deleted only from this folder. The files the run
+        replaces are deleted from wherever this measurement referenced them."""
         owner = "new" if self.pk is None else self.pk
         return f"{processing_storage_prefix()}/{owner}/{run}"
 

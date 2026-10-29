@@ -12,8 +12,8 @@ from django.utils import timezone
 from muTimer import Timer
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
-from .celeryapp import app
 from ..exceptions import IncompleteMetadataError  # noqa: F401 - imported from here
+from .celeryapp import app
 from .memory import track_memory_usage
 from .tasks import ProgressRecorder
 

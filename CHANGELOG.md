@@ -2,6 +2,16 @@
 
 # Unreleased
 
+- ENH: Processing a measurement is split into an inspection, which reads the
+  data file and writes the derived files under a folder of its own
+  (`topobank.manager.processing.inspect_datafile`, free of Django), and the
+  recording of its result (`Topography.apply_inspection`,
+  `Topography.record_failed_inspection`), so that the inspection can run in
+  another process. The derived files are stored where they were written,
+  under `TOPOBANK_PROCESSING_STORAGE_PREFIX`, and the manifests reference
+  them there; a result is checked before it is recorded, and its files are
+  accepted only under a run folder of the measurement.
+  `TOPOBANK_THUMBNAIL_FORMAT` sets the thumbnail's image format
 - BUG: An upload is confirmed and its processing started from one place,
   `topobank.manager.uploads.confirm_and_dispatch`; reading a data file
   confirms an arrived upload (`Manifest.confirm_upload`) but no longer
