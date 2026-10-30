@@ -262,6 +262,7 @@ def test_only_missing_objects_count_as_vanished_files():
     assert not _is_missing_file_error(client_error("AccessDenied"))
     assert not _is_missing_file_error(client_error("SlowDown"))
     assert _is_missing_file_error(FileNotFoundError())
+    assert not _is_missing_file_error(ValueError())
 
 
 @pytest.mark.django_db(transaction=True)

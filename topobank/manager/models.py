@@ -16,6 +16,7 @@ import matplotlib
 import numpy as np
 import PIL
 import tagulous.models as tm
+from botocore.exceptions import ClientError
 from celery.exceptions import SoftTimeLimitExceeded
 from django.conf import settings
 from django.contrib.contenttypes.models import ContentType
@@ -56,23 +57,16 @@ from .utils import (
 
 _log = logging.getLogger(__name__)
 
-try:
-    from botocore.exceptions import ClientError as _StorageClientError
-except ImportError:  # pragma: no cover - botocore ships with boto3
-    _StorageClientError = None
-
 # Errors raised when a stored file has been deleted: the manifest row is gone,
 # or the bytes are (FileSystemStorage raises FileNotFoundError, S3 a ClientError).
-_MISSING_FILE_ERRORS = (Manifest.DoesNotExist, FileNotFoundError) + (
-    (_StorageClientError,) if _StorageClientError is not None else ()
-)
+_MISSING_FILE_ERRORS = (Manifest.DoesNotExist, FileNotFoundError, ClientError)
 
 
 def _is_missing_file_error(exc) -> bool:
-    if _StorageClientError is not None and isinstance(exc, _StorageClientError):
+    if isinstance(exc, ClientError):
         code = str(exc.response.get("Error", {}).get("Code", ""))
         return code in ("404", "NoSuchKey", "NotFound")
-    return True
+    return isinstance(exc, _MISSING_FILE_ERRORS)
 
 
 def _snapshot(value):
