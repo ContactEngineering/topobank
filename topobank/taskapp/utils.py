@@ -329,6 +329,11 @@ def claim_pending(
     states. Of concurrent callers exactly one claims the row; the update runs in
     the caller's transaction, so a rollback releases the claim.
 
+    A claim still ``PENDING`` past the task's hard time limit is not in flight:
+    its message was never sent (see ``TaskStateModel.get_task_state``), so the
+    row may be claimed again. Should the message turn up after all, the worker
+    ignores it, as the row then names another task.
+
     On success the instance carries the persisted pending state and the new task
     id is returned. Otherwise the instance's task state is reloaded from the
     database, so that a later save of the instance cannot write back a stale
@@ -344,7 +349,14 @@ def claim_pending(
     if from_states is not None:
         queryset = queryset.filter(task_state__in=from_states)
     if not force:
-        queryset = queryset.exclude(task_state__in=TaskStateModel.IN_FLIGHT_STATES)
+        in_flight = Q(task_state__in=TaskStateModel.IN_FLIGHT_STATES)
+        limit = reclaim_after(task_dispatch)
+        if limit is not None:
+            in_flight &= ~Q(
+                task_state=TaskStateModel.PENDING,
+                task_submission_time__lt=timezone.now() - timedelta(seconds=limit),
+            )
+        queryset = queryset.exclude(in_flight)
     if queryset.update(**values) != 1:
         try:
             model_instance.refresh_from_db(

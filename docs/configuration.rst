@@ -153,7 +153,8 @@ Task processing
         be picked up at all. Otherwise the row waits for the custodian, which gives a run up as
         lost only once it is this old (past it no worker holds the run, and a processing backend
         has had as long to end it); without a hard time limit the custodian relies on the workers
-        alone.
+        alone. A row still pending this long after its dispatch is taken for one whose message
+        was never sent: it reads as failed and may be dispatched again.
 
 File uploads
 ------------

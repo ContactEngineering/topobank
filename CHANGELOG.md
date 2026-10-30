@@ -16,6 +16,11 @@
   model without a backend is judged by the workers alone, as before. The
   files of a lost run are deleted at once rather than by a task queued with
   a countdown, which a worker would hold in flight for the whole wait
+- BUG: A row `run_task` claimed whose message was never sent (the process died
+  before the on-commit hook ran) reads as failed once the claim is older than
+  the task's hard time limit, and can be dispatched again; Celery reports an
+  id it has never seen as pending, so the row would otherwise stay pending
+  for good
 - BUG: `Topography.apply_backend_result` records the end of the run and sends
   `post_refresh_cache` in one transaction, also for a caller in autocommit
   mode: a receiver that fails leaves the run in progress for the result to be

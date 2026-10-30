@@ -301,6 +301,31 @@ class TaskStateModel(models.Model):
             # If the task self-reports success or failure, we trust it without further checks
             return self_reported_task_state
 
+        if (
+            self_reported_task_state == TaskStateModel.PENDING
+            and self.task_id is not None
+            and self.task_submission_time
+        ):
+            # `run_task` claims the row with a task id and sends the message
+            # once the claiming transaction commits (see `taskapp.utils`).
+            # Celery reports an id it has never seen as pending, so a message
+            # that was never sent (the process died before the on-commit hook
+            # ran) can only be told by the claim's age: no message waits in
+            # the queue past the task's hard time limit. `claim_pending` then
+            # lets the row be dispatched again.
+            from .utils import reclaim_after, task_dispatch
+
+            limit = reclaim_after(task_dispatch)
+            if limit is not None and timezone.now() - self.task_submission_time > (
+                timezone.timedelta(seconds=limit)
+            ):
+                _log.error(
+                    f"The {self.__class__.__name__} instance with id {self.id} was "
+                    f"claimed for task {self.task_id} more than {limit} seconds ago, "
+                    "but no worker ever picked the task up. I am returning a failure."
+                )
+                return TaskStateModel.FAILURE
+
         # Self-reported state is not SUCCESS or FAILURE, check with Celery
         # This is what Celery reports back
         celery_task_state = self.get_celery_state()

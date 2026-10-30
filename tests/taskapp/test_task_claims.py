@@ -706,3 +706,76 @@ def test_a_save_of_a_deferred_instance_does_not_load_its_deferred_fields(broker)
         deferred.save()
 
     assert Topography.objects.get(pk=topo.pk).name == "renamed"
+
+
+#
+# A claim whose message was never sent
+#
+
+
+def _backdate_claim(topo, seconds):
+    Topography.objects.filter(pk=topo.pk).update(
+        task_submission_time=timezone.now() - timedelta(seconds=seconds)
+    )
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_claim_whose_message_was_never_sent_fails_and_can_be_claimed_again(
+    broker, settings
+):
+    """The process died between the commit and the on-commit hook, say. Only
+    the claim's age tells: past the hard time limit no message waits in the
+    queue."""
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 3600
+    topo = _topography()
+    with mock.patch.object(utils.transaction, "on_commit"):  # the hook never runs
+        assert run_task(topo)
+    assert broker == []
+    never_sent = Topography.objects.get(pk=topo.pk).task_id
+    assert never_sent is not None
+
+    # Younger than the limit, the message may be waiting in the queue
+    assert Topography.objects.get(pk=topo.pk).get_task_state() == TaskStateModel.PENDING
+    assert not run_task(Topography.objects.get(pk=topo.pk))
+
+    _backdate_claim(topo, 3601)
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.get_task_state() == TaskStateModel.FAILURE
+    # ...and the row is not in flight: the next dispatch claims it
+    assert run_task(stored)
+    assert stored.task_id != never_sent
+    assert [task_id for _, task_id in broker] == [str(stored.task_id)]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_message_that_turns_up_after_its_claim_was_given_up_is_ignored(
+    broker, settings
+):
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 0
+    topo = _topography()
+    assert run_task(topo)
+    ((_, old),) = broker
+    _backdate_claim(topo, 1)
+    # Past the limit, a recompute claims the row again
+    assert run_task(Topography.objects.get(pk=topo.pk))
+    (_, new) = broker[-1]
+    assert new != old
+
+    assert _deliver(topo, old) is None
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.PENDING
+    assert str(stored.task_id) == new
+
+
+@pytest.mark.django_db(transaction=True)
+def test_without_a_hard_time_limit_a_claim_is_never_given_up(broker, settings):
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = None
+    topo = _topography()
+    with mock.patch.object(utils.transaction, "on_commit"):
+        assert run_task(topo)
+    _backdate_claim(topo, 7 * 24 * 3600)
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.get_task_state() == TaskStateModel.PENDING
+    assert not run_task(stored)
