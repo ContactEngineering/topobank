@@ -1,16 +1,21 @@
 import inspect
 import logging
 import traceback
+from datetime import datetime
 from decimal import Decimal
+from typing import NamedTuple, Optional
 
 import celery.states
 import django.db.models as models
 import pydantic
 from django.core.cache import cache
+from django.db import transaction
 from django.utils import timezone
 from muTimer import Timer
 from SurfaceTopography.Exceptions import CannotDetectFileFormat
 
+from ..exceptions import IncompleteMetadataError  # noqa: F401 - imported from here
+from ..exceptions import TaskBackendError
 from .celeryapp import app
 from .memory import track_memory_usage
 from .tasks import ProgressRecorder
@@ -18,20 +23,33 @@ from .tasks import ProgressRecorder
 _log = logging.getLogger(__name__)
 
 
-class IncompleteMetadataError(Exception):
-    """
-    Raised when a data file is of a supported format and can be read, but does
-    not contain the complete metadata (physical size, unit) required to process
-    it, and the instance is configured (via `TOPOBANK_REJECT_INCOMPLETE_METADATA`)
-    to reject such files instead of prompting the user to fill in the metadata.
-    """
+class TaskRun(NamedTuple):
+    """A run of a task model's task, identified by its task id and start time."""
 
-    pass
+    task_id: str
+    start_time: Optional[datetime]
+    # Ended through `complete_task`: the run is over once the row is no longer
+    # `STARTED`, whatever ended it
+    while_started: bool = False
 
 
 class TaskStateModel(models.Model):
     class Meta:
         abstract = True
+        # Django takes the first manager declared as a model's default, and the
+        # managers declared here count as declared before any of a subclass's:
+        # without this, a subclass's default manager would silently become one
+        # of these. A subclass with a `Meta` of its own keeps it only by
+        # extending this one (`class Meta(TaskStateModel.Meta)`).
+        default_manager_name = "objects"
+
+    # `all_objects` holds every row, also those a subclass's `objects` hides (the
+    # soft-deleted ones, say). The task machinery goes through it: a run of a row
+    # deleted meanwhile still ends, is reaped, and is cleaned up after. A
+    # subclass may redefine either manager, as long as `all_objects` stays
+    # unfiltered.
+    objects = models.Manager()
+    all_objects = models.Manager()
 
     # Time to wait for a task to be submitted after creation/update of the database
     # entry.
@@ -60,9 +78,9 @@ class TaskStateModel(models.Model):
     # original (now-stale) task_start_time.
     IN_FLIGHT_STATES = (PENDING, PENDING_DEPENDENCIES, STARTED)
 
-    # Fields mutated by set_pending_state(). Callers that persist with a
-    # restricted update_fields must include these, otherwise the pending
-    # transition is silently dropped.
+    # Fields `pending_state_values` sets when a task is submitted. `run_task`
+    # (see `taskapp.utils`) writes them to the database itself; a caller only
+    # needs to save them after `set_pending_state(autosave=False)`.
     PENDING_STATE_FIELDS = (
         "task_state",
         "task_submission_time",
@@ -72,6 +90,25 @@ class TaskStateModel(models.Model):
         "task_start_time",
         "task_end_time",
     )
+
+    # Fields `run_task` writes when a run ends.
+    TASK_RESULT_FIELDS = (
+        "task_state",
+        "task_end_time",
+        "task_error",
+        "task_traceback",
+        "task_memory",
+        "task_timer",
+    )
+
+    # Every field the task machinery owns
+    TASK_FIELDS = PENDING_STATE_FIELDS + ("task_memory", "task_timer", "launcher_task_id")
+
+    # The run in progress on this instance (a `TaskRun`), or None. Set by
+    # `run_task` and `complete_task` for the duration of the run;
+    # `is_current_task_run` compares it with the row to tell whether a newer
+    # dispatch took over.
+    _task_run = None
 
     # Mapping Celery states to our state information. Everything not in the
     # list (e.g. custom Celery states) are interpreted as STARTED.
@@ -264,6 +301,31 @@ class TaskStateModel(models.Model):
             # If the task self-reports success or failure, we trust it without further checks
             return self_reported_task_state
 
+        if (
+            self_reported_task_state == TaskStateModel.PENDING
+            and self.task_id is not None
+            and self.task_submission_time
+        ):
+            # `run_task` claims the row with a task id and sends the message
+            # once the claiming transaction commits (see `taskapp.utils`).
+            # Celery reports an id it has never seen as pending, so a message
+            # that was never sent (the process died before the on-commit hook
+            # ran) can only be told by the claim's age: no message waits in
+            # the queue past the task's hard time limit. `claim_pending` then
+            # lets the row be dispatched again.
+            from .utils import reclaim_after, task_dispatch
+
+            limit = reclaim_after(task_dispatch)
+            if limit is not None and timezone.now() - self.task_submission_time > (
+                timezone.timedelta(seconds=limit)
+            ):
+                _log.error(
+                    f"The {self.__class__.__name__} instance with id {self.id} was "
+                    f"claimed for task {self.task_id} more than {limit} seconds ago, "
+                    "but no worker ever picked the task up. I am returning a failure."
+                )
+                return TaskStateModel.FAILURE
+
         # Self-reported state is not SUCCESS or FAILURE, check with Celery
         # This is what Celery reports back
         celery_task_state = self.get_celery_state()
@@ -423,17 +485,26 @@ class TaskStateModel(models.Model):
 
         return messages
 
+    @classmethod
+    def pending_state_values(cls, task_id=None):
+        """Values of `PENDING_STATE_FIELDS` for a freshly submitted task."""
+        return {
+            "task_state": cls.PENDING,
+            "task_submission_time": timezone.now(),
+            "task_error": "",
+            "task_traceback": None,
+            # Need to reset, otherwise Celery reports a failure
+            "task_id": task_id,
+            # Clear timestamps from any prior run so a re-pended row looks freshly
+            # created: otherwise duration() reports garbage and a stale
+            # task_start_time could be mistaken for an in-flight run.
+            "task_start_time": None,
+            "task_end_time": None,
+        }
+
     def set_pending_state(self, autosave=True):
-        self.task_state = self.PENDING
-        self.task_submission_time = timezone.now()
-        self.task_error = ""
-        self.task_traceback = None
-        self.task_id = None  # Need to reset, otherwise Celery reports a failure
-        # Clear timestamps from any prior run so a re-pended row looks freshly
-        # created: otherwise duration() reports garbage and a stale task_start_time
-        # could be mistaken for an in-flight run.
-        self.task_start_time = None
-        self.task_end_time = None
+        for name, value in self.pending_state_values().items():
+            setattr(self, name, value)
         if autosave:
             self.save(update_fields=list(self.PENDING_STATE_FIELDS))
 
@@ -467,7 +538,7 @@ class TaskStateModel(models.Model):
         """The actual task"""
         raise NotImplementedError
 
-    def run_task(self, celery_task, *args, **kwargs):
+    def run_task(self, celery_task, *args, claimed_run=None, **kwargs):
         """
         Execute the task worker and store states to database.
 
@@ -477,6 +548,10 @@ class TaskStateModel(models.Model):
             The Celery task to be executed.
         *args : tuple
             Additional positional arguments for the task.
+        claimed_run : tuple, optional
+            The run (task id, start time) that `task_dispatch` claimed for this
+            delivery before loading the instance. None when the task runs inline,
+            in which case this method marks the row as started itself.
         **kwargs : dict
             Additional keyword arguments for the task.
 
@@ -491,46 +566,127 @@ class TaskStateModel(models.Model):
         Exception
             For any other exceptions that occur during task execution.
         """
-        self.task_state = TaskStateModel.STARTED
-        self.task_id = celery_task.request.id
-        self.task_start_time = timezone.now()  # with timezone
-        self.save()  # save such that any queries see this as running
+        task_id = celery_task.request.id
+        if claimed_run is not None:
+            # Claimed by `task_dispatch` before this instance was loaded. The row
+            # may have been claimed again since, by a newer dispatch; that run
+            # supersedes this one, which then leaves the row alone.
+            if (str(self.task_id), self.task_start_time) != claimed_run:
+                _log.info(
+                    "%s id=%s: run %s was superseded by a newer dispatch before it "
+                    "started; not running it.",
+                    type(self).__name__,
+                    self.pk,
+                    task_id,
+                )
+                return False
+        else:
+            # A caller runs the task inline
+            self.task_state = TaskStateModel.STARTED
+            self.task_id = task_id
+            self.task_start_time = timezone.now()  # with timezone
+            # save such that any queries see this as running
+            self.save(update_fields=["task_state", "task_id", "task_start_time"])
+        # The task id and start time identify this run. A forced re-dispatch or a
+        # takeover by a redelivered message replaces them, and this run then
+        # leaves the row to its successor.
+        outer_run = self._task_run
+        self._task_run = TaskRun(str(self.task_id), self.task_start_time)
 
-        # actually run the task
+        def work():
+            # Pass the optional `timer` and `progress_recorder` arguments only
+            # to workers that declare them, so that a worker can opt into
+            # timing and progress reporting without every worker having to
+            # accept both.
+            sig = inspect.signature(self.task_worker)
+            extra_kwargs = {}
+            timer = None
+            if 'timer' in sig.parameters:
+                timer = Timer(str(self.task_id))
+                extra_kwargs['timer'] = timer
+            if 'progress_recorder' in sig.parameters:
+                extra_kwargs['progress_recorder'] = ProgressRecorder(celery_task)
+            self.task_worker(*args, **extra_kwargs, **kwargs)
+            if timer is not None:
+                self.task_timer = timer.to_dict()
+
+        try:
+            self._record_run(work)
+        finally:
+            self._task_run = outer_run
+
+    def complete_task(self, task_id, work):
+        """End the run `task_id` that a task backend carried out elsewhere.
+
+        A backend (see `task_backend`) runs the task outside the Celery worker, and
+        hands what it produced back here: `work` records it, as `task_worker` would
+        have, and the run then ends as `run_task` ends it -- a success, or a
+        failure with the error `work` raises. A backend reports a failure of its
+        own by having `work` raise `TaskBackendError`. Nothing happens unless the
+        row is still in that run, i.e. started under `task_id` and not superseded
+        by a newer dispatch since. Unlike a Celery run, which owns its result even
+        once the custodian has given it up for lost, the run is no longer this
+        one's once it has been ended otherwise (failed as lost, say): the
+        custodian then cleans up after it.
+
+        Returns whether the end of the run was recorded here.
+        """
+        self.refresh_from_db(fields=list(self.PENDING_STATE_FIELDS))
+        if str(self.task_id) != str(task_id) or self.task_state != self.STARTED:
+            _log.info(
+                "%s id=%s: run %s is not in progress (state=%s, task %s); not "
+                "recording its result.",
+                type(self).__name__,
+                self.pk,
+                task_id,
+                self.task_state,
+                self.task_id,
+            )
+            return False
+        outer_run = self._task_run
+        self._task_run = TaskRun(
+            str(self.task_id), self.task_start_time, while_started=True
+        )
+        # What the backend used is unknown here; the values of an earlier run are
+        # not this run's
+        self.task_memory = None
+        self.task_timer = None
+        try:
+            return self._record_run(work, track_memory=False)
+        finally:
+            self._task_run = outer_run
+
+    def _record_run(self, work, track_memory=True):
+        """Call `work` as the run `_task_run` and record how the run ended.
+
+        Returns whether that was recorded (see `_save_task_result`).
+        """
         try:
             # Peak-memory tracking: cheap RSS high-water mark by default;
             # precise (but ~35x slower on numeric workloads) tracemalloc only
             # when TOPOBANK_TRACK_MEMORY_USAGE is enabled. See taskapp/memory.py.
-            with track_memory_usage() as memory_usage:
-                # Pass the optional `timer` and `progress_recorder` arguments only
-                # to workers that declare them, so that a worker can opt into
-                # timing and progress reporting without every worker having to
-                # accept both.
-                sig = inspect.signature(self.task_worker)
-                extra_kwargs = {}
-                timer = None
-                if 'timer' in sig.parameters:
-                    timer = Timer(str(self.task_id))
-                    extra_kwargs['timer'] = timer
-                if 'progress_recorder' in sig.parameters:
-                    extra_kwargs['progress_recorder'] = ProgressRecorder(celery_task)
-                self.task_worker(*args, **extra_kwargs, **kwargs)
-                if timer is not None:
-                    self.task_timer = timer.to_dict()
+            if track_memory:
+                with track_memory_usage() as memory_usage:
+                    work()
+                self.task_memory = memory_usage.peak
+            else:
+                work()
             self.task_state = TaskStateModel.SUCCESS
-            self.task_memory = memory_usage.peak
             self.task_error = ""
         except CannotDetectFileFormat:
             self.task_state = TaskStateModel.FAILURE
             self.task_error = "The data file is of an unknown or unsupported format."
             self.task_traceback = traceback.format_exc().replace('\x00', '')
-        except IncompleteMetadataError as exc:
+        except (IncompleteMetadataError, TaskBackendError) as exc:
             # The file is of a supported format but lacks required metadata, and
-            # this instance is configured to reject such files. This is an expected
-            # user-input rejection (not a system fault), so we do not re-raise.
+            # this instance is configured to reject such files; or a backend
+            # reports that its run failed. Either is the outcome of the run (not
+            # a fault here), so we do not re-raise.
             self.task_state = TaskStateModel.FAILURE
             self.task_error = str(exc).replace('\x00', '')
-            self.task_traceback = traceback.format_exc().replace('\x00', '')
+            self.task_traceback = (
+                getattr(exc, "traceback", None) or traceback.format_exc()
+            ).replace('\x00', '')
         except Exception as exc:
             self.task_state = TaskStateModel.FAILURE
             # Store string representation of exception and traceback as user-reported
@@ -543,7 +699,92 @@ class TaskStateModel(models.Model):
         finally:
             # Store time stamp and save state to database
             self.task_end_time = timezone.now()  # with timezone
-            self.save()
+            recorded = self._save_task_result()
+        return recorded
+
+    def task_backend(self):
+        """A callable ``backend(instance, task_id)`` that runs this instance's
+        claimed task instead of the Celery task, or None (the default) for the
+        Celery task.
+
+        The run is started (``STARTED``) when it is handed to the backend, which
+        ends it through ``complete_task`` (see ``taskapp.utils.submit_on_commit``).
+        Until then it counts as lost like a Celery run that no worker holds: the
+        custodian fails it once it is older than its minimum age.
+        """
+        return None
+
+    def task_lost(self):
+        """Called once the custodian has failed this instance's run as lost, to
+        clean up after it. Does nothing by default.
+
+        It runs in the custodian after the row has been moved to ``FAILURE``,
+        outside any transaction: an implementation may touch storage, but cannot
+        roll the row back.
+        """
+
+    def task_save_fields(self):
+        """Fields to persist when a run ends, or None to save the whole row.
+
+        Override this when the task worker persists its own results, so that the
+        end of a run does not overwrite fields changed elsewhere in the meantime.
+        """
+        return None
+
+    def _lock_row(self, *fields):
+        """Lock this row until the end of the surrounding transaction.
+
+        Returns the row's run token (task id and start time), its task state and
+        the values of `fields`, or None if the row is gone.
+        """
+        return (
+            type(self)
+            .all_objects.select_for_update()
+            .filter(pk=self.pk)
+            .values("task_id", "task_start_time", "task_state", *fields)
+            .first()
+        )
+
+    def is_current_task_run(self, row=None) -> bool:
+        """Whether the row still belongs to the run in progress, if any.
+
+        Locks the row until the end of the surrounding transaction, unless the
+        caller passes the `row` it has locked already. Outside a run (no run in
+        progress) this is always True.
+        """
+        run = self._task_run
+        if run is None:
+            return True
+        if row is None:
+            row = self._lock_row()
+        if row is None or (str(row["task_id"]), row["task_start_time"]) != (
+            run.task_id,
+            run.start_time,
+        ):
+            return False
+        return not run.while_started or row["task_state"] == self.STARTED
+
+    def _save_task_result(self):
+        """Record how the run ended; returns whether it still was this run's."""
+        with transaction.atomic():
+            if not self.is_current_task_run():
+                _log.warning(
+                    "%s id=%s: run %s was superseded by a newer dispatch; not "
+                    "recording its result (state=%s).",
+                    type(self).__name__,
+                    self.pk,
+                    self.task_id,
+                    self.task_state,
+                )
+                return False
+            fields = self.task_save_fields()
+            if fields is None:
+                self.save()
+            else:
+                # The run owns its result: written even where another writer (a
+                # reaper that gave the run up for lost, say) changed it meanwhile
+                self.save(update_fields=list(fields))
+        return True
 
 
 class Dependency(models.Model):

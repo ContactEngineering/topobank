@@ -2,6 +2,70 @@
 
 # Unreleased
 
+- ENH: `TOPOBANK_PROCESSING_BACKEND` names a callable that runs the processing
+  of a measurement outside the Celery worker (on AWS Lambda, say) and ends the
+  run through `Topography.apply_backend_result`; the custodian fails a run the
+  backend never ends, and cleans up after it. On an S3 storage the files of a
+  run are listed and deleted in batches rather than one request per folder
+  and file
+- MAINT: Of a model that hands its runs to a task backend the custodian gives
+  a run up as lost only once it is older than the task's hard time limit
+  (`TOPOBANK_TASK_RECLAIM_AFTER`): past it no worker holds a Celery run and
+  the backend has had as long to end its run, so a run that old is dead
+  whichever runner had it, with or without an answer from the workers. A
+  model without a backend is judged by the workers alone, as before. The
+  files of a lost run are deleted at once rather than by a task queued with
+  a countdown, which a worker would hold in flight for the whole wait
+- BUG: A row `run_task` claimed whose message was never sent (the process died
+  before the on-commit hook ran) reads as failed once the claim is older than
+  the task's hard time limit, and can be dispatched again; Celery reports an
+  id it has never seen as pending, so the row would otherwise stay pending
+  for good
+- BUG: `Topography.apply_backend_result` records the end of the run and sends
+  `post_refresh_cache` in one transaction, also for a caller in autocommit
+  mode: a receiver that fails leaves the run in progress for the result to be
+  delivered again, rather than recorded with its analyses never invalidated
+- BUG: The custodian deletes only the manifests of uploads the sweep found
+  missing from storage; an upload the storage could not be asked about
+  (unreachable, throttled) waits for the next pass instead of losing its
+  manifest, and with it the measurement's data file. The sweep covers every
+  kind of upload but the archive of a ZIP container, which whoever handles
+  the container confirms and imports
+- API: `TaskStateModel.all_objects` holds every row, including those a
+  subclass's `objects` hides, and the task machinery goes through it. A
+  downstream subclass that declares its own `Meta` must extend
+  `TaskStateModel.Meta` (`class Meta(TaskStateModel.Meta)`), or its default
+  manager silently becomes `all_objects`; migrations `manager/0087` and
+  `analysis/0067` record the managers
+- ENH: Processing a measurement is split into an inspection, which reads the
+  data file and writes the derived files under a folder of its own
+  (`topobank.manager.processing.inspect_datafile`, free of Django), and the
+  recording of its result (`Topography.apply_inspection`,
+  `Topography.record_failed_inspection`), so that the inspection can run in
+  another process. The derived files are stored where they were written,
+  under `TOPOBANK_PROCESSING_STORAGE_PREFIX`, and the manifests reference
+  them there; a result is checked before it is recorded, and its files are
+  accepted only under a run folder of the measurement.
+  `TOPOBANK_THUMBNAIL_FORMAT` sets the thumbnail's image format
+- BUG: An upload is confirmed and its processing started from one place,
+  `topobank.manager.uploads.confirm_and_dispatch`; reading a data file
+  confirms an arrived upload (`Manifest.confirm_upload`) but no longer
+  decides whether it is processed. The custodian confirms and processes
+  uploads that arrived without a notification
+  (`sweep_unconfirmed_uploads`) before it deletes the manifests of uploads
+  that never arrived, and it now deletes those whose file is `""` as well
+  as `NULL`. `Manifest.exists` only checks the manifest
+- BUG: Each dispatch of a measurement is processed exactly once: the dispatch
+  claims the row with a task id, the worker starts the run against that claim,
+  and a run that was superseded by a newer dispatch discards its results and
+  files instead of recording them. `refresh_cache` writes what it computed
+  through `models.Model.save` and dispatches nothing. A `save()` of an existing
+  `Topography` without `update_fields` no longer writes the task columns or the
+  derived-file references (nor deferred fields), so an instance loaded before a
+  dispatch or a refresh cannot revert them; a value set on the instance for one
+  of them is written only when named in `update_fields`, and the admin shows
+  them read-only. `TOPOBANK_TASK_RECLAIM_AFTER` sets when a redelivered
+  message may take over a stalled run
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;

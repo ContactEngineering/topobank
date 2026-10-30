@@ -66,11 +66,16 @@ def test_full_inspection_via_task_runner(imported_surface):
         ]
     )
 
+    # Clearing `data_source` is a significant change, so the save claimed a new
+    # task for the measurement; the worker only runs the message it was claimed for.
+    topo.refresh_from_db()
+    assert topo.task_state == Topography.PENDING
+
     # Drive the task runner synchronously. ``apply()`` runs the task in-process
     # with a real request context, going through TaskStateModel.run_task ->
     # Topography.task_worker -> refresh_cache (thumbnail / deepzoom / squeezed).
     ct = ContentType.objects.get_for_model(Topography)
-    task_dispatch.apply(args=[ct.id, topo.id])
+    task_dispatch.apply(args=[ct.id, topo.id], task_id=str(topo.task_id))
 
     topo.refresh_from_db()
 

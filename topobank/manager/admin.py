@@ -120,12 +120,29 @@ class TopographyAdmin(TagFieldAdminMixin, admin.ModelAdmin):
         "permissions",
         "attachments",
         "datafile",
-        "squeezed_datafile",
-        "thumbnail",
-        "deepzoom",
         "created_by",
         "updated_by",
         "owned_by",
+    )
+    # The task columns and the derived-file references are written by the task
+    # machinery and `refresh_cache` only: a full `save()` of an existing
+    # measurement, which is what the change form does, leaves them alone (see
+    # `Topography._OWNED_ELSEWHERE`), so an edit here would be dropped without
+    # a word.
+    readonly_fields = (
+        "task_state",
+        "task_id",
+        "launcher_task_id",
+        "task_submission_time",
+        "task_start_time",
+        "task_end_time",
+        "task_error",
+        "task_traceback",
+        "task_memory",
+        "task_timer",
+        "squeezed_datafile",
+        "thumbnail",
+        "deepzoom",
     )
 
     def get_queryset(self, request):
