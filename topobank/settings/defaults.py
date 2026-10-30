@@ -72,5 +72,10 @@ TOPOBANK_PROCESSING_STORAGE_PREFIX = "data-lake/processing"
 #: ``Topography.apply_backend_result(task_id, result)`` (in a worker, as it
 #: deletes the files the result replaces), or with ``error`` if the inspection
 #: failed. A run it never ends is failed by the custodian as lost once it is
-#: older than the custodian's minimum age (15 minutes by default).
+#: older than the task's hard time limit (see ``TOPOBANK_TASK_RECLAIM_AFTER``;
+#: the workers cannot vouch for a run the backend holds, so neither can they
+#: for a Celery run of the same model while a backend is configured), which
+#: must therefore exceed the longest a healthy run can take to end, from the
+#: hand-off through any wait before the backend runs it to the recording of
+#: its result.
 TOPOBANK_PROCESSING_BACKEND = None

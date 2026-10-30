@@ -309,9 +309,10 @@ def test_the_sweep_confirms_and_processes_an_upload_that_arrived_unnoticed(broke
         created_at=cutoff + datetime.timedelta(minutes=1)
     )
 
-    confirmed = sweep_unconfirmed_uploads(cutoff)
+    swept = sweep_unconfirmed_uploads(cutoff)
 
-    assert [m.pk for m in confirmed] == [arrived.datafile.pk]
+    assert [m.pk for m in swept.confirmed] == [arrived.datafile.pk]
+    assert [m.pk for m in swept.missing] == [missing.datafile.pk]
     stored = Topography.objects.get(pk=arrived.pk)
     assert stored.datafile.confirmed_at is not None
     assert stored.task_state == TaskStateModel.PENDING
@@ -328,7 +329,7 @@ def test_the_sweep_leaves_a_confirmed_upload_alone(broker):
     assert confirm_and_dispatch(topo.datafile)
     broker.clear()
 
-    assert sweep_unconfirmed_uploads(timezone.now()) == []
+    assert sweep_unconfirmed_uploads(timezone.now()) == ([], [])
     assert broker == []
 
 
@@ -352,6 +353,80 @@ def test_the_custodian_processes_an_unnoticed_upload_and_deletes_the_lost_ones(
     # is left without a data file
     assert not Manifest.objects.filter(pk=missing.datafile.pk).exists()
     assert Topography.objects.get(pk=missing.pk).datafile is None
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_custodian_keeps_an_upload_it_could_not_check(broker, caplog):
+    """Storage trouble is not a missing upload: the manifest waits for the
+    next pass rather than go, with the measurement's file."""
+    arrived = _unprocessed_measurement()
+    old = timezone.now() - datetime.timedelta(days=8)
+    Manifest.objects.filter(pk=arrived.datafile.pk).update(created_at=old)
+
+    with mock.patch.object(default_storage, "size", side_effect=OSError("throttled")):
+        periodic_cleanup()
+
+    stored = Topography.objects.get(pk=arrived.pk)
+    assert stored.datafile.pk == arrived.datafile.pk
+    assert stored.datafile.confirmed_at is None
+    assert stored.task_state == TaskStateModel.NOTRUN
+    assert broker == []
+    assert "throttled" in caplog.text
+
+    # Once storage answers again
+    periodic_cleanup()
+
+    stored = Topography.objects.get(pk=arrived.pk)
+    assert stored.datafile.confirmed_at is not None
+    assert stored.task_state == TaskStateModel.PENDING
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_sweep_leaves_the_archive_of_a_zip_container_alone(broker):
+    """Whoever handles the container confirms and imports its archive; the
+    sweep would confirm it and import nothing. It goes with the container."""
+    from topobank.manager.zip_model import ZipContainer
+
+    topo = Topography1DFactory()
+    container = ZipContainer.objects.create(permissions=topo.permissions)
+    container.create_empty_manifest()
+    with open(f"{FIXTURE_DATA_DIR}/10x10.txt", "rb") as fobj:
+        default_storage.save(container.manifest.generate_storage_path(), File(fobj))
+    old = timezone.now() - datetime.timedelta(days=8)
+    Manifest.objects.filter(pk=container.manifest.pk).update(created_at=old)
+
+    assert sweep_unconfirmed_uploads(timezone.now()) == ([], [])
+    periodic_cleanup()
+
+    stored = Manifest.objects.get(pk=container.manifest.pk)
+    assert stored.confirmed_at is None
+    assert not stored.file
+    assert broker == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_the_sweep_confirms_every_kind_of_upload_and_the_custodian_deletes_the_rest(
+    broker,
+):
+    topo = Topography1DFactory()
+    arrived = Manifest.objects.create(
+        permissions=topo.permissions, filename="notes.txt", kind="att"
+    )
+    default_storage.save(arrived.generate_storage_path(), ContentFile(b"notes"))
+    missing = Manifest.objects.create(
+        permissions=topo.permissions, filename="never.txt", kind="att"
+    )
+    old = timezone.now() - datetime.timedelta(days=8)
+    Manifest.objects.filter(pk__in=[arrived.pk, missing.pk]).update(created_at=old)
+
+    periodic_cleanup()
+
+    stored = Manifest.objects.get(pk=arrived.pk)
+    assert stored.confirmed_at is not None
+    assert stored.size_bytes == 5
+    assert not Manifest.objects.filter(pk=missing.pk).exists()
+    # Nothing processes an attachment
+    assert broker == []
 
 
 @pytest.mark.django_db

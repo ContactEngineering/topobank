@@ -10,7 +10,7 @@ whoever comes later finds nothing left to do.
 """
 
 import logging
-from typing import List, Optional
+from typing import List, NamedTuple, Optional
 
 from django.db import transaction
 from django.db.models import Q
@@ -67,31 +67,61 @@ def confirm_and_dispatch(manifest: Manifest) -> Optional[List[Topography]]:
 
 
 def unconfirmed_uploads(older_than):
-    """The raw manifests created before `older_than` whose upload is unconfirmed."""
+    """The manifests created before `older_than` whose upload is unconfirmed.
+
+    The archive of a ZIP container is not among them: whoever handles the
+    container confirms it, and it goes with the container.
+    """
     return Manifest.objects.filter(
         Q(file__isnull=True) | Q(file=""),
-        kind="raw",
         confirmed_at__isnull=True,
         created_at__lt=older_than,
+        zip_containers__isnull=True,
     )
 
 
-def sweep_unconfirmed_uploads(older_than) -> List[Manifest]:
+class UploadSweep(NamedTuple):
+    """What `sweep_unconfirmed_uploads` found."""
+
+    #: Uploads that had arrived unnoticed: confirmed, and the data files among
+    #: them processed
+    confirmed: List[Manifest]
+    #: Uploads that are not in storage: they never arrived
+    missing: List[Manifest]
+
+
+def sweep_unconfirmed_uploads(older_than) -> UploadSweep:
     """Confirm and process the uploads that arrived without anyone noticing.
 
     The storage's notification of an upload can be lost, and nothing may read
     the file before the custodian comes to delete the manifest of an upload
-    that never arrived. This looks in storage for every unconfirmed raw upload
+    that never arrived. This looks in storage for every unconfirmed upload
     created before `older_than` (one round trip each, see
     `Manifest.confirm_upload`) and runs `confirm_and_dispatch` on those that
-    are there. Returns the manifests it confirmed.
+    are there. Returns the manifests it confirmed and those it found missing;
+    one that storage could not be asked about (unreachable, say) is neither,
+    so that the custodian does not delete the manifest of an upload that is
+    there.
     """
     confirmed = []
+    missing = []
     for manifest in unconfirmed_uploads(older_than).iterator():
-        if confirm_and_dispatch(manifest) is not None:
-            confirmed.append(manifest)
-            _log.info(
-                "Sweep: confirmed the upload of %s, which arrived unnoticed.",
+        try:
+            arrived = manifest.confirm_upload(raise_storage_errors=True)
+        except Exception as exc:
+            _log.warning(
+                "Sweep: could not check whether the upload of %s arrived: %s",
                 manifest,
+                exc,
             )
-    return confirmed
+            continue
+        if not arrived:
+            missing.append(manifest)
+            continue
+        confirmed.append(manifest)
+        _log.info(
+            "Sweep: confirmed the upload of %s, which arrived unnoticed.", manifest
+        )
+        # Finds the upload confirmed and dispatches, without another round trip
+        confirm_and_dispatch(manifest)
+    return UploadSweep(confirmed, missing)

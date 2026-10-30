@@ -33,8 +33,9 @@ nobody ever will.
 
 Three guardrails keep that inference honest:
 
-1. If *no* worker replies at all, judge no Celery run. A broker outage or a
-   network partition must never be turned into a mass failure.
+1. If *no* worker replies at all, judge no run the workers could still hold. A
+   broker outage or a network partition must never be turned into a mass
+   failure.
 2. A row must look lost on two consecutive passes before it is failed. This
    covers the small windows where a task is momentarily invisible — between
    finishing and saving its state, or re-queued by a retry.
@@ -46,8 +47,15 @@ simply be sitting in the queue: ``inspect`` cannot see messages that no worker
 has reserved yet, so those would look lost while being perfectly healthy.
 
 A run handed to a task backend (see ``TaskStateModel.task_backend``) is held by
-no worker, so the workers cannot vouch for it: it is lost once it is older than
-``min_age``, whether or not a worker answers.
+no worker, so the workers cannot vouch for it, and nothing on the row says
+which runner has a run. So of a model that hands its runs to a backend no run
+is judged before it is older than the task's hard time limit (see
+``taskapp.utils.reclaim_after``): past it a worker has killed any Celery run,
+and a backend has had as long to end its run, so a run that old is dead
+whichever runner had it, with or without an answer from the workers. A model
+without a backend is judged by the workers alone, as above. Either way the
+run is dead once given up, and what it left behind goes at once
+(``TaskStateModel.task_lost``).
 """
 
 import logging
@@ -59,6 +67,7 @@ from django.utils import timezone
 
 from .celeryapp import app
 from .models import TaskStateModel
+from .utils import reclaim_after, task_dispatch
 
 _log = logging.getLogger(__name__)
 
@@ -148,52 +157,63 @@ def _propagate_to_parent(obj, error):
     _fail_parent_on_dependency_failure(parent_id, obj, "custodian")
 
 
+def lost_after(min_age=DEFAULT_MIN_AGE):
+    """How old a run of a model with a task backend must be to count as lost:
+    the hard time limit of `task_dispatch`, the task `run_task` would have sent
+    it as (see `reclaim_after`), past which no worker holds it, and at least
+    `min_age`. None without a hard time limit: then only the workers can tell
+    (see module docstring)."""
+    limit = reclaim_after(task_dispatch)
+    if limit is None:
+        return None
+    return max(min_age, timedelta(seconds=limit))
+
+
+def _has_backend(model):
+    """Whether `model` hands its runs to a task backend; False also if the
+    backend cannot be loaded (its runs are then judged as Celery runs)."""
+    try:
+        return model().task_backend() is not None
+    except Exception:
+        _log.exception(
+            "Custodian: cannot load the task backend of %s.", model.__name__
+        )
+        return False
+
+
 def find_lost(live, min_age=DEFAULT_MIN_AGE):
-    """Rows in ``STARTED`` whose task no worker knows about.
+    """Rows in ``STARTED`` whose run nobody holds any more.
 
     ``live`` holds the task ids the workers know, or is None if no worker
-    answered; then only runs handed to a task backend are judged. A run a worker
-    holds is never lost, even of a model that now hands its runs to a backend.
+    answered. A run is lost once it is older than ``min_age`` and no worker
+    reports it, which needs an answer from the workers. Of a model that hands
+    its runs to a task backend (whose runs no worker reports), a run is lost
+    once it is older than `lost_after` and no worker reports it, with or
+    without an answer; without a hard time limit such a model is judged by
+    the workers like any other.
     """
-    cutoff = timezone.now() - min_age
+    now = timezone.now()
+    backend_age = lost_after(min_age)
     lost = []
     for model in task_state_models():
-        backend = _UNRESOLVED
+        if backend_age is not None and _has_backend(model):
+            age = backend_age
+        elif live is None:
+            continue
+        else:
+            age = min_age
         # Deliberately not deferring columns: `mark_lost` reads `metadata` to
         # find a waiting parent, and a deferred load would turn that into a
         # query per row. In a healthy system this queryset is empty anyway.
         # All rows, also those a default manager hides (deleted, say)
         queryset = model.all_objects.filter(
-            task_state=model.STARTED, task_start_time__lt=cutoff
+            task_state=model.STARTED, task_start_time__lt=now - age
         ).exclude(task_id=None)
-        if live is None:
-            # Only runs handed to a backend can be judged: look no further at a
-            # model that does not hand its runs to one
-            first = queryset.first()
-            if first is None or _task_backend(first) is None:
-                continue
         for obj in queryset.iterator():
             if live is not None and str(obj.task_id) in live:
                 continue
-            if backend is _UNRESOLVED:
-                backend = _task_backend(obj)
-            if backend is not None or live is not None:
-                lost.append(obj)
+            lost.append(obj)
     return lost
-
-
-_UNRESOLVED = object()
-
-
-def _task_backend(obj):
-    """The task backend of `obj`'s model, or None, also if it cannot be loaded."""
-    try:
-        return obj.task_backend()
-    except Exception:
-        _log.exception(
-            "Custodian: cannot load the task backend of %s.", type(obj).__name__
-        )
-        return None
 
 
 def mark_lost(obj, error=LOST_TASK_ERROR):
@@ -240,8 +260,8 @@ def reap_lost_tasks(
     live = live_task_ids()
     if live is None:
         _log.warning(
-            "Custodian: no Celery worker answered; only runs handed to a task "
-            "backend are swept."
+            "Custodian: no Celery worker answered; only runs of a model with a "
+            "task backend that are older than the hard time limit are swept."
         )
 
     candidates = find_lost(live, min_age=min_age)
@@ -249,7 +269,7 @@ def reap_lost_tasks(
 
     if require_confirmation:
         previous = set(cache.get(SUSPECT_CACHE_KEY) or ())
-        # Without an answer from the workers, the suspects among Celery runs
+        # Without an answer from the workers, the suspects the workers judge
         # were not judged this pass: keep them for the next
         if live is None:
             if candidate_ids:
@@ -295,8 +315,9 @@ def reap_lost_tasks(
             )
     if failed:
         _log.warning("Custodian: failed %d task(s) as lost.", failed)
-    # Without an answer from the workers only backend runs were judged; the pass
-    # was skipped only if there were none of those either
+    # Without an answer from the workers only the runs of models with a task
+    # backend were judged; the pass was skipped only if there were none of
+    # those either
     return {
         "skipped": live is None and not candidates,
         "candidates": len(candidates),

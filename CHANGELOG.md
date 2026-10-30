@@ -8,6 +8,24 @@
   backend never ends, and cleans up after it. On an S3 storage the files of a
   run are listed and deleted in batches rather than one request per folder
   and file
+- MAINT: Of a model that hands its runs to a task backend the custodian gives
+  a run up as lost only once it is older than the task's hard time limit
+  (`TOPOBANK_TASK_RECLAIM_AFTER`): past it no worker holds a Celery run and
+  the backend has had as long to end its run, so a run that old is dead
+  whichever runner had it, with or without an answer from the workers. A
+  model without a backend is judged by the workers alone, as before. The
+  files of a lost run are deleted at once rather than by a task queued with
+  a countdown, which a worker would hold in flight for the whole wait
+- BUG: `Topography.apply_backend_result` records the end of the run and sends
+  `post_refresh_cache` in one transaction, also for a caller in autocommit
+  mode: a receiver that fails leaves the run in progress for the result to be
+  delivered again, rather than recorded with its analyses never invalidated
+- BUG: The custodian deletes only the manifests of uploads the sweep found
+  missing from storage; an upload the storage could not be asked about
+  (unreachable, throttled) waits for the next pass instead of losing its
+  manifest, and with it the measurement's data file. The sweep covers every
+  kind of upload but the archive of a ZIP container, which whoever handles
+  the container confirms and imports
 - API: `TaskStateModel.all_objects` holds every row, including those a
   subclass's `objects` hides, and the task machinery goes through it. A
   downstream subclass that declares its own `Meta` must extend
@@ -38,8 +56,10 @@
   files instead of recording them. `refresh_cache` writes what it computed
   through `models.Model.save` and dispatches nothing. A `save()` of an existing
   `Topography` without `update_fields` no longer writes the task columns or the
-  derived-file references, so an instance loaded before a dispatch or a refresh
-  cannot revert them; `TOPOBANK_TASK_RECLAIM_AFTER` sets when a redelivered
+  derived-file references (nor deferred fields), so an instance loaded before a
+  dispatch or a refresh cannot revert them; a value set on the instance for one
+  of them is written only when named in `update_fields`, and the admin shows
+  them read-only. `TOPOBANK_TASK_RECLAIM_AFTER` sets when a redelivered
   message may take over a stalled run
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row

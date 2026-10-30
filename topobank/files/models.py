@@ -259,7 +259,7 @@ class Manifest(PermissionMixin, models.Model):
     def url(self):
         return self.file.url
 
-    def confirm_upload(self) -> bool:
+    def confirm_upload(self, *, raise_storage_errors=False) -> bool:
         """Record the uploaded file on this manifest, once it has arrived.
 
         A manifest created ahead of a direct-to-storage upload has no file until
@@ -269,7 +269,10 @@ class Manifest(PermissionMixin, models.Model):
         read it back, so `confirmed_at` is never overwritten.
 
         Returns whether the manifest has a file. Unlike `exists`, which only
-        checks the manifest, this looks in storage.
+        checks the manifest, this looks in storage. Storage that cannot be asked
+        (unreachable, or refusing) leaves the upload unconfirmed, as a missing
+        file does, unless `raise_storage_errors` is set: then the storage's
+        error is raised, for a caller that must tell the two apart.
         """
         if self.file:
             return True
@@ -299,6 +302,8 @@ class Manifest(PermissionMixin, models.Model):
         except Exception as exc:
             # Storage is unreachable or refuses: not confirmed for now, rather
             # than confirmed on a guess. The next read tries again.
+            if raise_storage_errors:
+                raise
             _log.warning(
                 "Could not check for the file of manifest %s at '%s': %s",
                 self.id,

@@ -19,7 +19,7 @@ import pytest
 from django.core.exceptions import ImproperlyConfigured
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import DatabaseError, connection, transaction
+from django.db import DatabaseError, IntegrityError, connection, transaction
 
 from topobank.files.models import Manifest
 from topobank.manager import processing
@@ -28,7 +28,6 @@ from topobank.manager.models import (
     post_refresh_cache,
     processing_storage_prefix,
 )
-from topobank.manager.tasks import discard_processing_run
 from topobank.taskapp import custodian
 from topobank.taskapp.custodian import find_lost
 from topobank.taskapp.models import TaskRun, TaskStateModel
@@ -365,6 +364,9 @@ def backend(settings):
     settings.TOPOBANK_PROCESSING_BACKEND = (
         "tests.manager.test_processing.recording_backend"
     )
+    # Past the hard time limit at once: the custodian then judges a run without
+    # an answer from the workers (there is no time limit in the test settings)
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 0
     backend_calls.clear()
     yield backend_calls
 
@@ -491,9 +493,13 @@ def test_a_run_whose_analyses_cannot_be_invalidated_is_not_recorded(broker, back
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_run_recorded_outside_a_transaction_is_cleaned_up_whatever_the_receivers_do(
+def test_a_run_recorded_outside_a_transaction_is_not_recorded_either_if_the_receivers_fail(
     broker, backend
 ):
+    """The end of the run and the signal are one transaction, also for a caller
+    in autocommit mode: a receiver that fails leaves the run in progress, so
+    that the result can be delivered again, rather than recorded without its
+    analyses ever being invalidated."""
     topo = Topography1DFactory()
     task_id = _start(topo)
     result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
@@ -508,10 +514,41 @@ def test_a_run_recorded_outside_a_transaction_is_cleaned_up_whatever_the_receive
     finally:
         post_refresh_cache.disconnect(_refuse_in_the_database, sender=Topography)
 
-    # Recorded already: the files it replaced are cleaned up all the same
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.STARTED
+    assert stored.thumbnail_id == topo.thumbnail_id
+    assert cleaned_up == []
+    assert all(default_storage.exists(key) for key in result.written_keys())
+
+    # Delivered again once the analyses can be invalidated
+    assert Topography.objects.get(pk=topo.pk).apply_backend_result(
+        task_id, result, clean_up=cleaned_up.append
+    )
     assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.SUCCESS
     (work_left,) = cleaned_up
     assert topo.thumbnail_id in work_left["manifests"]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_statement_the_database_refuses_while_recording_fails_the_run(
+    broker, backend
+):
+    """Recorded in autocommit mode: the refused statement must not break the
+    transaction that records the failure."""
+    topo = Topography1DFactory()
+    task_id = _start(topo)
+    result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
+
+    with mock.patch.object(
+        Manifest.objects, "bulk_create", side_effect=IntegrityError("duplicate key")
+    ):
+        with pytest.raises(IntegrityError, match="duplicate key"):
+            Topography.objects.get(pk=topo.pk).apply_backend_result(task_id, result)
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.FAILURE
+    assert "duplicate key" in stored.task_error
+    assert stored.thumbnail_id == topo.thumbnail_id
 
 
 @pytest.mark.django_db(transaction=True)
@@ -653,19 +690,87 @@ def test_a_late_redelivery_of_an_applied_result_keeps_its_files(broker, backend)
     assert all(default_storage.exists(key) for key in result.written_keys())
 
 
+def _start_on_celery(topo):
+    """Dispatch the processing of `topo` to Celery and start it as a worker
+    would; returns the run's id and start time."""
+    assert run_task(Topography.objects.get(pk=topo.pk), force=True)
+    task_id = str(Topography.objects.get(pk=topo.pk).task_id)
+    started_at = claim_started(Topography, topo.pk, task_id)
+    assert started_at is not None
+    return task_id, started_at
+
+
+def _lost(live):
+    return [obj.pk for obj in find_lost(live, min_age=datetime.timedelta(0))
+            if isinstance(obj, Topography)]
+
+
 @pytest.mark.django_db(transaction=True)
-def test_a_run_a_worker_holds_is_not_lost_once_a_backend_is_configured(
-    broker, backend
+def test_without_a_backend_the_workers_decide(broker, settings):
+    """A run no worker holds is lost after `min_age`, whatever the hard time
+    limit, and nothing is judged while no worker answers."""
+    settings.TOPOBANK_PROCESSING_BACKEND = None
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 3600
+    topo = Topography1DFactory()
+    task_id, _ = _start_on_celery(topo)
+
+    assert topo.pk not in _lost(live={task_id})
+    assert topo.pk not in _lost(live=None)
+    assert topo.pk in _lost(live=set())
+
+
+@pytest.mark.django_db(transaction=True)
+def test_with_a_backend_a_run_is_given_up_only_past_the_hard_time_limit(
+    broker, settings
 ):
-    """A Celery run already under way when the backend was switched on."""
+    """Nothing on the row says whether a worker or the backend has the run, so
+    neither is judged before a worker would have been killed; past that, both
+    are, with or without an answer from the workers."""
+    settings.TOPOBANK_PROCESSING_BACKEND = None
+    topo = Topography1DFactory()
+    task_id, _ = _start_on_celery(topo)  # under way when the backend came on
+    settings.TOPOBANK_PROCESSING_BACKEND = (
+        "tests.manager.test_processing.recording_backend"
+    )
+
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 3600
+    assert topo.pk not in _lost(live=set())
+    assert topo.pk not in _lost(live=None)
+
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 0
+    assert topo.pk not in _lost(live={task_id})
+    assert topo.pk in _lost(live=set())
+    assert topo.pk in _lost(live=None)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_without_a_hard_time_limit_only_the_workers_can_tell(broker, backend, settings):
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = None
+    assert custodian.lost_after() is None
     topo = Topography1DFactory()
     task_id = _start(topo)
 
-    held = find_lost(live={task_id}, min_age=datetime.timedelta(0))
-    not_held = find_lost(live=set(), min_age=datetime.timedelta(0))
+    assert topo.pk not in _lost(live=None)
+    assert topo.pk not in _lost(live={task_id})
+    assert topo.pk in _lost(live=set())
 
-    assert topo.pk not in [obj.pk for obj in held if isinstance(obj, Topography)]
-    assert topo.pk in [obj.pk for obj in not_held if isinstance(obj, Topography)]
+
+@pytest.mark.django_db(transaction=True)
+def test_a_backend_run_is_given_up_past_the_hard_time_limit_whatever_the_workers_say(
+    broker, backend, settings
+):
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 3600
+    topo = Topography1DFactory()
+    _start(topo)
+
+    with mock.patch.object(custodian, "live_task_ids", return_value=set()):
+        custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.STARTED
+
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 0
+    with mock.patch.object(custodian, "live_task_ids", return_value=None):
+        custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.FAILURE
 
 
 @pytest.mark.django_db(transaction=True)
@@ -930,14 +1035,14 @@ def test_a_lost_backend_run_leaves_no_files(broker, backend):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_a_lost_celery_run_leaves_no_files(broker):
+def test_a_lost_celery_run_leaves_no_files(broker, settings):
+    """A run no worker holds is dead; its files go with it, at once."""
+    settings.TOPOBANK_PROCESSING_BACKEND = None
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 3600
     topo = Topography1DFactory()
-    assert run_task(Topography.objects.get(pk=topo.pk), force=True)
-    task_id = str(Topography.objects.get(pk=topo.pk).task_id)
-    started_at = claim_started(Topography, topo.pk, task_id)
+    task_id, started_at = _start_on_celery(topo)
     worker = Topography.objects.get(pk=topo.pk)
     worker._task_run = TaskRun(task_id, started_at)
-
     # The worker is killed once the run has written its files
     with mock.patch.object(Topography, "apply_inspection", side_effect=SystemExit()):
         with pytest.raises(SystemExit):
@@ -948,38 +1053,6 @@ def test_a_lost_celery_run_leaves_no_files(broker):
         custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
 
     assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.FAILURE
-    assert _run_folder(topo, task_id) == []
-
-
-@pytest.mark.django_db(transaction=True)
-def test_a_lost_celery_run_is_cleaned_up_once_its_worker_must_be_dead(
-    broker, settings
-):
-    """The custodian may give up a run whose worker is only slow; that worker
-    then records its result, which must not point at deleted files."""
-    settings.TOPOBANK_TASK_RECLAIM_AFTER = 1234
-    topo = Topography1DFactory()
-    assert run_task(Topography.objects.get(pk=topo.pk), force=True)
-    task_id = str(Topography.objects.get(pk=topo.pk).task_id)
-    started_at = claim_started(Topography, topo.pk, task_id)
-    worker = Topography.objects.get(pk=topo.pk)
-    worker._task_run = TaskRun(task_id, started_at)
-    with mock.patch.object(Topography, "apply_inspection", side_effect=SystemExit()):
-        with pytest.raises(SystemExit):
-            worker.refresh_cache()
-    files = _run_folder(topo, task_id)
-    assert files
-
-    with mock.patch.object(custodian, "live_task_ids", return_value=set()), \
-            mock.patch.object(discard_processing_run, "apply_async") as queued:
-        custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
-
-    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.FAILURE
-    # The files wait for the time limit; the measurement may be gone by then
-    assert _run_folder(topo, task_id) == files
-    queued.assert_called_once_with(args=[topo.pk, task_id], countdown=1234)
-    Topography.objects.filter(pk=topo.pk).delete()
-    discard_processing_run(*queued.call_args.kwargs["args"])
     assert _run_folder(topo, task_id) == []
 
 

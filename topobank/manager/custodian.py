@@ -65,16 +65,20 @@ def periodic_cleanup():
     # An upload that arrived but whose notification was lost is confirmed and
     # processed rather than deleted with the uploads that never arrived
     cutoff = timezone.now() - temporary_delay
-    confirmed = sweep_unconfirmed_uploads(cutoff)
-    if confirmed:
+    swept = sweep_unconfirmed_uploads(cutoff)
+    if swept.confirmed:
         _log.info(
-            f"Custodian: Confirmed {len(confirmed)} uploads that arrived unnoticed."
+            f"Custodian: Confirmed {len(swept.confirmed)} uploads that arrived "
+            "unnoticed."
         )
 
-    # Delete all Manifests that are not confirmed, have no file, and too old
+    # Delete the Manifests of the uploads the sweep found missing from storage:
+    # not confirmed, no file, and too old. One the sweep could not check (the
+    # storage unreachable, say) is left for the next pass; so is one that was
+    # confirmed since
     q = Manifest.objects.filter(
         Q(file__isnull=True) | Q(file=""),
-        created_at__lt=cutoff,
+        pk__in=[manifest.pk for manifest in swept.missing],
         confirmed_at__isnull=True,
     )
     if q.count() > 0:

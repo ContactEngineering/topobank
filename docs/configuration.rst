@@ -150,7 +150,10 @@ Task processing
         hard time limit; a task with no hard time limit is never taken over. A redelivery that
         arrives sooner is ignored, which acknowledges and consumes it, so the broker's visibility
         timeout must exceed this value (or the hard time limit) for a crashed worker's message to
-        be picked up at all. Otherwise the row waits for the custodian.
+        be picked up at all. Otherwise the row waits for the custodian, which gives a run up as
+        lost only once it is this old (past it no worker holds the run, and a processing backend
+        has had as long to end it); without a hard time limit the custodian relies on the workers
+        alone.
 
 File uploads
 ------------

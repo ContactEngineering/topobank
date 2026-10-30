@@ -685,3 +685,24 @@ def test_a_significant_edit_during_a_run_supersedes_it(broker):
 
     assert seen_by_runs == ["center", "height"]
     assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.SUCCESS
+
+
+#
+# Saving an instance with deferred fields
+#
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_save_of_a_deferred_instance_does_not_load_its_deferred_fields(broker):
+    topo = _topography()
+    deferred = Topography.objects.defer("task_traceback", "detrend_parameters").get(
+        pk=topo.pk
+    )
+    deferred.name = "renamed"
+
+    with mock.patch.object(
+        Topography, "refresh_from_db", side_effect=AssertionError("deferred load")
+    ):
+        deferred.save()
+
+    assert Topography.objects.get(pk=topo.pk).name == "renamed"

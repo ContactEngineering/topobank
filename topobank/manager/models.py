@@ -48,12 +48,7 @@ from ..exceptions import TaskBackendError
 from ..files.models import Manifest, ManifestSet
 from ..settings import defaults
 from ..taskapp.models import TaskStateModel
-from ..taskapp.utils import (
-    in_celery_worker_process,
-    reclaim_after,
-    run_task,
-    task_dispatch,
-)
+from ..taskapp.utils import in_celery_worker_process, run_task
 from ..utils.timer import Timer
 from . import processing
 from .processing import (
@@ -216,7 +211,9 @@ def _validate_inspected_values(result):
     """Refuse values an inspection could not have found.
 
     For a result from another process: each value must be one its field accepts.
-    The measurement's channel must be one of the channels found.
+    The measurement's channel must be one of the channels found. Checked where
+    such a result comes in (`Topography.apply_backend_result`); what an
+    inspection in this process found is recorded as the reader reported it.
     """
     for name, value in result.fields.items():
         if name not in INSPECTED_FIELDS:
@@ -1218,15 +1215,29 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         return None if path is None else import_string(path)
 
     def save(self, *args, **kwargs):
+        """Save the measurement, and process it again if that is called for.
+
+        A save without `update_fields` of an existing measurement writes every
+        column but those of `_OWNED_ELSEWHERE` (the task columns and the
+        derived-file references), which belong to the task machinery and
+        `refresh_cache`: an instance loaded before a dispatch or a refresh
+        would otherwise write their stale values back.
+        A value set on the instance for one of them is dropped by such a save;
+        to write one on purpose, name it in `update_fields`. Deferred fields are
+        not written either, as Django does not write them.
+        """
         update_fields: list = kwargs.get("update_fields", None)
         created = self.pk is None
+        deferred = self.get_deferred_fields()
         if update_fields is None and not created and not kwargs.get("force_insert"):
             # A full save of an existing row writes every column but those of
             # `_OWNED_ELSEWHERE`; an insert still writes everything
             kwargs["update_fields"] = update_fields = [
                 field.name
                 for field in self._meta.concrete_fields
-                if not field.primary_key and field.name not in self._OWNED_ELSEWHERE
+                if not field.primary_key
+                and field.name not in self._OWNED_ELSEWHERE
+                and field.attname not in deferred
             ]
         if created:
             if self.permissions is None:
@@ -1272,6 +1283,23 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         except self.DoesNotExist:
             pass  # Do nothing, we have just created a new topography
         else:
+            if _log.isEnabledFor(logging.DEBUG) and update_fields is not None:
+                # Values of the columns this save leaves alone that differ
+                # from the row's: stale, or set on the instance and dropped
+                dropped = [
+                    name
+                    for name in sorted(self._OWNED_ELSEWHERE)
+                    if name not in update_fields
+                    and self._meta.get_field(name).attname not in deferred
+                    and getattr(self, self._meta.get_field(name).attname)
+                    != getattr(old_obj, self._meta.get_field(name).attname)
+                ]
+                if dropped:
+                    _log.debug(
+                        f"Saving topography {self.id} leaves {', '.join(dropped)} "
+                        "as the row has them; the instance's values are not written."
+                    )
+
             # Check which fields actually changed
             changed_fields = [
                 name
@@ -2177,8 +2205,13 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         a JSON-safe dict handed, once the transaction commits, to `clean_up`,
         which runs `Topography.clean_up_run` with it. By default that is queued as
         a Celery task (`tasks.clean_up_processing_run`).
-        Returns whether the end of the run was recorded here. See
-        `TOPOBANK_PROCESSING_BACKEND`.
+
+        The end of the run, its result and the signal that announces the change
+        (`post_refresh_cache`) are one transaction: a receiver that fails (the
+        analyses of the measurement not invalidated) fails the recording, which
+        is rolled back, the run stays in progress, and the caller can deliver
+        the result again. Returns whether the end of the run was recorded here.
+        See `TOPOBANK_PROCESSING_BACKEND`.
         """
         task_id = _run_id(task_id)
         prefix = self.processing_folder(task_id)
@@ -2186,13 +2219,17 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         settled = []
 
         def work():
+            # The result comes from another process: its values are checked
+            # here, as `apply_inspection` checks its fields and files. Each
+            # recording runs in a savepoint, so that a statement the database
+            # refuses leaves the transaction usable for recording the failure.
             if error is not None:
                 if result is not None:
                     found = InspectionResult(fields=result.fields, version=result.version)
                     try:
-                        _validate_inspection_result(found, prefix)
                         _validate_inspected_values(found)
-                        self.record_failed_inspection(found, prefix=prefix)
+                        with transaction.atomic():
+                            self.record_failed_inspection(found, prefix=prefix)
                     except Exception as exc:
                         # The backend's error is the run's, not this one
                         _log.warning(
@@ -2205,36 +2242,48 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 raise TaskBackendError(error, traceback)
             if result is None:
                 raise ValueError("A run that did not fail hands back its result.")
-            _validate_inspection_result(result, prefix)
             _validate_inspected_values(result)
-            settled.append(self.apply_inspection(result, prefix=prefix, retired=retired))
+            with transaction.atomic():
+                settled.append(
+                    self.apply_inspection(result, prefix=prefix, retired=retired)
+                )
 
         # The files the result replaces, deleted once the end of the run is
         # recorded (see `clean_up_run`)
         retired = []
-        try:
-            ended = self.complete_task(task_id, work)
-        finally:
-            if not any(settled):
-                retired = []
-            work_left = {
-                "topography": self.pk,
-                "task_id": task_id,
-                "manifests": [o.pk for o in retired if isinstance(o, Manifest)],
-                "folders": [o.pk for o in retired if isinstance(o, ManifestSet)],
-            }
-            transaction.on_commit(lambda: (clean_up or _queue_clean_up_run)(work_left))
-        if any(settled):
-            # The result is recorded, so the measurement has changed, as
-            # `refresh_cache` announces for a run of its own; like it, not for
-            # a failed run, even one whose partial result is, nor (being past
-            # the `finally`) for a run whose end could not be recorded. A
-            # receiver that fails (the analyses of the measurement not
-            # invalidated) fails the recording, which a caller recording in a
-            # transaction of its own rolls back and can retry; in a savepoint,
-            # so that a database error leaves that transaction usable.
-            with transaction.atomic():
+        # Raised by `complete_task`, which records a run's failure before it
+        # raises: the failure is committed, and the error raised once it is
+        failed = None
+        with transaction.atomic():
+            try:
+                ended = self.complete_task(task_id, work)
+            except Exception as exc:
+                failed = exc
+                ended = False
+            finally:
+                if not any(settled):
+                    retired = []
+                work_left = {
+                    "topography": self.pk,
+                    "task_id": task_id,
+                    "manifests": [o.pk for o in retired if isinstance(o, Manifest)],
+                    "folders": [o.pk for o in retired if isinstance(o, ManifestSet)],
+                }
+                transaction.on_commit(
+                    lambda: (clean_up or _queue_clean_up_run)(work_left)
+                )
+            if failed is None and any(settled):
+                # The result is recorded, so the measurement has changed, as
+                # `refresh_cache` announces for a run of its own; like it, not
+                # for a failed run, even one whose partial result is, nor for a
+                # run whose end could not be recorded. Sent within the
+                # transaction that records the end of the run, so that a
+                # receiver that fails rolls it back for the result to be
+                # delivered again (and leaves the caller's own transaction
+                # usable, this being a savepoint within it).
                 post_refresh_cache.send(sender=Topography, instance=self)
+        if failed is not None:
+            raise failed
         return ended
 
     @staticmethod
@@ -2278,7 +2327,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
     def discard_run(self, task_id):
         """Delete what the run `task_id` stored and this measurement does not
-        reference, e.g. after a backend run that was lost."""
+        reference, e.g. after a run that was lost."""
         prefix = self.processing_folder(_run_id(task_id))
         keys = list_keys(default_storage, prefix)
         if not keys:
@@ -2299,24 +2348,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     def task_lost(self):
         """Clean up the files of a run the custodian has failed as lost.
 
-        A run handed to a backend left its files behind, and nothing else
-        deletes them. A Celery run given up for lost may still be alive, and
-        then ends by recording its result (see `TaskStateModel._save_task_result`),
-        which would reference files deleted here: its folder is cleaned up by
-        `tasks.discard_processing_run` once the hard time limit has killed any
-        worker still holding the run (see `taskapp.utils.reclaim_after`; at
-        once where there is none).
+        The run left its files behind, and nothing else deletes them. The
+        custodian gives a run up only once it is older than the task's hard
+        time limit (see `taskapp.custodian`), past which no worker still holds
+        it and a backend has had as long to end it, so nothing can record it
+        any more and the files go at once.
         """
-        if self.task_id is None:
-            return
-        if self.task_backend() is not None:
+        if self.task_id is not None:
             self.discard_run(self.task_id)
-            return
-        from .tasks import discard_processing_run
-
-        discard_processing_run.apply_async(
-            args=[self.pk, str(self.task_id)], countdown=reclaim_after(task_dispatch)
-        )
 
     def _save_inspection(self, update_fields=None):
         """Save what an inspection found, without dispatching another.
