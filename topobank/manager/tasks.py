@@ -165,3 +165,32 @@ def import_container_from_url(user, url, tag=None):
                 description=f"Successfully import digital surface twin '{surface.name}' from URL {url}.")
 
     return surface
+
+
+@app.task
+def clean_up_processing_run(work_left):
+    """Clean up after a run that `Topography.apply_backend_result` ended.
+
+    See `Topography.clean_up_run`, which this runs in a worker, away from the
+    request that recorded the run.
+    """
+    from .models import Topography
+
+    Topography.clean_up_run(work_left)
+
+
+@app.task
+def discard_processing_run(topography_id, task_id):
+    """Delete what run `task_id` of measurement `topography_id` stored and the
+    measurement does not reference (see `Topography.discard_run`).
+
+    Queued by `Topography.task_lost` for a Celery run given up for lost, to run
+    once any worker still holding the run has been killed. The measurement may
+    be gone by then; its run folder is cleaned up all the same.
+    """
+    from .models import Topography
+
+    topography = Topography.all_objects.filter(pk=topography_id).first()
+    if topography is None:
+        topography = Topography(pk=topography_id)
+    topography.discard_run(task_id)

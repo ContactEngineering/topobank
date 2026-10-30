@@ -1,6 +1,7 @@
 import logging
 
 from django.conf import settings
+from django.db.models import Q
 from django.utils import timezone
 
 from topobank.files.models import Manifest
@@ -8,6 +9,7 @@ from topobank.files.models import Manifest
 from ..taskapp.celeryapp import app
 from ..taskapp.utils import delete_tolerating_restrict
 from .models import Surface, Topography
+from .uploads import sweep_unconfirmed_uploads
 from .zip_model import ZipContainer
 
 _log = logging.getLogger(__name__)
@@ -60,11 +62,20 @@ def periodic_cleanup():
         )
         q.delete()
 
+    # An upload that arrived but whose notification was lost is confirmed and
+    # processed rather than deleted with the uploads that never arrived
+    cutoff = timezone.now() - temporary_delay
+    confirmed = sweep_unconfirmed_uploads(cutoff)
+    if confirmed:
+        _log.info(
+            f"Custodian: Confirmed {len(confirmed)} uploads that arrived unnoticed."
+        )
+
     # Delete all Manifests that are not confirmed, have no file, and too old
     q = Manifest.objects.filter(
-        created_at__lt=timezone.now() - temporary_delay,
+        Q(file__isnull=True) | Q(file=""),
+        created_at__lt=cutoff,
         confirmed_at__isnull=True,
-        file__isnull=True,
     )
     if q.count() > 0:
         _log.info(

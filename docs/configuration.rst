@@ -102,6 +102,10 @@ Measurement images
       - Type
       - Default
       - Description
+    * - :code:`TOPOBANK_THUMBNAIL_FORMAT`
+      - str
+      - :code:`'jpeg'`
+      - Image format of a measurement's thumbnail, as Pillow names it.
     * - :code:`TOPOBANK_VISUALIZATION_DETREND_MODE`
       - str
       - :code:`None`
@@ -111,6 +115,42 @@ Measurement images
         datafile keep the measurement's own ``detrend_mode``. Existing images change only once the
         measurement's cache is refreshed (``manage.py refresh_cache``).
 
+
+Task processing
+---------------
+
+.. list-table:: Task processing
+    :widths: 25 10 20 45
+    :header-rows: 1
+
+    * - Setting
+      - Type
+      - Default
+      - Description
+    * - :code:`TOPOBANK_PROCESSING_BACKEND`
+      - str
+      - :code:`None`
+      - Dotted path of a callable ``backend(topography, task_id)`` that runs the processing of a
+        measurement instead of the Celery task, e.g. on a serverless function. The backend runs
+        ``topobank.manager.processing.inspect_datafile``, writes the derived files under
+        ``Topography.processing_folder(task_id)`` and ends the run through
+        ``Topography.apply_backend_result``. ``None`` processes in the Celery worker.
+    * - :code:`TOPOBANK_PROCESSING_STORAGE_PREFIX`
+      - str
+      - :code:`'data-lake/processing'`
+      - Storage folder under which the processing of a measurement writes its derived files
+        (squeezed datafile, thumbnail, deep zoom images), in a folder per measurement and run.
+        The manifests created for them reference the files where they were written. A plain
+        folder name, without a leading slash or ``..``.
+    * - :code:`TOPOBANK_TASK_RECLAIM_AFTER`
+      - int
+      - :code:`None`
+      - Seconds after which a redelivered task message may take over a run recorded as ``STARTED``
+        under the same task id. ``None`` takes a run over only once it is older than the task's
+        hard time limit; a task with no hard time limit is never taken over. A redelivery that
+        arrives sooner is ignored, which acknowledges and consumes it, so the broker's visibility
+        timeout must exceed this value (or the hard time limit) for a crashed worker's message to
+        be picked up at all. Otherwise the row waits for the custodian.
 
 File uploads
 ------------
