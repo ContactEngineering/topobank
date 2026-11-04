@@ -183,7 +183,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         related_name="+",
     )
 
-    class Meta:
+    class Meta(TaskStateModel.Meta):
         indexes = [
             # Index on task_start_time for ordering recent results
             models.Index(fields=["-task_start_time"], name="result_task_start_idx"),

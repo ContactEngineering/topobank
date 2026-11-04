@@ -66,7 +66,7 @@ class Command(BaseCommand):
 
                 if not options['dry_run']:
                     topo.datafile_format = datafile_format
-                    topo.save()
+                    topo.save(update_fields=["datafile_format"])
 
                 if datafile_format not in format_counts:
                     format_counts[datafile_format] = 1

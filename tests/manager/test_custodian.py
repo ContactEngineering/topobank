@@ -92,13 +92,16 @@ def test_periodic_cleanup_deletes_unlinked_manifest():
         permissions=permissions, filename="orphan.txt", kind="raw"
     )
     old = timezone.now() - datetime.timedelta(days=8)
-    # An unset FileField saves as "" rather than NULL; force NULL so the manifest
-    # matches the custodian's `file__isnull=True` filter.
-    Manifest.objects.filter(pk=manifest.pk).update(created_at=old, file=None)
+    # An unset FileField saves as "" rather than NULL; the custodian deletes both
+    Manifest.objects.filter(pk=manifest.pk).update(created_at=old)
+    null_file = Manifest.objects.create(
+        permissions=permissions, filename="orphan-null.txt", kind="raw"
+    )
+    Manifest.objects.filter(pk=null_file.pk).update(created_at=old, file=None)
 
     periodic_cleanup()
 
-    assert not Manifest.objects.filter(pk=manifest.pk).exists()
+    assert not Manifest.objects.filter(pk__in=[manifest.pk, null_file.pk]).exists()
 
 
 @pytest.mark.django_db
