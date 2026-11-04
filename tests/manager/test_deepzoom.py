@@ -2,7 +2,7 @@ import logging
 
 import pytest
 
-from topobank.manager import processing
+from topobank.manager import steps
 from topobank.testing.factories import Topography2DFactory
 
 
@@ -13,9 +13,8 @@ def test_deepzoom_creation_fails(mocker):
     # should have a deepzoom images
     assert topo.deepzoom is not None
 
-    mocker.patch.dict(
-        processing._DERIVED_WRITERS,
-        {"deepzoom": ("deep zoom images", mocker.Mock(side_effect=Exception("Test")))},
+    mocker.patch.object(
+        steps.BUILTIN_STEPS["deepzoom"], "write", side_effect=Exception("Test")
     )
     topo.refresh_cache()
     # should have no deepzoom images
@@ -27,12 +26,11 @@ def test_missing_thumbnail_is_logged_but_not_fatal(mocker, caplog):
     """A failed thumbnail stays non-fatal but is surfaced via an ERROR log."""
     topo = Topography2DFactory(size_x=1, size_y=1)
 
-    mocker.patch.dict(
-        processing._DERIVED_WRITERS,
-        {"thumbnail": ("thumbnail", mocker.Mock(side_effect=Exception("Test")))},
+    mocker.patch.object(
+        steps.BUILTIN_STEPS["thumbnail"], "write", side_effect=Exception("Test")
     )
 
-    with caplog.at_level(logging.ERROR, logger="topobank.manager.models"):
+    with caplog.at_level(logging.ERROR, logger="topobank.manager"):
         topo.refresh_cache()  # must not raise
 
     # Generation stayed resilient: thumbnail cleared, no exception propagated.

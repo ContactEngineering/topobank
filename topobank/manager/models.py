@@ -5,6 +5,7 @@ Basic models for the web app for handling topography data.
 import itertools
 import logging
 import posixpath
+import re
 from collections import defaultdict
 from copy import deepcopy
 from typing import List
@@ -51,8 +52,8 @@ from ..taskapp.models import TaskStateModel
 from ..taskapp.utils import in_celery_worker_process, run_task
 from ..utils.timer import Timer
 from . import processing
+from .kinds import UnknownMeasurementKindError, get_adapter
 from .processing import (
-    DERIVED_NAMES,
     INSPECTED_FIELDS,
     MAX_FILENAME_LENGTH,
     RESULT_VERSION,
@@ -71,8 +72,19 @@ from .processing import (
     visualization_topography,
     write_derived,
 )
+from .steps import (
+    BUILTIN_STEPS,
+    DEEPZOOM_FILENAME,
+    SQUEEZED_FILENAME,
+    THUMBNAIL_STEM,
+    resolve_step,
+    resolve_steps,
+)
 
 _log = logging.getLogger(__name__)
+
+#: What a processing step may be called
+_STEP_NAME = re.compile(r"[a-z0-9][a-z0-9_.-]{0,63}")
 
 # Errors raised when a stored file has been deleted: the manifest row is gone,
 # or the bytes are (FileSystemStorage raises FileNotFoundError, S3 a ClientError).
@@ -161,19 +173,26 @@ def _validate_inspection_result(result, prefix):
         raise ValueError(
             f"An inspection result may not set {', '.join(sorted(unknown))}."
         )
-    unknown = set(result.derived) - set(DERIVED_NAMES)
-    if unknown:
-        raise ValueError(
-            f"An inspection result has unknown derived files {', '.join(sorted(unknown))}."
-        )
-    for name, written in result.derived.items():
-        items = written if name == "deepzoom" and isinstance(written, list) else [written]
-        for item in items:
-            if item is not None and not (
+    for name, entry in result.derived.items():
+        if not (
+            isinstance(name, str)
+            and _STEP_NAME.fullmatch(name)
+            and isinstance(entry, dict)
+            and isinstance(entry.get("version"), str)
+            and len(entry["version"]) <= ProcessingStepRecord.VERSION_LENGTH
+            and isinstance(entry.get("required", False), bool)
+            and (isinstance(entry.get("files"), list) != isinstance(entry.get("error"), str))
+        ):
+            raise ValueError(
+                f"An inspection result has a malformed entry for step {name!r}."
+            )
+        for item in entry.get("files") or []:
+            if not (
                 isinstance(item, dict)
                 and isinstance(item.get("key"), str)
                 and isinstance(item.get("filename"), str)
                 and 0 < len(item["filename"]) <= MAX_FILENAME_LENGTH
+                and not item["filename"].startswith("/")
                 and ".." not in item["filename"].split("/")
                 and (
                     item.get("size") is None
@@ -183,6 +202,9 @@ def _validate_inspection_result(result, prefix):
                 raise ValueError(
                     f"An inspection result names a malformed file for {name}."
                 )
+    filenames = [item["filename"] for item in result.written_files()]
+    if len(set(filenames)) < len(filenames):
+        raise ValueError("An inspection result names a derived file twice.")
     keys = result.written_keys()
     if len(set(keys)) < len(keys):
         raise ValueError("An inspection result names a file more than once.")
@@ -229,7 +251,9 @@ def _validate_inspected_values(result):
             if isinstance(field, models.JSONField) and value in ({}, []):
                 # No instrument parameters, say: empty, not missing
                 continue
-            if name == "unit":
+            if name == "kind":
+                get_adapter(value)
+            elif name == "unit":
                 # Any length unit a reader may report, not only those offered
                 # for entry (as `refresh_cache` would store it)
                 if value not in length_units:
@@ -242,6 +266,8 @@ def _validate_inspected_values(result):
             raise ValueError(
                 f"An inspection result has an invalid {name}: {exc.messages}"
             ) from exc
+        except UnknownMeasurementKindError as exc:
+            raise ValueError(f"An inspection result has an invalid kind: {exc}") from exc
         except TypeError as exc:
             # A value of a type the field cannot take (a number for a date, say)
             raise ValueError(f"An inspection result has an invalid {name}: {exc}") from exc
@@ -1138,8 +1164,28 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     instrument_parameters = models.JSONField(default=dict)
 
     #
-    # Thumnbnail and deep zoom files
+    # Derived files
     #
+
+    # The kind of measurement (`topobank.manager.kinds`), which the inspection
+    # determines; null until the data file has been inspected
+    kind = models.TextField(null=True, blank=True, editable=False)
+
+    # The files the processing steps (`topobank.manager.steps`) derived from the
+    # data file, all in one folder under names fixed by the steps: `squeezed.nc`,
+    # `thumbnail.<format>`, `dzi.json` and `dzi_files/...`, and what else the
+    # deployment's steps write. Replaced as a whole by each processing.
+    derived = models.ForeignKey(
+        ManifestSet,
+        null=True,
+        on_delete=models.SET_NULL,
+        related_name="topography_derived",
+    )
+
+    # Deprecated: the thumbnail, the squeezed datafile and the deep zoom images
+    # in `derived` (`deepzoom` is `derived` itself, if it holds `dzi.json`).
+    # Kept, and kept pointing into `derived`, until the readers in other
+    # packages read `derived`.
     thumbnail = models.ForeignKey(
         Manifest,
         null=True,
@@ -1167,7 +1213,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
     }  # + 'instrument_parameters'
 
     # Derived files that `refresh_cache` replaces
-    _DERIVED_FIELDS = ("thumbnail", "deepzoom", "squeezed_datafile")
+    _DERIVED_FIELDS = ("derived", "thumbnail", "deepzoom", "squeezed_datafile")
 
     # The fields an inspection determines that a user may edit as well. Recording
     # an inspection writes these only where it changed them (see `apply_inspection`)
@@ -1371,9 +1417,19 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     x.delete()
 
         delete("datafile")
-        delete("squeezed_datafile")
-        delete("thumbnail")
-        delete("deepzoom", ManifestSet.DoesNotExist)
+        derived = self._derived("derived")
+        # The deprecated fields point into `derived`, unless not migrated yet
+        for name in ("squeezed_datafile", "thumbnail"):
+            manifest = self._derived(name)
+            if manifest is not None and (
+                derived is None or manifest.folder_id != derived.pk
+            ):
+                manifest.delete()
+        deepzoom = self._derived("deepzoom")
+        if deepzoom is not None and (derived is None or deepzoom.pk != derived.pk):
+            deepzoom.delete()
+        if derived is not None:
+            derived.delete()
 
     def __str__(self):
         return "Measurement '{0}'".format(self.name)
@@ -1656,9 +1712,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Set file names of derived data to None, otherwise they will be deleted and become unavailable to the
         # original topography
+        copy.derived = None
         copy.thumbnail = None
         copy.deepzoom = None
         copy.squeezed_datafile = None
+        copy.kind = None
 
         # Copy tags
         copy.tags = self.tags.get_tag_list()
@@ -1720,50 +1778,66 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         """
         if st_topo is None:
             st_topo = self.read()
-        if self.size_y is not None:
-            # This is a topography (map), we need to create a Deep Zoom Image
-            return self._write_derived("deepzoom", st_topo)
+        return self._write_derived("deepzoom", st_topo)
 
     def _make_squeezed(self, st_topo=None):
         if st_topo is None:
             st_topo = self.read(allow_squeezed=False)
-        return self._write_derived("squeezed_datafile", st_topo)
+        return self._write_derived("squeezed", st_topo)
+
+    def _adapter_of(self, st_topo):
+        """The adapter of this measurement, or of the kind `st_topo` is, where the
+        measurement has no (known) kind recorded."""
+        try:
+            return get_adapter(self.kind)
+        except UnknownMeasurementKindError:
+            return processing.adapter_of_data(st_topo)
 
     def _write_derived(self, name, st_topo):
-        """Write the derived file `name` alone, as an inspection does, into a
-        folder of its own. Returns the writer and what it wrote, for
-        `_attach_written`; a failure leaves nothing behind."""
+        """Run the processing step `name` alone, as an inspection runs it, into a
+        folder of its own. Returns the writer and the step's entry of
+        `InspectionResult.derived` for `_attach_written`, or `(None, None)` if
+        the step does not apply to this kind of measurement; a failure leaves
+        nothing behind."""
+        adapter = self._adapter_of(st_topo)
+        if not resolve_step(name).applies_to(adapter):
+            return None, None
         writer = StorageWriter(default_storage, self.processing_folder(uuid4().hex))
         try:
-            written = write_derived(
+            entry = write_derived(
                 name,
                 st_topo,
                 self.inspection_parameters(filename=self.datafile.filename),
                 writer,
+                adapter=adapter,
             )
         except BaseException:
             writer.delete()
             raise
-        return writer, written
+        return writer, entry
 
-    def _attach_written(self, name, writer, written):
-        """Point the field `name` at the file `_write_derived` wrote and save it
-        (a measurement without a row yet excepted). The file it replaces is
-        deleted once that commits. Should the save fail, the file written is
-        deleted and the field keeps its previous file."""
-        attname = f"{name}_id"
-        previous = getattr(self, attname)
+    def _attach_written(self, name, writer, entry):
+        """Swap in the files the step `name` wrote (`_write_derived`), keeping the
+        other steps' files, and save (a measurement without a row yet excepted).
+        The files they replace are deleted once that commits. Should the save
+        fail, the files written are deleted and the measurement keeps its
+        previous ones."""
+        previous = {
+            f"{field}_id": getattr(self, f"{field}_id") for field in self._DERIVED_FIELDS
+        }
         try:
             with transaction.atomic():
-                retired = self._attach_derived(
-                    InspectionResult(derived={name: written}), row=None
-                )
+                result = InspectionResult(derived={name: entry})
+                retired = self._attach_derived(result, row=None)
                 if self.pk is not None:
-                    models.Model.save(self, update_fields=[name])
+                    models.Model.save(self, update_fields=list(self._DERIVED_FIELDS))
+                    self._record_steps(result)
         except BaseException:
             # The manifests it was attached as are gone with the rollback
-            setattr(self, attname, previous)
-            writer.delete()
+            for attname, pk in previous.items():
+                setattr(self, attname, pk)
+            if writer is not None:
+                writer.delete()
             raise
         transaction.on_commit(lambda: _delete_all(retired))
 
@@ -1778,60 +1852,67 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         except self._meta.get_field(name).related_model.DoesNotExist:
             return None
 
-    def _clear_derived(self, name):
-        """Drop the derived file in field `name` after generating it failed.
+    def _clear_derived(self, name, exc=None):
+        """Drop the files of the processing step `name` after running it failed.
 
-        The field is saved first (through `models.Model.save`, as every derived
-        file is), and the file deleted once that commits; a failure to delete
-        it is only logged (see `_delete_all`). A file that is replaced is retired
-        by `_attach_derived` instead.
+        Recorded as the step's failure: the measurement's other derived files are
+        kept, and the step's old files deleted once that commits (see
+        `_attach_written`).
         """
-        old = self._derived(name)
-        setattr(self, name, None)
-        if self.pk is not None:
-            models.Model.save(self, update_fields=[name])
-        if old is not None:
-            transaction.on_commit(lambda: _delete_all([old]))
+        step = resolve_step(name)
+        options = self.inspection_parameters().step_options.get(step.name)
+        entry = {
+            "version": processing.step_version(step, options),
+            "required": bool(getattr(step, "required", False)),
+            "error": str(exc) if exc is not None else "failed",
+        }
+        self._attach_written(name, None, entry)
 
-    def make_thumbnail(self, none_on_error=True, st_topo=None):
-        """Renew thumbnail field.
-
-        Parameters
-        ----------
-        none_on_error: bool
-            If True (default), sets thumbnail to None if there are any errors.
-            If False, exceptions have to be caught outside.
-
-        Returns
-        -------
-        None
-
-        Raises
-        ------
-        ThumbnailGenerationException
-        """
+    def _rerun_step(self, name, st_topo, none_on_error, error_class, description):
         try:
-            writer, written = self._make_thumbnail(st_topo=st_topo)
+            writer, entry = getattr(self, f"_make_{name}")(st_topo=st_topo)
         except SoftTimeLimitExceeded:
-            # The worker is out of time, which is no fault of the thumbnail
+            # The worker is out of time, which is no fault of the step
             raise
         except Exception as exc:
             if none_on_error:
-                self._clear_derived("thumbnail")
+                self._clear_derived(name, exc)
                 _log.error(
-                    "Problems while generating thumbnail for topography %s: %s. "
+                    "Problems while generating %s for topography %s: %s. "
                     "Saving <None> instead.",
+                    description,
                     self.id,
                     exc,
                     exc_info=True,
                 )
                 return
-            raise ThumbnailGenerationException(self, str(exc)) from exc
+            raise error_class(self, str(exc)) from exc
+        if entry is None:
+            # Not for this kind of measurement
+            return
         # A failure to save is no failure to generate: the previous file stays
-        self._attach_written("thumbnail", writer, written)
+        self._attach_written(name, writer, entry)
+
+    def make_thumbnail(self, none_on_error=True, st_topo=None):
+        """Renew the thumbnail.
+
+        Parameters
+        ----------
+        none_on_error: bool
+            If True (default), drops the thumbnail if there are any errors.
+            If False, exceptions have to be caught outside.
+
+        Raises
+        ------
+        ThumbnailGenerationException
+        """
+        self._rerun_step(
+            "thumbnail", st_topo, none_on_error, ThumbnailGenerationException,
+            "thumbnail",
+        )
 
     def make_deepzoom(self, none_on_error=True, st_topo=None):
-        """Renew deep zoom image files.
+        """Renew deep zoom image files (of a map; a line scan has none).
 
         Parameters
         ----------
@@ -1839,55 +1920,25 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             If True (default), do not raise an exception if there are any errors.
             If False, exceptions have to be caught outside.
 
-        Returns
-        -------
-        None
-
         Raises
         ------
         DZIGenerationException
         """
-        try:
-            writer, written = self._make_deepzoom(st_topo=st_topo)
-        except SoftTimeLimitExceeded:
-            raise
-        except Exception as exc:
-            if none_on_error:
-                self._clear_derived("deepzoom")
-                _log.error(
-                    "Problems while generating deep zoom images for topography "
-                    "%s: %s. Saving <None> instead.",
-                    self.id,
-                    exc,
-                    exc_info=True,
-                )
-                return
-            raise DZIGenerationException(self, str(exc)) from exc
-        self._attach_written("deepzoom", writer, written)
+        self._rerun_step(
+            "deepzoom", st_topo, none_on_error, DZIGenerationException,
+            "deep zoom images",
+        )
 
     def make_squeezed(self, none_on_error=True, st_topo=None, save=False):
         """Renew the squeezed datafile.
 
-        `save` is accepted for compatibility only: the field is always saved
+        `save` is accepted for compatibility only: the result is always saved
         (see `_attach_written`).
         """
-        try:
-            writer, written = self._make_squeezed(st_topo=st_topo)
-        except SoftTimeLimitExceeded:
-            raise
-        except Exception as exc:
-            if none_on_error:
-                self._clear_derived("squeezed_datafile")
-                _log.error(
-                    "Problems while generating squeezed datafile for topography "
-                    "%s: %s. Saving <None> instead.",
-                    self.id,
-                    exc,
-                    exc_info=True,
-                )
-                return
-            raise SqueezedDatafileGenerationException(self, str(exc)) from exc
-        self._attach_written("squeezed_datafile", writer, written)
+        self._rerun_step(
+            "squeezed", st_topo, none_on_error, SqueezedDatafileGenerationException,
+            "squeezed datafile",
+        )
 
     def refresh_bandwidth_cache(self, st_topo=None):
         """Renew bandwidth cache.
@@ -1938,6 +1989,21 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             visualization_detrend_mode=_visualization_detrend_mode(),
             reject_incomplete_metadata=getattr(
                 settings, "TOPOBANK_REJECT_INCOMPLETE_METADATA", False
+            ),
+            kind=self.kind,
+            steps=tuple(
+                getattr(
+                    settings,
+                    "TOPOBANK_PROCESSING_STEPS",
+                    defaults.TOPOBANK_PROCESSING_STEPS,
+                )
+            ),
+            step_options=dict(
+                getattr(
+                    settings,
+                    "TOPOBANK_PROCESSING_STEP_OPTIONS",
+                    defaults.TOPOBANK_PROCESSING_STEP_OPTIONS,
+                )
             ),
         )
 
@@ -2102,13 +2168,14 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             with transaction.atomic():
                 retired = self._attach_derived(result, row=None)
                 self._save_inspection()
+                self._record_steps(result)
             transaction.on_commit(lambda: _delete_all(retired))
             return True
 
         # A save sets the `auto_now` fields, as it always has
         fields = (
             changed
-            + list(result.derived)
+            + (list(self._DERIVED_FIELDS) if result.derived else [])
             + [f.name for f in self._meta.concrete_fields if getattr(f, "auto_now", False)]
         )
         with transaction.atomic():
@@ -2131,7 +2198,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 self._discard(result.written_keys(), prefix, row)
                 return False
             retired = self._attach_derived(result, row)
-            missing = missing_derived_files(result, is_map=self.size_y is not None)
+            missing = missing_derived_files(result)
             if missing:
                 # A measurement with complete metadata is expected to have these;
                 # a missing one is a silent data-quality failure that would
@@ -2144,6 +2211,7 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                     ", ".join(missing),
                 )
             self._save_inspection(update_fields=fields)
+            self._record_steps(result)
             if retired_to is not None:
                 # The caller deletes them (see `apply_backend_result`)
                 retired_to.extend(retired)
@@ -2175,8 +2243,9 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if row is not None:
             ids = [row["thumbnail_id"], row["squeezed_datafile_id"]]
             own = Q(pk__in=[pk for pk in ids if pk is not None])
-            if row["deepzoom_id"] is not None:
-                own |= Q(folder_id=row["deepzoom_id"])
+            for folder in ("derived_id", "deepzoom_id"):
+                if row[folder] is not None:
+                    own |= Q(folder_id=row[folder])
             keys -= set(
                 Manifest.objects.filter(own, file__in=keys).values_list(
                     "file", flat=True
@@ -2370,62 +2439,154 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             models.Model.save(self, update_fields=update_fields)
 
     def _attach_derived(self, result, row):
-        """Point the derived-file fields at the files `result` wrote.
+        """Swap in a new derived folder holding the files `result` wrote.
 
-        Creates the manifests (and the deep zoom folder) for files already in
-        storage, without copying them. Returns the manifests and folders they
-        replace: the ones `row` references (the row as locked now, so that files
+        Creates the folder and the manifests of files already in storage, without
+        copying them. For a result that is not `complete` (single steps rerun),
+        the files of the other steps are moved over from the current folder. The
+        deprecated fields `thumbnail`, `squeezed_datafile` and `deepzoom` are
+        pointed into the new folder. Returns the folders (and manifests) that are
+        replaced: the ones `row` references (the row as locked now, so that files
         a concurrent refresh swapped in are replaced too), or this instance does
-        when there is no row yet.
+        when there is no row yet. A result without derived entries (metadata
+        incomplete) changes nothing.
         """
+        if not result.derived:
+            return []
+        ids = {
+            field: getattr(self, f"{field}_id") if row is None else row[f"{field}_id"]
+            for field in self._DERIVED_FIELDS
+        }
+        old_id = ids["derived"]
+        files = result.written_files()
+        if old_id is not None and files and self._references(old_id, files):
+            # This result was applied before (a redelivery): keep its files,
+            # whose objects a replacement would delete
+            for field, pk in ids.items():
+                setattr(self, f"{field}_id", pk)
+            return []
+
         now = timezone.now()
-        retired = []
-        for name, written in result.derived.items():
-            attname = f"{name}_id"
-            old_id = getattr(self, attname) if row is None else row[attname]
-            files = (written if isinstance(written, list) else [written]) if written else []
-            if old_id is not None and files and self._references(name, old_id, files):
-                # This result was applied before (a redelivery): keep its files,
-                # whose objects a replacement would delete
-                setattr(self, attname, old_id)
-                continue
-            new = None
-            if files:
-                folder = None
-                if name == "deepzoom":
-                    folder = new = ManifestSet.objects.create(
-                        permissions=self.permissions
-                    )
-                manifests = Manifest.objects.bulk_create(
-                    [
-                        Manifest(
-                            permissions=self.permissions,
-                            folder=folder,
-                            filename=item["filename"],
-                            kind="der",
-                            file=item["key"],
-                            confirmed_at=now,
-                            size_bytes=item.get("size"),
-                        )
-                        for item in files
-                    ]
+        new = ManifestSet.objects.create(permissions=self.permissions)
+        Manifest.objects.bulk_create(
+            [
+                Manifest(
+                    permissions=self.permissions,
+                    folder=new,
+                    filename=item["filename"],
+                    kind="der",
+                    file=item["key"],
+                    confirmed_at=now,
+                    size_bytes=item.get("size"),
                 )
-                if folder is None:
-                    (new,) = manifests
-            setattr(self, name, new)
-            if old_id is not None and old_id != (new.pk if new else None):
-                model = self._meta.get_field(name).related_model
-                old = model.objects.filter(pk=old_id).first()
-                if old is not None:
-                    retired.append(old)
+                for item in files
+            ]
+        )
+        if not result.complete and old_id is not None:
+            # Keep what the steps that did not run wrote
+            rerun = [
+                step
+                for step in map(self._configured_step, result.derived)
+                if step is not None
+            ]
+            keep = [
+                pk
+                for pk, filename in Manifest.objects.filter(folder_id=old_id)
+                .exclude(filename__in=[item["filename"] for item in files])
+                .values_list("pk", "filename")
+                if not any(step.owns(filename) for step in rerun)
+            ]
+            Manifest.objects.filter(pk__in=keep).update(folder=new)
+
+        self.derived = new
+        self._point_deprecated_fields(new)
+
+        retired = []
+        if old_id is not None:
+            old = ManifestSet.objects.filter(pk=old_id).first()
+            if old is not None:
+                retired.append(old)
+        # Files referenced from outside the derived folder (none are, once
+        # migrated; kept for safety)
+        for field, model in (
+            ("thumbnail", Manifest),
+            ("squeezed_datafile", Manifest),
+            ("deepzoom", ManifestSet),
+        ):
+            pk = ids[field]
+            if pk is None or (model is ManifestSet and pk == old_id):
+                continue
+            obj = model.objects.filter(pk=pk).first()
+            if obj is None:
+                continue
+            if model is Manifest and obj.folder_id is not None and obj.folder_id in (
+                old_id,
+                new.pk,
+            ):
+                continue
+            retired.append(obj)
         return retired
 
-    def _references(self, name, pk, files):
-        """Whether the derived manifest or folder `pk` holds the written `files`."""
+    def _point_deprecated_fields(self, folder):
+        """Point `thumbnail`, `squeezed_datafile` and `deepzoom` into the derived
+        `folder` (see `derived`)."""
+        manifests = {
+            filename: pk
+            for pk, filename in Manifest.objects.filter(folder=folder)
+            .filter(
+                Q(filename=SQUEEZED_FILENAME)
+                | Q(filename__startswith=f"{THUMBNAIL_STEM}.")
+                | Q(filename=DEEPZOOM_FILENAME)
+            )
+            .values_list("pk", "filename")
+        }
+        self.squeezed_datafile_id = manifests.get(SQUEEZED_FILENAME)
+        self.thumbnail_id = next(
+            (
+                pk
+                for filename, pk in sorted(manifests.items())
+                if filename.startswith(f"{THUMBNAIL_STEM}.")
+            ),
+            None,
+        )
+        self.deepzoom_id = folder.pk if DEEPZOOM_FILENAME in manifests else None
+
+    def _configured_step(self, name):
+        """The configured (or built-in) processing step called `name`, or None."""
+        for step in resolve_steps(self.inspection_parameters().steps):
+            if step.name == name:
+                return step
+        return BUILTIN_STEPS.get(name)
+
+    def _references(self, folder_id, files):
+        """Whether the derived folder `folder_id` holds the written `files`."""
         keys = {item["key"] for item in files}
-        if name == "deepzoom":
-            return Manifest.objects.filter(folder_id=pk, file__in=keys).exists()
-        return Manifest.objects.filter(pk=pk, file__in=keys).exists()
+        return Manifest.objects.filter(folder_id=folder_id, file__in=keys).exists()
+
+    def _record_steps(self, result):
+        """Record which version of each processing step the derived files are of
+        (`processing_steps`); after a `complete` result, of exactly its steps."""
+        if not result.derived or self.pk is None:
+            return
+        records = self.processing_steps.all()
+        if result.complete:
+            records.exclude(name__in=list(result.derived)).delete()
+        for name, entry in result.derived.items():
+            ProcessingStepRecord.objects.update_or_create(
+                topography=self,
+                name=name,
+                defaults=dict(
+                    version=entry["version"],
+                    succeeded="files" in entry,
+                    error=(entry.get("error") or "")[:4000],
+                ),
+            )
+
+    @property
+    def adapter(self):
+        """The adapter of this measurement's kind (`topobank.manager.kinds`), or
+        None before its file has been inspected."""
+        return None if self.kind is None else get_adapter(self.kind)
 
     def get_undefined_data_status(self):
         """Get human-readable description about status of undefined data as string."""
@@ -2458,3 +2619,36 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
             # The instance may be stale: process the measurement only if it still
             # has not been processed, rather than reprocessing one that has since.
             run_task(self, from_states=(TaskStateModel.NOTRUN,))
+
+
+class ProcessingStepRecord(models.Model):
+    """Which version of a processing step (`topobank.manager.steps`) the derived
+    files of a measurement are of, and whether the step succeeded.
+
+    One row per measurement and step, replaced by each processing. A measurement
+    whose row for a configured step is missing, or of another version, is out of
+    date (see the management command ``reprocess_outdated``).
+    """
+
+    #: The longest step version (with the digest of its options)
+    VERSION_LENGTH = 64
+
+    topography = models.ForeignKey(
+        Topography, on_delete=models.CASCADE, related_name="processing_steps"
+    )
+    name = models.CharField(max_length=64)
+    version = models.CharField(max_length=VERSION_LENGTH)
+    succeeded = models.BooleanField()
+    error = models.TextField(blank=True, default="")
+    processed_at = models.DateTimeField(auto_now=True)
+
+    class Meta:
+        constraints = [
+            models.UniqueConstraint(
+                fields=["topography", "name"], name="unique_processing_step"
+            )
+        ]
+        indexes = [models.Index(fields=["name", "version"])]
+
+    def __str__(self):
+        return f"{self.name} {self.version} of topography {self.topography_id}"

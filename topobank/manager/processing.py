@@ -1,31 +1,29 @@
 """Inspecting a measurement's data file, as a function of the file alone.
 
 `inspect_datafile` is the compute half of processing a measurement: it reads the
-raw file with the measurement's parameters, writes the derived files (squeezed
-NetCDF file, thumbnail, deep zoom images) through a writer, and returns what it
-found as an `InspectionResult`. It touches no database and no Django model, so it
+raw file with the measurement's parameters, runs the deployment's processing
+steps (`topobank.manager.steps`: squeezed NetCDF file, thumbnail, deep zoom
+images, and whatever else is configured), which write the derived files through a
+writer, and returns what it found as an `InspectionResult`. It touches no database and no Django model, so it
 can run wherever the file and the writer are reachable: in the Celery worker, as
 `Topography.refresh_cache` does, or in a separate process that hands its result
 back. `Topography.apply_inspection` is the other half, which records a result.
 
 Only the standard library, NumPy, Pillow, Matplotlib and SurfaceTopography are
-imported here, so that a worker without Django can import this module.
+imported here (and `kinds` and `steps`, which import no more), so that a worker
+without Django can import this module.
 """
 
 import contextlib
 import dataclasses
 import datetime
-import io
 import logging
 import os
 import posixpath
 import tempfile
-from typing import Any, Dict, List, Optional, Protocol
+from typing import Any, Dict, List, Optional, Protocol, Tuple
 
-import matplotlib
 import numpy as np
-import PIL
-from matplotlib.figure import Figure
 from SurfaceTopography import open_topography
 from SurfaceTopography.Exceptions import UndefinedDataError
 from SurfaceTopography.IO import ReaderBase
@@ -34,12 +32,20 @@ from SurfaceTopography.Metadata import InstrumentParametersModel
 from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
 from ..exceptions import IncompleteMetadataError
+from .kinds import (
+    CANONICAL_DATAFILE_FORMAT,
+    UnsupportedChannelError,
+    adapter_of_data,
+    get_adapter,
+    infer_kind,
+)
+from .steps import DEFAULT_STEPS, resolve_step, resolve_steps, step_version
 
 _log = logging.getLogger(__name__)
 
 #: Version of the `InspectionResult` format. A result is applied only by code that
 #: writes the same version, since the two halves may run in different images.
-RESULT_VERSION = 1
+RESULT_VERSION = 2
 
 #: Detrend modes, ordered by how much they remove (`Topography.DETREND_MODE_CHOICES`)
 DETREND_MODES = ("center", "height", "curvature")
@@ -51,7 +57,7 @@ INSTRUMENT_TYPE_CONTACT_BASED = "contact-based"
 
 FILL_UNDEFINED_DATA_MODE_NOFILLING = "do-not-fill"
 
-SQUEEZED_DATAFILE_FORMAT = "nc"
+SQUEEZED_DATAFILE_FORMAT = CANONICAL_DATAFILE_FORMAT
 
 #: Curvature below which a fitted paraboloid is treated as flat. The least-squares
 #: fit of a plane leaves quadratic coefficients at the level of numerical noise
@@ -60,11 +66,9 @@ SQUEEZED_DATAFILE_FORMAT = "nc"
 #: above this.
 _FLAT_CURVATURE = 1e-9
 
-#: Names of the derived files in `InspectionResult.derived`
-DERIVED_NAMES = ("thumbnail", "deepzoom", "squeezed_datafile")
-
 #: The fields of a measurement an inspection may determine
 INSPECTED_FIELDS = (
+    "kind",
     "datafile_format",
     "channel_names",
     "data_source",
@@ -119,11 +123,18 @@ class InspectionParameters:
     detrend_mode: str
     instrument_name: str
     instrument_parameters: Dict[str, Any]
+    #: The kind recorded on the measurement (`topobank.manager.kinds`); None
+    #: before its first inspection, which determines it
+    kind: Optional[str] = None
 
     # The deployment
     thumbnail_format: str = "jpeg"
     visualization_detrend_mode: Optional[str] = None
     reject_incomplete_metadata: bool = False
+    #: The processing steps to run, by name or import path (`steps.resolve_step`)
+    steps: Tuple[str, ...] = DEFAULT_STEPS
+    #: Options of the steps, by step name
+    step_options: Dict[str, Dict[str, Any]] = dataclasses.field(default_factory=dict)
 
     @property
     def is_metadata_complete(self):
@@ -135,10 +146,15 @@ class InspectionParameters:
         )
 
     def to_dict(self):
-        return dataclasses.asdict(self)
+        data = dataclasses.asdict(self)
+        data["steps"] = list(self.steps)
+        return data
 
     @classmethod
     def from_dict(cls, data):
+        data = dict(data)
+        if "steps" in data:
+            data["steps"] = tuple(data["steps"])
         return cls(**data)
 
 
@@ -148,14 +164,23 @@ class InspectionResult:
 
     `fields` holds the measurement's fields the inspection determined, by name;
     a field it did not determine is absent, and the measurement keeps its value.
-    `derived` holds, for each derived file the inspection generated, the written
-    file (`{"filename", "key", "size"}`, a list of them for the deep zoom images),
-    or None where generating it failed and the measurement is left without one;
-    a derived file it did not generate is absent and stays as it is.
+
+    `derived` holds, for each processing step that ran, by the step's name,
+    `{"version", "required", "files"}` with the files it wrote (each
+    `{"filename", "key", "size"}`, `filename` being its name in the derived
+    folder), or `{"version", "required", "error"}` where the step failed and the
+    measurement is left without its files.
+
+    `complete` tells whether the steps that ran are all the measurement has: true
+    for an inspection, whose derived folder then holds exactly the files of
+    `derived`; false when single steps were rerun, in which case the files of the
+    other steps are kept. An inspection that found the metadata incomplete runs
+    no step, and changes no derived file.
     """
 
     fields: Dict[str, Any] = dataclasses.field(default_factory=dict)
     derived: Dict[str, Any] = dataclasses.field(default_factory=dict)
+    complete: bool = False
     version: int = RESULT_VERSION
 
     def to_dict(self):
@@ -166,24 +191,34 @@ class InspectionResult:
             fields["measurement_date"] = date.isoformat()
         if "channel_names" in fields:
             fields["channel_names"] = [list(c) for c in fields["channel_names"]]
-        return {"version": self.version, "fields": fields, "derived": self.derived}
+        return {
+            "version": self.version,
+            "fields": fields,
+            "derived": self.derived,
+            "complete": self.complete,
+        }
 
     @classmethod
     def from_dict(cls, data):
         return cls(
             fields=dict(data.get("fields", {})),
             derived=dict(data.get("derived", {})),
+            complete=bool(data.get("complete", False)),
             version=data.get("version"),
         )
 
+    def written_files(self):
+        """Every file the steps of this result wrote."""
+        return [
+            item
+            for entry in self.derived.values()
+            if isinstance(entry, dict)
+            for item in entry.get("files") or []
+        ]
+
     def written_keys(self):
         """Storage keys of every derived file this result references."""
-        keys = []
-        for written in self.derived.values():
-            for item in written if isinstance(written, list) else [written]:
-                if item is not None:
-                    keys.append(item["key"])
-        return keys
+        return [item["key"] for item in self.written_files()]
 
 
 class Writer(Protocol):
@@ -612,7 +647,8 @@ def visualization_topography(st_topo, detrend_mode, visualization_detrend_mode):
 
 def render_thumbnail(st_topo, width=400, height=400, cmap=None, format="jpeg"):
     """
-    Make thumbnail image.
+    Make thumbnail image, as the adapter of the topography's kind renders it
+    (see `kinds.MeasurementAdapter.render_thumbnail`).
 
     Parameters
     ----------
@@ -632,52 +668,15 @@ def render_thumbnail(st_topo, width=400, height=400, cmap=None, format="jpeg"):
     image : bytes-like
         Thumbnail image.
     """
-    image_file = io.BytesIO()
-    if st_topo.dim == 1:
-        dpi = 100
-        # Use the object-oriented API rather than `pyplot`. `pyplot` resolves
-        # the interactive backend, which on macOS is `macosx`; instantiating
-        # its canvas inside a forked Celery worker initializes AppKit on the
-        # child side of a fork, which the ObjC runtime aborts with SIGABRT.
-        # A bare `Figure` renders through Agg and keeps no global state, so
-        # it also removes the need to close the figure (see issue 898).
-        fig = Figure(figsize=[width / dpi, height / dpi])
-        ax = fig.subplots()
-        x, y = st_topo.positions_and_heights()
-        ax.plot(x, y, "-")
-        ax.set_axis_off()
-        fig.savefig(image_file, bbox_inches="tight", dpi=100, format=format)
-    elif st_topo.dim == 2:
-        # Compute thumbnail size (keeping aspect ratio)
-        sx, sy = st_topo.physical_sizes
-        width2 = int(sx * height / sy)
-        height2 = int(sy * width / sx)
-        if width2 <= width:
-            width = width2
-        else:
-            height = height2
-
-        # Get heights and rescale to interval 0, 1
-        heights = st_topo.heights()
-        mx, mn = heights.max(), heights.min()
-        heights = (heights - mn) / (mx - mn)
-        # Get color map. `matplotlib.colormaps` is the pyplot-free lookup;
-        # `None` selects the default, as `pyplot.get_cmap` did.
-        if cmap is None:
-            cmap = matplotlib.colormaps[matplotlib.rcParams["image.cmap"]]
-        elif isinstance(cmap, str):
-            cmap = matplotlib.colormaps[cmap]
-        # Convert to image
-        colors = (cmap(heights.T) * 255).astype(np.uint8)
-        # Remove alpha channel before writing
-        PIL.Image.fromarray(colors[:, :, :3]).resize((width, height)).save(
-            image_file, format=format
-        )
-    else:
+    try:
+        adapter = adapter_of_data(st_topo)
+    except UnsupportedChannelError:
         raise RuntimeError(
             f"Don't know how to create thumbnail for topography of dimension {st_topo.dim}."
         )
-    return image_file
+    return adapter.render_thumbnail(
+        st_topo, width=width, height=height, cmap=cmap, format=format
+    )
 
 
 def write_deepzoom(
@@ -765,76 +764,52 @@ def write_deepzoom(
                 )
 
 
-def _write_thumbnail(st_topo, params, writer):
-    image = render_thumbnail(
-        st_topo=visualization_topography(
-            st_topo, params.detrend_mode, params.visualization_detrend_mode
-        ),
-        format=params.thumbnail_format,
-    )
-    filename = f"thumbnail.{params.thumbnail_format}"
-    with tempfile.NamedTemporaryFile() as tmp:
-        tmp.write(image.getvalue())
-        tmp.flush()
-        return {"filename": filename, **writer.save(f"thumbnail/{filename}", tmp.name)}
-
-
-def _write_deepzoom(st_topo, params, writer):
-    written = []
-
-    def save(filename, path):
-        written.append({"filename": filename, **writer.save(f"deepzoom/{filename}", path)})
-
-    write_deepzoom(
-        visualization_topography(
-            st_topo, params.detrend_mode, params.visualization_detrend_mode
-        ),
-        save,
-    )
-    return written
-
-
 #: The longest name of a derived file (as `Manifest.filename` holds it)
 MAX_FILENAME_LENGTH = 255
 
 
-def _write_squeezed(st_topo, params, writer):
-    orig_stem, _ = os.path.splitext(os.path.basename(params.filename))
-    suffix = "-squeezed.nc"
-    filename = f"{orig_stem[:MAX_FILENAME_LENGTH - len(suffix)]}{suffix}"
-    with tempfile.NamedTemporaryFile() as tmp:
-        st_topo.to_netcdf(tmp.name)
-        return {"filename": filename, **writer.save(f"squeezed/{filename}", tmp.name)}
+def run_step(step, data, adapter, params, writer):
+    """Run the processing step `step` on the data object `data`.
 
-
-_DERIVED_WRITERS = {
-    "thumbnail": ("thumbnail", _write_thumbnail),
-    "deepzoom": ("deep zoom images", _write_deepzoom),
-    "squeezed_datafile": ("squeezed datafile", _write_squeezed),
-}
-
-# The timer step under which each derived file is written
-_DERIVED_TIMERS = {
-    "thumbnail": "make_thumbnail",
-    "deepzoom": "make_deepzoom",
-    "squeezed_datafile": "make_squeezed",
-}
-
-
-def write_derived(name, st_topo, params, writer):
-    """Write the derived file `name` of `st_topo` (one of `DERIVED_NAMES`).
-
-    Returns the written file (`{"filename", "key", "size"}`, a list of them for
-    the deep zoom images). A failure deletes whatever part of it was written
-    before it is raised.
+    The step's files are stored through `writer` under their names in the
+    derived folder. Returns the step's entry of `InspectionResult.derived`. A
+    failure deletes whatever part of the step's files was written before it is
+    raised.
     """
-    _, write = _DERIVED_WRITERS[name]
+    options = dict(params.step_options.get(step.name) or {})
+    files = []
     recording = _RecordingWriter(writer)
+
+    def save(filename, path):
+        filename = posixpath.normpath(str(filename).replace("\\", "/"))
+        if filename.startswith(("/", "../")) or filename in (".", ".."):
+            raise ValueError(f"Step '{step.name}' wrote a file outside its folder.")
+        if not step.owns(filename):
+            raise ValueError(
+                f"Step '{step.name}' wrote '{filename}', which is not one of its files."
+            )
+        files.append({"filename": filename, **recording.save(filename, path)})
+
     try:
-        return write(st_topo, params, recording)
+        step.write(data, adapter, params, options, save)
     except BaseException:
         writer.delete(recording.keys)
         raise
+    return {
+        "version": step_version(step, options),
+        "required": bool(getattr(step, "required", False)),
+        "files": files,
+    }
+
+
+def write_derived(name, st_topo, params, writer, adapter=None):
+    """Run the processing step `name` (see `steps.resolve_step`) alone on
+    `st_topo`; returns its entry of `InspectionResult.derived`."""
+    if adapter is None:
+        adapter = (
+            adapter_of_data(st_topo) if params.kind is None else get_adapter(params.kind)
+        )
+    return run_step(resolve_step(name), st_topo, adapter, params, writer)
 
 
 def _soft_time_limit_exceeded():
@@ -972,48 +947,29 @@ def _inspect(source, params, writer, timer, label, result):
 
     set_field("data_source", data_source)
 
-    #
-    # Look for necessary metadata. The file's values override the measurement's.
-    # This may be necessary if the underlying reader changes (e.g. through bug
-    # fixes).
-    #
+    # Data that is not heights cannot be imported by any of the built-in kinds;
+    # said here, before the kinds are asked, as it always has been
+    if isinstance(channel.unit, tuple):
+        raise NotImplementedError(
+            f"Data channel '{channel.name}' contains information that is not height."
+        )
 
-    # Resolution
-    if channel.dim == 1:
-        (n,) = channel.nb_grid_pts
-        set_field("resolution_x", int(n))
-        set_field("resolution_y", None)  # This indicates that this is a line scan
-    elif channel.dim == 2:
-        resolution_x, resolution_y = (int(n) for n in channel.nb_grid_pts)
-        set_field("resolution_x", resolution_x)
-        set_field("resolution_y", resolution_y)
-    else:
+    # The kind of measurement, whose adapter reads what depends on it
+    if channel.dim not in (1, 2):
         # This should not happen
         raise NotImplementedError(
             f"Cannot handle topographies of dimension {channel.dim}."
         )
+    kind = infer_kind(channel)
+    adapter = get_adapter(kind)
+    set_field("kind", kind)
 
-    # Size
-    if channel.physical_sizes is None:
-        # Data file *does not* provide size information; the user must provide it
-        set_field("size_editable", True)
-    else:
-        # Data file *does* provide size information; the user cannot override it
-        set_field("size_editable", False)
-        # Reset size information here
-        if channel.dim == 1:
-            (s,) = channel.physical_sizes
-            set_field("size_x", float(s))
-            set_field("size_y", None)
-        elif channel.dim == 2:
-            size_x, size_y = (float(s) for s in channel.physical_sizes)
-            set_field("size_x", size_x)
-            set_field("size_y", size_y)
-        else:
-            # This should not happen
-            raise NotImplementedError(
-                f"Cannot handle topographies of dimension {channel.dim}."
-            )
+    #
+    # Look for necessary metadata. The file's values override the measurement's.
+    # This may be necessary if the underlying reader changes (e.g. through bug
+    # fixes). Resolution, size and periodicity depend on the kind.
+    #
+    fields.update(adapter.channel_fields(channel, params))
 
     # Unit
     if channel.unit is None:
@@ -1023,11 +979,6 @@ def _inspect(source, params, writer, timer, label, result):
         # Data file *does* provide unit information; the user cannot override it
         set_field("unit_editable", False)
         # Reset unit information here
-        if isinstance(channel.unit, tuple):
-            raise NotImplementedError(
-                f"Data channel '{channel.name}' contains information that is not "
-                "height."
-            )
         set_field("unit", channel.unit)
 
     # Height scale
@@ -1039,16 +990,6 @@ def _inspect(source, params, writer, timer, label, result):
         set_field("height_scale_editable", False)
         # Reset unit information here
         set_field("height_scale", channel.height_scale_factor)
-
-    # Populate information on periodicity
-    if not channel.is_uniform:
-        # This is a nonuniform line scan that does not support periodicity
-        set_field("is_periodic_editable", False)
-        set_field("is_periodic", False)
-    elif params.is_periodic is None:
-        # This is a uniform line scan or map, periodicity is supported
-        set_field("is_periodic_editable", True)
-        set_field("is_periodic", channel.is_periodic)
 
     #
     # We now look for optional metadata. Only import it from the file on first read,
@@ -1085,8 +1026,9 @@ def _inspect(source, params, writer, timer, label, result):
         params,
         **{
             name: fields[name]
-            for name in ("data_source", "size_x", "size_y", "unit", "height_scale",
-                         "is_periodic", "instrument_name", "instrument_parameters")
+            for name in ("kind", "data_source", "size_x", "size_y", "unit",
+                         "height_scale", "is_periodic", "instrument_name",
+                         "instrument_parameters")
             if name in fields
         },
     )
@@ -1119,39 +1061,43 @@ def _inspect(source, params, writer, timer, label, result):
         with timer("refresh_bandwidth_cache"):
             fields.update(bandwidth_fields(st_topo))
 
-        for name, (description, _) in _DERIVED_WRITERS.items():
-            if name == "deepzoom" and current.size_y is None:
-                # Only a map (not a line scan) has deep zoom images
+        # The deployment's processing steps, each writing its derived files
+        result.complete = True
+        for step in resolve_steps(current.steps):
+            if not step.applies_to(adapter):
                 continue
-            with timer(_DERIVED_TIMERS[name]):
+            with timer(f"step:{step.name}"):
                 try:
-                    result.derived[name] = write_derived(name, st_topo, current, writer)
+                    result.derived[step.name] = run_step(
+                        step, st_topo, adapter, current, writer
+                    )
                 except _soft_time_limit_exceeded():
                     # The worker is out of time, which is no fault of the file
                     raise
                 except Exception as exc:
-                    _log.error(
-                        "Problems while generating %s for topography %s: %s. "
-                        "Saving <None> instead.",
-                        description,
+                    log = _log.error if getattr(step, "required", False) else _log.warning
+                    log(
+                        "Processing step '%s' failed for topography %s: %s. "
+                        "Leaving the measurement without its files.",
+                        step.name,
                         label,
                         exc,
                         exc_info=True,
                     )
-                    result.derived[name] = None
+                    result.derived[step.name] = {
+                        "version": step_version(
+                            step, current.step_options.get(step.name)
+                        ),
+                        "required": bool(getattr(step, "required", False)),
+                        "error": str(exc) or type(exc).__name__,
+                    }
 
 
-def missing_derived_files(result: InspectionResult, is_map: bool) -> List[str]:
-    """The derived files a complete inspection should have written but did not."""
-    if not result.derived:
-        # Metadata incomplete: nothing was meant to be generated
-        return []
-    missing = []
-    if not result.derived.get("thumbnail"):
-        missing.append("thumbnail")
-    # deepzoom is only generated for 2D maps
-    if is_map and not result.derived.get("deepzoom"):
-        missing.append("deepzoom")
-    if not result.derived.get("squeezed_datafile"):
-        missing.append("squeezed_datafile")
-    return missing
+def missing_derived_files(result: InspectionResult) -> List[str]:
+    """The required steps whose files an inspection should have written but did
+    not."""
+    return sorted(
+        name
+        for name, entry in result.derived.items()
+        if isinstance(entry, dict) and entry.get("required") and "files" not in entry
+    )

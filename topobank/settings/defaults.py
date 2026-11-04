@@ -79,3 +79,14 @@ TOPOBANK_PROCESSING_STORAGE_PREFIX = "data-lake/processing"
 #: hand-off through any wait before the backend runs it to the recording of
 #: its result.
 TOPOBANK_PROCESSING_BACKEND = None
+
+# The processing steps that derive files from each measurement's data file
+# (`topobank.manager.steps`), by the name of a built-in step ("squeezed",
+# "thumbnail", "deepzoom") or the import path of a step. "squeezed" always runs.
+# The files go into the measurement's `derived` folder.
+TOPOBANK_PROCESSING_STEPS = ["squeezed", "thumbnail", "deepzoom"]
+
+# Options handed to the processing steps, by step name. Part of the version a
+# step's files are recorded with, so changing them makes measurements out of
+# date (see the management command `reprocess_outdated`).
+TOPOBANK_PROCESSING_STEP_OPTIONS = {}

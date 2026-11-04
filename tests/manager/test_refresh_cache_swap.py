@@ -20,7 +20,7 @@ from django.db import transaction
 from django.db.models import JSONField
 
 from topobank.files.models import Manifest, ManifestSet
-from topobank.manager import processing
+from topobank.manager import processing, steps
 from topobank.manager.models import Topography, processing_storage_prefix
 from topobank.taskapp.models import TaskStateModel
 from topobank.taskapp.utils import run_task, task_dispatch
@@ -66,28 +66,24 @@ def _all_gone(keys):
 
 @contextlib.contextmanager
 def _after_writing(name, hook):
-    """Call `hook(written)` once the derived file `name` has been written."""
-    description, write = processing._DERIVED_WRITERS[name]
+    """Call `hook(None)` once the processing step `name` has written its files."""
+    step = steps.BUILTIN_STEPS[name]
+    write = step.write
 
-    def write_then_hook(st_topo, params, writer):
-        written = write(st_topo, params, writer)
-        hook(written)
-        return written
+    def write_then_hook(*args, **kwargs):
+        write(*args, **kwargs)
+        hook(None)
 
-    with mock.patch.dict(
-        processing._DERIVED_WRITERS, {name: (description, write_then_hook)}
-    ):
+    with mock.patch.object(step, "write", write_then_hook):
         yield
 
 
 @contextlib.contextmanager
 def _failing_to_write(name, exc):
-    description, _ = processing._DERIVED_WRITERS[name]
-
-    def fail(st_topo, params, writer):
+    def fail(*args, **kwargs):
         raise exc
 
-    with mock.patch.dict(processing._DERIVED_WRITERS, {name: (description, fail)}):
+    with mock.patch.object(steps.BUILTIN_STEPS[name], "write", fail):
         yield
 
 
@@ -157,7 +153,7 @@ def test_superseded_refresh_discards_its_files(broker, written):
         assert run_task(Topography.objects.get(pk=topo.pk), force=True)
 
     ct = ContentType.objects.get_for_model(Topography)
-    with _after_writing("squeezed_datafile", get_superseded):
+    with _after_writing("squeezed", get_superseded):
         task_dispatch.apply(args=[ct.id, topo.pk], task_id=str(task_id)).get()
 
     stored = Topography.objects.get(pk=topo.pk)
@@ -335,7 +331,7 @@ def test_a_failing_cleanup_does_not_mask_the_error(broker):
 
 
 @pytest.mark.django_db(transaction=True)
-@pytest.mark.parametrize("step", processing.DERIVED_NAMES)
+@pytest.mark.parametrize("step", steps.DEFAULT_STEPS)
 def test_running_out_of_time_fails_the_refresh_and_deletes_its_files(
     broker, written, step
 ):
@@ -377,7 +373,7 @@ def test_an_inline_refresh_racing_a_run_leaks_no_files(broker):
             inline_ids[:] = [inline.thumbnail_id, inline.squeezed_datafile_id]
 
     ct = ContentType.objects.get_for_model(Topography)
-    with _after_writing("squeezed_datafile", an_inline_refresh_lands):
+    with _after_writing("squeezed", an_inline_refresh_lands):
         task_dispatch.apply(args=[ct.id, topo.pk], task_id=str(topo.task_id)).get()
 
     assert None not in inline_ids
@@ -444,7 +440,7 @@ def test_a_measurement_deleted_during_an_inline_refresh_leaks_no_files(
     def get_deleted(_):
         Topography.objects.filter(pk=topo.pk).delete()
 
-    with _after_writing("squeezed_datafile", get_deleted):
+    with _after_writing("squeezed", get_deleted):
         topo.refresh_cache()
 
     assert _all_gone(written)
@@ -456,7 +452,7 @@ def test_a_failed_replacement_retires_the_old_file_once(broker, caplog):
     topo = Topography1DFactory()
     old_squeezed = topo.squeezed_datafile_id
 
-    with _failing_to_write("squeezed_datafile", OSError("storage unavailable")):
+    with _failing_to_write("squeezed", OSError("storage unavailable")):
         topo.refresh_cache()
 
     assert Topography.objects.get(pk=topo.pk).squeezed_datafile_id is None
@@ -641,7 +637,8 @@ def test_a_failed_file_whose_old_one_cannot_be_deleted_still_clears_the_field(
 
     with mock.patch.object(
         Topography, "_make_thumbnail", side_effect=OSError("render")
-    ), mock.patch.object(Manifest, "delete", side_effect=OSError("storage")):
+    ), mock.patch.object(ManifestSet, "delete", side_effect=OSError("storage")):
+        # The old derived folder is retired as a whole
         topo.make_thumbnail()  # none_on_error: must not raise
 
     assert Topography.objects.get(pk=topo.pk).thumbnail_id is None

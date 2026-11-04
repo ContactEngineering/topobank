@@ -135,6 +135,21 @@ Task processing
         ``topobank.manager.processing.inspect_datafile``, writes the derived files under
         ``Topography.processing_folder(task_id)`` and ends the run through
         ``Topography.apply_backend_result``. ``None`` processes in the Celery worker.
+    * - :code:`TOPOBANK_PROCESSING_STEPS`
+      - list
+      - :code:`['squeezed', 'thumbnail', 'deepzoom']`
+      - The processing steps that derive files from each measurement's data file
+        (``topobank.manager.steps``), by the name of a built-in step or the import path of a step
+        provided by another package. ``squeezed`` always runs. The files of all steps go into the
+        measurement's ``derived`` folder under names fixed by the steps. A step applies to the kinds of
+        measurement it chooses (``deepzoom`` to maps only). After a step is added, or its version or
+        options change, ``manage.py reprocess_outdated`` processes the measurements again whose files
+        are out of date.
+    * - :code:`TOPOBANK_PROCESSING_STEP_OPTIONS`
+      - dict
+      - :code:`{}`
+      - Options handed to the processing steps, by step name. They are part of the version a step's
+        files are recorded with, so changing them makes the measurements out of date.
     * - :code:`TOPOBANK_PROCESSING_STORAGE_PREFIX`
       - str
       - :code:`'data-lake/processing'`

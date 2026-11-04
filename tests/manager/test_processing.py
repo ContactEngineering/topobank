@@ -105,6 +105,16 @@ def _inspect(topo, run=None):
     return result, writer
 
 
+def _files(result, step):
+    """The names of the files `step` wrote, as an inspection `result` holds them."""
+    return [item["filename"] for item in result.derived[step]["files"]]
+
+
+def _thumbnail(result):
+    (item,) = result.derived["thumbnail"]["files"]
+    return item
+
+
 #
 # The compute half
 #
@@ -118,9 +128,12 @@ def test_inspection_needs_no_database(tmp_path):
 
     assert result.fields["resolution_x"] == 10
     assert result.fields["resolution_y"] == 10
-    assert result.derived["thumbnail"]["filename"] == "thumbnail.jpeg"
-    assert result.derived["squeezed_datafile"]["filename"] == "10x10-squeezed.nc"
-    assert any(f["filename"] == "dzi.json" for f in result.derived["deepzoom"])
+    assert result.fields["kind"] == "topography-map"
+    assert result.complete
+    assert _files(result, "thumbnail") == ["thumbnail.jpeg"]
+    assert _files(result, "squeezed") == ["squeezed.nc"]
+    assert "dzi.json" in _files(result, "deepzoom")
+    assert {entry["version"] for entry in result.derived.values()} == {"1"}
     for key in result.written_keys():
         assert os.path.getsize(os.path.join(str(tmp_path), key)) > 0
 
@@ -134,6 +147,8 @@ def test_a_line_scan_has_no_deep_zoom_images(tmp_path):
 
     assert "deepzoom" not in result.derived
     assert result.fields["resolution_y"] is None
+    # The fixture's positions are given explicitly
+    assert result.fields["kind"] == "nonuniform-line-scan"
 
 
 def test_incomplete_metadata_writes_no_derived_files(tmp_path):
@@ -169,8 +184,8 @@ def test_the_deep_zoom_images_share_one_folder(tmp_path):
     with open(os.path.join(FIXTURE_DATA_DIR, "10x10.txt"), "rb") as source:
         result = processing.inspect_datafile(source, _parameters(), writer)
 
-    for item in result.derived["deepzoom"]:
-        assert item["key"] == f"deepzoom/{item['filename']}"
+    for item in result.derived["deepzoom"]["files"]:
+        assert item["key"] == item["filename"]
 
 
 def test_parameters_survive_json():
@@ -251,9 +266,20 @@ def test_the_derived_files_are_referenced_where_they_were_written(broker, writte
 
     stored = Topography.objects.get(pk=topo.pk)
     prefix = processing_storage_prefix()
-    names = [stored.thumbnail.file.name, stored.squeezed_datafile.file.name]
-    names += [m.file.name for m in stored.deepzoom.files.all()]
+    names = [m.file.name for m in stored.derived.files.all()]
     assert sorted(names) == sorted(written)
+    # The deprecated fields point into the derived folder
+    assert stored.thumbnail.folder == stored.derived
+    assert stored.squeezed_datafile.folder == stored.derived
+    assert stored.deepzoom == stored.derived
+    assert stored.thumbnail.filename == "thumbnail.jpeg"
+    assert stored.squeezed_datafile.filename == "squeezed.nc"
+    assert stored.kind == "topography-map"
+    assert sorted(stored.processing_steps.values_list("name", "version")) == [
+        ("deepzoom", "1"),
+        ("squeezed", "1"),
+        ("thumbnail", "1"),
+    ]
     assert all(name.startswith(f"{prefix}/") for name in names)
     assert stored.squeezed_datafile.size_bytes == stored.squeezed_datafile.file.size
     assert stored.thumbnail.confirmed_at is not None
@@ -277,53 +303,69 @@ def written():
 @pytest.mark.parametrize(
     "tamper",
     [
-        pytest.param(lambda r: setattr(r, "version", 2), id="version"),
+        pytest.param(lambda r: setattr(r, "version", 1), id="version"),
         pytest.param(lambda r: r.fields.update(task_state="su"), id="task field"),
         pytest.param(lambda r: r.fields.update(name="renamed"), id="user field"),
         pytest.param(
             lambda r: r.derived.update(attachments=None), id="unknown derived file"
         ),
         pytest.param(
-            lambda r: r.derived["thumbnail"].update(key="uploads/1/raw.txt"),
+            lambda r: _thumbnail(r).update(key="uploads/1/raw.txt"),
             id="key outside the prefix",
         ),
         pytest.param(
-            lambda r: r.derived["thumbnail"].update(
-                key=r.derived["thumbnail"]["key"].rsplit("/thumbnail/", 1)[0]
-                + "/../../uploads/1/raw.txt"
+            lambda r: _thumbnail(r).update(
+                key=_thumbnail(r)["key"].rsplit("/", 1)[0] + "/../../uploads/1/raw.txt"
             ),
             id="key escaping the prefix",
         ),
         pytest.param(
-            lambda r: r.derived["thumbnail"].update(
-                key=r.derived["thumbnail"]["key"].rsplit("/thumbnail/", 1)[0]
+            lambda r: _thumbnail(r).update(
+                key=_thumbnail(r)["key"].rsplit("/", 1)[0]
                 + "/..\\..\\..\\uploads/1/raw.txt"
             ),
             id="key escaping the prefix with backslashes",
         ),
         pytest.param(
-            lambda r: r.derived["thumbnail"].update(
-                key=r.derived["thumbnail"]["key"].replace("/thumbnail/", "//thumbnail/")
+            lambda r: _thumbnail(r).update(
+                key=_thumbnail(r)["key"].replace("/thumbnail.", "//thumbnail.")
             ),
             id="key that storage would normalize",
         ),
         pytest.param(
-            lambda r: r.derived["squeezed_datafile"].update(
-                key=r.derived["thumbnail"]["key"]
+            lambda r: r.derived["squeezed"]["files"][0].update(
+                key=_thumbnail(r)["key"]
             ),
             id="one key for two files",
         ),
         pytest.param(
-            lambda r: r.derived.update(thumbnail={"filename": "thumbnail.jpeg"}),
+            lambda r: r.derived.update(
+                thumbnail={"version": "1", "files": [{"filename": "thumbnail.jpeg"}]}
+            ),
             id="file without a key",
         ),
         pytest.param(
-            lambda r: r.derived["thumbnail"].update(filename="t" * 256),
+            lambda r: _thumbnail(r).update(filename="t" * 256),
             id="file name too long",
         ),
+        pytest.param(lambda r: _thumbnail(r).update(size=-1), id="negative size"),
         pytest.param(
-            lambda r: r.derived["thumbnail"].update(size=-1), id="negative size"
+            lambda r: _thumbnail(r).update(filename="squeezed.nc"),
+            id="one name for two files",
         ),
+        pytest.param(
+            lambda r: _thumbnail(r).update(filename="/thumbnail.jpeg"),
+            id="absolute file name",
+        ),
+        pytest.param(
+            lambda r: r.derived["thumbnail"].update(error="both"),
+            id="files and an error",
+        ),
+        pytest.param(
+            lambda r: r.derived.update({"Not A Step": r.derived.pop("thumbnail")}),
+            id="malformed step name",
+        ),
+
     ],
 )
 def test_a_result_is_checked_before_anything_is_written(broker, tamper):
@@ -526,7 +568,7 @@ def test_a_run_recorded_outside_a_transaction_is_not_recorded_either_if_the_rece
     )
     assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.SUCCESS
     (work_left,) = cleaned_up
-    assert topo.thumbnail_id in work_left["manifests"]
+    assert topo.derived_id in work_left["folders"]
 
 
 @pytest.mark.django_db(transaction=True)
@@ -968,9 +1010,8 @@ def test_a_result_is_refused_with_a_folder_that_is_not_the_measurements(
         "other measurement": other.processing_folder(writer.prefix.rsplit("/", 1)[1]),
         "backslash": writer.prefix.replace("/", "\\", 1),
     }[folder]
-    for name, written in result.derived.items():
-        for item in written if isinstance(written, list) else [written]:
-            item["key"] = item["key"].replace(writer.prefix, prefix, 1)
+    for item in result.written_files():
+        item["key"] = item["key"].replace(writer.prefix, prefix, 1)
 
     for record in (
         Topography.objects.get(pk=topo.pk).apply_inspection,
@@ -1239,7 +1280,7 @@ def test_a_malformed_tile_fails_the_run_and_leaves_no_files(broker, backend):
     topo = Topography2DFactory(size_x=1, size_y=1)
     task_id = _start(topo)
     result, _ = _inspect(Topography.objects.get(pk=topo.pk), run=task_id)
-    result.derived["deepzoom"].append({"filename": "dzi_files/0/9_9.jpg"})
+    result.derived["deepzoom"]["files"].append({"filename": "dzi_files/0/9_9.jpg"})
 
     with pytest.raises(ValueError):
         Topography.objects.get(pk=topo.pk).apply_backend_result(task_id, result)
@@ -1672,16 +1713,14 @@ def test_a_retried_attempt_cannot_touch_the_files_of_the_one_recorded(
     assert sorted(_run_folder(topo, task_id)) == sorted(first.written_keys())
 
 
-def test_a_long_file_name_gets_a_squeezed_file_with_a_name_that_fits(tmp_path):
+def test_the_squeezed_file_has_a_fixed_name_whatever_the_data_file(tmp_path):
     writer = LocalWriter(str(tmp_path))
     with open(os.path.join(FIXTURE_DATA_DIR, "10x10.txt"), "rb") as source:
         result = processing.inspect_datafile(
             source, _parameters(filename="m" * 250 + ".txt"), writer
         )
 
-    name = result.derived["squeezed_datafile"]["filename"]
-    assert len(name) == processing.MAX_FILENAME_LENGTH
-    assert name.endswith("-squeezed.nc")
+    assert _files(result, "squeezed") == ["squeezed.nc"]
 
 
 @pytest.mark.django_db(transaction=True)

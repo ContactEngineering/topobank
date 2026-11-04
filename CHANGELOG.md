@@ -2,6 +2,24 @@
 
 # Unreleased
 
+- ENH: All derived files of a measurement are in one folder,
+  `Topography.derived`, under fixed names (`squeezed.nc`, `thumbnail.<format>`,
+  `dzi.json` and `dzi_files/...`); each processing replaces the folder as a
+  whole. `thumbnail`, `squeezed_datafile` and `deepzoom` are deprecated and
+  point into it. A migration moves the existing files there without copying
+  them in storage
+- ENH: Which derived files are generated is configurable: each is written by a
+  processing step (`topobank.manager.steps`), and `TOPOBANK_PROCESSING_STEPS`
+  lists the steps a deployment runs, including steps from other packages.
+  Metadata is still read centrally. `ProcessingStepRecord` records which version
+  of each step a measurement's files are of; `manage.py reprocess_outdated`
+  processes again those that are out of date
+- ENH: Measurement adapters (`topobank.manager.kinds`, ported from the
+  measurement-model work, without its JSON metadata) handle what depends on
+  the kind of measurement: topography map, uniform or nonuniform line scan.
+  The inspection records the kind in `Topography.kind`
+- MAINT: The inspection result of a processing backend is of version 2: its
+  `derived` holds an entry per processing step
 - ENH: `TOPOBANK_PROCESSING_BACKEND` names a callable that runs the processing
   of a measurement outside the Celery worker (on AWS Lambda, say) and ends the
   run through `Topography.apply_backend_result`; the custodian fails a run the
