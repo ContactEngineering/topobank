@@ -2,6 +2,12 @@
 
 # Unreleased
 
+- BUG: A workflow whose dependency is pending or running again when its chord
+  fires (another run's forced submit renewed the shared dependency in place)
+  waits for it instead of failing with "Dependency '<key>' failed." for a
+  dependency that then succeeds; `execute_workflow` re-queues itself every
+  30 s, for up to 6 h, before failing with a message naming the dependency
+  and its state. A dependency that failed without an error is now named too
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;

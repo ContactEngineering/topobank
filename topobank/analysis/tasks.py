@@ -298,12 +298,49 @@ def _fail_parent_on_dependency_failure(parent_id, dependency, request_id):
         )
 
 
+# How often, and how long in total, execute_workflow waits for a dependency
+# that is not finished when the run is due (see there). The limit covers a
+# long dependency computed by another run; a dependency whose worker died is
+# failed by the lost-task sweep, and then this run fails with its error.
+DEPENDENCY_WAIT_INTERVAL = 30  # seconds
+DEPENDENCY_WAIT_LIMIT = 6 * 3600  # seconds
+
+_STATE_WORDS = {
+    "no": "not started",
+    "pe": "pending",
+    "pd": "waiting for its own dependencies",
+    "st": "running",
+    "re": "being retried",
+}
+
+
+def _unfinished_dependency(analysis):
+    """The first dependency (key, WorkflowResult) of *analysis* that is neither
+    successful nor failed, or None."""
+    from .models import WorkflowResult
+
+    if not analysis.dependencies:
+        return None
+    states = dict(
+        WorkflowResult.objects.filter(
+            id__in=list(analysis.dependencies.values())
+        ).values_list("id", "task_state")
+    )
+    for key, dep_id in analysis.dependencies.items():
+        if states.get(dep_id) not in (WorkflowResult.SUCCESS, WorkflowResult.FAILURE):
+            if dep_id not in states:
+                continue  # deleted: the loading below reports it
+            return key, WorkflowResult.objects.get(id=dep_id)
+    return None
+
+
 @app.task(bind=True, soft_time_limit=TASK_SOFT_TIME_LIMIT, time_limit=TASK_TIME_LIMIT)
 def execute_workflow(
     self: celery.Task,
     analysis_id: int,
     is_dependency: bool = False,
     parent_id: int = None,
+    waited: int = 0,
 ):
     """Execute the actual workflow after dependencies are resolved.
 
@@ -324,6 +361,9 @@ def execute_workflow(
     parent_id : int, optional
         ID of the WorkflowResult whose scheduling triggered this run, when
         running as a dependency. (Default: None)
+    waited : int, optional
+        Seconds this run has already waited for unfinished dependencies (see
+        ``_unfinished_dependency``). (Default: 0)
     """
     from .models import RESULT_FILE_BASENAME, WorkflowResult
 
@@ -365,6 +405,58 @@ def execute_workflow(
         return
 
     #
+    # Wait for dependencies that are not finished. The chord fires when *its*
+    # header tasks are done, but a shared dependency can be pending or running
+    # again by then: another parent's forced submit renews it in place
+    # (prepare_dependency_tasks). Failing here reported "Dependency 'x'
+    # failed." for a dependency that went on to succeed. Re-queue instead,
+    # still PENDING_DEPENDENCIES (the lost-task sweep only reaps STARTED rows).
+    #
+    unfinished = _unfinished_dependency(analysis)
+    if unfinished is not None:
+        key, dep = unfinished
+        if self.request.is_eager or waited >= DEPENDENCY_WAIT_LIMIT:
+            # Eager: a countdown is ignored, so re-queueing would recurse.
+            error_msg = (
+                f"Dependency '{key}' ({dep.workflow_name} #{dep.id}) was still "
+                f"{_STATE_WORDS.get(dep.task_state, dep.task_state)} when this "
+                "workflow was due to start, probably because another run "
+                "submitted it again. Submit this workflow again."
+            )
+            analysis.task_state = WorkflowResult.FAILURE
+            analysis.task_error = error_msg
+            analysis.task_traceback = None
+            analysis.task_end_time = timezone.now()
+            analysis.save()
+            raise RuntimeError(error_msg)
+        _log.info(
+            "%s/%s: Dependency '%s' (id=%s) is in state '%s'; waiting %ss.",
+            analysis_id,
+            self.request.id,
+            key,
+            dep.id,
+            dep.task_state,
+            DEPENDENCY_WAIT_INTERVAL,
+        )
+        try:
+            queue = self.request.delivery_info["routing_key"]
+        except (TypeError, KeyError):
+            queue = None
+        task = execute_workflow.apply_async(
+            args=(analysis_id, is_dependency),
+            kwargs={
+                "parent_id": parent_id,
+                "waited": waited + DEPENDENCY_WAIT_INTERVAL,
+            },
+            countdown=DEPENDENCY_WAIT_INTERVAL,
+            queue=queue,
+        )
+        WorkflowResult.objects.filter(pk=analysis.pk).update(
+            task_state=WorkflowResult.PENDING_DEPENDENCIES, task_id=task.id
+        )
+        return
+
+    #
     # Update state to STARTED - we're now actually running the workflow
     #
     analysis.task_state = WorkflowResult.STARTED
@@ -393,7 +485,10 @@ def execute_workflow(
             if dep.task_state != WorkflowResult.SUCCESS:
                 # A dependency failed - we cannot proceed
                 # Copy error and traceback from the failed dependency
-                error_msg = dep.task_error or f"Dependency '{key}' failed."
+                error_msg = dep.task_error or (
+                    f"Dependency '{key}' ({dep.workflow_name} #{dep.id}) failed "
+                    "without an error message."
+                )
                 analysis.task_state = WorkflowResult.FAILURE
                 analysis.task_error = error_msg
                 analysis.task_traceback = dep.task_traceback
