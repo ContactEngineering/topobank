@@ -2,6 +2,8 @@
 
 # Unreleased
 
+- BUG: A new management command repairs the attachments of datasets published before
+  February 2025, which could not be listed
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;
