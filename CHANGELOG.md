@@ -2,11 +2,8 @@
 
 # Unreleased
 
-- BUG: `fix_attachment_permissions` management command repairs attachment
-  folders of datasets copied (published) before 2025-01-23, which kept the
-  private original's permissions so that listing them was a 404; a folder
-  still shared with the original measurement is copied rather than opened
-  up (#1414)
+- BUG: A new management command repairs the attachments of datasets published before
+  February 2025, which could not be listed
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;
