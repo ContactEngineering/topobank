@@ -52,6 +52,16 @@ def _parent_of(topo, dep):
     return parent
 
 
+def _delayed_run(parent, waited, task_id="4f1c0d2e-0000-0000-0000-00000000000a"):
+    """A re-queued run as Celery delivers it: the row was claimed for its task
+    id (execute_workflow does that before re-queueing), and the run arrives
+    with that id."""
+    WorkflowResult.objects.filter(pk=parent.pk).update(task_id=task_id)
+    return execute_workflow.apply(
+        args=(parent.id,), kwargs={"waited": waited}, task_id=task_id, throw=True
+    )
+
+
 @pytest.mark.django_db
 @pytest.mark.parametrize("state", [WorkflowResult.PENDING, WorkflowResult.STARTED])
 @pytest.mark.parametrize("via_apply", [False, True])
@@ -145,7 +155,7 @@ def test_runs_once_the_dependency_has_succeeded(two_topos, test_workflow, worker
     parent = _parent_of(topo, dep)
 
     with patch.object(execute_workflow, "apply_async") as requeue:
-        execute_workflow(parent.id, waited=DEPENDENCY_WAIT_INTERVAL)
+        _delayed_run(parent, waited=DEPENDENCY_WAIT_INTERVAL)
 
     requeue.assert_not_called()
     parent.refresh_from_db()
@@ -164,7 +174,7 @@ def test_gives_up_after_the_wait_limit_with_a_clear_message(
         patch.object(execute_workflow, "apply_async") as requeue,
         pytest.raises(RuntimeError),
     ):
-        execute_workflow(parent.id, waited=DEPENDENCY_WAIT_LIMIT)
+        _delayed_run(parent, waited=DEPENDENCY_WAIT_LIMIT)
 
     requeue.assert_not_called()
     parent.refresh_from_db()
@@ -231,3 +241,57 @@ def test_a_failed_dependency_is_reported_even_if_another_is_unfinished(
     assert parent.task_state == WorkflowResult.FAILURE
     assert parent.task_error == "Out of memory"
     assert parent.task_traceback == "Traceback: ..."
+
+
+@pytest.mark.django_db
+def test_a_delayed_run_superseded_by_a_resubmission_does_nothing(
+    two_topos, test_workflow, worker_mode
+):
+    """An old waiter arriving after the workflow was submitted again must
+    neither act for the new run nor fail it with its own wait budget."""
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.PENDING)
+    parent = _parent_of(topo, dep)
+    old, resubmission = (
+        "4f1c0d2e-0000-0000-0000-0000000000b1",
+        "4f1c0d2e-0000-0000-0000-0000000000b2",
+    )
+    # The row was claimed for the old waiter, then a resubmission took it over
+    WorkflowResult.objects.filter(pk=parent.pk).update(task_id=resubmission)
+
+    with patch.object(execute_workflow, "apply_async") as requeue:
+        execute_workflow.apply(
+            args=(parent.id,),
+            kwargs={"waited": DEPENDENCY_WAIT_LIMIT},
+            task_id=old,
+            throw=True,
+        )
+
+    requeue.assert_not_called()
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.PENDING_DEPENDENCIES
+    assert str(parent.task_id) == resubmission
+
+
+@pytest.mark.django_db
+def test_a_failed_requeue_does_not_leave_the_workflow_waiting(
+    two_topos, test_workflow, worker_mode
+):
+    """If publishing the re-queued task fails, the row must not keep pointing to
+    a task that never runs: the lost-task sweep skips waiting rows."""
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.PENDING)
+    parent = _parent_of(topo, dep)
+
+    with (
+        patch.object(
+            execute_workflow, "apply_async", side_effect=ConnectionError("broker down")
+        ),
+        pytest.raises(ConnectionError),
+    ):
+        execute_workflow(parent.id)
+
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.FAILURE
+    assert "could not be queued again" in parent.task_error
+    assert "broker down" in parent.task_error

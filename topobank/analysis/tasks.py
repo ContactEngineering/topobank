@@ -433,6 +433,24 @@ def execute_workflow(
         return
 
     #
+    # A delayed (re-queued) run owns the row only while the row still carries
+    # the task id it was queued with. If the workflow was submitted again in
+    # between, the row has a new task id: this run is stale and must neither
+    # act for the new run nor fail it with its own wait budget. The first run
+    # (waited == 0) is handed over with .apply() by schedule_workflow, under a
+    # different id, so it is not checked here.
+    #
+    if waited > 0 and str(analysis.task_id) != str(self.request.id):
+        _log.info(
+            "%s/%s: Not continuing to wait: the workflow was submitted again "
+            "meanwhile (now task %s).",
+            analysis_id,
+            self.request.id,
+            analysis.task_id,
+        )
+        return
+
+    #
     # Check the dependencies, from a single read (_read_dependencies), before
     # marking this run STARTED:
     # - A failed (or deleted) dependency fails this run with its error. This is
@@ -546,17 +564,36 @@ def execute_workflow(
         # Under .apply() the request has no routing key; keep the queue passed
         # by schedule_workflow then.
         queue = (self.request.delivery_info or {}).get("routing_key") or queue
-        execute_workflow.apply_async(
-            args=(analysis_id, is_dependency),
-            kwargs={
-                "parent_id": parent_id,
-                "waited": waited + DEPENDENCY_WAIT_INTERVAL,
-                "queue": queue,
-            },
-            countdown=DEPENDENCY_WAIT_INTERVAL,
-            queue=queue,
-            task_id=next_task_id,
-        )
+        try:
+            execute_workflow.apply_async(
+                args=(analysis_id, is_dependency),
+                kwargs={
+                    "parent_id": parent_id,
+                    "waited": waited + DEPENDENCY_WAIT_INTERVAL,
+                    "queue": queue,
+                },
+                countdown=DEPENDENCY_WAIT_INTERVAL,
+                queue=queue,
+                task_id=next_task_id,
+            )
+        except Exception as exc:
+            # The row now points to a task that was never published. The
+            # failure handler of this task cannot find it by this task's id,
+            # and the lost-task sweep skips waiting rows, so it would wait
+            # forever. Fail it, unless something else took it over meanwhile.
+            WorkflowResult.objects.filter(
+                pk=analysis.pk,
+                task_state=WorkflowResult.PENDING_DEPENDENCIES,
+                task_id=next_task_id,
+            ).update(
+                task_state=WorkflowResult.FAILURE,
+                task_error=(
+                    f"This workflow could not be queued again while waiting for "
+                    f"dependency '{key}' ({exc}). Submit this workflow again."
+                ),
+                task_end_time=timezone.now(),
+            )
+            raise
         return
 
     #
