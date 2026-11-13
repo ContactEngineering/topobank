@@ -256,7 +256,8 @@ def schedule_workflow(
     # schedule_workflow as "complete" while execute_workflow is still running.
     _log.debug(f"{analysis_id}/{self.request.id}: Calling execute_workflow directly.")
     execute_workflow.apply(
-        args=(analysis.id, is_dependency), kwargs={"parent_id": parent_id}
+        args=(analysis.id, is_dependency),
+        kwargs={"parent_id": parent_id, "queue": celery_queue},
     )
 
 
@@ -298,12 +299,73 @@ def _fail_parent_on_dependency_failure(parent_id, dependency, request_id):
         )
 
 
+# How often, and how long in total, execute_workflow waits for a dependency
+# that is not finished when the run is due (see there). The limit covers a
+# long dependency computed by another run; a dependency whose worker died is
+# failed by the lost-task sweep, and then this run fails with its error.
+DEPENDENCY_WAIT_INTERVAL = 30  # seconds
+DEPENDENCY_WAIT_LIMIT = 6 * 3600  # seconds
+
+_STATE_WORDS = {
+    "no": "not started",
+    "pe": "pending",
+    "pd": "waiting for its own dependencies",
+    "st": "running",
+    "re": "being retried",
+}
+
+
+def _read_dependencies(analysis):
+    """The dependencies of *analysis* as a list of (key, id, WorkflowResult),
+    read in one query; the WorkflowResult is None for a deleted dependency.
+
+    execute_workflow decides whether to wait and what to load from this single
+    read, so a dependency renewed in between cannot be loaded as unfinished.
+    Integer-like keys are converted back to int: JSON only has string keys, but
+    workflows index dependencies by e.g. surface.id.
+    """
+    from .models import WorkflowResult
+
+    if not analysis.dependencies:
+        return []
+    rows = WorkflowResult.objects.in_bulk(list(analysis.dependencies.values()))
+    deps = []
+    for key, dep_id in analysis.dependencies.items():
+        try:
+            key = int(key)
+        except ValueError:
+            pass  # Keep as string if not a valid integer
+        deps.append((key, dep_id, rows.get(dep_id)))
+    return deps
+
+
+def _update_unless_superseded(analysis, **fields):
+    """Write *fields* to the row of *analysis* only if its state and task id are
+    still the ones this run read. Returns whether the row was updated.
+
+    Between that read and this write, a dependency's worker can fail the parent
+    (_fail_parent_on_dependency_failure) or a resubmission can take the row
+    over with a new task id; a stale run must not undo either.
+    """
+    from .models import WorkflowResult
+
+    return bool(
+        WorkflowResult.objects.filter(
+            pk=analysis.pk,
+            task_state=analysis.task_state,
+            task_id=analysis.task_id,
+        ).update(**fields)
+    )
+
+
 @app.task(bind=True, soft_time_limit=TASK_SOFT_TIME_LIMIT, time_limit=TASK_TIME_LIMIT)
 def execute_workflow(
     self: celery.Task,
     analysis_id: int,
     is_dependency: bool = False,
     parent_id: int = None,
+    waited: int = 0,
+    queue: str = None,
 ):
     """Execute the actual workflow after dependencies are resolved.
 
@@ -324,6 +386,12 @@ def execute_workflow(
     parent_id : int, optional
         ID of the WorkflowResult whose scheduling triggered this run, when
         running as a dependency. (Default: None)
+    waited : int, optional
+        Seconds this run has already waited for unfinished dependencies (see
+        the dependency check below). (Default: 0)
+    queue : str, optional
+        Queue to re-queue on while waiting, when the request does not carry
+        one: schedule_workflow runs this task with ``.apply()``. (Default: None)
     """
     from .models import RESULT_FILE_BASENAME, WorkflowResult
 
@@ -365,6 +433,170 @@ def execute_workflow(
         return
 
     #
+    # A delayed (re-queued) run owns the row only while the row still carries
+    # the task id it was queued with. If the workflow was submitted again in
+    # between, the row has a new task id: this run is stale and must neither
+    # act for the new run nor fail it with its own wait budget. The first run
+    # (waited == 0) is handed over with .apply() by schedule_workflow, under a
+    # different id, so it is not checked here.
+    #
+    if waited > 0 and str(analysis.task_id) != str(self.request.id):
+        _log.info(
+            "%s/%s: Not continuing to wait: the workflow was submitted again "
+            "meanwhile (now task %s).",
+            analysis_id,
+            self.request.id,
+            analysis.task_id,
+        )
+        return
+
+    #
+    # Check the dependencies, from a single read (_read_dependencies), before
+    # marking this run STARTED:
+    # - A failed (or deleted) dependency fails this run with its error. This is
+    #   checked first, so another, unfinished dependency cannot mask it.
+    # - An unfinished one is waited for. The chord fires when *its* header tasks
+    #   are done, but a shared dependency can be pending or running again by
+    #   then: another parent's forced submit renews it in place
+    #   (prepare_dependency_tasks). Failing here reported "Dependency 'x'
+    #   failed." for a dependency that went on to succeed. Re-queue instead,
+    #   still PENDING_DEPENDENCIES (the lost-task sweep only reaps STARTED rows).
+    # All writes here are guarded (_update_unless_superseded).
+    #
+    dependencies = _read_dependencies(analysis)
+
+    def fail_before_start(error_msg, traceback=None):
+        if not _update_unless_superseded(
+            analysis,
+            task_state=WorkflowResult.FAILURE,
+            task_error=error_msg,
+            task_traceback=traceback,
+            task_end_time=timezone.now(),
+        ):
+            _log.info(
+                "%s/%s: Not failing this run (%s): the workflow changed state "
+                "or was submitted again meanwhile.",
+                analysis_id,
+                self.request.id,
+                error_msg,
+            )
+            return
+        # Raise so Celery reports task_failure (not task_success)
+        raise RuntimeError(error_msg)
+
+    for key, dep_id, dep in dependencies:
+        if dep is None:
+            _log.warning(
+                "%s/%s: Dependency '%s' (id=%s) no longer exists.",
+                analysis_id,
+                self.request.id,
+                key,
+                dep_id,
+            )
+            return fail_before_start(
+                f"Dependency '{key}' (#{dep_id}) no longer exists. "
+                "Submit this workflow again."
+            )
+        if dep.task_state == WorkflowResult.FAILURE:
+            # Copy error and traceback from the failed dependency
+            _log.warning(
+                "%s/%s: Dependency '%s' (id=%s) failed, cannot execute workflow.",
+                analysis_id,
+                self.request.id,
+                key,
+                dep_id,
+            )
+            return fail_before_start(
+                dep.task_error
+                or (
+                    f"Dependency '{key}' ({dep.workflow_name} #{dep.id}) failed "
+                    "without an error message."
+                ),
+                dep.task_traceback,
+            )
+
+    unfinished = next(
+        (
+            (key, dep)
+            for key, _, dep in dependencies
+            if dep.task_state != WorkflowResult.SUCCESS
+        ),
+        None,
+    )
+    if unfinished is not None:
+        key, dep = unfinished
+        # Not request.is_eager: schedule_workflow runs this task with .apply()
+        # on real workers too, where a countdown is honoured. Only with
+        # task_always_eager is it ignored, and re-queueing would recurse.
+        if self.app.conf.task_always_eager or waited >= DEPENDENCY_WAIT_LIMIT:
+            return fail_before_start(
+                f"Dependency '{key}' ({dep.workflow_name} #{dep.id}) was still "
+                f"{_STATE_WORDS.get(dep.task_state, dep.task_state)} when this "
+                "workflow was due to start, probably because another run "
+                "submitted it again. Submit this workflow again."
+            )
+        # Claim the row for the re-queued task before publishing it, so a stale
+        # run neither re-opens a parent that failed meanwhile nor takes over a
+        # resubmission's row (and publishes nothing).
+        next_task_id = celery.uuid()
+        if not _update_unless_superseded(
+            analysis,
+            task_state=WorkflowResult.PENDING_DEPENDENCIES,
+            task_id=next_task_id,
+        ):
+            _log.info(
+                "%s/%s: Not waiting for dependency '%s': the workflow changed "
+                "state or was submitted again meanwhile.",
+                analysis_id,
+                self.request.id,
+                key,
+            )
+            return
+        _log.info(
+            "%s/%s: Dependency '%s' (id=%s) is in state '%s'; waiting %ss.",
+            analysis_id,
+            self.request.id,
+            key,
+            dep.id,
+            dep.task_state,
+            DEPENDENCY_WAIT_INTERVAL,
+        )
+        # Under .apply() the request has no routing key; keep the queue passed
+        # by schedule_workflow then.
+        queue = (self.request.delivery_info or {}).get("routing_key") or queue
+        try:
+            execute_workflow.apply_async(
+                args=(analysis_id, is_dependency),
+                kwargs={
+                    "parent_id": parent_id,
+                    "waited": waited + DEPENDENCY_WAIT_INTERVAL,
+                    "queue": queue,
+                },
+                countdown=DEPENDENCY_WAIT_INTERVAL,
+                queue=queue,
+                task_id=next_task_id,
+            )
+        except Exception as exc:
+            # The row now points to a task that was never published. The
+            # failure handler of this task cannot find it by this task's id,
+            # and the lost-task sweep skips waiting rows, so it would wait
+            # forever. Fail it, unless something else took it over meanwhile.
+            WorkflowResult.objects.filter(
+                pk=analysis.pk,
+                task_state=WorkflowResult.PENDING_DEPENDENCIES,
+                task_id=next_task_id,
+            ).update(
+                task_state=WorkflowResult.FAILURE,
+                task_error=(
+                    f"This workflow could not be queued again while waiting for "
+                    f"dependency '{key}' ({exc}). Submit this workflow again."
+                ),
+                task_end_time=timezone.now(),
+            )
+            raise
+        return
+
+    #
     # Update state to STARTED - we're now actually running the workflow
     #
     analysis.task_state = WorkflowResult.STARTED
@@ -375,41 +607,8 @@ def execute_workflow(
     analysis.configuration = get_current_configuration()
     analysis.save()
 
-    #
-    # Load finished dependencies
-    #
-    finished_dependencies = {}
-    if analysis.dependencies:
-        for key, dep_id in analysis.dependencies.items():
-            # Convert JSON string key back to integer if it represents an integer.
-            # JSON only supports string keys, so integer keys (e.g., surface.id)
-            # get serialized as strings. We need to convert them back for workflow
-            # implementations that use integer keys to access dependencies.
-            try:
-                key = int(key)
-            except ValueError:
-                pass  # Keep as string if not a valid integer
-            dep = WorkflowResult.objects.get(id=dep_id)
-            if dep.task_state != WorkflowResult.SUCCESS:
-                # A dependency failed - we cannot proceed
-                # Copy error and traceback from the failed dependency
-                error_msg = dep.task_error or f"Dependency '{key}' failed."
-                analysis.task_state = WorkflowResult.FAILURE
-                analysis.task_error = error_msg
-                analysis.task_traceback = dep.task_traceback
-                analysis.task_end_time = timezone.now()
-                analysis.save()
-                _log.warning(
-                    "%s/%s: Dependency '%s' (id=%s) is in state '%s', cannot execute workflow.",
-                    analysis_id,
-                    self.request.id,
-                    key,
-                    dep_id,
-                    dep.task_state,
-                )
-                # Raise so Celery reports task_failure (not task_success)
-                raise RuntimeError(error_msg)
-            finished_dependencies[key] = dep
+    # All dependencies succeeded (checked above, from the same read)
+    finished_dependencies = {key: dep for key, _, dep in dependencies}
 
     def save_result(result, task_state, peak_memory=None, dois=set(), timer=None):
         analysis.task_state = task_state

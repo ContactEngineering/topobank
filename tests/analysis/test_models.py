@@ -135,10 +135,10 @@ def test_current_configuration(settings):
             "https://github.com/IMTEK-Simulation/NuMPI",
         ),
         (
-            "muGrid",
-            "muGrid.__version__",
-            "LGPL-3.0",
-            "https://github.com/muSpectre/muGrid",
+            "scipy",
+            "scipy.__version__",
+            "BSD 3-Clause",
+            "https://scipy.org/",
         ),
         (
             "topobank",
@@ -158,20 +158,20 @@ def test_current_configuration(settings):
 
     v1, v2, v3, v4, v5 = versions
 
-    import muGrid
-
-    assert v1.dependency.import_name == "muGrid"
-    assert v1.number_as_string() == muGrid.__version__
-
     import NuMPI
 
-    assert v2.dependency.import_name == "NuMPI"
-    assert v2.number_as_string() == NuMPI.__version__
+    assert v1.dependency.import_name == "NuMPI"
+    assert v1.number_as_string() == NuMPI.__version__
 
     import numpy
 
-    assert v3.dependency.import_name == "numpy"
-    assert v3.number_as_string() == numpy.version.full_version
+    assert v2.dependency.import_name == "numpy"
+    assert v2.number_as_string() == numpy.version.full_version
+
+    import scipy
+
+    assert v3.dependency.import_name == "scipy"
+    assert v3.number_as_string() == scipy.__version__
 
     import SurfaceTopography
 
