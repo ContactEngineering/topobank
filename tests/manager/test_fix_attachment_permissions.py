@@ -134,3 +134,69 @@ def test_is_idempotent_and_leaves_correct_folders_alone(
     assert "Shared folders copied for an object: 0" in out
     original.refresh_from_db()
     assert (original.attachments_id, original.attachments.permissions_id) == folder_before
+
+
+#
+# Attachments added after publication must stay private (review of #1429)
+#
+
+
+def _age(obj, days):
+    """Backdate an object (a surface, topography or manifest) by `days`."""
+    from django.utils import timezone
+
+    then = timezone.now() - timezone.timedelta(days=days)
+    fields = {"created_at": then}
+    if hasattr(obj, "confirmed_at"):
+        fields.update(updated_at=then, confirmed_at=then)
+    type(obj).objects.filter(pk=obj.pk).update(**fields)
+
+
+@pytest.mark.django_db
+def test_files_added_to_shared_folder_after_publication_are_not_copied(
+    capsys, user_bob, original, published
+):
+    original_topography = Topography2DFactory(surface=original)
+    _attach(original_topography, "published.txt", b"Part of the publication")
+    copied_topography = Topography2DFactory(surface=published)
+    Topography.all_objects.filter(pk=copied_topography.pk).update(
+        attachments=original_topography.attachments
+    )
+    # The copy was made two days ago, from a folder with one older file ...
+    for manifest in original_topography.attachments.files.all():
+        _age(manifest, days=3)
+    _age(copied_topography, days=2)
+    # ... and the owner added a private file to their original afterwards
+    _attach(original_topography, "private.txt", b"Added after publication")
+
+    _run()
+
+    copied_topography.refresh_from_db()
+    filenames = set(copied_topography.attachments.files.values_list("filename", flat=True))
+    assert filenames == {"published.txt"}
+    assert "NEEDS REVIEW" in capsys.readouterr().out
+    # The private file stays in the private original only
+    original_topography.refresh_from_db()
+    assert original_topography.attachments.files.filter(filename="private.txt").exists()
+    assert original_topography.attachments_id not in _visible_folder_ids(user_bob)
+
+
+@pytest.mark.django_db
+def test_folder_with_files_newer_than_publication_is_not_switched(
+    capsys, user_bob, surface_with_foreign_permissions
+):
+    published = surface_with_foreign_permissions
+    for manifest in published.attachments.files.all():
+        _age(manifest, days=3)
+    _age(published, days=2)
+    _attach(published, "later.txt", b"Added after publication")
+    folder_permissions = published.attachments.permissions_id
+
+    _run()
+
+    published.refresh_from_db()
+    # Switching would publish the newer file, so the folder is left for review
+    assert published.attachments.permissions_id == folder_permissions
+    assert published.attachments_id not in _visible_folder_ids(user_bob)
+    out = capsys.readouterr().out
+    assert "NEEDS REVIEW" in out and "later.txt" in out
