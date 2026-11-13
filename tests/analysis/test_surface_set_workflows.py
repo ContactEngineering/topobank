@@ -355,3 +355,43 @@ def test_file_storage_path_uses_data_lake_for_non_raw_kinds(kind):
 def test_file_storage_path_raises_for_unsaved_instance():
     with pytest.raises(RuntimeError):
         file_storage_path(_stub_manifest(None, "raw"), "x.txt")
+
+
+#
+# Authorization (issue #1347)
+#
+
+
+@pytest.mark.django_db
+def test_submit_for_surfaces_refuses_surface_user_cannot_see(
+    test_workflow, user_alice, user_bob
+):
+    from django.http import Http404
+
+    own = SurfaceFactory(created_by=user_alice)
+    foreign = SurfaceFactory(created_by=user_bob)
+
+    # Like `submit`, a surface the user has no access to is reported as not
+    # found, so its existence is not revealed
+    with pytest.raises(Http404):
+        test_workflow.submit_for_surfaces(user=user_alice, surfaces=[own, foreign])
+    with pytest.raises(Http404):
+        test_workflow.submit_for_surfaces(
+            user=user_alice, surfaces=[foreign], ignore_existing=True
+        )
+    assert not WorkflowResult.objects.filter(surfaces=foreign).exists()
+
+
+@pytest.mark.django_db
+def test_submit_for_surfaces_accepts_surface_shared_with_user(
+    test_workflow, user_alice, user_bob
+):
+    own = SurfaceFactory(created_by=user_alice)
+    shared = SurfaceFactory(created_by=user_bob)
+    shared.grant_permission(user_alice, "view")
+
+    analysis = test_workflow.submit_for_surfaces(
+        user=user_alice, surfaces=[own, shared]
+    )
+
+    assert set(analysis.surfaces.values_list("id", flat=True)) == {own.id, shared.id}

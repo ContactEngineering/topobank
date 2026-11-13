@@ -2,6 +2,7 @@
 
 # Unreleased
 
+- BUG: Analyses of several datasets at once require access to every one of them
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;
