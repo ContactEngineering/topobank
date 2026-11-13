@@ -967,9 +967,11 @@ class Workflow:
 
         surface_set = SurfaceSet(surfaces=[s.id for s in surfaces])
 
-        # Permission checks (commented out during initial implementation)
-        # for surface in surfaces:
-        #     surface.authorize_user(user, "view")
+        # The user must be allowed to see every surface of the set, as in
+        # `submit` for a single subject: the result exposes data derived from all
+        # of them.
+        for surface in surfaces:
+            surface.authorize_user(user, "view")
 
         kwargs = self.clean_kwargs(kwargs)
 
