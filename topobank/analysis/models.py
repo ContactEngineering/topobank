@@ -848,8 +848,13 @@ class Workflow:
             f"{type(subject).__name__}:{subject.id}",
             json.dumps(kwargs, sort_keys=True, default=str),
         ):
-            # All existing WorkflowResults for this subject and parameter set
-            existing_analyses = WorkflowResult.objects.for_user(user).filter(q)
+            # All current WorkflowResults for this subject and parameter set.
+            # Deprecated ones were computed from data that has changed since
+            # (e.g. instrument parameters); they must neither be returned nor
+            # deleted here, the custodian removes them after a delay.
+            existing_analyses = WorkflowResult.objects.for_user(user).filter(
+                q, deprecation_time__isnull=True
+            )
 
             # WorkflowResults, excluding those that have failed or that have not
             # been submitted to the task queue for some reason (state "no"t run)
@@ -988,10 +993,12 @@ class Workflow:
             json.dumps(kwargs, sort_keys=True, default=str),
         ):
             # Dedup check using subject_hash
+            # (Deprecated results are skipped, see Workflow.submit.)
             existing = WorkflowResult.objects.filter(
                 workflow_name=self.name,
                 subject_hash=surface_set.subject_hash,
                 kwargs=kwargs,
+                deprecation_time__isnull=True,
             )
 
             successful_or_running = existing.filter(

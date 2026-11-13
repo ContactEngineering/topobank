@@ -217,9 +217,13 @@ class AnalysisController:
         ) and self._kwargs is None:
             return []
 
-        # Query for user, function and subjects
-        query = Q(permissions__user_permissions__user=self._user) & Q(
-            workflow_name=self._workflow.name
+        # Query for user, function and subjects. Deprecated results were
+        # computed from data that has changed since; leaving them out makes
+        # their subjects count as missing, so they are computed again.
+        query = (
+            Q(permissions__user_permissions__user=self._user)
+            & Q(workflow_name=self._workflow.name)
+            & Q(deprecation_time__isnull=True)
         )
 
         # Query for subjects
