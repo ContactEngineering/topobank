@@ -19,7 +19,8 @@ from ..taskapp.memory import track_memory_usage
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
-from .sizing import check_memory_budget
+from .exceptions import AnalysisTooLargeError
+from .sizing import check_memory_budget, memory_refusal_metadata
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)
@@ -515,6 +516,13 @@ def execute_workflow(
         analysis.task_state = WorkflowResult.FAILURE
         analysis.task_traceback = traceback.format_exc().replace("\x00", "")
         analysis.task_error = str(exc).replace("\x00", "")
+        if isinstance(exc, AnalysisTooLargeError):
+            # Mark the refusal, so that it is tried again later (see
+            # `sizing.is_retryable_memory_refusal`) instead of standing forever
+            analysis.metadata = {
+                **(analysis.metadata or {}),
+                **memory_refusal_metadata(exc),
+            }
         # Persist the timings recorded up to the failure: for timeouts this is
         # what distinguishes "one stage stalled for an hour" from "many stages,
         # each fast, exceeded the budget together". muTimer records in a

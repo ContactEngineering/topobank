@@ -68,6 +68,7 @@ from django.db.models import BigIntegerField, F, Max, Value
 from django.db.models.functions import Cast, Coalesce
 from django.template.defaultfilters import filesizeformat
 from django.utils import timezone
+from django.utils.dateparse import parse_datetime
 
 from .exceptions import AnalysisTooLargeError
 
@@ -253,6 +254,51 @@ def estimate_memory(analysis):
     # factor - the spread the factor absorbs is in the per-point cost, not in
     # the interpreter footprint.
     return int(baseline + points * coefficient * safety_factor)
+
+
+#: Key in `WorkflowResult.metadata` that marks a result refused by the memory guard
+MEMORY_REFUSAL_KEY = "memory_refusal"
+
+#: Seconds after which a refused analysis is tried again
+DEFAULT_REFUSAL_RETRY_INTERVAL = 24 * 60 * 60
+
+
+def memory_refusal_metadata(exc: AnalysisTooLargeError) -> dict:
+    """Metadata recording that the memory guard refused an analysis."""
+    return {
+        MEMORY_REFUSAL_KEY: {
+            "estimate": exc.estimate,
+            "budget": exc.budget,
+            "refused_at": timezone.now().isoformat(),
+        }
+    }
+
+
+def is_retryable_memory_refusal(analysis, now=None) -> bool:
+    """
+    Whether `analysis` was refused by the memory guard long enough ago to try it
+    again.
+
+    A refusal depends on the learned memory coefficients and the budget, which
+    both change over time, and refusals have been wrong before (#1393, #1406). A
+    refused result therefore counts as missing again after
+    `TOPOBANK_ANALYSIS_REFUSAL_RETRY_INTERVAL` seconds, so the next view resubmits
+    it; if it is still too large, that costs one quick, refused task. Retrying
+    on every view instead would queue a task each time a page is opened.
+    """
+    if analysis.task_state != analysis.FAILURE:
+        return False
+    refusal = (analysis.metadata or {}).get(MEMORY_REFUSAL_KEY)
+    if not refusal:
+        return False
+    refused_at = parse_datetime(refusal.get("refused_at") or "")
+    if refused_at is None:
+        return True
+    interval = _setting(
+        "TOPOBANK_ANALYSIS_REFUSAL_RETRY_INTERVAL", DEFAULT_REFUSAL_RETRY_INTERVAL
+    )
+    now = now or timezone.now()
+    return refused_at <= now - timedelta(seconds=interval)
 
 
 def check_memory_budget(analysis):

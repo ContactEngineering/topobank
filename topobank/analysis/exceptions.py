@@ -10,6 +10,16 @@ class AnalysisTooLargeError(Exception):
         self._budget = budget
         super().__init__(estimate, budget)
 
+    @property
+    def estimate(self):
+        """Predicted memory in bytes."""
+        return self._estimate
+
+    @property
+    def budget(self):
+        """Memory available to a single analysis in bytes."""
+        return self._budget
+
     def __str__(self):
         from django.template.defaultfilters import filesizeformat
 
