@@ -2,6 +2,9 @@
 
 # Unreleased
 
+- BUG: Admins are emailed (at most once a day per file) when a stored file
+  that should exist is missing, and reading it raises a clear error
+- BUG: A container export that fails part-way no longer leaves its archive open
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;

@@ -40,6 +40,7 @@ from ..authorization.models import (
     SurfaceTopographyManager,
     ViewEditFull,
 )
+from ..files.missing import missing_file_guard
 from ..files.models import Manifest, ManifestSet
 from ..settings import defaults
 from ..taskapp.models import IncompleteMetadataError, TaskStateModel
@@ -1240,10 +1241,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
                 )
 
             # Okay, we can use the squeezed datafile, it's already there.
-            toporeader = get_topography_reader(
-                self.squeezed_datafile.file, format=SQUEEZED_DATAFILE_FORMAT
-            )
-            topo = toporeader.topography(info=self._reader_info() or {})
+            with missing_file_guard(self.squeezed_datafile):
+                toporeader = get_topography_reader(
+                    self.squeezed_datafile.file, format=SQUEEZED_DATAFILE_FORMAT
+                )
+                topo = toporeader.topography(info=self._reader_info() or {})
             # In the squeezed format, these things are already applied/included:
             # unit, scaling, detrending, physical sizes
             # so don't need to provide them to the .topography() method
@@ -1255,10 +1257,11 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         if topo is None:
             if self.datafile.exists():
                 # Read raw file if squeezed file is unavailable
-                toporeader = get_topography_reader(
-                    self.datafile.file, format=self.datafile_format
-                )
-                topo = self._read(toporeader, apply_filters=apply_filters)
+                with missing_file_guard(self.datafile):
+                    toporeader = get_topography_reader(
+                        self.datafile.file, format=self.datafile_format
+                    )
+                    topo = self._read(toporeader, apply_filters=apply_filters)
             else:
                 raise RuntimeError(
                     f"Topography {self.id} does not appear to have a data file."
@@ -1680,7 +1683,8 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
 
         # Open topography file
         with timer("get_topography_reader"):
-            reader = get_topography_reader(self.datafile.file)
+            with missing_file_guard(self.datafile):
+                reader = get_topography_reader(self.datafile.file)
             self.datafile_format = reader.format()
 
         # Update channel names
