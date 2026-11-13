@@ -14,7 +14,7 @@ import pytest
 from django.utils import timezone
 
 from topobank.analysis.controller import AnalysisController
-from topobank.analysis.models import WorkflowResult
+from topobank.analysis.models import Workflow, WorkflowResult
 from topobank.analysis.workflows import SurfaceSet
 from topobank.manager.models import Topography, post_refresh_cache
 from topobank.testing.factories import SurfaceFactory, Topography2DFactory
@@ -114,3 +114,76 @@ def test_submit_for_surfaces_recomputes_after_measurement_changed(
     result = test_workflow.submit_for_surfaces(user_alice, [surface])
     assert result.pk != wr.pk
     assert WorkflowResult.objects.filter(pk=wr.pk).exists()
+
+
+#
+# Review of #1428
+#
+
+
+@pytest.mark.django_db
+def test_deprecated_dependency_is_not_reused(two_topos, test_workflow):
+    """A parent submitted after its dependencies were invalidated must not be
+    built on their stale results."""
+    from topobank.analysis.tasks import prepare_dependency_tasks
+    from topobank.testing.factories import TopographyAnalysisFactory
+
+    topography = Topography.objects.first()
+    parent = TopographyAnalysisFactory.create(
+        subject_topography=topography,
+        workflow_name="topobank.testing.test2",
+        kwargs=Workflow(name="topobank.testing.test2").get_default_kwargs(),
+        result=None,
+        task_state=WorkflowResult.PENDING,
+    )
+    dependencies = parent.function.get_dependencies(parent)
+
+    def prepare():
+        return prepare_dependency_tasks(
+            dependencies, force=False, user=parent.created_by, parent=parent
+        )
+
+    _, scheduled = prepare()
+    first = {dep.pk for dep in scheduled.values()}
+    WorkflowResult.objects.filter(pk__in=first).update(task_state=WorkflowResult.SUCCESS)
+
+    # Finished dependencies are reused ...
+    finished, scheduled = prepare()
+    assert {dep.pk for dep in finished.values()} == first and not scheduled
+
+    # ... but not once the measurement changed
+    _measurement_changed(topography)
+    finished, scheduled = prepare()
+    assert not finished
+    assert len(scheduled) == 2
+    assert not first & {dep.pk for dep in scheduled.values()}
+
+
+@pytest.mark.django_db
+def test_invalidated_result_is_recomputed_with_its_parameters(
+    test_workflow, user_alice, topography
+):
+    """Recomputing after invalidation keeps the parameters the user chose."""
+    chosen = {"a": 7, "b": "bar"}
+    assert chosen != test_workflow.clean_kwargs(None)
+    result = WorkflowResult.objects.create(
+        workflow_name=test_workflow.name,
+        subject_topography=topography,
+        kwargs=chosen,
+        created_by=user_alice,
+        task_state=WorkflowResult.SUCCESS,
+        task_start_time=timezone.now(),
+    )
+    result.permissions.grant_for_user(user_alice, "edit")
+    _measurement_changed(topography)
+
+    controller = AnalysisController(
+        user_alice, subjects=[topography], workflow=test_workflow
+    )
+    assert controller.unique_kwargs == chosen
+    controller.trigger_missing_analyses()
+
+    recomputed = WorkflowResult.objects.filter(
+        subject_topography=topography, deprecation_time__isnull=True
+    ).get()
+    assert recomputed.kwargs == chosen

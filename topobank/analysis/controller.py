@@ -125,13 +125,17 @@ class AnalysisController:
     @property
     def unique_kwargs(self):
         if self._unique_kwargs is None:
-            self._unique_kwargs, self._has_nonunique_kwargs = self._get_unique_kwargs()
+            self._unique_kwargs, self._has_nonunique_kwargs = self._get_unique_kwargs(
+                self._parameter_source()
+            )
         return self._unique_kwargs
 
     @property
     def has_nonunique_kwargs(self):
         if self._has_nonunique_kwargs is None:
-            self._unique_kwargs, self._has_nonunique_kwargs = self._get_unique_kwargs()
+            self._unique_kwargs, self._has_nonunique_kwargs = self._get_unique_kwargs(
+                self._parameter_source()
+            )
         return self._has_nonunique_kwargs
 
     @property
@@ -198,9 +202,13 @@ class AnalysisController:
     def __len__(self):
         return len(self._analyses)
 
-    def _get_latest_analyses(self):
+    def _get_latest_analyses(self, include_deprecated=False):
         """
         Get the latest analyses.
+
+        Deprecated results (computed from data that has changed since) are
+        left out unless `include_deprecated` is set: without them, their
+        subjects count as missing and are computed again.
 
         The returned queryset comprises only the latest analyses, so for each
         subject there should be at most one result. Only analyses for the
@@ -217,14 +225,12 @@ class AnalysisController:
         ) and self._kwargs is None:
             return []
 
-        # Query for user, function and subjects. Deprecated results were
-        # computed from data that has changed since; leaving them out makes
-        # their subjects count as missing, so they are computed again.
-        query = (
-            Q(permissions__user_permissions__user=self._user)
-            & Q(workflow_name=self._workflow.name)
-            & Q(deprecation_time__isnull=True)
+        # Query for user, function and subjects
+        query = Q(permissions__user_permissions__user=self._user) & Q(
+            workflow_name=self._workflow.name
         )
+        if not include_deprecated:
+            query &= Q(deprecation_time__isnull=True)
 
         # Query for subjects
         if self._subjects is not None and len(self._subjects):
@@ -281,7 +287,17 @@ class AnalysisController:
             ]
         return subjects_without_analysis_results
 
-    def _get_unique_kwargs(self):
+    def _parameter_source(self):
+        """
+        Latest analyses whose keyword arguments are the user's last choice.
+
+        Deprecated results count too: a subject whose only result was
+        invalidated must be recomputed with the parameters chosen for it, not
+        with the defaults.
+        """
+        return self._get_latest_analyses(include_deprecated=True)
+
+    def _get_unique_kwargs(self, analyses=None):
         """
         Collect all keyword arguments and return only those that are common to
         every analysis with an identical value.
@@ -293,7 +309,9 @@ class AnalysisController:
         """
         unique_kwargs = None
         has_nonunique_kwargs = False
-        for analysis in self._analyses:
+        if analyses is None:
+            analyses = self._analyses
+        for analysis in analyses:
             kwargs = analysis.kwargs
             if unique_kwargs is None:
                 unique_kwargs = dict(kwargs)  # copy: never alias analysis.kwargs
