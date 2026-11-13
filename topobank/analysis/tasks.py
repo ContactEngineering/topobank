@@ -653,10 +653,14 @@ def prepare_dependency_tasks(
         else:
             raise ValueError(f"Unsupported dependency subject type: {type(subject)}")
 
+        # Deprecated results were computed from data that has changed since;
+        # reusing one would build the parent on stale data, so it counts as
+        # absent and a fresh dependency is created (#1265)
         existing_analysis_qs = WorkflowResult.objects.filter(
             workflow_name=dependency.function.name,
             subject_hash=subject_hash,
             kwargs=kwargs,
+            deprecation_time__isnull=True,
         ).select_related("subject_topography", "subject_surface", "subject_tag")
         if use_surfaces_path and isinstance(subject, Surface):
             existing_analysis_qs = existing_analysis_qs.prefetch_related("surfaces")

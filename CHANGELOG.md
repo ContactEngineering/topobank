@@ -2,6 +2,8 @@
 
 # Unreleased
 
+- BUG: Analyses are computed again after a measurement changes, e.g. its instrument
+  parameters, instead of showing stale results to users who had run them before
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;
