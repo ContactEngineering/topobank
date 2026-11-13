@@ -9,6 +9,7 @@ from topobank.analysis.registry import (
     WorkflowNotImplementedException,
     get_implementation,
 )
+from topobank.analysis.sizing import is_retryable_memory_refusal
 from topobank.analysis.utils import find_children
 from topobank.manager.utils import subjects_from_dict, subjects_to_dict
 
@@ -260,9 +261,13 @@ class AnalysisController:
 
     def _get_subjects_without_analysis_results(self):
         """Find analyses that are missing (i.e. have not yet run)"""
-        # collect list of subjects for which an analysis instance is missing
+        # collect list of subjects for which an analysis instance is missing. A
+        # result the memory guard refused a while ago counts as missing, so it
+        # is tried again (estimates and budgets change, see sizing).
         subjects_with_analysis_results = [
-            analysis.subject for analysis in self._analyses
+            analysis.subject
+            for analysis in self._analyses
+            if not is_retryable_memory_refusal(analysis)
         ]
         if self._subjects is None or len(self._subjects) == 0:
             # If the no subjects are specified, then there are no subjects without
