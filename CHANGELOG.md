@@ -2,6 +2,9 @@
 
 # Unreleased
 
+- BUG: Workflow results deprecated by a change to their measurement, e.g. to
+  its instrument parameters, are no longer reused; they are computed again
+  instead, so every user sees the current result (#1265)
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;
