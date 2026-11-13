@@ -116,3 +116,29 @@ def test_reading_measurement_with_missing_datafile_names_the_measurement(user_al
     (email,) = mail.outbox
     assert f"Measurement {topography.pk}" in email.body
     assert f"dataset {topography.surface_id}" in email.body
+
+
+@pytest.mark.django_db
+def test_missing_file_error_survives_pickling(lost_manifest):
+    # Task failures cross Celery and cache boundaries, which pickle exceptions
+    import pickle
+
+    with pytest.raises(MissingFileError) as excinfo:
+        lost_manifest.read()
+
+    restored = pickle.loads(pickle.dumps(excinfo.value))
+
+    assert isinstance(restored, MissingFileError)
+    assert isinstance(restored, FileNotFoundError)
+    assert str(restored) == str(excinfo.value)
+    assert restored.manifest_id == lost_manifest.pk
+    assert restored.storage_name == lost_manifest.file.name
+
+
+def test_missing_file_error_can_be_rebuilt_from_its_message():
+    exc = MissingFileError("File 'x' of manifest 3 does not exist in storage")
+
+    rebuilt = type(exc)(*exc.args)
+
+    assert str(rebuilt) == str(exc)
+    assert rebuilt.manifest_id is None

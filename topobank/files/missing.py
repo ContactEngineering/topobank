@@ -23,14 +23,41 @@ DEFAULT_REPORT_INTERVAL = 24 * 60 * 60
 
 
 class MissingFileError(FileNotFoundError):
-    """A file that should exist in storage does not."""
+    """
+    A file that should exist in storage does not.
 
-    def __init__(self, manifest, storage_name):
-        self.manifest = manifest
-        self.storage_name = storage_name
-        super().__init__(
-            f"File '{storage_name}' of manifest {manifest.pk} does not exist in storage"
+    Raised as `MissingFileError(manifest, storage_name)`. The exception keeps only
+    plain data (the manifest's id and the storage name), and can be rebuilt from
+    its message alone, so it survives pickling across Celery and cache
+    boundaries.
+    """
+
+    def __init__(self, manifest=None, storage_name=None):
+        if isinstance(manifest, str) and storage_name is None:
+            # Rebuilt from its message, e.g. as `type(exc)(*exc.args)`
+            message, self.manifest_id, self.storage_name = manifest, None, None
+        else:
+            self.manifest_id = getattr(manifest, "pk", manifest)
+            self.storage_name = storage_name
+            message = (
+                f"File '{storage_name}' of manifest {self.manifest_id} does not "
+                "exist in storage"
+            )
+        super().__init__(message)
+
+    def __reduce__(self):
+        return _restore_missing_file_error, (
+            str(self),
+            self.manifest_id,
+            self.storage_name,
         )
+
+
+def _restore_missing_file_error(message, manifest_id, storage_name):
+    exc = MissingFileError(message)
+    exc.manifest_id = manifest_id
+    exc.storage_name = storage_name
+    return exc
 
 
 def _referrers(manifest) -> list[str]:
