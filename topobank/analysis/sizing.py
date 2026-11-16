@@ -274,6 +274,34 @@ def memory_refusal_metadata(exc: AnalysisTooLargeError) -> dict:
     }
 
 
+def clear_memory_refusal(analysis) -> bool:
+    """
+    Remove the refusal marker from `analysis.metadata` (not saved). Returns
+    whether there was one. Every new attempt starts without it, so that an
+    unrelated failure of that attempt is not retried as a refusal.
+    """
+    metadata = analysis.metadata or {}
+    if MEMORY_REFUSAL_KEY not in metadata:
+        return False
+    analysis.metadata = {
+        key: value for key, value in metadata.items() if key != MEMORY_REFUSAL_KEY
+    }
+    return True
+
+
+def inherit_memory_refusal(metadata, dependency) -> dict:
+    """
+    `metadata` of a parent that fails because `dependency` failed, carrying the
+    dependency's refusal marker (with its original time) if it has one. The
+    parent is then retried together with the refused dependency.
+    """
+    metadata = dict(metadata or {})
+    refusal = (dependency.metadata or {}).get(MEMORY_REFUSAL_KEY)
+    if refusal:
+        metadata[MEMORY_REFUSAL_KEY] = refusal
+    return metadata
+
+
 def is_retryable_memory_refusal(analysis, now=None) -> bool:
     """
     Whether `analysis` was refused by the memory guard long enough ago to try it
@@ -281,10 +309,11 @@ def is_retryable_memory_refusal(analysis, now=None) -> bool:
 
     A refusal depends on the learned memory coefficients and the budget, which
     both change over time, and refusals have been wrong before (#1393, #1406). A
-    refused result therefore counts as missing again after
-    `TOPOBANK_ANALYSIS_REFUSAL_RETRY_INTERVAL` seconds, so the next view resubmits
-    it; if it is still too large, that costs one quick, refused task. Retrying
-    on every view instead would queue a task each time a page is opened.
+    refused result is therefore resubmitted in place after
+    `TOPOBANK_ANALYSIS_REFUSAL_RETRY_INTERVAL` seconds, by the next view or by a
+    parent that needs it; if it is still too large, that costs one quick,
+    refused task. Retrying on every view instead would queue a task each time a
+    page is opened.
     """
     if analysis.task_state != analysis.FAILURE:
         return False

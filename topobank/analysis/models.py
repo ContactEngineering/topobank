@@ -233,6 +233,18 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
     def __str__(self):
         return f"WorkflowResult {self.id} on subject {self.subject} with state {self.task_state}"
 
+    def set_pending_state(self, autosave=True):
+        # A new attempt is no longer a memory refusal (see sizing)
+        from .sizing import clear_memory_refusal
+
+        cleared = clear_memory_refusal(self)
+        super().set_pending_state(autosave=False)
+        if autosave:
+            fields = list(self.PENDING_STATE_FIELDS)
+            if cleared:
+                fields.append("metadata")
+            self.save(update_fields=fields)
+
     @property
     def function(self):
         """Return the Workflow for this result, or None if workflow_name is not set."""
