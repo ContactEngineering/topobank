@@ -1,6 +1,7 @@
 import logging
 
 from django.core.exceptions import PermissionDenied
+from django.db import transaction
 from django.db.models import Q
 from django.http import Http404
 
@@ -9,6 +10,7 @@ from topobank.analysis.registry import (
     WorkflowNotImplementedException,
     get_implementation,
 )
+from topobank.analysis.sizing import is_retryable_memory_refusal
 from topobank.analysis.utils import find_children
 from topobank.manager.utils import subjects_from_dict, subjects_to_dict
 
@@ -308,7 +310,12 @@ class AnalysisController:
 
         Save keyword arguments which should be used for missing analyses,
         sorted by subject type.
+
+        Results the memory guard refused a while ago are submitted again as
+        well (see `_retry_memory_refusals`).
         """
+        retried = self._retry_memory_refusals()
+
         kwargs = self.unique_kwargs
         # Manually provided function kwargs override unique kwargs from prior analysis query
         if self._kwargs is not None:
@@ -335,9 +342,41 @@ class AnalysisController:
 
         # Now all subjects which needed to be triggered, should have been triggered with common arguments if possible
         # collect information about available analyses again.
-        if len(subjects_triggered) > 0:
+        if len(subjects_triggered) > 0 or retried > 0:
             self._analyses = self._get_latest_analyses()
             self._reset_cache()
+
+    def _retry_memory_refusals(self):
+        """
+        Submit results the memory guard refused a while ago again, in place
+        (estimates and budgets change, see `sizing.is_retryable_memory_refusal`).
+
+        The result keeps its row, parameters, permissions and owner, so whoever
+        views it triggers the retry without taking it over, and results that
+        share its permission set are left alone. The row is locked and checked
+        again, so that concurrent views retry it only once. Its dependencies are
+        not forced; refused ones among them are retried as well. Returns the
+        number of results submitted.
+        """
+        retried = 0
+        for analysis in self._analyses:
+            if not is_retryable_memory_refusal(analysis):
+                continue
+            with transaction.atomic():
+                locked = (
+                    WorkflowResult.objects.select_for_update()
+                    .filter(pk=analysis.pk)
+                    .first()
+                )
+                if locked is None or not is_retryable_memory_refusal(locked):
+                    continue  # Retried (or changed) meanwhile
+                _log.info(
+                    f"Retrying workflow '{self._workflow.name}' for result "
+                    f"{locked.id}, refused by the memory guard."
+                )
+                locked.submit(force_submit=False)
+                retried += 1
+        return retried
 
     def _get_dois(self):
         """Collect dois from all available analyses"""

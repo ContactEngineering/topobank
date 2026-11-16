@@ -2,6 +2,8 @@
 
 # Unreleased
 
+- BUG: Analyses refused for their predicted memory use are tried again after a
+  day, so a refusal from a wrong estimate no longer stands forever
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;

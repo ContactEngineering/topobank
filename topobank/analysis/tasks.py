@@ -19,7 +19,13 @@ from ..taskapp.memory import track_memory_usage
 from ..taskapp.models import Configuration
 from ..taskapp.tasks import ProgressRecorder
 from ..taskapp.utils import get_package_version
-from .sizing import check_memory_budget
+from .exceptions import AnalysisTooLargeError
+from .sizing import (
+    check_memory_budget,
+    inherit_memory_refusal,
+    is_retryable_memory_refusal,
+    memory_refusal_metadata,
+)
 from .workflows import WorkflowDefinition
 
 _log = get_task_logger(__name__)
@@ -240,6 +246,7 @@ def schedule_workflow(
             analysis.task_state = WorkflowResult.FAILURE
             analysis.task_error = failed_dep.task_error or "A dependent analysis failed."
             analysis.task_traceback = failed_dep.task_traceback
+            analysis.metadata = inherit_memory_refusal(analysis.metadata, failed_dep)
             analysis.save()
             _log.debug(f"{analysis_id}/{self.request.id}: A dependency failed.")
             return
@@ -267,10 +274,11 @@ def _fail_parent_on_dependency_failure(parent_id, dependency, request_id):
     parent does not hang in PENDING_DEPENDENCIES waiting for a chord callback
     that will never fire (a failed chord header suppresses the callback).
 
-    Uses a filtered ``update()`` so it is atomic and never clobbers a parent
-    that has already reached a terminal state (or was reset/rerun): only rows
-    still waiting are transitioned. The dependency's error/traceback are copied
-    onto the parent so the UI shows why it failed.
+    Locks the parent row and transitions it only while it is still waiting, so
+    it never clobbers a parent that has already reached a terminal state (or
+    was reset/rerun). The dependency's error/traceback, and its memory refusal
+    marker, are copied onto the parent so the UI shows why it failed and the
+    parent is retried with the dependency.
     """
     from .models import WorkflowResult
 
@@ -281,15 +289,28 @@ def _fail_parent_on_dependency_failure(parent_id, dependency, request_id):
         WorkflowResult.STARTED,
         WorkflowResult.PENDING_DEPENDENCIES,
     ]
-    updated = WorkflowResult.objects.filter(
-        id=parent_id, task_state__in=waiting_states
-    ).update(
-        task_state=WorkflowResult.FAILURE,
-        task_error=dependency.task_error or "A dependent analysis failed.",
-        task_traceback=dependency.task_traceback,
-        task_end_time=timezone.now(),
-    )
-    if updated:
+    with transaction.atomic():
+        parent = (
+            WorkflowResult.objects.select_for_update()
+            .filter(id=parent_id, task_state__in=waiting_states)
+            .first()
+        )
+        if parent is not None:
+            parent.task_state = WorkflowResult.FAILURE
+            parent.task_error = dependency.task_error or "A dependent analysis failed."
+            parent.task_traceback = dependency.task_traceback
+            parent.task_end_time = timezone.now()
+            parent.metadata = inherit_memory_refusal(parent.metadata, dependency)
+            parent.save(
+                update_fields=[
+                    "task_state",
+                    "task_error",
+                    "task_traceback",
+                    "task_end_time",
+                    "metadata",
+                ]
+            )
+    if parent is not None:
         _log.warning(
             "%s: dependency %s failed; propagated FAILURE to parent %s.",
             request_id,
@@ -398,6 +419,7 @@ def execute_workflow(
                 analysis.task_error = error_msg
                 analysis.task_traceback = dep.task_traceback
                 analysis.task_end_time = timezone.now()
+                analysis.metadata = inherit_memory_refusal(analysis.metadata, dep)
                 analysis.save()
                 _log.warning(
                     "%s/%s: Dependency '%s' (id=%s) is in state '%s', cannot execute workflow.",
@@ -515,6 +537,13 @@ def execute_workflow(
         analysis.task_state = WorkflowResult.FAILURE
         analysis.task_traceback = traceback.format_exc().replace("\x00", "")
         analysis.task_error = str(exc).replace("\x00", "")
+        if isinstance(exc, AnalysisTooLargeError):
+            # Mark the refusal, so that it is tried again later (see
+            # `sizing.is_retryable_memory_refusal`) instead of standing forever
+            analysis.metadata = {
+                **(analysis.metadata or {}),
+                **memory_refusal_metadata(exc),
+            }
         # Persist the timings recorded up to the failure: for timeouts this is
         # what distinguishes "one stage stalled for an hour" from "many stages,
         # each fast, exceeded the budget together". muTimer records in a
@@ -704,7 +733,14 @@ def prepare_dependency_tasks(
             else:
                 # An analysis exists. Check whether it is successful or failed.
                 # task_state is the *self reported* state, not the Celery state
-                if not force and existing_analysis.task_state in [
+                if is_retryable_memory_refusal(existing_analysis):
+                    # Refused by the memory guard a while ago: try it again
+                    # (see sizing). Pend it while still holding the lock, so a
+                    # concurrent parent waits for this attempt instead of
+                    # taking the old refusal as final.
+                    existing_analysis.set_pending_state()
+                    scheduled_dependent_analyses[key] = existing_analysis
+                elif not force and existing_analysis.task_state in [
                     WorkflowResult.FAILURE,
                     WorkflowResult.SUCCESS,
                 ]:
