@@ -5,6 +5,7 @@ class AnalysisAppConfig(AppConfig):
     name = 'topobank.analysis'
 
     def ready(self):
+        from . import checks  # noqa: F401
         from . import custodian  # noqa: F401
         from . import signals  # noqa: F401
         from . import tasks  # noqa: F401
