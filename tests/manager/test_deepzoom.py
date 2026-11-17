@@ -1,7 +1,12 @@
 import logging
+import tempfile
 
+import numpy as np
 import pytest
+import zarr
+from SurfaceTopography.Support.UnitConversion import get_unit_conversion_factor
 
+from topobank.manager.utils import PYRAMID_FILENAME, render_deepzoom
 from topobank.testing.factories import Topography2DFactory
 
 
@@ -45,3 +50,45 @@ def test_missing_thumbnail_is_logged_but_not_fatal(mocker, caplog):
     assert any(
         "missing derived files" in record.getMessage() for record in caplog.records
     )
+
+
+@pytest.mark.django_db
+def test_deepzoom_writes_height_pyramid():
+    """The deepzoom folder holds the JPG pyramid and the heights in one .ozx"""
+    topo = Topography2DFactory(size_x=1, size_y=1)
+    topo.refresh_cache()
+    names = set(topo.deepzoom.files.values_list("filename", flat=True))
+    assert "dzi.json" in names
+    assert PYRAMID_FILENAME in names
+    # No NetCDF tiles any more
+    assert not any(name.startswith("dzi-nc") for name in names)
+
+    st_topo = topo.read()
+    manifest = topo.deepzoom.files.get(filename=PYRAMID_FILENAME)
+    with tempfile.NamedTemporaryFile(suffix=".ozx") as tmp:
+        with manifest.file.open("rb") as f:
+            tmp.write(f.read())
+        tmp.flush()
+        with zarr.storage.ZipStore(tmp.name, mode="r") as store:
+            root = zarr.open_group(store, mode="r")
+            array = root["0"]
+            heights = array.attrs["add_offset"] + array.attrs["scale_factor"] * array[...]
+            # The writer picks the unit of the heights; arrays are (y, x)
+            factor = get_unit_conversion_factor(
+                root.attrs["zoomdata"]["unit"], st_topo.unit
+            )
+            np.testing.assert_allclose(
+                factor * heights.T,
+                st_topo.heights(),
+                atol=1e-6 * np.ptp(st_topo.heights()),
+            )
+
+
+@pytest.mark.django_db
+def test_deepzoom_without_height_pyramid():
+    topo = Topography2DFactory(size_x=1, size_y=1)
+    topo.refresh_cache()
+    folder = topo.deepzoom
+    folder.files.filter(filename=PYRAMID_FILENAME).delete()
+    render_deepzoom(topo.read(), folder, generate_pyramid=False)
+    assert not folder.exists(PYRAMID_FILENAME)
