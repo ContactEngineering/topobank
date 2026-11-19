@@ -36,7 +36,7 @@ from datetime import timedelta
 from django.core.management.base import BaseCommand
 from django.db import transaction
 
-from topobank.files.models import ManifestSet
+from topobank.files.models import Manifest, ManifestSet
 from topobank.manager.models import Surface, Topography
 
 _log = logging.getLogger(__name__)
@@ -77,7 +77,10 @@ def _published_at(obj):
 
     The publication is created only after the copy has finished, so it is later
     than every file the copy made. Without a publication (e.g. the publication
-    plugin is not installed), fall back to the copy's creation time.
+    plugin is not installed), fall back to the copied surface's creation time,
+    also for a topography: a topography's `created_at` was added by migration
+    0072 and holds the migration's time for every older topography, while the
+    surface's was only renamed and is the copy's.
     """
     surface = obj if isinstance(obj, Surface) else obj.surface
     try:
@@ -86,8 +89,8 @@ def _published_at(obj):
         published_at = None
     if published_at is not None:
         return published_at
-    if obj.created_at is not None:
-        return obj.created_at + COPY_TOLERANCE
+    if surface.created_at is not None:
+        return surface.created_at + COPY_TOLERANCE
     return None
 
 
@@ -107,18 +110,58 @@ def _split_by_publication(folder, published_at):
     return before, after
 
 
+class ChangedDuringCopy(Exception):
+    """A source file was replaced while it was being copied."""
+
+    def __init__(self, manifest):
+        super().__init__(manifest)
+        self.manifest = manifest
+
+
+def _stored_state(manifest):
+    """What identifies the bytes of `manifest` in storage: their name and when
+    they were written. A replacement changes one of the two, also one that
+    writes storage before its manifest row (a direct upload)."""
+    name = manifest.file.name
+    return name, manifest.file.storage.get_modified_time(name)
+
+
 def _copy_folder(folder, manifests, permissions):
-    """A copy of `folder` with only the given (valid) files and `permissions`."""
+    """A copy of `folder` with only the given (valid) files and `permissions`.
+
+    The age of each file was checked before, but its owner may replace it
+    while it is copied, and storage is outside any transaction. So each file's
+    stored bytes and manifest row are compared before and after it is copied;
+    if either changed, the copied files are deleted and `ChangedDuringCopy` is
+    raised, for the caller's transaction to roll back. The manifest rows are
+    locked meanwhile, so a replacement cannot record itself before the
+    comparison has seen its bytes.
+    """
     copy = ManifestSet.objects.get(pk=folder.pk)
     copy.pk = None
     copy.permissions = permissions
     copy.save()
-    for manifest in manifests:
-        if manifest.confirmed_at is None:
-            continue  # unfinished upload, as in ManifestSet.deepcopy
-        manifest_copy = manifest.deepcopy(permissions=permissions)
-        manifest_copy.folder = copy
-        manifest_copy.save()
+    copies = []
+    try:
+        locked = Manifest.objects.select_for_update().in_bulk(
+            [m.pk for m in manifests]
+        )
+        for manifest in manifests:
+            manifest = locked.get(manifest.pk)
+            if manifest is None or manifest.confirmed_at is None:
+                continue  # gone, or unfinished upload, as in ManifestSet.deepcopy
+            before = (_stored_state(manifest), _last_change(manifest))
+            manifest_copy = manifest.deepcopy(permissions=permissions)
+            copies.append(manifest_copy)
+            manifest_copy.folder = copy
+            manifest_copy.save()
+            manifest.refresh_from_db()
+            if (_stored_state(manifest), _last_change(manifest)) != before:
+                raise ChangedDuringCopy(manifest)
+    except Exception:
+        for manifest_copy in copies:
+            manifest_copy.file.delete(save=False)
+        raise
     return copy
 
 
@@ -133,12 +176,17 @@ class Command(BaseCommand):
             help="Only report what would be changed.",
         )
 
-    def _review(self, label, manifests):
+    def _review(
+        self,
+        label,
+        manifests,
+        reason="added or changed after publication or of unknown age",
+    ):
         names = ", ".join(f"'{m.filename}' (manifest {m.pk})" for m in manifests)
         self.stdout.write(
             self.style.WARNING(
-                f"{label}: NEEDS REVIEW, {len(manifests)} file(s) added or changed "
-                f"after publication or of unknown age were not made visible: {names}"
+                f"{label}: NEEDS REVIEW, {len(manifests)} file(s) {reason} "
+                f"were not made visible: {names}"
             )
         )
 
@@ -179,10 +227,22 @@ class Command(BaseCommand):
                         self._review(f"{label}: left out of the copy", after)
                         nb_review += 1
                     if not dry_run:
-                        with transaction.atomic():
-                            copy = _copy_folder(folder, before, obj.permissions)
-                            # Bypass save() and its signals, only the folder changes
-                            model.all_objects.filter(pk=obj.pk).update(attachments=copy)
+                        try:
+                            with transaction.atomic():
+                                copy = _copy_folder(folder, before, obj.permissions)
+                                # Bypass save() and its signals, only the folder
+                                # changes
+                                model.all_objects.filter(pk=obj.pk).update(
+                                    attachments=copy
+                                )
+                        except ChangedDuringCopy as exc:
+                            nb_copied -= 1
+                            nb_review += 1
+                            self._review(
+                                f"{label}: not copied, run the command again",
+                                [exc.manifest],
+                                reason="changed while being copied",
+                            )
 
         self.stdout.write(
             self.style.SUCCESS(

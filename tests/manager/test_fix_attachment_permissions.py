@@ -165,6 +165,7 @@ def test_files_added_to_shared_folder_after_publication_are_not_copied(
     # The copy was made two days ago, from a folder with one older file ...
     for manifest in original_topography.attachments.files.all():
         _age(manifest, days=3)
+    _age(published, days=2)
     _age(copied_topography, days=2)
     # ... and the owner added a private file to their original afterwards
     _attach(original_topography, "private.txt", b"Added after publication")
@@ -200,3 +201,72 @@ def test_folder_with_files_newer_than_publication_is_not_switched(
     assert published.attachments_id not in _visible_folder_ids(user_bob)
     out = capsys.readouterr().out
     assert "NEEDS REVIEW" in out and "later.txt" in out
+
+
+@pytest.mark.django_db
+def test_a_topographys_cutoff_is_its_surfaces_creation_time(
+    capsys, user_bob, original, published
+):
+    """Migration 0072 gave every older topography the migration's time as its
+    `created_at`; the surface's creation time is the copy's. A file added to
+    the shared folder between the copy and the migration stays private."""
+    original_topography = Topography2DFactory(surface=original)
+    _attach(original_topography, "published.txt", b"Part of the publication")
+    copied_topography = Topography2DFactory(surface=published)
+    Topography.all_objects.filter(pk=copied_topography.pk).update(
+        attachments=original_topography.attachments
+    )
+    for manifest in original_topography.attachments.files.all():
+        _age(manifest, days=30)
+    _age(published, days=20)  # copied 20 days ago ...
+    _attach(original_topography, "private.txt", b"Added after publication")
+    for manifest in original_topography.attachments.files.filter(
+        filename="private.txt"
+    ):
+        _age(manifest, days=10)  # ... a private file added 10 days ago ...
+    _age(copied_topography, days=1)  # ... and the migration ran yesterday
+
+    _run()
+
+    copied_topography.refresh_from_db()
+    filenames = set(copied_topography.attachments.files.values_list("filename", flat=True))
+    assert filenames == {"published.txt"}
+    assert "private.txt" in capsys.readouterr().out
+
+
+@pytest.mark.django_db
+def test_a_file_replaced_while_it_is_copied_is_not_published(
+    capsys, monkeypatch, user_bob, original, published
+):
+    """The owner replaces a file of the shared folder after its age was
+    checked, while it is being copied: the copy is dropped, nothing of the
+    folder becomes visible, and the folder is reported for another run."""
+    from topobank.files.models import Manifest
+
+    original_topography = Topography2DFactory(surface=original)
+    _attach(original_topography, "notes.txt", b"Part of the publication")
+    copied_topography = Topography2DFactory(surface=published)
+    Topography.all_objects.filter(pk=copied_topography.pk).update(
+        attachments=original_topography.attachments
+    )
+    shared_folder_id = original_topography.attachments_id
+    deepcopy = Manifest.deepcopy
+
+    def replaced_while_copying(self, permissions=None):
+        copy = deepcopy(self, permissions=permissions)
+        # The owner's replacement lands right after the bytes were read
+        ManifestSet.objects.get(pk=self.folder_id).save_file(
+            self.filename, "att", ContentFile(b"Private replacement")
+        )
+        return copy
+
+    monkeypatch.setattr(Manifest, "deepcopy", replaced_while_copying)
+
+    _run()
+
+    copied_topography.refresh_from_db()
+    assert copied_topography.attachments_id == shared_folder_id  # not copied
+    assert shared_folder_id not in _visible_folder_ids(user_bob)
+    out = capsys.readouterr().out
+    assert "changed while being copied" in out
+    assert "run the command again" in out
