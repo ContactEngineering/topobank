@@ -13,14 +13,18 @@
   (`TOPOBANK_TASK_RECLAIM_AFTER`): past it no worker holds a Celery run and
   the backend has had as long to end its run, so a run that old is dead
   whichever runner had it, with or without an answer from the workers. A
-  model without a backend is judged by the workers alone, as before. The
-  files of a lost run are deleted at once rather than by a task queued with
-  a countdown, which a worker would hold in flight for the whole wait
+  model without a backend is judged by the workers alone, as before, and
+  only the run judged lost is failed, not one a forced dispatch or a
+  redelivery started since. The files of a lost run are deleted once it can
+  no longer record (a backend run at once, a Celery run once past the hard
+  time limit, kept without one) rather than by a task queued with a
+  countdown, which a worker would hold in flight for the whole wait
 - BUG: A row `run_task` claimed whose message was never sent (the process died
   before the on-commit hook ran) reads as failed once the claim is older than
   the task's hard time limit, and can be dispatched again; Celery reports an
   id it has never seen as pending, so the row would otherwise stay pending
-  for good
+  for good. The message of `task_dispatch` expires at that time, so work
+  still queued then is revoked rather than run alongside a new dispatch
 - BUG: `Topography.apply_backend_result` records the end of the run and sends
   `post_refresh_cache` in one transaction, also for a caller in autocommit
   mode: a receiver that fails leaves the run in progress for the result to be
@@ -47,10 +51,13 @@
   them there; a result is checked before it is recorded, and its files are
   accepted only under a run folder of the measurement.
   `TOPOBANK_THUMBNAIL_FORMAT` sets the thumbnail's image format
-- BUG: An upload is confirmed and its processing started from one place,
-  `topobank.manager.uploads.confirm_and_dispatch`; reading a data file
-  confirms an arrived upload (`Manifest.confirm_upload`) but no longer
-  decides whether it is processed. The custodian confirms and processes
+- BUG: An upload is confirmed and its processing started exactly once:
+  whoever confirms it (`Manifest.confirm_upload`, through the storage's
+  notification, `topobank.manager.uploads.confirm_and_dispatch`, or a read of
+  the file) dispatches its processing in the same transaction
+  (`upload_confirmed`), so no upload is left confirmed but never processed.
+  A data file stored by the application (ZIP import, copy) is not dispatched
+  by it. The custodian confirms and processes
   uploads that arrived without a notification
   (`sweep_unconfirmed_uploads`) before it deletes the manifests of uploads
   that never arrived, and it now deletes those whose file is `""` as well
@@ -66,6 +73,14 @@
   of them is written only when named in `update_fields`, and the admin shows
   them read-only. `TOPOBANK_TASK_RECLAIM_AFTER` sets when a redelivered
   message may take over a stalled run
+- ENH: `TOPOBANK_WORKFLOW_DISPATCHER` names a callable that every submit path
+  hands a pending `WorkflowResult` to (`dispatch_workflow`), so a deployment
+  can run some workflows outside Celery; unset, workflows are submitted to
+  Celery as before. A path that does not import fails Django's system checks
+- ENH: `ManifestSet.register_stored_files` adds manifests for files already
+  in storage, without copying them, for a workflow run elsewhere that writes
+  its outputs straight into storage. Keys and file names must be relative
+  paths with no `.` or `..` segment, and an empty folder prefix admits no key
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;

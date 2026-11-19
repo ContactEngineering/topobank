@@ -153,8 +153,34 @@ Task processing
         be picked up at all. Otherwise the row waits for the custodian, which gives a run up as
         lost only once it is this old (past it no worker holds the run, and a processing backend
         has had as long to end it); without a hard time limit the custodian relies on the workers
-        alone. A row still pending this long after its dispatch is taken for one whose message
-        was never sent: it reads as failed and may be dispatched again.
+        alone, and a lost Celery run's files are kept until it is past the hard time limit
+        (indefinitely without one), as it may still record its result. A task message expires
+        this long after its dispatch, so a row still pending then has no message to wait for:
+        it reads as failed and may be dispatched again.
+
+
+Workflows
+---------
+
+.. list-table:: Workflows
+    :widths: 25 10 20 45
+    :header-rows: 1
+
+    * - Setting
+      - Type
+      - Default
+      - Description
+    * - :code:`TOPOBANK_WORKFLOW_DISPATCHER`
+      - str
+      - :code:`None`
+      - Dotted path of a callable ``dispatcher(analysis, force_submit)`` that hands a workflow
+        result just set pending to whatever runs it, called once the submitting transaction
+        commits. ``None`` sends it to the Celery task (``submit_analysis_task_to_celery``, which a
+        dispatcher may delegate to for the workflows it does not run itself). A dispatcher that
+        runs a workflow elsewhere sets ``analysis.task_id`` right away and drives ``task_state``
+        itself. The dependencies of a workflow are scheduled by the Celery task and do not pass
+        through the dispatcher.
+
 
 File uploads
 ------------
