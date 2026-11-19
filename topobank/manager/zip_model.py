@@ -199,7 +199,7 @@ class ZipContainer(PermissionMixin, TaskStateModel):
                 extra_metadata=extra_metadata,
                 progress_recorder=progress_recorder,
             )
-        elif self.manifest is not None and self.manifest.exists():
+        elif self.manifest is not None and self.manifest.confirm_upload():
             # There is a file, which means we should try to import
             self.import_zip()
         else:

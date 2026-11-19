@@ -33,8 +33,9 @@ nobody ever will.
 
 Three guardrails keep that inference honest:
 
-1. If *no* worker replies at all, do nothing. A broker outage or a network
-   partition must never be turned into a mass failure.
+1. If *no* worker replies at all, judge no run the workers could still hold. A
+   broker outage or a network partition must never be turned into a mass
+   failure.
 2. A row must look lost on two consecutive passes before it is failed. This
    covers the small windows where a task is momentarily invisible — between
    finishing and saving its state, or re-queued by a retry.
@@ -44,6 +45,24 @@ Three guardrails keep that inference honest:
 Only ``STARTED`` is safe to reap this way. A ``PENDING`` row with a task id may
 simply be sitting in the queue: ``inspect`` cannot see messages that no worker
 has reserved yet, so those would look lost while being perfectly healthy.
+
+A run handed to a task backend (see ``TaskStateModel.task_backend``) is held by
+no worker, so the workers cannot vouch for it, and nothing on the row says
+which runner has a run. So of a model that hands its runs to a backend no run
+is judged before it is older than the task's hard time limit (see
+``taskapp.utils.reclaim_after``): past it a worker has killed any Celery run,
+and a backend has had as long to end its run, so a run that old is dead
+whichever runner had it, with or without an answer from the workers. A model
+without a backend is judged by the workers alone, as above.
+
+What a lost run left behind is cleaned up (``TaskStateModel.task_lost``) once
+it can no longer record: a run on a backend at once, since its result is
+refused once the run has been failed (``TaskStateModel.complete_task``). A
+Celery run may still record its result after it has been given up, as the
+workers can be wrong about it, so its files go only once it is older than the
+hard time limit, past which no worker runs it: at once if it already is, else
+on a later pass (``clean_up_lost_runs``). Without a hard time limit nothing
+bounds a Celery run, and its files are kept.
 """
 
 import logging
@@ -51,10 +70,12 @@ from datetime import timedelta
 
 from django.apps import apps
 from django.core.cache import cache
+from django.db.models import F
 from django.utils import timezone
 
 from .celeryapp import app
 from .models import TaskStateModel
+from .utils import reclaim_after, task_dispatch
 
 _log = logging.getLogger(__name__)
 
@@ -65,6 +86,11 @@ DEFAULT_MIN_AGE = timedelta(minutes=15)
 #: this (cache eviction, Redis restart) costs one extra pass, nothing more.
 SUSPECT_CACHE_KEY = "taskapp-custodian-lost-task-candidates"
 SUSPECT_CACHE_SECONDS = 3600
+
+#: How long past the hard time limit `clean_up_lost_runs` still looks for the
+#: files of a Celery run that was failed as lost before the limit. The pass
+#: runs every few minutes, so a missed pass is caught up well within it.
+LOST_RUN_CLEANUP_WINDOW = timedelta(days=1)
 
 #: Seconds to wait for workers to answer the broadcast. Generous on purpose:
 #: a false "nobody knows this task" is what we are trying hard to avoid, and
@@ -144,40 +170,153 @@ def _propagate_to_parent(obj, error):
     _fail_parent_on_dependency_failure(parent_id, obj, "custodian")
 
 
+def lost_after(min_age=DEFAULT_MIN_AGE):
+    """How old a run of a model with a task backend must be to count as lost:
+    the hard time limit of `task_dispatch`, the task `run_task` would have sent
+    it as (see `reclaim_after`), past which no worker holds it, and at least
+    `min_age`. None without a hard time limit: then only the workers can tell
+    (see module docstring)."""
+    limit = reclaim_after(task_dispatch)
+    if limit is None:
+        return None
+    return max(min_age, timedelta(seconds=limit))
+
+
+def _has_backend(model):
+    """Whether `model` hands its runs to a task backend; False also if the
+    backend cannot be loaded (its runs are then judged as Celery runs)."""
+    try:
+        return model().task_backend() is not None
+    except Exception:
+        _log.exception(
+            "Custodian: cannot load the task backend of %s.", model.__name__
+        )
+        return False
+
+
 def find_lost(live, min_age=DEFAULT_MIN_AGE):
-    """Rows in ``STARTED`` whose task no worker knows about."""
-    cutoff = timezone.now() - min_age
+    """Rows in ``STARTED`` whose run nobody holds any more.
+
+    ``live`` holds the task ids the workers know, or is None if no worker
+    answered. A run is lost once it is older than ``min_age`` and no worker
+    reports it, which needs an answer from the workers. Of a model that hands
+    its runs to a task backend (whose runs no worker reports), a run is lost
+    once it is older than `lost_after` and no worker reports it, with or
+    without an answer; without a hard time limit such a model is judged by
+    the workers like any other.
+    """
+    now = timezone.now()
+    backend_age = lost_after(min_age)
     lost = []
     for model in task_state_models():
+        if backend_age is not None and _has_backend(model):
+            age = backend_age
+        elif live is None:
+            continue
+        else:
+            age = min_age
         # Deliberately not deferring columns: `mark_lost` reads `metadata` to
         # find a waiting parent, and a deferred load would turn that into a
         # query per row. In a healthy system this queryset is empty anyway.
-        queryset = model.objects.filter(
-            task_state=model.STARTED, task_start_time__lt=cutoff
+        # All rows, also those a default manager hides (deleted, say)
+        queryset = model.all_objects.filter(
+            task_state=model.STARTED, task_start_time__lt=now - age
         ).exclude(task_id=None)
         for obj in queryset.iterator():
-            if str(obj.task_id) not in live:
-                lost.append(obj)
+            if live is not None and str(obj.task_id) in live:
+                continue
+            lost.append(obj)
     return lost
+
+
+def _may_still_record(obj, now):
+    """Whether the run of `obj`, failed as lost, may still record its result:
+    a Celery run (one of a model without a task backend) younger than the hard
+    time limit, or any Celery run without such a limit (see module docstring)."""
+    if _has_backend(type(obj)):
+        return False
+    limit = reclaim_after(task_dispatch)
+    if limit is None or obj.task_start_time is None:
+        return True
+    return obj.task_start_time >= now - timedelta(seconds=limit)
+
+
+def _clean_up(obj):
+    try:
+        obj.task_lost()
+    except Exception:  # cleanup; the run is failed either way
+        _log.exception(
+            "Custodian: cleaning up after lost %s %s failed.", type(obj).__name__, obj.pk
+        )
 
 
 def mark_lost(obj, error=LOST_TASK_ERROR):
     """
     Transition one row to FAILURE. Returns whether it was still lost.
 
-    The filtered ``update()`` makes this a no-op if the row reached a terminal
-    state in the meantime, so a task that finished between the sweep's two
-    passes is never overwritten.
+    The filtered ``update()`` makes this a no-op unless the row is still in the
+    run that was judged lost: in ``STARTED`` under the same task id and start
+    time. A task that finished between the sweep's two passes, a forced
+    dispatch that started a new run, or a redelivery that took the run over
+    with a new start time is never failed.
+
+    What the run left behind is cleaned up at once if the run can no longer
+    record, else by a later `clean_up_lost_runs` (see module docstring).
     """
-    updated = type(obj).objects.filter(pk=obj.pk, task_state=obj.STARTED).update(
+    now = timezone.now()
+    updated = type(obj).all_objects.filter(
+        pk=obj.pk,
+        task_state=obj.STARTED,
+        task_id=obj.task_id,
+        task_start_time=obj.task_start_time,
+    ).update(
         task_state=obj.FAILURE,
         task_error=error,
-        task_end_time=timezone.now(),
+        task_end_time=now,
     )
     if not updated:
         return False
     _propagate_to_parent(obj, error)
+    if _may_still_record(obj, now):
+        _log.info(
+            "Custodian: keeping the files of lost %s %s (task %s) until its run "
+            "is past the hard time limit.",
+            type(obj).__name__,
+            obj.pk,
+            obj.task_id,
+        )
+    else:
+        _clean_up(obj)
     return True
+
+
+def clean_up_lost_runs(now=None):
+    """Clean up after the Celery runs failed as lost before the hard time
+    limit, now that they are past it and can no longer record (see module
+    docstring). Looks back `LOST_RUN_CLEANUP_WINDOW` past the limit; a run
+    that recorded its result after all is no longer failed and is left alone.
+    Returns how many rows were cleaned up."""
+    limit = reclaim_after(task_dispatch)
+    if limit is None:
+        return 0
+    now = now or timezone.now()
+    limit = timedelta(seconds=limit)
+    cleaned = 0
+    for model in task_state_models():
+        if _has_backend(model):
+            continue  # cleaned up when failed
+        queryset = model.all_objects.filter(
+            task_state=model.FAILURE,
+            task_error=LOST_TASK_ERROR,
+            task_start_time__lt=now - limit,
+            task_start_time__gte=now - limit - LOST_RUN_CLEANUP_WINDOW,
+            # Failed before the limit, so its files were kept
+            task_end_time__lt=F("task_start_time") + limit,
+        ).exclude(task_id=None)
+        for obj in queryset.iterator():
+            _clean_up(obj)
+            cleaned += 1
+    return cleaned
 
 
 @app.task
@@ -199,17 +338,24 @@ def reap_lost_tasks(
     live = live_task_ids()
     if live is None:
         _log.warning(
-            "Custodian: no Celery worker answered, skipping the lost-task sweep. "
-            "Nothing was changed."
+            "Custodian: no Celery worker answered; only runs of a model with a "
+            "task backend that are older than the hard time limit are swept."
         )
-        return {"skipped": True, "candidates": 0, "failed": 0}
 
     candidates = find_lost(live, min_age=min_age)
     candidate_ids = {str(obj.task_id) for obj in candidates}
 
     if require_confirmation:
         previous = set(cache.get(SUSPECT_CACHE_KEY) or ())
-        cache.set(SUSPECT_CACHE_KEY, candidate_ids, SUSPECT_CACHE_SECONDS)
+        # Without an answer from the workers, the suspects the workers judge
+        # were not judged this pass: keep them for the next
+        if live is None:
+            if candidate_ids:
+                cache.set(
+                    SUSPECT_CACHE_KEY, candidate_ids | previous, SUSPECT_CACHE_SECONDS
+                )
+        else:
+            cache.set(SUSPECT_CACHE_KEY, candidate_ids, SUSPECT_CACHE_SECONDS)
         confirmed = [obj for obj in candidates if str(obj.task_id) in previous]
         if len(confirmed) < len(candidates):
             _log.info(
@@ -229,7 +375,7 @@ def reap_lost_tasks(
                 obj.task_id,
             )
         return {
-            "skipped": False,
+            "skipped": live is None and not candidates,
             "candidates": len(candidates),
             "failed": 0,
             "would_fail": len(confirmed),
@@ -240,12 +386,23 @@ def reap_lost_tasks(
         if mark_lost(obj):
             failed += 1
             _log.warning(
-                "Custodian: failed %s %s because its worker disappeared "
-                "(task %s).",
+                "Custodian: failed %s %s as lost (task %s).",
                 type(obj).__name__,
                 obj.pk,
                 obj.task_id,
             )
     if failed:
-        _log.warning("Custodian: failed %d task(s) whose worker disappeared.", failed)
-    return {"skipped": False, "candidates": len(candidates), "failed": failed}
+        _log.warning("Custodian: failed %d task(s) as lost.", failed)
+    cleaned = clean_up_lost_runs()
+    if cleaned:
+        _log.info(
+            "Custodian: cleaned up after %d run(s) failed as lost earlier.", cleaned
+        )
+    # Without an answer from the workers only the runs of models with a task
+    # backend were judged; the pass was skipped only if there were none of
+    # those either
+    return {
+        "skipped": live is None and not candidates,
+        "candidates": len(candidates),
+        "failed": failed,
+    }

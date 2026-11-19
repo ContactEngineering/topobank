@@ -165,3 +165,15 @@ def import_container_from_url(user, url, tag=None):
                 description=f"Successfully import digital surface twin '{surface.name}' from URL {url}.")
 
     return surface
+
+
+@app.task
+def clean_up_processing_run(work_left):
+    """Clean up after a run that `Topography.apply_backend_result` ended.
+
+    See `Topography.clean_up_run`, which this runs in a worker, away from the
+    request that recorded the run.
+    """
+    from .models import Topography
+
+    Topography.clean_up_run(work_left)
