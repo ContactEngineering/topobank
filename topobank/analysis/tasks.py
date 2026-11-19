@@ -1,5 +1,6 @@
 import json
 import traceback
+from datetime import timedelta
 from typing import Any, Dict
 
 import celery
@@ -192,33 +193,48 @@ def schedule_workflow(
             all_deps = {**finished_dependencies, **scheduled_dependencies}
             analysis.dependencies = {key: dep.id for key, dep in all_deps.items()}
 
-            # Set state to PENDING_DEPENDENCIES - we're waiting for deps to complete
+            # Set state to PENDING_DEPENDENCIES - we're waiting for deps to complete.
+            # The row names the chord's callback before the chord is published:
+            # the callback can run (and claim the row for a re-queued run) before
+            # this task would get to write its id afterwards, and must find its
+            # own id on the row, not this task's.
+            callback_id = celery.uuid()
             analysis.task_state = WorkflowResult.PENDING_DEPENDENCIES
             analysis.launcher_task_id = self.request.id
+            analysis.task_id = callback_id
+            analysis.task_wait_deadline = None  # waiting for the chord
             analysis.save()
 
             # Create chord: run all dependencies, then execute this workflow
-            task = celery.chord(
-                (
-                    schedule_workflow.si(
-                        dep.id, False, is_dependency=True, parent_id=analysis.id
-                    ).set(queue=celery_queue)
-                    for dep in scheduled_dependencies.values()
-                ),
-                execute_workflow.si(
-                    analysis.id, is_dependency=is_dependency, parent_id=parent_id
-                ).set(queue=celery_queue),
-            ).apply_async()
-
-            # Store the chord's task id, unless the callback already ran and
-            # claimed the row for a re-queued run, or the row moved on otherwise
-            # (a dependency failed it, a resubmission took it over): overwriting
-            # the task id would orphan that run's ownership check.
-            WorkflowResult.objects.filter(
-                pk=analysis.pk,
-                task_state=WorkflowResult.PENDING_DEPENDENCIES,
-                task_id=self.request.id,
-            ).update(task_id=task.id)
+            try:
+                celery.chord(
+                    (
+                        schedule_workflow.si(
+                            dep.id, False, is_dependency=True, parent_id=analysis.id
+                        ).set(queue=celery_queue)
+                        for dep in scheduled_dependencies.values()
+                    ),
+                    execute_workflow.si(
+                        analysis.id, is_dependency=is_dependency, parent_id=parent_id
+                    ).set(queue=celery_queue, task_id=callback_id),
+                ).apply_async()
+            except Exception as exc:
+                # The row names a callback that was never queued, and this task's
+                # failure handler cannot find it by this task's id: fail it,
+                # unless it has been taken over meanwhile
+                WorkflowResult.objects.filter(
+                    pk=analysis.pk,
+                    task_state=WorkflowResult.PENDING_DEPENDENCIES,
+                    task_id=callback_id,
+                ).update(
+                    task_state=WorkflowResult.FAILURE,
+                    task_error=(
+                        f"The dependencies of this workflow could not be queued "
+                        f"({exc}). Submit this workflow again."
+                    ),
+                    task_end_time=timezone.now(),
+                )
+                raise
 
             _log.debug(
                 f"{analysis_id}/{self.request.id}: Submitted "
@@ -311,6 +327,10 @@ def _fail_parent_on_dependency_failure(parent_id, dependency, request_id):
 # failed by the lost-task sweep, and then this run fails with its error.
 DEPENDENCY_WAIT_INTERVAL = 30  # seconds
 DEPENDENCY_WAIT_LIMIT = 6 * 3600  # seconds
+# How long past its due time a poll may be late before the custodian takes it
+# for lost (`WorkflowResult.task_wait_deadline`): long enough for a restart of
+# the workers or a busy queue, short against the wait limit.
+DEPENDENCY_WAIT_GRACE = 3600  # seconds
 
 _STATE_WORDS = {
     "no": "not started",
@@ -545,10 +565,15 @@ def execute_workflow(
         # run neither re-opens a parent that failed meanwhile nor takes over a
         # resubmission's row (and publishes nothing).
         next_task_id = celery.uuid()
+        # The deadline is persisted with the claim: should this process die
+        # before publishing the next poll, or the poll be lost with its worker,
+        # the custodian fails the row once it has passed
         if not _update_unless_superseded(
             analysis,
             task_state=WorkflowResult.PENDING_DEPENDENCIES,
             task_id=next_task_id,
+            task_wait_deadline=timezone.now()
+            + timedelta(seconds=DEPENDENCY_WAIT_INTERVAL + DEPENDENCY_WAIT_GRACE),
         ):
             _log.info(
                 "%s/%s: Not waiting for dependency '%s': the workflow changed "

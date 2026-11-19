@@ -142,3 +142,40 @@ def periodic_cleanup():
             horizon,
         )
         q.update(task_state=WorkflowResult.FAILURE, task_error=LOST_MESSAGE_ERROR)
+
+
+ABANDONED_WAIT_ERROR = (
+    "This workflow stopped waiting for one of its dependencies: the worker "
+    "that was checking on the dependency disappeared. Submit this workflow "
+    "again."
+)
+
+
+def fail_abandoned_waiters(now=None):
+    """Fail the workflows that wait for a dependency with nobody polling it.
+
+    A run that finds a dependency unfinished re-queues itself, and each poll
+    pushes `WorkflowResult.task_wait_deadline` on. A row still waiting past
+    it has no poll left: the process died between claiming the row and
+    publishing the poll, or the poll was lost with its worker. The lost-task
+    reaper cannot tell (it only judges rows in ``STARTED``), and nothing else
+    would ever move the row. A row waiting for its chord has no deadline and
+    is left alone. Returns how many rows were failed.
+    """
+    now = now or timezone.now()
+    failed = WorkflowResult.objects.filter(
+        task_state=WorkflowResult.PENDING_DEPENDENCIES,
+        task_wait_deadline__lt=now,
+    ).update(
+        task_state=WorkflowResult.FAILURE,
+        task_error=ABANDONED_WAIT_ERROR,
+        task_end_time=now,
+        task_wait_deadline=None,
+    )
+    if failed:
+        _log.warning(
+            "Custodian: failed %d workflow(s) whose poll for a dependency was "
+            "lost.",
+            failed,
+        )
+    return failed

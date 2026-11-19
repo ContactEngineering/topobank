@@ -248,4 +248,15 @@ def reap_lost_tasks(
             )
     if failed:
         _log.warning("Custodian: failed %d task(s) whose worker disappeared.", failed)
-    return {"skipped": False, "candidates": len(candidates), "failed": failed}
+    # Workflows waiting for a dependency are not in STARTED; one whose poll was
+    # lost is told by its deadline. Only judged while workers answer
+    # (guardrail 1): with none up, no poll runs and every deadline passes.
+    from topobank.analysis.custodian import fail_abandoned_waiters
+
+    abandoned = fail_abandoned_waiters()
+    return {
+        "skipped": False,
+        "candidates": len(candidates),
+        "failed": failed,
+        "abandoned_waiters": abandoned,
+    }

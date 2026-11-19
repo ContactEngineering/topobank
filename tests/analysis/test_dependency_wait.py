@@ -4,12 +4,18 @@ A run whose chord fires while a shared dependency is pending or running again
 failing with "Dependency 'x' failed." for a dependency that goes on to succeed.
 """
 
+import datetime
 from unittest.mock import patch
 
 import pytest
+from django.utils import timezone
 
 from topobank.analysis import tasks
-from topobank.analysis.models import Workflow, WorkflowResult
+from topobank.analysis.models import (
+    Workflow,
+    WorkflowResult,
+    submit_analysis_task_to_celery,
+)
 from topobank.analysis.tasks import (
     DEPENDENCY_WAIT_INTERVAL,
     DEPENDENCY_WAIT_LIMIT,
@@ -359,11 +365,20 @@ def test_the_chord_id_does_not_overwrite_a_requeue_of_its_callback(
 
 
 @pytest.mark.django_db
-def test_schedule_workflow_stores_the_chord_id(two_topos, test_workflow, worker_mode):
+def test_the_row_names_the_chord_callback_before_the_chord_is_published(
+    two_topos, test_workflow, worker_mode
+):
+    """The callback can run before `schedule_workflow` gets past publishing the
+    chord; it must find its own id on the row then, not the scheduler's."""
     topo, _ = two_topos
     dep = _analysis(topo, WorkflowResult.PENDING)
     parent = _analysis(topo, WorkflowResult.PENDING)
-    chord_id = "4f1c0d2e-0000-0000-0000-000000000006"
+    seen_at_publication = []
+
+    def publish(*args, **kwargs):
+        seen_at_publication.append(
+            str(WorkflowResult.objects.get(pk=parent.pk).task_id)
+        )
 
     with (
         patch.object(Workflow, "get_dependencies", return_value={"features:0": dep}),
@@ -372,9 +387,183 @@ def test_schedule_workflow_stores_the_chord_id(two_topos, test_workflow, worker_
         ),
         patch.object(tasks.celery, "chord") as make_chord,
     ):
-        make_chord.return_value.apply_async.return_value.id = chord_id
+        make_chord.return_value.apply_async.side_effect = publish
+        tasks.schedule_workflow.apply(args=(parent.id, False), throw=True)
+
+    callback = make_chord.call_args.args[1]
+    callback_id = str(callback.options["task_id"])
+    assert seen_at_publication == [callback_id]
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.PENDING_DEPENDENCIES
+    assert str(parent.task_id) == callback_id
+
+
+@pytest.mark.django_db
+def test_a_chord_that_cannot_be_published_fails_the_workflow(
+    two_topos, test_workflow, worker_mode
+):
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.PENDING)
+    parent = _analysis(topo, WorkflowResult.PENDING)
+
+    with (
+        patch.object(Workflow, "get_dependencies", return_value={"features:0": dep}),
+        patch.object(
+            tasks, "prepare_dependency_tasks", return_value=({}, {"features:0": dep})
+        ),
+        patch.object(tasks.celery, "chord") as make_chord,
+    ):
+        make_chord.return_value.apply_async.side_effect = OSError("broker down")
+        with pytest.raises(OSError):
+            tasks.schedule_workflow.apply(args=(parent.id, False), throw=True)
+
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.FAILURE
+    assert "could not be queued" in parent.task_error
+
+
+@pytest.mark.django_db
+def test_the_submission_names_its_task_before_publishing_it(
+    two_topos, test_workflow
+):
+    """`schedule_workflow` can run, and hand the row on to a chord callback or a
+    re-queued run, before the submission returns: the submission must not
+    overwrite that with its own id afterwards."""
+    topo, _ = two_topos
+    analysis = _analysis(topo, WorkflowResult.PENDING)
+    analysis.set_pending_state()
+    handed_on = "4f1c0d2e-0000-0000-0000-000000000007"
+    seen_at_publication = []
+
+    def runs_at_once(args=None, queue=None, task_id=None, **kwargs):
+        seen_at_publication.append(
+            (str(WorkflowResult.objects.get(pk=analysis.pk).task_id), task_id)
+        )
+        WorkflowResult.objects.filter(pk=analysis.pk).update(
+            task_state=WorkflowResult.PENDING_DEPENDENCIES, task_id=handed_on
+        )
+
+    with patch.object(tasks.schedule_workflow, "apply_async", side_effect=runs_at_once):
+        submit_analysis_task_to_celery(analysis, True)
+
+    ((on_row, published),) = seen_at_publication
+    assert on_row == published
+    analysis.refresh_from_db()
+    assert str(analysis.task_id) == handed_on
+
+
+@pytest.mark.django_db
+def test_a_submission_that_cannot_be_published_fails_the_workflow(
+    two_topos, test_workflow
+):
+    topo, _ = two_topos
+    analysis = _analysis(topo, WorkflowResult.PENDING)
+    analysis.set_pending_state()
+
+    with patch.object(
+        tasks.schedule_workflow, "apply_async", side_effect=OSError("broker down")
+    ):
+        with pytest.raises(OSError):
+            submit_analysis_task_to_celery(analysis, True)
+
+    analysis.refresh_from_db()
+    assert analysis.task_state == WorkflowResult.FAILURE
+    assert "could not be queued" in analysis.task_error
+
+
+@pytest.mark.django_db
+def test_a_poll_lost_before_it_was_published_is_failed_past_its_deadline(
+    two_topos, test_workflow, worker_mode
+):
+    """The worker dies between claiming the row for the next poll and
+    publishing it: the deadline persisted with the claim lets the custodian
+    fail the row, which nothing else would ever move."""
+    from topobank.analysis.custodian import fail_abandoned_waiters
+
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.STARTED)
+    parent = _parent_of(topo, dep)
+
+    with patch.object(execute_workflow, "apply_async", side_effect=SystemExit()):
+        with pytest.raises(SystemExit):
+            execute_workflow(parent.id)
+
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.PENDING_DEPENDENCIES
+    deadline = parent.task_wait_deadline
+    assert deadline is not None
+
+    assert fail_abandoned_waiters(now=deadline) == 0
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.PENDING_DEPENDENCIES
+
+    assert fail_abandoned_waiters(now=deadline + datetime.timedelta(seconds=1)) == 1
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.FAILURE
+    assert "stopped waiting" in parent.task_error
+
+
+@pytest.mark.django_db
+def test_each_poll_pushes_the_deadline_on(two_topos, test_workflow, worker_mode):
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.STARTED)
+    parent = _parent_of(topo, dep)
+
+    with patch.object(execute_workflow, "apply_async"):
+        execute_workflow(parent.id)
+        parent.refresh_from_db()
+        first = parent.task_wait_deadline
+        _delayed_run(
+            parent, waited=DEPENDENCY_WAIT_INTERVAL, task_id=str(parent.task_id)
+        )
+
+    parent.refresh_from_db()
+    assert parent.task_wait_deadline > first
+
+
+@pytest.mark.django_db
+def test_a_workflow_waiting_for_its_chord_has_no_deadline(two_topos, test_workflow):
+    from topobank.analysis.custodian import fail_abandoned_waiters
+
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.PENDING)
+    parent = _analysis(topo, WorkflowResult.PENDING)
+    with (
+        patch.object(Workflow, "get_dependencies", return_value={"features:0": dep}),
+        patch.object(
+            tasks, "prepare_dependency_tasks", return_value=({}, {"features:0": dep})
+        ),
+        patch.object(tasks.celery, "chord"),
+    ):
         tasks.schedule_workflow.apply(args=(parent.id, False), throw=True)
 
     parent.refresh_from_db()
     assert parent.task_state == WorkflowResult.PENDING_DEPENDENCIES
-    assert str(parent.task_id) == chord_id
+    assert parent.task_wait_deadline is None
+    far_future = timezone.now() + datetime.timedelta(days=365)
+    assert fail_abandoned_waiters(now=far_future) == 0
+
+
+@pytest.mark.django_db
+def test_lost_waiters_are_judged_only_while_workers_answer(
+    two_topos, test_workflow
+):
+    """With no worker up no poll runs, and every deadline passes."""
+    from topobank.taskapp import custodian
+
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.STARTED)
+    parent = _parent_of(topo, dep)
+    WorkflowResult.objects.filter(pk=parent.pk).update(
+        task_wait_deadline=timezone.now() - datetime.timedelta(minutes=1)
+    )
+
+    with patch.object(custodian, "live_task_ids", return_value=None):
+        custodian.reap_lost_tasks(require_confirmation=False)
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.PENDING_DEPENDENCIES
+
+    with patch.object(custodian, "live_task_ids", return_value=set()):
+        custodian.reap_lost_tasks(require_confirmation=False)
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.FAILURE
