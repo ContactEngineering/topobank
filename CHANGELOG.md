@@ -2,6 +2,16 @@
 
 # Unreleased
 
+- BUG: A workflow whose dependency is pending or running again when its chord
+  fires (another run's forced submit renewed the shared dependency in place)
+  waits for it instead of failing with "Dependency '<key>' failed." for a
+  dependency that then succeeds; `execute_workflow` re-queues itself every
+  30 s, for up to 6 h, before failing with a message naming the dependency
+  and its state. A dependency that failed without an error is now named too.
+  Each poll persists when the next one is due
+  (`WorkflowResult.task_wait_deadline`), and the lost-task custodian fails a
+  workflow whose poll is over an hour late (its worker was lost); a
+  workflow's task is named on its row before it is published
 - ENH: `TOPOBANK_WORKFLOW_DISPATCHER` names a callable that every submit path
   hands a pending `WorkflowResult` to (`dispatch_workflow`), so a deployment
   can run some workflows outside Celery; unset, workflows are submitted to

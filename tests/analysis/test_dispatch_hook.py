@@ -71,11 +71,13 @@ def test_default_dispatcher_submits_to_celery(
         result.submit(force_submit=False)
 
     assert len(callbacks) == 1
-    celery.assert_called_once_with(
-        args=[result.id, False], queue=result.get_celery_queue()
-    )
     result.refresh_from_db()
-    assert str(result.task_id) == "11111111-2222-3333-4444-555555555555"
+    # Published under the id the row was given first
+    celery.assert_called_once_with(
+        args=[result.id, False],
+        queue=result.get_celery_queue(),
+        task_id=str(result.task_id),
+    )
     assert result.task_state == WorkflowResult.PENDING
     assert calls == []
 
@@ -174,8 +176,11 @@ def test_dispatcher_may_delegate_to_celery(
     with django_capture_on_commit_callbacks(execute=True):
         result.submit_again()
 
+    result.refresh_from_db()
     celery.assert_called_once_with(
-        args=[result.id, True], queue=result.get_celery_queue()
+        args=[result.id, True],
+        queue=result.get_celery_queue(),
+        task_id=str(result.task_id),
     )
 
 

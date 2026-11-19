@@ -8,12 +8,14 @@ from functools import partial
 from typing import Union
 from urllib.parse import urlparse
 
+import celery
 from django.conf import settings
 from django.core.files.storage import default_storage
 from django.db import models, transaction
 from django.db.models import Q
 from django.urls import resolve
 from django.urls.exceptions import Resolver404
+from django.utils import timezone
 from django.utils.module_loading import import_string
 
 from topobank.authorization.models import EDIT, FULL
@@ -127,6 +129,13 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
 
     # Dependencies
     dependencies = models.JSONField(default=dict)
+
+    # While a run polls for an unfinished dependency (see
+    # `analysis.tasks.execute_workflow`), when its next poll must have run by.
+    # Each poll pushes it on; the custodian fails a row still waiting past it,
+    # whose poll was lost (see `analysis.custodian.fail_abandoned_waiters`).
+    # None while the row waits for its chord, which no deadline bounds.
+    task_wait_deadline = models.DateTimeField(null=True, blank=True)
 
     # Results
     folder = models.ForeignKey(ManifestSet, on_delete=models.CASCADE, null=True)
@@ -667,10 +676,40 @@ def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool)
 
     # TODO: force_submit is currently hardcoded to True everywhere this is called.
     _log.debug(f"Submitting task for WorkflowResult {analysis.id}...")
-    analysis.task_id = schedule_workflow.apply_async(
-        args=[analysis.id, force_submit], queue=analysis.get_celery_queue()
-    ).id
-    analysis.save(update_fields=["task_id"])
+    # The row names its task before the task is published: a task that runs at
+    # once (and may hand the row on to a chord callback or a re-queued run)
+    # must find its own id there, and must not have it overwritten afterwards.
+    # Only a row still waiting for its submission is claimed; one a concurrent
+    # submission has claimed meanwhile is left to that submission.
+    task_id = celery.uuid()
+    claimed = WorkflowResult.objects.filter(
+        pk=analysis.pk, task_state=WorkflowResult.PENDING, task_id__isnull=True
+    ).update(task_id=task_id)
+    if not claimed:
+        _log.info(
+            "WorkflowResult %s was submitted again meanwhile; not submitting it "
+            "twice.",
+            analysis.id,
+        )
+        return
+    analysis.task_id = task_id
+    try:
+        schedule_workflow.apply_async(
+            args=[analysis.id, force_submit],
+            queue=analysis.get_celery_queue(),
+            task_id=task_id,
+        )
+    except Exception as exc:
+        # The row names a task that was never queued: fail it, unless it has
+        # been taken over meanwhile
+        WorkflowResult.objects.filter(
+            pk=analysis.pk, task_state=WorkflowResult.PENDING, task_id=task_id
+        ).update(
+            task_state=WorkflowResult.FAILURE,
+            task_error=f"The workflow could not be queued ({exc}). Submit it again.",
+            task_end_time=timezone.now(),
+        )
+        raise
 
 
 class Workflow:
