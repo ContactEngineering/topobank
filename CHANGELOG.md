@@ -2,6 +2,9 @@
 
 # Unreleased
 
+- BUG: Admins are emailed (at most once a day per file) when a stored file
+  that should exist is missing, and reading it raises a clear error
+- BUG: A container export that fails part-way no longer leaves its archive open
 - ENH: `TOPOBANK_WORKFLOW_DISPATCHER` names a callable that every submit path
   hands a pending `WorkflowResult` to (`dispatch_workflow`), so a deployment
   can run some workflows outside Celery; unset, workflows are submitted to

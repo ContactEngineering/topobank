@@ -21,6 +21,7 @@ from storages.utils import clean_name
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager
 from ..supplib.json import ExtendedJSONEncoder
+from .missing import MissingFileError, missing_file_guard  # noqa: F401
 from .utils import confined_key, file_storage_path, is_folder_filename, is_storage_key
 
 _log = logging.getLogger(__name__)
@@ -357,11 +358,13 @@ class Manifest(PermissionMixin, models.Model):
 
     def open(self, *args, **kwargs):
         self.assert_exists()
-        return self.file.open(*args, **kwargs)
+        with missing_file_guard(self):
+            return self.file.open(*args, **kwargs)
 
     def read(self, *args, **kwargs):
         self.assert_exists()
-        return self.file.read(*args, **kwargs)
+        with missing_file_guard(self):
+            return self.file.read(*args, **kwargs)
 
     def save(self, *args, **kwargs):
         created = self.pk is not None  # True on creation of the manifest
@@ -418,7 +421,7 @@ class Manifest(PermissionMixin, models.Model):
         copy.save()
 
         # Copy the actual data file
-        with self.file.open(mode="rb") as file:
+        with missing_file_guard(self), self.file.open(mode="rb") as file:
             copy.save_file(file)
 
         # Save again

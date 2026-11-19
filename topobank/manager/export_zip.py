@@ -47,6 +47,18 @@ def export_container_zip(file, surfaces, extra_metadata=None, progress_recorder=
     -------
     None
     """
+    # Close the archive even if writing it fails part-way, e.g. because a data
+    # file is missing from storage; otherwise it is closed by the garbage
+    # collector, possibly after `file` is gone
+    with zipfile.ZipFile(file, mode="w") as zf:
+        nb_steps = _write_container(zf, surfaces, extra_metadata, progress_recorder)
+
+    if progress_recorder is not None:
+        progress_recorder.set_progress(nb_steps, nb_steps, message="Container complete")
+
+
+def _write_container(zf, surfaces, extra_metadata, progress_recorder) -> int:
+    """Write the container into an open ZIP file; return the number of steps."""
     # One step per measurement, plus a final one for the metadata and license
     # files, so that a client can show a meaningful bar rather than an
     # indeterminate spinner.
@@ -60,8 +72,6 @@ def export_container_zip(file, surfaces, extra_metadata=None, progress_recorder=
     publications = (
         set()
     )  # collect publications so we can list the licenses in an extra file
-
-    zf = zipfile.ZipFile(file, mode="w")
 
     #
     # Add meta data and topography files for all given surfaces
@@ -255,7 +265,4 @@ def export_container_zip(file, surfaces, extra_metadata=None, progress_recorder=
 
     zf.writestr("README.txt", textwrap.dedent(readme_txt))
 
-    zf.close()
-
-    if progress_recorder is not None:
-        progress_recorder.set_progress(nb_steps, nb_steps, message="Container complete")
+    return nb_steps
