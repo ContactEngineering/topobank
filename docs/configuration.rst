@@ -112,6 +112,29 @@ Measurement images
         measurement's cache is refreshed (``manage.py refresh_cache``).
 
 
+Workflows
+---------
+
+.. list-table:: Workflows
+    :widths: 25 10 20 45
+    :header-rows: 1
+
+    * - Setting
+      - Type
+      - Default
+      - Description
+    * - :code:`TOPOBANK_WORKFLOW_DISPATCHER`
+      - str
+      - :code:`None`
+      - Dotted path of a callable ``dispatcher(analysis, force_submit)`` that hands a workflow
+        result just set pending to whatever runs it, called once the submitting transaction
+        commits. ``None`` sends it to the Celery task (``submit_analysis_task_to_celery``, which a
+        dispatcher may delegate to for the workflows it does not run itself). A dispatcher that
+        runs a workflow elsewhere sets ``analysis.task_id`` right away and drives ``task_state``
+        itself. The dependencies of a workflow are scheduled by the Celery task and do not pass
+        through the dispatcher.
+
+
 File uploads
 ------------
 

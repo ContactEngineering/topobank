@@ -21,7 +21,7 @@ from storages.utils import clean_name
 from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager
 from ..supplib.json import ExtendedJSONEncoder
-from .utils import file_storage_path
+from .utils import confined_key, file_storage_path, is_folder_filename, is_storage_key
 
 _log = logging.getLogger(__name__)
 
@@ -108,6 +108,57 @@ class ManifestSet(PermissionMixin, models.Model):
             # delete_on_close=False in NamedTemporaryFile and get rid of explicitly
             # deleting the file.
             os.remove(f.name)
+
+    def register_stored_files(self, files, *, prefix=None):
+        """Add derived (`kind="der"`) manifests for files that are already in
+        storage, without copying them.
+
+        For a process that writes straight into the storage (a processing
+        backend, a workflow running elsewhere) and hands this folder the keys
+        afterwards. `files` are dicts with the `filename` the file goes by in
+        this folder, the storage `key` the object is at (as the default storage
+        names it, so relative to its own location) and, if known, its `size`
+        in bytes. The manifests are confirmed as created: the caller vouches
+        that the objects are there, and nothing is read from storage here.
+
+        A key is accepted only as the storage would use it (`is_storage_key`)
+        and, given a folder `prefix`, only under that folder, so that a result
+        from elsewhere cannot point a manifest at an arbitrary object; an
+        empty `prefix` admits nothing. A filename must be a relative path of
+        the same shape (`is_folder_filename`). A filename this folder already holds, or given
+        twice, is refused before anything is written. Returns the manifests
+        created.
+        """
+        files = list(files)
+        filenames = [item["filename"] for item in files]
+        for item in files:
+            key = item["key"]
+            if not (confined_key(key, prefix) if prefix is not None else is_storage_key(key)):
+                raise ValueError(f"'{key}' is not a storage key under '{prefix}'.")
+            if not is_folder_filename(item["filename"]):
+                raise ValueError(f"'{item['filename']}' is not a valid file name.")
+        duplicates = {name for name in filenames if filenames.count(name) > 1}
+        existing = set(self.files.filter(filename__in=filenames).values_list("filename", flat=True))
+        if duplicates or existing:
+            raise FileExistsError(
+                "Files already in this folder: "
+                + ", ".join(sorted(duplicates | existing))
+            )
+        now = timezone.now()
+        return Manifest.objects.bulk_create(
+            [
+                Manifest(
+                    permissions=self.permissions,
+                    folder=self,
+                    filename=item["filename"],
+                    kind="der",
+                    file=item["key"],
+                    confirmed_at=now,
+                    size_bytes=item.get("size"),
+                )
+                for item in files
+            ]
+        )
 
     def exists(self, filename: str) -> bool:
         return self.files.filter(filename=filename).count() > 0

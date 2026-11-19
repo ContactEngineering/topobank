@@ -10,8 +10,8 @@ Covers:
 - ``topobank.files.utils.file_storage_path`` ``uploads``/``data-lake`` split
 
 Note: Submit tests assert DB state only — without ``transaction=True`` the
-``transaction.on_commit`` hook in ``submit_analysis_task_to_celery`` is
-silently skipped, so no Celery dispatch happens (mirrors ``test_submit_again``).
+``transaction.on_commit`` hook that calls ``dispatch_workflow`` is silently
+skipped, so no Celery dispatch happens (mirrors ``test_submit_again``).
 Coverage of ``_get_dependencies_for_surfaces`` is deferred; the existing test
 workflow implementations only define ``Topography`` dependencies, so meaningful
 coverage requires a new registered implementation.

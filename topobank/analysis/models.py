@@ -14,6 +14,7 @@ from django.db import models, transaction
 from django.db.models import Q
 from django.urls import resolve
 from django.urls.exceptions import Resolver404
+from django.utils.module_loading import import_string
 
 from topobank.authorization.models import EDIT, FULL
 
@@ -22,6 +23,7 @@ from ..authorization.mixins import PermissionMixin
 from ..authorization.models import AuthorizedManager, ViewEditFull
 from ..files.models import Manifest, ManifestSet
 from ..manager.models import Surface, Tag, Topography
+from ..settings import defaults
 from ..supplib.db import advisory_lock
 from ..supplib.dict import load_split_dict, store_split_dict
 from ..taskapp.models import Configuration, TaskStateModel
@@ -601,7 +603,7 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         with transaction.atomic():
             self.set_pending_state()
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, self, force_submit)
+                partial(dispatch_workflow, self, force_submit)
             )
         return self
 
@@ -631,11 +633,35 @@ class WorkflowResult(PermissionMixin, TaskStateModel):
         )
 
 
+def dispatch_workflow(analysis: WorkflowResult, force_submit: bool):
+    """
+    Hand a WorkflowResult that was just set pending to whatever runs workflows.
+
+    Called in an on_commit hook from every submit path (`WorkflowResult.submit`,
+    `Workflow.submit`, `Workflow.submit_for_surfaces`, `Workflow.submit_again`).
+    By default this is `submit_analysis_task_to_celery`; a deployment names
+    another callable `(analysis, force_submit)` in `TOPOBANK_WORKFLOW_DISPATCHER`
+    to run some or all workflows elsewhere. Such a dispatcher must either
+    delegate to `submit_analysis_task_to_celery` or set `analysis.task_id` to an
+    id of its own right away and drive `task_state` itself: a pending row whose
+    `task_id` is still None is reported as failed after
+    `TaskStateModel.COMMIT_EXPIRATION` seconds and marked FAILURE by the
+    custodian. A dotted path that does not resolve is reported by Django's
+    system checks (`manage.py check`, `migrate`), not first at a submit.
+    Dependencies scheduled by `schedule_workflow` do not pass through here.
+    """
+    path = getattr(
+        settings, "TOPOBANK_WORKFLOW_DISPATCHER", defaults.TOPOBANK_WORKFLOW_DISPATCHER
+    )
+    dispatcher = import_string(path) if path else submit_analysis_task_to_celery
+    dispatcher(analysis, force_submit)
+
+
 def submit_analysis_task_to_celery(analysis: WorkflowResult, force_submit: bool):
     """
     Send task to the queue after the WorkflowResult has been created. This is typically run
-    in an on_commit hook. Note: on_commit will not execute in tests, unless
-    transaction=True is added to pytest.mark.django_db
+    in an on_commit hook (see `dispatch_workflow`). Note: on_commit will not execute in
+    tests, unless transaction=True is added to pytest.mark.django_db
     """
     from .tasks import schedule_workflow
 
@@ -932,7 +958,7 @@ class Workflow:
             analysis.set_pending_state()
             analysis.permissions.grant_for_user(user, "edit")
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, analysis, True)
+                partial(dispatch_workflow, analysis, True)
             )
         return analysis
 
@@ -1049,7 +1075,7 @@ class Workflow:
             analysis.set_pending_state()
             analysis.permissions.grant_for_user(user, "edit")
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, analysis, True)
+                partial(dispatch_workflow, analysis, True)
             )
         return analysis
 
@@ -1074,7 +1100,7 @@ class Workflow:
         with transaction.atomic():
             analysis.set_pending_state()
             transaction.on_commit(
-                partial(submit_analysis_task_to_celery, analysis, True)
+                partial(dispatch_workflow, analysis, True)
             )
         return analysis
 
