@@ -121,6 +121,9 @@ def test_default_function_kwargs():
 
 @pytest.mark.django_db
 def test_current_configuration(settings):
+    # muGrid is tracked below but is no longer installed with topobank's own
+    # dependencies, so this test runs only where it is present.
+    pytest.importorskip("muGrid")
     settings.TRACKED_DEPENDENCIES = [
         (
             "SurfaceTopography",

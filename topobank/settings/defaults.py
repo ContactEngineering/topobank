@@ -36,3 +36,14 @@ TOPOBANK_INLINE_PREVIEW_TYPES = {
 #: or ``None`` to show the measurement exactly as analyses see it. Only the images
 #: are affected.
 TOPOBANK_VISUALIZATION_DETREND_MODE = None
+
+#: Dotted path of a callable ``dispatcher(analysis, force_submit)`` that hands a
+#: workflow result just set pending to whatever runs it, or ``None`` (the
+#: default) for the Celery task (``submit_analysis_task_to_celery``). It is
+#: called once the submitting transaction commits, from every submit path, and
+#: only hands the run off. A dispatcher that does not delegate to the Celery
+#: task must set ``analysis.task_id`` to an id of its own right away and drive
+#: ``task_state`` itself (see ``topobank.analysis.models.dispatch_workflow``).
+#: The dependencies of a workflow are scheduled by the Celery task itself and do
+#: not pass through the dispatcher.
+TOPOBANK_WORKFLOW_DISPATCHER = None
