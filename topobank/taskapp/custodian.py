@@ -53,9 +53,16 @@ is judged before it is older than the task's hard time limit (see
 ``taskapp.utils.reclaim_after``): past it a worker has killed any Celery run,
 and a backend has had as long to end its run, so a run that old is dead
 whichever runner had it, with or without an answer from the workers. A model
-without a backend is judged by the workers alone, as above. Either way the
-run is dead once given up, and what it left behind goes at once
-(``TaskStateModel.task_lost``).
+without a backend is judged by the workers alone, as above.
+
+What a lost run left behind is cleaned up (``TaskStateModel.task_lost``) once
+it can no longer record: a run on a backend at once, since its result is
+refused once the run has been failed (``TaskStateModel.complete_task``). A
+Celery run may still record its result after it has been given up, as the
+workers can be wrong about it, so its files go only once it is older than the
+hard time limit, past which no worker runs it: at once if it already is, else
+on a later pass (``clean_up_lost_runs``). Without a hard time limit nothing
+bounds a Celery run, and its files are kept.
 """
 
 import logging
@@ -63,6 +70,7 @@ from datetime import timedelta
 
 from django.apps import apps
 from django.core.cache import cache
+from django.db.models import F
 from django.utils import timezone
 
 from .celeryapp import app
@@ -78,6 +86,11 @@ DEFAULT_MIN_AGE = timedelta(minutes=15)
 #: this (cache eviction, Redis restart) costs one extra pass, nothing more.
 SUSPECT_CACHE_KEY = "taskapp-custodian-lost-task-candidates"
 SUSPECT_CACHE_SECONDS = 3600
+
+#: How long past the hard time limit `clean_up_lost_runs` still looks for the
+#: files of a Celery run that was failed as lost before the limit. The pass
+#: runs every few minutes, so a missed pass is caught up well within it.
+LOST_RUN_CLEANUP_WINDOW = timedelta(days=1)
 
 #: Seconds to wait for workers to answer the broadcast. Generous on purpose:
 #: a false "nobody knows this task" is what we are trying hard to avoid, and
@@ -216,29 +229,94 @@ def find_lost(live, min_age=DEFAULT_MIN_AGE):
     return lost
 
 
-def mark_lost(obj, error=LOST_TASK_ERROR):
-    """
-    Transition one row to FAILURE. Returns whether it was still lost.
-
-    The filtered ``update()`` makes this a no-op if the row reached a terminal
-    state in the meantime, so a task that finished between the sweep's two
-    passes is never overwritten.
-    """
-    updated = type(obj).all_objects.filter(pk=obj.pk, task_state=obj.STARTED).update(
-        task_state=obj.FAILURE,
-        task_error=error,
-        task_end_time=timezone.now(),
-    )
-    if not updated:
+def _may_still_record(obj, now):
+    """Whether the run of `obj`, failed as lost, may still record its result:
+    a Celery run (one of a model without a task backend) younger than the hard
+    time limit, or any Celery run without such a limit (see module docstring)."""
+    if _has_backend(type(obj)):
         return False
-    _propagate_to_parent(obj, error)
+    limit = reclaim_after(task_dispatch)
+    if limit is None or obj.task_start_time is None:
+        return True
+    return obj.task_start_time >= now - timedelta(seconds=limit)
+
+
+def _clean_up(obj):
     try:
         obj.task_lost()
     except Exception:  # cleanup; the run is failed either way
         _log.exception(
             "Custodian: cleaning up after lost %s %s failed.", type(obj).__name__, obj.pk
         )
+
+
+def mark_lost(obj, error=LOST_TASK_ERROR):
+    """
+    Transition one row to FAILURE. Returns whether it was still lost.
+
+    The filtered ``update()`` makes this a no-op unless the row is still in the
+    run that was judged lost: in ``STARTED`` under the same task id and start
+    time. A task that finished between the sweep's two passes, a forced
+    dispatch that started a new run, or a redelivery that took the run over
+    with a new start time is never failed.
+
+    What the run left behind is cleaned up at once if the run can no longer
+    record, else by a later `clean_up_lost_runs` (see module docstring).
+    """
+    now = timezone.now()
+    updated = type(obj).all_objects.filter(
+        pk=obj.pk,
+        task_state=obj.STARTED,
+        task_id=obj.task_id,
+        task_start_time=obj.task_start_time,
+    ).update(
+        task_state=obj.FAILURE,
+        task_error=error,
+        task_end_time=now,
+    )
+    if not updated:
+        return False
+    _propagate_to_parent(obj, error)
+    if _may_still_record(obj, now):
+        _log.info(
+            "Custodian: keeping the files of lost %s %s (task %s) until its run "
+            "is past the hard time limit.",
+            type(obj).__name__,
+            obj.pk,
+            obj.task_id,
+        )
+    else:
+        _clean_up(obj)
     return True
+
+
+def clean_up_lost_runs(now=None):
+    """Clean up after the Celery runs failed as lost before the hard time
+    limit, now that they are past it and can no longer record (see module
+    docstring). Looks back `LOST_RUN_CLEANUP_WINDOW` past the limit; a run
+    that recorded its result after all is no longer failed and is left alone.
+    Returns how many rows were cleaned up."""
+    limit = reclaim_after(task_dispatch)
+    if limit is None:
+        return 0
+    now = now or timezone.now()
+    limit = timedelta(seconds=limit)
+    cleaned = 0
+    for model in task_state_models():
+        if _has_backend(model):
+            continue  # cleaned up when failed
+        queryset = model.all_objects.filter(
+            task_state=model.FAILURE,
+            task_error=LOST_TASK_ERROR,
+            task_start_time__lt=now - limit,
+            task_start_time__gte=now - limit - LOST_RUN_CLEANUP_WINDOW,
+            # Failed before the limit, so its files were kept
+            task_end_time__lt=F("task_start_time") + limit,
+        ).exclude(task_id=None)
+        for obj in queryset.iterator():
+            _clean_up(obj)
+            cleaned += 1
+    return cleaned
 
 
 @app.task
@@ -315,6 +393,11 @@ def reap_lost_tasks(
             )
     if failed:
         _log.warning("Custodian: failed %d task(s) as lost.", failed)
+    cleaned = clean_up_lost_runs()
+    if cleaned:
+        _log.info(
+            "Custodian: cleaned up after %d run(s) failed as lost earlier.", cleaned
+        )
     # Without an answer from the workers only the runs of models with a task
     # backend were judged; the pass was skipped only if there were none of
     # those either

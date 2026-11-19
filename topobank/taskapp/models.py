@@ -310,9 +310,11 @@ class TaskStateModel(models.Model):
             # once the claiming transaction commits (see `taskapp.utils`).
             # Celery reports an id it has never seen as pending, so a message
             # that was never sent (the process died before the on-commit hook
-            # ran) can only be told by the claim's age: no message waits in
-            # the queue past the task's hard time limit. `claim_pending` then
-            # lets the row be dispatched again.
+            # ran) can only be told by the claim's age: a sent message expires
+            # at the task's hard time limit (`submit_on_commit`), and one that
+            # expired in the queue is revoked, which fails the row. A claim
+            # still pending past the limit has no message. `claim_pending`
+            # then lets the row be dispatched again.
             from .utils import reclaim_after, task_dispatch
 
             limit = reclaim_after(task_dispatch)

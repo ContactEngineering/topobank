@@ -2349,10 +2349,10 @@ class Topography(PermissionMixin, TaskStateModel, SubjectMixin):
         """Clean up the files of a run the custodian has failed as lost.
 
         The run left its files behind, and nothing else deletes them. The
-        custodian gives a run up only once it is older than the task's hard
-        time limit (see `taskapp.custodian`), past which no worker still holds
-        it and a backend has had as long to end it, so nothing can record it
-        any more and the files go at once.
+        custodian calls this only once the run can no longer record (see
+        `taskapp.custodian`): a run on a backend once it has been failed, a
+        Celery run once it is past the task's hard time limit. Files the row
+        references are kept (`discard_run`).
         """
         if self.task_id is not None:
             self.discard_run(self.task_id)

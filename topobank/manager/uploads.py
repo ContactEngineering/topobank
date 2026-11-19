@@ -4,9 +4,16 @@ A measurement's data file is uploaded straight to storage, ahead of anything
 reading it. Two things then have to happen exactly once: the manifest is
 confirmed (`Manifest.confirm_upload`), and the measurement's processing is
 dispatched. Several parties may get there first -- the storage's upload
-notification, a reader of the file (which only confirms it), a periodic sweep
--- so both steps are conditional updates that any number of callers can make;
-whoever comes later finds nothing left to do.
+notification, a reader of the file, a periodic sweep -- so both steps are
+conditional updates that any number of callers can make; whoever comes later
+finds nothing left to do.
+
+Whoever confirms the upload also dispatches its processing, in the same
+transaction (`upload_confirmed`, received in `signals`): a reader that gets
+there first, or a process that dies right after confirming, cannot leave an
+upload confirmed but never processed, which no sweep would find. A data file
+the application stores itself (a ZIP import, a copy) is not an upload, and its
+processing stays the caller's call.
 """
 
 import logging
@@ -52,18 +59,22 @@ def dispatch_processing(manifest: Manifest) -> List[Topography]:
 def confirm_and_dispatch(manifest: Manifest) -> Optional[List[Topography]]:
     """Confirm the upload of `manifest`, if it has arrived, and process it.
 
-    The single entry point that starts the processing of an upload: the
-    storage's notification, a sweep over unconfirmed uploads, or a caller that
-    means to. Returns None if the file is not there, else the
-    measurements this call dispatched (see `dispatch_processing`), which is
-    empty when they were dispatched already. Both steps are idempotent, so
-    repeated and concurrent calls confirm and dispatch once.
+    The entry point of the storage's notification and the sweep over
+    unconfirmed uploads. Returns None if the file is not there, else the
+    measurements dispatched for it: by this call's confirmation, or, for an
+    upload confirmed earlier without a dispatch (before confirmations
+    dispatched), by this call. Empty when they were dispatched already. Both
+    steps are idempotent, so repeated and concurrent calls confirm and
+    dispatch once.
     """
-    # The storage round trip of confirming stays outside the transaction
+    # The storage round trip of confirming stays outside the transaction; a
+    # confirmation by this call dispatches in its own (see module docstring)
+    # and leaves what it dispatched on the instance
+    manifest.dispatched_on_confirmation = []
     if not manifest.confirm_upload():
         return None
     with transaction.atomic():
-        return dispatch_processing(manifest)
+        return manifest.dispatched_on_confirmation + dispatch_processing(manifest)
 
 
 def unconfirmed_uploads(older_than):

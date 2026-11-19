@@ -6,6 +6,7 @@ from django.dispatch import receiver
 from notifications.models import Notification
 
 from ..authorization import get_permission_model
+from ..files.models import Manifest, upload_confirmed
 from .models import Surface, Topography
 from .zip_model import ZipContainer
 
@@ -115,3 +116,13 @@ def post_delete_zip_container(sender, instance, **kwargs):
     except get_permission_model().DoesNotExist:
         # Already gone, nothing to do
         pass
+
+
+@receiver(upload_confirmed, sender=Manifest)
+def process_confirmed_upload(sender, manifest, **kwargs):
+    """Start processing the measurements of a data file whose upload was just
+    confirmed, in the confirming transaction (see `uploads`). What was
+    dispatched is left on the instance, for `confirm_and_dispatch`."""
+    from .uploads import dispatch_processing
+
+    manifest.dispatched_on_confirmation = dispatch_processing(manifest)

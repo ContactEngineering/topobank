@@ -28,7 +28,7 @@ from topobank.manager.models import (
     post_refresh_cache,
     processing_storage_prefix,
 )
-from topobank.taskapp import custodian
+from topobank.taskapp import custodian, utils
 from topobank.taskapp.custodian import find_lost
 from topobank.taskapp.models import TaskRun, TaskStateModel
 from topobank.taskapp.utils import claim_started, run_task, task_dispatch
@@ -774,6 +774,56 @@ def test_a_backend_run_is_given_up_past_the_hard_time_limit_whatever_the_workers
 
 
 @pytest.mark.django_db(transaction=True)
+def test_a_run_superseded_after_it_started_is_not_handed_to_the_backend(
+    broker, backend
+):
+    """A forced dispatch can claim the row for a newer run between
+    `claim_started` and loading the instance: the older run's id must not go to
+    the backend with the newer run's instance."""
+    topo = Topography1DFactory()
+    real_claim = utils.claim_started
+    superseded = []
+
+    def claim_then_superseded(model, obj_id, task_id, reclaim_after=None):
+        started_at = real_claim(model, obj_id, task_id, reclaim_after)
+        if not superseded:
+            superseded.append(task_id)
+            # A forced dispatch of a newer run, handed over in its own turn
+            with mock.patch.object(utils, "claim_started", real_claim):
+                assert run_task(Topography.objects.get(pk=obj_id), force=True)
+        return started_at
+
+    with mock.patch.object(utils, "claim_started", claim_then_superseded):
+        assert run_task(Topography.objects.get(pk=topo.pk))
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert [call[1] for call in backend] == [str(stored.task_id)]
+    assert superseded[0] != str(stored.task_id)
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_queued_message_expires_when_its_claim_may_be_taken_over(settings):
+    """A hard time limit bounds a run, not its wait in the queue: the message
+    expires at the moment `claim_pending` would let a new dispatch take the row
+    over, so the two never both run."""
+    settings.TOPOBANK_PROCESSING_BACKEND = None
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 600
+    topo = Topography1DFactory()
+    with mock.patch.object(task_dispatch, "apply_async") as apply_async:
+        assert run_task(Topography.objects.get(pk=topo.pk), force=True)
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert apply_async.call_args.kwargs["expires"] == (
+        stored.task_submission_time + datetime.timedelta(seconds=600)
+    )
+
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = None
+    with mock.patch.object(task_dispatch, "apply_async") as apply_async:
+        assert run_task(Topography.objects.get(pk=topo.pk), force=True)
+    assert "expires" not in apply_async.call_args.kwargs
+
+
+@pytest.mark.django_db(transaction=True)
 def test_a_backend_that_fails_to_start_fails_the_measurement(broker, settings):
     settings.TOPOBANK_PROCESSING_BACKEND = (
         "tests.manager.test_processing.refusing_backend"
@@ -1034,26 +1084,109 @@ def test_a_lost_backend_run_leaves_no_files(broker, backend):
     assert _run_folder(topo, task_id) == []
 
 
-@pytest.mark.django_db(transaction=True)
-def test_a_lost_celery_run_leaves_no_files(broker, settings):
-    """A run no worker holds is dead; its files go with it, at once."""
-    settings.TOPOBANK_PROCESSING_BACKEND = None
-    settings.TOPOBANK_TASK_RECLAIM_AFTER = 3600
-    topo = Topography1DFactory()
+def _killed_celery_run(topo):
+    """A Celery run of `topo` that wrote its files and was then killed;
+    returns its task id."""
     task_id, started_at = _start_on_celery(topo)
     worker = Topography.objects.get(pk=topo.pk)
     worker._task_run = TaskRun(task_id, started_at)
-    # The worker is killed once the run has written its files
     with mock.patch.object(Topography, "apply_inspection", side_effect=SystemExit()):
         with pytest.raises(SystemExit):
             worker.refresh_cache()
     assert _run_folder(topo, task_id)
+    return task_id
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_lost_celery_run_keeps_its_files_until_past_the_hard_time_limit(
+    broker, settings
+):
+    """A Celery run given up before its hard time limit may still record its
+    result (the workers can be wrong), so its files stay until a pass after the
+    limit; a later pass then cleans up once."""
+    settings.TOPOBANK_PROCESSING_BACKEND = None
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 3600
+    topo = Topography1DFactory()
+    task_id = _killed_celery_run(topo)
+
+    with mock.patch.object(custodian, "live_task_ids", return_value=set()):
+        custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
+
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.FAILURE
+    assert _run_folder(topo, task_id)  # kept: the run may still record
+
+    # Within the limit, a pass leaves them
+    assert custodian.clean_up_lost_runs() == 0
+    assert _run_folder(topo, task_id)
+
+    # Past it, a pass cleans up
+    later = stored.task_start_time + datetime.timedelta(seconds=3601)
+    assert custodian.clean_up_lost_runs(now=later) == 1
+    assert _run_folder(topo, task_id) == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_lost_celery_run_past_the_hard_time_limit_leaves_no_files(
+    broker, settings
+):
+    """Past the limit no worker runs it any more: its files go at once."""
+    settings.TOPOBANK_PROCESSING_BACKEND = None
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 0
+    topo = Topography1DFactory()
+    task_id = _killed_celery_run(topo)
 
     with mock.patch.object(custodian, "live_task_ids", return_value=set()):
         custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
 
     assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.FAILURE
     assert _run_folder(topo, task_id) == []
+
+
+@pytest.mark.django_db(transaction=True)
+def test_without_a_hard_time_limit_a_lost_celery_run_keeps_its_files(
+    broker, settings
+):
+    """Nothing bounds the run, so nothing tells when it can no longer record."""
+    settings.TOPOBANK_PROCESSING_BACKEND = None
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = None
+    topo = Topography1DFactory()
+    task_id = _killed_celery_run(topo)
+
+    with mock.patch.object(custodian, "live_task_ids", return_value=set()):
+        custodian.reap_lost_tasks(min_age_minutes=0, require_confirmation=False)
+
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.FAILURE
+    assert custodian.clean_up_lost_runs() == 0
+    assert _run_folder(topo, task_id)
+
+
+@pytest.mark.django_db(transaction=True)
+@pytest.mark.parametrize("successor", ["forced dispatch", "redelivery"])
+def test_a_run_replaced_after_it_was_judged_lost_is_not_failed(
+    broker, settings, successor
+):
+    """Between `find_lost` and `mark_lost` a forced dispatch can start a new run
+    of the row, or a redelivery can take the run over with a new start time;
+    neither is the run that was judged lost."""
+    settings.TOPOBANK_PROCESSING_BACKEND = None
+    settings.TOPOBANK_TASK_RECLAIM_AFTER = 0
+    topo = Topography1DFactory()
+    task_id, _ = _start_on_celery(topo)
+    (judged,) = [
+        obj for obj in find_lost(set(), min_age=datetime.timedelta(0))
+        if isinstance(obj, Topography) and obj.pk == topo.pk
+    ]
+
+    if successor == "forced dispatch":
+        new_task_id, _ = _start_on_celery(topo)
+        assert new_task_id != task_id
+    else:
+        # Reclaimed by a redelivery of the same message, past the limit
+        assert claim_started(Topography, topo.pk, task_id, reclaim_after=0)
+
+    assert not custodian.mark_lost(judged)
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.STARTED
 
 
 @pytest.mark.django_db(transaction=True)

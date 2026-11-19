@@ -2,8 +2,8 @@
 
 An upload is confirmed exactly once, whichever gets to it first: the storage's
 notification (`confirm_and_dispatch`), a read of the file (`Manifest.read`,
-through `Manifest.confirm_upload`), or both at the same time. Only
-`confirm_and_dispatch` starts its processing, also exactly once. The race runs on
+through `Manifest.confirm_upload`), or both at the same time. Whoever confirms
+it starts its processing, in the same transaction, also exactly once. The race runs on
 real transactions, with one database connection per thread; only the broker is
 replaced.
 """
@@ -94,18 +94,49 @@ def _unprocessed_measurement(uploaded=True):
 
 
 @pytest.mark.django_db(transaction=True)
-def test_reading_an_arrived_upload_confirms_it_without_starting_processing(broker):
+def test_reading_an_arrived_upload_confirms_it_and_starts_processing(broker):
+    """A read that gets to the upload before its notification (which may be
+    lost) leaves nothing for a sweep to find: the confirmation starts the
+    processing, once."""
     topo = _unprocessed_measurement()
     broker.clear()
 
     assert topo.datafile.read()
+    # Already confirmed: nothing more
+    assert Manifest.objects.get(pk=topo.datafile_id).confirm_upload()
 
     manifest = Manifest.objects.get(pk=topo.datafile_id)
     assert manifest.confirmed_at is not None
     assert manifest.file
     assert manifest.size_bytes == manifest.file.size > 0
+    stored = Topography.objects.get(pk=topo.pk)
+    assert stored.task_state == TaskStateModel.PENDING
+    assert [task_id for _, task_id in broker] == [str(stored.task_id)]
+
+
+@pytest.mark.django_db(transaction=True)
+def test_a_confirmation_whose_dispatch_fails_is_rolled_back(broker):
+    """Confirmation and dispatch commit together: a process that fails between
+    them leaves the upload unconfirmed, for the next reader or sweep."""
+    topo = _unprocessed_measurement()
+    broker.clear()
+
+    with mock.patch(
+        "topobank.manager.uploads.dispatch_processing",
+        side_effect=RuntimeError("worker died"),
+    ):
+        with pytest.raises(RuntimeError, match="worker died"):
+            Manifest.objects.get(pk=topo.datafile_id).confirm_upload()
+
+    manifest = Manifest.objects.get(pk=topo.datafile_id)
+    assert manifest.confirmed_at is None
+    assert not manifest.file
     assert broker == []
-    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.NOTRUN
+
+    # The next confirmation starts it
+    assert confirm_and_dispatch(manifest)
+    assert Topography.objects.get(pk=topo.pk).task_state == TaskStateModel.PENDING
+    assert len(broker) == 1
 
 
 @pytest.mark.django_db(transaction=True)
@@ -162,9 +193,12 @@ def test_a_read_racing_the_notification_confirms_and_processes_once(broker):
 def test_a_stranded_measurement_is_processed_once_confirm_and_dispatch_finds_it(
     broker,
 ):
-    # Confirmed earlier, by a read say, without ever being dispatched
+    # Confirmed without ever being dispatched, as a read confirmed an upload
+    # before confirmations dispatched
     topo = _unprocessed_measurement()
-    assert topo.datafile.confirm_upload()
+    Manifest.objects.filter(pk=topo.datafile_id).update(
+        file=topo.datafile.generate_storage_path(), confirmed_at=timezone.now()
+    )
     confirmed_at = Manifest.objects.get(pk=topo.datafile_id).confirmed_at
     broker.clear()
 
@@ -228,16 +262,19 @@ def test_confirming_takes_one_storage_round_trip(broker):
 def test_storage_trouble_leaves_the_upload_unconfirmed(broker, caplog):
     topo = _unprocessed_measurement()
     manifest = Manifest.objects.get(pk=topo.datafile_id)
+    broker.clear()
 
     with mock.patch.object(default_storage, "size", side_effect=OSError("slow down")):
         assert not manifest.confirm_upload()
 
     assert "slow down" in caplog.text
     assert Manifest.objects.get(pk=topo.datafile_id).confirmed_at is None
-    # Once storage answers again, the upload is confirmed after all
+    assert broker == []
+    # Once storage answers again, the upload is confirmed after all, and its
+    # processing started
     assert manifest.confirm_upload()
     assert Manifest.objects.get(pk=topo.datafile_id).confirmed_at is not None
-    assert broker == []
+    assert len(broker) == 1
 
 
 @pytest.mark.django_db(transaction=True)

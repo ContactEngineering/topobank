@@ -13,9 +13,10 @@ from django.conf import settings
 from django.core.exceptions import SuspiciousFileOperation
 from django.core.files.base import ContentFile
 from django.core.files.storage import default_storage
-from django.db import models
+from django.db import models, transaction
 from django.db.models import Q, Value
 from django.db.models.functions import Coalesce
+from django.dispatch import Signal
 from django.utils import timezone
 from storages.utils import clean_name
 
@@ -25,6 +26,13 @@ from ..supplib.json import ExtendedJSONEncoder
 from .utils import file_storage_path
 
 _log = logging.getLogger(__name__)
+
+#: Sent by `Manifest.confirm_upload` when it confirms an upload that had not
+#: been confirmed (``sender=Manifest, manifest=...``), inside the transaction
+#: that records the confirmation: what a receiver writes commits with it, or
+#: neither does. A file stored by the application (`save_file`) is not an
+#: upload and sends nothing.
+upload_confirmed = Signal()
 
 
 class ManifestSet(PermissionMixin, models.Model):
@@ -266,7 +274,8 @@ class Manifest(PermissionMixin, models.Model):
         the object turns up at its storage path. This looks for it and, if it is
         there, sets `file`, `confirmed_at` and `size_bytes`. Confirming is done
         once: of concurrent callers one writes the confirmation and the others
-        read it back, so `confirmed_at` is never overwritten.
+        read it back, so `confirmed_at` is never overwritten. The caller that
+        confirms sends `upload_confirmed` in the same transaction.
 
         Returns whether the manifest has a file. Unlike `exists`, which only
         checks the manifest, this looks in storage. Storage that cannot be asked
@@ -313,23 +322,37 @@ class Manifest(PermissionMixin, models.Model):
             return False
         _log.debug("...found file, updating manifest.")
         now = timezone.now()
-        # Only a manifest without a file is confirmed, and `confirmed_at` is kept
-        # where it was already set (a copy whose file never arrived, say)
-        confirmed = (
-            Manifest.objects.filter(pk=self.pk)
-            .filter(Q(file__isnull=True) | Q(file=""))
-            .update(
-                file=storage_path,
-                size_bytes=size_bytes,
-                confirmed_at=Coalesce("confirmed_at", Value(now)),
-            )
-        )
-        if confirmed:
-            self.file = self.file.field.attr_class(self, self.file.field, storage_path)
-            self.size_bytes = size_bytes
-            if self.confirmed_at is None:
-                self.confirmed_at = now
-        else:
+        previous = (self.file, self.size_bytes, self.confirmed_at)
+        try:
+            with transaction.atomic():
+                # Only a manifest without a file is confirmed, and `confirmed_at`
+                # is kept where it was already set (a copy whose file never
+                # arrived, say)
+                confirmed = (
+                    Manifest.objects.filter(pk=self.pk)
+                    .filter(Q(file__isnull=True) | Q(file=""))
+                    .update(
+                        file=storage_path,
+                        size_bytes=size_bytes,
+                        confirmed_at=Coalesce("confirmed_at", Value(now)),
+                    )
+                )
+                if confirmed:
+                    self.file = self.file.field.attr_class(
+                        self, self.file.field, storage_path
+                    )
+                    self.size_bytes = size_bytes
+                    if self.confirmed_at is None:
+                        self.confirmed_at = now
+                    # Whatever the upload starts (the processing of a data file)
+                    # commits with its confirmation, so no reader that confirms
+                    # it, nor a process that dies after confirming, can leave it
+                    # confirmed but never started
+                    upload_confirmed.send(sender=Manifest, manifest=self)
+        except BaseException:
+            self.file, self.size_bytes, self.confirmed_at = previous
+            raise
+        if not confirmed:
             # Someone else confirmed it first
             self.refresh_from_db(fields=["file", "confirmed_at", "size_bytes"])
         return bool(self.file)

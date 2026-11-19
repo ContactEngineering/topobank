@@ -330,9 +330,9 @@ def claim_pending(
     the caller's transaction, so a rollback releases the claim.
 
     A claim still ``PENDING`` past the task's hard time limit is not in flight:
-    its message was never sent (see ``TaskStateModel.get_task_state``), so the
-    row may be claimed again. Should the message turn up after all, the worker
-    ignores it, as the row then names another task.
+    its message expires then (see ``submit_on_commit``), or was never sent
+    (see ``TaskStateModel.get_task_state``), so the row may be claimed again.
+    A queued message is never overtaken: it is in flight until it expires.
 
     On success the instance carries the persisted pending state and the new task
     id is returned. Otherwise the instance's task state is reloaded from the
@@ -399,6 +399,18 @@ def submit_on_commit(
     obj_id = model_instance.pk
     model = type(model_instance)
 
+    # The message expires once the claim may be taken over (see
+    # `claim_pending`): a message still queued then is revoked by the worker
+    # that receives it, which fails the row (`celeryapp`'s revoke handler),
+    # rather than running alongside the dispatch that has taken the row over.
+    # A hard time limit bounds a run, not its wait in the queue, so without
+    # this a long queue would let `claim_pending` reclaim work still queued.
+    limit = reclaim_after(task_dispatch)
+    if limit is not None and model_instance.task_submission_time is not None:
+        celery_kwargs["expires"] = model_instance.task_submission_time + timedelta(
+            seconds=limit
+        )
+
     def submit_task_to_celery():
         try:
             # Resolved here, so that a backend that cannot be loaded fails the
@@ -457,7 +469,8 @@ def start_on_backend(backend, model, obj_id, task_id):
     returns. A backend that refuses the run (throttled, say) fails it; the
     request that dispatched it carries on.
     """
-    if claim_started(model, obj_id, task_id) is None:
+    started_at = claim_started(model, obj_id, task_id)
+    if started_at is None:
         # Superseded by a newer dispatch, or gone, before it could start
         _log.info(
             "Not starting task %s for %s id=%s on its backend; the row is not "
@@ -467,8 +480,23 @@ def start_on_backend(backend, model, obj_id, task_id):
             obj_id,
         )
         return
-    instance = model.all_objects.filter(pk=obj_id).first()
+    # Loaded only while still in the run this call started: a forced dispatch
+    # may have claimed the row for a newer run in between, whose instance must
+    # not go to the backend under this run's id (as `task_dispatch` checks)
+    instance = model.all_objects.filter(
+        pk=obj_id,
+        task_id=task_id,
+        task_state=TaskStateModel.STARTED,
+        task_start_time=started_at,
+    ).first()
     if instance is None:
+        _log.info(
+            "Not handing task %s for %s id=%s to its backend; a newer dispatch "
+            "superseded it after it started, or the row is gone.",
+            task_id,
+            model.__name__,
+            obj_id,
+        )
         return
     try:
         backend(instance, task_id)
