@@ -2,6 +2,8 @@
 
 # Unreleased
 
+- BUG: A new management command repairs the attachments of datasets published before
+  February 2025, which could not be listed
 - ENH: `TOPOBANK_WORKFLOW_DISPATCHER` names a callable that every submit path
   hands a pending `WorkflowResult` to (`dispatch_workflow`), so a deployment
   can run some workflows outside Celery; unset, workflows are submitted to
