@@ -5,6 +5,14 @@
 - BUG: Admins are emailed (at most once a day per file) when a stored file
   that should exist is missing, and reading it raises a clear error
 - BUG: A container export that fails part-way no longer leaves its archive open
+- ENH: `TOPOBANK_WORKFLOW_DISPATCHER` names a callable that every submit path
+  hands a pending `WorkflowResult` to (`dispatch_workflow`), so a deployment
+  can run some workflows outside Celery; unset, workflows are submitted to
+  Celery as before. A path that does not import fails Django's system checks
+- ENH: `ManifestSet.register_stored_files` adds manifests for files already
+  in storage, without copying them, for a workflow run elsewhere that writes
+  its outputs straight into storage. Keys and file names must be relative
+  paths with no `.` or `..` segment, and an empty folder prefix admits no key
 - BUG: The dataset custodian skips measurements and datasets protected by a
   downstream RESTRICT foreign key instead of aborting, so one protected row
   no longer stops every soft-deleted dataset from being purged;
