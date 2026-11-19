@@ -295,3 +295,86 @@ def test_a_failed_requeue_does_not_leave_the_workflow_waiting(
     assert parent.task_state == WorkflowResult.FAILURE
     assert "could not be queued again" in parent.task_error
     assert "broker down" in parent.task_error
+
+
+@pytest.mark.django_db
+def test_a_stale_run_does_not_start_over_a_resubmission(
+    two_topos, test_workflow, worker_mode
+):
+    """The dependencies have succeeded, but a resubmission takes the row over
+    while they are read: the stale run must not mark it STARTED with its own
+    task id, nor compute."""
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.SUCCESS)
+    parent = _parent_of(topo, dep)
+    resubmission = "4f1c0d2e-0000-0000-0000-000000000003"
+
+    with (
+        _changing_parent_meanwhile(
+            parent.id, task_state=WorkflowResult.PENDING, task_id=resubmission
+        ),
+        patch.object(WorkflowResult, "eval_self") as compute,
+    ):
+        execute_workflow(parent.id)
+
+    compute.assert_not_called()
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.PENDING
+    assert str(parent.task_id) == resubmission
+
+
+@pytest.mark.django_db
+def test_the_chord_id_does_not_overwrite_a_requeue_of_its_callback(
+    two_topos, test_workflow, worker_mode
+):
+    """The chord callback can run, and re-queue itself, before schedule_workflow
+    stores the chord's id: that id must not replace the re-queued task's, whose
+    ownership check would then fail and leave the workflow waiting for good."""
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.PENDING)
+    parent = _analysis(topo, WorkflowResult.PENDING)
+    requeued = "4f1c0d2e-0000-0000-0000-000000000004"
+    chord_id = "4f1c0d2e-0000-0000-0000-000000000005"
+
+    def callback_runs_first(*args, **kwargs):
+        # What the callback does when it finds the dependency still unfinished.
+        WorkflowResult.objects.filter(pk=parent.pk).update(task_id=requeued)
+        return type("Result", (), {"id": chord_id})()
+
+    chord = patch.object(tasks.celery, "chord")
+    with (
+        patch.object(Workflow, "get_dependencies", return_value={"features:0": dep}),
+        patch.object(
+            tasks, "prepare_dependency_tasks", return_value=({}, {"features:0": dep})
+        ),
+        chord as make_chord,
+    ):
+        make_chord.return_value.apply_async.side_effect = callback_runs_first
+        tasks.schedule_workflow.apply(args=(parent.id, False), throw=True)
+
+    make_chord.return_value.apply_async.assert_called_once()
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.PENDING_DEPENDENCIES
+    assert str(parent.task_id) == requeued
+
+
+@pytest.mark.django_db
+def test_schedule_workflow_stores_the_chord_id(two_topos, test_workflow, worker_mode):
+    topo, _ = two_topos
+    dep = _analysis(topo, WorkflowResult.PENDING)
+    parent = _analysis(topo, WorkflowResult.PENDING)
+    chord_id = "4f1c0d2e-0000-0000-0000-000000000006"
+
+    with (
+        patch.object(Workflow, "get_dependencies", return_value={"features:0": dep}),
+        patch.object(
+            tasks, "prepare_dependency_tasks", return_value=({}, {"features:0": dep})
+        ),
+        patch.object(tasks.celery, "chord") as make_chord,
+    ):
+        make_chord.return_value.apply_async.return_value.id = chord_id
+        tasks.schedule_workflow.apply(args=(parent.id, False), throw=True)
+
+    parent.refresh_from_db()
+    assert parent.task_state == WorkflowResult.PENDING_DEPENDENCIES
+    assert str(parent.task_id) == chord_id

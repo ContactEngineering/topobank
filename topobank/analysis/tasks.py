@@ -210,9 +210,15 @@ def schedule_workflow(
                 ).set(queue=celery_queue),
             ).apply_async()
 
-            # Store chord task id
-            analysis.task_id = task.id
-            analysis.save(update_fields=["task_id"])
+            # Store the chord's task id, unless the callback already ran and
+            # claimed the row for a re-queued run, or the row moved on otherwise
+            # (a dependency failed it, a resubmission took it over): overwriting
+            # the task id would orphan that run's ownership check.
+            WorkflowResult.objects.filter(
+                pk=analysis.pk,
+                task_state=WorkflowResult.PENDING_DEPENDENCIES,
+                task_id=self.request.id,
+            ).update(task_id=task.id)
 
             _log.debug(
                 f"{analysis_id}/{self.request.id}: Submitted "
@@ -599,13 +605,30 @@ def execute_workflow(
     #
     # Update state to STARTED - we're now actually running the workflow
     #
+    # Guarded like the writes above: a resubmission can take the row over
+    # while the dependencies are read, and this stale run must then not
+    # restore its own task id and start the old computation.
+    #
+    task_start_time = analysis.task_start_time or timezone.now()
+    configuration = get_current_configuration()
+    if not _update_unless_superseded(
+        analysis,
+        task_state=WorkflowResult.STARTED,
+        task_id=self.request.id,
+        task_start_time=task_start_time,
+        configuration=configuration,
+    ):
+        _log.info(
+            "%s/%s: Not starting: the workflow changed state or was submitted "
+            "again meanwhile.",
+            analysis_id,
+            self.request.id,
+        )
+        return
     analysis.task_state = WorkflowResult.STARTED
     analysis.task_id = self.request.id
-    # Only set start time if not already set (e.g., from schedule_workflow)
-    if analysis.task_start_time is None:
-        analysis.task_start_time = timezone.now()
-    analysis.configuration = get_current_configuration()
-    analysis.save()
+    analysis.task_start_time = task_start_time
+    analysis.configuration = configuration
 
     # All dependencies succeeded (checked above, from the same read)
     finished_dependencies = {key: dep for key, _, dep in dependencies}
