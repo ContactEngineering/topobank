@@ -1,6 +1,6 @@
 # Changelog for *TopoBank*
 
-# Unreleased
+# 1.74.0 (2026-11-24)
 
 - ENH: `TOPOBANK_WORKFLOW_DISPATCHER` names a callable that every submit path
   hands a pending `WorkflowResult` to (`dispatch_workflow`), so a deployment
