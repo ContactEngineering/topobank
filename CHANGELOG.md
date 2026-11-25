@@ -1,1710 +1,1564 @@
-# Changelog for *TopoBank*
+<!--
+Style for this changelog (keep to it so entries stay uniform):
 
-# 1.74.0 (2026-11-24)
+- Newest version first. Heading `vX.Y.Z (DDMonYY)`, underlined with dashes.
+  A version not yet released is headed `vX.Y.Z (not yet released)`.
+- One bullet per user-visible change, at most two lines (about 200
+  characters). Say what changed for the user and, if useful, why or by how
+  much. Omit internals: no function, class, file or variable names, no
+  environment variables, no commit or PR references.
+- Start every bullet with one of: `ENH:` (new feature), `BUG:` (fix),
+  `API:` (interface change), `PERF:` (speed or memory), `SEC:` (security),
+  `MAINT:`, `TST:`, `DOC:`, `BUILD:`, `CI:`.
+- Small related fixes may share one bullet. No trailing period on bullets.
+-->
 
-- ENH: `TOPOBANK_WORKFLOW_DISPATCHER` names a callable that every submit path
-  hands a pending `WorkflowResult` to (`dispatch_workflow`), so a deployment
-  can run some workflows outside Celery; unset, workflows are submitted to
-  Celery as before. A path that does not import fails Django's system checks
-- ENH: `ManifestSet.register_stored_files` adds manifests for files already
-  in storage, without copying them, for a workflow run elsewhere that writes
-  its outputs straight into storage. Keys and file names must be relative
-  paths with no `.` or `..` segment, and an empty folder prefix admits no key
-- BUG: The dataset custodian skips measurements and datasets protected by a
-  downstream RESTRICT foreign key instead of aborting, so one protected row
-  no longer stops every soft-deleted dataset from being purged;
-  `delete_tolerating_restrict` moves to `topobank.taskapp.utils`
+Change log for TopoBank
+=======================
 
-# 1.73.0 (2026-10-14)
+v1.74.0 (24Nov26)
+-----------------
 
-- ENH: `TOPOBANK_VISUALIZATION_DETREND_MODE` optionally detrends thumbnails and
-  deep zoom images beyond the measurement's own mode, so a tilted scan no longer
-  renders as a plain color gradient (#1410)
-- BUILD: Django 5.2.18 (#1411)
-- MAINT: CI runs on Ubuntu 26 (#1408)
+- ENH: Deployments can hand workflows to their own dispatcher and run them outside Celery; without
+  one, workflows go to Celery as before, and an invalid dispatcher fails Django's system checks
+- ENH: A workflow run elsewhere can register output files it wrote straight into storage, without
+  copying them; file names must be plain relative paths
+- BUG: The dataset custodian skips measurements and datasets still referenced by protected records
+  instead of aborting, so one such row no longer stops all soft-deleted datasets from being purged
 
-# 1.72.0 (2026-09-10)
+v1.73.0 (14Oct26)
+-----------------
 
-- ENH: `topobank.files.upload.get_upload_instructions` presigns a direct-to-S3
-  POST for any user-uploaded `Manifest`. The policy carries the size ceiling
-  and the stored content type, so storage enforces both: measurements (`raw`)
-  are capped by `TOPOBANK_MAX_MEASUREMENT_UPLOAD_BYTES` (default 5 GiB, the
-  S3 single-object limit) and stored as `binary/octet-stream`; attachments
-  (`att`) are capped by `TOPOBANK_MAX_ATTACHMENT_UPLOAD_BYTES` (default
-  100 MiB) and stored as the type their extension maps to in
-  `TOPOBANK_INLINE_PREVIEW_TYPES`, or `TOPOBANK_OPAQUE_CONTENT_TYPE` otherwise.
-  `TOPOBANK_UPLOAD_EXPIRE_SECONDS` and `TOPOBANK_MAX_ATTACHMENTS_PER_SURFACE`
-  round out the settings, and all six are documented in
-  `docs/configuration.rst`
-- ENH: New `topobank.settings.defaults` module holds the default value of every
-  `TOPOBANK_*` setting, so a fallback is one named constant rather than a
-  literal repeated at the point of use. A deployment defines only the settings
-  it wants to change
-- ENH: `Manifest` carries a `note`, `size_bytes` and `content_type`, the three
-  fields a user-uploaded attachment needs: a user's own annotation, the size the
-  client reported before uploading (overwritten from storage on confirmation) and
-  the MIME type the stored object is served with, which decides whether a bare
-  presigned GET renders inline. All three survive `Surface.deepcopy()` (#1400)
-- ENH: Attachments (`kind="att"`) are stored under the `uploads/` prefix like raw
-  datafiles, so the storage-upload webhook confirms them instead of relying on
-  the client calling back; a client that died after the bytes landed no longer
-  leaves an orphaned object. The `kind` documentation now records that the field
-  distinguishes *who produced the file*: `raw` and `att` are uploaded by a
-  person, `der` is written by the system (#1400)
-- API: Presigned PUT uploads are gone, and with them the `UPLOAD_METHOD`
-  setting and the `TOPOBANK_UPLOAD_METHOD` environment variable
-- API: The `USE_S3_STORAGE` setting is gone; it was a second source of truth for
-  something the configured storage already knows. `get_upload_instructions` now
-  asks the storage whether it can be presigned against and still returns `None`
-  when it cannot, and `Manifest.finish_upload` drops its non-S3 branch, since
-  the route that finished an upload through Django no longer exists and the
-  lookup it guarded works on any backend. The storage backend is configured
-  through `STORAGES["default"]["BACKEND"]` alone
-- BUG: The memory guard learned its bytes-per-point coefficients from raw peak
-  RSS, which includes the several hundred MB that the interpreter, Django and
-  the scientific libraries occupy before any data is loaded. A completed run on
-  a subject of a few hundred points therefore taught it *megabytes* per point,
-  and once such runs entered the learning window, every following analysis of
-  that workflow was refused with a TB-scale prediction regardless of its actual
-  size (#1393). Coefficients are now learned with an assumed process baseline
-  (`TOPOBANK_ANALYSIS_MEMORY_BASELINE`, added back when predicting) subtracted,
-  and only from subjects of at least `TOPOBANK_ANALYSIS_MEMORY_MIN_POINTS` grid
-  points, which bounds what an error in the assumed baseline can contribute
-- BUG: Deleting a workflow result whose `permissions` is `None` no longer raises
-  `AttributeError` in `post_delete_analysis`, and its folder and stored files are
-  still removed; the same applied to deleting a measurement that cascades into
-  such a result (#1399)
-- ENH: The custodian fails workflow results whose task was dispatched but that
-  are still pending past `TOPOBANK_ANALYSIS_PENDING_HORIZON` (default 7 days).
-  Such a row's message is gone - acknowledged by a worker that died with it,
-  dropped in a broker restart, or revoked - and neither the lost-task reaper
-  (which only trusts worker answers about *started* tasks) nor the
-  launch-failure sweep (which only covers rows that never got a task id) would
-  ever move it
-- ENH: Workflow results carry a soft-delete stamp (`deleted_at`/`deleted_by`),
-  mirroring datasets and measurements, and the custodian hard-deletes stamped
-  rows once their `TOPOBANK_DELETE_DELAY` retention window has closed
-- ENH: Datasets and measurements record who soft-deleted them (`deleted_by`),
-  so a recycle-bin view can report who deleted what while the objects are
-  still recoverable
+- ENH: Thumbnails and deep zoom images can optionally be detrended beyond the measurement's own
+  detrend mode, so a tilted scan no longer renders as a plain color gradient
+- BUILD: Django 5.2.18
+- CI: Runs on Ubuntu 26
+
+v1.72.0 (10Sep26)
+-----------------
+
+- ENH: Measurements and attachments are uploaded directly to S3 via presigned POST, and storage
+  enforces size (default 5 GiB for measurements, 100 MiB for attachments) and content type
+- ENH: Every TopoBank setting has one central default, so a deployment defines only the settings it
+  wants to change
+- ENH: Attachments carry a user note, their size and their content type, which decides whether a
+  browser displays them inline; all three are kept when a dataset is copied
+- ENH: Uploaded attachments are confirmed by storage like measurement files, so a client that dies
+  after uploading no longer leaves an orphaned file behind
+- API: Presigned PUT uploads and the setting that selected them are removed
+- API: The separate S3 on/off setting is removed; whether uploads can be presigned is now determined
+  from the configured storage backend alone
+- BUG: After small runs, the memory guard no longer refuses all later analyses of a workflow with
+  TB-scale predictions; it discounts the process baseline and skips tiny subjects
+- BUG: Deleting an analysis result without permissions, directly or through its measurement, no
+  longer fails, and its folder and stored files are still removed
+- ENH: The custodian fails analyses that were dispatched but are still pending after 7 days
+  (configurable), since their task was lost and nothing else would ever move them
+- ENH: Analysis results can be soft-deleted like datasets and measurements, and the custodian
+  removes them for good once the retention window has closed
+- ENH: Datasets and measurements record who soft-deleted them, so a recycle bin can show who deleted
+  what while it is still recoverable
 - TST: The full-text search index is covered by tests
-- ENH: `UserFactory(create_orcid_account=False)` builds a user without an ORCID
-  iD, for testing behaviour that depends on the identity a user signed in with.
-  The factory previously always attached one
-- MAINT: CI runs its S3 tests against SeaweedFS instead of Minio, which is the
-  S3 implementation the development stack uses. The bucket is created with
-  `boto3` instead of a separately downloaded `mc` client
-- TST: The test settings are defined once. There were two near-identical copies,
-  `topobank/test_settings.py` and a top-level `test_settings.py`, and only the
-  latter is what `DJANGO_SETTINGS_MODULE=test_settings` resolves to. The storage
-  configuration had been added to the former, so the S3 job ran the whole suite
-  against `FileSystemStorage` and never executed the direct-to-object-store upload
-  path. The package module is now the definition and the top-level one re-exports
-  it, so the two cannot drift again
-- BUILD: Dropped four unmaintained dependencies. `backports.entry-points-selectable`
-  backports an API that is in the standard library on every Python we support,
-  `dj-inmemorystorage` (last release 2020) and `py` (retired, and no longer a
-  pytest dependency) were declared but never imported, and `mergedeep` (dormant
-  since 2021) is replaced by a local recursive merge in `analysis.utils`
-- BUILD: `django-notifications-hq` is pinned to a commit instead of tracking the
-  default branch, so a build no longer depends on what upstream master happens to
-  be at install time. Renovate cannot see `git+https` references, so a custom
-  manager now tracks that commit; it is deliberately not applied to the
-  `django-tagulous` fork pin, whose commit is ahead of that fork's default branch
-- BUILD: Removed the `urllib3`, `lxml`, `jinja2`, `cryptography`, `Pillow`,
-  `sqlparse` and `pyjwt` lower bounds. They carried 2020-2023 CVE mitigations that
-  every currently resolvable version satisfies, and none of them are imported
-  directly, so they read as active security controls while constraining nothing.
-  Raised the `django-allauth` floor to the major version actually in use and
-  dropped the undocumented `Sphinx` upper cap
-- TST: The test settings honor `STORAGE_BACKEND` and `TOPOBANK_UPLOAD_METHOD`
-  again, and derive `USE_S3_STORAGE` from the configured backend. Both were
-  hardcoded, so the S3 configuration in CI had no effect and every job silently
-  ran against `FileSystemStorage`
-- TST: `test_analysis_container_uses_spooled_temporary_file_with_setting` checks
-  that the container requests its spool size, rather than that it is the only
-  caller of `tempfile.SpooledTemporaryFile`. The S3 storage backend spools the
-  files it reads, so it also shows up in the globally patched mock
-- DOC: Authentication is documented by the site that implements it, not here.
-  `docs/orcid.rst` and the provider fixture templates moved to ce-ui, and the
-  installation, deployment and publishing documents now describe what topobank
-  requires -- a user model and, for social sign-in, a `socialaccount.socialapp`
-  row -- without naming a provider
+- TST: Test users can be created without an ORCID iD, to test behaviour that depends on how a user
+  signed in
+- CI: S3 tests run against SeaweedFS instead of Minio, matching the development stack
+- TST: The test settings are defined once; a duplicate copy had made the S3 test job run against
+  local file storage and skip the direct-upload path
+- BUILD: Dropped four unmaintained dependencies: backports.entry-points-selectable,
+  dj-inmemorystorage, py and mergedeep
+- BUILD: django-notifications-hq is pinned to a fixed commit, so a build no longer depends on the
+  current state of its upstream default branch
+- BUILD: Removed lower bounds on urllib3, lxml, jinja2, cryptography, Pillow, sqlparse and pyjwt
+  that only guarded old CVEs; raised the django-allauth floor and dropped the Sphinx cap
+- TST: The test settings honor the configured storage backend and upload method again, so the S3
+  test job in CI actually runs against S3
+- TST: A ZIP container test checks the requested spool size instead of breaking when the S3 storage
+  backend also spools the files it reads
+- DOC: Authentication, including ORCID sign-in, is documented in ce-ui; TopoBank's documentation
+  only states that it needs a user model and, for social sign-in, a configured social app
 
-# 1.71.0 (2026-08-03)
+v1.71.0 (03Aug26)
+-----------------
 
-- ENH: A data series records the extent of its data next to the reference to its
-  file, so a plot can pick a display unit that suits the data without reading the
-  series back out of the object store
+- ENH: A data series records the extent of its data, so a plot can pick a suitable display unit
+  without reading the series back from the object store
+- ENH: Measurements record the trend removed by detrending: the slope of the removed tilt and the
+  radius of the removed curvature, in physical units
+- ENH: Measurements record the fraction of measured data that carries no value
+- ENH: The custodian and a new management command fail tasks whose worker disappeared instead of
+  leaving them running forever
+- ENH: Analyses predicted to exceed the configured memory budget fail with an explanatory message
+  instead of being killed by the OOM killer
+- BUILD: Test fixtures are included in the wheel again without a workaround that added them twice
+  and broke the build
+- BUG: The undefined-data flag again describes the measured data; enabling filling of undefined data
+  had erased it
+- TST: Both topography test factories build measurements in the success state, which can be
+  overridden
 
-- ENH: Measurements record `detrend_parameters`, the trend that detrending
-  subtracted: the slope of the removed tilt and the radius of the removed
-  curvature, in physical units
-- ENH: Measurements record `undefined_data_fraction`, how much of the measured
-  data carries no value
-- ENH: Custodian sweep and `reap_lost_tasks` command fail tasks whose worker
-  disappeared instead of leaving them "running" forever
-- ENH: Analyses predicted to exceed `TOPOBANK_ANALYSIS_MEMORY_BUDGET` fail with
-  an explanatory message instead of being killed by the OOM killer
-- BUILD: Anchored the `data/` pattern in `.gitignore` to the repository root; it
-  matched `topobank/testing/data/` and kept the test fixtures out of the wheel,
-  which a `force-include` worked around. That workaround is removed, since it now
-  adds every file of that directory a second time and fails the build
-- BUG: `has_undefined_data` describes the measured data again. It was read from
-  the filtered topography, which reports no undefined data by definition once
-  filling is enabled, so enabling filling erased the very information the fill
-  mode was chosen in response to
-- TST: `Topography1DFactory` and `Topography2DFactory` now build measurements in
-  `task_state` SUCCESS, which is what their `refresh_cache()` call actually
-  performs. Pass `task_state` to build a measurement in another state. Previously
-  the resulting state was an artifact of save ordering and the two factories
-  disagreed (`pending` vs `success`), because only one of them sets
-  `skip_postgeneration_save`
+v1.70.1 (02Aug26)
+-----------------
 
-# 1.70.1 (2026-08-02)
+- BUG: Analyses no longer all fail once two workers register the same dependency version
+  concurrently; PostgreSQL never enforced the uniqueness check for ordinary version numbers
+- MAINT: Dependency version uniqueness is enforced by the database (requires PostgreSQL 15+); a
+  migration merges existing duplicates
+- MAINT: Looking up a package version tolerates duplicates left behind by older databases instead of
+  failing the task
 
-- BUG: Every analysis failed with `get() returned more than one Version` once two
-  workers had concurrently registered the same dependency version. `Version` was
-  guarded by a `unique_together` over nullable `micro`/`extra` columns, and
-  PostgreSQL treats NULLs as distinct in a UNIQUE constraint, so the guard never
-  applied to ordinary release numbers (`1.70.0` parses to `extra=None`)
-- MAINT: `Version` uniqueness is now a `UniqueConstraint` with
-  `nulls_distinct=False` (requires PostgreSQL 15+); a data migration merges
-  pre-existing duplicates and repoints `Configuration.versions` at the surviving
-  rows
-- MAINT: `get_package_version` tolerates duplicate `Version` rows left behind by
-  older databases instead of failing the task
+v1.70.0 (02Aug26)
+-----------------
 
-# 1.70.0 (2026-08-02)
-
-- ENH: Full text search index
+- ENH: Full-text search index
 - ENH: Asynchronous creation of ZIP archives for downloads
-- ENH: `ZipContainer.export_zip` accepts `archive_name` and opaque `extra_metadata`
-- ENH: ZIP containers use a spooled temporary file, sized via `TOPOBANK_SPOOL_MAX_SIZE`
-- BUG: Guard against a missing permission set when deleting ZIP containers
-- MAINT: Use matplotlib's OO API for rendering thumbnails of line scans
-- MAINT: New `to_natural_length_unit` helper for display of physical sizes
-- MAINT: Removed the inert `--changelog` option from `notify_users` (mock-auth app)
+- ENH: ZIP export accepts an archive name and opaque extra metadata
+- ENH: ZIP containers are built in a spooled temporary file of configurable size
+- BUG: Deleting a ZIP container no longer fails when its permission set is missing
+- MAINT: Thumbnails of line scans are rendered with matplotlib's object-oriented API
+- MAINT: New helper for displaying physical sizes in natural length units
+- MAINT: Removed an inert changelog option from the notification command of the mock-auth test app
 
-# 1.69.4 (2026-07-25)
+v1.69.4 (25Jul26)
+-----------------
 
 - MAINT: Fixed performance issue in migrations
 
-# 1.69.3 (2026-07-24)
+v1.69.3 (24Jul26)
+-----------------
 
-- ENH: Workflow task time limits are read from the `CELERY_TASK_SOFT_TIME_LIMIT` /
-  `CELERY_TASK_TIME_LIMIT` settings (falling back to a 6-hour hard limit)
-- ENH: Persist per-stage task timing (`task_timer`) when a workflow fails —
-  previously only successful runs recorded it, so timeouts (e.g.
-  `SoftTimeLimitExceeded`) left no way to tell which stage consumed the budget
+- ENH: Workflow task time limits are taken from Celery's soft and hard time limit settings, with a
+  6-hour hard limit by default
+- ENH: Per-stage task timing is also saved when a workflow fails, so a timeout shows which stage
+  used up the time budget
 
-# 1.69.2 (2026-07-22)
+v1.69.2 (22Jul26)
+-----------------
 
-- PERF: `task_memory` now records per-task peak RSS (resettable `VmHWM`) instead of
-  `tracemalloc`, which slowed numpy-heavy tasks ~35x; tracemalloc is opt-in via `TOPOBANK_TRACK_MEMORY_USAGE`
-- BUG: Memory tracing was never stopped when a task raised, leaving `tracemalloc`
-  enabled for all subsequent tasks in the same worker process
+- PERF: Memory tracking records the peak memory of each task instead of tracing allocations, which
+  slowed numpy-heavy tasks about 35x; allocation tracing is opt-in
+- BUG: Memory tracing is stopped when a task raises, instead of staying enabled for all later tasks
+  in the same worker process
 
-# 1.69.1 (2026-07-21)
+v1.69.1 (21Jul26)
+-----------------
 
-- BUG: Do not build subject URLs in analysis workers; `make_alert_entry` no longer requires a subject URL
+- BUG: Analysis workers no longer build subject URLs, and alerts no longer require one
 
-# 1.69.0 (2026-07-20)
+v1.69.0 (20Jul26)
+-----------------
 
-- ENH: Option to reject files with incomplete metadata (`TOPOBANK_REJECT_INCOMPLETE_METADATA`)
-- ENH: Surface containers use a single pydantic-validated `index.json` metadata file
-- ENH: `export_container_zip` accepts optional opaque `extra_metadata` (`ContainerMeta.extra`)
-- ENH: `ignore_existing` flag on `submit_for_surfaces` (#1337)
-- ENH: Optionally remap logical Celery queue names at publish time
-- MAINT: No longer write `meta.yml` to containers (legacy `meta.yml` still read on import)
-- MAINT: New delete delay settings (#1331)
-- MAINT: Increased surface name max length to 255 (#1332)
-- MAINT: Carry dependency parent attribution on the Celery task (#1335)
-- MAINT: Surface/topography admin pages use raw id fields (#1339)
-- MAINT: Updated Django to 5.2.16
-- BUG: Fail parent workflow on dependency failure and preserve its traceback (#1345)
-- BUG: Serialize check-then-create dedup to prevent duplicate results (#1343)
-- BUG: De-duplicate `Configuration` creation under concurrency (#1344)
-- BUG: Persist pending task state when `Topography.save` uses `update_fields` (#1342)
-- BUG: Return the viable analysis on submit, not the latest of all (#1341)
-- BUG: Invalidate and reap surface-set (M2M) analyses (#1340)
-- BUG: Fix workflow crash on `timer` kwarg and record per-workflow timing
-- BUG: Fix `_get_unique_kwargs` aliasing and key-intersection (#1346)
+- ENH: Option to reject files with incomplete metadata
+- ENH: Dataset containers use a single validated JSON metadata file
+- ENH: Container ZIP export accepts optional opaque extra metadata
+- ENH: Submitting analyses for datasets can ignore existing results
+- ENH: Logical Celery queue names can optionally be remapped at publish time
+- MAINT: Containers no longer include the legacy YAML metadata file, which is still read on import
+- MAINT: New delete delay settings
+- MAINT: Dataset names can be up to 255 characters long
+- MAINT: Celery tasks of dependencies record which parent workflow they belong to
+- MAINT: Admin pages for datasets and measurements select related objects by ID
+- BUILD: Updated Django to 5.2.16
+- BUG: A parent workflow fails when a dependency fails and keeps the dependency's traceback
+- BUG: Concurrent submissions no longer create duplicate results
+- BUG: Concurrent analyses no longer create duplicate configuration records
+- BUG: The pending task state is saved when only selected measurement fields are updated
+- BUG: Submitting returns the usable analysis, not simply the latest one
+- BUG: Analyses of sets of datasets are invalidated and cleaned up
+- BUG: Fixed a workflow crash related to timing; timing is now recorded per workflow
+- BUG: Fixed lookup of existing analyses by their parameters
 
-# 1.68.0 (2026-06-15)
+v1.68.0 (15Jun26)
+-----------------
 
-- ENH: Allow metadata to be passed on analysis POST
+- ENH: Metadata can be passed when submitting an analysis
 - ENH: Output schema for workflows
-- ENH: Support for pydantic models in JSON encoder
+- ENH: JSON encoding supports pydantic models
 - ENH: Timing of tasks
-- MAINT: Added more task state info to list serializer
-- MAINT: Improved performance of celery `task_state` resolution
-- MAINT: Changed organizations plugins available from string to choice array
-- MAINT: Fixed plugin logic to be handled dynamically
-- MAINT: Fixed permissions for workflows view
-- MAINT: Removed redundant source on serializer field
-- MAINT: Removed `usage_stats` app
-- MAINT: Deprecate results dictionary
-- MAINT: Separated dependency resolution and task execution (#1227)
+- MAINT: More task state information in list responses
+- MAINT: Faster resolution of Celery task states
+- MAINT: Available organization plugins are stored as a list of choices instead of a string
+- MAINT: Plugin logic is handled dynamically
+- MAINT: Fixed permissions for the workflow view
+- MAINT: Removed a redundant serializer field source
+- MAINT: Removed the usage statistics app
+- MAINT: Deprecated the results dictionary
+- MAINT: Separated dependency resolution and task execution
 - MAINT: Simplified workflow serializers
-- MAINT: Save JSON using the ExtendedJSONEncoder
+- MAINT: JSON is saved with the extended JSON encoder
 - MAINT: Better detection of whether the service is running within a Celery task
 - MAINT: Performance and indexing optimizations
 - MAINT: Improved transaction handling and atomic request settings
-- MAINT: New USE_PGBOUNCER configuration setting
+- MAINT: New setting for running behind PgBouncer
 - MAINT: muFFT no longer exists and has been folded into muGrid
-- MAINT: Updated Django to 5.2.10
-- MAINT: Updated Sphinx dependency
-- MAINT: Replace Workflow DB model + FK usage with workflow_name string identifiers and a plain-Python Workflow wrapper backed by the workflow registry.
-- MAINT: Collapse WorkflowSubject (subject dispatch table) into direct nullable subject FKs on WorkflowResult + migration + query updates.
-- MAINT: Removed `WorkflowTemplate`
-- MAINT: get_anonymous_user() now returns None when TOPOBANK_ANONYMOUS_USER_GETTER is unset; views fall back to anonymous user if set
+- BUILD: Updated Django to 5.2.10
+- BUILD: Updated Sphinx dependency
+- MAINT: Workflows are identified by name through the workflow registry instead of a database table
+- MAINT: The subject of an analysis is stored directly with the result instead of in a separate
+  dispatch table
+- MAINT: Removed workflow templates
+- MAINT: The anonymous user is optional; views fall back to it only when a deployment configures one
 - BUG: Fixed app filter
 - BUG: Fixed outputs schema
-- BUG: Return none if workflow implementation does not exist
-- BUG: Allow user access to statistics backend and fix landing page
-- TST: Add topobank.testing.mock_auth apps (users/organizations/authorization) and update test settings / CI to remove the topobank-orcid dependency.
-- TST: Fixed test to reflect tracebacks are now passed up from deps
-- TST: Replaced deprecated `pytz` with Python's built-in `zoneinfo` module in tests
+- BUG: Looking up a workflow whose implementation does not exist returns nothing
+- BUG: Users can access the statistics backend; fixed the landing page
+- TST: Tests use built-in mock apps for users, organizations and authorization instead of depending
+  on topobank-orcid
+- TST: Fixed test to reflect that tracebacks are now passed up from dependencies
+- TST: Replaced deprecated pytz with Python's built-in zoneinfo in tests
 
-# 1.67.0 (2025-12-16)
+v1.67.0 (16Dec25)
+-----------------
 
 - ENH: Generate NetCDF tile pyramid
 
-# 1.66.3 (2026-02-07)
+v1.66.3 (07Feb26)
+-----------------
 
-- BUG: Disabled `is_ready` to run workflows directly after upload
-- BUG: Check for `squeezed_datafile_id` instead of `data_source` to test whether manifest exists
-- MAINT: Include `task_error` for proper error reporting in list view
+- BUG: Workflows run directly after upload, without waiting for a readiness check
+- BUG: Whether a measurement's file record exists is checked via its processed file rather than its
+  data source
+- MAINT: List view includes the task error for proper error reporting
 
-# 1.66.2 (2026-02-05)
+v1.66.2 (05Feb26)
+-----------------
 
-- BUG: Check whether file exists (which will confirm finished uploads) before reading it
+- BUG: A file is checked to exist, which confirms a finished upload, before it is read
 
-# 1.66.1 (2025-12-12)
+v1.66.1 (12Dec25)
+-----------------
 
-- BUG: Fixed logic flaw in shared permissions (#1263)
+- BUG: Fixed logic flaw in shared permissions
 
-# 1.66.0 (2025-12-11)
+v1.66.0 (11Dec25)
+-----------------
 
-- ENH: Allow task state to filter by multiple states
-- BUG: Fixed schema generation for filter requiring exploded list
+- ENH: Task state filter accepts multiple states
+- BUG: Fixed API schema generation for filters that take a list
 
-# 1.65.0 (2025-12-10)
+v1.65.0 (10Dec25)
+-----------------
 
 - ENH: New V2 API
 - ENH: Advanced support for organizations
 - ENH: Advanced permissions for organizations
 - ENH: Unified permission REST endpoints
-- ENH: Lazy delete (recycle bin) for faster endpoint response (#1024)
-- ENH: Custodian that regularly cleans up database (lazy deletion)
+- ENH: Lazy delete (recycle bin) for faster endpoint response
+- ENH: Custodian that regularly cleans up the database (lazy deletion)
 - ENH: Uploading ZIP containers
-- ENH: Query for multiple surfaces/tags
+- ENH: Query for multiple surfaces or tags
 - ENH: Enhanced workflow routing
-- ENH: Added email verification status to user serializer output
-- ENH: Added dynamic fields model serializer
-- ENH: Added endpoint for retrieving the intersection of PermissionSets (#1257)
-- ENH: Created endpoint that returns tag tree structure and count (#1256)
-- ENH: Added creator field to WorkflowResult (#1226)
-- ENH: Return access level of current user in Surface and Topography serializers
-- ENH: Option for models to dynamically choose Celery routing target
-- ENH: Huge performance increase on thumbnail loading
-- ENH: Resolve via ID or URL
+- ENH: User responses include the email verification status
+- ENH: Serializers support dynamically selected fields
+- ENH: Endpoint for the intersection of permission sets
+- ENH: Endpoint that returns the tag tree with counts
+- ENH: Analysis results record their creator
+- ENH: Surface and topography responses include the current user's access level
+- ENH: Option for models to dynamically choose their Celery routing target
+- PERF: Much faster thumbnail loading
+- ENH: Objects can be resolved via ID or URL
 - ENH: Standardized permissions response
-- API: Limit all user searches to organizations of the user
-- API: `permissions` key now returns id, URL and permissions of current user
-- API: `creator` key now returns id, URL, and username
-- API: Changed default ordering on surfaces and topographies to alphabetical (#1253)
-- API: Return `id` and `url` in `PermissionSet` serializer
-- MAINT: Refactored internal Analysis* models to Workflow* model (#1161)
-- MAINT: Removed automatic generation of default group "all"
-- MAINT: Route beat tasks to manager queue
-- MAINT: Added stub serializers for users/orgs to reduce extra API calls
-- MAINT: Return task_id and launcher_task_id
-- MAINT: Added username generation to user view (#1233)
-- MAINT: Consistent use of filters for V2 API
-- MAINT: Updated manager filters for v2 and aligned surface v2 with other v2 changes
-- MAINT: Added ordering to workflow endpoint (#1250)
+- API: User searches are limited to the user's organizations
+- API: Permissions now return the id, URL and permissions of the current user
+- API: Creator now returns the id, URL and username
+- API: Surfaces and topographies are ordered alphabetically by default
+- API: Permission set responses include the id and URL
+- MAINT: Refactored internal analysis models into workflow models
+- MAINT: Removed automatic creation of the default group "all"
+- MAINT: Periodic tasks are routed to the manager queue
+- MAINT: Compact user and organization representations reduce extra API calls
+- MAINT: Return the task id and the launcher task id
+- MAINT: User view generates usernames
+- MAINT: Consistent use of filters for the V2 API
+- MAINT: Updated manager filters for V2 and aligned surfaces V2 with the other V2 changes
+- MAINT: Workflow endpoint supports ordering
 - MAINT: Disabled logging of task progress
-- MAINT: Added tests for manager v2 and fixed issues found in testing (#1239)
-- MAINT: Renamed upload_confirmed to confirmed_at
+- MAINT: Added tests for manager V2 and fixed issues found in testing
+- MAINT: Renamed the upload confirmation flag to a confirmation timestamp
 - MAINT: OpenAPI annotations
-- MAINT: Added serializers for shared permission sets endpoint (#1259)
-- BUG: Route ZIP container creation to 'manager' Celery queue
+- MAINT: Serializers for the shared permission sets endpoint
+- BUG: ZIP container creation is routed to the manager Celery queue
 - BUG: Fixed check of user permissions in serializer
-- BUG: Return permission set URL in serializer
-- BUG: Fixed custodian bug referencing non-existent field (#1246)
-- BUG: Fixed bug where deleted topos were returned if surface was not deleted (#1251)
-- BUG: Added filter for has_tags since django skips filters with no value
-- BUG: Fixed user queryset not being distinct
-- BUG: Fix grant permission call
-- BUG: Fix manifest permissions to create permission set
-- BUG: Fixed tag_startswith to work on tags with spaces
-- BUG: Fixed serializer overwrite from rebase
-- BUG: Topography filter needs to filter on surface tags
-- BUG: data_source should be writeable
-- BUG: Strip NUL from error which Postgres cannot store
-- BUG: Input for `ModelRelatedField` must accept `id` or `url`
-- SECURITY: Fix vulnerabilities #7 and #10 from security audit
-- SECURITY: Fix all critical vulnerabilities from security audit
+- BUG: Return the permission set URL in serializer
+- BUG: Fixed custodian bug referencing a non-existent field
+- BUG: Deleted topographies are no longer returned when their surface is not deleted
+- BUG: Filtering by presence of tags works, since Django skips filters without a value
+- BUG: User lists no longer contain duplicates
+- BUG: Fixed granting permissions
+- BUG: Creating a file record also creates its permission set
+- BUG: Tag prefix filter works on tags with spaces
+- BUG: Fixed serializer changes lost in a rebase
+- BUG: Topography filter takes the tags of the surface into account
+- BUG: The data source of a topography is writeable
+- BUG: NUL characters, which PostgreSQL cannot store, are stripped from error messages
+- BUG: Related-object fields accept either an id or a URL as input
+- SEC: Fixed two vulnerabilities found in the security audit
+- SEC: Fixed all critical vulnerabilities found in the security audit
 
-# 1.64.3 (2025-07-20)
+v1.64.3 (20Jul25)
+-----------------
 
-- BUG: Converting list of ids to a string
+- BUG: Fixed conversion of a list of ids to a string
 
-# 1.64.2 (2025-07-28)
+v1.64.2 (28Jul25)
+-----------------
 
 - BUG: Skip failed analyses when preparing download
-- MAINT: Bumped SurfaceTopography to 1.18.2 (bug fix in JPK reader)
+- BUILD: Bumped SurfaceTopography to 1.18.2 (bug fix in JPK reader)
 
-# 1.64.1 (2025-07-28)
+v1.64.1 (28Jul25)
+-----------------
 
 - MAINT: Fixed weird characters in digital surface twin names
 
-# 1.64.0 (2025-07-28)
+v1.64.0 (28Jul25)
+-----------------
 
-- MAINT: Bumped Django to 5.2 LTS and switched to ASGI
+- BUILD: Bumped Django to 5.2 LTS and switched to ASGI
 - MAINT: Don't delete analyses when refreshing the cache, but mark them as invalid
 
-# 1.63.0 (2025-05-25)
+v1.63.0 (25May25)
+-----------------
 
 - ENH: Return task progress messages
 - MAINT: Don't delete analyses when refreshing the cache, but mark them as deprecated
 
-# 1.62.4 (2025-05-21)
+v1.62.4 (21May25)
+-----------------
 
-- BUG: Disabling deletion of old analyses during cache refresh
+- BUG: Disabled deletion of old analyses during cache refresh
 
-# 1.62.3 (2025-05-20)
+v1.62.3 (20May25)
+-----------------
 
 - BUG: Delete analyses before refreshing the cache
 
-# 1.62.2 (2025-05-18)
+v1.62.2 (18May25)
+-----------------
 
-- BUG: Proper exception when Meta.dependencies is not defined
+- BUG: Proper exception when a workflow does not declare its dependencies
 
-# 1.62.1 (2025-05-11)
+v1.62.1 (11May25)
+-----------------
 
-- BUG: Permission for imported containers
+- BUG: Fixed permissions for imported containers
 - MAINT: Support for JSON serialization of xarrays
 
-# 1.62.0 (2025-05-08)
+v1.62.0 (08May25)
+-----------------
 
-- ENH: Endpoint for setting permissions on workflow results
-  (to share a saved result with another user)
-- BUG: Fixed JSON-encoding of masked arrays
+- ENH: Endpoint for setting permissions on workflow results, to share a saved result with another
+  user
+- BUG: Fixed JSON encoding of masked arrays
 
-# 1.61.2 (2025-05-05)
+v1.61.2 (05May25)
+-----------------
 
 - BUG: Make sure all keyword arguments are always filled
 
-# 1.61.1 (2025-05-05)
+v1.61.1 (05May25)
+-----------------
 
-- API: Renamed `error` to `task_error`
-- API: Return validation error in 400 body
-- BUG: Do not fill missing keyword arguments to make sure analysis result remains
-  findable
+- API: The error of an analysis is reported as the task error
+- API: Return validation errors in the body of a 400 response
+- BUG: Do not fill missing keyword arguments, so that an analysis result remains findable
 - BUG: Store scheduled dependencies
 
-# 1.61.0 (2025-05-05)
+v1.61.0 (05May25)
+-----------------
 
-- API: Renamed `start_time` to `task_start_time` and `end_time` to `task_end_time`
+- API: Analysis start and end times are reported as task start and end times
 - ENH: Workflow templates
-- ENH: Import properties from ZIP container
-- MAINT: Renamed `import_surfaces` to `import_datasets`
-- MAINT: Added `task_submission_time`, which allows better failure detection
+- ENH: Import properties from ZIP containers
+- MAINT: The command for importing surfaces is renamed to refer to datasets
+- MAINT: The task submission time is recorded, which allows better failure detection
 
-# 1.60.1 (2025-04-27)
+v1.60.1 (27Apr25)
+-----------------
 
 - BUG: More robust task state reporting
 
-# 1.60.0 (2025-04-27)
+v1.60.0 (27Apr25)
+-----------------
 
-- API: Asynchronous preparation of ZIP downloads (#249)
+- API: Asynchronous preparation of ZIP downloads
 
-# 1.59.0 (2025-04-26)
+v1.59.0 (26Apr25)
+-----------------
 
 - ENH: Download of tags
 
-# 1.58.5 (2025-04-14)
+v1.58.5 (14Apr25)
+-----------------
 
 - API: Sync functions by name, not display name
 
-# 1.58.4 (2025-04-08)
+v1.58.4 (08Apr25)
+-----------------
 
 - TST: Allow ignoring specific keys in tests
 
-# 1.58.3 (2025-04-07)
+v1.58.3 (07Apr25)
+-----------------
 
-- BUG: Fixed missing local variable `pub` in surface download
+- BUG: Fixed a crash in surface download caused by a missing variable
 
-# 1.58.2 (2025-04-04)
+v1.58.2 (04Apr25)
+-----------------
 
-- BUG: Catch `MultipleObjectsReturned`
+- BUG: Handle lookups that unexpectedly return multiple objects
 
-# 1.58.1 (2025-04-04)
+v1.58.1 (04Apr25)
+-----------------
 
-- BUG: Account adapter should work without signin/signout URLs
+- BUG: Account handling works without sign-in and sign-out URLs
 
-# 1.58.0 (2025-04-04)
+v1.58.0 (04Apr25)
+-----------------
 
-- ENH: Optional description field for workflow results
-- MAINT: Removed automatically adding allauth URLs
+- ENH: Optional description for workflow results
+- MAINT: allauth URLs are no longer added automatically
 
-# 1.57.4 (2025-04-02)
+v1.57.4 (02Apr25)
+-----------------
 
-- MAINT: Default to simple router in production
+- MAINT: Default to the simple API router in production
 
-# 1.57.3 (2025-03-19)
+v1.57.3 (19Mar25)
+-----------------
 
-- MAINT: Internal flag for disabling filters when reading file
+- MAINT: Internal flag for disabling filters when reading a file
 
-# 1.57.2 (2025-03-17)
+v1.57.2 (17Mar25)
+-----------------
 
 - BUG: Fix download of multiple digital surface twins
 
-# 1.57.1 (2025-03-16)
+v1.57.1 (16Mar25)
+-----------------
 
-- MAINT: Order analyses by inverse start time
+- MAINT: Order analyses by start time, newest first
 
-# 1.57.0 (2025-03-15)
+v1.57.0 (15Mar25)
+-----------------
 
 - ENH: Pagination for all list requests
 - ENH: Filtering for all list requests
 - ENH: Advanced filtering and searching in surface list view
 - ENH: Querying computed analyses
 - ENH: Deleting named analyses
-- API: Removed `function_id` queries; query workflows by name
+- API: Removed queries by function id; query workflows by name
 
-## 1.56.0 (2025-03-04)
+v1.56.0 (04Mar25)
+-----------------
 
 - ENH: Delete endpoint for workflow results
 - BUG: Return 400 bad request when creation of download ZIP fails
-- BUG: Gracefully handle not existing manifests
-- MAINT: Fixed pint deprecation (#1166)
-- MAINT: Moved all HTML user routes to ce-ui (#1159)
-- MAINT: Bumped SurfaceTopography dependency to 1.18.1
+- BUG: Gracefully handle missing file records
+- MAINT: Fixed a pint deprecation
+- MAINT: Moved all HTML user pages to ce-ui
+- BUILD: Bumped SurfaceTopography dependency to 1.18.1
 
-## 1.55.2 (2025-02-16)
+v1.55.2 (16Feb25)
+-----------------
 
-- BUG: Graceful fail of squeeze file creation
+- BUG: Graceful failure of squeezed file creation
 
-## 1.55.1 (2025-02-16)
+v1.55.1 (16Feb25)
+-----------------
 
-- BUG: Fixed paths for `set-tag-permissions` and `properties-in-tag`
-- BUG: Graceful fail of thumbnail or deepzoom creation
+- BUG: Fixed URL paths for setting tag permissions and for listing properties in a tag
+- BUG: Graceful failure of thumbnail or deep zoom creation
 
-## 1.55.0 (2025-02-09)
+v1.55.0 (09Feb25)
+-----------------
 
-- API: Analysis function lookups are now by name (not id)
+- API: Analysis functions are looked up by name, not id
 - ENH: Convenience methods for reading and writing JSON and NetCDF files
 - MAINT: Renamed analysis functions to workflows
 - MAINT: Removed notification on dataset changes
 - MAINT: Removed request counter middleware
 
-## 1.54.0 (2025-02-08)
+v1.54.0 (08Feb25)
+-----------------
 
 - API: Changed URL for getting names of properties in tags
-- BUG: Replaced `login_required` by appropriate DRF authentication decorator
+- BUG: Login checks use the REST framework's authentication instead of Django's login decorator
 - BUG: Return 404 when tag does not exist
-- BUG: Use `PermissionDenied` rather than `PermissionError` so that permission
-  errors are reported to the user
+- BUG: Permission errors are reported to the user
 
-## 1.53.3 (2025-02-02)
+v1.53.3 (02Feb25)
+-----------------
 
-- BUG: Fixed getting tag numerical and categorical properties
+- BUG: Fixed getting numerical and categorical properties of tags
 
-## 1.53.2 (2025-01-23)
+v1.53.2 (23Jan25)
+-----------------
 
-- BUG: Fixed Dropbox settings variable names
+- BUG: Fixed names of Dropbox settings
 
-## 1.53.1 (2025-01-23)
+v1.53.1 (23Jan25)
+-----------------
 
-- ENH: Return name of analysis in serializer
+- ENH: Return name of analysis in API responses
 
-## 1.53.0 (2025-01-23)
+v1.53.0 (23Jan25)
+-----------------
 
-- ENH: Route for querying pending or started analyses
+- ENH: Endpoint for querying pending or started analyses
 - MAINT: Functions now have a fully qualified name and a display name
-- BUG: Copy attachments and properties when deepcopying a DST
-- BUG: Return named results without specifying a name should not return all results
+- BUG: Copy attachments and properties when deep-copying a digital surface twin
+- BUG: Asking for named results without specifying a name no longer returns all results
 
-## 1.52.4 (2024-12-16)
+v1.52.4 (16Dec24)
+-----------------
 
 - MAINT: Link to download of data in API self-reporting
 - MAINT: Clear task error when resubmitting
 
-## 1.52.3 (2024-12-09)
+v1.52.3 (09Dec24)
+-----------------
 
 - MAINT: Allow allauth headless mode
 
-## 1.52.2 (2024-12-05)
+v1.52.2 (05Dec24)
+-----------------
 
-- BUG: Ignore TypeErrors when constructing task progress
+- BUG: Ignore type errors when constructing task progress
 
-## 1.52.1 (2024-12-04)
+v1.52.1 (04Dec24)
+-----------------
 
-- BUG: Correct reverse name
+- BUG: Fixed a URL name lookup
 
-## 1.52.0 (2024-12-11)
+v1.52.0 (11Dec24)
+-----------------
 
 - ENH: Return analysis dependencies from REST API
-- ENH: Entry-point route
+- ENH: Entry-point endpoint
 - ENH: Full headless mode for allauth
 - BUG: Propagate dependency errors
 
-## 1.51.0 (2024-11-25)
+v1.51.0 (25Nov24)
+-----------------
 
-- ENH: Query topographies for multiple surfaces
-- BUG: Return no permission if implementation does not exist
+- ENH: Query topographies for multiple surfaces at once
+- BUG: Report missing permission when the requested analysis implementation does not exist
 
-## 1.50.3 (2024-11-13)
+v1.50.3 (13Nov24)
+-----------------
 
-- BUG: Allow access to user data for logged-in users
-- BUG: Exclude anonymous user in search
+- BUG: Allow logged-in users to access user data
+- BUG: Exclude the anonymous user from search results
 
-## 1.50.2 (2024-11-13)
+v1.50.2 (13Nov24)
+-----------------
 
 - BUG: Graceful handling of files without file names
 
-## 1.50.1 (2024-11-13)
+v1.50.1 (13Nov24)
+-----------------
 
-- MAINT: Removed accidental 'jedi' dependency
+- MAINT: Removed accidental jedi dependency
 
-## 1.50.0 (2024-11-12)
+v1.50.0 (12Nov24)
+-----------------
 
-- API: Objects now return an "api" field with URLs/hyperrefs to auxiliary API endpoints
-  (#1108)
-- API: Tags are now uniquely referred to by their name (not their id) in the API
-- API: Properties returned as dictionaries (key-value pairs)
-- ENH: Generic attachments for digital surface twins and measurements (#331)
+- API: Objects now include links to auxiliary API endpoints
+- API: Tags are now referred to uniquely by their name instead of their id in the API
+- API: Properties are returned as dictionaries (key-value pairs)
+- ENH: Generic attachments for digital surface twins and measurements
 - ENH: Surfaces are now returned for all tag children
-- ENH: Validation of analysis parameters (#1119)
-- ENH: Dependencies for analyses (#1083)
-- ENH: New tag retrieve route
-- ENH: Saving analysis results (protecting them from deletion)
-- BUG: Avoid properties of identical name
-- BUG: Tag analysis only runs on subject to which the specific user has access
-- MAINT: Replace all bare `FileField`s with `Manifest` models that handle file storage,
-  including upload/download logic (#1116, #1117, #1122)
-- MAINT: Replace `django-guardian` with simpler authorization system (#1110)
-- MAINT: Validation of instrument parameters using new pydantic metadata definition in
-  `SurfaceTopography` (1.17.0 and upwards)
-- TST: Refactored all tests into a new toplevel directory (#1123)
+- ENH: Validation of analysis parameters
+- ENH: Dependencies between analyses
+- ENH: New API endpoint to retrieve a single tag
+- ENH: Analysis results can be saved, protecting them from deletion
+- BUG: Avoid properties with identical names
+- BUG: Tag analysis only runs on subjects to which the user has access
+- MAINT: Replaced bare file fields with a unified file-manifest system that handles storage, upload
+  and download
+- MAINT: Replaced django-guardian with a simpler authorization system
+- MAINT: Validation of instrument parameters using the new pydantic metadata definition in
+  SurfaceTopography 1.17.0 and later
+- TST: Moved all tests into a new top-level directory
 
-## 1.8.1 (2024-07-13)
+v1.8.1 (13Jul24)
+----------------
 
-- MAINT: Bumped dependencies to remove muSpectre and introduce muFFT
-- BUG: Permission denied when analysis does not exists (right now it yields
-  an internal server error)
-- BUG: Skip permissions check if there are no surfaces in the subjects
+- BUILD: Bumped dependencies to remove muSpectre and introduce muFFT
+- BUG: Return permission denied instead of an internal server error when an analysis does not exist
+- BUG: Skip permission check if there are no surfaces in the subjects
 
-## 1.8.0 (2024-05-12)
+v1.8.0 (12May24)
+----------------
 
-- API: `is_numerical` and `is_categorical` of Property are now properties
-- ENH: Tag can report all properties of its surfaces
+- API: The numerical and categorical flags of properties are now attributes rather than methods
+- ENH: Tags can report all properties of their surfaces
 - MAINT: JSON serialization of JAX arrays
 
-## 1.7.3 (2024-03-22)
- 
+v1.7.3 (22Mar24)
+----------------
+
 - BUG: Fixed version discovery
 
-## 1.7.2 (2024-03-21)
+v1.7.2 (21Mar24)
+----------------
 
-- MAINT: Changing properties Tagulous fields to `TextField`s to remove race
-  condition
-- MAINT: Bumped SurfaceTopography to 1.13.12
+- MAINT: Replaced Tagulous fields of properties with plain text fields to remove a race condition
+- BUILD: Bumped SurfaceTopography to 1.13.12
 
-## 1.7.1 (2024-03-14)
+v1.7.1 (14Mar24)
+----------------
 
-- ENH: Report inspection task memory usage
-- ENH: Report sum and max of data points when reporting analysis task memory
-  usage
+- ENH: Report memory usage of inspection tasks
+- ENH: Report sum and maximum of data points when reporting memory usage of analysis tasks
 
-## 1.7.0 (2024-03-12)
+v1.7.0 (12Mar24)
+----------------
 
-- ENH: Properties as key-value pairs wi th categorical and numerical values,
-  including units (#904)
-- ENH: Export properties to metadata of ZIP containers (#1074)
-- ENH: Tags as analysis subjects (as a replacement for surface collections)
-- ENH: Import of ZIP containers from URL
+- ENH: Properties as key-value pairs with categorical and numerical values, including units
+- ENH: Export properties to the metadata of ZIP containers
+- ENH: Tags as analysis subjects (replacing surface collections)
+- ENH: Import of ZIP containers from a URL
 
-## 1.6.1 (2024-01-30)
+v1.6.1 (30Jan24)
+----------------
 
-- MAINT: Updated to django-allauth >= 0.56.0
-- MAINT: Don't serve from Django but redirect to S3 for published surface
-  containers
-- MAINT: installing pre-commit to run linting before commits
+- BUILD: Updated to django-allauth 0.56.0 or later
+- MAINT: Redirect to S3 instead of serving published surface containers from Django
+- MAINT: Run linting via pre-commit before commits
 
-## 1.6.0 (2024-01-22)
+v1.6.0 (22Jan24)
+----------------
 
-- ENH: Return creation and modification time in API routes
-- MAINT: Fix creation datetime to publication date or None if unknown (was
-  set to the date of earlier migration introducing the field)
+- ENH: API returns creation and modification times
+- MAINT: Creation time is now the publication date, or empty if unknown (it was set to the date of
+  an earlier migration)
 
-## 1.5.0 (2024-01-20)
+v1.5.0 (20Jan24)
+----------------
 
-- ENH: API route to retrieve version information
-- ENH: Tracing and reporting memory usage of analysis tasks (#1060)
-- ENH: Routing manager and analysis tasks to different Celery queues
-- ENH: More options for filtering of sharing and publication status
+- ENH: API endpoint to retrieve version information
+- ENH: Tracing and reporting of memory usage of analysis tasks
+- ENH: Manager and analysis tasks are routed to different Celery queues
+- ENH: More options for filtering by sharing and publication status
 - ENH: Plugins can register middlewares and context processors
-- ENH: Plugin versions are now stored for each analysis (#957)
-- MAINT: Updated Django to 4.2 LTS release (current 3.2 LTS will no longer be
-  supported after April 2024)
-- MAINT: Split UI into separate `ce_ui` app in a separate git repository
-- MAINT: Split `publication` app into a separate git repository and turned it
-  into an optional dependency
+- ENH: Plugin versions are now stored for each analysis
+- BUILD: Updated Django to the 4.2 LTS release (the 3.2 LTS release is no longer supported after
+  April 2024)
+- MAINT: Split the user interface into a separate app in its own git repository
+- MAINT: Split publication functionality into a separate git repository and made it an optional
+  dependency
 - MAINT: Changed django-guardian from generic to direct foreign keys
-- MAINT: Enforcing PEP-8 style
+- MAINT: Enforce PEP-8 style
 
-## 1.4.5 (2023-12-09)
+v1.4.5 (09Dec23)
+----------------
 
 - MAINT: Allow staff users to manually force cache renewals
-- MAINT: Updated SurfaceTopography to 1.12.2 (fixed SPM reader)
+- BUILD: Updated SurfaceTopography to 1.12.2 (fixes SPM reader)
 
-## 1.4.4 (2023-11-27)
+v1.4.4 (27Nov23)
+----------------
 
 - BUG: Fixed download of TXT, CSV or XLSX if one of the analyses has an error
 
-## 1.4.3 (2023-11-26)
+v1.4.3 (26Nov23)
+----------------
 
-- BUG: Wrong base64 encoded subject when clicking analyze in topography detail view
+- BUG: Fixed wrongly encoded subject when clicking analyze in the topography detail view
 
-## 1.4.2 (2023-11-26)
+v1.4.2 (26Nov23)
+----------------
 
-- MAINT: Hide elements rather than disabling them
-- MAINT: Don't allow selection (batch edit) for published topographies
+- MAINT: Hide user interface elements rather than disabling them
+- MAINT: Disallow selection for batch editing of published topographies
 - MAINT: Disable edit button in permissions card when permissions cannot be edited
 
-## 1.4.1 (2023-11-25)
+v1.4.1 (25Nov23)
+----------------
 
 - MAINT: Order measurements in digital surface twin
-- BUG: Bokeh plot wrapper did not properly defined glyphs when selection is possible
-- BUG: Watching data source changes in Bokeh plot wrapper
+- BUG: Bokeh plot wrapper did not properly define glyphs when selection is possible
+- BUG: Watch data source changes in Bokeh plot wrapper
 
-## 1.4.0 (2023-11-25)
+v1.4.0 (25Nov23)
+----------------
 
-- ENH: Batch upload (#173, #877, #905, #906, #967)
-- ENH: File errors are properly reported to the user (#207)
-- ENH: Button to regenerate cached properties (thumbnail, DZI, etc., #207, #789, #895)
-- ENH: Added select filter options: '(shared|published) by you' (#750)
-- ENH: Added creation and last modified datetime to surfaces and topographies (#1010)
-- ENH: Simplified sharing, now includes ownership transfer (#706)
-- BUG: Fixes related to uploading files (#223, #261, #667)
+- ENH: Batch upload
+- ENH: File errors are properly reported to the user
+- ENH: Button to regenerate cached properties such as thumbnails and DZI
+- ENH: Added select filter options "shared by you" and "published by you"
+- ENH: Added creation and last modified datetime to surfaces and topographies
+- ENH: Simplified sharing, now including ownership transfer
+- BUG: Fixes related to uploading files
 - BUG: Fixed automatic extraction of instrument parameters for some file formats
-- MAINT: Removing 'DATABASE_URL' environment-var from entrypoint (#1037)
-- MAINT: Bokehjs is now used for plotting line scans (#972)
+- MAINT: Removed database URL configuration from the container entrypoint
+- MAINT: BokehJS is now used for plotting line scans
 - MAINT: Surface view is now largely a single-page application
-- MAINT: REST API for topography handling (#173)
+- MAINT: REST API for topography handling
 - MAINT: Major refactor of task handling code
-- MAINT: Refactor of codebase to respect hierarchy of Django apps (#1018)
-- MAINT: Cached topography properties (thumbnail, DZI, etc.) are now generated
-  in a single task (#895)
-- MAINT: Removed Python Bokeh dependency (#972)
-- MAINT: Updated SurfaceTopography to 1.12.1
+- MAINT: Refactored codebase to respect the hierarchy of Django apps
+- MAINT: Cached topography properties (thumbnails, DZI, etc.) are now generated in a single task
+- MAINT: Removed Python Bokeh dependency
+- BUILD: Updated SurfaceTopography to 1.12.1
 
-## 1.3.1 (2023-09-13)
+v1.3.1 (13Sep23)
+----------------
 
-- BUG: Return raw ids in addition to API urls (fixes analysis download)
+- BUG: Return raw ids in addition to API URLs (fixes analysis download)
 - BUG: Limit list of analysis functions based on user permissions
 
-## 1.3.0 (2023-09-11)
+v1.3.0 (11Sep23)
+----------------
 
-- ENH: Updated SurfaceTopography to 1.11.0
-  (to add support for JPK files, but fixes for DATX files)
-- MAINT: Removed usage of content type framework and generic related fields 
-  for analysis subjects (#1014)
-- MAINT: Moved logic for triggering of tasks (for renewing cache or analyses)
-  to the models (#1017)
-- MAINT: Performance optimization, e.g. prefetching of datasets (#967)
+- ENH: Updated SurfaceTopography to 1.11.0 (adds support for JPK files, fixes for DATX files)
+- MAINT: Removed use of Django's content type framework and generic relations for analysis subjects
+- MAINT: Moved logic for triggering tasks (cache renewal or analyses) to the data models
+- PERF: Performance optimizations, e.g. prefetching of datasets
 
-## 1.2.5 (2023-08-30)
+v1.2.5 (30Aug23)
+----------------
 
-- MAINT: Updated SurfaceTopography to 1.10.1
+- BUILD: Updated SurfaceTopography to 1.10.1
 
-## 1.2.4 (2023-08-29)
+v1.2.4 (29Aug23)
+----------------
 
-- ENH: Updated SurfaceTopography to 1.10.0
-  (to add support for PLUX and WSXM files, bug fixes for GWY and text)
+- ENH: Updated SurfaceTopography to 1.10.0 (adds support for PLUX and WSXM files, fixes for GWY and
+  text files)
 
-## 1.2.3 (2023-08-28)
+v1.2.3 (28Aug23)
+----------------
 
-- ENH: Updated SurfaceTopography to 1.9.0
-  (to add support for OIR and POIR files, bug fixes for SUR and LEXT)
+- ENH: Updated SurfaceTopography to 1.9.0 (adds support for OIR and POIR files, fixes for SUR and
+  LEXT files)
 
-## 1.2.2 (2023-08-21)
+v1.2.2 (21Aug23)
+----------------
 
-- MAINT: More fixes to CSRF injection
+- MAINT: More fixes to CSRF token injection
 
-## 1.2.1 (2023-08-04)
+v1.2.1 (04Aug23)
+----------------
 
-- MAINT: Unified CSRF injection
+- MAINT: Unified CSRF token injection
 
-## 1.2.0 (2023-08-01)
+v1.2.0 (01Aug23)
+----------------
 
 - ENH: DOI badge
 - ENH: Sidebar instead of dropdown for notifications and user menu
-- BUG: Plot collapses when switching back to web view (#1001)
-- MAINT: Updated SurfaceTopography to 1.8.0
-  (to add support for LEXT and DATX files, bug fixes for Mitutoyo files)
-- MAINT: Only load those analysis results that the user wants to see
+- BUG: Plot collapses when switching back to web view
+- BUILD: Updated SurfaceTopography to 1.8.0 (adds support for LEXT and DATX files, fixes for
+  Mitutoyo files)
+- MAINT: Only load the analysis results that the user wants to see
 - MAINT: Fixed sort order of analysis downloads
 - MAINT: Added django-request-profiler middleware
 
-## 1.1.3 (2023-06-27)
+v1.1.3 (27Jun23)
+----------------
 
-- MAINT: Updated SurfaceTopography to 1.7.0
-  (to add support for PLU, FRT and HFM files)
+- BUILD: Updated SurfaceTopography to 1.7.0 (adds support for PLU, FRT and HFM files)
 
-## 1.1.2 (2023-06-17)
+v1.1.2 (17Jun23)
+----------------
 
 - BUG: Fixed missing imports
 
-## 1.1.1 (2023-06-16)
+v1.1.1 (16Jun23)
+----------------
 
 - BUG: More robust handling of complete worker failures
-- MAINT: Removed dependency on unused `celery-progress` package
+- MAINT: Removed dependency on unused celery-progress package
 
-## 1.1.0 (2023-06-11)
+v1.1.0 (11Jun23)
+----------------
 
-- ENH: Unified single page application for analyses, including rewritten
-  task status (#795, #796)
-- ENH: Webpack based bundling (for the analysis app, #565, #800)
-- ENH: CSV download for analyses 
+- ENH: Unified single-page application for analyses, including rewritten task status
+- ENH: Webpack-based bundling for the analysis app
+- ENH: CSV download for analyses
 - ENH: Upgrade to Vue 3
-- MAINT: Converted pickled binary dictionaries to JSON fields (#573)
-- MAINT: Analysis function now has permalink (#824)
-- MAINT: Analysis downloads now contain instrument information (#983)
-- MAINT: Analysis downloads are now in SI units (#583)
-- MAINT: Additional assorted fixes (#118, #169, #499, #624, #671, #857, #897)
+- MAINT: Converted pickled binary dictionaries to JSON fields
+- MAINT: Analysis functions now have permalinks
+- MAINT: Analysis downloads now contain instrument information
+- MAINT: Analysis downloads are now in SI units
+- MAINT: Additional assorted fixes
 
-## 1.0.5 (2023-04-17)
+v1.0.5 (17Apr23)
+----------------
 
-- DEP: Upgrade of SurfaceTopography to 1.6.2
+- BUILD: Upgrade of SurfaceTopography to 1.6.2
 
-## 1.0.4 (2023-04-10)
+v1.0.4 (10Apr23)
+----------------
 
-- BUG: Duration of analysis object should not be a property
+- BUG: Duration of an analysis is no longer a computed property
 
-## 1.0.3 (2023-04-06)
+v1.0.3 (06Apr23)
+----------------
 
-- BUG: Plugin version configuration could not be saved if there is are changes
-  on top of the semantic version
+- BUG: Plugin version configuration could not be saved if there are changes on top of the semantic
+  version
 
-## 1.0.2 (2023-04-06)
+v1.0.2 (06Apr23)
+----------------
 
-- DEP: Upgrade of SurfaceTopography to 1.6.0
+- BUILD: Upgrade of SurfaceTopography to 1.6.0
 
-## 1.0.1 (2023-02-02)
+v1.0.1 (02Feb23)
+----------------
 
-- BUG: Fixed comparative analysis (#962)
+- BUG: Fixed comparative analysis
 - BUG: Remove copy of surface when publication fails
 
-## 1.0.0 (2023-01-31)
+v1.0.0 (31Jan23)
+----------------
 
-- ENH: Added surface collection as analysis subject,
-  now analysis functions can be implemented which 
-  process a bunch of surfaces (#900)
-- ENH: Added output of DOIs related to analyses
-  to downloads and to display of results of analyses
-  using the standard plot card view (#171)
-- ENH: Also save creation time of analyses and show it 
-  in the modal dialog for the tasks (#899)
-- BUG: Fixed problem loading SUR files (#945)
-- BUG: Fixed problem with surface collection name (#953)
-- MAINT: Fined-grained enabling of tabnav tabs in settings file
-- MAINT: Moved `allauth`-dependent views into `views_allauth`
-- MAINT: Added license information to version information modal
-- MAINT: Improved log messages of command "create_images"
-- MAINT: Fixed missing "plugin.txt" for Docker image in
-  production
-- MAINT: Removed firefox from production's Dockerfile
+- ENH: Surface collections as analysis subjects, allowing analysis functions that process several
+  surfaces together
+- ENH: DOIs related to analyses are included in downloads and shown with results in the standard
+  plot card view
+- ENH: Creation time of analyses is saved and shown in the task dialog
+- BUG: Fixed problem loading SUR files
+- BUG: Fixed problem with surface collection name
+- MAINT: Fine-grained enabling of navigation tabs via settings
+- MAINT: Moved allauth-dependent views into a separate module
+- MAINT: Added license information to version information dialog
+- MAINT: Improved log messages of the image creation command
+- MAINT: Fixed missing plugin list for Docker image in production
+- MAINT: Removed Firefox from production Docker image
 - MAINT: Renamed "Sign in via ORCID" to "Sign in"
-- MAINT: Default AWS access information to None
-- MAINT: Added django-watchman, added celery check
-- DEP: Upgrade of SurfaceTopography to 1.3.3 (#950)
+- MAINT: AWS access information defaults to none
+- MAINT: Added django-watchman health checks, including a Celery check
+- BUILD: Upgrade of SurfaceTopography to 1.3.3
 
-## 0.92.0 (2022-12-14)
+v0.92.0 (14Dec22)
+-----------------
 
 - ENH: Store bibliography (DOIs) when an analysis completes
-  (#171)
-- ENH: Enhanced search by also searching for names of 
-  users who created digital surface twins or 
-  measurements (#896)
-- ENH: Also show names of creators of unpublished digital 
-  surface twins and measurements in search results (#896) 
-- ENH: When hovering on data point, also display measurement
-  name and series name (#893)
-- ENH: Made "Tasks" information more prominent and added
-  possibility to renew selected analyses in the UI (#901) 
-- ENH: Added management command "grant_admin_permissions"
-  to give a user restricted permissions to enter 
-  admin interface in order to edit organizations or check
-  the state of analyses
-- ENH: Enhanced management command "create_images" such that
-  thumbnails and DZI files can be processed separately
-  and such that only missing images are generated (#903) 
+- ENH: Search also matches names of users who created digital surface twins or measurements
+- ENH: Also show names of creators of unpublished digital surface twins and measurements in search
+  results
+- ENH: When hovering on a data point, also display measurement name and series name
+- ENH: Made "Tasks" information more prominent and added possibility to renew selected analyses in
+  the UI
+- ENH: Added command giving a user restricted admin permissions to edit organizations or check the
+  state of analyses
+- ENH: Image creation command can process thumbnails and DZI files separately and generate only
+  missing images
 - ENH: Added link to admin interface for staff users
-- ENH: Added config options PUBLICATION_ENABLED and
-  PUBLICATION_DISPLAY_TAB_WITH_OWN_PUBLICATIONS which
-  are True by default, but can be used to disable publications
-- BUG: Fixed crashing of plots when apostrophe was used
-  in the subject's name
-- BUG: Fixed problem when a surface was part of an
-  analysis collection
-- MAINT: Close figures after generating plots from 1D
-  measurements (#898)
-- MAINT: Added plugin system, moved statistical analysis 
-  functions and contact mechanics to individual plugins
-  (topobank-statistics, topobank-contact), allows to 
-  add other functionality via plugins without changing the
-  main application
-- MAINT: Update for package SurfaceTopography (#911,#923)
-- MAINT: Update for package ContactMechanics (#872)
-- MAINT: Update of django because of security issue
+- ENH: Added configuration options (enabled by default) to disable publications and the tab with own
+  publications
+- BUG: Fixed crashing of plots when an apostrophe was used in the subject's name
+- BUG: Fixed problem when a surface was part of an analysis collection
+- MAINT: Close figures after generating plots from 1D measurements
+- MAINT: Added plugin system; statistical analysis and contact mechanics moved to separate plugins
+- BUILD: Update of SurfaceTopography
+- BUILD: Update of ContactMechanics
+- SEC: Update of Django because of a security issue
 
-## 0.91.1 (2022-09-19)
+v0.91.1 (19Sep22)
+-----------------
 
-- ENH: Added "Authors" tab in detail page for 
-  published digital twins (#811)
-- ENH: Added links to contact.engineering paper (#873) 
-- BUG: Fixed missing save() statement when renewing 
-  bandwidth cache
-- MAINT: Security update for django, oauthlib
+- ENH: Added "Authors" tab in detail page for published digital twins
+- ENH: Added links to contact.engineering paper
+- BUG: Fixed renewed bandwidth cache not being saved
+- SEC: Security update for Django and oauthlib
 
-## 0.91.0 (2022-08-05)
+v0.91.0 (05Aug22)
+-----------------
 
-- ENH: Show unreliable bandwidth in different color in 
-  bandwidth plot (#825) 
-- ENH: Added management command `renew_bandwidth_cache` for
-  renewing bandwidth cache for all measurements which includes
-  the short reliability cutoff (#880)
-- BUG: Fix for parallel generation of same version numbers (#876)
-- BUG: Fix for missing import when generating thumbnails (#875)
-- BUG: `import_surfaces` management command now saves to database
-  after updating file name and before generating squeezed file
-- BUG: Fixed layout of measurement form (#878)
-- MAINT: Count failed images as failed by default when using management 
-  command create_images
-- MAINT: Changed redis health beat check intervals
+- ENH: Show unreliable bandwidth in a different color in bandwidth plot
+- ENH: Added command to renew the bandwidth cache of all measurements, including the short
+  reliability cutoff
+- BUG: Fix for parallel generation of identical version numbers
+- BUG: Fix for missing import when generating thumbnails
+- BUG: Surface import command now saves to the database after updating the file name and before
+  generating the squeezed file
+- BUG: Fixed layout of measurement form
+- MAINT: Image creation command counts failed images as failed by default
+- MAINT: Changed Redis health beat check intervals
 - MAINT: Removed some old template code
 
-## 0.90.3 (2022-07-27)
+v0.90.3 (27Jul22)
+-----------------
 
-- ENH: Fixed navigation bar including basket while scrolling (#779)
-- BUG: Showed wrong contact mechanics details (#859)
-- BUG: Fixed missing progress bars for unready analyses (#858)
-- BUG: Fixed impossible return to plot tab (#863)
-- BUG: Fixed missing download link for contact mechanics (#865)
-- MAINT: Bumped SurfaceTopography version to 1.0
+- ENH: Fixed navigation bar including basket while scrolling
+- BUG: Fixed wrong contact mechanics details being shown
+- BUG: Fixed missing progress bars for unready analyses
+- BUG: Fixed impossible return to plot tab
+- BUG: Fixed missing download link for contact mechanics
+- BUILD: Bumped SurfaceTopography to 1.0
 
-## 0.90.2 (2022-07-11)
+v0.90.2 (11Jul22)
+-----------------
 
-- MAINT: Multiple performance fixes, in particular by a) reducing redundant
-  SQL queries by either combining queries of filtering in memory and b)
-  reducing storage requests (from the Django backend) by only loading the
-  plot metadata and not the plot results when preparing the plot in the
-  Django backend (#841, #847, #851)
-- MAINT: Automatically create 'topobank-dev' bucket in Minio S3 of the
-  development Docker environment (local.yml)
-- MAINT: Security updates for django and lxml
+- PERF: Fewer redundant SQL queries and fewer storage requests by loading only plot metadata, not
+  plot results, when preparing plots
+- MAINT: Automatically create a storage bucket in MinIO S3 of the development Docker environment
+- SEC: Security updates for Django and lxml
 
-## 0.90.1 (2022-06-27)
+v0.90.1 (27Jun22)
+-----------------
 
-- MAINT: Presign in separate request when loading analysis data (#841)
-- MAINT: Some optimization of SQL requests (#841)
-- MAINT: Security fixes (numpy, flower)
-- MAINT: No longer use of compiled numpy package because of broken wheel
-- MAINT: Order of analysis result cards now matches order of chosen 
-         checkboxes
+- MAINT: Presign in separate request when loading analysis data
+- PERF: Some optimization of SQL requests
+- SEC: Security fixes (numpy, flower)
+- MAINT: No longer use compiled numpy package because of broken wheel
+- MAINT: Order of analysis result cards now matches order of chosen checkboxes
 
-## 0.90.0 (2022-05-30)
+v0.90.0 (30May22)
+-----------------
 
-- ENH: Move plot creation from backend to frontend, speeding up
-  plot creation and loading of data (#776)
-- ENH: Button to hide/show certain data sources now have the 
-  color of the data source next to it (#742)
-- ENH: Show hierarchy of digital twins/measurements in plot (#633)
-- ENH: User switchable legend for plots (#114, #296, #590, #648)
-- ENH: Download plots as SVG vector graphics (#66, #589, #610, #647)
-- ENH: Same digital twins/measurements have the same colors
-  over all plots
+- ENH: Moved plot creation from backend to frontend, speeding up plot creation and data loading
+- ENH: Buttons to hide/show data sources now show the color of the data source next to them
+- ENH: Show hierarchy of digital twins/measurements in plots
+- ENH: User-switchable legend for plots
+- ENH: Download plots as SVG vector graphics
+- ENH: Same digital twins/measurements have the same colors across all plots
 - ENH: Line style is also shown in plot legend
-- ENH: Added slider for line widths to plot
-- ENH: Sorted functions by name (#719)
-- ENH: Increased step size for maximum number of iterations in 
-  contact mechanics (#809)
-- ENH: Improved filenames of downloaded containers (#815)
-- BUG: Fixed logscale labels (#771)
-- BUG: Renamed y-label of curvature distribution to probability
-  density (#350)
-- BUG: Fixed step filename in plot.csv of contact data
-- BUG: Plastic calculation should reset plastic displacement before each
-  optimizer run (#827)
-- BUG: Fixed automtatic redirection from http:// to https:// (#835) 
-- MAINT: Typo on landing page (#799)
-- MAINT: Some dependency updates because of security issues
+- ENH: Added slider for line widths to plots
+- ENH: Sorted functions by name
+- ENH: Increased step size for maximum number of iterations in contact mechanics
+- ENH: Improved filenames of downloaded containers
+- BUG: Fixed logscale labels
+- BUG: Renamed y-label of curvature distribution to probability density
+- BUG: Fixed step filename in the CSV plot data of contact mechanics downloads
+- BUG: Plastic calculation now resets plastic displacement before each optimizer run
+- BUG: Fixed automatic redirection from HTTP to HTTPS
+- MAINT: Fixed typo on landing page
+- SEC: Some dependency updates because of security issues
 - MAINT: Added temporary redirect to challenge URL
 
-## 0.20.1 (2022-04-13)
+v0.20.1 (13Apr22)
+-----------------
 
-- BUG: Added missing migration
+- BUG: Added missing database migration
 
-## 0.20.0 (2022-04-13)
+v0.20.0 (13Apr22)
+-----------------
 
-- BUG: Explicity make plastic system if hardness is specified (#819)
-- BUG: Fix for thumbnail creation (#782)
-- BUG: Fix for redundant thumbnail files (#785)
-- MAINT: Removed Selenium dependency; thumbnail generation now
-  uses Pillow and matplotlib (#787)
-- MAINT: Store topography data and derived data (squeezed files,
-  thumbnails) under a unique prefix (#801)
+- BUG: Explicitly create plastic system if hardness is specified
+- BUG: Fix for thumbnail creation
+- BUG: Fix for redundant thumbnail files
+- MAINT: Removed Selenium dependency; thumbnail generation now uses Pillow and matplotlib
+- MAINT: Store topography data and derived data (squeezed files, thumbnails) under a unique prefix
 
-## 0.19.1 (2022-03-23)
+v0.19.1 (23Mar22)
+-----------------
 
-- MAINT: Adjusted docker-compose file for production with Docker 
-  Swarm for the use with redis, removed memcache and rabbitmq
+- MAINT: Adjusted Docker Swarm production setup to use Redis, removed Memcached and RabbitMQ
 
-## 0.19.0 (2022-03-23)
+v0.19.0 (23Mar22)
+-----------------
 
-- ENH: Added possibility for assigning DOIs to published datasets
-- ENH: Added management command 'renew_containers'
-- ENH: Added switch to 'trigger_analyses' which triggers analyses
-  for all topographies related to the given surfaces
-- MAINT: Switched cache backend and celery broker to
-  redis because of several problems with RabbitMQ and Memcached  
-- MAINT: Updated django and Pillow because of CVEs
+- ENH: Added possibility to assign DOIs to published datasets
+- ENH: Added command to renew containers
+- ENH: Analysis trigger command can trigger analyses for all topographies of given surfaces
+- MAINT: Switched cache backend and Celery broker to Redis because of problems with RabbitMQ and
+  Memcached
+- SEC: Updated Django and Pillow because of CVEs
 
-## 0.18.2 (2022-01-26)
+v0.18.2 (26Jan22)
+-----------------
 
-- BUG: Fixing missing nc files in contact mechanics download
-  (#786)
-- BUG: Fixing contact calculations always pending after 
-  triggering them manually (#788)
-- BUG: Fixing unit issue in contact mechanics for measurements
-  with missing data (#783)
+- BUG: Fixed missing NetCDF files in contact mechanics download
+- BUG: Fixed contact calculations always pending after triggering them manually
+- BUG: Fixed unit issue in contact mechanics for measurements with missing data
 - BUG: Now limiting size of measurements for contact mechanics
-  (#784)
-- BUG: Fix for memcache error (#737)
-- WIP: Workaround for failing thumbnails in production (#782)
-- MAINT: Updated configuration for Docker Swarm because of 
-  connection failures in production ()
+- BUG: Fix for Memcached error
+- MAINT: Workaround for failing thumbnails in production
+- MAINT: Updated Docker Swarm configuration because of connection failures in production
 
-## 0.18.1 (2022-01-14)
+v0.18.1 (14Jan22)
+-----------------
 
-- MAINT: Added missing changes in order to get running
-  with new certificate and using a local Docker repository
+- MAINT: Added missing changes to run with a new certificate and a local Docker repository
 
-## 0.18.0 (2022-01-14)
+v0.18.0 (14Jan22)
+-----------------
 
-- ENH: Improved performance of visualization of image maps
-  for displaying 2D measurements and in contact mechanics,
-  now images of different details levels are calculated 
-  in advance using DeepZoom (#679)
-- ENH: Improved layout of surface list of Find&Select tab
-  (#757)
+- ENH: Faster visualization of image maps for 2D measurements and contact mechanics by precomputing
+  detail levels with DeepZoom
+- ENH: Improved layout of surface list on the Find&Select tab
 - ENH: Improved layout of contact mechanics analyses
-- ENH: Faster access to bandwidths of measurements due to
-  caching in database (#421, #605)
-- ENH: Creation of images for measurements can be triggered
-  in background via management command (#778)
-- ENH: Fixed second navigation bar (#779)
-- BUG: Fixes progress meter flaws for slope-dependent 
-  properties (#755)
-- BUG: Fixes insufficient number of arguments for
-  contact mechanics calculation (#777)
-- BUG: Fixed scheduled postgres backups (#766)  
-- MAINT: Avoid loading full measurement in Django Server
-  which allows working with larger measurements (#769)
+- ENH: Faster access to bandwidths of measurements due to caching in database
+- ENH: Creation of images for measurements can be triggered in background via a command
+- ENH: Fixed second navigation bar
+- BUG: Fixed progress meter flaws for slope-dependent properties
+- BUG: Fixed insufficient number of arguments for contact mechanics calculation
+- BUG: Fixed scheduled PostgreSQL backups
+- MAINT: Avoid loading full measurements in the Django server, allowing larger measurements
 - MAINT: A "surface" is now called "digital surface twin"
-- MAINT: Upgrade of multiple packages because of CVEs 
-  (Django, celery, lxml, Pillow)
+- SEC: Upgrade of multiple packages because of CVEs (Django, Celery, lxml, Pillow)
 
-## 0.17.0 (2021-12-03)
+v0.17.0 (03Dec21)
+-----------------
 
-- ENH: Detection and optional filling of missing data 
-  points (#321)
-- MAINT: In the download's meta.yaml, changed type of
-  measurement size from tuple to list such that a 
-  safe yaml loader can be used to load surfaces (#668)
-- MAINT: Upgrade of reverse proxy caddy in 
-  production (#767)
-- MAINT: Preparations for running on Docker Swarm 
+- ENH: Detection and optional filling of missing data points
+- MAINT: Measurement size in download metadata is now a list instead of a tuple, so a safe YAML
+  loader can read it
+- MAINT: Upgrade of reverse proxy Caddy in production
+- MAINT: Preparations for running on Docker Swarm
 
-## 0.16.2 (2021-11-15)
+v0.16.2 (15Nov21)
+-----------------
 
-- BUG: Fixed unicode conversion issue in OPDx reader (#761)
-- BUG: Fixed wrong condition in management command
-  fix_height_scale (#763)
-- BUG: Missing permissions in Docker container to
-  start Postgres server (#756)
-- DEP: Upgrade to SurfaceTopography 0.99.1
+- BUG: Fixed unicode conversion issue in OPDx reader
+- BUG: Fixed wrong condition in the height scale fix command
+- BUG: Missing permissions in Docker container to start PostgreSQL server
+- BUILD: Upgrade to SurfaceTopography 0.99.1
 
-## 0.16.1 (2021-10-25)
+v0.16.1 (25Oct21)
+-----------------
 
-- BUG: Missing manifest entry problem during installation
-  fixed by using another package for fontawesone 5 
-  icons (#740)
-- BUG: Fixes error messages in special cases of successful
-  surface analysis but no successful analysis for 
-  measurements (#739)
-- BUG: Fixes wrong import which broke management
-  command "notify_users" (#736)
-- BUG: Fixes alignment of 2D PSD data to 1D PSD 
-  data (#738)
-- BUG: Fixes that reliability cutoff removed entire
-  measurement (#747)
-- BUG: Improved error message in case of server 
-  error in analysis result (#746)
-- DEP: Upgrade to SurfaceTopography 0.98.2 (#751)
+- BUG: Fixed missing manifest entry during installation by using another package for Font Awesome 5
+  icons
+- BUG: Fixed error messages when surface analysis succeeds but no measurement analysis does
+- BUG: Fixed wrong import which broke the user notification command
+- BUG: Fixed alignment of 2D PSD data to 1D PSD data
+- BUG: Fixed reliability cutoff removing entire measurement
+- BUG: Improved error message in case of server error in analysis result
+- BUILD: Upgrade to SurfaceTopography 0.98.2
 
-## 0.16.0 (2021-10-18)
+v0.16.0 (18Oct21)
+-----------------
 
-- ENH: Enhanced search by supporting "weblike" search 
-  expressions; now the search term is interpreted as
-  phrases combined by 'AND'; also logical expressions 
-  with OR and - for NOT can be used; change: only 
-  topographies matching the search expression are 
-  displayed underneath surfaces from now on (#701)
-- ENH: Reliability analysis for scanning probe data (#83)
-- ENH: Scale-dependent curvature (#586)
-- ENH: Added links to GitHub discussions (#722)
-- ENH: Show publication authors on Find&Select page (#733)
-- BUG: Scale-dependent slope is now computed using the
-  brute force approach (#687)
-- BUG: Fixed issue while downloading analysis results
-  with stderr for y without masked values (#711)
-- BUG: Missing points were not shown correctly in 
-  2D plots (#699)
-- BUG: Fixed height scale applied twice on import (#718)
-- BUG: Fixed continuing average along x after data
-  is completed (#724)
-- BUG: Fixed that analyses were not recalculated
-  if instrument parameters change (#728)
-- BUG: Resolution value or tip radius value no longer
-  mandatory when instrument type has been chosen (#705)
-- MAINT: Computing of averages is handled on the
-  SurfaceTopography side
-- MAINT: All properties are averages to a reasonable
-  number of data points (#696)
-- MAINT: Decapitalized analysis function names (e.g.
-  "Roughness Parameters" -> "Roughness parameters")
+- ENH: Search supports web-like expressions: phrases are combined with AND, and OR and - (for NOT)
+  can be used
+- ENH: Only measurements matching the search expression are now shown underneath surfaces
+- ENH: Reliability analysis for scanning probe data
+- ENH: Scale-dependent curvature
+- ENH: Added links to GitHub discussions
+- ENH: Show publication authors on Find&Select page
+- BUG: Scale-dependent slope is now computed using the brute force approach
+- BUG: Fixed downloading analysis results with stderr for y without masked values
+- BUG: Missing points were not shown correctly in 2D plots
+- BUG: Fixed height scale applied twice on import
+- BUG: Fixed continuing average along x after data is completed
+- BUG: Fixed analyses not being recalculated when instrument parameters change
+- BUG: Resolution or tip radius no longer mandatory when an instrument type has been chosen
+- MAINT: Computing of averages is handled by SurfaceTopography
+- MAINT: All properties are averaged to a reasonable number of data points
+- MAINT: Decapitalized analysis function names (e.g. "Roughness Parameters" -> "Roughness
+  parameters")
 - MAINT: Removed error bars on analysis results
-- DEP: Upgrade to Django 3.2
-- DEP: Upgrade to fontawesome 5
-- DEP: Upgrade to Postgres 13.4
-- DEP: Upgrade to SurfaceTopography 0.98.0 (#730, #734)
-- DEP: Upgrade to ContactMechanics 0.91.0
-- DEP: Upgrade of several other packages
-- DEP: Upgrade of sqlparse because of CVE
-
-## 0.15.1 (2021-08-05)
-
-- BUG: Removed unneeded form fields for instrument
-  details.
-
-## 0.15.0 (2021-08-05)
-
-- ENH: Added entry for instrument details for
-  measurements (name, instrument type and parameters);
-  specific parameters are saved in JSON field
-  depending on instrument type, default type
-  or all measurements is 'undefined'; this data will
-  be used later for reliability analysis (#620)
-- ENH: Enhanced layout of XLSX files with analysis
-  data for analysis functions Height/Slope/Curvature 
-  Distribution, Power Spectrum, Autocorrelation, 
-  Scale-dependent slope, variable bandwidth (#669)
-- ENH: Added anonymous distribution with number of
-  measurement uploads over users to Excel file with
-  usage statistics (#693)
-- ENH: Added support for SPM file format 
-  as newer DI files that contain 32-bit data (#695)  
-- BUG: Unified order of measurements in surface details
-  and when switching between measurements (#703)
-- DEP: Upgrade for several dependencies, e.g. 
-  SurfaceTopography to version 0.95.1 (#697),
-  upgrade of urllib3 because of a CVE
-- DEP: Using now PostgreSQL also for tests because
-  of JSON fields
-
-## 0.14.0 (2021-07-01)
-
-- ENH: Added upper and lower bound of bandwidth to 
-  roughness parameter table (#677)
-- ENH: Removed restriction of column width of 
-  first column of roughness parameter table when
-  on "Analyze" tab, added horizontal scrollbar
-  instead (#560)
-- ENH: Cache containers of published 
-  surfaces in storage on first download, enabled
-  direct download of published surfaces  by adding 
-  "download/" to publication URL (#684)
-- ENH: Added note how to stop animation in the 
-  thumbnail gallery (#689)
-- ENH: New management command to align topography
-  sizes in database with reporting from 
-  SurfaceTopography (#685)
-- ENH: Added summary page for usage statistics with
-  monthly numbers (#572), also sorted sheets now
-  in descending order with the latest date first
-- BUG: Fixed wrong topography for plots and 
-  analysis results after changing significant
-  fields like detrend_mode, was introduced with 
-  0.13.0 (#590)
-- BUG: Workaround for NoneType exception happened
-  sometime when creating new topographies (#691)
-- BUG: Fixed missing commas in BibTeX and BibLaTeX
-  citations (#686)
-- BUG: Fixed statistics in output when correcting 
-  height scales via management command
-- BUG: Fixed cryptic error messages for analyses
-  on reentrant line scan, fixed display of "infinity"
-  in roughness parameter table (#683)
-- BUG: Improved error message if interpolation for 
-  averaging fails, shows failing measurement (#681)
-- BUG: Fixes in output of 'fix_height_scale' script  
-
-## 0.13.0 (2021-06-16)
-
-- improved performance when uploading new measurements 
-  by putting jobs into background and reducing file 
-  loads (#261)
-- now using a squeezed datafile internally for faster 
-  loading of measurements, also added management command
-  for recreating those files (#605, #661)
-- added publication date next to version number in 
-  table on select page (#608)
-- added 1D RMS curvature values for line scans and 
-  maps to table with roughness parameters (#660)
-- added management command 'fix_height_scale' (#678) 
-- fixed failing curvature distribution for 
-  uniform line scans (#663)
-- fixed loading of 2D xyz files (#659, #585)  
-- fixed incorrect scaling for OPD files (#675)  
-- fixed internal error when analysis card for 
-  contact mechanics in certain cases (#670)
-- fixed count when deleting analysis functions (#657)
-- fixed detrend mode option label "Remove curvature"
-  to "Remove curvature and tilt" (#580)
-- made display of bandwidth plot more slender for 
-  surfaces with only one measurement (#630)
-- upgraded to SurfaceTopography 0.94.0  
-- several updates of dependencies for security reasons  
-  
-## 0.12.0 (2021-05-20)
-
-- use acquisition time from data file as initial 
-  value for 'measurement date' after upload, if present (#433)
-- added buttons for selection and deselection of
-  measurements and averages to analysis result plots (#623)
-- on viewing a measurement, loading of the plot is
-  now done in the background for faster page access (#597)
-- fixes internal server error because of failing thumbnail
-  generation (#662)
-- fixes internal server error display, now show a more
-  friendly page with contact link and button to go 
-  back to site (#666)
-- fixes server error when downloading analyses data
-  for PSD for surfaces with only one measurement (#664)
-
-## 0.11.1 (2021-05-11)
-
-- added missing migrations
-
-## 0.11.0 (2021-05-10)
-
-- added "Download" button to individual surfaces to 
-  "Select" page (#618)
-- added "Download" button for downloading all surfaces
-  related to the current selection (#642)
-- make two different averages distinguishable in plot
-  widgets if one is published by adding version number
-  to label
-- renamed analysis function "RMS Values" to "Roughness Parameters";
-  added columns "from" and "symbol", added more values, show numbers 
-  as decimal powers (#651, #653)
-- no longer use "e" notation on plot axis, but scientific
-  notation with power of 10 (#636)  
-- moved labels of colorbars next to colorbars (#592)
-- in analyses results for height/slope/curvature distribution,
-  renamed data series from "RMS height/slope/curvature" to
-  "Gaussian fit" (#641)
-- changed surface container format in order to hold multiple
-  data files for measurements later (#652) 
-- upgrade to SurfaceTopography 0.93.0 (#643)  
-- upgrade to Django 2.2.20 because of CVE
-- upgrade of packages py and django-debug-toolbar because of CVEs
-- fixed bug that no average curve was shown if a surface
-  was selected by tag only (#632)
-- fixed management command "save_default_function_kwargs" (#621)  
-
-## 0.10.1 (2021-03-31)
-
-- added upgrade of pip in Dockerfile so no rust is needed 
-  for python package 'cryptography'
-
-## 0.10.0 (2021-03-31)
-
-- added surface analyses which calculates an average
-  over all topographies of a surface; implemented
-  for analysis functions "Power Spectrum", 
-  "Autocorrelation", and "Variable Bandwidth"; 
-  using a more generic analysis model in the backend 
-  where not only a topography can be subject to an 
-  analysis but also a surface or later other objects (#365, #602)
-- added analysis function "Scale-dependent Slope",
-  which also calculates an average over a surface (#403)  
-- added surface name to tooltip in plots, such that
-  topographies with same names can be distinguished (#567)
-- added widget for choosing opacity of topographies to 
-  analysis plots (#617)  
-- disabled creation of example surface for new users;
-  this is no longer needed since there are published
-  surfaces accessible for all users (#570)
-- added missing meta data for surfaces and topographies
-  to surface container download; now format can contain
-  multiple surfaces and licenses (#552, #614)
-- added management command 'import_surfaces' which can
-  be used to import surfaces containers previously downloaded
-  in the web app (#601) 
-- added small description on surface landing page (#574) 
-- added small description for bandwidth plot (#576)
-- removed plot title from many plots where not needed (#591)
-- changed mail address for contact (#619)   
-- uses SurfaceTopography version 0.92.0 now, 
-  which returns nonuniform PSD only up to a reasonable 
-  wavevector (#568)
-- upgrade of Pillow, jinja, lxml, PyYAML, pygments, and django 
-  because of CVEs
-- also show version numbers for numpy and scipy in version
-  information, also track those versions for analyses from
-  now on (#600)
-
-## 0.9.6 (2020-12-04)
-
-- added display of license when viewing a published 
-  surface (#566)
-- added "Please wait" label on "Recalculate" button
-  in contact mechanics when pressed
-- fixed load error in some cases when searching (#543)
-- fixed database error (foreign key violation) in logs 
-  if an analysis has been finished, but the corresponding
-  topography was already deleted in meanwhile - analysis
-  is deleted then (#500)
-- fixed error when too many topographies were 
-  selected (#330)
-
-## 0.9.5 (2020-12-01)
-
-- new layout: menu bar instead of tabs, 
-  selection bar below menu bar, nicer vertical pills (#532)
-- added counter for total requests (#562)
-- fix for RMS table in case of NaN values 
-- added dummy thumbnail if thumbnail is missing
-- fixed possibly wrong versions in contact mechanics 
-  download (#555)
-- switched back to usage of original django-tagulous (#549) 
-
-## 0.9.4 (2020-11-23)
-
-- added new analysis function "RMS Values" (#445)
-- autoscroll in select tab which moves selected 
-  row into view (#544)
-- improved bandwidth plot, removed labels
-  and added info box on hover with name and 
-  thumbnail of the corresponding topography (#535)
-- enabled custom sorting of sharing info table (#300)
-- usage statistics can be sent by email (#550)  
-- fixed wrong select tab state in session (#532)
-- renamed button "Properties" to "View" (#537)
-- on select tab, only showing first line of 
-  descriptions on load, rest expandable by 
-  button press (#540)
-- fixed ordering by surface name on publication tab
-
-## 0.9.3 (2020-11-12)
-
-- fixed XSS issues
-- fixed issue with "fix_permissions" management command
-  (#551)
-
-## 0.9.2 (2020-11-02)
-
-- fixed XSS issue
-
-## 0.9.1 (2020-11-02)
-
-- fixed missing dependencies for plotting in production
-
-## 0.9.0 (2020-11-02)
-
-- users can publish their surfaces (#317, #510, #517, #525)
-- anonymous session are allowed, users can browse published
-  surfaces and analyses without being signed in (#164)
-- added thumbnail gallery for topographies in a surface (#514)  
-- added tooltip to tab headers (#512)
-- adjusted dependencies to new repositories
-  resulting from splitting of PyCo package (#475)
-- removed plottable dependency, using now bokeh for bandwidth 
-  plot (#238) 
-- added terms and conditions version 2.0 (#491)
-- added anonymous counts for publication and surface
-  views and downloads (#511)
-- Fixing display of applied boundary conditions for contact
-  mechanics calculation (#519). Recalculation needed.
-- Removed banner that this is a beta release (#531)  
-
-## 0.8.3 (2020-06-26)
-
-- fix: added missing migration for ordering of topographies 
-
-## 0.8.2 (2020-06-26)
-
-- fix: added missing files for tab navigation 
-
-## 0.8.1 (2020-06-26)
-
-Several improvements and fixes for the user interface.
-
-- added button to basket which allows to deselect all items (#466)
-- added widget for changing page size of the result table
-  on the "Select" page (#469)
-- saving state of filters and paging on Select tab in session (#494)  
-- removed "back" buttons not needed any more because of
-  tabbed interface (#473)
-- simplified tab titles, fixing strange tab behavior for 
-  long tab titles (#470)
-- added ">>" to tab titles in order to visualize workflow (#484)  
-- tab "Analyze" is only shown if an "Analyze" button has been pressed,
-  added "Analyze" button to basket (#481)
-- in contact mechanics plot, replaced interactive legend by
-  a collapsed list of checkboxes increasing the plot area (#472)
-- replaced loading indicator for tree on "Select" page (#461) 
-- fixing wrong mail configuration in production (#130, #292)
-- fixing overlapping pills in detail view for surfaces and
-  topographies (#471)
-- fixed too many tags shown in tag tree when using filtering (#465)
-- fixed missing tabs when displaying terms and conditions (#474)
-- fixed wrong message in analyses view if no analyses available,
-  but some items have been selected (#485)
-- if analyses are about to be shown which have not been triggered yet,
-  these analyses are triggered automatically (#402)
-- when sharing a surface, it is assured that analyses for the standard arguments
-  of all automatic functions are available for the user the surface is
-  shared with (#388)
-- fixed bug in management command "trigger_analyses", now also replaces
-  existing analyses with other arguments than default arguments (#447)
-- update to Django 2.2.13 because of security issues (#488)
-- updated markdown2 dependency because of security issue (#458)
-
-## 0.8.0 (2020-05-19)
-
-This release mainly implements a redesign of the user interface.
-
-- replaced links in navigation bar and breadcrumbs 
-  by tabbed interface (#370, #463, #462), search page is
-  now called "Select"
-- search field is placed in the navigation bar, search can be
-  done from everywhere (#419)
-- search is done servers-side, result is shown page by page (#418, #380)
-- tags can also be selected for analysis        
-- removed card in detail view of topography and surface (#422)
-- added simple CSV file with plot data in the ZIP archive
-  when downloading data from contact mechanics calculations (#459)
-- maximum number of iterations for contact mechanics calculations 
-  can be specified by the user (#460)
-- fixed that retriggering of analyses could result in different
-  default arguments (#457)
-- added management script to unify function arguments for exisiting
-  analyses (#468)
-- fixed different number of allowed steps for automatic and manual
-  step selection in contact mechanics calculations (#455)
-
-## 0.7.6 (2020-04-06)
-
-- contact mechanics: added option for manual pressure selection by entering a 
-  list of numbers (in addition to automatic pressure selection given the number 
-  of values, #452)
-- upgrade of Pillow library because of security issues (#454)
-
-## 0.7.5 (2020-02-27)
-
-- added help page with supported file formats, descriptions for the readers
-  are defined in PyCo (#424)
-- management command 'trigger_analyses' now can trigger analyses also 
-  for given functions or specific analyses
-- added management command 'notify_users' for sending a simple notification 
-  to all users (#437)
-- more consistent orientation of topography images,
-  including an upgrade to PyCo 0.56.0 (#440)
-- more robust when no channel name was given in data file (#441),
-  this seemed to generate a lot of exceptions in production
-  maybe resulting in too many database clients (#436)
-- fix for wrong units of special values (mean+rms) of slope and 
-  curvature distributions (#444)
-- fix for problem when loading line scans without position (#446)
-- upgrade to Django 2.2.10 (#439)
-
-## 0.7.4 (2020-02-14)
-
-- problems during loading of topographies which could already
-  be loaded earlier now show error message and a mailto link
-  in order to report the issue (#416)
-- format detection is only done once file has been uploaded (#412)
-- added collection of anonymous usage statistics in local database
-  (#147, #427, #431); a non-personal overview with aggregated values per day
-  can be exported via the management command "export_usage_statistics" 
-- make sure there is no intermediate login page when pressing
-  on colored boxes on welcome page (#423)
-- upgrade to Django 2.2.9 (#417) 
-- upgrade to PyCo 0.55.0 (#428), this fixes problems with
-  various file format (see PyCo's changelog for details)
-- fix for endless recursion on 404 responses (#367), should also
-  fix problems with too many database connections (#436)
-  
-## 0.7.3 (2019-12-20)
-
-- fixes wrong orientation in topography image plots (#253,#378)
-- fixes internal server error with existing ibw files (#413)
-- fixes white description in active row of search list (#414)
-
-## 0.7.2 (2019-12-13)
-
-- further improvements on the usability of the surface list (#381)
-- added menu option to mark all notifications as read (#391)
-- removed tabs from card headers and shifted them as tabs
-  to relevant places in order to make clear which part changes
-  when choosing another tab (#372) 
-- replace / in sheet names before saving xlsx from analyses (#77),
-  was closed already but we forgot slashes in topography names
-- hide selection of topographies and series in analysis view by 
-  default (#310, #404); also clip too long topography names here
-- in contact plot, show for each point a small over showing 
-  whether a point properly converged or not, as well as values 
-  from the axes (#297, #406)
-- jump to surfaces, topographies or sharing page when clicking 
-  the statistics panel (#248) 
-- upgraded pillow package which had security issues (#400)
-- upgraded PyCo package to version 0.54.2
-- fix that curvature distribution can be calculated for
-  periodic surfaces (#382)
-- fix for missing "is_periodic" in pipeline which made e.g. that    
-  PSD couldn't be calculated nonuniform topographies (#409) 
-- OPDx files can now be loaded (#325)  
-- fix for topographies from HDF5 files which could't be flagged 
-  as periodic (#399)   
-- match aspect ratio in displacement plots (#277)
-- made task information larger, topography names which cannot
-  be broken down to lines are now limited by ellipsis (#252)  
-- fixes color of "Recalculate" button (#405)   
-- removed unneeded white space in contact mechanics' README file
-- don't show "Arguments for this analysis differ" in analyses results
-  if nothing is selected; instead, show an info box that no surfaces 
-  and topographies have been chosen yet (#408)
-   
-## 0.7.1 (2019-11-22)
-
-- added "is_periodic" flag for topographies (#347)
-- added help texts explaining the asterisk in forms (#305)
-- added reference to analyses' download files which user has
-  uploaded a topography file (#188)
-- unified "please wait" indicators when loading analysis results by AJAX (#236)
-- showing notification time stamps now in local time zone
-- showing now 403 page if entering a URL which tries to
-  access a surface which is no longer accesible
-- showing now 404 page also for topography urls which do not exist
-  (before server error) 
-- fixed invalid links in notifications when an object is deleted (#363)
-- fixed invisible topographies in surface list when filtering for category/sharing status (#376)
-- improved some visual aspects in surface list (#381, not finished yet)
- 
-## 0.7.0 (2019-10-23)
-
-- surfaces and topographies can now be tagged (#52)
-- hierachical tags can be used when inserting slashes in the tag name, 
-  e.g. "projects/big/part_one" (#266)
-- replaced view of surfaces by cards with a tree widget, either listing
-  all surfaces with topographies, or listing all top level tags which build 
-  the main branches of a tag tree; all entries can be searched by name,
-  description and tags (#304,#266)  
-- search tree can be filtered by sharing state and category (#185)   
-- using checkboxes for selecting analysis functions (#271)
-- failed analyses are retriggered now when requested again (#371)
-
-## 0.6.3 (2019-10-07)
-
-- added migrations needed for bug fix (#366)
-- fixed setting of topography creator to NULL if uploading user
-  is removed
-
-## 0.6.2 (2019-10-07)
-
-- bug fix for race conditions while managing dependency versions,
-  stopped new analyses (#366)
-  
-## 0.6.1 (2019-09-24)
-
-- added notifications through a "bell" symbol in the navigation bar
-  (#26,#332); notifications are stored in the database and shown 
-  to a logged-in user; they're triggered by these events:
-   
-  + a surface is shared or unshared with the current user 
-  + a user gets change access to a surface
-  + a shared item was edited
-  + a collection of analyses, which has been manually triggered
-    has been finished
-  + an example surface was created on first login
-           
-- plotting now line scans with lines; symbols are also used
-  if no more than 100 points (#312)
-- internal change: analyses are now saved for every combination of topography,
-  function and arguments; for each user a specific combination
-  is shown; one benefit is if user selects already known parameters,
-  the result is immediately there (#208)
-- workaround for missing points in PSD plots (#356)   
-  
-  
-## 0.6.0 (2019-08-09)
-
-- fixed sheet names for XLSX download of analysis data (#39,#77)
-- fixed version numbers for used dependencies, they are tracked now (#176)
-- tab "Warnings" instead of "Failures", incompatible topographies
-  for an analysis function is shown as information in a blue box;
-  hint about translucent points are shown as warning in a yellow box;
-  exceptions in analyses are now shown as error, together with a link
-  which makes it easy to send a bug report as e-mail with detailed 
-  information (#230)
-- extended management command "trigger_analyses" such that failed
-  analyses can be retriggered
-- ported backend to use newer PyCo version 0.51.1 (#289),
-  among other things this release allows to load HDF5 files (302) 
-  and OPDX files (#325), more memory efficient caching of file
-  contents 
-- now shows an error message when file contents are corrupt
-- updated dependencies  
-  
-   
-## 0.5.7 (2019-07-24)
-
-- workaround: increased limit for maximum request line (#328)
-- fix for server error when uploading files with space in filename (#329)
-
-## 0.5.6 (2019-07-23)
-
-- changed site address for Caddy server to be just the domain name
-
-## 0.5.5 (2019-07-23)
-
-- fixed wrong heights in topography data, using PyCo 0.32.1 now (#295,#320)
-- changed buttons in when editing topographies
-  and added tooltips to chevron buttons in order to  make
-  more clear how batch editing works (#262)
-- showing a spinner every time a point is chosen in contact mechanics (#288)
-- workaround for tooltips on multiple data points in 1D plot (#246) 
-
-## 0.5.4 (2019-07-16)
-
-- fix for wrong height scale in case automated unit conversion
-  was applied on upload (#290), metadata of already uploaded 
-  topographies (size+unit) may be wrong
-- added buttons and a menu entry to directly show analyses
-  for the surface/topography the user is looking at (#264)
-  
-## 0.5.3 (2019-07-15)
-
-- fixes for slow PSD calculations for line scans with lots of data points,
-  using PyCo 0.32.0 now (#269)
-- in analysis plots, replace crosshair with inspect tool (#256,#284)
-- fixes wrong messages about differing function arguments (#285,#251)
-- checking now permissions when downloading data (#286)
-
-## 0.5.2 (2019-07-12)
-
-- workaround for slow autocorrelation computation for
-  nonuniform topographies with a large number of data points
-- navigation chevron buttons also in topography update form
-
-## 0.5.1 (2019-07-11)
-
-- cosmetic changes like e.g. harmonizing sizes and loading
-  behavior of opened surface and analyses cards
-
-## 0.5.0 (2019-07-11)
-
-- added contact mechanics analysis and visualization (#84)
-- added progress bars for analysis tasks (#202)
-- old analyses for same topography and same function will 
-  be deleted (#221)
-- added download of contact mechanics data (#228)
-- added download of surface container archive (#48)
-- fixed wrong unit conversion in analysis plots (#240)
-- fixed sometimes wrong target url for cancel button in 
-  upload wizard (#237)
-
-## 0.4.2 (2019-06-13)
-
-- added missing template fragment which caused crashes in analyses view (#216)
-
-## 0.4.1 (2019-06-12)
-
-- allow case-insensitive search for user names (#192)
-- fixes wrong task information for cards in analyses view (#209)
-- empty surfaces can now be selected and edited (#214)
-- fixes for image plots of topographies (#76, #213)
-- workaround for crash when uploading large file (#212)
-- version upgrades: celery, bokeh, caddy, gunicorn
-
-## 0.4.0 (2019-05-28)
-
-- more responsive surface list through AJAX calls (#203)
-- added progress bar when uploading a topography file (#127)
-- added statistics about shared surfaces (#196)
-- improved layout of surface search results and surface detail view,
-  added detail view for analyses with similar layout (#197,#204)
-- added bookmarking the user who uploaded a topography (#181)
-- fixed bug, that users couldn't upload topographies for shared surfaces (#205)
-- fixed target for cancel button when editing surface details (#198)
-
-## 0.3.1 (2019-05-10)
-
-- fixes bug that analyses results were not shown for shared surfaces (#186)
-- fixes bug that single topographies couldn't be selected in surface list (#190)
-- in order to find user names you have to type at least 3 characters (#184)
-- fixes highlighting and breadcrumb for "Sharing" page in navigation bar (#187)
-- improves display of help texts in topography forms (#180)
-- added truncation for too long breadcrumb items in navigation bar (#134)
-
-## 0.3.0 (2019-05-08)
-
-- surfaces can be shared for viewing and optionally also for changing
-- user can view/select each others profiles if they collaborate, i.e. share something
-- shares for a surface are listed in an extra tab
-- all related shares between users are listed in a "Sharing" page accesible from top menu bar
-- exisiting shares can be deleted or extended in order to allow changing a surface
-- prevent duplicate topography names for same surface (fixes #91)
-- topographies with angstrom units can now be display in summary plot (fixes #161)
-
-## 0.2.0 (2019-04-24)
-
-- added category to surfaces (experimental/simulated/dummy data, #145)
-- show units to users even if they cannot be changed (#149)
-- added widgets for picking measurement dates (#141)
-- in surface summary, sort bandwidth bars by lower bound (#85)
-- added statistics on welcome page (#148)
-- other bug fixes: #98
-
-## 0.1 (2019-04-17)
-
-- login via ORCID
-- creation of surfaces with metadata
-- uploading topography measurements for a surface together with metadata
-- example surface with test data for new users
-- zoom into topography surfaces or line scan plots
-- automated analyses for topographies and line scans: 
-  height/slope/curvature distribution, power spectrum, autocorrelation
-- compare analysis results by stitching plots
-- download of analysis results as png, xlsx, or text file
-- ask user for terms and conditions, also optional terms are possible
-- storage of topography files on S3 backend
+- BUILD: Upgrade to Django 3.2
+- BUILD: Upgrade to Font Awesome 5
+- BUILD: Upgrade to PostgreSQL 13.4
+- BUILD: Upgrade to SurfaceTopography 0.98.0
+- BUILD: Upgrade to ContactMechanics 0.91.0
+- BUILD: Upgrade of several other packages
+- SEC: Upgrade of sqlparse because of a CVE
+
+v0.15.1 (05Aug21)
+-----------------
+
+- BUG: Removed unneeded form fields for instrument details
+
+v0.15.0 (05Aug21)
+-----------------
+
+- ENH: Instrument details for measurements (name, type, type-specific parameters; default type
+  undefined), for later reliability analysis
+- ENH: Improved layout of XLSX analysis downloads for height, slope and curvature distributions,
+  power spectrum, autocorrelation, scale-dependent slope and variable bandwidth
+- ENH: Added anonymous distribution of measurement uploads over users to the usage statistics Excel
+  file
+- ENH: Added support for SPM files as newer DI files that contain 32-bit data
+- BUG: Unified order of measurements in surface details and when switching between measurements
+- BUILD: Upgrade of several dependencies, e.g. SurfaceTopography to 0.95.1
+- SEC: Upgrade of urllib3 because of a CVE
+- TST: PostgreSQL is now also used for tests because of JSON fields
+
+v0.14.0 (01Jul21)
+-----------------
+
+- ENH: Added upper and lower bound of bandwidth to roughness parameter table
+- ENH: First column of the roughness parameter table on the "Analyze" tab is no longer
+  width-restricted; horizontal scrollbar added
+- ENH: Containers of published surfaces are cached on first download, and can be downloaded directly
+  via the publication URL
+- ENH: Added note on how to stop animation in the thumbnail gallery
+- ENH: New command to align topography sizes in the database with those reported by
+  SurfaceTopography
+- ENH: Added summary page with monthly numbers to usage statistics; sheets now sorted with the
+  latest date first
+- BUG: Fixed wrong topography in plots and analysis results after changing significant fields such
+  as detrend mode (since 0.13.0)
+- BUG: Workaround for an exception sometimes raised when creating new topographies
+- BUG: Fixed missing commas in BibTeX and BibLaTeX citations
+- BUG: Fixed statistics in output when correcting height scales via command
+- BUG: Fixed cryptic error messages for analyses on reentrant line scans and display of "infinity"
+  in roughness parameter table
+- BUG: Improved error message if interpolation for averaging fails, showing the failing measurement
+- BUG: Fixes in output of the height scale fix script
+
+v0.13.0 (16Jun21)
+-----------------
+
+- PERF: Faster upload of new measurements by running jobs in the background and reducing file loads
+- PERF: Faster loading of measurements from an internal squeezed data file; added command to
+  recreate these files
+- ENH: Added publication date next to version number in table on select page
+- ENH: Added 1D RMS curvature values for line scans and maps to table with roughness parameters
+- ENH: Added command to fix height scales
+- BUG: Fixed failing curvature distribution for uniform line scans
+- BUG: Fixed loading of 2D XYZ files
+- BUG: Fixed incorrect scaling for OPD files
+- BUG: Fixed internal error in contact mechanics analysis card in certain cases
+- BUG: Fixed count when deleting analysis functions
+- BUG: Renamed detrend mode option "Remove curvature" to "Remove curvature and tilt"
+- ENH: Made bandwidth plot more slender for surfaces with only one measurement
+- BUILD: Upgraded to SurfaceTopography 0.94.0
+- SEC: Several dependency updates for security reasons
+
+v0.12.0 (20May21)
+-----------------
+
+- ENH: Use the acquisition time from the data file, if present, as initial measurement date after
+  upload
+- ENH: Add buttons to select and deselect all measurements and averages in analysis result plots
+- PERF: Load the plot in the background when viewing a measurement, for faster page access
+- BUG: Fix internal server error caused by failing thumbnail generation
+- BUG: Show a friendlier server error page with a contact link and a button to go back to the site
+- BUG: Fix server error when downloading PSD analysis data for surfaces with only one measurement
+
+v0.11.1 (11May21)
+-----------------
+
+- BUG: Add missing database migrations
+
+v0.11.0 (10May21)
+-----------------
+
+- ENH: Add "Download" button for individual surfaces to the "Select" page
+- ENH: Add "Download" button for all surfaces related to the current selection
+- ENH: Make two averages distinguishable in plot widgets by adding the version number to the label
+  if one is published
+- ENH: Rename analysis "RMS Values" to "Roughness Parameters"; add columns "from" and "symbol" and
+  more values, show numbers as decimal powers
+- ENH: Use scientific notation with powers of 10 instead of "e" notation on plot axes
+- ENH: Move colorbar labels next to the colorbars
+- ENH: Rename data series "RMS height/slope/curvature" to "Gaussian fit" in height, slope and
+  curvature distribution results
+- API: Change the surface container format so that measurements can hold multiple data files later
+- BUILD: Upgrade to SurfaceTopography 0.93.0
+- SEC: Upgrade to Django 2.2.20 because of a CVE
+- SEC: Upgrade py and django-debug-toolbar because of CVEs
+- BUG: Fix missing average curve when a surface was selected by tag only
+- BUG: Fix administrative command that stores default analysis function arguments
+
+v0.10.1 (31Mar21)
+-----------------
+
+- BUILD: Upgrade pip in the Docker image so that no Rust is needed to install the cryptography
+  package
+
+v0.10.0 (31Mar21)
+-----------------
+
+- ENH: Add surface analyses averaging over all topographies of a surface for "Power Spectrum",
+  "Autocorrelation" and "Variable Bandwidth", based on a more generic analysis model
+- ENH: Add analysis function "Scale-dependent Slope", which also calculates an average over a
+  surface
+- ENH: Show the surface name in plot tooltips to distinguish topographies with the same name
+- ENH: Add widget for choosing the opacity of topographies to analysis plots
+- MAINT: No longer create an example surface for new users, since published surfaces are accessible
+  to all users
+- ENH: Add missing metadata for surfaces and topographies to the surface container download; the
+  format can now hold multiple surfaces and licenses
+- MAINT: Add administrative command to import surface containers previously downloaded from the web
+  app
+- DOC: Add a short description on the surface landing page
+- DOC: Add a short description for the bandwidth plot
+- ENH: Remove plot titles from many plots where they are not needed
+- MAINT: Change the contact mail address
+- BUILD: Upgrade to SurfaceTopography 0.92.0, which returns the nonuniform PSD only up to a
+  reasonable wavevector
+- SEC: Upgrade Pillow, Jinja, lxml, PyYAML, Pygments and Django because of CVEs
+- ENH: Show numpy and scipy versions in the version information and track them for analyses from now
+  on
+
+v0.9.6 (04Dec20)
+----------------
+
+- ENH: Show the license when viewing a published surface
+- ENH: Show "Please wait" label on the contact mechanics "Recalculate" button when pressed
+- BUG: Fix load error in some cases when searching
+- BUG: Fix database error in logs when an analysis finished after its topography was deleted; such
+  analyses are now deleted
+- BUG: Fix error when too many topographies were selected
+
+v0.9.5 (01Dec20)
+----------------
+
+- ENH: New layout with a menu bar instead of tabs, a selection bar below the menu bar and nicer
+  vertical pills
+- ENH: Add counter for total requests
+- BUG: Fix RMS table in case of NaN values
+- ENH: Show a placeholder thumbnail if a thumbnail is missing
+- BUG: Fix possibly wrong versions in contact mechanics download
+- BUILD: Switch back to the original django-tagulous package
+
+v0.9.4 (23Nov20)
+----------------
+
+- ENH: Add analysis function "RMS Values"
+- ENH: Autoscroll the selected row into view on the select tab
+- ENH: Improve bandwidth plot: remove labels, add an info box on hover with name and thumbnail of
+  the topography
+- ENH: Allow custom sorting of the sharing info table
+- ENH: Usage statistics can be sent by email
+- BUG: Fix wrong select tab state in session
+- ENH: Rename button "Properties" to "View"
+- ENH: Show only the first line of descriptions on the select tab, the rest is expandable by button
+- BUG: Fix ordering by surface name on the publication tab
+
+v0.9.3 (12Nov20)
+----------------
+
+- SEC: Fix cross-site scripting (XSS) issues
+- BUG: Fix issue with the administrative command for fixing permissions
+
+v0.9.2 (02Nov20)
+----------------
+
+- SEC: Fix cross-site scripting (XSS) issue
+
+v0.9.1 (02Nov20)
+----------------
+
+- BUG: Fix missing plotting dependencies in production
+
+v0.9.0 (02Nov20)
+----------------
+
+- ENH: Users can publish their surfaces
+- ENH: Allow anonymous sessions, so users can browse published surfaces and analyses without signing
+  in
+- ENH: Add thumbnail gallery for topographies in a surface
+- ENH: Add tooltips to tab headers
+- BUILD: Adjust dependencies to the new repositories resulting from the split of the PyCo package
+- MAINT: Replace the plottable dependency by Bokeh for the bandwidth plot
+- ENH: Add terms and conditions version 2.0
+- ENH: Add anonymous counts of publication and surface views and downloads
+- BUG: Fix display of applied boundary conditions for contact mechanics calculations; recalculation
+  needed
+- MAINT: Remove banner stating that this is a beta release
+
+v0.8.3 (26Jun20)
+----------------
+
+- BUG: Add missing database migration for ordering of topographies
+
+v0.8.2 (26Jun20)
+----------------
+
+- BUG: Add missing files for tab navigation
+
+v0.8.1 (26Jun20)
+----------------
+
+- ENH: Add button to the basket which deselects all items
+- ENH: Add widget for changing the page size of the result table on the "Select" page
+- ENH: Save state of filters and paging on the "Select" tab in the session
+- ENH: Remove "back" buttons no longer needed because of the tabbed interface
+- BUG: Simplify tab titles, fixing strange tab behavior for long tab titles
+- ENH: Add ">>" to tab titles to visualize the workflow
+- ENH: Show tab "Analyze" only after an "Analyze" button was pressed; add "Analyze" button to the
+  basket
+- ENH: Replace the interactive legend in the contact mechanics plot by a collapsed list of
+  checkboxes, enlarging the plot area
+- ENH: Replace loading indicator for the tree on the "Select" page
+- BUG: Fix wrong mail configuration in production
+- BUG: Fix overlapping pills in detail view for surfaces and topographies
+- BUG: Fix too many tags shown in the tag tree when filtering
+- BUG: Fix missing tabs when displaying terms and conditions
+- BUG: Fix wrong message in analyses view if no analyses are available but some items are selected
+- ENH: Automatically trigger analyses that are about to be shown but have not been triggered yet
+- ENH: When sharing a surface, ensure analyses with standard arguments of all automatic functions
+  are available to the recipient
+- BUG: Fix administrative command for triggering analyses; it now also replaces analyses with
+  non-default arguments
+- SEC: Update to Django 2.2.13 because of security issues
+- SEC: Update markdown2 because of a security issue
+
+v0.8.0 (19May20)
+----------------
+
+- ENH: Redesign the user interface
+- ENH: Replace links in navigation bar and breadcrumbs by a tabbed interface; the search page is now
+  called "Select"
+- ENH: Place the search field in the navigation bar, so search can be done from everywhere
+- ENH: Search is done server-side and results are shown page by page
+- ENH: Tags can also be selected for analysis
+- ENH: Remove card in detail view of topography and surface
+- ENH: Add a simple CSV file with plot data to the ZIP archive of contact mechanics downloads
+- ENH: Maximum number of iterations for contact mechanics calculations can be specified by the user
+- BUG: Fix that retriggering of analyses could result in different default arguments
+- MAINT: Add administrative script to unify function arguments of existing analyses
+- BUG: Fix different number of allowed steps for automatic and manual step selection in contact
+  mechanics
+
+v0.7.6 (06Apr20)
+----------------
+
+- ENH: Contact mechanics: allow manual pressure selection by entering a list of numbers, in addition
+  to automatic selection by number of values
+- SEC: Upgrade Pillow because of security issues
+
+v0.7.5 (27Feb20)
+----------------
+
+- DOC: Add help page with supported file formats, using reader descriptions from PyCo
+- MAINT: Administrative command for triggering analyses can now target given functions or specific
+  analyses
+- MAINT: Add administrative command for sending a simple notification to all users
+- ENH: More consistent orientation of topography images, including an upgrade to PyCo 0.56.0
+- BUG: More robust handling of data files without channel name, which caused many exceptions and
+  possibly too many database clients
+- BUG: Fix wrong units of special values (mean, RMS) of slope and curvature distributions
+- BUG: Fix loading of line scans without position
+- BUILD: Upgrade to Django 2.2.10
+
+v0.7.4 (14Feb20)
+----------------
+
+- ENH: Loading problems for topographies that could be loaded earlier now show an error message and
+  a mailto link to report the issue
+- ENH: Format detection is only done once the file has been uploaded
+- ENH: Collect anonymous usage statistics in the local database; non-personal daily aggregates can
+  be exported by administrators
+- BUG: Avoid intermediate login page when clicking the colored boxes on the welcome page
+- BUILD: Upgrade to Django 2.2.9
+- BUILD: Upgrade to PyCo 0.55.0, which fixes problems with various file formats
+- BUG: Fix endless recursion on 404 responses, which should also fix problems with too many database
+  connections
+
+v0.7.3 (20Dec19)
+----------------
+
+- BUG: Fix wrong orientation in topography image plots
+- BUG: Fix internal server error with existing IBW files
+- BUG: Fix white description in the active row of the search list
+
+v0.7.2 (13Dec19)
+----------------
+
+- ENH: Further improve usability of the surface list
+- ENH: Add menu option to mark all notifications as read
+- ENH: Move tabs from card headers to the relevant places to make clear which part changes when
+  switching tabs
+- BUG: Replace slashes in sheet names before saving XLSX from analyses, since topography names may
+  contain them
+- ENH: Hide selection of topographies and series in analysis view by default and clip too long
+  topography names
+- ENH: In the contact plot, show on hover whether each point converged properly, together with the
+  axis values
+- ENH: Jump to surfaces, topographies or sharing page when clicking the statistics panel
+- SEC: Upgrade Pillow because of security issues
+- BUILD: Upgrade PyCo to 0.54.2
+- BUG: Fix calculation of the curvature distribution for periodic surfaces
+- BUG: Fix missing periodicity information that prevented PSD calculation for nonuniform
+  topographies
+- ENH: OPDx files can now be loaded
+- BUG: Fix that topographies from HDF5 files could not be flagged as periodic
+- ENH: Match aspect ratio in displacement plots
+- ENH: Make task information larger and shorten unbreakable topography names with an ellipsis
+- BUG: Fix color of "Recalculate" button
+- MAINT: Remove unneeded whitespace in the contact mechanics README file
+- ENH: If nothing is selected, show an info box that no surfaces or topographies are chosen instead
+  of "Arguments for this analysis differ"
+
+v0.7.1 (22Nov19)
+----------------
+
+- ENH: Add periodicity flag for topographies
+- DOC: Add help texts explaining the asterisk in forms
+- ENH: Add reference to the uploading user to the download files of analyses
+- ENH: Unify "please wait" indicators when loading analysis results
+- ENH: Show notification time stamps in the local time zone
+- BUG: Show 403 page when accessing a surface that is no longer accessible
+- BUG: Show 404 page instead of a server error for topographies that do not exist
+- BUG: Fix invalid links in notifications when an object is deleted
+- BUG: Fix invisible topographies in surface list when filtering by category or sharing status
+- ENH: Improve some visual aspects of the surface list (not finished yet)
+
+v0.7.0 (23Oct19)
+----------------
+
+- ENH: Surfaces and topographies can now be tagged
+- ENH: Hierarchical tags can be created by inserting slashes in the tag name, e.g.
+  "projects/big/part_one"
+- ENH: Replace surface cards by a searchable tree listing surfaces with topographies or top-level
+  tags; search by name, description and tags
+- ENH: Search tree can be filtered by sharing state and category
+- ENH: Use checkboxes for selecting analysis functions
+- BUG: Retrigger failed analyses when they are requested again
+
+v0.6.3 (07Oct19)
+----------------
+
+- BUG: Add database migrations needed for the bug fix in 0.6.2
+- BUG: Fix setting the topography creator to empty if the uploading user is removed
+
+v0.6.2 (07Oct19)
+----------------
+
+- BUG: Fix race conditions while managing dependency versions, which stopped new analyses
+
+v0.6.1 (24Sep19)
+----------------
+
+- ENH: Add notifications via a bell symbol in the navigation bar for sharing changes, granted change
+  access, edits of shared items, finished analyses and new example surfaces
+- ENH: Plot line scans with lines; symbols are also used if there are no more than 100 points
+- PERF: Save analyses for every combination of topography, function and arguments, so results for
+  known parameters appear immediately
+- BUG: Work around missing points in PSD plots
+
+v0.6.0 (09Aug19)
+----------------
+
+- BUG: Fix sheet names for XLSX download of analysis data
+- BUG: Fix version numbers of used dependencies, which are now tracked
+- ENH: Rename tab "Failures" to "Warnings"; show incompatibilities as info, translucent points as
+  warning, exceptions as error with a bug report link
+- MAINT: Administrative command for triggering analyses can now retrigger failed analyses
+- ENH: Port backend to PyCo 0.51.1, which can load HDF5 and OPDx files and caches file contents more
+  memory-efficiently
+- ENH: Show an error message when file contents are corrupt
+- BUILD: Update dependencies
+
+v0.5.7 (24Jul19)
+----------------
+
+- BUG: Work around request failures by increasing the limit for the maximum request line
+- BUG: Fix server error when uploading files with a space in the filename
+
+v0.5.6 (23Jul19)
+----------------
+
+- MAINT: Change site address for the Caddy server to just the domain name
+
+v0.5.5 (23Jul19)
+----------------
+
+- BUG: Fix wrong heights in topography data by using PyCo 0.32.1
+- ENH: Change buttons when editing topographies and add tooltips to chevron buttons to clarify batch
+  editing
+- ENH: Show a spinner every time a point is chosen in contact mechanics
+- BUG: Work around tooltips on multiple data points in 1D plots
+
+v0.5.4 (16Jul19)
+----------------
+
+- BUG: Fix wrong height scale if unit conversion was applied on upload; size and unit of already
+  uploaded topographies may be wrong
+- ENH: Add buttons and a menu entry to directly show analyses for the surface or topography being
+  viewed
+
+v0.5.3 (15Jul19)
+----------------
+
+- PERF: Fix slow PSD calculation for line scans with many data points by using PyCo 0.32.0
+- ENH: Replace crosshair with inspect tool in analysis plots
+- BUG: Fix wrong messages about differing function arguments
+- SEC: Check permissions when downloading data
+
+v0.5.2 (12Jul19)
+----------------
+
+- PERF: Work around slow autocorrelation computation for nonuniform topographies with many data
+  points
+- ENH: Add navigation chevron buttons also to the topography update form
+
+v0.5.1 (11Jul19)
+----------------
+
+- ENH: Cosmetic changes, e.g. harmonized sizes and loading behavior of opened surface and analysis
+  cards
+
+v0.5.0 (11Jul19)
+----------------
+
+- ENH: Add contact mechanics analysis and visualization
+- ENH: Add progress bars for analysis tasks
+- ENH: Delete old analyses for the same topography and function
+- ENH: Add download of contact mechanics data
+- ENH: Add download of surface container archive
+- BUG: Fix wrong unit conversion in analysis plots
+- BUG: Fix sometimes wrong target of the cancel button in the upload wizard
+
+v0.4.2 (13Jun19)
+----------------
+
+- BUG: Add missing template fragment which caused crashes in the analyses view
+
+v0.4.1 (12Jun19)
+----------------
+
+- ENH: Allow case-insensitive search for user names
+- BUG: Fix wrong task information for cards in the analyses view
+- BUG: Empty surfaces can now be selected and edited
+- BUG: Fix image plots of topographies
+- BUG: Work around crash when uploading large files
+- BUILD: Upgrade Celery, Bokeh, Caddy and Gunicorn
+
+v0.4.0 (28May19)
+----------------
+
+- PERF: More responsive surface list through asynchronous loading
+- ENH: Add progress bar when uploading a topography file
+- ENH: Add statistics about shared surfaces
+- ENH: Improve layout of surface search results and surface detail view; add analysis detail view
+  with similar layout
+- ENH: Record the user who uploaded a topography
+- BUG: Fix that users could not upload topographies for shared surfaces
+- BUG: Fix target of the cancel button when editing surface details
+
+v0.3.1 (10May19)
+----------------
+
+- BUG: Fix analysis results not being shown for shared surfaces
+- BUG: Fix that single topographies could not be selected in the surface list
+- ENH: Require at least 3 characters when searching for user names
+- BUG: Fix highlighting and breadcrumb for the "Sharing" page in the navigation bar
+- ENH: Improve display of help texts in topography forms
+- ENH: Truncate too long breadcrumb items in the navigation bar
+
+v0.3.0 (08May19)
+----------------
+
+- ENH: Surfaces can be shared for viewing and optionally also for changing
+- ENH: Users who collaborate, i.e. share something, can view and select each other's profiles
+- ENH: List shares of a surface in an extra tab
+- ENH: List all shares between users on a "Sharing" page reachable from the top menu bar
+- ENH: Existing shares can be deleted or extended to allow changing a surface
+- BUG: Prevent duplicate topography names within the same surface
+- BUG: Topographies with angstrom units can now be displayed in the summary plot
+
+v0.2.0 (24Apr19)
+----------------
+
+- ENH: Add category to surfaces (experimental, simulated or dummy data)
+- ENH: Show units to users even if they cannot be changed
+- ENH: Add widgets for picking measurement dates
+- ENH: Sort bandwidth bars by lower bound in the surface summary
+- ENH: Add statistics on the welcome page
+
+v0.1 (17Apr19)
+--------------
+
+- ENH: Login via ORCID
+- ENH: Creation of surfaces with metadata
+- ENH: Upload of topography measurements for a surface together with metadata
+- ENH: Example surface with test data for new users
+- ENH: Zoom into topography or line scan plots
+- ENH: Automated analyses for topographies and line scans: height/slope/curvature distribution,
+  power spectrum, autocorrelation
+- ENH: Compare analysis results by stitching plots
+- ENH: Download of analysis results as PNG, XLSX or text file
+- ENH: Ask users to accept terms and conditions, optionally also additional terms
+- ENH: Storage of topography files on S3
