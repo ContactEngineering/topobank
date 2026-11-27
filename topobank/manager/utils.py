@@ -16,6 +16,7 @@ from SurfaceTopography import open_topography
 from SurfaceTopography.IO import ReaderBase
 from SurfaceTopography.IO import readers as surface_topography_readers
 from SurfaceTopography.IO.DZI import write_dzi
+from SurfaceTopography.IO.ZarrPyramid import write_zarr_pyramid
 from SurfaceTopography.Support.UnitConversion import (
     get_unit_conversion_factor,
     length_units,
@@ -451,6 +452,11 @@ def body_for_mailto_link_for_reporting_an_error(info, err_msg, traceback) -> str
     return body
 
 
+# Zoomable height pyramid (zipped OME-Zarr) next to the JPG pyramid in the
+# deepzoom folder of a topography
+PYRAMID_FILENAME = "pyramid.ozx"
+
+
 def render_deepzoom(
     data,
     folder,
@@ -460,7 +466,7 @@ def render_deepzoom(
     colorbar_title=None,
     cmap=None,
     storage_prefix="",
-    generate_netcdf=True,
+    generate_pyramid=True,
 ):
     """
     Make JPG Deep Zoom Image (DZI) files given data on a two-dimensional grid.
@@ -469,7 +475,9 @@ def render_deepzoom(
         1. A JSON file containing structural information on the file
         2. A set of image files at different zoom levels
 
-    Optionally also generates NetCDF tiles for the interactive Three.js viewer.
+    Optionally also writes the height values as a zoomable pyramid in a
+    single file, `PYRAMID_FILENAME`: a zipped OME-Zarr that the interactive
+    viewer reads with HTTP range requests.
 
     Parameters
     ----------
@@ -495,9 +503,9 @@ def render_deepzoom(
         (Default: None)
     storage_prefix : str, optional
         Prefix to attach in front of the DZI filenames. (Default: '')
-    generate_netcdf : bool, optional
-        If True, also generate NetCDF tiles alongside JPG tiles for the
-        interactive Three.js viewer. (Default: True)
+    generate_pyramid : bool, optional
+        If True, also write the height pyramid for the interactive viewer.
+        (Default: True)
     """
     with tempfile.TemporaryDirectory() as tmpdirname:
         try:
@@ -535,36 +543,27 @@ def render_deepzoom(
             # Upload to S3
             folder.save_file(storage_filename, "der", File(open(filename, mode="rb")))
 
-        # Generate NetCDF tiles for interactive viewer
-        if generate_netcdf:
+        # Height pyramid for the interactive viewer, in a single file
+        if generate_pyramid:
+            filename = os.path.join(tmpdirname, PYRAMID_FILENAME)
             try:
                 # This is a Topography
-                nc_filenames = data.to_dzi(
-                    "dzi-nc",
-                    root_directory=tmpdirname,
-                    meta_format="json",
-                    format="nc",
-                )
+                data.to_zarr_pyramid(filename)
             except AttributeError:
                 # This is likely just a numpy array
-                if physical_sizes is not None and unit is not None:
-                    nc_filenames = write_dzi(
+                if physical_sizes is None or unit is None:
+                    filename = None
+                else:
+                    write_zarr_pyramid(
                         data,
-                        "dzi-nc",
+                        filename,
                         physical_sizes,
                         unit,
-                        root_directory=tmpdirname,
-                        meta_format="json",
-                        format="nc",
+                        colorbar_title=colorbar_title,
+                        cmap=cmap,
                     )
-                else:
-                    nc_filenames = []
-            for filename in nc_filenames:
-                # Strip tmp directory
-                storage_filename = os.path.join(
-                    storage_prefix, filename[len(tmpdirname) + 1:]
-                )
-                # Upload to S3
-                folder.save_file(
-                    storage_filename, "der", File(open(filename, mode="rb"))
-                )
+            if filename is not None:
+                with open(filename, mode="rb") as f:
+                    folder.save_file(
+                        os.path.join(storage_prefix, PYRAMID_FILENAME), "der", File(f)
+                    )
